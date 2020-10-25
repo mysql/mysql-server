@@ -126,7 +126,8 @@ FastScheduler::doJob(Uint32 loopStartCount)
         globalEmulatorData.theThreadConfig->scanZeroTimeQueue();
       }
       // To ensure we find bugs quickly
-      Uint32 gsnbnr = theJobBuffers[tHighPrio].retrieve(signal);
+      Uint32 gsnbnr =
+        theJobBuffers[tHighPrio].retrieve(reinterpret_cast<Signal25*>(signal));
       // also strip any instance bits since this is non-MT code
       BlockNumber reg_bnr = gsnbnr & NDBMT_BLOCK_MASK;
       GlobalSignalNumber reg_gsn = gsnbnr >> 16;
@@ -225,7 +226,7 @@ void FastScheduler::sendPacked()
 }//FastScheduler::sendPacked()
 
 Uint32
-APZJobBuffer::retrieve(Signal* signal)
+APZJobBuffer::retrieve(Signal25* signal)
 {              
   Uint32 tOccupancy = theOccupancy;
   Uint32 myRPtr = rPtr;
@@ -302,7 +303,7 @@ APZJobBuffer::retrieve(Signal* signal)
 }//APZJobBuffer::retrieve()
 
 void 
-APZJobBuffer::signal2buffer(Signal* signal, BufferEntry& buf)
+APZJobBuffer::signal2buffer(Signal25* signal, BufferEntry& buf)
 {
   Uint32 tSignalId = globalData.theSignalId;
   Uint32 tLength = signal->header.theLength + signal->header.m_noOfSections;

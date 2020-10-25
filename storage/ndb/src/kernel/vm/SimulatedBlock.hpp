@@ -505,7 +505,7 @@ protected:
                               Uint32 len);
 
 public:
-  typedef void (SimulatedBlock::* CallbackFunction)(class Signal*,
+  typedef void (SimulatedBlock::* CallbackFunction)(Signal*,
 						    Uint32 callbackData,
 						    Uint32 returnCode);
   struct Callback {
@@ -739,35 +739,44 @@ protected:
    * Send signal - dialects
    */
 
+  template<typename Recv, typename ... Args>
+    void sendSignal(Recv recv,
+                    GlobalSignalNumber gsn,
+                    Signal* signal,
+                    Args... args) const
+    {
+      sendSignal(recv, gsn, reinterpret_cast<Signal25*>(signal), args...);
+    }
+
   void sendSignal(BlockReference ref, 
 		  GlobalSignalNumber gsn, 
-                  Signal* signal, 
+                  Signal25* signal,
 		  Uint32 length, 
 		  JobBufferLevel jbuf ) const ;
 
   void sendSignal(NodeReceiverGroup rg,
 		  GlobalSignalNumber gsn, 
-                  Signal* signal, 
+                  Signal25* signal,
 		  Uint32 length, 
 		  JobBufferLevel jbuf ) const ;
 
   void sendSignal(BlockReference ref, 
 		  GlobalSignalNumber gsn, 
-                  Signal* signal, 
+                  Signal25* signal,
 		  Uint32 length, 
 		  JobBufferLevel jbuf,
 		  SectionHandle* sections) const;
 
   void sendSignal(NodeReceiverGroup rg,
 		  GlobalSignalNumber gsn,
-                  Signal* signal,
+                  Signal25* signal,
 		  Uint32 length,
 		  JobBufferLevel jbuf,
 		  SectionHandle* sections) const;
 
   void sendSignal(BlockReference ref,
 		  GlobalSignalNumber gsn,
-                  Signal* signal,
+                  Signal25* signal,
 		  Uint32 length,
 		  JobBufferLevel jbuf,
 		  LinearSectionPtr ptr[3],
@@ -775,7 +784,7 @@ protected:
   
   void sendSignal(NodeReceiverGroup rg, 
 		  GlobalSignalNumber gsn, 
-                  Signal* signal, 
+                  Signal25* signal,
 		  Uint32 length, 
 		  JobBufferLevel jbuf,
 		  LinearSectionPtr ptr[3],
@@ -785,16 +794,25 @@ protected:
    * a side-effect of sending.  This requires extra
    * copying for local sends
    */
+  template<typename Recv, typename ... Args>
+    void sendSignalNoRelease(Recv recv,
+                             GlobalSignalNumber gsn,
+                             Signal* signal,
+                             Args... args) const
+    {
+      sendSignalNoRelease(recv, gsn, reinterpret_cast<Signal25*>(signal), args...);
+    }
+
   void sendSignalNoRelease(BlockReference ref, 
                            GlobalSignalNumber gsn, 
-                           Signal* signal, 
+                           Signal25* signal,
                            Uint32 length, 
                            JobBufferLevel jbuf,
                            SectionHandle* sections) const;
 
   void sendSignalNoRelease(NodeReceiverGroup rg,
                            GlobalSignalNumber gsn,
-                           Signal* signal,
+                           Signal25* signal,
                            Uint32 length,
                            JobBufferLevel jbuf,
                            SectionHandle* sections) const;
@@ -803,15 +821,24 @@ protected:
   // no effect on on delayed signals
   //
 
+  template<typename Recv, typename ... Args>
+    void sendSignalWithDelay(Recv recv,
+                             GlobalSignalNumber gsn,
+                             Signal* signal,
+                             Args... args) const
+    {
+      sendSignalWithDelay(recv, gsn, reinterpret_cast<Signal25*>(signal), args...);
+    }
+
   void sendSignalWithDelay(BlockReference ref, 
 			   GlobalSignalNumber gsn, 
-                           Signal* signal,
+                           Signal25* signal,
                            Uint32 delayInMilliSeconds, 
 			   Uint32 length) const ;
 
   void sendSignalWithDelay(BlockReference ref,
 			   GlobalSignalNumber gsn,
-                           Signal* signal,
+                           Signal25* signal,
                            Uint32 delayInMilliSeconds,
 			   Uint32 length,
 			   SectionHandle* sections) const;
@@ -881,12 +908,12 @@ protected:
   bool dupSection(Uint32& copyFirstIVal, Uint32 srcFirstIVal);
   bool writeToSection(Uint32 firstSegmentIVal, Uint32 offset, const Uint32* src, Uint32 len);
 
-  void handle_invalid_sections_in_send_signal(const Signal*) const;
+  void handle_invalid_sections_in_send_signal(const Signal25*) const;
   void handle_lingering_sections_after_execute(const Signal*) const;
-  void handle_invalid_fragmentInfo(Signal*) const;
+  void handle_invalid_fragmentInfo(Signal25*) const;
   template<typename SecPtr>
-  void handle_send_failed(SendStatus, Signal*, Uint32, SecPtr[]) const;
-  void handle_out_of_longsignal_memory(Signal*) const;
+  void handle_send_failed(SendStatus, Signal25*, Uint32, SecPtr[]) const;
+  void handle_out_of_longsignal_memory(Signal25*) const;
 
   /**
    * Send routed signals (ONLY LOCALLY)
@@ -997,7 +1024,7 @@ protected:
                                    JobBufferLevel jbuf,
                                    SectionHandle * sections,
                                    bool noRelease,
-                                         Callback & = TheEmptyCallback,
+                                   Callback & = TheEmptyCallback,
                                    Uint32 messageSize = BATCH_FRAGMENT_WORD_SIZE);
 
   void sendBatchedFragmentedSignal(NodeReceiverGroup rg,
@@ -1171,6 +1198,7 @@ protected:
    *
    * @see sendFragmentedSignal
    */
+
   void sendNextSegmentedFragment(Signal* signal, FragmentSendInfo & info);
 
   /**
@@ -1531,7 +1559,7 @@ private:
   void execUTIL_UNLOCK_REF(Signal* signal);
   void execUTIL_UNLOCK_CONF(Signal* signal);
 
-  void check_sections(Signal* signal, 
+  void check_sections(Signal25* signal,
                       Uint32 oldSecCount, 
                       Uint32 newSecCount) const;
 protected:
@@ -2666,7 +2694,7 @@ SimulatedBlock::prepareRETURN_DIRECT(Uint32 gsn,
 
 // Do a consictency check before reusing a signal.
 inline void 
-SimulatedBlock::check_sections(Signal* signal, 
+SimulatedBlock::check_sections(Signal25* signal,
                                Uint32 oldSecCount, 
                                Uint32 newSecCount) const
 { 

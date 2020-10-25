@@ -58,7 +58,7 @@ TimeQueue::clear()
 }
 
 void 
-TimeQueue::insert(Signal* signal, Uint32 delayTime)
+TimeQueue::insert(Signal25* signal, Uint32 delayTime)
 {
   Uint32 regCurrentTime = globalData.theCurrentTimer;
   Uint32 i;

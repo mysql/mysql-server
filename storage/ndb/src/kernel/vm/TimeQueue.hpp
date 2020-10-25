@@ -27,6 +27,7 @@
 
 #include <kernel_types.h>
 #include "Prio.hpp"
+#include "VMSignal.hpp"
 
 #define JAM_FILE_ID 247
 
@@ -37,8 +38,6 @@
 #define MAX_NO_OF_TQ (MAX_NO_OF_ZERO_TQ + MAX_NO_OF_SHORT_TQ + \
                       MAX_NO_OF_LONG_TQ)
 #define NULL_TQ_ENTRY 65535
-
-class Signal;
 
 struct TimeStruct
 {
@@ -58,7 +57,7 @@ public:
   TimeQueue();
   ~TimeQueue();
 
-  void   insert(Signal* signal, Uint32 delayTime);
+  void   insert(Signal25* signal, Uint32 delayTime);
   void   clear();
   void   scanTable(); // Called once per millisecond
   void   scanZeroTimeQueue(); // Called after each doJob call

@@ -81,7 +81,7 @@ APZJobBuffer::insert(const SignalHeader * const sh,
 }
 
 void 
-APZJobBuffer::signal2buffer(Signal* signal, BufferEntry& buf)
+APZJobBuffer::signal2buffer(Signal25* signal, BufferEntry& buf)
 {
 }
 

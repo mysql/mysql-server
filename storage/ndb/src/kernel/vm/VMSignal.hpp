@@ -81,6 +81,11 @@ template <unsigned T> struct SignalT
     Uint32 theData[T];
     Uint64 dummyAlign;
   };
+
+  Uint32 getLength() const { return header.theLength; }
+  Uint32 getTrace() const { return header.theTrace; }
+  Uint32* getDataPtrSend() { return &theData[0]; }
+  Uint32 getNoOfSections() const { return header.m_noOfSections; }
 };
 
 typedef SignalT<25> Signal25;

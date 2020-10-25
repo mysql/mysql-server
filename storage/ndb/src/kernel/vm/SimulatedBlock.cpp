@@ -392,7 +392,7 @@ SimulatedBlock::signal_error(Uint32 gsn, Uint32 len, Uint32 recBlockNo,
 extern class SectionSegmentPool g_sectionSegmentPool;
 
 void
-SimulatedBlock::handle_invalid_sections_in_send_signal(const Signal* signal) 
+SimulatedBlock::handle_invalid_sections_in_send_signal(const Signal25* signal)
 const
 {
   char errMsg[160];
@@ -422,7 +422,7 @@ const
 }
 
 void
-SimulatedBlock::handle_invalid_fragmentInfo(Signal* signal) const
+SimulatedBlock::handle_invalid_fragmentInfo(Signal25* signal) const
 {
   ErrorReporter::handleError(NDBD_EXIT_BLOCK_BNR_ZERO,
                              "Incorrect header->m_fragmentInfo in sendSignal()",
@@ -430,7 +430,7 @@ SimulatedBlock::handle_invalid_fragmentInfo(Signal* signal) const
 }
 
 void
-SimulatedBlock::handle_out_of_longsignal_memory(Signal * signal) const
+SimulatedBlock::handle_out_of_longsignal_memory(Signal25 * signal) const
 {
   ErrorReporter::handleError(NDBD_EXIT_OUT_OF_LONG_SIGNAL_MEMORY,
 			     "Out of LongMessageBuffer in sendSignal",
@@ -440,7 +440,7 @@ SimulatedBlock::handle_out_of_longsignal_memory(Signal * signal) const
 template<typename SecPtr>
 void
 SimulatedBlock::handle_send_failed(SendStatus ss,
-                                   Signal * signal,
+                                   Signal25 * signal,
                                    Uint32 recNode,
                                    SecPtr ptr[]) const
 {
@@ -899,7 +899,7 @@ SimulatedBlock::getMainThrmanInstance()
 void 
 SimulatedBlock::sendSignal(BlockReference ref, 
 			   GlobalSignalNumber gsn, 
-			   Signal* signal, 
+                           Signal25* signal,
 			   Uint32 length, 
 			   JobBufferLevel jobBuffer) const {
 
@@ -995,7 +995,7 @@ SimulatedBlock::sendSignal(BlockReference ref,
 void 
 SimulatedBlock::sendSignal(NodeReceiverGroup rg, 
 			   GlobalSignalNumber gsn, 
-			   Signal* signal, 
+                           Signal25* signal,
 			   Uint32 length, 
 			   JobBufferLevel jobBuffer) const {
 
@@ -1109,7 +1109,7 @@ bool import(Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len);
 void 
 SimulatedBlock::sendSignal(BlockReference ref, 
 			   GlobalSignalNumber gsn, 
-			   Signal* signal, 
+                           Signal25* signal,
 			   Uint32 length, 
 			   JobBufferLevel jobBuffer,
 			   LinearSectionPtr ptr[3],
@@ -1231,7 +1231,7 @@ ndbrequire(signal->header.m_noOfSections == 0);
 void 
 SimulatedBlock::sendSignal(NodeReceiverGroup rg, 
 			   GlobalSignalNumber gsn, 
-			   Signal* signal, 
+                           Signal25* signal,
 			   Uint32 length, 
 			   JobBufferLevel jobBuffer,
 			   LinearSectionPtr ptr[3],
@@ -1366,7 +1366,7 @@ ndbrequire(signal->header.m_noOfSections == 0);
 void
 SimulatedBlock::sendSignal(BlockReference ref,
 			   GlobalSignalNumber gsn,
-			   Signal* signal,
+                           Signal25* signal,
 			   Uint32 length,
 			   JobBufferLevel jobBuffer,
 			   SectionHandle* sections) const {
@@ -1481,7 +1481,7 @@ ndbrequire(signal->header.m_noOfSections == 0);
 void
 SimulatedBlock::sendSignal(NodeReceiverGroup rg,
 			   GlobalSignalNumber gsn,
-			   Signal* signal,
+                           Signal25* signal,
 			   Uint32 length,
 			   JobBufferLevel jobBuffer,
 			   SectionHandle * sections) const {
@@ -1617,7 +1617,7 @@ ndbrequire(signal->header.m_noOfSections == 0);
 void
 SimulatedBlock::sendSignalNoRelease(BlockReference ref,
                                     GlobalSignalNumber gsn,
-                                    Signal* signal,
+                                    Signal25* signal,
                                     Uint32 length,
                                     JobBufferLevel jobBuffer,
                                     SectionHandle* sections) const {
@@ -1743,7 +1743,7 @@ ndbrequire(signal->header.m_noOfSections == 0);
 void
 SimulatedBlock::sendSignalNoRelease(NodeReceiverGroup rg,
                                     GlobalSignalNumber gsn,
-                                    Signal* signal,
+                                    Signal25* signal,
                                     Uint32 length,
                                     JobBufferLevel jobBuffer,
                                     SectionHandle * sections) const {
@@ -1887,7 +1887,7 @@ ndbrequire(signal->header.m_noOfSections == 0);
 void
 SimulatedBlock::sendSignalWithDelay(BlockReference ref, 
 				    GlobalSignalNumber gsn,
-				    Signal* signal,
+                                    Signal25* signal,
 				    Uint32 delayInMilliSeconds, 
 				    Uint32 length) const {
   
@@ -1928,7 +1928,7 @@ ndbrequire(signal->header.m_noOfSections == 0);
 void
 SimulatedBlock::sendSignalWithDelay(BlockReference ref,
 				    GlobalSignalNumber gsn,
-				    Signal* signal,
+                                    Signal25* signal,
 				    Uint32 delayInMilliSeconds,
 				    Uint32 length,
 				    SectionHandle * sections) const {
@@ -2312,7 +2312,7 @@ SimulatedBlock::infoEvent(const char * msg, ...) const
   if(msg == 0)
     return;
   
-  SignalT<25> signalT;
+  Signal25 signalT;
   signalT.theData[0] = NDB_LE_InfoEvent;
   Uint32 buf_str[MAX_EVENT_REP_SIZE_WORDS];
   char * buf = (char *)&buf_str[1];
@@ -2371,7 +2371,7 @@ SimulatedBlock::warningEvent(const char * msg, ...)
   if(msg == 0)
     return;
 
-  SignalT<25> signalT;
+  Signal25 signalT;
   signalT.theData[0] = NDB_LE_WarningEvent;
   Uint32 buf_str[MAX_EVENT_REP_SIZE_WORDS];
   char * buf = (char *)&buf_str[1];
@@ -3688,7 +3688,9 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
 				  Uint32 messageSize){
   
 ndbrequire(signal->header.m_noOfSections == 0);
-  check_sections(signal, signal->header.m_noOfSections, noOfSections);
+  check_sections(reinterpret_cast<Signal25*>(signal),
+                 signal->header.m_noOfSections,
+                 noOfSections);
   
   info.m_sectionPtr[0].m_linear.p = NULL;
   info.m_sectionPtr[1].m_linear.p = NULL;
