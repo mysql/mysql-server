@@ -1013,7 +1013,6 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
   signal->header.theSendersBlockRef = reference();
   signal->header.m_noOfSections = 0;
 
-ndbrequire(noOfSections == 0);
   check_sections(signal, noOfSections, 0);
 
   if ((length == 0) || (length > 25) || (recBlock == 0)) {
@@ -1121,7 +1120,6 @@ SimulatedBlock::sendSignal(BlockReference ref,
   Uint32 recNode   = refToNode(ref);
   Uint32 ourProcessor         = globalData.ownId;
   
-ndbrequire(signal->header.m_noOfSections == 0);
   check_sections(signal, signal->header.m_noOfSections, noOfSections);
   
   signal->header.theLength = length;
@@ -1244,7 +1242,6 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
   Uint32 ourProcessor = globalData.ownId;
   Uint32 recBlock = rg.m_block;
   
-ndbrequire(signal->header.m_noOfSections == 0);
   check_sections(signal, signal->header.m_noOfSections, noOfSections);
   
   signal->header.theLength = length;
@@ -1378,7 +1375,6 @@ SimulatedBlock::sendSignal(BlockReference ref,
   Uint32 recNode   = refToNode(ref);
   Uint32 ourProcessor         = globalData.ownId;
 
-ndbrequire(signal->header.m_noOfSections == 0);
   check_sections(signal, signal->header.m_noOfSections, noOfSections);
 
   signal->header.theLength = length;
@@ -1494,7 +1490,6 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
   Uint32 ourProcessor = globalData.ownId;
   Uint32 recBlock = rg.m_block;
 
-ndbrequire(signal->header.m_noOfSections == 0);
   check_sections(signal, signal->header.m_noOfSections, noOfSections);
 
   signal->header.theLength = length;
@@ -1635,7 +1630,6 @@ SimulatedBlock::sendSignalNoRelease(BlockReference ref,
   Uint32 recNode   = refToNode(ref);
   Uint32 ourProcessor         = globalData.ownId;
 
-ndbrequire(signal->header.m_noOfSections == 0);
   check_sections(signal, signal->header.m_noOfSections, noOfSections);
 
   signal->header.theLength = length;
@@ -1761,7 +1755,6 @@ SimulatedBlock::sendSignalNoRelease(NodeReceiverGroup rg,
   Uint32 ourProcessor = globalData.ownId;
   Uint32 recBlock = rg.m_block;
 
-ndbrequire(signal->header.m_noOfSections == 0);
   check_sections(signal, signal->header.m_noOfSections, noOfSections);
 
   signal->header.theLength = length;
@@ -1893,7 +1886,6 @@ SimulatedBlock::sendSignalWithDelay(BlockReference ref,
   
   BlockNumber bnr = refToBlock(ref);
 
-ndbrequire(signal->header.m_noOfSections == 0);
   check_sections(signal, signal->header.m_noOfSections, 0);
   
   signal->header.theLength = length;
@@ -1942,7 +1934,6 @@ SimulatedBlock::sendSignalWithDelay(BlockReference ref,
     bnr_error();
   }//if
 
-ndbrequire(signal->header.m_noOfSections == 0);
   check_sections(signal, signal->header.m_noOfSections, noOfSections);
 
   signal->header.theLength = length;
@@ -3687,7 +3678,6 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
 				  Uint32 noOfSections,
 				  Uint32 messageSize){
   
-ndbrequire(signal->header.m_noOfSections == 0);
   check_sections(reinterpret_cast<Signal25*>(signal),
                  signal->header.m_noOfSections,
                  noOfSections);
