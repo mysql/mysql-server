@@ -83,6 +83,8 @@ template <unsigned T> struct SignalT
   };
 };
 
+typedef SignalT<25> Signal25;
+
 /**
  * class used for passing argumentes to blocks
  */
