@@ -1233,3 +1233,61 @@ DROP TABLE  t1;
 CREATE TABLE t2(i INT, j DATETIME DEFAULT(0) );
 ALTER TABLE t2 DROP COLUMN i ;
 DROP TABLE  t2;
+CREATE TABLE t1 (
+pk_col      INT NOT NULL AUTO_INCREMENT,
+json_col    JSON,
+blob_col    BLOB,
+text_col    TEXT,
+tblob_col   TINYBLOB,
+ttext_col   TINYTEXT,
+json_col_d  JSON DEFAULT (JSON_OBJECT('key','val')),
+blob_col_d  BLOB DEFAULT ('asda'),
+text_col_d  TEXT DEFAULT (CONCAT('adasdada','ds')),
+tblob_col_d TINYBLOB DEFAULT ('asda'),
+ttext_col_d TINYTEXT DEFAULT (CONCAT('adasdada','ds')),
+PRIMARY KEY (`pk_col`));
+SELECT COLUMN_NAME, COLUMN_DEFAULT, DATA_TYPE, EXTRA
+FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='t1'
+  ORDER BY COLUMN_NAME;
+COLUMN_NAME	COLUMN_DEFAULT	DATA_TYPE	EXTRA
+blob_col	NULL	blob	
+blob_col_d	_utf8mb4\'asda\'	blob	DEFAULT_GENERATED
+json_col	NULL	json	
+json_col_d	json_object(_utf8mb4\'key\',_utf8mb4\'val\')	json	DEFAULT_GENERATED
+pk_col	NULL	int	auto_increment
+tblob_col	NULL	tinyblob	
+tblob_col_d	_utf8mb4\'asda\'	tinyblob	DEFAULT_GENERATED
+text_col	NULL	text	
+text_col_d	concat(_utf8mb4\'adasdada\',_utf8mb4\'ds\')	text	DEFAULT_GENERATED
+ttext_col	NULL	tinytext	
+ttext_col_d	concat(_utf8mb4\'adasdada\',_utf8mb4\'ds\')	tinytext	DEFAULT_GENERATED
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+pk_col	int	NO	PRI	NULL	auto_increment
+json_col	json	YES		NULL	
+blob_col	blob	YES		NULL	
+text_col	text	YES		NULL	
+tblob_col	tinyblob	YES		NULL	
+ttext_col	tinytext	YES		NULL	
+json_col_d	json	YES		json_object(_utf8mb4\'key\',_utf8mb4\'val\')	DEFAULT_GENERATED
+blob_col_d	blob	YES		_utf8mb4\'asda\'	DEFAULT_GENERATED
+text_col_d	text	YES		concat(_utf8mb4\'adasdada\',_utf8mb4\'ds\')	DEFAULT_GENERATED
+tblob_col_d	tinyblob	YES		_utf8mb4\'asda\'	DEFAULT_GENERATED
+ttext_col_d	tinytext	YES		concat(_utf8mb4\'adasdada\',_utf8mb4\'ds\')	DEFAULT_GENERATED
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `pk_col` int NOT NULL AUTO_INCREMENT,
+  `json_col` json DEFAULT NULL,
+  `blob_col` blob,
+  `text_col` text,
+  `tblob_col` tinyblob,
+  `ttext_col` tinytext,
+  `json_col_d` json DEFAULT (json_object(_utf8mb4'key',_utf8mb4'val')),
+  `blob_col_d` blob DEFAULT (_utf8mb4'asda'),
+  `text_col_d` text DEFAULT (concat(_utf8mb4'adasdada',_utf8mb4'ds')),
+  `tblob_col_d` tinyblob DEFAULT (_utf8mb4'asda'),
+  `ttext_col_d` tinytext DEFAULT (concat(_utf8mb4'adasdada',_utf8mb4'ds')),
+  PRIMARY KEY (`pk_col`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;

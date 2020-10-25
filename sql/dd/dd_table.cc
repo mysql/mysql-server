@@ -276,7 +276,9 @@ static void prepare_default_value_string(uchar *buf, TABLE *table,
   if (col_obj->has_no_default()) f->set_flag(NO_DEFAULT_VALUE_FLAG);
 
   const bool has_default =
-      (f->type() != FIELD_TYPE_BLOB && !f->is_flag_set(NO_DEFAULT_VALUE_FLAG) &&
+      ((f->type() != FIELD_TYPE_BLOB ||
+        f->has_insert_default_general_value_expression()) &&
+       !f->is_flag_set(NO_DEFAULT_VALUE_FLAG) &&
        !(f->auto_flags & Field::NEXT_NUMBER));
 
   if (f->gcol_info || !has_default) return;
