@@ -1010,6 +1010,8 @@ int HashJoinIterator::ReadNextJoinedRowFromHashTable() {
       // moving to the next row from the probe input.
       m_state = State::READING_FROM_HASH_TABLE;
       break;
+    case JoinType::FULL_OUTER:
+      assert(false);
   }
 
   m_current_row = m_current_row.Decode().next;

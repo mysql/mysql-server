@@ -1938,6 +1938,9 @@ static AccessPath *CreateHashJoinAccessPath(
     case JoinType::SEMI:
       expr->type = RelationalExpression::SEMIJOIN;
       break;
+    case JoinType::FULL_OUTER:
+      expr->type = RelationalExpression::FULL_OUTER_JOIN;
+      break;
   }
   for (Item *item : hash_join_extra_conditions) {
     expr->join_conditions.push_back(item);

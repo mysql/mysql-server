@@ -55,6 +55,14 @@ struct RelationalExpression {
     LEFT_JOIN = static_cast<int>(JoinType::OUTER),
     SEMIJOIN = static_cast<int>(JoinType::SEMI),
     ANTIJOIN = static_cast<int>(JoinType::ANTI),
+
+    // Generally supported by the conflict detector only, not the parser
+    // or any iterators. We include this because we will be needing it
+    // when we actually implement full outer join, and because it helps
+    // verifying semijoin correctness in the unit tests (see the CountPlans*
+    // tests).
+    FULL_OUTER_JOIN = static_cast<int>(JoinType::FULL_OUTER),
+
     TABLE = 100
   } type;
   table_map tables_in_subtree;

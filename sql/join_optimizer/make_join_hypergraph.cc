@@ -148,6 +148,9 @@ string PrintRelationalExpression(RelationalExpression *expr, int level) {
     case RelationalExpression::ANTIJOIN:
       result += "* Antijoin";
       break;
+    case RelationalExpression::FULL_OUTER_JOIN:
+      result += "* Full outer join";
+      break;
   }
   if (expr->equijoin_conditions.empty() && expr->join_conditions.empty()) {
     result += " (no join conditions)";
