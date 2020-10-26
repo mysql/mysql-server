@@ -1526,18 +1526,15 @@ static bool fill_indexes_from_dd(THD *thd, TABLE_SHARE *share,
       return true; /* purecov: inspected */
 
     //
-    // Alloc buffer to hold keys and key_parts
+    // Alloc buffers to hold keys and key_parts
     //
 
-    if (!(share->key_info = (KEY *)share->mem_root.Alloc(
-              share->keys * sizeof(KEY) +
-              total_key_parts * sizeof(KEY_PART_INFO))))
+    if (!(share->key_info = share->mem_root.ArrayAlloc<KEY>(share->keys)))
       return true; /* purecov: inspected */
 
-    memset(
-        share->key_info, 0,
-        (share->keys * sizeof(KEY) + total_key_parts * sizeof(KEY_PART_INFO)));
-    key_part = (KEY_PART_INFO *)(share->key_info + share->keys);
+    if (!(key_part =
+              share->mem_root.ArrayAlloc<KEY_PART_INFO>(total_key_parts)))
+      return true; /* purecov: inspected */
 
     //
     // Alloc buffer to hold keynames
