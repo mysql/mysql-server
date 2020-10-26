@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,10 +40,11 @@ public:
   enum Error
   {
     ERR_NoError = 0,
-    ERR_NoSuchTable = 40,
-    ERR_OutOfMemory = 41,
-    ERR_ClusterFailure = 42,
-    ERR_WrongState = 43
+    ERR_NoSuchTable = 4240,
+    ERR_OutOfMemory = 4241,
+    ERR_ClusterFailure = 4242,
+    ERR_WrongState = 4243,
+    ERR_VirtScanStart = 4244
   };
 
   struct Column

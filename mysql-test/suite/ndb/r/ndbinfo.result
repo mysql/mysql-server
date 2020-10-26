@@ -1794,3 +1794,10 @@ select * from cpudata;
 select * from cpudata_50ms;
 select * from cpudata_1sec;
 select * from cpudata_20sec;
+#
+# BUG#32073640 Add ndbinfo.backup_id
+#  - the table have one column and one row
+#
+select * from backup_id;
+id
+<backup_id>

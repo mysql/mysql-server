@@ -82,6 +82,7 @@ struct view {
      "count(*) as consensus_count "
      "FROM `ndbinfo`.`ndb$membership` "
      "GROUP BY arbitrator, arb_ticket, arb_connected"},
+    {"ndbinfo", "backup_id", "SELECT id FROM `ndbinfo`.`ndb$backup_id`"},
     // The blocks, dict_obj_types and config_params used
     // to be stored in a different engine but have now
     // been folded into hardcoded ndbinfo tables whose
@@ -629,7 +630,11 @@ struct lookup {
   const char *schema_name;
   const char *lookup_table_name;
   const char *columns;
-} lookups[] = {{
+} lookups[] = {{"ndbinfo", "ndb$backup_id",
+                "id BIGINT UNSIGNED, "
+                "fragment INT UNSIGNED, "
+                "row_id BIGINT UNSIGNED"},
+               {
                    "ndbinfo",
                    "ndb$blocks",
                    "block_number INT UNSIGNED, "

@@ -21,9 +21,11 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
-#include "NdbInfo.hpp"
+// Implements
 #include "NdbInfoScanVirtual.hpp"
+
+#include "ndbapi/NdbApi.hpp"
+#include "NdbInfo.hpp"
 
 
 int NdbInfoScanVirtual::readTuples()
@@ -64,53 +66,8 @@ const NdbInfoRecAttr* NdbInfoScanVirtual::getValue(Uint32 anAttrId)
   DBUG_RETURN(m_recAttrs.get_value(anAttrId));
 }
 
-
-int NdbInfoScanVirtual::execute()
-{
-  DBUG_ENTER("NdbInfoScanVirtual::execute");
-  if (m_state != Prepared)
-    DBUG_RETURN(NdbInfo::ERR_WrongState);
-
-  {
-    // Allocate the row buffer big enough to hold all
-    // the reuqested columns
-    size_t buffer_size = 0;
-    for (unsigned i = 0; i < m_table->columns(); i++)
-    {
-
-      if (!m_recAttrs.is_requested(i))
-        continue;
-
-      const NdbInfo::Column* col = m_table->getColumn(i);
-      switch (col->m_type)
-      {
-      case NdbInfo::Column::Number:
-        buffer_size += sizeof(Uint32);
-        break;
-      case NdbInfo::Column::Number64:
-        buffer_size += sizeof(Uint64);
-        break;
-      case NdbInfo::Column::String:
-        buffer_size += 512+1; // Varchar(512) including null terminator
-        break;
-      }
-    }
-
-    m_buffer = new char[buffer_size];
-    if (!m_buffer)
-      DBUG_RETURN(NdbInfo::ERR_OutOfMemory);
-    m_buffer_size = buffer_size;
-  }
-
-  m_state = MoreData;
-
-  assert(m_row_counter == 0);
-  DBUG_RETURN(0);
-}
-
-
 /*
-  Interface class for virtual(aka. hardcoded) tables.
+  Interface class for virtual table implementations.
 */
 class VirtualTable
 {
@@ -153,15 +110,21 @@ public:
   virtual NdbInfo::Table* get_instance() const = 0;
 
   /*
+     Start reading of row(s) from the virtual table
+  */
+  virtual bool start_scan(VirtualScanContext* ctx) const  = 0;
+
+  /*
     Read one row from the virtual table
 
     Data for the row specified by row_number should be filled in
     by the functions provided by Virtual::Row
 
-    false No more data
-    true More rows available
+    0  No more data
+    1  More rows available
+    >1 Error occured
   */
-  virtual bool read_row(Row& row, Uint32 row_number) const = 0;
+  virtual int read_row(VirtualScanContext* ctx, Row& row, Uint32 row_number) const = 0;
 
   virtual ~VirtualTable() = 0;
 };
@@ -290,32 +253,127 @@ int NdbInfoScanVirtual::nextResult()
 
   VirtualTable::Row row(this, m_table,
                         m_buffer, m_buffer_size);
-  if (!m_virt->read_row(row, m_row_counter))
+  const int result = m_virt->read_row(m_ctx, row, m_row_counter);
+  if (result == 0)
   {
     // No more rows
     m_state = End;
     DBUG_RETURN(0);
   }
-  // Check that all columns where processed(i.e by the virtual table class)
-  assert(row.m_col_counter == m_table->columns());
 
-  m_row_counter++;
-  DBUG_RETURN(1); // More rows
+  if (result == 1)
+  {
+    // More rows
+
+    // Check that all columns where processed(i.e by the virtual table class)
+    assert(row.m_col_counter == m_table->columns());
+
+    m_row_counter++;
+    DBUG_RETURN(1);  // More rows
+  }
+
+  // Error occured
+  m_state = End;
+  DBUG_RETURN(result);
 }
 
+class VirtualScanContext {
+ public:
+  VirtualScanContext(Ndb_cluster_connection *connection)
+      : m_connection(connection) {}
 
-NdbInfoScanVirtual::NdbInfoScanVirtual(const NdbInfo::Table* table,
-                                       const VirtualTable* virt) :
-  m_state(Undefined),
-  m_table(table),
-  m_virt(virt),
-  m_recAttrs(table->columns()),
-  m_buffer(NULL),
-  m_buffer_size(0),
-  m_row_counter(0)
+  bool create_ndb(const char *dbname = "sys") {
+    m_ndb = new Ndb(m_connection, dbname);
+    if (m_ndb->init() != 0) return false;
+    return true;
+  }
+
+  bool openTable(const char *tabname) {
+    m_ndbtab = m_ndb->getDictionary()->getTableGlobal(tabname);
+    if (!m_ndbtab) return false;
+    return true;
+  }
+  const NdbDictionary::Table *getTable() { return m_ndbtab; }
+
+  bool startTrans() {
+    m_trans = m_ndb->startTransaction();
+    if (!m_trans) return false;
+    return true;
+  }
+  NdbTransaction *getTrans() { return m_trans; }
+
+  ~VirtualScanContext() {
+    if (m_trans) m_ndb->closeTransaction(m_trans);
+    if (m_ndbtab) m_ndb->getDictionary()->removeTableGlobal(*m_ndbtab, 0);
+    delete m_ndb;
+  }
+
+ private:
+  Ndb_cluster_connection *const m_connection;
+  Ndb *m_ndb{nullptr};
+  const NdbDictionary::Table *m_ndbtab{nullptr};
+  NdbTransaction *m_trans{nullptr};
+};
+
+int NdbInfoScanVirtual::execute()
 {
+  DBUG_ENTER("NdbInfoScanVirtual::execute");
+  if (m_state != Prepared)
+    DBUG_RETURN(NdbInfo::ERR_WrongState);
+
+  {
+    // Allocate the row buffer big enough to hold all
+    // the reuqested columns
+    size_t buffer_size = 0;
+    for (unsigned i = 0; i < m_table->columns(); i++)
+    {
+
+      if (!m_recAttrs.is_requested(i))
+        continue;
+
+      const NdbInfo::Column* col = m_table->getColumn(i);
+      switch (col->m_type)
+      {
+      case NdbInfo::Column::Number:
+        buffer_size += sizeof(Uint32);
+        break;
+      case NdbInfo::Column::Number64:
+        buffer_size += sizeof(Uint64);
+        break;
+      case NdbInfo::Column::String:
+        buffer_size += 512+1; // Varchar(512) including null terminator
+        break;
+      }
+    }
+
+    m_buffer = new char[buffer_size];
+    if (!m_buffer)
+      DBUG_RETURN(NdbInfo::ERR_OutOfMemory);
+    m_buffer_size = buffer_size;
+  }
+
+  if (!m_virt->start_scan(m_ctx))
+    DBUG_RETURN(NdbInfo::ERR_VirtScanStart);
+
+  m_state = MoreData;
+
+  assert(m_row_counter == 0);
+  DBUG_RETURN(0);
 }
 
+
+NdbInfoScanVirtual::NdbInfoScanVirtual(Ndb_cluster_connection *connection,
+                                       const NdbInfo::Table *table,
+                                       const VirtualTable *virt)
+    : m_state(Undefined),
+      m_table(table),
+      m_virt(virt),
+      m_recAttrs(table->columns()),
+      m_buffer(NULL),
+      m_buffer_size(0),
+      m_row_counter(0),
+      m_ctx(new VirtualScanContext(connection))
+{}
 
 int NdbInfoScanVirtual::init()
 {
@@ -326,10 +384,9 @@ int NdbInfoScanVirtual::init()
   return NdbInfo::ERR_NoError;
 }
 
-
-
 NdbInfoScanVirtual::~NdbInfoScanVirtual()
 {
+  delete m_ctx;
   delete[] m_buffer;
 }
 
@@ -338,19 +395,21 @@ NdbInfoScanVirtual::~NdbInfoScanVirtual()
 class BlocksTable : public VirtualTable
 {
 public:
-  bool read_row(VirtualTable::Row& w,
+  bool start_scan(VirtualScanContext*) const override { return true; }
+
+  int read_row(VirtualScanContext*, VirtualTable::Row& w,
                 Uint32 row_number) const override
   {
     if (row_number >= NO_OF_BLOCK_NAMES)
     {
       // No more rows
-      return false;
+      return 0;
     }
 
     const BlockName& bn = BlockNames[row_number];
     w.write_number(bn.number);
     w.write_string(bn.name);
-    return true;
+    return 1;
   }
 
   NdbInfo::Table* get_instance() const override
@@ -374,7 +433,9 @@ public:
 class DictObjTypesTable : public VirtualTable
 {
 public:
-  bool read_row(VirtualTable::Row& w,
+  bool start_scan(VirtualScanContext*) const override { return true; }
+
+  int read_row(VirtualScanContext*, VirtualTable::Row& w,
                 Uint32 row_number) const override
   {
     struct Entry {
@@ -409,13 +470,13 @@ public:
     if (row_number >= sizeof(entries) / sizeof(entries[0]))
     {
       // No more rows
-      return false;
+      return 0;
     }
 
     const Entry& e = entries[row_number];
     w.write_number(e.type);
     w.write_string(e.name);
-    return true;
+    return 1;
   }
 
   NdbInfo::Table* get_instance() const override
@@ -530,13 +591,15 @@ public:
     return true;
   }
 
-  bool read_row(VirtualTable::Row& w,
-                Uint32 row_number) const override
+  bool start_scan(VirtualScanContext*) const override { return true; }
+
+  int read_row(VirtualScanContext*, VirtualTable::Row& w,
+               Uint32 row_number) const override
   {
     if (row_number >= m_error_messages.size())
     {
       // No more rows
-      return false;
+      return 0;
     }
 
     const ErrorMessage& err = m_error_messages[row_number];
@@ -546,7 +609,7 @@ public:
     w.write_string(err.status_msg); // error_status
     w.write_string(err.class_msg); // error_classification
 
-    return true;
+    return 1;
   }
 
   NdbInfo::Table* get_instance() const override
@@ -598,13 +661,15 @@ public:
     return true;
   }
 
-  bool read_row(VirtualTable::Row& w,
-                Uint32 row_number) const override
+  bool start_scan(VirtualScanContext*) const override { return true; }
+
+  int read_row(VirtualScanContext*, VirtualTable::Row& w,
+               Uint32 row_number) const override
   {
     if (row_number >= m_config_params.size())
     {
       // No more rows
-      return false;
+      return 0;
     }
 
     char tmp_buf[256];
@@ -719,7 +784,7 @@ public:
       status_str = "deprecated";
     w.write_string(status_str);
 
-    return true;
+    return 1;
   }
 
 
@@ -776,13 +841,15 @@ public:
       m_array_count++;
   }
 
-  bool read_row(VirtualTable::Row& w,
-                Uint32 row_number) const override
+  bool start_scan(VirtualScanContext*) const override { return true; }
+
+  int read_row(VirtualScanContext*, VirtualTable::Row& w,
+               Uint32 row_number) const override
   {
     if (row_number >= m_array_count)
     {
       // No more rows
-      return false;
+      return 0;
     }
 
     const ndbkernel_state_desc* desc = &m_array[row_number];
@@ -791,7 +858,7 @@ public:
     w.write_string(desc->friendly_name);
     w.write_string(desc->description);
 
-    return true;
+    return 1;
   }
 
   NdbInfo::Table* get_instance() const override
@@ -809,6 +876,107 @@ public:
                                         NdbInfo::Column::String)) ||
         !tab->addColumn(NdbInfo::Column("state_description", 3,
                                         NdbInfo::Column::String)))
+      return NULL;
+    return tab;
+  }
+};
+
+
+// Virtual table which reads the backup id from SYSTAB_0, the table have
+// one column and one row
+class BackupIdTable : public VirtualTable
+{
+  bool pk_read_backupid(const NdbDictionary::Table *ndbtab,
+                        NdbTransaction *trans, Uint64 *backup_id,
+                        Uint32 *fragment, Uint64 *rowid) const {
+    DBUG_TRACE;
+    // Get NDB operation
+    NdbOperation *op = trans->getNdbOperation(ndbtab);
+    if (op == nullptr) {
+      return false;
+    }
+
+    // Primary key committed read of the "backup id" row
+    if (op->readTuple(NdbOperation::LM_CommittedRead) != 0 ||
+        op->equal("SYSKEY_0", NDB_BACKUP_SEQUENCE) != 0) { // Primary key
+      DBUG_ASSERT(false);
+      return false;
+    }
+
+    NdbRecAttr* nextid;
+    NdbRecAttr *frag;
+    NdbRecAttr *row;
+    // Specify columns to reads, the backup id and two pseudo columns
+    if ((nextid = op->getValue("NEXTID")) == nullptr ||
+        (frag = op->getValue(NdbDictionary::Column::FRAGMENT)) == nullptr ||
+        (row = op->getValue(NdbDictionary::Column::ROWID)) == nullptr) {
+      DBUG_ASSERT(false);
+      return false;
+    }
+
+    // Execute transaction
+    if (trans->execute(NdbTransaction::NoCommit) != 0) {
+      return false;
+    }
+
+    // Sucessful read, assign return value
+    *backup_id = nextid->u_64_value();
+    *fragment = frag->u_32_value();
+    *rowid = row->u_64_value();
+
+    return true;
+  }
+
+public:
+
+  bool start_scan(VirtualScanContext* ctx) const override {
+    DBUG_TRACE;
+    if (!ctx->create_ndb()) return false;
+    if (!ctx->openTable("SYSTAB_0")) return false;
+    if (!ctx->startTrans()) return false;
+    return true;
+  }
+
+  int read_row(VirtualScanContext* ctx, VirtualTable::Row& w,
+               Uint32 row_number) const override
+  {
+    DBUG_TRACE;
+    if (row_number >= 1)
+    {
+      // No more rows
+      return 0;
+    }
+
+     // Read backup id from NDB
+    Uint64 backup_id;
+    Uint32 fragment;
+    Uint64 row_id;
+    if (!pk_read_backupid(ctx->getTable(), ctx->getTrans(), &backup_id,
+                          &fragment, &row_id))
+      return NdbInfo::ERR_ClusterFailure;
+
+    w.write_number64(backup_id);  // id
+    w.write_number(fragment);     // fragment
+    w.write_number64(row_id);     // row_id
+    return 1;
+  }
+
+
+  NdbInfo::Table* get_instance() const override
+  {
+    NdbInfo::Table* tab = new NdbInfo::Table("backup_id",
+                                             NdbInfo::Table::InvalidTableId,
+                                             this);
+    if (!tab)
+      return NULL;
+    if (!tab->addColumn(NdbInfo::Column("id", 0,
+                                        NdbInfo::Column::Number64)))
+      return NULL;
+    if (!tab->addColumn(NdbInfo::Column("fragment", 1,
+                                        NdbInfo::Column::Number)))
+      return NULL;
+    if (!tab->addColumn(NdbInfo::Column("row_id", 2,
+                                        NdbInfo::Column::Number64)))
       return NULL;
     return tab;
   }
@@ -891,6 +1059,16 @@ NdbInfoScanVirtual::create_virtual_tables(Vector<NdbInfo::Table*>& list)
     if (list.push_back(dblqhTcConnectStateTable->get_instance()) != 0)
       return false;
   }
+
+  {
+    BackupIdTable* backupIdTable = new BackupIdTable;
+    if (!backupIdTable)
+      return false;
+
+    if (list.push_back(backupIdTable->get_instance()) != 0)
+      return false;
+  }
+
   return true;
 }
 

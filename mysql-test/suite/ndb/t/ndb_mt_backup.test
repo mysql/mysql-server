@@ -26,7 +26,7 @@ let $serialrestore = 1; # restore serially part by part
 
 --echo Case 5: restore backup with missing part
 --error 1
---exec $NDB_RESTORE -b 1 -n 2 -e $NDB_SAVED_BACKUPS/missing_part >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 2 -e $NDB_SAVED_BACKUPS/missing_part >> $NDB_TOOLS_OUTPUT 2>&1
 
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT

@@ -22,11 +22,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
+// Implements
 #include "NdbInfo.hpp"
-#include "NdbInfoScanVirtual.hpp"
-#include "NdbInfoScanNodes.hpp"
 
-#include <ndbapi/ndb_cluster_connection.hpp>
+#include "ndbapi/ndb_cluster_connection.hpp"
+#include "NdbInfoScanNodes.hpp"
+#include "NdbInfoScanVirtual.hpp"
 
 NdbInfo::NdbInfo(class Ndb_cluster_connection* connection,
                  const char* prefix, const char* dbname,
@@ -332,11 +333,12 @@ int NdbInfo::createScanOperation(const Table* table,
 {
   if (table->m_virt != NULL)
   {
-    // The table is a virtual table which returns
-    // hardcoded values. Use the special NdbInfoScanVirtual implementation
-    NdbInfoScanVirtual* virtual_scan =
-        new NdbInfoScanVirtual(table,
-                               table->m_virt);
+    // The table is a virtual table which does not exist in the data nodes,
+    // instead it returns hardcoded values or dynamic information about the
+    // cluster whcih it retrives using NdbApi functions. Use the special
+    // NdbInfoScanVirtual implementation
+    NdbInfoScanVirtual *virtual_scan =
+        new NdbInfoScanVirtual(m_connection, table, table->m_virt);
     if (!virtual_scan)
       return ERR_OutOfMemory;
 
@@ -350,7 +352,6 @@ int NdbInfo::createScanOperation(const Table* table,
     *ret_scan_op = virtual_scan;
     return 0;
   }
-
 
   Uint32 max_nodes = 0;
   if (table->getTableId() < NUM_HARDCODED_TABLES)
@@ -629,7 +630,7 @@ bool NdbInfo::load_virtual_tables(void)
     Table* tab = m_virtual_tables[i];
     assert(tab->m_virt);
 
-    BaseString hash_key = mysql_table_name(tab->getName());
+    const BaseString hash_key = mysql_table_name(tab->getName());
     tab->m_table_id = m_tables.entries(); // Set increasing table id
     if (!m_tables.insert(hash_key.c_str(), *tab))
       return false;

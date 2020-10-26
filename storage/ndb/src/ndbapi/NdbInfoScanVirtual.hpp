@@ -28,8 +28,9 @@
 #include "NdbInfoScanOperation.hpp"
 
 /*
-  Scan implementation for retrieving rows from a virtual
-  table (also known as "hardcoded").
+  Scan implementation for retrieving rows from a virtual table. The table does
+  not exist in the data nodes, instead it return hardcoded information or
+  retrieves inrormation from the cluster using NdbApi.
 */
 class NdbInfoScanVirtual : public NdbInfoScanOperation {
 public:
@@ -41,12 +42,14 @@ public:
   int nextResult() override;
    ~NdbInfoScanVirtual() override;
 
-  NdbInfoScanVirtual(const NdbInfo::Table* table,
-                     const class VirtualTable* virt);
+  NdbInfoScanVirtual(Ndb_cluster_connection *connection,
+                     const NdbInfo::Table *table,
+                     const class VirtualTable *virt);
   int init();
 
-  static bool create_virtual_tables(Vector<NdbInfo::Table*>& list);
-  static void delete_virtual_tables(Vector<NdbInfo::Table*>& list);
+  static bool create_virtual_tables(Vector<NdbInfo::Table*> &list);
+  static void delete_virtual_tables(Vector<NdbInfo::Table*> &list);
+
 private:
   enum State { Undefined, Initial, Prepared,
                MoreData, End } m_state;
@@ -60,6 +63,8 @@ private:
   char* m_buffer;
   size_t m_buffer_size;
   Uint32 m_row_counter; // Current row
+
+  class VirtualScanContext* m_ctx;
 };
 
 #endif

@@ -1044,4 +1044,11 @@ select * from cpudata_1sec;
 select * from cpudata_20sec;
 --enable_result_log
 
-#--remove_file $NDB_TOOLS_OUTPUT
+--echo #
+--echo # BUG#32073640 Add ndbinfo.backup_id
+--echo #  - the table have one column and one row
+--echo #
+
+# Check that one column and one row is returned
+--replace_column 1 <backup_id>
+select * from backup_id;
