@@ -3525,6 +3525,7 @@ static bool check_simple_equality(THD *thd, Item *left_item, Item *right_item,
                                   bool *simple_equality) {
   if (thd->lex->using_hypergraph_optimizer) {
     // We cannot handle loops in the query graph yet.
+    *simple_equality = false;
     return false;
   }
 
