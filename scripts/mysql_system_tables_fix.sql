@@ -1089,7 +1089,7 @@ SET @had_user_allowlist =
            table_type = 'BASE TABLE');
 SET @had_group_allowlist =
   (SELECT COUNT(table_name) FROM information_schema.tables
-     WHERE table_schema = 'mysql' AND table_name = 'firewall_group_allowlistX' AND
+     WHERE table_schema = 'mysql' AND table_name = 'firewall_group_allowlist' AND
            table_type = 'BASE TABLE');
 SET @cmd="CREATE TABLE IF NOT EXISTS mysql.firewall_group_allowlist(NAME VARCHAR(288) NOT NULL, RULE text NOT NULL, ID INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY) engine= InnoDB";
 SET @str = IF(@had_user_allowlist > 0 AND @had_group_allowlist = 0, @cmd, "SET @dummy = 0");
@@ -1102,6 +1102,11 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 SET @cmd="CREATE TABLE IF NOT EXISTS mysql.firewall_membership(GROUP_ID VARCHAR(288), MEMBER_ID VARCHAR(288)) engine= InnoDB";
+SET @str = IF(@had_user_allowlist > 0 AND @had_group_allowlist = 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+SET @cmd="UPDATE mysql.firewall_whitelist SET rule = RTRIM(rule) WHERE RIGHT(rule, 1) = ' '";
 SET @str = IF(@had_user_allowlist > 0 AND @had_group_allowlist = 0, @cmd, "SET @dummy = 0");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
