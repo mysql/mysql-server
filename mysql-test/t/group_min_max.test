@@ -1865,3 +1865,43 @@ INSERT t VALUES('a'),('a');
 
 SELECT a, MAX(TRIM('1' FROM ~1)) FROM t GROUP BY a;
 DROP TABLE t;
+
+--echo #
+--echo # Bug#30242457 ASSERTION "!TABLE->CONST_TABLE"
+--echo #
+CREATE TABLE t2(id1 INT, id2 CHAR (1), id3 INT, value INT,
+                KEY (id1,id2,id3)) COLLATE LATIN1_BIN;
+CREATE TABLE t1(a INT,b INT, PRIMARY KEY(a)) ENGINE=MEMORY;
+
+let $query = SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2);
+
+--echo # One row in an in-memory table: row will be read before
+--echo # optimizing MAX in subquery. No result set, either when t2 is
+--echo # empty or not, since t1.a <> t1.b
+INSERT INTO t1 VALUES(1,0);
+eval $query;
+INSERT INTO t2 VALUES (0, 'a', 3, 4);
+eval $query;
+eval  EXPLAIN FORMAT=TREE $query;
+DELETE FROM t1;
+DELETE FROM t2;
+
+--echo # Now t1.a = t1.b, still not result if t2 is empty
+INSERT INTO t1 VALUES(1,1);
+eval $query;
+
+--echo # If t2 has at least one row, we will get a result row
+INSERT INTO t2 VALUES (0, 'a', 3, 4);
+eval $query;
+eval EXPLAIN FORMAT=TREE $query;
+
+--echo # If we have two rows in t1, t1 will not be read before
+--echo # optimization of the subquery, so this didn't use to fail
+--echo # before this patch.
+INSERT INTO t1 VALUES(0,0);
+eval $query;
+eval EXPLAIN FORMAT=TREE $query;
+
+DROP TABLE t1, t2;
+
+--echo # End of test for Bug#30242457
