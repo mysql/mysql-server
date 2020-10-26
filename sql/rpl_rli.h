@@ -832,7 +832,7 @@ class Relay_log_info : public Rpl_info {
 
      @retval    false    Success
      @retval    true     Error
- */
+   */
   bool reset_group_relay_log_pos(const char **errmsg);
   /*
     Update the error number, message and timestamp fields. This function is
@@ -946,7 +946,7 @@ class Relay_log_info : public Rpl_info {
   */
   inline void notify_relay_log_change() {
     if (until_condition == UNTIL_RELAY_POS)
-      dynamic_cast<Until_position *>(until_option)->notify_log_name_change();
+      down_cast<Until_position *>(until_option)->notify_log_name_change();
   }
 
   /**
@@ -966,7 +966,7 @@ class Relay_log_info : public Rpl_info {
   */
   inline void notify_group_master_log_name_update() {
     if (until_condition == UNTIL_MASTER_POS)
-      dynamic_cast<Until_position *>(until_option)->notify_log_name_change();
+      down_cast<Until_position *>(until_option)->notify_log_name_change();
   }
 
   inline void inc_event_relay_log_pos() {
@@ -1986,7 +1986,7 @@ class Relay_log_info : public Rpl_info {
    @return int
      @retval 0      Succeeds to initialize until option object.
      @retval <> 0   A defined error number is return if any error happens.
- */
+   */
   int init_until_option(THD *thd, const LEX_MASTER_INFO *master_param);
 
   /**

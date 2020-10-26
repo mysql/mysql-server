@@ -111,7 +111,7 @@ template <typename Coordsys>
 void BG_geometry_collection::merge_components(bool *pnull_value) {
   if (is_comp_no_overlapped()) return;
 
-  POS pos;
+  POS pos{{nullptr, nullptr}, {nullptr, nullptr}};
   Item_func_st_union ifsu(pos, nullptr, nullptr);
   bool do_again = true;
   uint32 last_composition[6] = {0}, num_unchanged_composition = 0;

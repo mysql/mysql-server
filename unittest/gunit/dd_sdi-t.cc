@@ -81,8 +81,7 @@ bool equal_prefix_chars_driver(const dd::String_type &a,
 
 static void mock_properties(dd::Properties &p, uint64 size) {
   for (uint64 i = 0; i < size; ++i) {
-    dd::String_type key =
-        (dynamic_cast<dd::Properties_impl &>(p)).valid_key_at(i);
+    dd::String_type key = (down_cast<dd::Properties_impl &>(p)).valid_key_at(i);
     p.set(key, i);
   }
 }
@@ -112,7 +111,7 @@ static void mock_dd_obj(dd::Column *c) {
     mock_dd_obj(c->add_element());
   }
   if (c->ordinal_position() == 0) {
-    dynamic_cast<dd::Column_impl *>(c)->set_ordinal_position(1);
+    down_cast<dd::Column_impl *>(c)->set_ordinal_position(1);
   }
 }
 
@@ -153,7 +152,7 @@ static void mock_dd_obj(dd::Index *i, dd::Column *c = nullptr) {
   mock_dd_obj(i->add_element(c));
 
   if (i->ordinal_position() == 0) {
-    dynamic_cast<dd::Index_impl *>(i)->set_ordinal_position(1);
+    down_cast<dd::Index_impl *>(i)->set_ordinal_position(1);
   }
 }
 
