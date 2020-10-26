@@ -59,8 +59,6 @@
 #include "mysql/harness/stdx/type_traits.h"
 #include "mysqlrouter/routing.h"
 #include "protocol/protocol.h"
-#include "router/src/routing/tests/routing_mocks.h"
-#include "socket_operations.h"
 #include "tcp_address.h"
 #include "test/helpers.h"
 

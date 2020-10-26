@@ -31,8 +31,7 @@
 
 #include "mysqlrouter/destination.h"
 #include "router_test_helpers.h"  // ASSERT_THROW_LIKE
-#include "routing_mocks.h"
-#include "test/helpers.h"  // init_test_logger
+#include "test/helpers.h"         // init_test_logger
 
 using metadata_cache::InstanceStatus;
 using metadata_cache::LookupResult;

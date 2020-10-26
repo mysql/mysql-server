@@ -31,7 +31,6 @@
 #include <gtest/gtest.h>
 
 #include "mysql/harness/net_ts/io_context.h"
-#include "routing_mocks.h"
 #include "tcp_address.h"
 #include "test/helpers.h"  // init_test_logger
 

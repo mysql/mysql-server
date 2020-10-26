@@ -4000,39 +4000,6 @@ class MockSocketOperations : public mysql_harness::SocketOperationsBase {
     throw LocalHostnameResolutionError(
         "some error message from get_local_hostname()");
   }
-
-  // we don't call these, but we need to provide an implementation (they're pure
-  // virtual)
-  MOCK_METHOD3(read, result<size_t>(mysql_harness::socket_t, void *, size_t));
-  MOCK_METHOD3(write,
-               result<size_t>(mysql_harness::socket_t, const void *, size_t));
-  MOCK_METHOD1(close, result<void>(mysql_harness::socket_t));
-  MOCK_METHOD1(shutdown, result<void>(mysql_harness::socket_t));
-  MOCK_METHOD3(getaddrinfo,
-               addrinfo_result(const char *, const char *, const addrinfo *));
-  MOCK_METHOD3(bind, result<void>(mysql_harness::socket_t,
-                                  const struct sockaddr *, size_t));
-  MOCK_METHOD3(connect, result<void>(mysql_harness::socket_t,
-                                     const struct sockaddr *, size_t));
-  MOCK_METHOD3(socket, result<mysql_harness::socket_t>(int, int, int));
-  MOCK_METHOD5(setsockopt, result<void>(mysql_harness::socket_t, int, int,
-                                        const void *, size_t));
-  MOCK_METHOD2(listen, result<void>(mysql_harness::socket_t fd, int n));
-  MOCK_METHOD3(poll, result<size_t>(struct pollfd *, size_t,
-                                    std::chrono::milliseconds));
-  MOCK_METHOD4(inetntop,
-               result<const char *>(int af, const void *, char *, size_t));
-  MOCK_METHOD3(getpeername, result<void>(mysql_harness::socket_t,
-                                         struct sockaddr *, size_t *));
-  MOCK_METHOD2(connect_non_blocking_wait,
-               result<void>(mysql_harness::socket_t sock,
-                            std::chrono::milliseconds timeout));
-  MOCK_METHOD1(connect_non_blocking_status,
-               result<void>(mysql_harness::socket_t sock));
-  MOCK_METHOD2(set_socket_blocking,
-               result<void>(mysql_harness::socket_t, bool));
-  MOCK_METHOD2(has_data, result<bool>(mysql_harness::socket_t,
-                                      std::chrono::milliseconds));
 };
 
 /**
