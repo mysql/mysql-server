@@ -52,6 +52,7 @@ TARGET_SOURCES(harness_net_ts
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/netfwd.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/socket.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/timer.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/win32_named_pipe.h
   )
 TARGET_LINK_LIBRARIES(harness_net_ts INTERFACE harness_stdx)
 

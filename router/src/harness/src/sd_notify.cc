@@ -23,16 +23,9 @@
 */
 
 #include "mysql/harness/sd_notify.h"
-#include "mysql/harness/net_ts/io_context.h"
-#include "mysql/harness/stdx/expected.h"
 
 #ifndef _WIN32
-#include <sys/un.h>
 #include <unistd.h>
-#else
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
 #endif
 
 #include <array>
@@ -44,7 +37,10 @@
 
 #include "common.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/net_ts/local.h"
+#include "mysql/harness/net_ts/win32_named_pipe.h"
+#include "mysql/harness/stdx/expected.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -72,35 +68,21 @@ static std::string get_notify_socket_name() {
 
 #ifdef _WIN32
 
-static bool notify(const std::string &msg) {
-  const std::string pipe_name = get_notify_socket_name();
-  if (pipe_name.empty()) {
-    log_debug("NOTIFY_SOCKET is empty, skipping sending '%s' notification",
-              msg.c_str());
-    return false;
+static stdx::expected<void, std::error_code> notify(
+    const std::string &msg, const std::string &pipe_name) {
+  net::io_context io_ctx;
+  local::byte_protocol::socket sock(io_ctx);
+
+  auto connect_res = sock.connect({pipe_name});
+  if (!connect_res) {
+    return connect_res.get_unexpected();
+  }
+  auto write_res = net::write(sock, net::buffer(msg));
+  if (!write_res) {
+    return write_res.get_unexpected();
   }
 
-  log_debug("Using NOTIFY_SOCKET='%s' for the '%s' notification",
-            pipe_name.c_str(), msg.c_str());
-
-  DWORD written;
-  HANDLE hPipe =
-      CreateFile(TEXT(pipe_name.c_str()), GENERIC_READ | GENERIC_WRITE, 0, NULL,
-                 OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-
-  if (hPipe != INVALID_HANDLE_VALUE) {
-    const auto res =
-        WriteFile(hPipe, msg.c_str(), msg.length() + 1, &written, NULL);
-
-    CloseHandle(hPipe);
-    if (res) return true;
-  }
-
-  log_warning(
-      "Failed to send notification '%s' to the named pipe '%s', error=%d",
-      msg.c_str(), pipe_name.c_str(), GetLastError());
-
-  return false;
+  return {};
 }
 
 #else
@@ -144,6 +126,24 @@ connect_to_notify_socket(net::io_context &io_ctx,
   } while (true);
 }
 
+static stdx::expected<void, std::error_code> notify(
+    const std::string &msg, const std::string &socket_name) {
+  net::io_context io_ctx;
+  auto connect_res = connect_to_notify_socket(io_ctx, socket_name);
+  if (!connect_res) {
+    return connect_res.get_unexpected();
+  }
+
+  auto sock = std::move(connect_res.value());
+
+  const auto write_res = net::write(sock, net::buffer(msg));
+  if (!write_res) {
+    return connect_res.get_unexpected();
+  }
+
+  return {};
+}
+#endif
 static bool notify(const std::string &msg) {
   const std::string socket_name = get_notify_socket_name();
   if (socket_name.empty()) {
@@ -155,29 +155,15 @@ static bool notify(const std::string &msg) {
   log_debug("Using NOTIFY_SOCKET='%s' for the '%s' notification",
             socket_name.c_str(), msg.c_str());
 
-  net::io_context io_ctx;
-  auto connect_res = connect_to_notify_socket(io_ctx, socket_name);
-  if (!connect_res) {
-    log_warning("Could not connect to the NOTIFY_SOCKET='%s': %s",
-                socket_name.c_str(), connect_res.error().message().c_str());
-
-    return false;
-  }
-
-  auto sock = std::move(connect_res.value());
-
-  const auto write_res = net::write(sock, net::buffer(msg));
-  if (!write_res) {
-    log_warning("Failed writing '%s' to the NOTIFY_SOCKET='%s': %s",
-                msg.c_str(), socket_name.c_str(),
-                write_res.error().message().c_str());
+  auto notify_res = notify(msg, socket_name);
+  if (!notify_res) {
+    log_warning("sending '%s' to NOTIFY_SOCKET='%s' failed: %s", msg.c_str(),
+                socket_name.c_str(), notify_res.error().message().c_str());
     return false;
   }
 
   return true;
 }
-
-#endif
 
 bool notify_ready() { return notify("READY=1"); }
 
