@@ -31,6 +31,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  Created 1/8/1996 Heikki Tuuri
  ***********************************************************************/
 
+#include <atomic>
 #ifndef UNIV_HOTBACKUP
 #include <mysql_com.h>
 
@@ -756,14 +757,14 @@ char *dict_mem_create_temporary_tablename(mem_heap_t *heap, const char *dbtab,
   size_t dblen = dbend - dbtab + 1;
 
   /* Increment a randomly initialized  number for each temp file. */
-  dict_temp_file_num.fetch_add(1);
+  auto file_num =
+      dict_temp_file_num.fetch_add(1, std::memory_order_relaxed) + 1;
 
   size = dblen + (sizeof(TEMP_FILE_PREFIX) + 3 + 20 + 1 + 10);
   name = static_cast<char *>(mem_heap_alloc(heap, size));
   memcpy(name, dbtab, dblen);
   snprintf(name + dblen, size - dblen,
-           TEMP_FILE_PREFIX_INNODB UINT64PF "-" UINT32PF, id,
-           dict_temp_file_num.load());
+           TEMP_FILE_PREFIX_INNODB UINT64PF "-" UINT32PF, id, file_num);
 
   return (name);
 }
@@ -774,11 +775,11 @@ void dict_mem_init(void) {
   ib_uint32_t now = static_cast<ib_uint32_t>(ut_time());
 
   const byte *buf = reinterpret_cast<const byte *>(&now);
+  auto file_num = ut_crc32(buf, sizeof(now));
+  dict_temp_file_num.store(file_num, std::memory_order_relaxed);
 
-  dict_temp_file_num = ut_crc32(buf, sizeof(now));
-
-  DBUG_PRINT("dict_mem_init", ("Starting Temporary file number is " UINT32PF,
-                               dict_temp_file_num.load()));
+  DBUG_PRINT("dict_mem_init",
+             ("Starting Temporary file number is " UINT32PF, file_num));
 }
 
 /** Validate the search order in the foreign key set.
