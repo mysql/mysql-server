@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #define NDB_TICK_H
 
 #include <assert.h>
+#include <time.h>
 #include <ndb_types.h>
 
 
@@ -73,6 +74,11 @@ public:
  */
 bool
 NdbTick_IsMonotonic();
+
+#ifndef _WIN32
+int
+NdbTick_GetMonotonicClockId(clockid_t* clk);
+#endif
 
 /**
  * Returns number of 'ticks' since some 
