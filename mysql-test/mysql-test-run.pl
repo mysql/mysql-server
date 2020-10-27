@@ -414,6 +414,8 @@ END {
   }
 }
 
+select(STDERR);
+$| = 1;    # Automatically flush STDERR - output should be in sync with STDOUT
 select(STDOUT);
 $| = 1;    # Automatically flush STDOUT
 
