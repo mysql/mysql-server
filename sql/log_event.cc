@@ -67,6 +67,7 @@
 #include "query_options.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/binlog_reader.h"
+#include "sql/field_common_properties.h"
 #include "sql/my_decimal.h"   // my_decimal
 #include "sql/rpl_handler.h"  // RUN_HOOK
 #include "sql/rpl_tblmap.h"
@@ -10876,26 +10877,6 @@ static inline bool write_tlv_field(
 }
 #endif  // MYSQL_SERVER
 
-#ifndef MYSQL_SERVER
-// For MYSQL_SERVER, the version in field.h is used.
-static inline bool is_numeric_type(uint type) {
-  switch (type) {
-    case MYSQL_TYPE_TINY:
-    case MYSQL_TYPE_SHORT:
-    case MYSQL_TYPE_INT24:
-    case MYSQL_TYPE_LONG:
-    case MYSQL_TYPE_LONGLONG:
-    case MYSQL_TYPE_NEWDECIMAL:
-    case MYSQL_TYPE_FLOAT:
-    case MYSQL_TYPE_DOUBLE:
-      return true;
-    default:
-      return false;
-  }
-  return false;
-}
-#endif  // !MYSQL_SERVER
-
 static inline bool is_character_type(uint type) {
   switch (type) {
     case MYSQL_TYPE_STRING:
@@ -10914,7 +10895,7 @@ static inline bool is_enum_or_set_type(uint type) {
 
 #ifdef MYSQL_SERVER
 static inline bool is_numeric_field(const Field *field) {
-  return is_numeric_type(field->binlog_type());
+  return has_signedess_information_type(field->binlog_type());
 }
 
 static inline bool is_character_field(const Field *field) {
@@ -11546,9 +11527,13 @@ void Table_map_log_event::print_columns(
     my_b_printf(file, "%s", type_name);
 
     // Print UNSIGNED for numeric column
-    if (is_numeric_type(real_type) &&
+    enum_field_types field_type_code = static_cast<enum_field_types>(real_type);
+    if (has_signedess_information_type(field_type_code) &&
         signedness_it != fields.m_signedness.end()) {
-      if (*signedness_it == true) my_b_printf(file, " UNSIGNED");
+      if (*signedness_it == true &&
+          // the UNSIGNED modifier is encoded for YEAR but not used
+          field_type_code != MYSQL_TYPE_YEAR)
+        my_b_printf(file, " UNSIGNED");
       signedness_it++;
     }
 

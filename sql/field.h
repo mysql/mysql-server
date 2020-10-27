@@ -51,6 +51,7 @@
 #include "mysqld_error.h"  // ER_*
 #include "nullable.h"
 #include "sql/dd/types/column.h"
+#include "sql/field_common_properties.h"
 #include "sql/gis/srid.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_const.h"
@@ -313,97 +314,6 @@ inline type_conversion_status time_warning_to_type_conversion_status(
                          bitmap_is_set(table->write_set, field_index())))
 
 /**
-  Tests if field type is an integer
-
-  @param type Field type, as returned by field->type()
-
-  @returns true if integer type, false otherwise
-*/
-inline bool is_integer_type(enum_field_types type) {
-  switch (type) {
-    case MYSQL_TYPE_TINY:
-    case MYSQL_TYPE_SHORT:
-    case MYSQL_TYPE_INT24:
-    case MYSQL_TYPE_LONG:
-    case MYSQL_TYPE_LONGLONG:
-      return true;
-    default:
-      return false;
-  }
-}
-
-/**
-  Tests if field type is a numeric type
-
-  @param type Field type, as returned by field->type()
-
-  @returns true if numeric type, false otherwise
-*/
-inline bool is_numeric_type(enum_field_types type) {
-  switch (type) {
-    case MYSQL_TYPE_TINY:
-    case MYSQL_TYPE_SHORT:
-    case MYSQL_TYPE_INT24:
-    case MYSQL_TYPE_LONG:
-    case MYSQL_TYPE_LONGLONG:
-    case MYSQL_TYPE_FLOAT:
-    case MYSQL_TYPE_DOUBLE:
-    case MYSQL_TYPE_DECIMAL:
-    case MYSQL_TYPE_NEWDECIMAL:
-      return true;
-    default:
-      return false;
-  }
-}
-
-/**
-  Tests if field type is a string type
-
-  @param type Field type, as returned by field->type()
-
-  @returns true if string type, false otherwise
-*/
-inline bool is_string_type(enum_field_types type) {
-  switch (type) {
-    case MYSQL_TYPE_VARCHAR:
-    case MYSQL_TYPE_VAR_STRING:
-    case MYSQL_TYPE_STRING:
-    case MYSQL_TYPE_TINY_BLOB:
-    case MYSQL_TYPE_MEDIUM_BLOB:
-    case MYSQL_TYPE_LONG_BLOB:
-    case MYSQL_TYPE_BLOB:
-    case MYSQL_TYPE_ENUM:
-    case MYSQL_TYPE_SET:
-    case MYSQL_TYPE_JSON:
-      return true;
-    default:
-      return false;
-  }
-}
-
-/**
-  Tests if field type is temporal, i.e. represents
-  DATE, TIME, DATETIME, TIMESTAMP or YEAR types in SQL.
-
-  @param type    Field type, as returned by field->type().
-  @retval true   If field type is temporal
-  @retval false  If field type is not temporal
-*/
-inline bool is_temporal_type(enum_field_types type) {
-  switch (type) {
-    case MYSQL_TYPE_TIME:
-    case MYSQL_TYPE_DATETIME:
-    case MYSQL_TYPE_TIMESTAMP:
-    case MYSQL_TYPE_DATE:
-    case MYSQL_TYPE_NEWDATE:
-    case MYSQL_TYPE_YEAR:
-      return true;
-    default:
-      return false;
-  }
-}
-
-/**
   Tests if field real type is temporal, i.e. represents
   all existing implementations of
   DATE, TIME, DATETIME or TIMESTAMP types in SQL.
@@ -420,62 +330,6 @@ inline bool is_temporal_real_type(enum_field_types type) {
       return true;
     default:
       return is_temporal_type(type);
-  }
-}
-
-/**
-  Tests if field type is temporal and has time part,
-  i.e. represents TIME, DATETIME or TIMESTAMP types in SQL.
-
-  @param type    Field type, as returned by field->type().
-  @retval true   If field type is temporal type with time part.
-  @retval false  If field type is not temporal type with time part.
-*/
-inline bool is_temporal_type_with_time(enum_field_types type) {
-  switch (type) {
-    case MYSQL_TYPE_TIME:
-    case MYSQL_TYPE_DATETIME:
-    case MYSQL_TYPE_TIMESTAMP:
-      return true;
-    default:
-      return false;
-  }
-}
-
-/**
-  Tests if field type is temporal and has date part,
-  i.e. represents DATE, DATETIME or TIMESTAMP types in SQL.
-
-  @param type    Field type, as returned by field->type().
-  @retval true   If field type is temporal type with date part.
-  @retval false  If field type is not temporal type with date part.
-*/
-inline bool is_temporal_type_with_date(enum_field_types type) {
-  switch (type) {
-    case MYSQL_TYPE_DATE:
-    case MYSQL_TYPE_DATETIME:
-    case MYSQL_TYPE_TIMESTAMP:
-      return true;
-    default:
-      return false;
-  }
-}
-
-/**
-  Tests if field type is temporal and has date and time parts,
-  i.e. represents DATETIME or TIMESTAMP types in SQL.
-
-  @param type    Field type, as returned by field->type().
-  @retval true   If field type is temporal type with date and time parts.
-  @retval false  If field type is not temporal type with date and time parts.
-*/
-inline bool is_temporal_type_with_date_and_time(enum_field_types type) {
-  switch (type) {
-    case MYSQL_TYPE_DATETIME:
-    case MYSQL_TYPE_TIMESTAMP:
-      return true;
-    default:
-      return false;
   }
 }
 
@@ -503,14 +357,6 @@ inline bool real_type_with_now_as_default(enum_field_types type) {
 inline bool real_type_with_now_on_update(enum_field_types type) {
   return type == MYSQL_TYPE_TIMESTAMP || type == MYSQL_TYPE_TIMESTAMP2 ||
          type == MYSQL_TYPE_DATETIME || type == MYSQL_TYPE_DATETIME2;
-}
-
-/**
-   Recognizer for concrete data type (called real_type for some reason),
-   returning true if it is one of the TIMESTAMP types.
-*/
-inline bool is_timestamp_type(enum_field_types type) {
-  return type == MYSQL_TYPE_TIMESTAMP || type == MYSQL_TYPE_TIMESTAMP2;
 }
 
 /**
