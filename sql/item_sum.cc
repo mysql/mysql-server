@@ -6179,6 +6179,11 @@ bool Item_rollup_sum_switcher::val_json(Json_wrapper *result) {
   return res;
 }
 
+bool Item_rollup_sum_switcher::is_null() {
+  DBUG_ASSERT(fixed);
+  return current_arg()->is_null();
+}
+
 void Item_rollup_sum_switcher::print(const THD *thd, String *str,
                                      enum_query_type query_type) const {
   if (query_type & QT_HIDE_ROLLUP_FUNCTIONS) {
