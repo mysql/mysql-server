@@ -32,10 +32,11 @@
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysqld_error.h"
-#include "sql/current_thd.h"  // current_thd
-#include "sql/field.h"        // Field
-#include "sql/mysqld.h"       // key_LOCK_cost_const
-#include "sql/records.h"      // unique_ptr_destroy_only<RowIterator>
+#include "sql/current_thd.h"            // current_thd
+#include "sql/dd/upgrade_57/upgrade.h"  // dd::upgrade_57::in_progress()
+#include "sql/field.h"                  // Field
+#include "sql/mysqld.h"                 // key_LOCK_cost_const
+#include "sql/records.h"                // unique_ptr_destroy_only<RowIterator>
 #include "sql/row_iterator.h"
 #include "sql/sql_base.h"   // open_and_lock_tables
 #include "sql/sql_class.h"  // THD
@@ -404,7 +405,22 @@ static void read_cost_constants(Cost_model_constants *cost_constants) {
     // Read the storage engine table
     read_engine_cost_constants(thd, tables[1].table, cost_constants);
   } else {
-    LogErr(WARNING_LEVEL, ER_FAILED_TO_OPEN_COST_CONSTANT_TABLES);
+    /*
+      During --initialize, we will try to reload the cost model at a point
+      where the cost model cache is initialized yet its tables are not yet
+      created. This happens when handlertons are initialized. Hence, during
+      --initialize, up to the point after plugins are initialized, we may
+      suppress this warning.
+      The warning may also be emitted during upgrade from a mysql 5.7 version
+      where the cost model tables are not present. This happens at the same
+      point as above because the cost model tables are upgraded at a later
+      stage in the upgrade process. Thus, we can suppress the warning also in
+      this case.
+    */
+    if (dynamic_plugins_are_initialized ||
+        (!opt_initialize && !dd::upgrade_57::in_progress())) {
+      LogErr(WARNING_LEVEL, ER_FAILED_TO_OPEN_COST_CONSTANT_TABLES);
+    }
   }
 
   trans_commit_stmt(thd);

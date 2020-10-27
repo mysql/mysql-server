@@ -1809,7 +1809,11 @@ static char restart_event_name[40];
 static NTService Service;  ///< Service object for WinNT
 #endif                     /* _WIN32 */
 
-static bool dynamic_plugins_are_initialized = false;
+/**
+   Flag indicating if dynamic plugins have been loaded. Only to be accessed
+   by main thread.
+ */
+bool dynamic_plugins_are_initialized = false;
 
 #ifndef DBUG_OFF
 static const char *default_dbug_option;
@@ -5992,8 +5996,15 @@ static int init_server_components() {
       opt_upgrade_mode != UPGRADE_MINIMAL)
     flags |= PLUGIN_INIT_DELAY_UNTIL_AFTER_UPGRADE;
 
+  /*
+    Initialize the cost model, but delete it after the pfs is initialized.
+    Cost model is needed while dropping and creating pfs tables to
+    update metadata of referencing views (if there are any).
+   */
+  init_optimizer_cost_module(true);
   if (plugin_register_dynamic_and_init_all(&remaining_argc, remaining_argv,
                                            flags)) {
+    delete_optimizer_cost_module();
     // Delete all DD tables in case of error in initializing plugins.
     if (dd::upgrade_57::in_progress())
       (void)dd::init(dd::enum_dd_init_type::DD_DELETE);
@@ -6004,6 +6015,7 @@ static int init_server_components() {
   }
   dynamic_plugins_are_initialized =
       true; /* Don't separate from init function */
+  delete_optimizer_cost_module();
 
   LEX_CSTRING plugin_name = {STRING_WITH_LEN("thread_pool")};
   if (Connection_handler_manager::thread_handling !=
