@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2007, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -257,6 +257,8 @@ sub shutdown {
   return $shutdown_status if (@kill_processes == 0);
 
   foreach my $proc (@kill_processes) {
+    warn "ERROR: A process did not stop gracefully, killing it forcefully. If "
+    . "this happens, a child process seems to have a bug.";
     $proc->start_kill();
   }
 
