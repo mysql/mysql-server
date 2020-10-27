@@ -7427,6 +7427,7 @@ Dblqh::handle_acquire_scan_frag_access(Fragrecord *fragPtrP)
   NDB_TICKS start_time;
   (void)now;
   (void)start_time;
+  (void)num_spins;
   m_scan_frag_access++;
   ndbrequire(!DictTabInfo::isOrderedIndex(fragPtrP->tableType));
   NdbMutex_Lock(&fragPtrP->frag_mutex);
@@ -7528,6 +7529,7 @@ Dblqh::handle_acquire_read_key_frag_access(Fragrecord *fragPtrP,
   NDB_TICKS start_time;
   (void)now;
   (void)start_time;
+  (void)num_spins;
   m_read_key_frag_access++;
   ndbrequire(!DictTabInfo::isOrderedIndex(fragPtrP->tableType));
   if (!hold_lock)
@@ -7606,6 +7608,7 @@ Dblqh::handle_acquire_write_key_frag_access(Fragrecord *fragPtrP,
   NDB_TICKS start_time;
   (void)now;
   (void)start_time;
+  (void)num_spins;
   bool first = true;
   ndbrequire(!DictTabInfo::isOrderedIndex(fragPtrP->tableType));
   if (!hold_lock)
@@ -7703,6 +7706,7 @@ Dblqh::handle_acquire_exclusive_frag_access(Fragrecord *fragPtrP,
   NDB_TICKS start_time;
   (void)now;
   (void)start_time;
+  (void)num_spins;
   bool first = true;
   ndbrequire(!DictTabInfo::isOrderedIndex(fragPtrP->tableType));
   if (!hold_lock)
