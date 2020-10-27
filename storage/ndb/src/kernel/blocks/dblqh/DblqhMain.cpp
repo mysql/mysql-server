@@ -20858,19 +20858,21 @@ void Dblqh::start_local_lcp(Signal *signal,
 void
 Dblqh::execSTART_LOCAL_LCP_ORD(Signal *signal)
 {
+  Uint32 lcpId = signal->theData[0];
+  Uint32 localLcpId = signal->theData[1];
   if (c_num_fragments_created_since_restart == 0)
   {
     jam();
     c_local_lcp_sent_wait_all_complete_lcp_req = true;
     c_localLcpId = 1;
     c_local_lcp_started = true;
+    m_curr_lcp_id = lcpId;
+    m_curr_local_lcp_id = localLcpId;
     signal->theData[0] = reference();
     signal->theData[1] = 0;
     sendSignal(NDBCNTR_REF, GSN_WAIT_ALL_COMPLETE_LCP_REQ, signal, 2, JBB);
     return;
   }
-  Uint32 lcpId = signal->theData[0];
-  Uint32 localLcpId = signal->theData[1];
   start_local_lcp(signal, lcpId, localLcpId);
 }
 
@@ -20880,6 +20882,7 @@ void Dblqh::execSTART_FULL_LOCAL_LCP_ORD(Signal *signal)
   Uint32 localLcpId = signal->theData[1];
 
   c_full_local_lcp_started = true;
+
   if (c_local_lcp_started &&
       c_localLcpId == 0)
   {
@@ -20925,6 +20928,8 @@ void Dblqh::execSTART_FULL_LOCAL_LCP_ORD(Signal *signal)
     c_local_lcp_sent_wait_all_complete_lcp_req = true;
     c_localLcpId = 1;
     c_local_lcp_started = true;
+    m_curr_lcp_id = lcpId;
+    m_curr_local_lcp_id = localLcpId;
     signal->theData[0] = reference();
     signal->theData[1] = 0;
     sendSignal(NDBCNTR_REF, GSN_WAIT_ALL_COMPLETE_LCP_REQ, signal, 2, JBB);
@@ -21035,7 +21040,7 @@ void Dblqh::execWAIT_COMPLETE_LCP_REQ(Signal *signal)
     send_lastLCP_FRAG_ORD(signal);
     return;
   }
-  if (c_localLcpId == 0)
+  if ((c_localLcpId == 0) || (c_num_fragments_created_since_restart == 0))
   {
     jam();
     /**
@@ -21050,8 +21055,18 @@ void Dblqh::execWAIT_COMPLETE_LCP_REQ(Signal *signal)
     conf->senderRef = reference();
     conf->lcpId = m_curr_lcp_id;
     conf->localLcpId = m_curr_local_lcp_id;
-    conf->maxGciInLcp = c_max_gci_in_lcp;
-    conf->maxKeepGci = c_max_keep_gci_in_lcp;
+    if (c_num_fragments_created_since_restart > 0)
+    {
+      jam();
+      conf->maxGciInLcp = c_max_gci_in_lcp;
+      conf->maxKeepGci = c_max_keep_gci_in_lcp;
+    }
+    else
+    {
+      jam();
+      conf->maxGciInLcp = 0;
+      conf->maxKeepGci = 0;
+    }
     sendSignal(NDBCNTR_REF, GSN_WAIT_COMPLETE_LCP_CONF, signal,
                WaitCompleteLcpConf::SignalLength, JBB);
     return;
