@@ -1,0 +1,78 @@
+# ==== Purpose ====
+#
+# This test checks that mysqlbinlog reads and prints the correct numeric
+# signedness metadata when using '--print-table-metadata'
+# It also shows that the type YEAR is not shown as UNSIGNED
+#
+# ==== Requirements ====
+#
+# + TC1: Fields should be correctly marked as signed or unsigned.
+#
+# ==== Implementation ====
+#
+# 1. Create a table with a signed and unsigned column.
+#    Get the binlog in use and flush logs
+# 2. Execute mysqlbinlog with '--print-table-metadata'
+#    Check column metadata correctly reports what columns are signed or not
+# 3. Cleanup
+#
+# ==== References ====
+#
+# Bug#31956206: MYSQLBINLOG READS THE WRONG METADATA FOR NUMERIC FIELDS.
+#
+
+# This test checks table map events
+-- source include/have_binlog_format_row.inc
+
+--echo
+--echo # 1.Create a table with a signed and unsigned column.
+--echo #   Get the binlog in use and flush logs
+
+CREATE TABLE `t1` (
+  `col_key` CHAR(255) DEFAULT "",
+  `col_year_key` YEAR DEFAULT NULL,
+  `col_float_key` FLOAT UNSIGNED,
+  `col_bigint_key` BIGINT DEFAULT NULL,
+  PRIMARY KEY (`col_key`)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES  ('key', '1985', 1.7, 23);
+
+let $MYSQLD_DATADIR=`select @@datadir`;
+let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
+
+FLUSH LOGS;
+
+--echo
+--echo # 2. Execute mysqlbinlog with '--print-table-metadata'
+--echo #    Check column metadata correctly reports what columns are signed or not
+--echo #    YEAR is considered unsigned, but not shown as such
+
+--exec $MYSQL_BINLOG --print-table-metadata  $MYSQLD_DATADIR/$binlog_file > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_signed_metata.output
+
+--let $assert_text= Check the YEAR metadata is marked signed and therefore, omitted info about signedness
+--let $assert_file = $MYSQLTEST_VARDIR/tmp/mysqlbinlog_signed_metata.output
+--let $assert_select = #         YEAR,
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--let $assert_text= Check that FLOAT metadata is marked as unsigned
+--let $assert_file = $MYSQLTEST_VARDIR/tmp/mysqlbinlog_signed_metata.output
+--let $assert_select = #         FLOAT UNSIGNED,
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--let $assert_text= Check that BIGINT metadata is marked signed and therefore, omitted info about signedness
+--let $assert_file = $MYSQLTEST_VARDIR/tmp/mysqlbinlog_signed_metata.output
+--let $assert_select = #         BIGINT\)
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--echo
+--echo # 3. Cleanup
+
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_signed_metata.output
+
+DROP TABLE t1;
+
+RESET MASTER;
