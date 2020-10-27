@@ -1084,3 +1084,35 @@ DROP TABLE  t1;
 CREATE TABLE t2(i INT, j DATETIME DEFAULT(0) );
 ALTER TABLE t2 DROP COLUMN i ;
 DROP TABLE  t2;
+
+
+#
+# Bug#31856459 MISSING COLUMN DEFAULT VALUES FROM INFORMATION_SCHEMA.COLUMNS
+#
+# Verify if BLOB and TEXT field display default expression using
+# I_S.COLUNMNS and SHOW COLUMNS command.
+#
+
+CREATE TABLE t1 (
+   pk_col      INT NOT NULL AUTO_INCREMENT,
+   json_col    JSON,
+   blob_col    BLOB,
+   text_col    TEXT,
+   tblob_col   TINYBLOB,
+   ttext_col   TINYTEXT,
+   json_col_d  JSON DEFAULT (JSON_OBJECT('key','val')),
+   blob_col_d  BLOB DEFAULT ('asda'),
+   text_col_d  TEXT DEFAULT (CONCAT('adasdada','ds')),
+   tblob_col_d TINYBLOB DEFAULT ('asda'),
+   ttext_col_d TINYTEXT DEFAULT (CONCAT('adasdada','ds')),
+   PRIMARY KEY (`pk_col`));
+
+SELECT COLUMN_NAME, COLUMN_DEFAULT, DATA_TYPE, EXTRA
+  FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='t1'
+  ORDER BY COLUMN_NAME;
+
+SHOW COLUMNS FROM t1;
+
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
