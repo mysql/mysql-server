@@ -152,6 +152,3 @@ component_query_attributes      plugin_output_directory  QUERY_ATTRIBUTES_COMPON
 
 # component_reference_cache
 component_reference_cache      plugin_output_directory REFERENCE_CACHE_COMPONENT
-
-# cloud
-component_health_monitor        plugin_output_directory  HEALTH_MONITOR_COMPONENT
