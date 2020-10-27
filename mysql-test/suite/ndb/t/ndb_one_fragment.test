@@ -5,7 +5,7 @@
 --source suite/ndb/t/have_ndb_error_insert.inc
 
 # Use small LoadFactors to force sparse hash table
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 3003" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 3003" >> $NDB_TOOLS_OUTPUT
 
 set max_heap_table_size = 286720000;
 create table t1 (a int primary key) engine=memory;
@@ -20,7 +20,7 @@ while ($i)
 }
 select count(*) from t1;
 alter table t1 engine=ndbcluster comment='NDB_TABLE=NOLOGGING' partition by key() partitions 1;
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all report memory" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all report memory" >> $NDB_TOOLS_OUTPUT
 create table t2 (a int primary key) engine=memory;
 insert into t2 select a from t1;
 
@@ -66,7 +66,7 @@ insert ignore into t1 select a from t2 limit 150000, 10000;
 set @@max_error_count = @save_max_error_count;
 
 # Reset error insertion
---exec $NDB_MGM --verbose=0 -e "all error 0"
+--exec $NDB_MGM -e "all error 0"
 
 # Verify no data memory leakage on drop table (see bug#86247).
 

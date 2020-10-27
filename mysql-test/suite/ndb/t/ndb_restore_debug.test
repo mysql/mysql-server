@@ -17,13 +17,13 @@ while($i < 1000)
 --enable_query_log
 
 --echo Cause backup stall
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 10039" >> $NDB_TOOLS_OUTPUT
 
 --source suite/ndb/t/ndb_backup_nowait_start.inc
 
 update t1 set val=12345 where id between 125 and 850;
 
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT
 --source suite/ndb/t/ndb_backup_nowait_wait.inc
 
 --disable_query_log

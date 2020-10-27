@@ -1,5 +1,4 @@
 --source include/have_ndb.inc
---source suite/ndb/include/ndb_find_import_tool.inc
 --source have_ndb_error_insert.inc
 
 --echo # large ndb_import tests
@@ -74,7 +73,7 @@ lines terminated by '\n';
 
 # crash node 2 in 5-15 seconds, may hit t1 or t2
 
-exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING"
+exec $NDB_MGM
      -e "2 dump 9999 5000 15000" >> $NDB_TOOLS_OUTPUT 2>&1;
 
 --echo # import t1, t2

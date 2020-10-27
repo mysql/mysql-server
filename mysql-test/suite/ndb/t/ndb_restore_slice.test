@@ -30,7 +30,7 @@ insert into test.t1 values
         ("16a","16b",NULL,"16d", repeat('16WIFUA',1000));
 
 --echo Stall backup completion
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039" >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_MGM -e "all error 10039" >> $NDB_TOOLS_OUTPUT 2>&1
 --echo Run backup
 --source suite/ndb/t/ndb_backup_nowait_start.inc
 
@@ -45,7 +45,7 @@ update test.t1 set d=concat(d, "-modified");
 delete from test.t1 where a in ("5a","18a");
 
 --echo Allow backup to complete...
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT 2>&1
 
 --source suite/ndb/t/ndb_backup_nowait_wait.inc
 

@@ -72,7 +72,7 @@ let $ndb_desc_opts= -b -i -d test t2;
 source suite/ndb/include/ndb_desc_print.inc;
 --source ndb_read_local.inc
 
---exec $NDB_MGM --no-defaults --verbose=0 -e "all restart"
+--exec $NDB_MGM -e "all restart"
 --source include/ndb_not_readonly.inc
 let $ndb_desc_opts= -b -i -d test t2;
 source suite/ndb/include/ndb_desc_print.inc;
@@ -104,13 +104,13 @@ create table test.t2 (a int primary key,
 
 --source ndb_read_local.inc
 
---exec $NDB_MGM --verbose=0 -e'create nodegroup 3,4'
+--exec $NDB_MGM -e'create nodegroup 3,4'
 alter table t1 algorithm=inplace, reorganize partition;
 alter table t2 algorithm=inplace, reorganize partition;
 
 --source ndb_read_local.inc
 
---exec $NDB_MGM --verbose=0 -e'create nodegroup 5,6'
+--exec $NDB_MGM -e'create nodegroup 5,6'
 alter table t1 algorithm=inplace, reorganize partition;
 alter table t2 algorithm=inplace, reorganize partition;
 
@@ -119,8 +119,8 @@ alter table t2 algorithm=inplace, reorganize partition;
 drop table test.t1;
 drop table test.t2;
 
---exec $NDB_MGM --verbose=0 -e'drop nodegroup 2'
---exec $NDB_MGM --verbose=0 -e'drop nodegroup 1'
+--exec $NDB_MGM -e'drop nodegroup 2'
+--exec $NDB_MGM -e'drop nodegroup 1'
 
 --echo Test read-locality of FULLY-REPLICATED with FOR_RA_BY_NODE
 
@@ -145,13 +145,13 @@ create table test.t2 (a int primary key,
 
 --source ndb_read_local.inc
 
---exec $NDB_MGM --verbose=0 -e'create nodegroup 3,4'
+--exec $NDB_MGM -e'create nodegroup 3,4'
 alter table t1 algorithm=inplace, reorganize partition;
 alter table t2 algorithm=inplace, reorganize partition;
 
 --source ndb_read_local.inc
 
---exec $NDB_MGM --verbose=0 -e'create nodegroup 5,6'
+--exec $NDB_MGM -e'create nodegroup 5,6'
 alter table t1 algorithm=inplace, reorganize partition;
 alter table t2 algorithm=inplace, reorganize partition;
 

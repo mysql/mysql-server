@@ -37,7 +37,7 @@ call mtr.add_suppression("NDB: Got error '10923: Table definition contains obsol
 SHOW CREATE TABLE t1;
 SHOW WARNINGS;
 
---exec $NDB_DROP_TABLE --no-defaults -d test t1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_DROP_TABLE -d test t1 >> $NDB_TOOLS_OUTPUT
 
 # Wait until there are no excluded objects
 --let $max_wait = 30

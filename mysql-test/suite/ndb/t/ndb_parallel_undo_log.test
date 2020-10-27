@@ -1,5 +1,4 @@
 --source include/have_ndb.inc
---source suite/ndb/include/ndb_find_tools.inc
 --source have_ndb_error_insert.inc
 --source include/have_nodebug.inc
 
@@ -113,31 +112,31 @@ let $mysql_errno = ER_LOCK_WAIT_TIMEOUT;
 # Start LCP so that disk table pages are flushed to disk.
 # Otherwise, the undo log records are not sent to the LDM threads for application
 --echo "Run DUMP commands to start LCP"
---exec $NDB_MGM --no-defaults -e "all dump 7099" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all dump 7099" >> $NDB_TOOLS_OUTPUT
 
 --echo "Sleep 10s so that LCP can complete"
 sleep 10;
 
 # Restart node 1 with -n
 --echo "Restarting node 1 with -n"
---exec $NDB_MGM --no-defaults -e "1 RESTART -n" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "1 RESTART -n" >> $NDB_TOOLS_OUTPUT
 
 # Wait for node to reach not-started state
 --exec $NDB_WAITER --not-started --wait-nodes=1 >> $NDB_TOOLS_OUTPUT
 
 # Insert error to invalidate the latest LCP, so that the undo records till the LCP start of the previous
 # LCP are applied
---exec $NDB_MGM --no-defaults -e "1 ERROR 7248" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "1 ERROR 7248" >> $NDB_TOOLS_OUTPUT
 
 # Start node
---exec $NDB_MGM --no-defaults -e "1 START" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "1 START" >> $NDB_TOOLS_OUTPUT
 
 # Wait for node to start
 --exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
 --echo "Node 1 started"
 
 # Clear error insert/s
---exec $NDB_MGM --no-defaults -e "ALL ERROR 0" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "ALL ERROR 0" >> $NDB_TOOLS_OUTPUT
 
 # Ensure existent data is still there
 --exec $NDB_SELECT_COUNT -d test dt_1;

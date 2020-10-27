@@ -1,5 +1,4 @@
 --source include/have_ndb.inc
---source suite/ndb/include/ndb_find_tools.inc
 
 #
 # Open connections

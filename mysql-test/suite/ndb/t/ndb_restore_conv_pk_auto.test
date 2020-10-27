@@ -37,7 +37,7 @@ insert into test.autokey (ok,data) values
 select * from test.autokey order by data;
 
 --echo Stall backup completion
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039" >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_MGM -e "all error 10039" >> $NDB_TOOLS_OUTPUT 2>&1
 --echo Run backup
 --source suite/ndb/t/ndb_backup_nowait_start.inc
 
@@ -61,7 +61,7 @@ update test.autokey set ok=ok, data=concat(data,"-1");
 delete from test.autokey where ok=2;
 
 --echo Allow backup to complete...
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT 2>&1
 
 --source suite/ndb/t/ndb_backup_nowait_wait.inc
 
@@ -71,7 +71,7 @@ select * from test.autokey order by data;
 insert into test.autokey (ok,data) values (6, "6-1");
 select ak from test.autokey where ok=6;
 
-#--exec $NDB_DESC --no-defaults -dtest autokey
+#--exec $NDB_DESC -dtest autokey
 
 drop table test.autokey;
 
@@ -97,7 +97,7 @@ select * from test.autokey order by data;
 insert into test.autokey (ok,data) values (6, "6-1");
 select ak from test.autokey where ok=6;
 
-#--exec $NDB_DESC --no-defaults -dtest autokey
+#--exec $NDB_DESC -dtest autokey
 
 drop table test.autokey;
 
@@ -125,7 +125,7 @@ select * from test.autokey order by data;
 insert into test.autokey (ok,data) values (6, "6-1");
 select ak from test.autokey where ok=6;
 
-#--exec $NDB_DESC --no-defaults -dtest autokey
+#--exec $NDB_DESC -dtest autokey
 
 drop table test.autokey;
 
@@ -156,7 +156,7 @@ insert into test.autokey (ok,data) values
 select * from test.autokey order by data;
 
 --echo Stall backup completion
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039" >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_MGM -e "all error 10039" >> $NDB_TOOLS_OUTPUT 2>&1
 --echo Run backup
 --source suite/ndb/t/ndb_backup_nowait_start.inc
 
@@ -172,7 +172,7 @@ update test.autokey set data = concat(data, "-mk2");
 delete from test.autokey where ok=2;
 
 --echo Allow backup to complete...
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT 2>&1
 
 --source suite/ndb/t/ndb_backup_nowait_wait.inc
 
@@ -182,7 +182,7 @@ select * from test.autokey order by data;
 insert into test.autokey (ok,data) values (6, "6-1");
 select ak from test.autokey where ok=6;
 
-#--exec $NDB_DESC --no-defaults -dtest autokey
+#--exec $NDB_DESC -dtest autokey
 
 drop table test.autokey;
 
@@ -207,7 +207,7 @@ select * from test.autokey order by data;
 insert into test.autokey (ok,data) values (6, "6-1");
 select ak from test.autokey where ok=6;
 
-#--exec $NDB_DESC --no-defaults -dtest autokey
+#--exec $NDB_DESC -dtest autokey
 
 drop table test.autokey;
 
@@ -234,7 +234,7 @@ select * from test.autokey order by data;
 insert into test.autokey (ok,data) values (6, "6-1");
 select ak from test.autokey where ok=6;
 
-#--exec $NDB_DESC --no-defaults -dtest autokey
+#--exec $NDB_DESC -dtest autokey
 
 drop table test.autokey;
 

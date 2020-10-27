@@ -1,7 +1,6 @@
 # WL#12637 Distribute ACL changes in MySQL Cluster
 
 --source include/have_ndb.inc
---source suite/ndb/include/ndb_find_tools.inc
 
 connection default;
 --echo Connected to server1 as root

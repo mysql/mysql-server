@@ -129,16 +129,16 @@ INSERT INTO t1 VALUES
 (99,99,99,'99');
 
 --echo "Run DUMP commands to start LCP"
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all dump 7099" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all dump 7099" >> $NDB_TOOLS_OUTPUT
 
 --echo "Sleep 10s so that LCP can complete"
 sleep 10;
 
 --echo "Insert ERROR command to crash nodes with SEGV"
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 9006" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 9006" >> $NDB_TOOLS_OUTPUT
 
 --echo "Wait till nodes started"
---exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
 
 --exec $NDB_SELECT_ALL -d mysqltest t1 -o PRIMARY
 

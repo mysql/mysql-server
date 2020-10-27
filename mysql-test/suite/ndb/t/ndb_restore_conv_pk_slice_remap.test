@@ -187,7 +187,7 @@ select last_insert_id() into @ek;
 
 --echo Start backup
 --echo Cause backup to stall to allow changes
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 10039" >> $NDB_TOOLS_OUTPUT
 --source suite/ndb/t/ndb_backup_nowait_start.inc
 
 --echo Now make some changes during the backup
@@ -208,7 +208,7 @@ update type2_3 set data = repeat(concat("0", right(data, 4)-2000), 10000);
 update type2_4 set data = data - 3000;
 
 --echo Unblock backup
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT
 
 --source suite/ndb/t/ndb_backup_nowait_wait.inc
 --let first_backup_id=$the_backup_id
@@ -303,7 +303,7 @@ update type2_4 set data = data+3000;
 
 --echo Start backup
 --echo Cause backup to stall to allow changes
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 10039" >> $NDB_TOOLS_OUTPUT
 --source suite/ndb/t/ndb_backup_nowait_start.inc
 
 --echo Now make some changes during the backup
@@ -324,7 +324,7 @@ update type2_3 set data = repeat(right(data, 4)-2000, 10000);
 update type2_4 set data = data - 3000;
 
 --echo Unblock backup
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT
 
 --source suite/ndb/t/ndb_backup_nowait_wait.inc
 --let second_backup_id=$the_backup_id
