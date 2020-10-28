@@ -3950,3 +3950,5 @@ SELECT JSON_ARRAY(CAST(CAST('' AS JSON) AS DATE), 1);
 ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document is empty." at position 0.
 SELECT JSON_ARRAY(JSON_SEARCH('{}', CAST('' AS JSON), 'abc'), 1);
 ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document is empty." at position 0.
+SELECT JSON_ARRAY(JSON_EXTRACT('{}', CAST('' AS JSON)), 1);
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document is empty." at position 0.

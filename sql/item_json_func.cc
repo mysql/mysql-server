@@ -465,9 +465,10 @@ Json_path_cache::Json_path_cache(THD *thd, uint size)
   reset_cache();
 }
 
-Json_path_cache::~Json_path_cache() {}
+Json_path_cache::~Json_path_cache() = default;
 
-bool Json_path_cache::parse_and_cache_path(Item **args, uint arg_idx,
+bool Json_path_cache::parse_and_cache_path(const THD *thd, Item **args,
+                                           uint arg_idx,
                                            bool forbid_wildcards) {
   Item *arg = args[arg_idx];
 
@@ -476,7 +477,9 @@ bool Json_path_cache::parse_and_cache_path(Item **args, uint arg_idx,
 
   if (is_constant && cell.m_status != enum_path_status::UNINITIALIZED) {
     // nothing to do if it has already been parsed
-    return cell.m_status == enum_path_status::ERROR;
+    assert(cell.m_status == enum_path_status::OK_NOT_NULL ||
+           cell.m_status == enum_path_status::OK_NULL);
+    return false;
   }
 
   if (cell.m_status == enum_path_status::UNINITIALIZED) {
@@ -488,17 +491,16 @@ bool Json_path_cache::parse_and_cache_path(Item **args, uint arg_idx,
   }
 
   const String *path_value = arg->val_str(&m_path_value);
-  bool null_value = (path_value == nullptr);
-  if (!null_value &&
-      parse_path(*path_value, forbid_wildcards, &m_paths[cell.m_index])) {
-    // oops, parsing failed
-    cell.m_status = enum_path_status::ERROR;
-    return true;
+  if (thd->is_error()) return true;
+  if (arg->null_value) {
+    cell.m_status = enum_path_status::OK_NULL;
+    return false;
   }
 
-  cell.m_status =
-      null_value ? enum_path_status::OK_NULL : enum_path_status::OK_NOT_NULL;
+  if (parse_path(*path_value, forbid_wildcards, &m_paths[cell.m_index]))
+    return true;
 
+  cell.m_status = enum_path_status::OK_NOT_NULL;
   return false;
 }
 
@@ -926,7 +928,8 @@ void Item_func_json_contains::cleanup() {
 }
 
 longlong Item_func_json_contains::val_int() {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed);
+  THD *const thd = current_thd;
 
   try {
     Json_wrapper doc_wrapper;
@@ -949,7 +952,8 @@ longlong Item_func_json_contains::val_int() {
 
     if (arg_count == 3) {
       // path is specified
-      if (m_path_cache.parse_and_cache_path(args, 2, true)) return error_int();
+      if (m_path_cache.parse_and_cache_path(thd, args, 2, true))
+        return error_int();
       const Json_path *path = m_path_cache.get_path(2);
       if (path == nullptr) {
         null_value = true;
@@ -966,13 +970,13 @@ longlong Item_func_json_contains::val_int() {
       }
 
       bool ret;
-      if (contains_wr(current_thd, v[0], containee_wr, &ret))
+      if (contains_wr(thd, v[0], containee_wr, &ret))
         return error_int(); /* purecov: inspected */
       null_value = false;
       return ret;
     } else {
       bool ret;
-      if (contains_wr(current_thd, doc_wrapper, containee_wr, &ret))
+      if (contains_wr(thd, doc_wrapper, containee_wr, &ret))
         return error_int(); /* purecov: inspected */
       null_value = false;
       return ret;
@@ -1010,8 +1014,8 @@ longlong Item_func_json_contains_path::val_int() {
 
     // arg 1 is the oneOrAll flag
     bool require_all;
-    switch (
-        parse_and_cache_ooa(current_thd, args[1], &m_cached_ooa, func_name())) {
+    const THD *const thd = current_thd;
+    switch (parse_and_cache_ooa(thd, args[1], &m_cached_ooa, func_name())) {
       case ooa_all: {
         require_all = true;
         break;
@@ -1031,7 +1035,8 @@ longlong Item_func_json_contains_path::val_int() {
 
     // the remaining args are paths
     for (uint32 i = 2; i < arg_count; ++i) {
-      if (m_path_cache.parse_and_cache_path(args, i, false)) return error_int();
+      if (m_path_cache.parse_and_cache_path(thd, args, i, false))
+        return error_int();
       const Json_path *path = m_path_cache.get_path(i);
       if (path == nullptr) {
         null_value = true;
@@ -1759,7 +1764,8 @@ longlong Item_func_json_length::val_int() {
   }
 
   if (arg_count > 1) {
-    if (m_path_cache.parse_and_cache_path(args, 1, true)) return error_int();
+    if (m_path_cache.parse_and_cache_path(current_thd, args, 1, true))
+      return error_int();
     const Json_path *json_path = m_path_cache.get_path(1);
     if (json_path == nullptr) {
       null_value = true;
@@ -1823,7 +1829,8 @@ bool Item_func_json_keys::val_json(Json_wrapper *wr) {
     }
 
     if (arg_count > 1) {
-      if (m_path_cache.parse_and_cache_path(args, 1, true)) return error_json();
+      if (m_path_cache.parse_and_cache_path(current_thd, args, 1, true))
+        return error_json();
       const Json_path *path = m_path_cache.get_path(1);
       if (path == nullptr) {
         null_value = true;
@@ -1889,8 +1896,10 @@ bool Item_func_json_extract::val_json(Json_wrapper *wr) {
       return false;
     }
 
+    const THD *const thd = current_thd;
+
     for (uint32 i = 1; i < arg_count; ++i) {
-      if (m_path_cache.parse_and_cache_path(args, i, false))
+      if (m_path_cache.parse_and_cache_path(thd, args, i, false))
         return error_json();
       const Json_path *path = m_path_cache.get_path(i);
       if (path == nullptr) {
@@ -1912,7 +1921,6 @@ bool Item_func_json_extract::val_json(Json_wrapper *wr) {
     if (could_return_multiple_matches) {
       Json_array_ptr a(new (std::nothrow) Json_array());
       if (a == nullptr) return error_json(); /* purecov: inspected */
-      const THD *thd = current_thd;
       for (Json_wrapper &ww : v) {
         if (a->append_clone(ww.to_dom(thd)))
           return error_json(); /* purecov: inspected */
@@ -2003,7 +2011,8 @@ bool Item_func_json_array_append::val_json(Json_wrapper *wr) {
       Json_dom *doc = docw.to_dom(thd);
       if (!doc) return error_json(); /* purecov: inspected */
 
-      if (m_path_cache.parse_and_cache_path(args, i, true)) return error_json();
+      if (m_path_cache.parse_and_cache_path(thd, args, i, true))
+        return error_json();
       const Json_path *path = m_path_cache.get_path(i);
       if (path == nullptr) {
         null_value = true;
@@ -2088,7 +2097,8 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr) {
       Json_dom *doc = docw.to_dom(thd);
       if (!doc) return error_json(); /* purecov: inspected */
 
-      if (m_path_cache.parse_and_cache_path(args, i, true)) return error_json();
+      if (m_path_cache.parse_and_cache_path(thd, args, i, true))
+        return error_json();
       const Json_path *path = m_path_cache.get_path(i);
       if (path == nullptr) {
         null_value = true;
@@ -2211,7 +2221,8 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr) {
       Json_dom *doc = docw.to_dom(thd);
       if (!doc) return error_json(); /* purecov: inspected */
 
-      if (m_path_cache.parse_and_cache_path(args, i, true)) return error_json();
+      if (m_path_cache.parse_and_cache_path(thd, args, i, true))
+        return error_json();
       const Json_path *path = m_path_cache.get_path(i);
       if (path == nullptr) {
         null_value = true;
@@ -2406,7 +2417,8 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr) {
     }
 
     for (uint32 i = 1; i < arg_count; i += 2) {
-      if (m_path_cache.parse_and_cache_path(args, i, true)) return error_json();
+      if (m_path_cache.parse_and_cache_path(thd, args, i, true))
+        return error_json();
       const Json_path *current_path = m_path_cache.get_path(i);
       if (current_path == nullptr) goto return_null;
 
@@ -2908,7 +2920,7 @@ bool Item_func_json_search::val_json(Json_wrapper *wr) {
 
       // validate the user-supplied path expressions
       for (uint32 i = 4; i < arg_count; ++i) {
-        if (m_path_cache.parse_and_cache_path(args, i, false))
+        if (m_path_cache.parse_and_cache_path(thd, args, i, false))
           return error_json();
         if (m_path_cache.get_path(i) == nullptr) {
           null_value = true;
@@ -3042,8 +3054,9 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr) {
       return false;
     }
 
+    const THD *const thd = current_thd;
     for (uint path_idx = 0; path_idx < path_count; ++path_idx) {
-      if (m_path_cache.parse_and_cache_path(args, path_idx + 1, true))
+      if (m_path_cache.parse_and_cache_path(thd, args, path_idx + 1, true))
         return error_json();
       if (m_path_cache.get_path(path_idx + 1) == nullptr) {
         if (binary_diffs) disable_binary_diffs(m_partial_update_column);

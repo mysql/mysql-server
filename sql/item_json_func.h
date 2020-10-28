@@ -91,7 +91,6 @@ class Json_path_cache {
     UNINITIALIZED,
     OK_NOT_NULL,
     OK_NULL,
-    ERROR
   };
 
   /// Struct that points to a cell in m_paths and tells its status.
@@ -116,13 +115,15 @@ class Json_path_cache {
     supposed to. Otherwise puts the parsed path onto the
     path vector.
 
+    @param[in]  thd              THD handle
     @param[in]  args             Array of args to a JSON function
     @param[in]  arg_idx          Index of the path_expression in args
     @param[in]  forbid_wildcards True if the path shouldn't contain * or **
 
     @returns false on success (valid path or NULL), true on error
   */
-  bool parse_and_cache_path(Item **args, uint arg_idx, bool forbid_wildcards);
+  bool parse_and_cache_path(const THD *thd, Item **args, uint arg_idx,
+                            bool forbid_wildcards);
 
   /**
     Return an already parsed path expression.
