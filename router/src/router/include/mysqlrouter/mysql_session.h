@@ -147,7 +147,21 @@ class MySQLSession {
     Row row_;
   };
 
-  MySQLSession();
+  struct LoggingStrategy {
+    virtual void log(const std::string &msg) = 0;
+    virtual ~LoggingStrategy() = default;
+  };
+
+  struct LoggingStrategyNone : public LoggingStrategy {
+    virtual void log(const std::string & /*msg*/) override {}
+  };
+
+  struct LoggingStrategyDebugLogger : public LoggingStrategy {
+    virtual void log(const std::string &msg) override;
+  };
+
+  MySQLSession(std::unique_ptr<LoggingStrategy> &&logging_strategy =
+                   std::make_unique<LoggingStrategyNone>());
   virtual ~MySQLSession();
 
   static mysql_ssl_mode parse_ssl_mode(
@@ -224,6 +238,7 @@ class MySQLSession {
  protected:
   static const std::function<void(unsigned, MYSQL_FIELD *)>
       null_field_validator;
+  std::unique_ptr<LoggingStrategy> logging_strategy_;
 
  private:
   ConnectionParameters conn_params_;

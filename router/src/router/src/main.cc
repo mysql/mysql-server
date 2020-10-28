@@ -113,8 +113,13 @@ static void init_DIM() {
   );
 
   // MySQLSession
-  dim.set_MySQLSession([]() { return new mysqlrouter::MySQLSession(); },
-                       std::default_delete<mysqlrouter::MySQLSession>());
+  dim.set_MySQLSession(
+      []() {
+        return new mysqlrouter::MySQLSession(
+            std::make_unique<
+                mysqlrouter::MySQLSession::LoggingStrategyDebugLogger>());
+      },
+      std::default_delete<mysqlrouter::MySQLSession>());
 
   // Ofstream
   dim.set_Ofstream([]() { return new mysqlrouter::RealOfstream(); },

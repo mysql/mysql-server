@@ -42,6 +42,7 @@
 IMPORT_LOG_FUNCTIONS()
 
 using namespace mysqlrouter;
+using namespace std::string_literals;
 
 /*
    Mock recorder for MySQLSession
@@ -404,7 +405,8 @@ static GoogleMockRecorder g_mock_recorder;
   } while (0)
 #endif  // !MOCK_RECORDER
 
-MySQLSession::MySQLSession() {
+MySQLSession::MySQLSession(std::unique_ptr<LoggingStrategy> &&logging_strategy)
+    : logging_strategy_(std::move(logging_strategy)) {
   MySQLClientThreadToken api_token;
 
   connection_ = new MYSQL();
@@ -413,6 +415,7 @@ MySQLSession::MySQLSession() {
     // not supposed to happen
     throw std::logic_error("Error initializing MySQL connection structure");
   }
+
   log_filter_.add_default_sql_patterns();
 }
 
@@ -678,10 +681,10 @@ void MySQLSession::disconnect() {
 }
 
 void MySQLSession::execute(const std::string &q) {
-  log_debug("Executing query: %s", log_filter_.filter(q).c_str());
-  std::shared_ptr<void> exit_guard(
-      nullptr, [](void *) { log_debug("Done executing query"); });
-
+  logging_strategy_->log("Executing query: "s + log_filter_.filter(q).c_str());
+  std::shared_ptr<void> exit_guard(nullptr, [this](void *) {
+    logging_strategy_->log("Done executing query");
+  });
   if (connected_) {
     MOCK_REC_EXECUTE(q);
     if (mysql_real_query(connection_, q.data(), q.length()) != 0) {
@@ -713,9 +716,10 @@ void MySQLSession::execute(const std::string &q) {
 void MySQLSession::query(
     const std::string &q, const RowProcessor &processor,
     const FieldValidator &validator /*=null_field_validator*/) {
-  log_debug("Executing query: %s", log_filter_.filter(q).c_str());
-  std::shared_ptr<void> exit_guard(
-      nullptr, [](void *) { log_debug("Done executing query"); });
+  logging_strategy_->log("Executing query: "s + log_filter_.filter(q).c_str());
+  std::shared_ptr<void> exit_guard(nullptr, [this](void *) {
+    logging_strategy_->log("Done executing query");
+  });
   if (connected_) {
     MOCK_REC_QUERY(q);
     if (mysql_real_query(connection_, q.data(), q.length()) != 0) {
@@ -781,6 +785,10 @@ class RealResultRow : public MySQLSession::ResultRow {
 std::unique_ptr<MySQLSession::ResultRow> MySQLSession::query_one(
     const std::string &q,
     const FieldValidator &validator /*= null_field_validator*/) {
+  logging_strategy_->log("Executing query: "s + log_filter_.filter(q).c_str());
+  std::shared_ptr<void> exit_guard(nullptr, [this](void *) {
+    logging_strategy_->log("Done executing query");
+  });
   if (connection_) {
     MOCK_REC_QUERY_ONE(q);
     if (mysql_real_query(connection_, q.data(), q.length()) != 0) {
@@ -860,4 +868,8 @@ unsigned int MySQLSession::last_errno() {
 
 const char *MySQLSession::ssl_cipher() {
   return connection_ ? mysql_get_ssl_cipher(connection_) : nullptr;
+}
+
+void MySQLSession::LoggingStrategyDebugLogger::log(const std::string &msg) {
+  log_debug("%s", msg.c_str());
 }
