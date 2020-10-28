@@ -1,0 +1,15 @@
+#
+# Bug#31875229 DEADLOCK BETWEEN CREATE DATABASE IF NOT EXISTS AND CREATE TABLE
+#
+Send DDLs from both clients to trigger a deadlock
+connection client1;
+SET DEBUG_SYNC = 'ndb_global_schema_lock_acquired WAIT_FOR schema_mdl_acquired';
+CREATE DATABASE IF NOT EXISTS test;
+connection client2;
+SET DEBUG_SYNC = 'mdl_upgrade_lock SIGNAL schema_mdl_acquired';
+CREATE TABLE t1 (a int) engine ndb;
+# Reap both DDLs and verify that they succeeded after resolving the deadlock
+connection client1;
+connection client2;
+Cleanup
+DROP TABLE t1;

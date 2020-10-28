@@ -12246,7 +12246,7 @@ static bool ndbcluster_notify_alter_table(
   bool result;
   do {
     result = ndb_gsl_lock(thd, notification == HA_NOTIFY_PRE_EVENT,
-                          false /* is_tablespace */, &victimized);
+                          false /* record_gsl */, &victimized);
     if (result && thd_killed(thd)) {
       // Failed to acuire GSL and THD is killed -> give up!
       return true;
@@ -12291,9 +12291,12 @@ static bool ndbcluster_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
              ("namespace: %u, db: '%s', name: '%s'", mdl_key->mdl_namespace(),
               mdl_key->db_name(), mdl_key->name()));
 
-  const bool result =
-      ndb_gsl_lock(thd, notification == HA_NOTIFY_PRE_EVENT,
-                   mdl_key->mdl_namespace() == MDL_key::TABLESPACE, victimized);
+  // If the MDL being acquired is on a Schema or a Tablespace, record the GSL
+  // acquire so that it can be used to detect any possible deadlocks
+  const bool record_gsl = mdl_key->mdl_namespace() == MDL_key::TABLESPACE ||
+                          mdl_key->mdl_namespace() == MDL_key::SCHEMA;
+  const bool result = ndb_gsl_lock(thd, notification == HA_NOTIFY_PRE_EVENT,
+                                   record_gsl, victimized);
   if (result && *victimized == false) {
     /*
       Failed to acquire GSL and not 'victimzed' -> ignore error to lock GSL
