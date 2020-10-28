@@ -5235,7 +5235,8 @@ template <typename Table>
 void static adjust_row_format(TABLE *old_table, TABLE *altered_table,
                               Alter_inplace_info *ha_alter_info,
                               const Table *old_dd_tab, Table *new_dd_tab) {
-  ut_ad(old_table->s->row_type == ROW_TYPE_DEFAULT);
+  ut_ad(old_table->s->row_type == ROW_TYPE_DEFAULT ||
+        old_table->s->row_type == ROW_TYPE_COMPRESSED);
   ut_ad(old_table->s->row_type == altered_table->s->row_type);
   ut_ad(old_table->s->real_row_type != altered_table->s->real_row_type);
   ut_ad(old_dd_tab->table().row_format() != new_dd_tab->table().row_format());

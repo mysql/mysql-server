@@ -322,3 +322,32 @@ ALTER TABLE t_implicit_redundant DROP INDEX IDX;
 DROP TABLE t_explicit_redundant, t_implicit_redundant;
 SET sql_mode=@sql_mode_saved;
 SET @@global.innodb_default_row_format=@innodb_default_row_format_saved;
+#
+# Bug#31912685 : ASSERTION FAILURE:HANDLER0ALTER.CC:
+#                5194:OLD_TABLE->S->ROW_TYPE == ROW_TYPE_DEFA
+#
+SET @orig_innodb_file_per_table= @@innodb_file_per_table;
+DROP TABLE IF EXISTS t_compressed;
+Warnings:
+Note	1051	Unknown table 'test.t_compressed'
+CREATE TABLE t_compressed (a INT) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
+SHOW CREATE TABLE t_compressed;
+Table	Create Table
+t_compressed	CREATE TABLE `t_compressed` (
+  `a` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2
+SELECT TABLE_ID INTO @TID FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME LIKE "%t_compressed%";
+SET GLOBAL innodb_file_per_table = 0;
+ALTER TABLE t_compressed add index idx(a), ALGORITHM=INPLACE;
+SHOW CREATE TABLE t_compressed;
+Table	Create Table
+t_compressed	CREATE TABLE `t_compressed` (
+  `a` int DEFAULT NULL,
+  KEY `idx` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2
+SELECT TABLE_ID = @TID FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME LIKE "%t_compressed%";
+TABLE_ID = @TID
+1
+# CLEANUP
+SET GLOBAL innodb_file_per_table = @orig_innodb_file_per_table;
+DROP TABLE t_compressed;
