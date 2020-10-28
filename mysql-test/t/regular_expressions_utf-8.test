@@ -955,3 +955,23 @@ DROP TABLE t1;
 do regexp_like(0, "^{18446744073709551616");
 --error ER_REGEX_NUMBER_TOO_BIG
 do regexp_instr(0, "^{18446744073709551616");
+
+--echo #
+--echo # Bug #32053093 ASSERTION `MAYBE_NULL' FAILED.
+--echo #               WHEN USING REGEXP_LIKE FUNCTION
+--echo #
+
+SET SQL_MODE='';
+
+--error ER_REGEXP_MISSING_CLOSE_BRACKET
+DO INSERT(regexp_like(1, '['), 0, 1, '');
+
+--error ER_REGEXP_MISSING_CLOSE_BRACKET
+DO INSERT(regexp_instr(1, '['), 0, 1, '');
+
+SET NAMES latin1;
+--error ER_REGEXP_MISSING_CLOSE_BRACKET
+DO INSERT(regexp_replace(1, '[', 42), 0, 1, '');
+SET NAMES DEFAULT;
+
+SET SQL_MODE=DEFAULT;
