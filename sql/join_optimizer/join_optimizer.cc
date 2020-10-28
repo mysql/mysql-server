@@ -753,6 +753,19 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx,
   return false;
 }
 
+double EstimateFilterCost(double num_rows, Item *condition) {
+  double cost = num_rows * kApplyOneFilterCost;
+  WalkItem(condition, enum_walk::POSTFIX, [num_rows, &cost](Item *item) {
+    if (item->type() == Item::SUBSELECT_ITEM) {
+      // This static cost will be replaced with a precise cost
+      // for running the subquery later in the worklog series.
+      cost += num_rows * 5.0;
+    }
+    return false;
+  });
+  return cost;
+}
+
 // See which predicates that apply to this table. Some can be applied right
 // away, some require other tables first and must be delayed.
 void CostingReceiver::ApplyPredicatesForBaseTable(int node_idx,
@@ -770,7 +783,8 @@ void CostingReceiver::ApplyPredicatesForBaseTable(int node_idx,
     }
     if (m_graph.predicates[i].total_eligibility_set == my_map) {
       path->filter_predicates |= uint64_t{1} << i;
-      path->cost += path->num_output_rows * kApplyOneFilterCost;
+      path->cost += EstimateFilterCost(path->num_output_rows,
+                                       m_graph.predicates[i].condition);
       if (applied_predicates & (uint64_t{1} << i)) {
         // We already factored in this predicate when calculating
         // the selectivity of the ref access, so don't do it again.
@@ -981,7 +995,8 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
     if (IsSubset(m_graph.predicates[pred_idx].total_eligibility_set,
                  ready_tables)) {
       join_path->filter_predicates |= uint64_t{1} << pred_idx;
-      join_path->cost += join_path->num_output_rows * kApplyOneFilterCost;
+      join_path->cost += EstimateFilterCost(
+          join_path->num_output_rows, m_graph.predicates[pred_idx].condition);
       join_path->num_output_rows *= m_graph.predicates[pred_idx].selectivity;
     } else {
       join_path->delayed_predicates |= uint64_t{1} << pred_idx;
@@ -1057,14 +1072,16 @@ void CostingReceiver::ProposeNestedLoopJoin(NodeMap left, NodeMap right,
       }
       if (!subsumed) {
         items.push_back(condition);
-        filter_path.cost += filter_path.num_output_rows * kApplyOneFilterCost;
+        filter_path.cost +=
+            EstimateFilterCost(filter_path.num_output_rows, condition);
         filter_path.num_output_rows *=
             EstimateSelectivity(m_thd, condition, m_trace);
       }
     }
     for (Item *condition : edge->expr->join_conditions) {
       items.push_back(condition);
-      filter_path.cost += filter_path.num_output_rows * kApplyOneFilterCost;
+      filter_path.cost +=
+          EstimateFilterCost(filter_path.num_output_rows, condition);
       filter_path.num_output_rows *=
           EstimateSelectivity(m_thd, condition, m_trace);
     }
@@ -1998,7 +2015,8 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
                     TablesBetween(0, graph.nodes.size())) ||
           Overlaps(graph.predicates[i].total_eligibility_set, RAND_TABLE_BIT)) {
         root_path->filter_predicates |= uint64_t{1} << i;
-        root_path->cost += root_path->num_output_rows * kApplyOneFilterCost;
+        root_path->cost += EstimateFilterCost(root_path->num_output_rows,
+                                              graph.predicates[i].condition);
         root_path->num_output_rows *= graph.predicates[i].selectivity;
         if (trace != nullptr) {
           *trace +=
@@ -2093,7 +2111,8 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
           EstimateSelectivity(thd, join->having_cond, trace);
       filter_path.init_cost = root_path->init_cost;
       filter_path.cost =
-          root_path->cost + root_path->num_output_rows * kApplyOneFilterCost;
+          root_path->cost +
+          EstimateFilterCost(root_path->num_output_rows, join->having_cond);
       filter_path.num_output_rows_before_filter = filter_path.num_output_rows;
       filter_path.cost_before_filter = filter_path.cost;
 
