@@ -71,7 +71,10 @@ SET DEFAULT ROLE NONE TO lead_user1;
 --echo #          project_lead-----------/
 --echo #
 connection default;
-GRANT project_lead to updater;
+# GRANT project_lead to updater;
+INSERT INTO mysql.role_edges (FROM_USER,FROM_HOST,TO_USER,TO_HOST)
+  VALUES('project_lead','%','updater','%');
+FLUSH PRIVILEGES;
 
 --let USER_NAME=project_lead_user
 --let ROLE_LIST=hr_access

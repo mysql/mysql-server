@@ -205,6 +205,31 @@ DROP USER `TestUserFails`@`localhost`, `TestUserWorks`@`localhost`;
 DROP ROLE `r_verifier`@`localhost`;
 DROP DATABASE bug_test;
 
+
+--echo #
+--echo # Bug #31222230: A USER CAN GRANT ITSELF TO ITSELF AS A ROLE
+--echo #
+CREATE ROLE r1,r2,r3,r4;
+GRANT r1 TO r2;
+GRANT r2 TO r3;
+GRANT r4 TO r3;
+
+--error ER_ROLE_GRANTED_TO_ITSELF
+GRANT r1 TO r1;
+--error ER_ROLE_GRANTED_TO_ITSELF
+GRANT r2 TO r1;
+--error ER_ROLE_GRANTED_TO_ITSELF
+GRANT r3 TO r1;
+
+SET @save_mandatory_roles = @@global.mandatory_roles;
+SET GLOBAL mandatory_roles = 'r4';
+--error ER_ROLE_GRANTED_TO_ITSELF
+GRANT r3 TO r4;
+
+SET GLOBAL mandatory_roles = @save_mandatory_roles;
+DROP ROLE r1,r2,r3,r4;
+
+
 --echo
 --echo # End of 8.0 tests
 --echo
