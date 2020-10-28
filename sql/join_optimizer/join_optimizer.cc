@@ -400,9 +400,11 @@ bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx, KEY *key,
           !(sp.field->cmp_type() == STRING_RESULT &&
             sp.field->match_collation_to_optimize_range() &&
             sp.field->charset() != item->compare_collation())) {
-        // x = const. (And true const, not const_for_execution();
-        // so no execution of queries during optimization.)
-        if (sp.other_side->const_item()) {
+        // x = const. (And true const or an outer reference,
+        // just not const_for_execution(); so no execution
+        // of queries during optimization.)
+        if (sp.other_side->const_item() ||
+            sp.other_side->used_tables() == OUTER_REF_TABLE_BIT) {
           matched_this_keypart = true;
           keyparts[keypart_idx].field = sp.field;
           keyparts[keypart_idx].condition = item;
