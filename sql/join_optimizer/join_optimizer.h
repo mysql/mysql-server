@@ -52,8 +52,6 @@
 
     - Reordering of non-inner joins; outer joins work as an optimization
       barrier, pretty much like the existing join optimizer.
-    - Indexes of any kind (and thus, no understanding of interesting
-      orders); table scans only.
     - Multiple equalities; they are simplified to simple equalities
       before optimization (so some legal join orderings will be missed).
     - Aggregation through a temporary table.
