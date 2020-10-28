@@ -429,6 +429,7 @@ static enum_one_or_all_type parse_one_or_all(const String *candidate,
 /**
   Parse and cache a (possibly constant) oneOrAll argument.
 
+  @param[in]  thd           THD handle.
   @param[in]  arg           The oneOrAll arg passed to the JSON function.
   @param[in]  cached_ooa    Previous result of parsing this arg.
   @param[in]  func_name     The name of the calling JSON function.
@@ -436,10 +437,9 @@ static enum_one_or_all_type parse_one_or_all(const String *candidate,
   @returns ooa_one, ooa_all, ooa_null or ooa_error, based on the match
 */
 static enum_one_or_all_type parse_and_cache_ooa(
-    Item *arg, enum_one_or_all_type *cached_ooa, const char *func_name) {
-  bool is_constant = arg->const_for_execution();
-
-  if (is_constant) {
+    const THD *thd, Item *arg, enum_one_or_all_type *cached_ooa,
+    const char *func_name) {
+  if (arg->const_for_execution()) {
     if (*cached_ooa != ooa_uninitialized) {
       return *cached_ooa;
     }
@@ -447,7 +447,9 @@ static enum_one_or_all_type parse_and_cache_ooa(
 
   StringBuffer<16> buffer;  // larger than common case: three characters + '\0'
   String *const one_or_all = arg->val_str(&buffer);
-  if (!one_or_all || arg->null_value) {
+  if (thd->is_error()) {
+    *cached_ooa = ooa_error;
+  } else if (arg->null_value) {
     *cached_ooa = ooa_null;
   } else {
     *cached_ooa = parse_one_or_all(one_or_all, func_name);
@@ -1008,7 +1010,8 @@ longlong Item_func_json_contains_path::val_int() {
 
     // arg 1 is the oneOrAll flag
     bool require_all;
-    switch (parse_and_cache_ooa(args[1], &m_cached_ooa, func_name())) {
+    switch (
+        parse_and_cache_ooa(current_thd, args[1], &m_cached_ooa, func_name())) {
       case ooa_all: {
         require_all = true;
         break;
@@ -2867,8 +2870,9 @@ bool Item_func_json_search::val_json(Json_wrapper *wr) {
     }
 
     // arg 1 is the oneOrAll arg
+    THD *const thd = current_thd;
     bool one_match;
-    switch (parse_and_cache_ooa(args[1], &m_cached_ooa, func_name())) {
+    switch (parse_and_cache_ooa(thd, args[1], &m_cached_ooa, func_name())) {
       case ooa_all: {
         one_match = false;
         break;
@@ -2926,7 +2930,7 @@ bool Item_func_json_search::val_json(Json_wrapper *wr) {
           do this on doms.
         */
         if (path->can_match_many()) {
-          Json_dom *dom = docw.to_dom(current_thd);
+          Json_dom *dom = docw.to_dom(thd);
           if (!dom) return error_json(); /* purecov: inspected */
           Json_dom_vector dom_hits(key_memory_JSON);
 
