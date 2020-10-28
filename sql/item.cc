@@ -3315,11 +3315,7 @@ void Item_string::print(const THD *, String *str,
 
   if (print_introducer) {
     str->append('_');
-    auto charset_name = collation.collation->csname;
-    if (native_strcasecmp(charset_name, "utf8") == 0)
-      str->append("utf8mb3");
-    else
-      str->append(charset_name);
+    str->append(replace_utf8_utf8mb3(collation.collation->csname));
   }
 
   str->append('\'');

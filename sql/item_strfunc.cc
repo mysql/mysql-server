@@ -129,11 +129,8 @@ static void report_conversion_error(const CHARSET_INFO *to_cs, const char *from,
   char printable_buff[32];
   convert_to_printable(printable_buff, sizeof(printable_buff), from,
                        from_length, from_cs, 6);
-  const char *from_name =
-      native_strcasecmp(from_cs->csname, "utf8") ? from_cs->csname : "utf8mb3";
-  const char *to_name =
-      native_strcasecmp(to_cs->csname, "utf8") ? to_cs->csname : "utf8mb3";
-
+  const char *from_name = replace_utf8_utf8mb3(from_cs->csname);
+  const char *to_name = replace_utf8_utf8mb3(to_cs->csname);
   my_error(ER_CANNOT_CONVERT_STRING, MYF(0), printable_buff, from_name,
            to_name);
 }
