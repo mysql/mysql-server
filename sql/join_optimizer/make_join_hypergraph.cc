@@ -62,6 +62,7 @@ using hypergraph::Hypergraph;
 using hypergraph::NodeMap;
 using std::array;
 using std::string;
+using std::swap;
 using std::vector;
 
 namespace {
@@ -307,6 +308,233 @@ bool OperatorsAreRightAsscom(const RelationalExpression &a,
          b.type == RelationalExpression::INNER_JOIN;
 }
 
+enum class AssociativeRewritesAllowed { ANY, RIGHT_ONLY, LEFT_ONLY };
+
+/**
+  Find a bitmap of used tables for all conditions on \<expr\>.
+  Note that after all conditions have been pushed, you can check
+  expr.conditions_used_tables instead (see FindConditionsUsedTables()).
+ */
+table_map UsedTablesForCondition(const RelationalExpression &expr) {
+  assert(expr.equijoin_conditions
+             .empty());  // MakeHashJoinConditions() has not run yet.
+  table_map used_tables = 0;
+  for (Item *cond : expr.join_conditions) {
+    used_tables |= cond->used_tables();
+  }
+  return used_tables;
+}
+
+/**
+  Returns whether adding “cond” to the given join would unduly enlarge
+  the number of tables it references, or create a degenerate join.
+  The former is suboptimal since it would create a wider hyperedge
+  than is usually needed, ie., it restricts join ordering.
+  Consider for instance a join such as
+
+    a JOIN (b JOIN c ON TRUE) ON a.x=b.x WHERE a.y=c.y
+
+  If pushing the WHERE condition down on the a/bc join, that join would
+  get a dependency on both b and c, hindering (ab) and (ac) as subplans.
+  This function allows us to detect this and look for other opportunities
+  (see AddJoinCondition()).
+ */
+bool IsBadJoinForCondition(const RelationalExpression &expr, Item *cond) {
+  const table_map used_tables = cond->used_tables();
+
+  // Making a degenerate join is rarely good.
+  if (!Overlaps(used_tables, expr.left->tables_in_subtree) ||
+      !Overlaps(used_tables, expr.right->tables_in_subtree)) {
+    return true;
+  }
+
+  if (expr.join_conditions.empty()) {
+    // Making a Cartesian join into a proper join is good.
+    return false;
+  }
+
+  return !IsSubset(used_tables, UsedTablesForCondition(expr));
+}
+
+/**
+  Applies the following rewrite on \<op\>:
+
+    A \<op\> (B \<op2\> C) => (A \<op\> B) \<op2\> C
+
+  Importantly, the pointer \<op\> still points to the new top node
+  (that is, \<op2\>), so you don't need to rewrite any nodes higher
+  up in the tree. Join conditions and types are left as-is,
+  ie., if \<op2\> is a LEFT JOIN, it will remain one.
+
+  Does not check that the transformation is actually legal.
+ */
+void RotateRight(RelationalExpression *op) {
+  RelationalExpression *op2 = op->right;
+  RelationalExpression *b = op2->left;
+  RelationalExpression *c = op2->right;
+
+  op->right = b;
+  op2->left = op;
+  op2->right = c;
+
+  // Update tables_in_subtree; order matters.
+  op->tables_in_subtree =
+      op->left->tables_in_subtree | op->right->tables_in_subtree;
+  op2->tables_in_subtree =
+      op2->left->tables_in_subtree | op2->right->tables_in_subtree;
+
+  swap(*op, *op2);
+  op->left = op2;
+}
+
+/**
+  Opposite of RotateRight; that is:
+
+    (A \<op2\> B) \<op\> C => A \<op2\> (B \<op\> C)
+
+  See RotateRight for details.
+ */
+void RotateLeft(RelationalExpression *op) {
+  RelationalExpression *op2 = op->left;
+  RelationalExpression *a = op2->left;
+  RelationalExpression *b = op2->right;
+
+  op->left = b;
+  op2->left = a;
+  op2->right = op;
+
+  // Update tables_in_subtree; order matters.
+  op->tables_in_subtree =
+      op->left->tables_in_subtree | op->right->tables_in_subtree;
+  op2->tables_in_subtree =
+      op2->left->tables_in_subtree | op2->right->tables_in_subtree;
+
+  swap(*op, *op2);
+  op->right = op2;
+}
+
+/**
+  Add “cond” as a join condition to “expr”, but if it would enlarge the set
+  of referenced tables, try to rewrite the join tree using associativity
+  (either left or right) and commutativity to be able to put the condition
+  on a more favorable node. (See IsBadJoinForCondition().) As an example:
+
+    a JOIN (b JOIN c ON TRUE) ON a.x=b.x WHERE a.y=c.y
+
+  In this case, we'd try rewriting the join tree into
+
+    (a JOIN b ON a.x=b.x) JOIN c ON TRUE WHERE a.y=c.y
+
+  which would then allow the push with no issues:
+
+    (a JOIN b ON a.x=b.x) JOIN c ON a.y=c.y
+
+  These rewrites frequently crop up in queries without explicit joins,
+  e.g.
+
+    SELECT ... FROM a,b,c WHERE a.x=b.x AND a.y=c.y
+
+  They don't solve all situations; in particular, we don't deal with
+  situations that should create cycles in the hypergraph. But it gets us
+  out of the most common ones.
+
+  This function works recursively, and returns true if the condition
+  was pushed.
+ */
+bool AddJoinConditionPossiblyWithRewrite(RelationalExpression *expr, Item *cond,
+                                         AssociativeRewritesAllowed allowed,
+                                         bool used_commutativity,
+                                         string *trace) {
+  // We can only promote filters to join conditions on inner joins and
+  // semijoins, but having a left join doesn't stop us from doing the rewrites
+  // below. Due to special semijoin rules in MySQL (see comments in
+  // PushDownCondition()), we also disallow making join conditions on semijoins.
+  if (!IsBadJoinForCondition(*expr, cond) &&
+      expr->type == RelationalExpression::INNER_JOIN) {
+    expr->join_conditions.push_back(cond);
+    if (trace != nullptr && allowed != AssociativeRewritesAllowed::ANY) {
+      *trace += StringPrintf(
+          "- applied associativity%s to better push condition %s\n",
+          used_commutativity ? " and commutativity" : "",
+          ItemToString(cond).c_str());
+    }
+    return true;
+  }
+
+  // Try (where ABC are arbitrary expressions, and <op1> is expr):
+  //
+  //   A <op1> (B <op2> C) => (A <op1> B) <op2> C
+  //
+  // and see if we can push upon <op2>, possibly doing the same
+  // rewrite repeatedly if it helps.
+  if (allowed != AssociativeRewritesAllowed::LEFT_ONLY &&
+      expr->right->type != RelationalExpression::TABLE &&
+      OperatorsAreAssociative(*expr, *expr->right)) {
+    if (!Overlaps(UsedTablesForCondition(*expr),
+                  expr->right->right->tables_in_subtree)) {
+      RotateRight(expr);
+      if (AddJoinConditionPossiblyWithRewrite(
+              expr, cond, AssociativeRewritesAllowed::RIGHT_ONLY,
+              used_commutativity, trace)) {
+        return true;
+      }
+      // It failed, so undo what we did.
+      RotateLeft(expr);
+    }
+    if (OperatorIsCommutative(*expr->right) &&
+        !Overlaps(UsedTablesForCondition(*expr),
+                  expr->right->left->tables_in_subtree)) {
+      swap(expr->right->left, expr->right->right);
+      RotateRight(expr);
+      if (AddJoinConditionPossiblyWithRewrite(
+              expr, cond, AssociativeRewritesAllowed::RIGHT_ONLY,
+              /*used_commutativity=*/false, trace)) {
+        return true;
+      }
+      // It failed, so undo what we did.
+      RotateLeft(expr);
+      swap(expr->right->left, expr->right->right);
+    }
+  }
+
+  // Similarly, try:
+  //
+  //   (A <op2> B) <op1> C => A <op2> (B <op1> C)
+  //
+  // and see if we can push upon <op2>.
+  if (allowed != AssociativeRewritesAllowed::RIGHT_ONLY &&
+      expr->left->type != RelationalExpression::TABLE &&
+      OperatorsAreAssociative(*expr->left, *expr)) {
+    if (!Overlaps(UsedTablesForCondition(*expr),
+                  expr->left->left->tables_in_subtree)) {
+      RotateLeft(expr);
+      if (AddJoinConditionPossiblyWithRewrite(
+              expr, cond, AssociativeRewritesAllowed::LEFT_ONLY,
+              used_commutativity, trace)) {
+        return true;
+      }
+      // It failed, so undo what we did.
+      RotateRight(expr);
+    }
+    if (OperatorIsCommutative(*expr->left) &&
+        !Overlaps(UsedTablesForCondition(*expr),
+                  expr->left->right->tables_in_subtree)) {
+      swap(expr->left->left, expr->left->right);
+      RotateLeft(expr);
+      if (AddJoinConditionPossiblyWithRewrite(
+              expr, cond, AssociativeRewritesAllowed::LEFT_ONLY,
+              /*used_commutativity=*/true, trace)) {
+        return true;
+      }
+      // It failed, so undo what we did.
+      RotateRight(expr);
+      swap(expr->left->left, expr->left->right);
+    }
+  }
+
+  return false;
+}
+
 /**
   Try to push down the condition “cond” down in the join tree given by “expr”,
   as far as possible. cond is either a join condition on expr
@@ -359,7 +587,7 @@ bool OperatorsAreRightAsscom(const RelationalExpression &a,
 bool PushDownCondition(Item *cond, RelationalExpression *expr,
                        bool is_join_condition_for_expr,
                        table_map parameter_tables,
-                       Mem_root_array<Item *> *table_filters) {
+                       Mem_root_array<Item *> *table_filters, string *trace) {
   if (expr->type == RelationalExpression::TABLE) {
     if (parameter_tables == 0) {
       table_filters->push_back(cond);
@@ -393,7 +621,7 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
     }
     return PushDownCondition(cond, expr->left,
                              /*is_join_condition_for_expr=*/false,
-                             parameter_tables, table_filters);
+                             parameter_tables, table_filters, trace);
   }
 
   // See if we can push down into the right side. For inner joins,
@@ -420,7 +648,7 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
     }
     return PushDownCondition(cond, expr->right,
                              /*is_join_condition_for_expr=*/false,
-                             parameter_tables, table_filters);
+                             parameter_tables, table_filters, trace);
   }
 
   // It's not a subset of left, it's not a subset of right, so it's a
@@ -435,7 +663,7 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
     if (partial_cond != nullptr) {
       PushDownCondition(partial_cond, expr->left,
                         /*is_join_condition_for_expr=*/false, parameter_tables,
-                        table_filters);
+                        table_filters, trace);
     }
   }
 
@@ -447,7 +675,7 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
     if (partial_cond != nullptr) {
       PushDownCondition(partial_cond, expr->right,
                         /*is_join_condition_for_expr=*/false, parameter_tables,
-                        table_filters);
+                        table_filters, trace);
     }
   }
 
@@ -461,7 +689,7 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
     }
     PushDownCondition(cond, expr->left,
                       /*is_join_condition_for_expr=*/false,
-                      parameter_tables | left_tables, table_filters);
+                      parameter_tables | left_tables, table_filters, trace);
   }
   if (can_push_into_right) {
     table_map right_tables =
@@ -472,7 +700,7 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
     }
     PushDownCondition(cond, expr->right,
                       /*is_join_condition_for_expr=*/false,
-                      parameter_tables | right_tables, table_filters);
+                      parameter_tables | right_tables, table_filters, trace);
   }
 
   if (parameter_tables != 0) {
@@ -493,14 +721,40 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
   // and antijoins, but we can on inner joins and semijoins.
   if (expr->type == RelationalExpression::LEFT_JOIN ||
       expr->type == RelationalExpression::ANTIJOIN) {
-    return true;
+    // See if we can promote it by rewriting; if not, it has to be left
+    // as a filter.
+    return !AddJoinConditionPossiblyWithRewrite(
+        expr, cond, AssociativeRewritesAllowed::ANY,
+        /*used_commutativity=*/false, trace);
   }
 
   // Promote the filter to a join condition on this join.
   // If it's an equijoin condition, MakeHashJoinConditions() will convert it to
   // one (in expr->equijoin_conditions) when it runs later.
   assert(expr->equijoin_conditions.empty());
-  expr->join_conditions.push_back(cond);
+
+  if (expr->type == RelationalExpression::SEMIJOIN) {
+    // Special semijoin handling; the “WHERE conditions” from semijoins
+    // are not really WHERE conditions, and must not be handled as such
+    // (they cannot be moved to being conditions on inner joins).
+    // See the comment about pushability of these above.
+    expr->join_conditions.push_back(cond);
+    return false;
+  }
+
+  if (!AddJoinConditionPossiblyWithRewrite(
+          expr, cond, AssociativeRewritesAllowed::ANY,
+          /*used_commutativity=*/false, trace)) {
+    // Rewrite failed, so give up and push it where we originally intended.
+    if (trace != nullptr) {
+      *trace += StringPrintf(
+          "- condition %s makes join reference more relations, "
+          "but could not do anything about it\n",
+          ItemToString(cond).c_str());
+    }
+    expr->join_conditions.push_back(cond);
+  }
+
   return false;
 }
 
@@ -517,7 +771,8 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
  */
 Mem_root_array<Item *> PushDownAsMuchAsPossible(
     THD *thd, Mem_root_array<Item *> conditions, RelationalExpression *expr,
-    bool is_join_condition_for_expr, Mem_root_array<Item *> *table_filters) {
+    bool is_join_condition_for_expr, Mem_root_array<Item *> *table_filters,
+    string *trace) {
   Mem_root_array<Item *> remaining_parts(thd->mem_root);
   for (Item *item : conditions) {
     if (IsSingleBitSet(item->used_tables() & ~PSEUDO_TABLE_BITS)) {
@@ -527,7 +782,7 @@ Mem_root_array<Item *> PushDownAsMuchAsPossible(
       remaining_parts.push_back(item);
     } else {
       if (PushDownCondition(item, expr, is_join_condition_for_expr,
-                            /*parameter_tables=*/0, table_filters)) {
+                            /*parameter_tables=*/0, table_filters, trace)) {
         // Pushdown failed.
         remaining_parts.push_back(item);
       }
@@ -558,7 +813,8 @@ Mem_root_array<Item *> PushDownAsMuchAsPossible(
   join condition down again.
  */
 void PushDownJoinConditions(THD *thd, RelationalExpression *expr,
-                            Mem_root_array<Item *> *table_filters) {
+                            Mem_root_array<Item *> *table_filters,
+                            string *trace) {
   if (expr->type == RelationalExpression::TABLE) {
     return;
   }
@@ -567,10 +823,10 @@ void PushDownJoinConditions(THD *thd, RelationalExpression *expr,
   if (!expr->join_conditions.empty()) {
     expr->join_conditions = PushDownAsMuchAsPossible(
         thd, std::move(expr->join_conditions), expr,
-        /*is_join_condition_for_expr=*/true, table_filters);
+        /*is_join_condition_for_expr=*/true, table_filters, trace);
   }
-  PushDownJoinConditions(thd, expr->left, table_filters);
-  PushDownJoinConditions(thd, expr->right, table_filters);
+  PushDownJoinConditions(thd, expr->left, table_filters, trace);
+  PushDownJoinConditions(thd, expr->right, table_filters, trace);
 }
 
 /**
@@ -661,11 +917,7 @@ void FindConditionsUsedTables(THD *thd, RelationalExpression *expr) {
   if (expr->type == RelationalExpression::TABLE) {
     return;
   }
-  assert(expr->equijoin_conditions
-             .empty());  // MakeHashJoinConditions() has not run yet.
-  for (Item *item : expr->join_conditions) {
-    expr->conditions_used_tables |= item->used_tables();
-  }
+  expr->conditions_used_tables = UsedTablesForCondition(*expr);
   FindConditionsUsedTables(thd, expr->left);
   FindConditionsUsedTables(thd, expr->right);
 }
@@ -702,7 +954,8 @@ bool ConcretizeMultipleEquals(THD *thd, Mem_root_array<Item *> *conditions) {
   equalities. See ConcretizeMultipleEquals() for more information.
  */
 bool ConcretizeAllMultipleEquals(THD *thd, RelationalExpression *expr,
-                                 Mem_root_array<Item *> *where_conditions) {
+                                 Mem_root_array<Item *> *where_conditions,
+                                 string *trace) {
   if (expr->type == RelationalExpression::TABLE) {
     return false;
   }
@@ -711,8 +964,8 @@ bool ConcretizeAllMultipleEquals(THD *thd, RelationalExpression *expr,
   if (ConcretizeMultipleEquals(thd, &expr->join_conditions)) {
     return true;
   }
-  PushDownJoinConditions(thd, expr->left, where_conditions);
-  PushDownJoinConditions(thd, expr->right, where_conditions);
+  PushDownJoinConditions(thd, expr->left, where_conditions, trace);
+  PushDownJoinConditions(thd, expr->right, where_conditions, trace);
   return false;
 }
 
@@ -1195,11 +1448,15 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
     *trace += "\n";
   }
 
+  if (trace != nullptr) {
+    *trace += StringPrintf("Pushing conditions down.\n");
+  }
+
   Mem_root_array<Item *> table_filters(thd->mem_root);
-  if (ConcretizeAllMultipleEquals(thd, root, &table_filters)) {
+  if (ConcretizeAllMultipleEquals(thd, root, &table_filters, trace)) {
     return true;
   }
-  PushDownJoinConditions(thd, root, &table_filters);
+  PushDownJoinConditions(thd, root, &table_filters, trace);
 
   // Split up WHERE conditions, and push them down into the tree as much as
   // we can. (They have earlier been hoisted up as far as possible; see
@@ -1215,7 +1472,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
     }
     where_conditions = PushDownAsMuchAsPossible(
         thd, std::move(where_conditions), root,
-        /*is_join_condition_for_expr=*/false, &table_filters);
+        /*is_join_condition_for_expr=*/false, &table_filters, trace);
   }
 
   if (CanonicalizeJoinConditions(thd, root)) {
@@ -1226,7 +1483,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
 
   if (trace != nullptr) {
     *trace += StringPrintf(
-        "After pushdown; remaining WHERE conditions are %s, "
+        "\nAfter pushdown; remaining WHERE conditions are %s, "
         "table filters are %s:\n",
         ItemsToString(where_conditions).c_str(),
         ItemsToString(table_filters).c_str());

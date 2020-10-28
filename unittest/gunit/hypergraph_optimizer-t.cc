@@ -502,6 +502,49 @@ TEST_F(MakeHypergraphTest, Predicates) {
             graph.predicates[1].total_eligibility_set);  // Both t1 and t2!
 }
 
+// See also the PredicatePushdown* tests below.
+TEST_F(MakeHypergraphTest, AssociativeRewriteToImprovePushdown) {
+  // Note that the WHERE condition needs _both_ associativity and
+  // commutativity to become a proper join condition (t2 needs to be
+  // pulled out; doing t1 instead would create a degenerate join).
+  // The IS NULL is to keep the left join from being converted
+  // into an inner join.
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM (t1 JOIN t2 ON TRUE) LEFT JOIN t3 ON TRUE "
+      "WHERE t2.x=t3.x OR t3.x IS NULL",
+      /*nullable=*/true);
+
+  JoinHypergraph graph(m_thd->mem_root, query_block);
+  string trace;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
+  EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
+
+  ASSERT_EQ(3, graph.nodes.size());
+  EXPECT_STREQ("t2", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t1", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+
+  // t1/t3.
+  ASSERT_EQ(2, graph.edges.size());
+  EXPECT_EQ(0x02, graph.graph.edges[0].left);
+  EXPECT_EQ(0x04, graph.graph.edges[0].right);
+  EXPECT_EQ(RelationalExpression::LEFT_JOIN, graph.edges[0].expr->type);
+  EXPECT_EQ(0, graph.edges[0].expr->join_conditions.size());
+  EXPECT_FLOAT_EQ(1.0, graph.edges[0].selectivity);
+
+  // t2/{t1,t3}. This join should also carry the predicate.
+  EXPECT_EQ(0x01, graph.graph.edges[2].left);
+  EXPECT_EQ(0x06, graph.graph.edges[2].right);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[1].expr->type);
+  EXPECT_EQ(1, graph.edges[1].expr->join_conditions.size());
+  EXPECT_FLOAT_EQ(1.0, graph.edges[1].selectivity);
+
+  EXPECT_EQ(0, graph.predicates.size());
+}
+
 // An alias for better naming.
 // We don't verify costs; to do that, we'd probably need to mock out
 // the cost model.
