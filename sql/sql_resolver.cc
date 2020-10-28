@@ -393,8 +393,12 @@ bool SELECT_LEX::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
                              &fields, m_windows))
     return true;
 
-  if (order_list.elements && setup_order_final(thd))
-    return true; /* purecov: inspected */
+  bool added_new_sum_funcs = false;
+
+  if (order_list.elements) {
+    if (setup_order_final(thd)) return true; /* purecov: inspected */
+    added_new_sum_funcs = true;
+  }
 
   thd->want_privilege = want_privilege_saved;
 
@@ -460,22 +464,7 @@ bool SELECT_LEX::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
                         m_having_cond->has_grouping_func())) {
     m_having_cond->split_sum_func2(thd, base_ref_items, &fields, &m_having_cond,
                                    true);
-    if (olap == ROLLUP_TYPE) {
-      uint send_group_parts = group_list_size();
-      for (auto it = fields.begin(); it != fields.end(); ++it) {
-        Item *item = *it;
-        if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item() &&
-            down_cast<Item_sum *>(item)->aggr_select == this &&
-            !is_rollup_sum_wrapper(item)) {
-          // split_sum_func2 created a new aggregate function item,
-          // so we need to update it for rollup.
-          Item *new_item =
-              create_rollup_switcher(thd, this, item, send_group_parts);
-          if (new_item == nullptr) return true;
-          *it = new_item;
-        }
-      }
-    }
+    added_new_sum_funcs = true;
   }
   if (inner_sum_func_list) {
     Item_sum *end = inner_sum_func_list;
@@ -483,7 +472,25 @@ bool SELECT_LEX::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
     do {
       item_sum = item_sum->next_sum;
       item_sum->split_sum_func2(thd, base_ref_items, &fields, nullptr, false);
+      added_new_sum_funcs = true;
     } while (item_sum != end);
+  }
+
+  if (added_new_sum_funcs && olap == ROLLUP_TYPE) {
+    uint send_group_parts = group_list_size();
+    for (auto it = fields.begin(); it != fields.end(); ++it) {
+      Item *item = *it;
+      if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item() &&
+          down_cast<Item_sum *>(item)->aggr_select == this &&
+          !is_rollup_sum_wrapper(item)) {
+        // split_sum_func2 created a new aggregate function item,
+        // so we need to update it for rollup.
+        Item *new_item =
+            create_rollup_switcher(thd, this, item, send_group_parts);
+        if (new_item == nullptr) return true;
+        *it = new_item;
+      }
+    }
   }
 
   if (group_list.elements) {
