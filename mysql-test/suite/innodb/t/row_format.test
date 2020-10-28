@@ -286,3 +286,27 @@ ALTER TABLE t_implicit_redundant DROP INDEX IDX;
 DROP TABLE t_explicit_redundant, t_implicit_redundant;
 SET sql_mode=@sql_mode_saved;
 SET @@global.innodb_default_row_format=@innodb_default_row_format_saved;
+
+--echo #
+--echo # Bug#31912685 : ASSERTION FAILURE:HANDLER0ALTER.CC:
+--echo #                5194:OLD_TABLE->S->ROW_TYPE == ROW_TYPE_DEFA
+--echo #
+SET @orig_innodb_file_per_table= @@innodb_file_per_table;
+
+DROP TABLE IF EXISTS t_compressed;
+CREATE TABLE t_compressed (a INT) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
+SHOW CREATE TABLE t_compressed;
+
+SELECT TABLE_ID INTO @TID FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME LIKE "%t_compressed%";
+
+SET GLOBAL innodb_file_per_table = 0;
+
+ALTER TABLE t_compressed add index idx(a), ALGORITHM=INPLACE;
+SHOW CREATE TABLE t_compressed;
+
+# Make sure table isn't rebuilt.
+SELECT TABLE_ID = @TID FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME LIKE "%t_compressed%";
+
+--echo # CLEANUP
+SET GLOBAL innodb_file_per_table = @orig_innodb_file_per_table;
+DROP TABLE t_compressed;
