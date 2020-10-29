@@ -706,4 +706,101 @@ TEST(aligned_new_delete_arr, unique_ptr_demo) {
       Aligned_int_arr_deleter{});
 }
 
+TEST(aligned_new_delete_arr, distance_between_elements_in_arr) {
+  using type = Default_constructible_pod;
+  constexpr size_t n_elements = 5;
+  for (auto alignment = 2 * alignof(std::max_align_t);
+       alignment < 1024 * 1024 + 1; alignment *= 2) {
+    type *ptr = ut::aligned_new_arr<type>(alignment, n_elements);
+
+    EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr) % alignment == 0);
+
+    for (size_t elem = 1; elem < n_elements; elem++) {
+      auto addr_curr = reinterpret_cast<std::uintptr_t>(&ptr[elem]);
+      auto addr_prev = reinterpret_cast<std::uintptr_t>(&ptr[elem - 1]);
+      auto distance = addr_curr - addr_prev;
+      EXPECT_EQ(distance, sizeof(type));
+    }
+    ut::aligned_delete_arr(ptr);
+  }
+}
+
+TEST(aligned_pointer, access_data_through_implicit_conversion_operator) {
+  constexpr auto alignment = 4 * 1024;
+  ut::aligned_pointer<int, alignment> ptr;
+  ptr.alloc();
+
+  int *data = ptr;
+  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(data) % alignment == 0);
+  EXPECT_EQ(*data, int{});
+
+  ptr.dealloc();
+}
+
+TEST(aligned_array_pointer, access_data_through_subscript_operator) {
+  constexpr auto n_elements = 5;
+  constexpr auto alignment = 4 * 1024;
+  ut::aligned_array_pointer<Default_constructible_pod, alignment> ptr;
+  ptr.alloc(n_elements);
+
+  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(&ptr[0]) % alignment == 0);
+  for (size_t elem = 0; elem < n_elements; elem++) {
+    EXPECT_EQ(ptr[elem].x, 0);
+    EXPECT_EQ(ptr[elem].y, 1);
+  }
+
+  ptr.dealloc();
+}
+
+TEST(aligned_array_pointer, initialize_an_array_of_non_pod_types) {
+  constexpr auto n_elements = 5;
+  constexpr auto alignment = 4 * 1024;
+  ut::aligned_array_pointer<Non_pod_type, alignment> ptr;
+  ptr.alloc<n_elements>(1, 2, std::string("a"), 3, 4, std::string("b"), 5, 6,
+                        std::string("c"), 7, 8, std::string("d"), 9, 10,
+                        std::string("e"));
+
+  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(&ptr[0]) % alignment == 0);
+
+  EXPECT_EQ(ptr[0].x, 1);
+  EXPECT_EQ(ptr[0].y, 2);
+  EXPECT_TRUE(ptr[0].s == std::string("a"));
+
+  EXPECT_EQ(ptr[1].x, 3);
+  EXPECT_EQ(ptr[1].y, 4);
+  EXPECT_TRUE(ptr[1].s == std::string("b"));
+
+  EXPECT_EQ(ptr[2].x, 5);
+  EXPECT_EQ(ptr[2].y, 6);
+  EXPECT_TRUE(ptr[2].s == std::string("c"));
+
+  EXPECT_EQ(ptr[3].x, 7);
+  EXPECT_EQ(ptr[3].y, 8);
+  EXPECT_TRUE(ptr[3].s == std::string("d"));
+
+  EXPECT_EQ(ptr[4].x, 9);
+  EXPECT_EQ(ptr[4].y, 10);
+  EXPECT_TRUE(ptr[4].s == std::string("e"));
+
+  ptr.dealloc();
+}
+
+TEST(aligned_array_pointer, distance_between_elements_in_arr) {
+  constexpr auto n_elements = 5;
+  constexpr auto alignment = 4 * 1024;
+  ut::aligned_array_pointer<Default_constructible_pod, alignment> ptr;
+  ptr.alloc(n_elements);
+
+  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(&ptr[0]) % alignment == 0);
+
+  for (size_t elem = 1; elem < n_elements; elem++) {
+    auto addr_curr = reinterpret_cast<std::uintptr_t>(&ptr[elem]);
+    auto addr_prev = reinterpret_cast<std::uintptr_t>(&ptr[elem - 1]);
+    auto distance = addr_curr - addr_prev;
+    EXPECT_EQ(distance, sizeof(Default_constructible_pod));
+  }
+
+  ptr.dealloc();
+}
+
 }  // namespace innodb_ut0new_unittest
