@@ -27,6 +27,7 @@
 #include <array>
 #include <chrono>
 #include <iostream>
+#include <memory>
 #include <system_error>
 #include <thread>
 
@@ -34,6 +35,9 @@
 #include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/net_ts/impl/socket_constants.h"
 #include "mysqld_error.h"
+#include "mysqlrouter/classic_protocol.h"
+#include "mysqlrouter/classic_protocol_constants.h"
+
 IMPORT_LOG_FUNCTIONS()
 
 namespace server_mock {
@@ -130,20 +134,52 @@ bool MySQLServerMockSessionClassic::process_statements() {
 }
 
 void MySQLClassicProtocol::send_auth_fast_message() {
-  send_packet(protocol_encoder_.encode_auth_fast_message(seq_no_++));
+  std::vector<uint8_t> buf;
+
+  classic_protocol::capabilities::value_type shared_caps{
+      classic_protocol::capabilities::protocol_41};
+
+  auto encode_res = classic_protocol::encode<
+      classic_protocol::frame::Frame<classic_protocol::wire::FixedInt<1>>>(
+      {seq_no_++, {3}}, shared_caps, net::dynamic_buffer(buf));
+
+  send_packet(buf);
 }
 
 void MySQLClassicProtocol::send_auth_switch_message(
     const AuthSwitch *auth_switch_resp) {
-  send_packet(protocol_encoder_.encode_auth_switch_message(
-      seq_no_++, auth_switch_resp->method(), auth_switch_resp->data()));
+  std::vector<uint8_t> buf;
+
+  classic_protocol::capabilities::value_type shared_caps{
+      classic_protocol::capabilities::protocol_41 |
+      classic_protocol::capabilities::plugin_auth};
+
+  auto encode_res = classic_protocol::encode<classic_protocol::frame::Frame<
+      classic_protocol::message::server::AuthMethodSwitch>>(
+      {seq_no_++,
+       {auth_switch_resp->method(), auth_switch_resp->data() + '\0'}},
+      shared_caps, net::dynamic_buffer(buf));
+
+  send_packet(buf);
 }
+
 void MySQLClassicProtocol::send_greeting(const Greeting *greeting_resp) {
-  send_packet(protocol_encoder_.encode_greetings_message(
-      seq_no_++, greeting_resp->server_version(),
-      greeting_resp->connection_id(), greeting_resp->auth_data(),
-      greeting_resp->capabilities(), greeting_resp->auth_method(),
-      greeting_resp->character_set(), greeting_resp->status_flags()));
+  std::vector<uint8_t> buf;
+
+  classic_protocol::capabilities::value_type shared_caps{
+      classic_protocol::capabilities::protocol_41};
+
+  auto encode_res = classic_protocol::encode<classic_protocol::frame::Frame<
+      classic_protocol::message::server::Greeting>>(
+      {seq_no_++,
+       {0x0a, greeting_resp->server_version(), greeting_resp->connection_id(),
+        greeting_resp->auth_data(),
+        static_cast<uint32_t>(greeting_resp->capabilities().bits()),
+        greeting_resp->character_set(), greeting_resp->status_flags(),
+        greeting_resp->auth_method()}},
+      shared_caps, net::dynamic_buffer(buf));
+
+  send_packet(buf);
 }
 
 bool MySQLServerMockSessionClassic::handle_handshake(
@@ -203,8 +239,12 @@ bool MySQLServerMockSessionClassic::handle_handshake(
 void MySQLClassicProtocol::send_error(const uint16_t error_code,
                                       const std::string &error_msg,
                                       const std::string &sql_state) {
-  auto buf = protocol_encoder_.encode_error_message(seq_no_++, error_code,
-                                                    sql_state, error_msg);
+  std::vector<uint8_t> buf;
+  auto encode_res = classic_protocol::encode<
+      classic_protocol::frame::Frame<classic_protocol::message::server::Error>>(
+      {seq_no_++, {error_code, error_msg, sql_state}},
+      {classic_protocol::capabilities::protocol_41}, net::dynamic_buffer(buf));
+
   send_packet(buf);
 }
 
@@ -212,34 +252,79 @@ void MySQLClassicProtocol::send_ok(const uint64_t affected_rows,
                                    const uint64_t last_insert_id,
                                    const uint16_t server_status,
                                    const uint16_t warning_count) {
-  auto buf = protocol_encoder_.encode_ok_message(
-      seq_no_++, affected_rows, last_insert_id, server_status, warning_count);
+  std::vector<uint8_t> buf;
+  auto encode_res = classic_protocol::encode<
+      classic_protocol::frame::Frame<classic_protocol::message::server::Ok>>(
+      {seq_no_++,
+       {affected_rows, last_insert_id, server_status, warning_count}},
+      {classic_protocol::capabilities::protocol_41}, net::dynamic_buffer(buf));
+
   send_packet(buf);
+}
+
+stdx::expected<std::string, void> make_field(
+    std::pair<bool, std::string> const &v) {
+  if (v.first) {
+    return v.second;
+  } else {
+    return stdx::make_unexpected();
+  }
 }
 
 void MySQLClassicProtocol::send_resultset(
     const ResultsetResponse &response,
     const std::chrono::microseconds delay_ms) {
-  auto buf = protocol_encoder_.encode_columns_number_message(
-      seq_no_++, response.columns.size());
+  std::vector<uint8_t> buf;
+
+  classic_protocol::capabilities::value_type shared_caps{
+      classic_protocol::capabilities::protocol_41};
+
+  auto encode_res = classic_protocol::encode<
+      classic_protocol::frame::Frame<classic_protocol::wire::VarInt>>(
+      {seq_no_++, {static_cast<long>(response.columns.size())}}, shared_caps,
+      net::dynamic_buffer(buf));
+
+  for (const auto &column : response.columns) {
+    encode_res = classic_protocol::encode<classic_protocol::frame::Frame<
+        classic_protocol::message::server::ColumnMeta>>(
+        {seq_no_++,
+         {column.catalog, column.schema, column.table, column.orig_table,
+          column.name, column.orig_name, column.character_set, column.length,
+          static_cast<uint8_t>(column.type), column.flags, column.decimals}},
+        shared_caps, net::dynamic_buffer(buf));
+  }
+
+  encode_res = classic_protocol::encode<
+      classic_protocol::frame::Frame<classic_protocol::message::server::Eof>>(
+      {seq_no_++, {}}, shared_caps, net::dynamic_buffer(buf));
+
   std::this_thread::sleep_for(delay_ms);
   send_packet(buf);
-  for (const auto &column : response.columns) {
-    auto col_buf =
-        protocol_encoder_.encode_column_meta_message(seq_no_++, column);
-    send_packet(col_buf);
-  }
-  buf = protocol_encoder_.encode_eof_message(seq_no_++);
-  send_packet(buf);
+  buf.clear();
 
   for (size_t i = 0; i < response.rows.size(); ++i) {
-    auto res_buf = protocol_encoder_.encode_row_message(
-        seq_no_++, response.columns, response.rows[i]);
-    send_packet(res_buf);
+    std::vector<stdx::expected<std::string, void>> fields;
+
+    auto const &row = response.rows[i];
+
+    for (size_t f{}; f < response.columns.size(); ++f) {
+      fields.push_back(make_field(row[f]));
+    }
+
+    encode_res = classic_protocol::encode<
+        classic_protocol::frame::Frame<classic_protocol::message::server::Row>>(
+        {seq_no_++, {fields}}, shared_caps, net::dynamic_buffer(buf));
+
+    send_packet(buf);
+    buf.clear();
   }
-  buf = protocol_encoder_.encode_eof_message(seq_no_++);
+
+  encode_res = classic_protocol::encode<
+      classic_protocol::frame::Frame<classic_protocol::message::server::Eof>>(
+      {seq_no_++, {}}, shared_caps, net::dynamic_buffer(buf));
 
   send_packet(buf);
+  buf.clear();
 }
 
 }  // namespace server_mock

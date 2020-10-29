@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -129,6 +129,45 @@ class DuktapeRuntimeError : public std::runtime_error {
   DuktapeRuntimeError(duk_context *ctx, duk_idx_t error_ndx)
       : std::runtime_error{what_from_error(ctx, error_ndx)} {}
 };
+
+MySQLColumnType column_type_from_string(const std::string &type) {
+  int res = 0;
+
+  try {
+    res = std::stoi(type);
+  } catch (const std::invalid_argument &) {
+    if (type == "DECIMAL") return MySQLColumnType::DECIMAL;
+    if (type == "TINY") return MySQLColumnType::TINY;
+    if (type == "SHORT") return MySQLColumnType::SHORT;
+    if (type == "LONG") return MySQLColumnType::LONG;
+    if (type == "INT24") return MySQLColumnType::INT24;
+    if (type == "LONGLONG") return MySQLColumnType::LONGLONG;
+    if (type == "DECIMAL") return MySQLColumnType::DECIMAL;
+    if (type == "NEWDECIMAL") return MySQLColumnType::NEWDECIMAL;
+    if (type == "FLOAT") return MySQLColumnType::FLOAT;
+    if (type == "DOUBLE") return MySQLColumnType::DOUBLE;
+    if (type == "BIT") return MySQLColumnType::BIT;
+    if (type == "TIMESTAMP") return MySQLColumnType::TIMESTAMP;
+    if (type == "DATE") return MySQLColumnType::DATE;
+    if (type == "TIME") return MySQLColumnType::TIME;
+    if (type == "DATETIME") return MySQLColumnType::DATETIME;
+    if (type == "YEAR") return MySQLColumnType::YEAR;
+    if (type == "STRING") return MySQLColumnType::STRING;
+    if (type == "VAR_STRING") return MySQLColumnType::VAR_STRING;
+    if (type == "BLOB") return MySQLColumnType::BLOB;
+    if (type == "SET") return MySQLColumnType::SET;
+    if (type == "ENUM") return MySQLColumnType::ENUM;
+    if (type == "GEOMETRY") return MySQLColumnType::GEOMETRY;
+    if (type == "NULL") return MySQLColumnType::NULL_;
+    if (type == "TINYBLOB") return MySQLColumnType::TINY_BLOB;
+    if (type == "LONGBLOB") return MySQLColumnType::LONG_BLOB;
+    if (type == "MEDIUMBLOB") return MySQLColumnType::MEDIUM_BLOB;
+
+    throw std::invalid_argument("Unknown type: \"" + type + "\"");
+  }
+
+  return static_cast<MySQLColumnType>(res);
+}
 
 struct DuktapeStatementReader::Pimpl {
   std::string get_object_string_value(duk_idx_t idx, const std::string &field,

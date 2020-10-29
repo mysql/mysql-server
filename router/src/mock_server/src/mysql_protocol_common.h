@@ -92,8 +92,6 @@ struct column_info_type {
  **/
 using RowValueType = std::vector<std::pair<bool, std::string>>;
 
-MySQLColumnType column_type_from_string(const std::string &type);
-
 }  // namespace server_mock
 
 #endif  // MYSQLD_MOCK_MYSQL_PROTOCOL_COMMON_INCLUDED

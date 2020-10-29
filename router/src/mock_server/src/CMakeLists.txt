@@ -126,7 +126,6 @@ add_harness_plugin(mock_server
   NO_INSTALL
   SOURCES duktape_statement_reader.cc
   mysql_protocol_decoder.cc
-  mysql_protocol_encoder.cc
   x_protocol_decoder.cc
   x_protocol_encoder.cc
   mysql_server_mock.cc

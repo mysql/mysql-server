@@ -29,7 +29,6 @@
 #include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/net_ts/impl/socket_constants.h"
 #include "mysql_protocol_decoder.h"
-#include "mysql_protocol_encoder.h"
 
 namespace server_mock {
 
@@ -70,7 +69,6 @@ class MySQLClassicProtocol : public ProtocolBase {
  private:
   uint8_t seq_no_{0};
 
-  MySQLProtocolEncoder protocol_encoder_;
   MySQLProtocolDecoder protocol_decoder_;
 };
 
