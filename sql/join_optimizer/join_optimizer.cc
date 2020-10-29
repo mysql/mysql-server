@@ -627,7 +627,7 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx) {
                               /*subsumed_predicates=*/0, &table_path);
 
   if (m_trace != nullptr) {
-    *m_trace += StringPrintf("Found node %s [rows=%.0f]\n",
+    *m_trace += StringPrintf("\nFound node %s [rows=%.0f]\n",
                              m_graph.nodes[node_idx].table->alias,
                              table_path.num_output_rows);
     for (int pred_idx : BitsSetIn(table_path.filter_predicates)) {
@@ -907,7 +907,7 @@ void CostingReceiver::ProposeHashJoin(NodeMap left, NodeMap right,
   // Only trace once; the rest ought to be identical.
   if (m_trace != nullptr && !*wrote_trace) {
     *m_trace += StringPrintf(
-        "Found sets %s and %s, connected by condition %s [rows=%.0f]\n",
+        "\nFound sets %s and %s, connected by condition %s [rows=%.0f]\n",
         PrintSet(left).c_str(), PrintSet(right).c_str(),
         GenerateExpressionLabel(edge->expr).c_str(), join_path.num_output_rows);
     for (int pred_idx : BitsSetIn(join_path.filter_predicates)) {
