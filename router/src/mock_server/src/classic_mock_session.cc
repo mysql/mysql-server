@@ -34,35 +34,48 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/net_ts/impl/socket_constants.h"
+#include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/tls_error.h"
 #include "mysqld_error.h"
 #include "mysqlrouter/classic_protocol.h"
 #include "mysqlrouter/classic_protocol_constants.h"
+#include "mysqlrouter/mysql_protocol/constants.h"
 
 IMPORT_LOG_FUNCTIONS()
 
 namespace server_mock {
 
-void MySQLClassicProtocol::read_packet(std::vector<uint8_t> &payload) {
-  std::array<char, 4> hdr;
+stdx::expected<size_t, std::error_code> MySQLClassicProtocol::read_packet(
+    std::vector<uint8_t> &payload) {
+  std::array<char, 4> hdr_buf_storage;
 
-  net::mutable_buffer hdr_buf = net::buffer(hdr);
+  net::mutable_buffer hdr_buf = net::buffer(hdr_buf_storage);
 
   read_buffer(hdr_buf);
 
-  net::const_buffer decode_buf = net::buffer(hdr);
-  auto hdr_res = protocol_decoder_.read_header(decode_buf);
-  if (!hdr_res) {
-    throw std::system_error(hdr_res.error());
+  auto decode_res = classic_protocol::decode<classic_protocol::frame::Header>(
+      net::buffer(hdr_buf_storage), {});
+  if (!decode_res) {
+    return decode_res.get_unexpected();
   }
 
-  seq_no_ = protocol_decoder_.packet_seq() + 1;
+  auto hdr_frame = decode_res.value();
 
-  payload.resize(hdr_res.value());
+  auto hdr = hdr_frame.second;
+
+  if (hdr.payload_size() == 0xffffff) {
+    return stdx::make_unexpected(
+        make_error_code(std::errc::operation_not_supported));
+  }
+
+  seq_no_ = hdr.seq_id() + 1;
+
+  payload.resize(hdr.payload_size());
   net::mutable_buffer payload_buf = net::buffer(payload);
 
   read_buffer(payload_buf);
 
-  protocol_decoder_.read_message(net::buffer(payload));
+  return payload.size();
 }
 
 void MySQLClassicProtocol::send_packet(const std::vector<uint8_t> &payload) {
@@ -77,7 +90,10 @@ bool MySQLServerMockSessionClassic::process_handshake() {
   while (!killed()) {
     std::vector<uint8_t> payload;
     if (!is_first_packet) {
-      protocol_->read_packet(payload);
+      auto read_res = protocol_->read_packet(payload);
+      if (!read_res) {
+        throw std::system_error(read_res.error());
+      }
     }
     is_first_packet = false;
     if (true == handle_handshake(json_reader_->handle_handshake(payload))) {
@@ -94,15 +110,22 @@ bool MySQLServerMockSessionClassic::process_statements() {
 
   while (!killed()) {
     std::vector<uint8_t> payload;
-    protocol_->read_packet(payload);
 
-    auto &protocol_decoder = protocol_->protocol_decoder();
+    auto read_res = protocol_->read_packet(payload);
+    if (!read_res) {
+      throw std::system_error(read_res.error());
+    }
 
-    protocol_->seq_no(protocol_decoder.packet_seq() + 1);
-    auto cmd = protocol_decoder.get_command_type();
+    if (payload.size() == 0) {
+      throw std::system_error(make_error_code(std::errc::bad_message));
+    }
+
+    auto cmd = static_cast<mysql_protocol::Command>(payload[0]);
     switch (cmd) {
       case Command::QUERY: {
-        std::string statement_received = protocol_decoder.get_statement();
+        // skip the first
+        std::string statement_received(std::next(payload.begin()),
+                                       payload.end());
 
         try {
           handle_statement(json_reader_->handle_statement(statement_received));

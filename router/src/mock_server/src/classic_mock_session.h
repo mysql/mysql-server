@@ -28,7 +28,6 @@
 #include "mock_session.h"
 #include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/net_ts/impl/socket_constants.h"
-#include "mysql_protocol_decoder.h"
 
 namespace server_mock {
 
@@ -36,7 +35,8 @@ class MySQLClassicProtocol : public ProtocolBase {
  public:
   using ProtocolBase::ProtocolBase;
 
-  void read_packet(std::vector<uint8_t> &payload);
+  stdx::expected<size_t, std::error_code> read_packet(
+      std::vector<uint8_t> &payload);
 
   void send_packet(const std::vector<uint8_t> &payload);
 
@@ -60,16 +60,12 @@ class MySQLClassicProtocol : public ProtocolBase {
 
   void send_auth_switch_message(const AuthSwitch *auth_switch_resp);
 
-  MySQLProtocolDecoder &protocol_decoder() { return protocol_decoder_; }
-
   void seq_no(uint8_t no) { seq_no_ = no; }
 
   uint8_t seq_no() const { return seq_no_; }
 
  private:
   uint8_t seq_no_{0};
-
-  MySQLProtocolDecoder protocol_decoder_;
 };
 
 class MySQLServerMockSessionClassic : public MySQLServerMockSession {
