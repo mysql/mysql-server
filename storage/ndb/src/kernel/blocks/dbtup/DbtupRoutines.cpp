@@ -2787,15 +2787,18 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
   case AttributeHeader::INDEX_STAT_KEY:
   case AttributeHeader::INDEX_STAT_VALUE:
   {
-    Uint32 out[MAX_INDEX_STAT_KEY_SIZE];
-    c_lqh->execREAD_PSEUDO_REQ(req_struct->operPtrP->userpointer, attrId, out);
+    const Uint32 out_size = req_struct->max_read;
+    ndbrequire(4 + 2 + MAX_INDEX_STAT_KEY_SIZE * 4 + 2 <= out_size);
 
-    const Uint8* src = (Uint8*)&out[0];
-    Uint32 byte_sz = 2 + src[0] + (src[1] << 8);
-    Uint8* dst = (Uint8*)&outBuffer[1];
-    memcpy(dst, src, byte_sz);
+    c_lqh->execREAD_PSEUDO_REQ(req_struct->operPtrP->userpointer,
+                               attrId,
+                               outBuffer + 1);
+
+    Uint8* out = (Uint8*)&outBuffer[1];
+    Uint32 byte_sz = 2 + out[0] + (out[1] << 8);
+    ndbrequire(4 + ((byte_sz + 3) / 4) * 4 <= out_size);
     while (byte_sz % 4 != 0)
-      dst[byte_sz++] = 0;
+      out[byte_sz++] = 0;
     sz = byte_sz / 4;
     break;
   }

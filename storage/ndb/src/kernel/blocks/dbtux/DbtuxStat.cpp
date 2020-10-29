@@ -432,6 +432,7 @@ Dbtux::statScanReadKey(StatOpPtr statPtr, Uint32* out)
   ndbrequire(ret == 0);
   D("statScanReadKey" << V(keyData));
   keyData.convert(NdbPack::Endian::Little);
+  ndbrequire(keyData.get_full_len() <= 2 + MAX_INDEX_STAT_KEY_SIZE * 4);
   memcpy(out, keyData.get_full_buf(), keyData.get_full_len());
 }
 
