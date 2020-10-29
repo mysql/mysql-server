@@ -4,7 +4,7 @@ database()
 test
 select charset(database());
 charset(database())
-utf8
+utf8mb3
 select database() = "test";
 database() = "test"
 1
@@ -29,7 +29,7 @@ user() like _latin1"%@%"
 1
 select charset(user());
 charset(user())
-utf8
+utf8mb3
 select version()>="3.23.29";
 version()>="3.23.29"
 1
@@ -43,7 +43,7 @@ version()>=_latin1"3.23.29"
 1
 select charset(version());
 charset(version())
-utf8
+utf8mb3
 explain select database(), user();
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -60,7 +60,7 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 select charset(charset(_utf8'a')), charset(collation(_utf8'a'));
 charset(charset(_utf8'a'))	charset(collation(_utf8'a'))
-utf8	utf8
+utf8mb3	utf8mb3
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.

@@ -16,7 +16,7 @@ ERROR HY000: Variable 'persist_only_admin_x509_subject' is a read only variable
 # Testing FR1.2.
 SELECT CHARSET(@@global.persist_only_admin_x509_subject);
 CHARSET(@@global.persist_only_admin_x509_subject)
-utf8
+utf8mb3
 # Testing FR1.4.
 SET PERSIST_ONLY persist_only_admin_x509_subject = 'persist_only';
 ERROR HY000: Variable 'persist_only_admin_x509_subject' is a non persistent read only variable

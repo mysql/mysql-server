@@ -252,7 +252,7 @@ f4()
 -- character_set_connection
 -- utf8mb4
 -- character_set_results
--- utf8
+-- utf8mb3
 
 -- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1

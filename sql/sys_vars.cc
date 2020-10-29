@@ -1725,7 +1725,7 @@ struct Get_name {
 struct Get_csname {
   explicit Get_csname(const CHARSET_INFO *ci) : m_ci(ci) {}
   const uchar *get_name() const {
-    return pointer_cast<const uchar *>(m_ci->csname);
+    return pointer_cast<const uchar *>(replace_utf8_utf8mb3(m_ci->csname));
   }
   const CHARSET_INFO *m_ci;
 };

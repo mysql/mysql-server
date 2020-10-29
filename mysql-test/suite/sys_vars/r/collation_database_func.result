@@ -26,7 +26,7 @@ Warning	3778	'utf8_spanish_ci' is a collation of the deprecated character set UT
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@collation_database, @@character_set_database;
 @@collation_database	@@character_set_database
-utf8_spanish_ci	utf8
+utf8_spanish_ci	utf8mb3
 '--check if collation_database effects database/tables charset/collation'
 SET @@session.collation_server = utf8_roman_ci;
 Warnings:
@@ -60,11 +60,11 @@ DROP TABLE t1,t2;
 DROP DATABASE db1;
 SELECT @@collation_database,@@collation_server,@@character_set_database,@@character_set_server;
 @@collation_database	@@collation_server	@@character_set_database	@@character_set_server
-utf8_roman_ci	utf8_roman_ci	utf8	utf8
+utf8_roman_ci	utf8_roman_ci	utf8mb3	utf8mb3
 USE test;
 SELECT @@collation_database,@@collation_server,@@character_set_database,@@character_set_server;
 @@collation_database	@@collation_server	@@character_set_database	@@character_set_server
-utf8mb4_0900_ai_ci	utf8_roman_ci	utf8mb4	utf8
+utf8mb4_0900_ai_ci	utf8_roman_ci	utf8mb4	utf8mb3
 set names latin1;
 'fill table with some test data';
 CREATE TABLE t1(a CHAR(20))CHARACTER SET=latin1;

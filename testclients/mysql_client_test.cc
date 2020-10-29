@@ -15988,8 +15988,8 @@ static void test_bug30472() {
   */
 
   DIE_UNLESS(strcmp(character_set_name_2, "utf8") == 0);
-  DIE_UNLESS(strcmp(character_set_client_2, "utf8") == 0);
-  DIE_UNLESS(strcmp(character_set_results_2, "utf8") == 0);
+  DIE_UNLESS(strcmp(character_set_client_2, "utf8mb3") == 0);
+  DIE_UNLESS(strcmp(character_set_client_2, "utf8mb3") == 0);
   DIE_UNLESS(strcmp(collation_connnection_2, "utf8_general_ci") == 0);
 
   DIE_UNLESS(strcmp(character_set_name_1, character_set_name_2) != 0);
@@ -16036,8 +16036,8 @@ static void test_bug30472() {
   /* Check that we have UTF8 on the server and on the client. */
 
   DIE_UNLESS(strcmp(character_set_name_4, "utf8") == 0);
-  DIE_UNLESS(strcmp(character_set_client_4, "utf8") == 0);
-  DIE_UNLESS(strcmp(character_set_results_4, "utf8") == 0);
+  DIE_UNLESS(strcmp(character_set_client_4, "utf8mb3") == 0);
+  DIE_UNLESS(strcmp(character_set_results_4, "utf8mb3") == 0);
   DIE_UNLESS(strcmp(collation_connnection_4, "utf8_general_ci") == 0);
 
   /* That's it. Cleanup. */

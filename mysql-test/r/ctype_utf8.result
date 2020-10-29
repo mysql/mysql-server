@@ -1216,7 +1216,7 @@ user varchar(255) NOT NULL default ''
 INSERT INTO t1 VALUES ('one'),('two');
 SELECT CHARSET('a');
 CHARSET('a')
-utf8
+utf8mb3
 SELECT user, CONCAT('<', user, '>') AS c FROM t1;
 user	c
 one	<one>
@@ -2445,7 +2445,7 @@ Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW VARIABLES LIKE 'character_set_results%';
 Variable_name	Value
-character_set_results	utf8
+character_set_results	utf8mb3
 CREATE TABLE t1 (a CHAR CHARACTER SET utf8mb3 COLLATE utf8mb3_bin);
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
@@ -2864,7 +2864,7 @@ hex(c1)
 drop table t1;
 select hex(concat('a', 1+2)), charset(concat(1+2));
 hex(concat('a', 1+2))	charset(concat(1+2))
-6133	utf8
+6133	utf8mb3
 create table t1 as select concat(1+2) as c1;
 show create table t1;
 Table	Create Table
@@ -5409,23 +5409,23 @@ drop function f1;
 SET @ST_X=md5('a');
 SELECT charset(@ST_X), collation(@ST_X);
 charset(@ST_X)	collation(@ST_X)
-utf8	utf8_general_ci
+utf8mb3	utf8_general_ci
 SET @ST_X=sha('a');
 SELECT charset(@ST_X), collation(@ST_X);
 charset(@ST_X)	collation(@ST_X)
-utf8	utf8_general_ci
+utf8mb3	utf8_general_ci
 SET @ST_X=sha1('a');
 SELECT charset(@ST_X), collation(@ST_X);
 charset(@ST_X)	collation(@ST_X)
-utf8	utf8_general_ci
+utf8mb3	utf8_general_ci
 SET @ST_X=ST_astext(point(1,2));
 SELECT charset(@ST_X), collation(@ST_X);
 charset(@ST_X)	collation(@ST_X)
-utf8	utf8_general_ci
+utf8mb3	utf8_general_ci
 SET @ST_X=ST_AsWKT(point(1,2));
 SELECT charset(@ST_X), collation(@ST_X);
 charset(@ST_X)	collation(@ST_X)
-utf8	utf8_general_ci
+utf8mb3	utf8_general_ci
 #
 # WL#5510 Functions to_base64 and from_base64
 #
@@ -5485,7 +5485,7 @@ DROP TABLE t1;
 #
 SELECT @@collation_connection, @@character_set_results;
 @@collation_connection	@@character_set_results
-utf8_general_ci	utf8
+utf8_general_ci	utf8mb3
 CREATE TABLE t1 AS
 SELECT
 DATE_SUB('2007-08-03', INTERVAL 1 MINUTE) AS field_str1,
@@ -5982,9 +5982,9 @@ NULL
 #
 # Bug#19047425 UNINITIALISED VALUE IN STR_TO_IPV6
 #
-do is_ipv4_mapped(inet6_aton(convert(_ascii "a:" using utf8)));
+do is_ipv4_mapped(inet6_aton(convert(_ascii "a:" using utf8mb3)));
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 #
 # End of 5.6 tests
 #

@@ -5017,7 +5017,7 @@ DTD_IDENTIFIER
 char(10)
 SELECT CHARSET(bug16211_f1())|
 CHARSET(bug16211_f1())
-utf8
+utf8mb3
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT CHARSET(bug16211_f2())|
@@ -5025,7 +5025,7 @@ CHARSET(bug16211_f2())
 koi8r
 SELECT CHARSET(mysqltest2.bug16211_f3())|
 CHARSET(mysqltest2.bug16211_f3())
-utf8
+utf8mb3
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT CHARSET(mysqltest2.bug16211_f4())|
@@ -5071,13 +5071,13 @@ DTD_IDENTIFIER
 char(10)
 SELECT CHARSET(bug16211_f1())|
 CHARSET(bug16211_f1())
-utf8
+utf8mb3
 SELECT CHARSET(bug16211_f2())|
 CHARSET(bug16211_f2())
 koi8r
 SELECT CHARSET(mysqltest2.bug16211_f3())|
 CHARSET(mysqltest2.bug16211_f3())
-utf8
+utf8mb3
 SELECT CHARSET(mysqltest2.bug16211_f4())|
 CHARSET(mysqltest2.bug16211_f4())
 koi8r
@@ -5110,11 +5110,11 @@ SET @v2 = 'b'|
 SET @v3 = 'c'|
 CALL bug16676_p1('a', @v2, @v3)|
 CHARSET(p1)	COLLATION(p1)
-utf8	utf8_general_ci
+utf8mb3	utf8_general_ci
 CHARSET(p2)	COLLATION(p2)
-utf8	utf8_general_ci
+utf8mb3	utf8_general_ci
 CHARSET(p3)	COLLATION(p3)
-utf8	utf8_general_ci
+utf8mb3	utf8_general_ci
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.

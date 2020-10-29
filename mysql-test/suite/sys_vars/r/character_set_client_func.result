@@ -8,7 +8,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 'connection con1'
 SELECT @@global.character_set_client;
 @@global.character_set_client
-utf8
+utf8mb3
 SELECT @@session.character_set_client;
 @@session.character_set_client
 utf8mb4

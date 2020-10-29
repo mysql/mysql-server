@@ -3,8 +3,8 @@
 #
 # Extract only charset information from 'status' command output using regex
 --------------
-Server characterset:	utf8
-Db     characterset:	utf8
-Client characterset:	utf8
-Conn.  characterset:	utf8
+Server characterset:	utf8mb3
+Db     characterset:	utf8mb3
+Client characterset:	utf8mb3
+Conn.  characterset:	utf8mb3
 --------------

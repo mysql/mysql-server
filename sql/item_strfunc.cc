@@ -3120,7 +3120,10 @@ String *Item_func_charset::val_str(String *str) {
 
   const CHARSET_INFO *cs = args[0]->charset_for_protocol();
   null_value = false;
-  str->copy(cs->csname, strlen(cs->csname), &my_charset_latin1,
+
+  const char *charset_name = replace_utf8_utf8mb3(cs->csname);
+
+  str->copy(charset_name, strlen(charset_name), &my_charset_latin1,
             collation.collation, &dummy_errors);
   return str;
 }
