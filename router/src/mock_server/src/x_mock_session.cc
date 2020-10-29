@@ -376,10 +376,10 @@ void MySQLXProtocol::send_resultset(const ResultsetResponse &response,
     }
     Mysqlx::Resultset::Row row_msg;
     for (const auto &field : row) {
-      const bool is_null = !field.first;
+      const bool is_null = !field;
       protocol_encoder_.encode_row_field(
           row_msg, protocol_encoder_.column_type_to_x(response.columns[i].type),
-          field.second, is_null);
+          field.value(), is_null);
     }
     send_message(Mysqlx::ServerMessages::RESULTSET_ROW, row_msg);
   }

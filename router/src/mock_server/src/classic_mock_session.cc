@@ -281,15 +281,6 @@ void MySQLClassicProtocol::send_ok(const uint64_t affected_rows,
   send_packet(buf);
 }
 
-stdx::expected<std::string, void> make_field(
-    std::pair<bool, std::string> const &v) {
-  if (v.first) {
-    return v.second;
-  } else {
-    return stdx::make_unexpected();
-  }
-}
-
 void MySQLClassicProtocol::send_resultset(
     const ResultsetResponse &response,
     const std::chrono::microseconds delay_ms) {
@@ -327,7 +318,7 @@ void MySQLClassicProtocol::send_resultset(
     auto const &row = response.rows[i];
 
     for (size_t f{}; f < response.columns.size(); ++f) {
-      fields.push_back(make_field(row[f]));
+      fields.push_back(row[f]);
     }
 
     encode_res = classic_protocol::encode<

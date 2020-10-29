@@ -119,7 +119,7 @@ static void debug_trace_result(const ResultsetResponse *resultset) {
   std::cout << "QUERY RESULT:\n";
   for (auto const &row : resultset->rows) {
     for (const auto &cell : row)
-      std::cout << "  |  " << (cell.first ? cell.second : "NULL");
+      std::cout << "  |  " << (cell ? cell.value() : "NULL");
     std::cout << "  |\n";
   }
   std::cout << "\n\n\n" << std::flush;

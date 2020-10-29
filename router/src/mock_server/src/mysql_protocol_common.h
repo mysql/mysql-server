@@ -85,11 +85,6 @@ struct column_info_type {
   unsigned repeat;
 };
 
-/** @brief Vector for keeping has_value|string representation of the values
- *         of the single row (ordered by column)
- **/
-using RowValueType = std::vector<std::pair<bool, std::string>>;
-
 }  // namespace server_mock
 
 #endif  // MYSQLD_MOCK_MYSQL_PROTOCOL_COMMON_INCLUDED

@@ -33,11 +33,18 @@
 #include "mysql_protocol_common.h"
 #include "mysqlrouter/classic_protocol_constants.h"
 
+#include "mysql/harness/stdx/expected.h"
+
 namespace server_mock {
 
 struct Response {
   virtual ~Response() = default;
 };
+
+/** @brief Vector for keeping has_value|string representation of the values
+ *         of the single row (ordered by column)
+ **/
+using RowValueType = std::vector<stdx::expected<std::string, void>>;
 
 /** @brief Keeps result data for single SQL statement that returns
  *         resultset.

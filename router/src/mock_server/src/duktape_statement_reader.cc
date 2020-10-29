@@ -270,7 +270,6 @@ struct DuktapeStatementReader::Pimpl {
     while (duk_next(ctx, -1, 1)) {
       // @-2 column-ndx
       // @-1 column
-      RowValueType row_values;
 
       column_info_type column_info{
           get_object_string_value(-1, "name", "", true),
@@ -316,9 +315,9 @@ struct DuktapeStatementReader::Pimpl {
         duk_enum(ctx, -1, DUK_ENUM_ARRAY_INDICES_ONLY);
         while (duk_next(ctx, -1, 1)) {
           if (duk_is_null(ctx, -1)) {
-            row_values.push_back(std::make_pair(false, ""));
+            row_values.emplace_back(stdx::make_unexpected());
           } else {
-            row_values.push_back(std::make_pair(true, duk_to_string(ctx, -1)));
+            row_values.emplace_back(duk_to_string(ctx, -1));
           }
           duk_pop(ctx);  // field
           duk_pop(ctx);  // field-ndx

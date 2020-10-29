@@ -26,8 +26,11 @@
 #define MYSQLD_MOCK_CLASSIC_MOCK_SESSION_INCLUDED
 
 #include "mock_session.h"
+
 #include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/net_ts/impl/socket_constants.h"
+
+#include "mysqlrouter/classic_protocol_message.h"
 
 namespace server_mock {
 
