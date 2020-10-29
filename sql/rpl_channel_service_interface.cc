@@ -357,19 +357,16 @@ int channel_create(const char *channel, Channel_creation_info *channel_info) {
     lex_mi->zstd_compression_level = channel_info->zstd_compression_level;
   }
 
+  lex_mi->m_source_connection_auto_failover = LEX_MASTER_INFO::LEX_MI_UNCHANGED;
   if (channel_info->m_source_connection_auto_failover) {
-    lex_mi->m_source_connection_auto_failover = LEX_MASTER_INFO::LEX_MI_ENABLE;
-    if (mi && mi->is_source_connection_auto_failover()) {
-      // No change
+    if (mi && !mi->is_source_connection_auto_failover()) {
       lex_mi->m_source_connection_auto_failover =
-          LEX_MASTER_INFO::LEX_MI_UNCHANGED;
+          LEX_MASTER_INFO::LEX_MI_ENABLE;
     }
   } else {
-    lex_mi->m_source_connection_auto_failover = LEX_MASTER_INFO::LEX_MI_DISABLE;
-    if (mi && !mi->is_source_connection_auto_failover()) {
-      // No change
+    if (mi && mi->is_source_connection_auto_failover()) {
       lex_mi->m_source_connection_auto_failover =
-          LEX_MASTER_INFO::LEX_MI_UNCHANGED;
+          LEX_MASTER_INFO::LEX_MI_DISABLE;
     }
   }
 

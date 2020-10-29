@@ -11178,6 +11178,9 @@ ER_IB_INNODB_TBSP_OUT_OF_SPACE
 ER_GRP_RPL_APPLIER_CHANNEL_STILL_RUNNING
   eng "The group_replication_applier channel is still running, most likely it is waiting for a database/table lock, which is preventing the channel from stopping. Please check database/table locks, including the ones created by backup tools."
 
+ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF_CHANNEL
+  eng "Detected misconfiguration: replication channel \'%.192s\' was configured with SOURCE_CONNECTION_AUTO_FAILOVER = 1, but the server was started with a value other then --gtid-mode = ON. Either reconfigure replication using CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 0 FOR CHANNEL \'%.192s\', or change GTID_MODE to value ON, before starting the replica receiver thread."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

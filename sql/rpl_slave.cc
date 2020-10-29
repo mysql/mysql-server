@@ -513,12 +513,21 @@ int init_slave() {
 #endif
 
   if (global_gtid_mode.get() == Gtid_mode::OFF) {
-    for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
-         it++) {
-      Master_info *mi = it->second;
+    for (auto it : channel_map) {
+      Master_info *mi = it.second;
       if (mi != nullptr && mi->is_auto_position()) {
         LogErr(WARNING_LEVEL,
                ER_RPL_SLAVE_AUTO_POSITION_IS_1_AND_GTID_MODE_IS_OFF,
+               mi->get_channel(), mi->get_channel());
+      }
+    }
+  }
+
+  if (global_gtid_mode.get() != Gtid_mode::ON) {
+    for (auto it : channel_map) {
+      Master_info *mi = it.second;
+      if (mi != nullptr && mi->is_source_connection_auto_failover()) {
+        LogErr(ERROR_LEVEL, ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF_CHANNEL,
                mi->get_channel(), mi->get_channel());
       }
     }
@@ -2034,6 +2043,12 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
       global_gtid_mode.get() == Gtid_mode::OFF) {
     my_error(ER_CANT_USE_AUTO_POSITION_WITH_GTID_MODE_OFF, MYF(0),
              mi->get_for_channel_str());
+    return true;
+  }
+
+  if (global_gtid_mode.get() != Gtid_mode::ON &&
+      mi->is_source_connection_auto_failover()) {
+    my_error(ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF, MYF(0));
     return true;
   }
 
@@ -10059,13 +10074,11 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
       option is enabled or getting enabled in current CHANGE MASTER statement.
     */
     if (lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_DISABLE &&
-        mi->is_source_connection_auto_failover() &&
-        (lex_mi->m_source_connection_auto_failover ==
-             LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
-         (lex_mi->m_source_connection_auto_failover !=
-              LEX_MASTER_INFO::LEX_MI_UNCHANGED &&
-          lex_mi->m_source_connection_auto_failover !=
-              LEX_MASTER_INFO::LEX_MI_DISABLE))) {
+        ((mi->is_source_connection_auto_failover() &&
+          (lex_mi->m_source_connection_auto_failover ==
+           LEX_MASTER_INFO::LEX_MI_UNCHANGED)) ||
+         (lex_mi->m_source_connection_auto_failover ==
+          LEX_MASTER_INFO::LEX_MI_ENABLE))) {
       error = ER_DISABLE_AUTO_POSITION_REQUIRES_ASYNC_RECONNECT_OFF;
       my_error(ER_DISABLE_AUTO_POSITION_REQUIRES_ASYNC_RECONNECT_OFF, MYF(0));
       goto err;
