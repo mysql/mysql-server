@@ -482,7 +482,7 @@ TEST_F(HypergraphOptimizerTest,
   Query_block *query_block = ParseAndResolve(
       "SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x WHERE t2.y=3", /*nullable=*/true);
   m_fake_tables["t1"]->file->stats.records = 200;
-  m_fake_tables["t2"]->file->stats.records = 30;
+  m_fake_tables["t2"]->file->stats.records = 3;
 
   string trace;
   AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
@@ -495,18 +495,18 @@ TEST_F(HypergraphOptimizerTest,
   // with a nested loop.
   ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->type);
   EXPECT_EQ(JoinType::INNER, root->nested_loop_join().join_type);
-  EXPECT_FLOAT_EQ(60, root->num_output_rows);  // 600 rows, 10% selectivity.
+  EXPECT_FLOAT_EQ(6, root->num_output_rows);  // 60 rows, 10% selectivity.
 
   // The condition should be posted directly on t2.
   AccessPath *outer = root->nested_loop_join().outer;
   ASSERT_EQ(AccessPath::FILTER, outer->type);
   EXPECT_EQ("(t2.y = 3)", ItemToString(outer->filter().condition));
-  EXPECT_FLOAT_EQ(3, outer->num_output_rows);  // 10% default selectivity.
+  EXPECT_FLOAT_EQ(0.3, outer->num_output_rows);  // 10% default selectivity.
 
   AccessPath *outer_child = outer->filter().child;
   ASSERT_EQ(AccessPath::TABLE_SCAN, outer_child->type);
   EXPECT_EQ(m_fake_tables["t2"], outer_child->table_scan().table);
-  EXPECT_FLOAT_EQ(30, outer_child->num_output_rows);
+  EXPECT_FLOAT_EQ(3, outer_child->num_output_rows);
 
   // The inner part should have a join condition as a filter.
   AccessPath *inner = root->nested_loop_join().inner;

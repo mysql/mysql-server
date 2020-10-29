@@ -858,9 +858,10 @@ void CostingReceiver::ProposeNestedLoopJoin(NodeMap left, NodeMap right,
 
     CopyCosts(*right_path, &filter_path);
 
-    // cost and num_output_rows are only for display purposes;
-    // the actual selectivity estimates are based on a somewhat richer
-    // variety of data, and is the same no matter what join type we're using
+    // num_output_rows is only for cost calculation and display purposes;
+    // we hard-code the use of edge->selectivity below, so that we're
+    // seeing the same number of rows as for hash join. This might throw
+    // the filtering cost off slightly.
     List<Item> items;
     for (Item_func_eq *condition : edge->expr->equijoin_conditions) {
       items.push_back(condition);
@@ -892,7 +893,8 @@ void CostingReceiver::ProposeNestedLoopJoin(NodeMap left, NodeMap right,
       FindOutputRowsForJoin(left_path, right_path, edge);
   join_path.init_cost = left_path->init_cost;
   join_path.cost_before_filter = join_path.cost =
-      left_path->cost + right_path->cost * left_path->num_output_rows;
+      left_path->cost +
+      join_path.nested_loop_join().inner->cost * left_path->num_output_rows;
 
   ApplyDelayedPredicatesAfterJoin(left, right, left_path, right_path,
                                   &join_path);
