@@ -1221,16 +1221,14 @@ static bool trx_purge_mark_undo_for_truncate(size_t truncate_count) {
   /* In order to implicitly select an undo space to truncate, we need
   at least 2 active UNDO tablespaces.  As long as there is one undo
   tablespace active the server will continue to operate. */
-  ulint num_active = 0;
+  size_t num_active = 0;
 
   /* Look for any undo space that is inactive explicitly. */
-  for (auto undo_ts : undo::spaces->m_spaces) {
-    if (undo_ts->is_inactive_explicit()) {
-      undo_trunc->mark(undo_ts);
-      undo::spaces->s_unlock();
-      return (true);
-    }
-    num_active += (undo_ts->is_active() ? 1 : 0);
+  auto undo_ts = undo::spaces->find_first_inactive_explicit(&num_active);
+  if (undo_ts != nullptr) {
+    undo_trunc->mark(undo_ts);
+    undo::spaces->s_unlock();
+    return (true);
   }
 
   undo::spaces->s_unlock();
@@ -2007,12 +2005,12 @@ static MY_ATTRIBUTE((warn_unused_result))
 
     if (!purge_sys->next_stored) {
       DBUG_PRINT("ib_purge", ("no logs left in the history list"));
-      return (nullptr);
+      return nullptr;
     }
   }
 
   if (purge_sys->iter.trx_no >= purge_sys->view.low_limit_no()) {
-    return (nullptr);
+    return nullptr;
   }
 
   /* fprintf(stderr, "Thread %lu purging trx %llu undo record %llu\n",

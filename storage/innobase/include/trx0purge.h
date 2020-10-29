@@ -720,6 +720,31 @@ class Tablespaces {
     return (nullptr);
   }
 
+  /** Find the first undo space that is marked inactive explicitly.
+  @param[in,out]  num_active  If there are no inactive_explicit spaces
+                              found, this will contain the number of
+                              active spaces found.
+  @return pointer to an undo::Tablespace struct */
+  Tablespace *find_first_inactive_explicit(size_t *num_active) {
+    ut_ad(own_latch());
+
+    if (m_spaces.empty()) {
+      return (nullptr);
+    }
+
+    for (auto undo_space : m_spaces) {
+      if (undo_space->is_inactive_explicit()) {
+        return (undo_space);
+      }
+
+      if (num_active != nullptr && undo_space->is_active()) {
+        (*num_active)++;
+      }
+    }
+
+    return (nullptr);
+  }
+
 #ifdef UNIV_DEBUG
   /** Determine if this thread owns a lock on m_latch. */
   bool own_latch() {

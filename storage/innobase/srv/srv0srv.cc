@@ -2964,16 +2964,16 @@ void srv_worker_thread() {
 }
 
 /** Do the actual purge operation.
- @return length of history list before the last purge batch. */
-static ulint srv_do_purge(
-    ulint *n_total_purged) /*!< in/out: total pages purged */
-{
+@param[in,out]  n_total_purged  Total pages purged in this call
+@return length of history list before the last purge batch. */
+static ulint srv_do_purge(ulint *n_total_purged) {
   ulint n_pages_purged;
 
   static ulint count = 0;
   static ulint n_use_threads = 0;
   static uint64_t rseg_history_len = 0;
   ulint old_activity_count = srv_get_activity_count();
+  bool need_explicit_truncate = false;
 
   const auto n_threads = srv_threads.m_purge_workers_n;
 
@@ -3020,18 +3020,25 @@ static ulint srv_do_purge(
       break;
     }
 
-    bool do_truncate =
-        (srv_shutdown_state.load() == SRV_SHUTDOWN_PURGE
-             ? true
-             : (++count % srv_purge_rseg_truncate_frequency) == 0);
+    bool do_truncate = need_explicit_truncate ||
+                       srv_shutdown_state.load() == SRV_SHUTDOWN_PURGE ||
+                       (++count % srv_purge_rseg_truncate_frequency) == 0;
 
     n_pages_purged =
         trx_purge(n_use_threads, srv_purge_batch_size, do_truncate);
 
     *n_total_purged += n_pages_purged;
 
-  } while (!srv_purge_should_exit(n_pages_purged) && n_pages_purged > 0 &&
-           purge_sys->state == PURGE_STATE_RUN);
+    need_explicit_truncate = (n_pages_purged == 0);
+    if (need_explicit_truncate) {
+      undo::spaces->s_lock();
+      need_explicit_truncate =
+          (undo::spaces->find_first_inactive_explicit(nullptr) != nullptr);
+      undo::spaces->s_unlock();
+    }
+  } while (purge_sys->state == PURGE_STATE_RUN &&
+           (n_pages_purged > 0 || need_explicit_truncate) &&
+           !srv_purge_should_exit(n_pages_purged));
 
   return rseg_history_len;
 }
