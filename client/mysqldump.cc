@@ -312,8 +312,9 @@ static struct my_option my_long_options[] = {
      "Set the default character set.", &default_charset, &default_charset,
      nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"delete-source-logs", OPT_DELETE_MASTER_LOGS,
-     "Delete logs on master after backup. This automatically enables "
-     "--source-data.",
+     "Rotate logs before the backup, equivalent to FLUSH LOGS, and purge "
+     "all old binary logs after the backup, equivalent to PURGE LOGS. This "
+     "automatically enables --source-data.",
      &opt_delete_master_logs, &opt_delete_master_logs, nullptr, GET_BOOL,
      NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"disable-keys", 'K',
@@ -322,7 +323,7 @@ static struct my_option my_long_options[] = {
      &opt_disable_keys, &opt_disable_keys, nullptr, GET_BOOL, NO_ARG, 1, 0, 0,
      nullptr, 0, nullptr},
     {"dump-replica", OPT_MYSQLDUMP_SLAVE_DATA,
-     "This causes the binary log position and filename of the master to be "
+     "This causes the binary log position and filename of the source to be "
      "appended to the dumped data output. Setting the value to 1, will print"
      "it as a CHANGE MASTER command in the dumped data output; if equal"
      " to 2, that command will be prefixed with a comment symbol. "
@@ -5009,7 +5010,7 @@ static int do_show_slave_status(MYSQL *mysql_con) {
   if (mysql_query_with_error_report(mysql_con, &slave, "SHOW SLAVE STATUS")) {
     if (!opt_force) {
       /* SHOW SLAVE STATUS reports nothing and --force is not enabled */
-      my_printf_error(0, "Error: Slave not set up", MYF(0));
+      my_printf_error(0, "Error: Replication not configured", MYF(0));
     }
     mysql_free_result(slave);
     return 1;
@@ -5027,7 +5028,7 @@ static int do_show_slave_status(MYSQL *mysql_con) {
         if (opt_comments)
           fprintf(md_result_file,
                   "\n--\n-- Position to start replication or point-in-time "
-                  "recovery from (the master of this slave)\n--\n\n");
+                  "recovery from (the source for this replica)\n--\n\n");
 
         fprintf(md_result_file, "%sCHANGE MASTER TO ", comment_prefix);
 
@@ -5074,7 +5075,7 @@ static int do_start_slave_sql(MYSQL *mysql_con) {
 
   /* now, start slave if stopped */
   if (mysql_query_with_error_report(mysql_con, nullptr, "START SLAVE")) {
-    my_printf_error(0, "Error: Unable to start slave", MYF(0));
+    my_printf_error(0, "Error: Unable to start replication", MYF(0));
     return 1;
   }
   return (0);

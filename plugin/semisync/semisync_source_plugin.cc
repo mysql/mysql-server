@@ -222,25 +222,31 @@ static void fix_rpl_semi_sync_source_wait_for_replica_count(MYSQL_THD thd,
 
 static MYSQL_SYSVAR_BOOL(
     enabled, rpl_semi_sync_source_enabled, PLUGIN_VAR_OPCMDARG,
-    "Enable semi-synchronous replication master (disabled by default). ",
+    "Enable semi-synchronous replication source (disabled by default). ",
     nullptr,                            // check
     &fix_rpl_semi_sync_source_enabled,  // update
     0);
 
 static MYSQL_SYSVAR_ULONG(
     timeout, rpl_semi_sync_source_timeout, PLUGIN_VAR_OPCMDARG,
-    "The timeout value (in ms) for semi-synchronous replication in the master",
+    "The timeout value (in milliseconds) for semi-synchronous replication on "
+    "the source. If less than rpl_semi_sync_source_wait_for_replica_count "
+    "replicas have replied after this amount of time, switch to asynchronous "
+    "replication.",
     nullptr,                           // check
     fix_rpl_semi_sync_source_timeout,  // update
     10000, 0, ~0UL, 1);
 
-static MYSQL_SYSVAR_BOOL(wait_no_replica, rpl_semi_sync_source_wait_no_replica,
-                         PLUGIN_VAR_OPCMDARG,
-                         "Wait until timeout when no semi-synchronous "
-                         "replication slave available (enabled by default). ",
-                         nullptr,                                    // check
-                         &fix_rpl_semi_sync_source_wait_no_replica,  // update
-                         1);
+static MYSQL_SYSVAR_BOOL(
+    wait_no_replica, rpl_semi_sync_source_wait_no_replica, PLUGIN_VAR_OPCMDARG,
+    "If enabled, revert to asynchronous replication only if less than "
+    "rpl_semi_sync_source_wait_for_replica_count replicas have replied when "
+    "rpl_semi_sync_source_timeout seconds have passed. If disabled, revert to "
+    "asynchronous replication also as soon as the number of connected "
+    "replicas drops below rpl_semi_sync_source_wait_for_replica_count.",
+    nullptr,                                    // check
+    &fix_rpl_semi_sync_source_wait_no_replica,  // update
+    1);
 
 static MYSQL_SYSVAR_ULONG(trace_level, rpl_semi_sync_source_trace_level,
                           PLUGIN_VAR_OPCMDARG,
@@ -256,16 +262,21 @@ static MYSQL_SYSVAR_ENUM(
     wait_point,                      /* name     */
     rpl_semi_sync_source_wait_point, /* var      */
     PLUGIN_VAR_OPCMDARG,             /* flags    */
-    "Semisync can wait for slave ACKs at one of two points,"
-    "AFTER_SYNC or AFTER_COMMIT. AFTER_SYNC is the default value."
-    "AFTER_SYNC means that semisynchronous replication waits just after the "
-    "binary log file is flushed, but before the engine commits, and so "
-    "guarantees that no other sessions can see the data before replicated to "
-    "slave. AFTER_COMMIT means that semisynchronous replication waits just "
-    "after the engine commits. Other sessions may see the data before it is "
-    "replicated, even though the current session is still waiting for the "
-    "commit "
-    "to end successfully.",
+    "The semisync source plugin can wait for replica replies at one of two "
+    "alternative points: AFTER_SYNC or AFTER_COMMIT. "
+    "AFTER_SYNC is the default value. AFTER_SYNC means that the "
+    "source-side semisynchronous plugin waits for the replies just after it "
+    "has synced the binary log file (or would have synced, but may have "
+    "skipped it, when sync_binlog!=1), but before it has committed in the "
+    "engine on the source side. Therefore, it guarantees that no other "
+    "sessions on the source can see the effects of the transaction before "
+    "the replica has received it. "
+    "AFTER_COMMIT means that the source-side semisynchronous plugin "
+    "waits for the replies from the replica just after the source has "
+    "committed the transaction in the engine, and before it sends an ACK "
+    "packet to the client session. Other sessions may see the effects of "
+    "the transaction before it has been replicated, even though the current "
+    "session is still waiting for the replies from the replica.",
     nullptr,            /* check()  */
     nullptr,            /* update() */
     WAIT_AFTER_SYNC,    /* default  */
@@ -276,9 +287,9 @@ static MYSQL_SYSVAR_UINT(
     wait_for_replica_count,                      /* name  */
     rpl_semi_sync_source_wait_for_replica_count, /* var   */
     PLUGIN_VAR_OPCMDARG,                         /* flags */
-    "How many slaves the events should be replicated to. Semisynchronous "
-    "replication master will wait until all events of the transaction are "
-    "replicated to at least rpl_semi_sync_source_wait_for_replica_count slaves",
+    "The number of replicas that need to acknowledge that they have "
+    "received a transaction, before the transaction can complete on the "
+    "source.",
     nullptr,                                          /* check() */
     &fix_rpl_semi_sync_source_wait_for_replica_count, /* update */
     1, 1, 65535, 1);
@@ -583,7 +594,7 @@ mysql_declare_plugin(semi_sync_master){
     &semi_sync_master_plugin,
     "rpl_semi_sync_source",
     PLUGIN_AUTHOR_ORACLE,
-    "Semi-synchronous replication master",
+    "Source-side semi-synchronous replication.",
     PLUGIN_LICENSE_GPL,
     semi_sync_master_plugin_init,   /* Plugin Init */
     nullptr,                        /* Plugin Check uninstall */

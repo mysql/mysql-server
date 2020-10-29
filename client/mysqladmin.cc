@@ -145,8 +145,8 @@ enum commands {
   ADMIN_EXTENDED_STATUS,
   ADMIN_FLUSH_STATUS,
   ADMIN_FLUSH_PRIVILEGES,
-  ADMIN_START_SLAVE,
-  ADMIN_STOP_SLAVE,
+  ADMIN_START_REPLICA,
+  ADMIN_STOP_REPLICA,
   ADMIN_FLUSH_THREADS
 };
 static const char *command_names[] = {"create",
@@ -1112,21 +1112,21 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         break;
       }
 
-      case ADMIN_START_SLAVE:
-        if (mysql_query(mysql, "START SLAVE")) {
-          my_printf_error(0, "Error starting slave: %s", error_flags,
+      case ADMIN_START_REPLICA:
+        if (mysql_query(mysql, "START REPLICA")) {
+          my_printf_error(0, "Error starting replication: %s", error_flags,
                           mysql_error(mysql));
           return -1;
         } else
-          puts("Slave started");
+          puts("Replication started");
         break;
-      case ADMIN_STOP_SLAVE:
-        if (mysql_query(mysql, "STOP SLAVE")) {
-          my_printf_error(0, "Error stopping slave: %s", error_flags,
+      case ADMIN_STOP_REPLICA:
+        if (mysql_query(mysql, "STOP REPLICA")) {
+          my_printf_error(0, "Error stopping replication: %s", error_flags,
                           mysql_error(mysql));
           return -1;
         } else
-          puts("Slave stopped");
+          puts("Replication stopped");
         break;
 
       case ADMIN_PING:
@@ -1227,8 +1227,8 @@ static void usage(void) {
   refresh		Flush all tables and close and open logfiles\n\
   shutdown		Take server down\n\
   status		Gives a short status message from the server\n\
-  start-replica		Start slave\n\
-  stop-replica		Stop slave\n\
+  start-replica		Start replication\n\
+  stop-replica		Stop replication\n\
   variables             Prints variables available\n\
   version		Get version info from server");
 }

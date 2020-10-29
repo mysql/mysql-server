@@ -165,7 +165,8 @@ static void fix_rpl_semi_sync_trace_level(MYSQL_THD, SYS_VAR *, void *ptr,
 /* plugin system variables */
 static MYSQL_SYSVAR_BOOL(
     enabled, rpl_semi_sync_replica_enabled, PLUGIN_VAR_OPCMDARG,
-    "Enable semi-synchronous replication slave (disabled by default). ",
+    "Enable semi-synchronous replication on this replica (disabled by "
+    "default). ",
     nullptr,                             // check
     &fix_rpl_semi_sync_replica_enabled,  // update
     0);
@@ -240,7 +241,7 @@ mysql_declare_plugin(semi_sync_slave){
     &semi_sync_slave_plugin,
     "rpl_semi_sync_replica",
     PLUGIN_AUTHOR_ORACLE,
-    "Semi-synchronous replication slave",
+    "Replica-side semi-synchronous replication.",
     PLUGIN_LICENSE_GPL,
     semi_sync_slave_plugin_init,   /* Plugin Init */
     nullptr,                       /* Plugin Check uninstall */
