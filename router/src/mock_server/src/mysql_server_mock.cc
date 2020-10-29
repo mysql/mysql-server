@@ -50,7 +50,6 @@
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/net_ts/local.h"
 #include "mysql/harness/net_ts/socket.h"
-#include "socket_operations.h"
 #include "x_mock_session.h"
 IMPORT_LOG_FUNCTIONS()
 

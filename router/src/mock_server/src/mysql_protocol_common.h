@@ -27,19 +27,9 @@
 
 #include <string>
 
-#ifdef _WIN32
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#endif
-
 #include "mysqlrouter/mysql_protocol.h"
-#include "socket_operations.h"
 
 namespace server_mock {
-
-using byte = uint8_t;
-using mysql_harness::socket_t;
 
 /** @enum MySQLColumnType
  *
