@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 
 #include <NdbCondition.h>
 #include <NdbMutex.h>
+#include "NdbTick.h"
 
 static int init = 0;
 #ifdef HAVE_CLOCK_GETTIME
@@ -40,26 +41,27 @@ static clockid_t clock_id = CLOCK_REALTIME;
 void
 NdbCondition_initialize()
 {
-#if defined HAVE_CLOCK_GETTIME && defined HAVE_PTHREAD_CONDATTR_SETCLOCK && \
-  (defined CLOCK_MONOTONIC || defined CLOCK_HIGHRES)
-  
-  int res, condattr_init = 0;
+#if defined HAVE_CLOCK_GETTIME && defined HAVE_PTHREAD_CONDATTR_SETCLOCK
+  int res = NdbTick_GetMonotonicClockId(&clock_id);
+  if (res == -1)
+  {
+    /*
+     * No monotonic clock found, no need to check if it works for pthread_cond.
+     */
+    init = 1;
+    return;
+  }
+
+  /*
+   * Check if the monotonic clock works with pthread_cond
+   */
+
+  int condattr_init = 0;
   pthread_cond_t tmp;
   pthread_condattr_t attr;
   struct timespec tick_time;
 
   init = 1;
-
-  /**
-   * Always try to use a MONOTONIC clock.
-   * On older Solaris (< S10) CLOCK_MONOTONIC
-   * is not available, CLOCK_HIGHRES is a good replacement.
-   */
-#if defined(CLOCK_MONOTONIC)
-  clock_id = CLOCK_MONOTONIC;
-#else
-  clock_id = CLOCK_HIGHRES;
-#endif
 
   if ((res = clock_gettime(clock_id, &tick_time)) != 0)
   {
@@ -107,13 +109,12 @@ NdbCondition_Init(struct NdbCondition* ndb_cond)
 
   assert(init); /* Make sure library has been initialized */
 
-#if defined HAVE_CLOCK_GETTIME && defined HAVE_PTHREAD_CONDATTR_SETCLOCK && \
-    defined CLOCK_MONOTONIC
-  if (clock_id == CLOCK_MONOTONIC)
+#if defined HAVE_CLOCK_GETTIME && defined HAVE_PTHREAD_CONDATTR_SETCLOCK
+  if (clock_id != CLOCK_REALTIME)
   {
     pthread_condattr_t attr;
     pthread_condattr_init(&attr);
-    pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
+    pthread_condattr_setclock(&attr, clock_id);
     result = pthread_cond_init(&ndb_cond->cond, &attr);
     pthread_condattr_destroy(&attr);
   }
