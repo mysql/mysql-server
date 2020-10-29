@@ -1897,8 +1897,8 @@ static struct my_option my_long_options[] = {
      "COM_BINLOG_DUMP_GTID commands by setting the option to either "
      "BINLOG-DUMP-NON-GTIDS or BINLOG-DUMP-GTIDS, respectively. If "
      "--read-from-remote-source=BINLOG-DUMP-GTIDS is combined with "
-     "--exclude-gtids, transactions can be filtered out on the master "
-     "avoiding unnecessary network traffic.",
+     "--exclude-gtids, transactions are filtered out on the source, to "
+     "avoid unnecessary network traffic.",
      &opt_remote_proto_str, &opt_remote_proto_str, nullptr, GET_STR,
      REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"raw", OPT_RAW_OUTPUT,
@@ -1970,13 +1970,16 @@ static struct my_option my_long_options[] = {
      &stop_never, &stop_never, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
     {"stop-never-slave-server-id", OPT_WAIT_SERVER_ID,
-     "The slave server_id used for --read-from-remote-server --stop-never."
-     " This option cannot be used together with connection-server-id.",
+     "The server_id that is reported when connecting to a source server "
+     "when using --read-from-remote-server --stop-never. "
+     "This option is deprecated and will be removed in a future version. "
+     "Use connection-server-id instead.",
      &stop_never_slave_server_id, &stop_never_slave_server_id, nullptr, GET_LL,
      REQUIRED_ARG, -1, -1, 0xFFFFFFFFLL, nullptr, 0, nullptr},
     {"connection-server-id", OPT_CONNECTION_SERVER_ID,
-     "The slave server_id used for --read-from-remote-server."
-     " This option cannot be used together with stop-never-slave-server-id.",
+     "The server_id that will be reported when connecting to a source server "
+     "when using --read-from-remote-server. "
+     "This option cannot be used together with stop-never-slave-server-id.",
      &connection_server_id, &connection_server_id, nullptr, GET_LL,
      REQUIRED_ARG, -1, -1, 0xFFFFFFFFLL, nullptr, 0, nullptr},
     {"stop-position", OPT_STOP_POSITION,
@@ -2475,23 +2478,21 @@ static Exit_status check_master_version() {
 
   if (mysql_query(mysql, "SELECT VERSION()") ||
       !(res = mysql_store_result(mysql))) {
-    error(
-        "Could not find server version: "
-        "Query failed when checking master version: %s",
-        mysql_error(mysql));
+    error("Could not find server version: Query failed: %s",
+          mysql_error(mysql));
     return ERROR_STOP;
   }
   if (!(row = mysql_fetch_row(res))) {
     error(
         "Could not find server version: "
-        "Master returned no rows for SELECT VERSION().");
+        "Server returned no rows for SELECT VERSION().");
     goto err;
   }
 
   if (!(version = row[0])) {
     error(
         "Could not find server version: "
-        "Master reported NULL for the version.");
+        "Server reported NULL for the version.");
     goto err;
   }
   /*
@@ -2502,8 +2503,8 @@ static Exit_status check_master_version() {
   */
   if (mysql_query(mysql, "SET @master_binlog_checksum='NONE'")) {
     error(
-        "Could not notify master about checksum awareness."
-        "Master returned '%s'",
+        "Could not notify source server about checksum awareness."
+        "Server returned '%s'",
         mysql_error(mysql));
     goto err;
   }
@@ -2519,7 +2520,7 @@ static Exit_status check_master_version() {
     default:
       error(
           "Could not find server version: "
-          "Master reported unrecognized MySQL version '%s'.",
+          "Server reported unrecognized MySQL version '%s'.",
           version);
       goto err;
   }

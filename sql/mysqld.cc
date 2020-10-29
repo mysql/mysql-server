@@ -8258,13 +8258,13 @@ struct my_option my_long_options[] = {
      &source_autocommit, /* arg_source, to be copied to Sys_var */
      0, nullptr},
     {"binlog-do-db", OPT_BINLOG_DO_DB,
-     "Tells the master it should log updates for the specified database, "
-     "and exclude all others not explicitly mentioned.",
+     "Include only updates to the specified database when writing the "
+     "binary log.",
      nullptr, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
     {"binlog-ignore-db", OPT_BINLOG_IGNORE_DB,
-     "Tells the master that updates to the given database should not be logged "
-     "to the binary log.",
+     "Exclude updates to the specified database when writing the binary "
+     "log.",
      nullptr, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
     {"character-set-client-handshake", 0,
@@ -8371,17 +8371,17 @@ struct my_option my_long_options[] = {
      TC_LOG_MIN_PAGES *my_getpagesize(), TC_LOG_MIN_PAGES *my_getpagesize(),
      ULONG_MAX, nullptr, my_getpagesize(), nullptr},
     {"master-info-file", OPT_MASTER_INFO_FILE,
-     "The location and name of the file that remembers the master and where "
-     "the I/O replication thread is in the master's binlogs. "
-     "Deprecated option that shall be removed eventually without a "
-     "replacement.",
+     "The path and filename where the replication receiver thread stores "
+     "connection configuration and positions, in case "
+     "--master-info-repository=FILE. "
+     "This option is deprecated and will be removed in a future version.",
      &master_info_file, &master_info_file, nullptr, GET_STR, REQUIRED_ARG, 0, 0,
      0, nullptr, 0, nullptr},
     {"master-retry-count", OPT_MASTER_RETRY_COUNT,
-     "The number of tries the slave will make to connect to the master before "
-     "giving up. "
-     "Deprecated option, use 'CHANGE MASTER TO master_retry_count = <num>' "
-     "instead.",
+     "The number of times this replica will attempt to connect to a source "
+     "before giving up. "
+     "This option is deprecated and will be removed in a future version. "
+     "Use 'CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT = <num>' instead.",
      &master_retry_count, &master_retry_count, nullptr, GET_ULONG, REQUIRED_ARG,
      3600 * 24, 0, 0, nullptr, 0, nullptr},
     {"max-binlog-dump-events", 0,
@@ -8393,7 +8393,7 @@ struct my_option my_long_options[] = {
      nullptr},
     {"old-style-user-limits", 0,
      "Enable old-style user limits (before 5.0.3, user resources were counted "
-     "per each user+host vs. per account).",
+     "for each user + host vs. per account).",
      &opt_old_style_user_limits, &opt_old_style_user_limits, nullptr, GET_BOOL,
      NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"port-open-timeout", 0,
@@ -8402,7 +8402,7 @@ struct my_option my_long_options[] = {
      &mysqld_port_timeout, &mysqld_port_timeout, nullptr, GET_UINT,
      REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"replicate-do-db", OPT_REPLICATE_DO_DB,
-     "Tells the slave thread to restrict replication to the specified "
+     "Make replication applier threads apply only changes to the specified "
      "database. "
      "To specify more than one database, use the directive multiple times, "
      "once for each database. Note that this will only work if you do not use "
@@ -8413,33 +8413,34 @@ struct my_option my_long_options[] = {
      nullptr, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
     {"replicate-do-table", OPT_REPLICATE_DO_TABLE,
-     "Tells the slave thread to restrict replication to the specified table. "
+     "Make replication applier threads apply only changes to the specified "
+     "table. "
      "To specify more than one table, use the directive multiple times, once "
      "for each table. This will work for cross-database updates, in contrast "
      "to replicate-do-db.",
      nullptr, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
     {"replicate-ignore-db", OPT_REPLICATE_IGNORE_DB,
-     "Tells the slave thread to not replicate to the specified database. To "
-     "specify more than one database to ignore, use the directive multiple "
-     "times, once for each database. This option will not work if you use "
-     "cross database updates. If you need cross database updates to work, "
-     "make sure you have 3.23.28 or later, and use replicate-wild-ignore-"
-     "table=db_name.%. ",
+     "Make replication applier threads skip changes to the specified "
+     "database. "
+     "To specify more than one database to ignore, use this option multiple "
+     "times, once for each database. If there are statements that update "
+     "multiple databases, this will work correctly only when the source "
+     "server uses binlog_format=ROW.",
      nullptr, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
     {"replicate-ignore-table", OPT_REPLICATE_IGNORE_TABLE,
-     "Tells the slave thread to not replicate to the specified table. To "
-     "specify "
-     "more than one table to ignore, use the directive multiple times, once "
-     "for "
-     "each table. This will work for cross-database updates, in contrast to "
-     "replicate-ignore-db.",
+     "Make replication applier threads skip changes to the specified table."
+     "To ignore more than one table, use the option multiple times, once for "
+     "each table. If there are statements that update multiple tables, this "
+     "will work correctly only when the source server uses binlog_format=ROW.",
      nullptr, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
     {"replicate-rewrite-db", OPT_REPLICATE_REWRITE_DB,
-     "Updates to a database with a different name than the original. Example: "
-     "replicate-rewrite-db=master_db_name->slave_db_name.",
+     "Make replication applier threads rename a database, so changes in one "
+     "database on the source will be applied in another database on this "
+     "replica. Example: "
+     "replicate-rewrite-db=source_db_name->replica_db_name.",
      nullptr, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
     {"replicate-same-server-id", 0,
@@ -8449,21 +8450,27 @@ struct my_option my_long_options[] = {
      &replicate_same_server_id, &replicate_same_server_id, nullptr, GET_BOOL,
      NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"replicate-wild-do-table", OPT_REPLICATE_WILD_DO_TABLE,
-     "Tells the slave thread to restrict replication to the tables that match "
-     "the specified wildcard pattern. To specify more than one table, use the "
-     "directive multiple times, once for each table. This will work for cross-"
-     "database updates. Example: replicate-wild-do-table=foo%.bar% will "
+     "Make replication applier threads apply changes only in tables that "
+     "match the specified wildcard pattern. To specify more than one pattern, "
+     "use the option multiple times, once for each pattern. If there are "
+     "statements that update both tables that are included and excluded by "
+     "the pattern, this will only work correctly when the source server uses "
+     "binlog_format=ROW. "
+     "Example: replicate-wild-do-table=foo%.bar% will "
      "replicate only updates to tables in all databases that start with foo "
      "and whose table names start with bar.",
      nullptr, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
     {"replicate-wild-ignore-table", OPT_REPLICATE_WILD_IGNORE_TABLE,
-     "Tells the slave thread to not replicate to the tables that match the "
-     "given wildcard pattern. To specify more than one table to ignore, use "
-     "the directive multiple times, once for each table. This will work for "
-     "cross-database updates. Example: replicate-wild-ignore-table=foo%.bar% "
-     "will not do updates to tables in databases that start with foo and whose "
-     "table names start with bar.",
+     "Make replication applier threads skip changes to tables that match "
+     "the specified wildcard pattern. To specify more than one pattern, use "
+     "the option multiple times, once for each pattern. If there are "
+     "statements that update both tables that are included and tables that "
+     "are excluded by the pattern, this will only work correctly when the "
+     "source server uses binlog_format=ROW. "
+     "Example: when using replicate-wild-ignore-table=foo%.bar%, "
+     "the applier thread will not apply updates to tables in databases that "
+     "start with foo and whose table names start with bar.",
      nullptr, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
     {"safe-user-create", 0,
@@ -8472,7 +8479,7 @@ struct my_option my_long_options[] = {
      &opt_safe_user_create, &opt_safe_user_create, nullptr, GET_BOOL, NO_ARG, 0,
      0, 0, nullptr, 0, nullptr},
     {"show-replica-auth-info", 0,
-     "Show user and password in SHOW SLAVE HOSTS on this master.",
+     "Include user and password in SHOW REPLICAS statements.",
      &opt_show_replica_auth_info, &opt_show_replica_auth_info, nullptr,
      GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"skip-host-cache", OPT_SKIP_HOST_CACHE, "Don't cache host names.", nullptr,
@@ -9951,7 +9958,8 @@ bool mysqld_get_one_option(int optid,
     }
     case (int)OPT_MASTER_RETRY_COUNT:
       push_deprecated_warn(nullptr, "--master-retry-count",
-                           "'CHANGE MASTER TO master_retry_count = <num>'");
+                           "'CHANGE REPLICATION SOURCE TO "
+                           "SOURCE_RETRY_COUNT = <num>'");
       break;
     case (int)OPT_SKIP_NEW:
       opt_specialflag |= SPECIAL_NO_NEW_FUNC;
