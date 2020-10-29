@@ -7320,14 +7320,25 @@ static bool append_string_value(Item *comparand,
   return false;
 }
 
-// Append a double or int value to join_key_buffer.
-static bool append_double_or_int_value(const char *value, size_t value_length,
-                                       bool is_null, String *join_key_buffer) {
-  if (is_null) {
-    return true;
-  }
+// Append a double value to join_key_buffer.
+static bool append_double_value(double value, bool is_null,
+                                String *join_key_buffer) {
+  if (is_null) return true;
+  join_key_buffer->append(pointer_cast<const char *>(&value), sizeof(value),
+                          static_cast<size_t>(0));
+  return false;
+}
 
-  join_key_buffer->append(value, value_length, static_cast<size_t>(0));
+// Append an integer value to join_key_buffer.
+// Storing an extra byte for unsigned_flag ensures that negative values do not
+// match large unsigned values.
+static bool append_int_value(longlong value, bool is_null, bool unsigned_flag,
+                             String *join_key_buffer) {
+  if (is_null) return true;
+  join_key_buffer->append(pointer_cast<const char *>(&value), sizeof(value),
+                          static_cast<size_t>(0));
+  // We do not need the extra byte for (0 <= value <= LLONG_MAX).
+  if (value < 0) join_key_buffer->append(static_cast<char>(unsigned_flag));
   return false;
 }
 
@@ -7467,15 +7478,12 @@ static bool extract_value_for_hash_join(THD *thd, Item *comparand,
     case REAL_RESULT: {
       double value = comparand->val_real();
       if (value == 0.0) value = 0.0;  // Ensure that -0.0 hashes as +0.0.
-      return append_double_or_int_value(pointer_cast<const char *>(&value),
-                                        sizeof(value), comparand->null_value,
-                                        join_key_buffer);
+      return append_double_value(value, comparand->null_value, join_key_buffer);
     }
     case INT_RESULT: {
       const longlong value = comparand->val_int();
-      return append_double_or_int_value(pointer_cast<const char *>(&value),
-                                        sizeof(value), comparand->null_value,
-                                        join_key_buffer);
+      return append_int_value(value, comparand->null_value,
+                              comparand->unsigned_flag, join_key_buffer);
     }
     case DECIMAL_RESULT: {
       return append_decimal_value(comparand, join_key_buffer);
