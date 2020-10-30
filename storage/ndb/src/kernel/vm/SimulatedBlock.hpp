@@ -440,6 +440,7 @@ class alignas(NDB_CL) SimulatedBlock :
   friend class SimplePropertiesSectionWriter;
   friend class SegmentedSectionGuard;
   friend class DynArr256Pool; // for cerrorInsert
+  friend struct thr_data;
 public:
   friend class BlockComponent;
   ~SimulatedBlock() override;
