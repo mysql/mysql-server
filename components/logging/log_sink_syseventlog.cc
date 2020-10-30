@@ -725,9 +725,6 @@ done:
   label will be ignored (one will be generated from priority by the syslogger).
   If the message is not \0 terminated, it will be terminated.
 
-  @param           instance             instance's state
-  @param           ll                   the log line to write
-
   @returns       >=0                  number of accepted fields, if any
   @returns	 LOG_SERVICE_NOT_AVAILABLE     log was not open
   @returns 	 LOG_SERVICE_INVALID_ARGUMENT  could not sanitize log message
@@ -911,18 +908,6 @@ DEFINE_METHOD(log_service_error, log_service_imp::flush,
 /**
   Open a new instance.
 
-  @param   ll        optional arguments
-  @param   instance  If state is needed, the service may allocate and
-                     initialize it and return a pointer to it here.
-                     (This of course is particularly pertinent to
-                     components that may be opened multiple times,
-                     such as the JSON log writer.)
-                     This state is for use of the log-service component
-                     in question only and can take any layout suitable
-                     to that component's need. The state is opaque to
-                     the server/logging framework. It must be released
-                     on close.
-
   @returns  LOG_SERVICE_SUCCESS        success, returned hande is valid
   @returns  otherwise                  a new instance could not be created
 */
@@ -937,11 +922,6 @@ DEFINE_METHOD(log_service_error, log_service_imp::open,
 
 /**
   Close and release an instance. Flushes any buffers.
-
-  @param   instance  State-pointer that was returned on open.
-                     If memory was allocated for this state,
-                     it should be released, and the pointer
-                     set to nullptr.
 
   @returns  LOG_SERVICE_SUCCESS
 */

@@ -1151,7 +1151,7 @@ static dd::Foreign_key::enum_rule get_fk_rule(fk_option opt) {
   @param key_count    number of foreign keys
   @param keyinfo      array containing foreign key info
 
-  @retval true if error (error reported), false otherwise.
+  @returns true if error (error reported), false otherwise.
 */
 
 static bool fill_dd_foreign_keys_from_create_fields(
@@ -1859,9 +1859,9 @@ static Table::enum_row_format dd_get_new_row_format(row_type old_format) {
   @param table The table definition
   @param handler Handler to the storage engine
 
-  @retval true if the engine does not supports the provided SRS id. In that case
-          my_error is called
-  @retval false on success
+  @returns true if the engine does not supports the provided SRS id. In that
+  case my_error is called
+  @returns false on success
 */
 static bool engine_supports_provided_srs_id(THD *thd, const dd::Table &table,
                                             const handler *handler) {
@@ -2741,9 +2741,9 @@ bool is_general_tablespace_and_encrypted(const KEY k, THD *thd,
    @param[in] t table to check
    @param[out] is_general_tablespace Denotes if we found general tablespace.
 
-   @retval {true, *} in case of errors
-   @retval {false, true} if at least one tablespace is encrypted
-   @retval {false, false} if no tablespace is encrypted
+   @returns {true, *} in case of errors
+   @returns {false, true} if at least one tablespace is encrypted
+   @returns {false, false} if no tablespace is encrypted
  */
 Encrypt_result is_tablespace_encrypted(THD *thd, const Table &t,
                                        bool *is_general_tablespace) {
@@ -2869,9 +2869,9 @@ static void copy_tablespace_names(const HA_CREATE_INFO *ci, partition_info *pi,
    @param[out] is_general_tablespace Marked as true on success if its
                                 general tablespace.
 
-   @retval {true, *} in case of errors
-   @retval {false, true} if at least one tablespace is encrypted
-   @retval {false, false} if no tablespace is encrypted
+   @returns {true, *} in case of errors
+   @returns {false, true} if at least one tablespace is encrypted
+   @returns {false, false} if no tablespace is encrypted
  */
 Encrypt_result is_tablespace_encrypted(THD *thd, const HA_CREATE_INFO *ci,
                                        bool *is_general_tablespace) {

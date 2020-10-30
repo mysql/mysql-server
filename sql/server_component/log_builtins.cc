@@ -282,32 +282,6 @@ static const log_item_wellknown_key log_item_wellknown_keys[] = {
 static uint log_item_wellknown_keys_count =
     (sizeof(log_item_wellknown_keys) / sizeof(log_item_wellknown_key));
 
-/*
-  string helpers
-*/
-
-/**
-  Compare two NUL-terminated byte strings
-
-  Note that when comparing without length limit, the long string
-  is greater if they're equal up to the length of the shorter
-  string, but the shorter string will be considered greater if
-  its "value" up to that point is greater:
-
-  compare 'abc','abcd':      -100  (longer wins if otherwise same)
-  compare 'abca','abcd':       -3  (higher value wins)
-  compare 'abcaaaaa','abcd':   -3  (higher value wins)
-
-  @param  a                 the first string
-  @param  b                 the second string
-  @param  len               compare at most this many characters --
-                            0 for no limit
-  @param  case_insensitive  ignore upper/lower case in comparison
-
-  @retval -1                a < b
-  @retval  0                a == b
-  @retval  1                a > b
-*/
 int log_string_compare(const char *a, const char *b, size_t len,
                        bool case_insensitive) {
   if (a == nullptr) /* purecov: begin inspected */
@@ -368,12 +342,6 @@ bool log_item_numeric_class(log_item_class c) {
   return ((c == LOG_INTEGER) || (c == LOG_FLOAT));
 }
 
-/**
-  Get an integer value from a log-item of float or integer type.
-
-  @param      li   log item to get the value from
-  @param[out] i    longlong to store  the value in
-*/
 void log_item_get_int(log_item *li, longlong *i) /* purecov: begin inspected */
 {
   if (li->item_class == LOG_FLOAT)
@@ -382,12 +350,6 @@ void log_item_get_int(log_item *li, longlong *i) /* purecov: begin inspected */
     *i = (longlong)li->data.data_integer;
 } /* purecov: end */
 
-/**
-  Get a float value from a log-item of float or integer type.
-
-  @param       li      log item to get the value from
-  @param[out]  f       float to store  the value in
-*/
 void log_item_get_float(log_item *li, double *f) {
   if (li->item_class == LOG_FLOAT)
     *f = (float)li->data.data_float;
@@ -395,13 +357,6 @@ void log_item_get_float(log_item *li, double *f) {
     *f = (float)li->data.data_integer;
 }
 
-/**
-  Get a string value from a log-item of C-string or Lex string type.
-
-  @param li            log item to get the value from
-  @param[out]  str     char-pointer   to store the pointer to the value in
-  @param[out]  len     size_t pointer to store the length of  the value in
-*/
 void log_item_get_string(log_item *li, char **str, size_t *len) {
   if ((*str = const_cast<char *>(li->data.data_string.str)) == nullptr)
     *len = 0;
@@ -565,12 +520,6 @@ void log_item_free(log_item *li) {
   li->alloc = LOG_ITEM_FREE_NONE;
 }
 
-/**
-  Dynamically allocate and initialize a log_line.
-
-  @retval nullptr  could not set up buffer (too small?)
-  @retval other    address of the newly initialized log_line
-*/
 log_line *log_line_init() {
   log_line *ll;
   if ((ll = (log_line *)my_malloc(key_memory_log_error_stack, sizeof(log_line),
@@ -735,16 +684,6 @@ log_item *log_line_item_by_name(log_line *ll, const char *key) {
   return (i < 0) ? nullptr : &ll->item[i];
 }
 
-/**
-  Find the (index of the) last key/value pair of the given type
-  in the log line.
-
-  @param         ll   log line
-  @param         t    the log item type to look for
-
-  @retval        <0:  none found
-  @retval        >=0: index of the key/value pair in the log line
-*/
 int log_line_index_by_type(log_line *ll, log_item_type t) {
   uint32 count = ll->count;
 
@@ -758,21 +697,6 @@ int log_line_index_by_type(log_line *ll, log_item_type t) {
   return -1;
 }
 
-/**
-  Find the (index of the) last key/value pair of the given type
-  in the log line. This variant accepts a reference item and looks
-  for an item that is of the same type (for wellknown types), or
-  one that is of a generic type, and with the same key name (for
-  generic types).  For example, a reference item containing a
-  generic string with key "foo" will a generic string, integer, or
-  float with the key "foo".
-
-  @param         ll   log line
-  @param         ref  a reference item of the log item type to look for
-
-  @retval        <0:  none found
-  @retval        >=0: index of the key/value pair in the log line
-*/
 int log_line_index_by_item(log_line *ll, log_item *ref) {
   uint32 count = ll->count;
 
@@ -879,39 +803,6 @@ log_item_data *log_item_set_with_key(log_item *li, log_item_type t,
   return &li->data;
 }
 
-/**
-  Create new log item in log line "ll", with key name "key", and
-  allocation flags of "alloc" (see enum_log_item_free).
-  On success, the number of registered items on the log line is increased,
-  the item's type is added to the log_line's "seen" property,
-  and a pointer to the item's log_item_data struct is returned for
-  convenience.
-
-  @param  ll        the log_line to work on
-  @param  t         the item-type
-  @param  key       the key to set on the item.
-                    ignored for non-generic types (may pass nullptr for those)
-                    see alloc
-  @param  alloc     LOG_ITEM_FREE_KEY  if key was allocated by caller
-                    LOG_ITEM_FREE_NONE if key was not allocated
-                    Allocated keys will automatically free()d when the
-                    log_item is.
-                    The log_item's alloc flags will be set to the
-                    submitted value; specifically, any pre-existing
-                    value will be clobbered.  It is therefore WRONG
-                    a) to use this on a log_item that already has a key;
-                       it should only be used on freshly init'd log_items;
-                    b) to use this on a log_item that already has a
-                       value (specifically, an allocated one); the correct
-                       order is to init a log_item, then set up type and
-                       key, and finally to set the value. If said value is
-                       an allocated string, the log_item's alloc should be
-                       bitwise or'd with LOG_ITEM_FREE_VALUE.
-
-  @retval !nullptr  a pointer to the log_item's log_data, for easy chaining:
-                    log_line_item_set_with_key(...)->data_integer= 1;
-  @retval  nullptr  could not create a log_item in given log_line
-*/
 log_item_data *log_line_item_set_with_key(log_line *ll, log_item_type t,
                                           const char *key, uint32 alloc) {
   log_item *li;
@@ -962,47 +853,10 @@ log_item_data *log_item_set(log_item *li, log_item_type t) {
   return log_item_set_with_key(li, t, nullptr, LOG_ITEM_FREE_NONE);
 }
 
-/**
-  Create a new log item of well-known type "t" in log line "ll".
-  On success, the number of registered items on the log line is increased,
-  the item's type is added to the log_line's "seen" property,
-  and a pointer to the item's log_item_data struct is returned for
-  convenience.
-
-  The allocation of this item will be LOG_ITEM_FREE_NONE;
-  specifically, any pre-existing value will be clobbered.
-  It is therefore WRONG
-  a) to use this on a log_item that already has a key;
-     it should only be used on freshly init'd log_items;
-  b) to use this on a log_item that already has a
-     value (specifically, an allocated one); the correct
-     order is to init a log_item, then set up type and
-     key, and finally to set the value. If said value is
-     an allocated string, the log_item's alloc should be
-     bitwise or'd with LOG_ITEM_FREE_VALUE.
-
-  @param  ll        the log_line to work on
-  @param  t         the item-type
-
-  @retval !nullptr  a pointer to the log_item's log_data, for easy chaining:
-                    log_line_item_set(...)->data_integer= 1;
-  @retval  nullptr  could not create a log_item in given log_line
-*/
 log_item_data *log_line_item_set(log_line *ll, log_item_type t) {
   return log_line_item_set_with_key(ll, t, nullptr, LOG_ITEM_FREE_NONE);
 }
 
-/**
-  Set an integer value on a log_item.
-  Fails gracefully if no log_item_data is supplied, so it can safely
-  wrap log_line_item_set[_with_key]().
-
-  @param  lid    log_item_data struct to set the value on
-  @param  i      integer to set
-
-  @retval true   lid was nullptr (possibly: OOM, could not set up log_item)
-  @retval false  all's well
-*/
 bool log_item_set_int(log_item_data *lid, longlong i) {
   if (lid != nullptr) {
     lid->data_integer = i;
@@ -1011,17 +865,6 @@ bool log_item_set_int(log_item_data *lid, longlong i) {
   return true;
 }
 
-/**
-  Set a floating point value on a log_item.
-  Fails gracefully if no log_item_data is supplied, so it can safely
-  wrap log_line_item_set[_with_key]().
-
-  @param  lid    log_item_data struct to set the value on
-  @param  f      float to set
-
-  @retval true   lid was nullptr (possibly: OOM, could not set up log_item)
-  @retval false  all's well
-*/
 bool log_item_set_float(log_item_data *lid, double f) {
   if (lid != nullptr) {
     lid->data_float = f;
@@ -1056,18 +899,6 @@ bool log_item_set_buffer(log_item_data *lid, char *s, size_t s_len) {
   return true; /* purecov: inspected */
 }
 
-/**
-  Set a string value on a log_item.
-  Fails gracefully if no log_item_data is supplied, so it can safely
-  wrap log_line_item_set[_with_key]().
-
-  @param  lid    log_item_data struct to set the value on
-  @param  s      pointer to string
-  @param  s_len  length of string
-
-  @retval true   lid was nullptr (possibly: OOM, could not set up log_item)
-  @retval false  all's well
-*/
 bool log_item_set_lexstring(log_item_data *lid, const char *s, size_t s_len) {
   if (lid != nullptr) {
     lid->data_string.str = (s == nullptr) ? "" : s;
@@ -1077,17 +908,6 @@ bool log_item_set_lexstring(log_item_data *lid, const char *s, size_t s_len) {
   return true;
 }
 
-/**
-  Set a string value on a log_item.
-  Fails gracefully if no log_item_data is supplied, so it can safely
-  wrap log_line_item_set[_with_key]().
-
-  @param  lid    log_item_data struct to set the value on
-  @param  s      pointer to NTBS
-
-  @retval true   lid was nullptr (possibly: OOM, could not set up log_item)
-  @retval false  all's well
-*/
 bool log_item_set_cstring(log_item_data *lid, const char *s) {
   if (lid != nullptr) {
     lid->data_string.str = (s == nullptr) ? "" : s;
@@ -1097,18 +917,6 @@ bool log_item_set_cstring(log_item_data *lid, const char *s) {
   return true;
 }
 
-/**
-  Convenience function: Derive a log label ("error", "warning",
-  "information") from a severity.
-
-  @param   prio       the severity/prio in question
-
-  @return             a label corresponding to that priority.
-  @retval  "System"   for prio of SYSTEM_LEVEL
-  @retval  "Error"    for prio of ERROR_LEVEL
-  @retval  "Warning"  for prio of WARNING_LEVEL
-  @retval  "Note"     for prio of INFORMATION_LEVEL
-*/
 const char *log_label_from_prio(int prio) {
   switch (prio) {
     case SYSTEM_LEVEL:
@@ -2343,18 +2151,6 @@ DEFINE_METHOD(bool, log_builtins_imp::item_set_float,
   return log_item_set_float(lid, f);
 }
 
-/**
-  Set a string value on a log_item.
-  Fails gracefully if no log_item_data is supplied, so it can safely
-  wrap log_line_item_set[_with_key]().
-
-  @param  lid    log_item_data struct to set the value on
-  @param  s      pointer to string
-  @param  s_len  length of string
-
-  @retval true   lid was nullptr (possibly: OOM, could not set up log_item)
-  @retval false  all's well
-*/
 DEFINE_METHOD(bool, log_builtins_imp::item_set_lexstring,
               (log_item_data * lid, const char *s, size_t s_len)) {
   return log_item_set_lexstring(lid, s, s_len);
