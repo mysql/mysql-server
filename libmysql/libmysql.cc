@@ -3710,7 +3710,7 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row) {
 int cli_unbuffered_fetch(MYSQL *mysql, char **row) {
   ulong len = 0;
   bool is_data_packet;
-  if (packet_error == cli_safe_read(mysql, &is_data_packet)) {
+  if (packet_error == (len = cli_safe_read(mysql, &is_data_packet))) {
     MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
     return 1;
   }
