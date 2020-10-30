@@ -6514,7 +6514,7 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
   else
   {
     jam();
-    elemStep = -elemLen;
+    elemStep = 0 - elemLen;
     elemptr = conptr + elemStep;
   }
   arrGuard(conptr, 2048);
@@ -7401,7 +7401,7 @@ void Dbacc::shrinkcontainer(Page8Ptr pageptr,
   else
   {
     jam();
-    elemStep = -elemLen;
+    elemStep = 0 - elemLen;
     tshrElementptr = conptr + elemStep;
   }//if
  SHR_LOOP:
