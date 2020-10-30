@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4343,7 +4343,7 @@ int cli_unbuffered_fetch(MYSQL *mysql, char **row)
 {
   ulong len= 0;
   my_bool is_data_packet;
-  if (packet_error == cli_safe_read(mysql, &is_data_packet))
+  if (packet_error == (len = cli_safe_read(mysql, &is_data_packet)))
   {
     MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
     return 1;
