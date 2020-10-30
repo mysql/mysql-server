@@ -4566,10 +4566,8 @@ static void validate_tablespace_encryption(fil_space_t *space) {
 @param[in]	space	tablespace
 @return false if success, true otherwise. */
 static bool load_encryption_from_header(fil_space_t *space) {
-  byte *encryption_key =
-      static_cast<byte *>(ut_zalloc_nokey(Encryption::KEY_LEN));
-  byte *encryption_iv =
-      static_cast<byte *>(ut_zalloc_nokey(Encryption::KEY_LEN));
+  byte encryption_key[Encryption::KEY_LEN] = {0};
+  byte encryption_iv[Encryption::KEY_LEN] = {0};
 
   /* Read and load encryption info from header page */
   const page_size_t page_size(space->flags);
