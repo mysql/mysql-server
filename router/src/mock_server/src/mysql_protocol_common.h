@@ -27,8 +27,6 @@
 
 #include <string>
 
-#include "mysqlrouter/mysql_protocol.h"
-
 namespace server_mock {
 
 /** @enum MySQLColumnType

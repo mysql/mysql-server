@@ -22,36 +22,24 @@
 
 INCLUDE(GenerateExportHeader)
 
-SET(SOURCE_FILES
-  src/handshake_packet.cc
-  src/error_packet.cc
-  src/base_packet.cc
-  )
-
 SET(include_dirs
   include
   ${CMAKE_CURRENT_BINARY_DIR}/include/
   )
 
-add_harness_plugin(mysql_protocol
-  SOURCES ${SOURCE_FILES}
-  REQUIRES router_lib
-  DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
+ADD_LIBRARY(mysql_protocol INTERFACE)
+
+TARGET_SOURCES(mysql_protocol
+  INTERFACE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/mysqlrouter/classic_protocol.h
   )
 
-TARGET_INCLUDE_DIRECTORIES(mysql_protocol PUBLIC ${include_dirs})
-GENERATE_EXPORT_HEADER(mysql_protocol
-  EXPORT_FILE_NAME
-  ${CMAKE_CURRENT_BINARY_DIR}/include/mysqlrouter/mysql_protocol_export.h
-  )
+TARGET_INCLUDE_DIRECTORIES(mysql_protocol INTERFACE ${include_dirs})
+# GENERATE_EXPORT_HEADER(mysql_protocol
+#   EXPORT_FILE_NAME
+#   ${CMAKE_CURRENT_BINARY_DIR}/include/mysqlrouter/mysql_protocol_export.h
+#   )
 
 IF(WITH_UNIT_TESTS AND GMOCK_FOUND)
-  ADD_LIBRARY(mysql_protocol_static STATIC ${SOURCE_FILES})
-  TARGET_LINK_LIBRARIES(mysql_protocol_static router_lib)
-  TARGET_COMPILE_DEFINITIONS(mysql_protocol_static PUBLIC -DMYSQL_PROTOCOL_STATIC_DEFINE=1)
-  TARGET_INCLUDE_DIRECTORIES(mysql_protocol_static PUBLIC ${include_dirs})
-  ## make sure mysql_protocol_export.h is created early enough
-  ADD_DEPENDENCIES(mysql_protocol_static mysql_protocol)
-
   ADD_SUBDIRECTORY(tests/)
 ENDIF()

@@ -106,10 +106,6 @@ class MySQLServerMockSessionClassic : public MySQLServerMockSession {
   // throws std::system_error, std::runtime_error
   bool handle_handshake(const HandshakeResponse &response);
 
-  mysql_protocol::HandshakeResponsePacket handle_handshake_response(
-      const socket_t client_socket,
-      const mysql_protocol::Capabilities::Flags our_capabilities);
-
  private:
   MySQLClassicProtocol *protocol_;
 };

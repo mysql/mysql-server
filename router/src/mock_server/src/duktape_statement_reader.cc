@@ -28,15 +28,18 @@
 #include <string>
 
 #include <mysqld_error.h>
+#include <system_error>
 
+#include "authentication.h"
 #include "duk_logging.h"
 #include "duk_module_shim.h"
 #include "duk_node_fs.h"
 #include "duktape.h"
 #include "duktape_statement_reader.h"
+#include "harness_assert.h"
 #include "mysql/harness/logging/logging.h"
-
-#include "authentication.h"
+#include "mysql/harness/stdx/expected.h"
+#include "mysqlrouter/classic_protocol.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -406,7 +409,7 @@ struct DuktapeStatementReader::Pimpl {
     DONE
   } handshake_state_{HandshakeState::INIT};
 
-  mysql_protocol::Capabilities::Flags server_capabilities_;
+  classic_protocol::capabilities::value_type server_capabilities_;
 
   bool first_stmt_{true};
 
@@ -595,7 +598,7 @@ DuktapeStatementReader::DuktapeStatementReader(
     const std::string &filename, const std::string &module_prefix,
     std::map<std::string, std::string> session_data,
     std::shared_ptr<MockServerGlobalScope> shared_globals)
-    : pimpl_{new Pimpl()}, shared_{shared_globals} {
+    : pimpl_{new Pimpl()}, shared_{std::move(shared_globals)} {
   auto *ctx = duk_create_heap_default();
 
   // free the duk_context if an exception gets thrown as
@@ -729,10 +732,10 @@ HandshakeResponse DuktapeStatementReader::handle_handshake_init(
   // defaults
   std::string server_version = "8.0.5-mock";
   uint32_t connection_id = 0;
-  mysql_protocol::Capabilities::Flags server_capabilities =
-      mysql_protocol::Capabilities::PROTOCOL_41 |
-      mysql_protocol::Capabilities::PLUGIN_AUTH |
-      mysql_protocol::Capabilities::SECURE_CONNECTION;
+  classic_protocol::capabilities::value_type server_capabilities =
+      classic_protocol::capabilities::protocol_41 |
+      classic_protocol::capabilities::plugin_auth |
+      classic_protocol::capabilities::secure_connection;
   uint16_t status_flags = 0;
   uint8_t character_set = 0;
   std::string auth_method = MySQLNativePassword::name;
@@ -805,22 +808,21 @@ HandshakeResponse DuktapeStatementReader::handle_handshake_greeted(
 
   // decode the payload
 
-  // prepend length of packet again as HandshakeResponsePacket parser
-  // expects a full frame, not the payload
-  std::vector<uint8_t> frame{0, 0, 0, 1};
-  frame.insert(frame.end(), payload.begin(), payload.end());
+  auto decode_res =
+      classic_protocol::decode<classic_protocol::message::client::Greeting>(
+          net::buffer(payload), pimpl_->server_capabilities_);
 
-  for (unsigned int i = 0, sz = payload.size(); i < 3; i++, sz >>= 8) {
-    frame[i] = sz % 0xff;
+  if (!decode_res) {
+    throw std::system_error(decode_res.error(),
+                            "decoding client greeting failed");
   }
 
-  mysql_protocol::HandshakeResponsePacket pkt(frame);
+  auto greeting = decode_res.value().second;
 
-  pkt.parse_payload(pimpl_->server_capabilities_);
-
-  pimpl_->username_ = pkt.get_username();
-  if (pkt.get_capabilities().test(mysql_protocol::Capabilities::PLUGIN_AUTH)) {
-    pimpl_->auth_method_ = pkt.get_auth_plugin();
+  pimpl_->username_ = greeting.username();
+  if (greeting.capabilities().test(
+          classic_protocol::capabilities::pos::plugin_auth)) {
+    pimpl_->auth_method_ = greeting.auth_method_name();
   } else {
     // 4.1 or so
     pimpl_->auth_method_ = MySQLNativePassword::name;
@@ -839,7 +841,12 @@ HandshakeResponse DuktapeStatementReader::handle_handshake_greeted(
     next_state = HandshakeState::AUTH_SWITCHED;
   } else if (pimpl_->auth_method_ == MySQLNativePassword::name ||
              pimpl_->auth_method_ == ClearTextPassword::name) {
-    if (pimpl_->authenticate(pkt.get_username(), pkt.get_auth_response())) {
+    auto auth_method_data = greeting.auth_method_data();
+
+    // authenticate wants a vector<uint8_t>
+    std::vector<uint8_t> auth_method_data_vec(auth_method_data.begin(),
+                                              auth_method_data.end());
+    if (pimpl_->authenticate(pimpl_->username_, auth_method_data_vec)) {
       response.response_type = HandshakeResponse::ResponseType::OK;
       response.response = std::make_unique<OkResponse>();
 
@@ -848,7 +855,7 @@ HandshakeResponse DuktapeStatementReader::handle_handshake_greeted(
       response.response_type = HandshakeResponse::ResponseType::ERROR;
       response.response = std::make_unique<ErrorResponse>(
           ER_ACCESS_DENIED_ERROR,  // 1045
-          "Access Denied for user '" + pkt.get_username() + "'@'localhost'",
+          "Access Denied for user '" + pimpl_->username_ + "'@'localhost'",
           "28000");
       next_state = HandshakeState::DONE;
     }

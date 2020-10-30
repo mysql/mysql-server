@@ -35,6 +35,7 @@
 #include <rapidjson/document.h>
 
 #include "config.h"
+#include "harness_assert.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/impl/socket_constants.h"
 #include "mysql/harness/stdx/expected.h"

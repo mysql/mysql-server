@@ -20,22 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-INCLUDE_DIRECTORIES(
-  ../../../tests/
-)
-
 SET(TEST_MODULE mysql_protocol)
-FOREACH(test_file
-    test_base_packet.cc
-    test_constants.cc
-    test_error_packet.cc
-    test_handshake_packet.cc
-    )
-  add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
-  MODULE ${TEST_MODULE}
-  LIB_DEPENDS mysql_protocol_static
-  SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS})
-ENDFOREACH()
 
 FOREACH(test_file
     test_classic_protocol_frame.cc
@@ -44,11 +29,9 @@ FOREACH(test_file
     test_classic_protocol_wire.cc
     test_classic_protocol.cc
   )
-  add_test_file(${test_file}
+  ADD_GOOGLETEST_FILE(${test_file}
     MODULE ${TEST_MODULE}
     SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS}
-    INCLUDE_DIRS ../include/)
+    INCLUDE_DIRS ../include/
+    LIB_DEPENDS harness_stdx)
 ENDFOREACH()
-
-# TODO(sgunders): Remove when all GMock tests use MOCK_METHOD().
-STRING(REPLACE "-Wsuggest-override" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")

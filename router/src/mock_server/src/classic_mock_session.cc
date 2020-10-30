@@ -26,11 +26,11 @@
 
 #include <array>
 #include <chrono>
-#include <iostream>
 #include <memory>
 #include <system_error>
 #include <thread>
 
+#include "harness_assert.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/net_ts/impl/socket_constants.h"
@@ -39,7 +39,7 @@
 #include "mysqld_error.h"
 #include "mysqlrouter/classic_protocol.h"
 #include "mysqlrouter/classic_protocol_constants.h"
-#include "mysqlrouter/mysql_protocol/constants.h"
+#include "mysqlrouter/classic_protocol_message.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -83,8 +83,6 @@ void MySQLClassicProtocol::send_packet(const std::vector<uint8_t> &payload) {
 }
 
 bool MySQLServerMockSessionClassic::process_handshake() {
-  using namespace mysql_protocol;
-
   bool is_first_packet = true;
 
   while (!killed()) {
@@ -106,8 +104,6 @@ bool MySQLServerMockSessionClassic::process_handshake() {
 }
 
 bool MySQLServerMockSessionClassic::process_statements() {
-  using mysql_protocol::Command;
-
   while (!killed()) {
     std::vector<uint8_t> payload;
 
@@ -120,9 +116,10 @@ bool MySQLServerMockSessionClassic::process_statements() {
       throw std::system_error(make_error_code(std::errc::bad_message));
     }
 
-    auto cmd = static_cast<mysql_protocol::Command>(payload[0]);
+    auto cmd = payload[0];
     switch (cmd) {
-      case Command::QUERY: {
+      case classic_protocol::Codec<
+          classic_protocol::message::client::Query>::cmd_byte(): {
         // skip the first
         std::string statement_received(std::next(payload.begin()),
                                        payload.end());
@@ -141,12 +138,12 @@ bool MySQLServerMockSessionClassic::process_statements() {
           return true;
         }
       } break;
-      case Command::QUIT:
+      case classic_protocol::Codec<
+          classic_protocol::message::client::Quit>::cmd_byte():
         log_info("received QUIT command from the client");
         return true;
       default:
-        std::cerr << "received unsupported command from the client: "
-                  << static_cast<int>(cmd) << "\n";
+        log_info("received unsupported command from the client: %d", cmd);
         std::this_thread::sleep_for(json_reader_->get_default_exec_time());
         protocol_->send_error(ER_PARSE_ERROR,
                               "Unsupported command: " + std::to_string(cmd));
@@ -196,8 +193,7 @@ void MySQLClassicProtocol::send_greeting(const Greeting *greeting_resp) {
       classic_protocol::message::server::Greeting>>(
       {seq_no_++,
        {0x0a, greeting_resp->server_version(), greeting_resp->connection_id(),
-        greeting_resp->auth_data(),
-        static_cast<uint32_t>(greeting_resp->capabilities().bits()),
+        greeting_resp->auth_data(), greeting_resp->capabilities(),
         greeting_resp->character_set(), greeting_resp->status_flags(),
         greeting_resp->auth_method()}},
       shared_caps, net::dynamic_buffer(buf));

@@ -66,7 +66,6 @@
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/tls_server_context.h"
 #include "mysql_router_thread.h"
-#include "mysqlrouter/mysql_protocol.h"
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/routing_export.h"
 #include "mysqlrouter/uri.h"

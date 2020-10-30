@@ -28,7 +28,6 @@
 #include <memory>
 #include <string>
 #include <thread>
-#include "mysql/harness/net_ts/io_context.h"
 #ifndef _WIN32
 #include <netinet/in.h>
 #else
@@ -42,8 +41,8 @@
 #include "gtest_consoleoutput.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/net_ts/internet.h"
+#include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/plugin.h"
-#include "mysqlrouter/mysql_protocol.h"
 #include "mysqlrouter/routing.h"
 #include "router_test_helpers.h"
 #include "test/helpers.h"
