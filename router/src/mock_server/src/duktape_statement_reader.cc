@@ -22,6 +22,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <chrono>
 #include <functional>
 #include <map>
 #include <stdexcept>
@@ -234,29 +235,27 @@ struct DuktapeStatementReader::Pimpl {
     return value;
   }
 
-  std::unique_ptr<Response> get_ok(duk_idx_t idx) {
+  OkResponse get_ok(duk_idx_t idx) {
     if (!duk_is_object(ctx, idx)) {
       throw std::runtime_error("expect an object");
     }
 
-    return std::unique_ptr<Response>(new OkResponse(
-        get_object_integer_value<uint16_t>(-1, "last_insert_id", 0),
-        get_object_integer_value<uint16_t>(-1, "warning_count", 0)));
+    return {get_object_integer_value<uint16_t>(-1, "last_insert_id", 0),
+            get_object_integer_value<uint16_t>(-1, "warning_count", 0)};
   }
 
-  std::unique_ptr<Response> get_error(duk_idx_t idx) {
+  ErrorResponse get_error(duk_idx_t idx) {
     if (!duk_is_object(ctx, idx)) {
       throw std::runtime_error("expect an object");
     }
 
-    return std::unique_ptr<Response>(new ErrorResponse(
-        get_object_integer_value<uint16_t>(-1, "code", 0, true),
-        get_object_string_value(-1, "message", "", true),
-        get_object_string_value(-1, "sql_state", "HY000")));
+    return {get_object_integer_value<uint16_t>(-1, "code", 0, true),
+            get_object_string_value(-1, "message", "", true),
+            get_object_string_value(-1, "sql_state", "HY000")};
   }
 
-  std::unique_ptr<Response> get_result(duk_idx_t idx) {
-    auto response = std::make_unique<ResultsetResponse>();
+  ResultsetResponse get_result(duk_idx_t idx) {
+    ResultsetResponse response;
     if (!duk_is_object(ctx, idx)) {
       throw std::runtime_error("expect an object");
     }
@@ -292,7 +291,7 @@ struct DuktapeStatementReader::Pimpl {
       }
       duk_pop(ctx);
 
-      response->columns.push_back(column_info);
+      response.columns.push_back(column_info);
 
       duk_pop(ctx);  // row
       duk_pop(ctx);  // row-ndx
@@ -323,7 +322,7 @@ struct DuktapeStatementReader::Pimpl {
           duk_pop(ctx);  // field-ndx
         }
         duk_pop(ctx);  // field-enum
-        response->rows.push_back(row_values);
+        response.rows.push_back(row_values);
 
         duk_pop(ctx);  // row
         duk_pop(ctx);  // row-ndx
@@ -336,11 +335,7 @@ struct DuktapeStatementReader::Pimpl {
 
     duk_pop(ctx);  // "rows"
 
-#ifdef __SUNPRO_CC
-    return std::move(response);
-#else
     return response;
-#endif
   }
   duk_context *ctx{nullptr};
 
@@ -932,8 +927,8 @@ HandshakeResponse DuktapeStatementReader::handle_handshake(
 }
 
 // @pre on the stack is an object
-StatementResponse DuktapeStatementReader::handle_statement(
-    const std::string &statement) {
+void DuktapeStatementReader::handle_statement(const std::string &statement,
+                                              ProtocolBase *protocol) {
   auto *ctx = pimpl_->ctx;
   bool is_enumable = false;
 
@@ -982,7 +977,10 @@ StatementResponse DuktapeStatementReader::handle_statement(
     // @-1 is an enumarator
     if (0 == duk_next(ctx, -1, true)) {
       duk_pop(ctx);
-      return {};
+
+      // startement received, but no matching statement in the iterator.
+      protocol->send_error(1064, "Unknown statement. (end of stmts)");
+      return;
     }
     // @-3 is an enumarator
     // @-2 is key
@@ -996,7 +994,7 @@ StatementResponse DuktapeStatementReader::handle_statement(
                              duk_get_type_names(ctx, -1));
   }
 
-  StatementResponse response;
+  std::chrono::microseconds exec_time{};
   duk_get_prop_string(ctx, -1, "exec_time");
   if (!duk_is_undefined(ctx, -1)) {
     if (!duk_is_number(ctx, -1)) {
@@ -1008,27 +1006,28 @@ StatementResponse DuktapeStatementReader::handle_statement(
     }
 
     // exec_time is written in the tracefile as microseconds
-    response.exec_time = std::chrono::microseconds(
+    exec_time = std::chrono::microseconds(
         static_cast<long>(duk_get_number(ctx, -1) * 1000));
   }
   duk_pop(ctx);
 
+  bool response_sent{false};
   duk_get_prop_string(ctx, -1, "result");
   if (!duk_is_undefined(ctx, -1)) {
-    response.response_type = StatementResponse::ResponseType::RESULT;
-    response.response = pimpl_->get_result(-1);
+    protocol->send_resultset(pimpl_->get_result(-1), exec_time);
+    response_sent = true;
   } else {
     duk_pop(ctx);  // result
     duk_get_prop_string(ctx, -1, "error");
     if (!duk_is_undefined(ctx, -1)) {
-      response.response_type = StatementResponse::ResponseType::ERROR;
-      response.response = pimpl_->get_error(-1);
+      protocol->send_error(pimpl_->get_error(-1));
+      response_sent = true;
     } else {
       duk_pop(ctx);  // error
       duk_get_prop_string(ctx, -1, "ok");
       if (!duk_is_undefined(ctx, -1)) {
-        response.response_type = StatementResponse::ResponseType::OK;
-        response.response = pimpl_->get_ok(-1);
+        protocol->send_ok(pimpl_->get_ok(-1));
+        response_sent = true;
       } else {
         throw std::runtime_error("expected 'error', 'ok' or 'result'");
       }
@@ -1041,7 +1040,9 @@ StatementResponse DuktapeStatementReader::handle_statement(
     duk_pop(ctx);  // key
   }
 
-  return response;
+  if (!response_sent) {
+    protocol->send_error(1064, "Unsupported command");
+  }
 }
 
 std::chrono::microseconds DuktapeStatementReader::get_default_exec_time() {

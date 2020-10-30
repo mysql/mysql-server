@@ -31,17 +31,17 @@
 #endif
 
 #include <rapidjson/document.h>
+
 #include "dim.h"
 #include "gmock/gmock.h"
 #include "mock_server_rest_client.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql_session.h"
+#include "mysqlrouter/rest_client.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
 #include "router_component_testutils.h"
 #include "tcp_port_pool.h"
-
-#include "mysqlrouter/rest_client.h"
 
 Path g_origin_path;
 
@@ -1185,8 +1185,7 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple("js_test_stmts_result_has_repeat.js",
                         "repeat is not supported"),  // WL11861 TS-1_5
         std::make_tuple("js_test_stmts_is_empty.js",
-                        "executing statement failed: Unsupported command in "
-                        "handle_statement()")),
+                        "Unknown statement. (end of stmts)")),
     [](const ::testing::TestParamInfo<std::tuple<const char *, const char *>>
            &info) -> std::string {
       return sanitize_param_name(std::get<0>(info.param));

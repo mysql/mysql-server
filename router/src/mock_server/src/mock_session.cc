@@ -115,16 +115,6 @@ void ProtocolBase::read_buffer(net::mutable_buffer &buf) {
   }
 }
 
-static void debug_trace_result(const ResultsetResponse *resultset) {
-  std::cout << "QUERY RESULT:\n";
-  for (auto const &row : resultset->rows) {
-    for (const auto &cell : row)
-      std::cout << "  |  " << (cell ? cell.value() : "NULL");
-    std::cout << "  |\n";
-  }
-  std::cout << "\n\n\n" << std::flush;
-}
-
 MySQLServerMockSession::MySQLServerMockSession(
     ProtocolBase *protocol,
     std::unique_ptr<StatementReaderBase> statement_processor, bool debug_mode)
@@ -147,42 +137,6 @@ void MySQLServerMockSession::run() {
     }
   } catch (const std::exception &e) {
     log_warning("Exception caught in connection loop: %s", e.what());
-  }
-}
-
-void MySQLServerMockSession::handle_statement(
-    const StatementResponse &statement) {
-  using ResponseType = StatementResponse::ResponseType;
-
-  switch (statement.response_type) {
-    case ResponseType::OK: {
-      if (debug_mode_) std::cout << std::endl;  // visual separator
-      auto *response = dynamic_cast<OkResponse *>(statement.response.get());
-
-      harness_assert(response);
-      std::this_thread::sleep_for(statement.exec_time);
-      protocol_->send_ok(0, response->last_insert_id, 0,
-                         response->warning_count);
-    } break;
-    case ResponseType::RESULT: {
-      auto *response =
-          dynamic_cast<ResultsetResponse *>(statement.response.get());
-      harness_assert(response);
-      if (debug_mode_) {
-        debug_trace_result(response);
-      }
-
-      protocol_->send_resultset(*response, statement.exec_time);
-    } break;
-    case ResponseType::ERROR: {
-      if (debug_mode_) std::cout << std::endl;  // visual separator
-      auto *response = dynamic_cast<ErrorResponse *>(statement.response.get());
-      harness_assert(response);
-      protocol_->send_error(response->code, response->msg);
-    } break;
-    default:;
-      throw std::runtime_error("Unsupported command in handle_statement(): " +
-                               std::to_string((int)statement.response_type));
   }
 }
 

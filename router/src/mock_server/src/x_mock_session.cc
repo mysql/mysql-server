@@ -307,7 +307,7 @@ bool MySQLServerMockSessionX::process_statements() {
         harness_assert(msg_stmt_execute != nullptr);
         const auto statement_received = msg_stmt_execute->stmt();
         try {
-          handle_statement(json_reader_->handle_statement(statement_received));
+          json_reader_->handle_statement(statement_received, protocol_);
         } catch (const std::exception &e) {
           // handling statement failed. Return the error to the client
           std::this_thread::sleep_for(json_reader_->get_default_exec_time());

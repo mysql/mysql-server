@@ -31,43 +31,6 @@
 
 namespace server_mock {
 
-class ProtocolBase {
- public:
-  ProtocolBase(net::ip::tcp::socket &&client_sock,
-               net::impl::socket::native_handle_type wakeup_fd);
-
-  virtual ~ProtocolBase() = default;
-
-  // throws std::system_error
-  virtual void send_error(const uint16_t error_code,
-                          const std::string &error_msg,
-                          const std::string &sql_state = "HY000") = 0;
-
-  // throws std::system_error
-  virtual void send_ok(const uint64_t affected_rows = 0,
-                       const uint64_t last_insert_id = 0,
-                       const uint16_t server_status = 0,
-                       const uint16_t warning_count = 0) = 0;
-
-  // throws std::system_error
-  virtual void send_resultset(const ResultsetResponse &response,
-                              const std::chrono::microseconds delay_ms) = 0;
-
-  void read_buffer(net::mutable_buffer &buf);
-
-  void send_buffer(net::const_buffer buf);
-
-  stdx::expected<bool, std::error_code> socket_has_data(
-      std::chrono::milliseconds timeout);
-
-  const net::ip::tcp::socket &client_socket() const { return client_socket_; }
-
- private:
-  net::ip::tcp::socket client_socket_;
-  net::impl::socket::native_handle_type
-      wakeup_fd_;  // socket to interrupt blocking polls
-};
-
 class MySQLServerMockSession {
  public:
   MySQLServerMockSession(
@@ -109,9 +72,6 @@ class MySQLServerMockSession {
   bool debug_mode() const { return debug_mode_; }
 
  protected:
-  // throws std::system_error, std::runtime_error
-  virtual void handle_statement(const StatementResponse &statement);
-
   std::unique_ptr<StatementReaderBase> json_reader_;
 
  private:

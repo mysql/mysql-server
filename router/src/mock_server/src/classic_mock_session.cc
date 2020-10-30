@@ -125,7 +125,7 @@ bool MySQLServerMockSessionClassic::process_statements() {
                                        payload.end());
 
         try {
-          handle_statement(json_reader_->handle_statement(statement_received));
+          json_reader_->handle_statement(statement_received, protocol_);
         } catch (const std::exception &e) {
           // handling statement failed. Return the error to the client
           std::this_thread::sleep_for(json_reader_->get_default_exec_time());
@@ -235,7 +235,8 @@ bool MySQLServerMockSessionClassic::handle_handshake(
       auto *ok_resp = dynamic_cast<OkResponse *>(response.response.get());
       harness_assert(ok_resp);
 
-      protocol_->send_ok(0, ok_resp->last_insert_id, 0, ok_resp->warning_count);
+      protocol_->send_ok(0, ok_resp->last_insert_id(), 0,
+                         ok_resp->warning_count());
 
       return true;
     }

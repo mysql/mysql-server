@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 #include <string>
 
 #include "mysqlrouter/mock_server_global_scope.h"
+#include "router/src/mock_server/src/mock_session.h"
 #include "statement_reader.h"
 
 namespace server_mock {
@@ -86,10 +87,11 @@ class DuktapeStatementReader : public StatementReaderBase {
    * handle the clients statement
    *
    * @param statement statement-text of the current clients
-   *COM_QUERY/StmtExecute
-   * @returns response to send to client
+   *                  COM_QUERY/StmtExecute
+   * @param protocol protocol to send response to
    */
-  StatementResponse handle_statement(const std::string &statement) override;
+  void handle_statement(const std::string &statement,
+                        ProtocolBase *protocol) override;
 
   std::chrono::microseconds get_default_exec_time() override;
 

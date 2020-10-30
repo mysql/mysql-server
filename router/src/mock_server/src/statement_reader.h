@@ -33,7 +33,10 @@
 #include "mysql_protocol_common.h"
 #include "mysqlrouter/classic_protocol_constants.h"
 
+#include "mysql/harness/net_ts/internet.h"
+#include "mysql/harness/net_ts/socket.h"
 #include "mysql/harness/stdx/expected.h"
+#include "mysqlrouter/classic_protocol_message.h"
 
 namespace server_mock {
 
@@ -55,11 +58,15 @@ struct ResultsetResponse : public Response {
 };
 
 struct OkResponse : public Response {
-  OkResponse(unsigned int last_insert_id_ = 0, unsigned int warning_count_ = 0)
-      : last_insert_id(last_insert_id_), warning_count(warning_count_) {}
+  OkResponse(unsigned int last_insert_id = 0, unsigned int warning_count = 0)
+      : last_insert_id_(last_insert_id), warning_count_(warning_count) {}
 
-  unsigned int last_insert_id;
-  unsigned int warning_count;
+  unsigned int last_insert_id() const { return last_insert_id_; }
+  unsigned int warning_count() const { return warning_count_; }
+
+ private:
+  unsigned int last_insert_id_;
+  unsigned int warning_count_;
 };
 
 struct ErrorResponse : public Response {
@@ -176,13 +183,59 @@ struct AsyncNotice {
   std::string payload;
 };
 
+class ProtocolBase {
+ public:
+  ProtocolBase(net::ip::tcp::socket &&client_sock,
+               net::impl::socket::native_handle_type wakeup_fd);
+
+  virtual ~ProtocolBase() = default;
+
+  // throws std::system_error
+  virtual void send_error(const uint16_t error_code,
+                          const std::string &error_msg,
+                          const std::string &sql_state = "HY000") = 0;
+
+  void send_error(const ErrorResponse &resp) {
+    send_error(resp.code, resp.msg, resp.sql_state);
+  }
+
+  // throws std::system_error
+  virtual void send_ok(const uint64_t affected_rows = 0,
+                       const uint64_t last_insert_id = 0,
+                       const uint16_t server_status = 0,
+                       const uint16_t warning_count = 0) = 0;
+
+  void send_ok(const OkResponse &resp) {
+    send_ok(0, resp.last_insert_id(), 0, resp.warning_count());
+  }
+
+  // throws std::system_error
+  virtual void send_resultset(const ResultsetResponse &response,
+                              const std::chrono::microseconds delay_ms) = 0;
+
+  void read_buffer(net::mutable_buffer &buf);
+
+  void send_buffer(net::const_buffer buf);
+
+  stdx::expected<bool, std::error_code> socket_has_data(
+      std::chrono::milliseconds timeout);
+
+  const net::ip::tcp::socket &client_socket() const { return client_socket_; }
+
+ private:
+  net::ip::tcp::socket client_socket_;
+  net::impl::socket::native_handle_type
+      wakeup_fd_;  // socket to interrupt blocking polls
+};
+
 class StatementReaderBase {
  public:
   /** @brief Returns the data about the next statement from the
    *         json file. If there is no more statements it returns
    *         empty statement.
    **/
-  virtual StatementResponse handle_statement(const std::string &statement) = 0;
+  virtual void handle_statement(const std::string &statement,
+                                ProtocolBase *protocol) = 0;
 
   /**
    * process the handshake packet and return a client response
