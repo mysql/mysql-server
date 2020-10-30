@@ -3551,8 +3551,8 @@ bool Item_param::fix_fields(THD *, Item **) {
     case STRING_VALUE:
       // Set data type string with maximum possible size
       // @todo WL#6570 - what about blob values???
-      set_data_type_string(65535U / m_collation_actual->mbmaxlen,
-                           m_collation_actual);
+      set_data_type_string(65535U / m_collation_stored->mbmaxlen,
+                           m_collation_stored);
       break;
     case TIME_VALUE:
       if (data_type_actual() == MYSQL_TYPE_DATE)

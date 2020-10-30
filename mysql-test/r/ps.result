@@ -4023,3 +4023,12 @@ Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function
 DEALLOCATE PREPARE stmt;
 DROP VIEW v1;
 DROP TABLE t1;
+# Bug#32077842: "Illegal mix of collations" errors when matching ASCII field and UNICODE
+CREATE TABLE t1 (a char (64) character set latin1, b int unsigned);
+PREPARE s FROM 'SELECT a FROM t1 WHERE a=? AND b=?';
+SET @a = 'test';
+SET @b = 2;
+EXECUTE s USING @a, @b;
+a
+DEALLOCATE PREPARE s;
+DROP TABLE t1;
