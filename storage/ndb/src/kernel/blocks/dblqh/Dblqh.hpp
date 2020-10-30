@@ -2980,7 +2980,7 @@ public:
   void execFSWRITEREQ(const FsReadWriteReq*) const /* called direct cross threads from Ndbfs */;
   void execLQH_WRITELOG_REQ(Signal* signal);
   void execTUP_ATTRINFO(Signal* signal);
-  void execREAD_PSEUDO_REQ(Uint32 opPtrI, Uint32 attrId, Uint32* out);
+  void execREAD_PSEUDO_REQ(Uint32 opPtrI, Uint32 attrId, Uint32* out, Uint32 out_words);
   void execCHECK_LCP_STOP(Signal* signal);
   void execTUP_DEALLOCREQ(Signal* signal);
 private:

@@ -2762,9 +2762,12 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
   }
   case AttributeHeader::RANGE_NO:
   {
+    Uint32 out_words = req_struct->max_read / 4 - ((outBuffer + 1) - outBuf);
+    ndbrequire(1 <= out_words);
     c_lqh->execREAD_PSEUDO_REQ(req_struct->operPtrP->userpointer,
                                attrId,
-                               outBuffer + 1);
+                               outBuffer + 1,
+                               out_words);
     sz = 1;
     break;
   }
@@ -2778,25 +2781,29 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
   }
   case AttributeHeader::RECORDS_IN_RANGE:
   {
+    Uint32 out_words = req_struct->max_read / 4 - ((outBuffer + 1) - outBuf);
+    ndbrequire(4 <= out_words);
     c_lqh->execREAD_PSEUDO_REQ(req_struct->operPtrP->userpointer,
                                attrId,
-                               outBuffer + 1);
+                               outBuffer + 1,
+                               out_words);
     sz = 4;
     break;
   }
   case AttributeHeader::INDEX_STAT_KEY:
   case AttributeHeader::INDEX_STAT_VALUE:
   {
-    const Uint32 out_size = req_struct->max_read;
-    ndbrequire(4 + 2 + MAX_INDEX_STAT_KEY_SIZE * 4 + 2 <= out_size);
+    Uint32 out_words = req_struct->max_read / 4 - ((outBuffer + 1) - outBuf);
+    ndbrequire(1 + MAX_INDEX_STAT_KEY_SIZE <= out_words);
 
     c_lqh->execREAD_PSEUDO_REQ(req_struct->operPtrP->userpointer,
                                attrId,
-                               outBuffer + 1);
+                               outBuffer + 1,
+                               out_words);
 
     Uint8* out = (Uint8*)&outBuffer[1];
     Uint32 byte_sz = 2 + out[0] + (out[1] << 8);
-    ndbrequire(4 + ((byte_sz + 3) / 4) * 4 <= out_size);
+    ndbrequire((byte_sz + 3) / 4 <= out_words);
     while (byte_sz % 4 != 0)
       out[byte_sz++] = 0;
     sz = byte_sz / 4;
@@ -2897,18 +2904,24 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
   case AttributeHeader::CORR_FACTOR32:
   {
     thrjam(req_struct->jamBuffer);
+    Uint32 out_words = req_struct->max_read / 4 - ((outBuffer + 1) - outBuf);
+    ndbrequire(2 <= out_words);
     c_lqh->execREAD_PSEUDO_REQ(req_struct->operPtrP->userpointer,
                                AttributeHeader::CORR_FACTOR64,
-                               outBuffer + 1);
+                               outBuffer + 1,
+                               out_words);
     sz = 1;
     break;
   }
   case AttributeHeader::CORR_FACTOR64:
   {
     thrjam(req_struct->jamBuffer);
+    Uint32 out_words = req_struct->max_read / 4 - ((outBuffer + 1) - outBuf);
+    ndbrequire(2 <= out_words);
     c_lqh->execREAD_PSEUDO_REQ(req_struct->operPtrP->userpointer,
                                AttributeHeader::CORR_FACTOR64,
-                               outBuffer + 1);
+                               outBuffer + 1,
+                               out_words);
     sz = 2;
     break;
   }
@@ -2930,17 +2943,23 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
   }
   case AttributeHeader::LOCK_REF:
   {
+    Uint32 out_words = req_struct->max_read / 4 - ((outBuffer + 1) - outBuf);
+    ndbrequire(3 <= out_words);
     c_lqh->execREAD_PSEUDO_REQ(req_struct->operPtrP->userpointer,
                                attrId,
-                               outBuffer + 1);
+                               outBuffer + 1,
+                               out_words);
     sz = 3;
     break;
   }
   case AttributeHeader::OP_ID:
   {
+    Uint32 out_words = req_struct->max_read / 4 - ((outBuffer + 1) - outBuf);
+    ndbrequire(2 <= out_words);
     c_lqh->execREAD_PSEUDO_REQ(req_struct->operPtrP->userpointer,
                                attrId,
-                               outBuffer + 1);
+                               outBuffer + 1,
+                               out_words);
     sz = 2;
     break;
   }

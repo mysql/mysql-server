@@ -95,7 +95,7 @@ class Dbtux : public SimulatedBlock {
   Dblqh* c_lqh;
   Dbacc* c_acc;
   void execTUX_BOUND_INFO(Signal* signal);
-  void execREAD_PSEUDO_REQ(Uint32 scanPtrI, Uint32 attrId, Uint32* out);
+  void execREAD_PSEUDO_REQ(Uint32 scanPtrI, Uint32 attrId, Uint32* out, Uint32 out_words);
 
 private:
   // sizes are in words (Uint32)
@@ -840,14 +840,14 @@ private:
    * DbtuxStat.cpp
    */
   // one-round-trip tree-dive records in range
-  void statRecordsInRange(ScanOpPtr scanPtr, Uint32* out);
+  void statRecordsInRange(ScanOpPtr scanPtr, Uint32* out, Uint32 out_words);
   Uint32 getEntriesBeforeOrAfter(Frag& frag, TreePos pos, unsigned idir);
   unsigned getPathToNode(NodeHandle node, Uint16* path);
   // stats scan
   int statScanInit(StatOpPtr, const Uint32* data, Uint32 len, Uint32* usedLen);
   int statScanAddRow(StatOpPtr, TreeEnt ent);
-  void statScanReadKey(StatOpPtr, Uint32* out);
-  void statScanReadValue(StatOpPtr, Uint32* out);
+  void statScanReadKey(StatOpPtr, Uint32* out, Uint32 out_words);
+  void statScanReadValue(StatOpPtr, Uint32* out, Uint32 out_words);
   void execINDEX_STAT_REP(Signal*); // from TRIX
   // stats monitor request
   void execINDEX_STAT_IMPL_REQ(Signal*);

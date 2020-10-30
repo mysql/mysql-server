@@ -5581,7 +5581,7 @@ Dblqh::updatePackedList(Signal* signal, HostRecord * ahostptr, Uint16 hostId)
 }//Dblqh::updatePackedList()
 
 void
-Dblqh::execREAD_PSEUDO_REQ(Uint32 opPtrI, Uint32 attrId, Uint32* out)
+Dblqh::execREAD_PSEUDO_REQ(Uint32 opPtrI, Uint32 attrId, Uint32* out, Uint32 out_words)
 {
   jamEntryDebug();
   TcConnectionrecPtr regTcPtr;
@@ -5591,6 +5591,7 @@ Dblqh::execREAD_PSEUDO_REQ(Uint32 opPtrI, Uint32 attrId, Uint32* out)
   switch (attrId)
   {
   case AttributeHeader::RANGE_NO:
+    ndbassert(1 <= out_words);
     out[0] = regTcPtr.p->m_scan_curr_range_no;
     break;
   case AttributeHeader::RECORDS_IN_RANGE:
@@ -5602,7 +5603,7 @@ Dblqh::execREAD_PSEUDO_REQ(Uint32 opPtrI, Uint32 attrId, Uint32* out)
     ScanRecordPtr tmp;
     tmp.i = regTcPtr.p->tcScanRec;
     ndbrequire(c_scanRecordPool.getValidPtr(tmp));
-    c_tux->execREAD_PSEUDO_REQ(tmp.p->scanAccPtr, attrId, out);
+    c_tux->execREAD_PSEUDO_REQ(tmp.p->scanAccPtr, attrId, out, out_words);
     break;
   }
   case AttributeHeader::LOCK_REF:
@@ -5613,6 +5614,7 @@ Dblqh::execREAD_PSEUDO_REQ(Uint32 opPtrI, Uint32 attrId, Uint32* out)
      *  - Bottom 32-bits of LQH-local key-request id (for uniqueness)
      */
     jam();
+    ndbassert(3 <= out_words);
     out[0] = (getOwnNodeId() << 16) | regTcPtr.p->fragmentid;
     out[1] = regTcPtr.p->tcOprec;
     out[2] = (Uint32) regTcPtr.p->lqhKeyReqId;
@@ -5621,6 +5623,7 @@ Dblqh::execREAD_PSEUDO_REQ(Uint32 opPtrI, Uint32 attrId, Uint32* out)
   case AttributeHeader::OP_ID:
   {
     jam();
+    ndbassert(8 <= out_words * 4);
     memcpy(out, &regTcPtr.p->lqhKeyReqId, 8);
     break;
   }
@@ -5635,6 +5638,7 @@ Dblqh::execREAD_PSEUDO_REQ(Uint32 opPtrI, Uint32 attrId, Uint32* out)
       add = tmp.p->m_curr_batch_size_rows;
     }
 
+    ndbassert(2 <= out_words);
     out[0] = regTcPtr.p->m_corrFactorLo + add;
     out[1] = regTcPtr.p->m_corrFactorHi;
     break;
