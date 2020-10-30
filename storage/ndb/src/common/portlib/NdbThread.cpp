@@ -1221,7 +1221,7 @@ NdbThread_LockCPUSet(struct NdbThread* pThread,
   unsigned long long temp, stat, dynamic;
   unsigned long long num_cpu_ids = (unsigned long long)cpu_set_ptr[0];
   unsigned int *stat_part = &cpu_set_ptr[2 + num_processor_groups];
-  int found = FALSE;
+  bool found = false;
   for (unsigned int i = 0; i < num_processor_groups; i++)
   {
     stat = (unsigned long long)stat_part[i];
@@ -1233,11 +1233,11 @@ NdbThread_LockCPUSet(struct NdbThread* pThread,
       {
         used_processor_group = i;
         min_so_far = temp;
-        found = TRUE;
+        found = true;
       }
     }
   }
-  assert(found == TRUE);
+  assert(found);
   KAFFINITY mask;
   calculate_processor_mask(&mask,
                            used_processor_group,
