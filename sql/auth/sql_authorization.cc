@@ -3250,7 +3250,7 @@ static bool check_if_granted_role_recursive(LEX_CSTRING start,
       }
       return false;
     }
-    bool is_valid() { return m_is_valid; };
+    bool is_valid() { return m_is_valid; }
 
    private:
     Role_vertex_descriptor m_needle;
