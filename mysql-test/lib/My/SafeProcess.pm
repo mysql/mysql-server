@@ -190,6 +190,7 @@ sub new {
                      SAFE_SHUTDOWN  => $shutdown,
                      SAFE_USER_DATA => $user_data,
                      SAFE_WINPID    => $pid,
+                     SAFE_CMDLINE   => $path . " " . join(" ", @$$args)
                    },
                    $class);
   # Put the new process in list of running
@@ -258,7 +259,8 @@ sub shutdown {
 
   foreach my $proc (@kill_processes) {
     warn "ERROR: A process did not stop gracefully, killing it forcefully. If "
-    . "this happens, a child process seems to have a bug.";
+    . "this happens, a child process seems to have a bug. [cmdline = \""
+    . $proc->{SAFE_CMDLINE} . "\"].";
     $proc->start_kill();
   }
 
