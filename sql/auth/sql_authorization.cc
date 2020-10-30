@@ -3200,6 +3200,81 @@ bool has_dynamic_privilege_grant_option(Security_context *sctx,
 }
 
 /**
+  Search if an auth_id (search_for@search_for_host) is granted either directly
+  or indirectly to an auth_id (start@start_host) or to one of the mandatory
+  roles
+
+  Searched if search_for@search_for_host is a direct or indirect descendant of
+  start@start_host or to one of the mandatory roles
+
+  @param start the user name to check
+  @param start_host the host name to check
+  @param search_for the user name of auth_id to look for
+  @param search_for_host the host name of the auth_id to look for
+  @retval true: search_for@search_for_host is granted directly or indirectly to
+     start@start_host
+  @retval false: the two auth ids are not related
+*/
+static bool check_if_granted_role_recursive(LEX_CSTRING start,
+                                            LEX_CSTRING start_host,
+                                            LEX_CSTRING search_for,
+                                            LEX_CSTRING search_for_host) {
+  DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
+  bool visited;
+
+  // A visitor to check if Auth_id is granted to another Auth_id
+  class my_visitor : public boost::default_bfs_visitor {
+   public:
+    void examine_vertex(const Role_vertex_descriptor &s,
+                        const Granted_roles_graph &) {
+      if (s == m_needle) m_visited = true;
+    }
+    my_visitor(bool &visited, const Auth_id &needle) : m_visited(visited) {
+      Role_index_map::iterator needle_it =
+          g_authid_to_vertex->find(needle.auth_str());
+      if (needle_it != g_authid_to_vertex->end()) {
+        m_is_valid = true;
+        m_needle = needle_it->second;
+      } else
+        m_is_valid = false;
+    }
+    bool search_in(const Auth_id &haystack) {
+      if (!is_valid()) return false;
+      Role_index_map::iterator it =
+          g_authid_to_vertex->find(haystack.auth_str());
+      if (it != g_authid_to_vertex->end()) {
+        m_visited = false;
+        boost::breadth_first_search(*g_granted_roles, it->second,
+                                    boost::visitor(*this));
+        if (m_visited) return true;
+      }
+      return false;
+    }
+    bool is_valid() { return m_is_valid; };
+
+   private:
+    Role_vertex_descriptor m_needle;
+    bool &m_visited;
+    bool m_is_valid;
+  } my_v(visited, Auth_id(search_for, search_for_host));
+
+  if (!my_v.is_valid()) return false;
+
+  // search for search_for in the descendents of start
+  if (my_v.search_in(Auth_id(start, start_host))) return true;
+
+  // Now check if the search_for is granted to one of the mandatory roles
+  std::vector<Role_id> mandatory_roles;
+  get_mandatory_roles(&mandatory_roles);
+  for (auto &&rid : mandatory_roles) {
+    if (my_v.search_in(rid)) return true;
+  }
+
+  // no matches: return false
+  return false;
+}
+
+/**
   Grants a list of roles to a list of users. Changes are persistent and written
   in the mysql.roles_edges table.
 
@@ -3296,6 +3371,14 @@ bool mysql_grant_role(THD *thd, const List<LEX_USER> *users,
           if (sctx->can_operate_with({role}, consts::system_user)) {
             errors = true;
             break;
+          }
+          if (acl_user == acl_role ||
+              check_if_granted_role_recursive(role->user, role->host,
+                                              lex_user->user, lex_user->host)) {
+            std::string user_str = create_authid_str_from(acl_user);
+            std::string role_str = create_authid_str_from(role);
+            my_error(ER_ROLE_GRANTED_TO_ITSELF, MYF(0), user_str.c_str(),
+                     role_str.c_str());
           }
           grant_role(acl_role, acl_user, with_admin_opt);
           Auth_id_ref from_user = create_authid_from(role);
@@ -5942,12 +6025,8 @@ bool check_lock_view_underlying_table_access(THD *thd, TABLE_LIST *tbl,
 */
 bool check_if_granted_role(LEX_CSTRING user, LEX_CSTRING host, LEX_CSTRING role,
                            LEX_CSTRING role_host) {
-  String key;
-  append_identifier(&key, user.str, user.length);
-  key.append('@');
-  append_identifier(&key, host.str, host.length);
   Role_index_map::iterator it =
-      g_authid_to_vertex->find(std::string(key.c_ptr_quick()));
+      g_authid_to_vertex->find(Auth_id(user, host).auth_str());
   if (it != g_authid_to_vertex->end()) {
     /* Check if role is part of current role graph */
     if (find_if_granted_role(it->second, role, role_host)) return true;

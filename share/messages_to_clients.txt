@@ -9511,6 +9511,9 @@ ER_INNODB_MAX_SIZE_NOT_ALLOWED
 ER_IMPORT_TABLESPACE_LARGER_THAN_MAX_SIZE
   eng "%s"
 
+ER_ROLE_GRANTED_TO_ITSELF
+  eng "User account %s is directly or indirectly granted to the role %s. The GRANT would create a loop"
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

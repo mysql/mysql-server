@@ -182,6 +182,25 @@ UPDATE bug_test.test_table SET row_is_verified = TRUE WHERE test_id=1;
 DROP USER `TestUserFails`@`localhost`, `TestUserWorks`@`localhost`;
 DROP ROLE `r_verifier`@`localhost`;
 DROP DATABASE bug_test;
+#
+# Bug #31222230: A USER CAN GRANT ITSELF TO ITSELF AS A ROLE
+#
+CREATE ROLE r1,r2,r3,r4;
+GRANT r1 TO r2;
+GRANT r2 TO r3;
+GRANT r4 TO r3;
+GRANT r1 TO r1;
+ERROR HY000: User account `r1`@`%` is directly or indirectly granted to the role `r1`@`%`. The GRANT would create a loop
+GRANT r2 TO r1;
+ERROR HY000: User account `r1`@`%` is directly or indirectly granted to the role `r2`@`%`. The GRANT would create a loop
+GRANT r3 TO r1;
+ERROR HY000: User account `r1`@`%` is directly or indirectly granted to the role `r3`@`%`. The GRANT would create a loop
+SET @save_mandatory_roles = @@global.mandatory_roles;
+SET GLOBAL mandatory_roles = 'r4';
+GRANT r3 TO r4;
+ERROR HY000: User account `r4`@`%` is directly or indirectly granted to the role `r3`@`%`. The GRANT would create a loop
+SET GLOBAL mandatory_roles = @save_mandatory_roles;
+DROP ROLE r1,r2,r3,r4;
 
 # End of 8.0 tests
 
