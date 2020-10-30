@@ -690,7 +690,13 @@ void free_state_change_info(MYSQL_EXTENSION *ext) {
 */
 static inline my_bool buffer_check_remaining(MYSQL *mysql, uchar *packet,
                                    ulong packet_length, size_t bytes) {
-  size_t remaining_bytes = packet_length - (packet - mysql->net.read_pos);
+  size_t remaining_bytes;
+  /* Check to avoid underflow */
+  if (packet_length < (ulong)(packet - mysql->net.read_pos)) {
+    set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+    return FALSE;
+  }
+  remaining_bytes = packet_length - (packet - mysql->net.read_pos);
   if (remaining_bytes < bytes) {
     set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
     return FALSE;
@@ -717,6 +723,9 @@ static inline my_ulonglong net_field_length_ll_safe(MYSQL *mysql, uchar **packet
                                              ulong packet_length,
                                              my_bool *is_error) {
   size_t sizeof_len = net_field_length_size(*packet);
+  DBUG_EXECUTE_IF("simulate_bad_packet", {
+    *packet = *packet + packet_length + 1000000L;
+  });
   if (!buffer_check_remaining(mysql, *packet, packet_length, sizeof_len)) {
     *is_error = TRUE;
     return 0;
