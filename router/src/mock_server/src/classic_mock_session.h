@@ -30,6 +30,7 @@
 #include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/net_ts/impl/socket_constants.h"
 
+#include "mysqlrouter/classic_protocol_constants.h"
 #include "mysqlrouter/classic_protocol_message.h"
 
 namespace server_mock {
@@ -57,22 +58,54 @@ class MySQLClassicProtocol : public ProtocolBase {
   void send_resultset(const ResultsetResponse &response,
                       const std::chrono::microseconds delay_ms) override;
 
-  void send_greeting(const Greeting *greeting_resp);
-
   void send_auth_fast_message();
 
-  void send_auth_switch_message(const AuthSwitch *auth_switch_resp);
+  void send_auth_switch_message(
+      const classic_protocol::message::server::AuthMethodSwitch &msg);
+
+  void send_server_greeting(
+      const classic_protocol::message::server::Greeting &greeting);
 
   void seq_no(uint8_t no) { seq_no_ = no; }
 
   uint8_t seq_no() const { return seq_no_; }
 
+  classic_protocol::capabilities::value_type server_capabilities() const {
+    return server_capabilities_;
+  }
+
+  void server_capabilities(classic_protocol::capabilities::value_type v) {
+    server_capabilities_ = v;
+  }
+
+  classic_protocol::capabilities::value_type client_capabilities() const {
+    return client_capabilities_;
+  }
+
+  void client_capabilities(classic_protocol::capabilities::value_type v) {
+    client_capabilities_ = v;
+  }
+
+  classic_protocol::capabilities::value_type shared_capabilities() const {
+    return client_capabilities_ & server_capabilities_;
+  }
+
  private:
   uint8_t seq_no_{0};
+
+  classic_protocol::capabilities::value_type server_capabilities_{};
+  classic_protocol::capabilities::value_type client_capabilities_{};
 };
 
 class MySQLServerMockSessionClassic : public MySQLServerMockSession {
  public:
+  enum class HandshakeState {
+    INIT,
+    GREETED,
+    AUTH_SWITCHED,
+    DONE,
+  };
+
   using socket_t = net::impl::socket::native_handle_type;
 
   MySQLServerMockSessionClassic(
@@ -105,11 +138,18 @@ class MySQLServerMockSessionClassic : public MySQLServerMockSession {
    */
   bool process_statements() override;
 
- private:
-  // throws std::system_error, std::runtime_error
-  bool handle_handshake(const HandshakeResponse &response);
+  void state(HandshakeState st) { state_ = st; }
+
+  HandshakeState state() const { return state_; }
 
  private:
+  // throws std::system_error, std::runtime_error
+  bool handle_handshake(const std::vector<uint8_t> &payload);
+
+  bool authenticate(const std::vector<uint8_t> &client_auth_method_data);
+
+  HandshakeState state_{HandshakeState::INIT};
+
   MySQLClassicProtocol *protocol_;
 };
 

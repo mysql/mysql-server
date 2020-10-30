@@ -31,7 +31,6 @@
 #include <mysqld_error.h>
 #include <system_error>
 
-#include "authentication.h"
 #include "duk_logging.h"
 #include "duk_module_shim.h"
 #include "duk_node_fs.h"
@@ -41,6 +40,7 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/classic_protocol.h"
+#include "router/src/mock_server/src/statement_reader.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -240,7 +240,9 @@ struct DuktapeStatementReader::Pimpl {
       throw std::runtime_error("expect an object");
     }
 
-    return {get_object_integer_value<uint16_t>(-1, "last_insert_id", 0),
+    return {0,  // affected_rows
+            get_object_integer_value<uint16_t>(-1, "last_insert_id", 0),
+            0,  // status
             get_object_integer_value<uint16_t>(-1, "warning_count", 0)};
   }
 
@@ -270,28 +272,24 @@ struct DuktapeStatementReader::Pimpl {
       // @-2 column-ndx
       // @-1 column
 
-      column_info_type column_info{
-          get_object_string_value(-1, "name", "", true),
-          column_type_from_string(
-              get_object_string_value(-1, "type", "", true)),
-          get_object_string_value(-1, "orig_name"),
-          get_object_string_value(-1, "table"),
-          get_object_string_value(-1, "orig_table"),
-          get_object_string_value(-1, "schema"),
-          get_object_string_value(-1, "catalog", "def"),
-          get_object_integer_value<uint16_t>(-1, "flags"),
-          get_object_integer_value<uint8_t>(-1, "decimals"),
-          get_object_integer_value<uint32_t>(-1, "length"),
-          get_object_integer_value<uint16_t>(-1, "character_set", 63),
-          1  // repeat
-      };
-
       if (duk_get_prop_string(ctx, -1, "repeat")) {
         throw std::runtime_error("repeat is not supported");
       }
       duk_pop(ctx);
 
-      response.columns.push_back(column_info);
+      response.columns.emplace_back(
+          get_object_string_value(-1, "catalog", "def"),
+          get_object_string_value(-1, "schema"),
+          get_object_string_value(-1, "table"),
+          get_object_string_value(-1, "orig_table"),
+          get_object_string_value(-1, "name", "", true),
+          get_object_string_value(-1, "orig_name"),
+          get_object_integer_value<uint16_t>(-1, "character_set", 63),
+          get_object_integer_value<uint32_t>(-1, "length"),
+          static_cast<uint8_t>(column_type_from_string(
+              get_object_string_value(-1, "type", "", true))),
+          get_object_integer_value<uint16_t>(-1, "flags"),
+          get_object_integer_value<uint8_t>(-1, "decimals"));
 
       duk_pop(ctx);  // row
       duk_pop(ctx);  // row-ndx
@@ -339,62 +337,6 @@ struct DuktapeStatementReader::Pimpl {
   }
   duk_context *ctx{nullptr};
 
-  bool authenticate(const std::string &auth_username,
-                    const std::vector<uint8_t> &auth_response) {
-    // std::optional would be neat
-    std::string username;
-    bool username_set{false};
-    std::string password;
-    bool password_set{false};
-
-    duk_get_prop_string(ctx, -1, "handshake");
-    if (duk_is_object(ctx, -1)) {
-      duk_get_prop_string(ctx, -1, "auth");
-      if (duk_is_object(ctx, -1)) {
-        duk_get_prop_literal(ctx, -1, "username");
-        if (duk_is_string(ctx, -1)) {
-          username = duk_to_string(ctx, -1);
-          username_set = true;
-        }
-        duk_pop(ctx);
-
-        duk_get_prop_literal(ctx, -1, "password");
-        if (duk_is_string(ctx, -1)) {
-          password = duk_to_string(ctx, -1);
-          password_set = true;
-        }
-        duk_pop(ctx);
-      }
-      duk_pop(ctx);
-    }
-    duk_pop(ctx);
-
-    if (username_set && username != auth_username) {
-      return false;
-    }
-
-    if (password_set) {
-      if (auth_method_ == CachingSha2Password::name) {
-        auto scramble_res = CachingSha2Password::scramble(nonce_, password);
-        return scramble_res && (scramble_res.value() == auth_response);
-      } else if (auth_method_ == MySQLNativePassword::name) {
-        auto scramble_res = MySQLNativePassword::scramble(nonce_, password);
-        return scramble_res && (scramble_res.value() == auth_response);
-      } else if (auth_method_ == ClearTextPassword::name) {
-        auto scramble_res = ClearTextPassword::scramble(nonce_, password);
-        return scramble_res && (scramble_res.value() == auth_response);
-      } else {
-        // there is also
-        // - old_password (3.23, 4.0)
-        // - sha256_password (5.6, ...)
-        // - windows_authentication (5.6, ...)
-        return false;
-      }
-    }
-
-    return true;
-  }
-
   enum class HandshakeState {
     INIT,
     GREETED,
@@ -408,8 +350,6 @@ struct DuktapeStatementReader::Pimpl {
   bool first_stmt_{true};
 
   std::string nonce_;
-  std::string auth_method_;
-  std::string username_;
 };
 
 duk_int_t duk_peval_file(duk_context *ctx, const char *path) {
@@ -712,28 +652,90 @@ DuktapeStatementReader::~DuktapeStatementReader() {
   if (pimpl_->ctx) duk_destroy_heap(pimpl_->ctx);
 }
 
-/*
- * @pre on the stack is an object
- */
-HandshakeResponse DuktapeStatementReader::handle_handshake_init(
-    const std::vector<uint8_t> &, HandshakeState &next_state) {
-  HandshakeResponse response;
-
-  response.exec_time = get_default_exec_time();
-
+stdx::expected<classic_protocol::message::server::Greeting, std::error_code>
+DuktapeStatementReader::server_greeting() {
   auto *ctx = pimpl_->ctx;
 
   // defaults
-  std::string server_version = "8.0.5-mock";
+  std::string server_version = "8.0.23-mock";
   uint32_t connection_id = 0;
   classic_protocol::capabilities::value_type server_capabilities =
+      classic_protocol::capabilities::long_password |
+      classic_protocol::capabilities::found_rows |
+      classic_protocol::capabilities::long_flag |
+      classic_protocol::capabilities::connect_with_schema |
+      classic_protocol::capabilities::no_schema |
+      // compress (not yet)
+      classic_protocol::capabilities::odbc |
+      // local_files (never)
+      // ignore_space (client only)
       classic_protocol::capabilities::protocol_41 |
+      // interactive
+      // ssl (not yet)
+      classic_protocol::capabilities::transactions |
+      classic_protocol::capabilities::secure_connection |
+      // multi_statements (not yet)
+      // multi_results (not yet)
+      // ps_multi_results (not yet)
       classic_protocol::capabilities::plugin_auth |
-      classic_protocol::capabilities::secure_connection;
+      classic_protocol::capabilities::connect_attributes |
+      // client_auth_method_data_varint
+      classic_protocol::capabilities::expired_passwords
+      // session_track (not yet)
+      // text_result_with_session_tracking (not yet)
+      // optional_resultset_metadata (not yet)
+      // compress_zstd (not yet)
+      ;
   uint16_t status_flags = 0;
   uint8_t character_set = 0;
   std::string auth_method = MySQLNativePassword::name;
   std::string nonce = "01234567890123456789";
+
+  duk_get_prop_string(ctx, -1, "handshake");
+  if (!duk_is_undefined(ctx, -1)) {
+    if (!duk_is_object(ctx, -1)) {
+      throw std::runtime_error("handshake must be an object, if set. Is " +
+                               duk_get_type_names(ctx, -1));
+    }
+    duk_get_prop_string(ctx, -1, "greeting");
+    if (!duk_is_undefined(ctx, -1)) {
+      if (!duk_is_object(ctx, -1)) {
+        throw std::runtime_error(
+            "handshake.greeting must be an object, if set. Is " +
+            duk_get_type_names(ctx, -1));
+      }
+
+      server_version =
+          pimpl_->get_object_string_value(-1, "server_version", server_version);
+      connection_id = pimpl_->get_object_integer_value<uint32_t>(
+          -1, "connection_id", connection_id);
+      status_flags = pimpl_->get_object_integer_value<uint16_t>(
+          -1, "status_flags", status_flags);
+      character_set = pimpl_->get_object_integer_value<uint8_t>(
+          -1, "character_set", character_set);
+      auth_method =
+          pimpl_->get_object_string_value(-1, "auth_method", auth_method);
+      nonce = pimpl_->get_object_string_value(-1, "nonce", nonce);
+    }
+    duk_pop(ctx);
+  }
+  duk_pop(ctx);
+
+  return {stdx::in_place,
+          0x0a,
+          server_version,
+          connection_id,
+          nonce + std::string(1, '\0'),
+          server_capabilities,
+          character_set,
+          status_flags,
+          auth_method};
+}
+
+std::chrono::microseconds DuktapeStatementReader::server_greeting_exec_time() {
+  std::chrono::microseconds exec_time{};
+
+  auto *ctx = pimpl_->ctx;
 
   duk_get_prop_string(ctx, -1, "handshake");
   if (!duk_is_undefined(ctx, -1)) {
@@ -760,170 +762,46 @@ HandshakeResponse DuktapeStatementReader::handle_handshake_init(
         }
 
         // exec_time is written in the tracefile as microseconds
-        response.exec_time = std::chrono::microseconds(
+        exec_time = std::chrono::microseconds(
             static_cast<long>(duk_get_number(ctx, -1) * 1000));
       }
       duk_pop(ctx);
-
-      server_version =
-          pimpl_->get_object_string_value(-1, "server_version", server_version);
-      connection_id = pimpl_->get_object_integer_value<uint32_t>(
-          -1, "connection_id", connection_id);
-      status_flags = pimpl_->get_object_integer_value<uint16_t>(
-          -1, "status_flags", status_flags);
-      character_set = pimpl_->get_object_integer_value<uint8_t>(
-          -1, "character_set", character_set);
-      auth_method =
-          pimpl_->get_object_string_value(-1, "auth_method", auth_method);
-      nonce = pimpl_->get_object_string_value(-1, "nonce", nonce);
     }
     duk_pop(ctx);
   }
   duk_pop(ctx);
 
-  response.response_type = HandshakeResponse::ResponseType::GREETING;
-  response.response = std::make_unique<Greeting>(
-      server_version, connection_id, server_capabilities, status_flags,
-      character_set, auth_method, nonce);
-
-  pimpl_->server_capabilities_ = server_capabilities;
-  pimpl_->auth_method_ = auth_method;
-  pimpl_->nonce_ = nonce;
-  next_state = HandshakeState::GREETED;
-
-  return response;
+  return exec_time;
 }
 
-HandshakeResponse DuktapeStatementReader::handle_handshake_greeted(
-    const std::vector<uint8_t> &payload, HandshakeState &next_state) {
-  HandshakeResponse response;
+stdx::expected<DuktapeStatementReader::account_data, std::error_code>
+DuktapeStatementReader::account() {
+  auto *ctx = pimpl_->ctx;
 
-  response.exec_time = get_default_exec_time();
+  stdx::expected<std::string, void> username{stdx::make_unexpected()};
+  stdx::expected<std::string, void> password{stdx::make_unexpected()};
 
-  // decode the payload
+  duk_get_prop_string(ctx, -1, "handshake");
+  if (duk_is_object(ctx, -1)) {
+    duk_get_prop_string(ctx, -1, "auth");
+    if (duk_is_object(ctx, -1)) {
+      duk_get_prop_literal(ctx, -1, "username");
+      if (duk_is_string(ctx, -1)) {
+        username = std::string(duk_to_string(ctx, -1));
+      }
+      duk_pop(ctx);
 
-  auto decode_res =
-      classic_protocol::decode<classic_protocol::message::client::Greeting>(
-          net::buffer(payload), pimpl_->server_capabilities_);
-
-  if (!decode_res) {
-    throw std::system_error(decode_res.error(),
-                            "decoding client greeting failed");
-  }
-
-  auto greeting = decode_res.value().second;
-
-  pimpl_->username_ = greeting.username();
-  if (greeting.capabilities().test(
-          classic_protocol::capabilities::pos::plugin_auth)) {
-    pimpl_->auth_method_ = greeting.auth_method_name();
-  } else {
-    // 4.1 or so
-    pimpl_->auth_method_ = MySQLNativePassword::name;
-  }
-
-  if (pimpl_->auth_method_ == CachingSha2Password::name) {
-    // auth_response() should be empty
-    //
-    // ask for the real full authentication
-    pimpl_->nonce_ = std::string(20, 'a');
-
-    response.response_type = HandshakeResponse::ResponseType::AUTH_SWITCH;
-    response.response =
-        std::make_unique<AuthSwitch>(pimpl_->auth_method_, pimpl_->nonce_);
-
-    next_state = HandshakeState::AUTH_SWITCHED;
-  } else if (pimpl_->auth_method_ == MySQLNativePassword::name ||
-             pimpl_->auth_method_ == ClearTextPassword::name) {
-    auto auth_method_data = greeting.auth_method_data();
-
-    // authenticate wants a vector<uint8_t>
-    std::vector<uint8_t> auth_method_data_vec(auth_method_data.begin(),
-                                              auth_method_data.end());
-    if (pimpl_->authenticate(pimpl_->username_, auth_method_data_vec)) {
-      response.response_type = HandshakeResponse::ResponseType::OK;
-      response.response = std::make_unique<OkResponse>();
-
-      next_state = HandshakeState::DONE;
-    } else {
-      response.response_type = HandshakeResponse::ResponseType::ERROR;
-      response.response = std::make_unique<ErrorResponse>(
-          ER_ACCESS_DENIED_ERROR,  // 1045
-          "Access Denied for user '" + pimpl_->username_ + "'@'localhost'",
-          "28000");
-      next_state = HandshakeState::DONE;
+      duk_get_prop_literal(ctx, -1, "password");
+      if (duk_is_string(ctx, -1)) {
+        password = std::string(duk_to_string(ctx, -1));
+      }
+      duk_pop(ctx);
     }
-  } else {
-    response.response_type = HandshakeResponse::ResponseType::ERROR;
-    response.response =
-        std::make_unique<ErrorResponse>(0, "unknown auth-method");
-
-    next_state = HandshakeState::DONE;
+    duk_pop(ctx);
   }
+  duk_pop(ctx);
 
-  harness_assert(response.response_type !=
-                 HandshakeResponse::ResponseType::UNKNOWN);
-
-  return response;
-}
-HandshakeResponse DuktapeStatementReader::handle_handshake_auth_switched(
-    const std::vector<uint8_t> &payload, HandshakeState &next_state) {
-  HandshakeResponse response;
-
-  response.exec_time = get_default_exec_time();
-
-  // empty password is signaled by {0},
-  // -> authenticate expects {}
-  // -> client expects OK, instead of AUTH_FAST in this case
-  if (payload == std::vector<uint8_t>{0} &&
-      pimpl_->authenticate(pimpl_->username_, {})) {
-    response.response_type = HandshakeResponse::ResponseType::OK;
-    response.response = std::make_unique<OkResponse>();
-
-    next_state = HandshakeState::DONE;
-  } else if (pimpl_->authenticate(pimpl_->username_, payload)) {
-    if (pimpl_->auth_method_ == CachingSha2Password::name) {
-      // caching-sha2-password is special and needs the auth-fast state
-      response.response_type = HandshakeResponse::ResponseType::AUTH_FAST;
-      response.response = std::make_unique<AuthFast>();
-    } else {
-      response.response_type = HandshakeResponse::ResponseType::OK;
-      response.response = std::make_unique<OkResponse>();
-    }
-
-    next_state = HandshakeState::DONE;
-  } else {
-    response.response_type = HandshakeResponse::ResponseType::ERROR;
-    response.response = std::make_unique<ErrorResponse>(
-        ER_ACCESS_DENIED_ERROR,
-        "Access Denied for user '" + pimpl_->username_ + "'@'localhost'",
-        "28000");
-    next_state = HandshakeState::DONE;
-  }
-
-  return response;
-}
-
-HandshakeResponse DuktapeStatementReader::handle_handshake(
-    const std::vector<uint8_t> &payload) {
-  switch (handshake_state_) {
-    case HandshakeState::INIT:
-      return handle_handshake_init(payload, handshake_state_);
-    case HandshakeState::GREETED:
-      return handle_handshake_greeted(payload, handshake_state_);
-    case HandshakeState::AUTH_SWITCHED:
-      return handle_handshake_auth_switched(payload, handshake_state_);
-    default: {
-      HandshakeResponse response;
-
-      response.response_type = HandshakeResponse::ResponseType::ERROR;
-      response.response =
-          std::make_unique<ErrorResponse>(0, "wrong handshake state");
-
-      handshake_state_ = HandshakeState::DONE;
-      return response;
-    }
-  }
+  return account_data{username, password};
 }
 
 // @pre on the stack is an object

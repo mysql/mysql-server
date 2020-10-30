@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@
 #include "x_protocol_encoder.h"
 
 #include <google/protobuf/io/zero_copy_stream_impl_lite.h>
+
+#include "mysql_protocol_common.h"  // MySQLColumnType
 
 namespace server_mock {
 
@@ -81,18 +83,18 @@ void XProtocolEncoder::encode_row_field(
 
 void XProtocolEncoder::encode_metadata(
     Mysqlx::Resultset::ColumnMetaData &metadata_msg,
-    const column_info_type &column) {
-  metadata_msg.set_type(column_type_to_x(column.type));
-  metadata_msg.set_name(column.name);
-  metadata_msg.set_original_name(column.orig_name);
-  metadata_msg.set_table(column.table);
-  metadata_msg.set_original_table(column.orig_table);
-  metadata_msg.set_schema(column.schema);
-  metadata_msg.set_catalog(column.catalog);
-  metadata_msg.set_collation(column.character_set);     // ?
-  metadata_msg.set_fractional_digits(column.decimals);  // ?
-  metadata_msg.set_length(column.length);
-  metadata_msg.set_flags(column.flags);
+    const classic_protocol::message::server::ColumnMeta &column) {
+  metadata_msg.set_type(column_type_to_x(column.type()));
+  metadata_msg.set_name(column.name());
+  metadata_msg.set_original_name(column.orig_name());
+  metadata_msg.set_table(column.table());
+  metadata_msg.set_original_table(column.orig_table());
+  metadata_msg.set_schema(column.schema());
+  metadata_msg.set_catalog(column.catalog());
+  metadata_msg.set_collation(column.collation());
+  metadata_msg.set_fractional_digits(column.decimals());
+  metadata_msg.set_length(column.column_length());
+  metadata_msg.set_flags(column.flags().to_ullong());
 }
 
 void XProtocolEncoder::encode_error(Mysqlx::Error &err_msg,
@@ -105,8 +107,8 @@ void XProtocolEncoder::encode_error(Mysqlx::Error &err_msg,
 }
 
 Mysqlx::Resultset::ColumnMetaData_FieldType XProtocolEncoder::column_type_to_x(
-    const MySQLColumnType column_type) {
-  switch (column_type) {
+    const uint8_t column_type) {
+  switch (MySQLColumnType(column_type)) {
     case MySQLColumnType::DECIMAL:
       return Mysqlx::Resultset::ColumnMetaData_FieldType_DECIMAL;
     case MySQLColumnType::TINY:

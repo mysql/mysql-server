@@ -40,6 +40,7 @@
 #include "mysqlrouter/classic_protocol.h"
 #include "mysqlrouter/classic_protocol_constants.h"
 #include "mysqlrouter/classic_protocol_message.h"
+#include "router/src/mock_server/src/statement_reader.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -94,7 +95,7 @@ bool MySQLServerMockSessionClassic::process_handshake() {
       }
     }
     is_first_packet = false;
-    if (true == handle_handshake(json_reader_->handle_handshake(payload))) {
+    if (true == handle_handshake(payload)) {
       // handshake is done
       return true;
     }
@@ -156,104 +157,186 @@ bool MySQLServerMockSessionClassic::process_statements() {
 void MySQLClassicProtocol::send_auth_fast_message() {
   std::vector<uint8_t> buf;
 
-  classic_protocol::capabilities::value_type shared_caps{
-      classic_protocol::capabilities::protocol_41};
-
   auto encode_res = classic_protocol::encode<
       classic_protocol::frame::Frame<classic_protocol::wire::FixedInt<1>>>(
-      {seq_no_++, {3}}, shared_caps, net::dynamic_buffer(buf));
+      {seq_no_++, {3}}, shared_capabilities(), net::dynamic_buffer(buf));
 
   send_packet(buf);
 }
 
 void MySQLClassicProtocol::send_auth_switch_message(
-    const AuthSwitch *auth_switch_resp) {
+    const classic_protocol::message::server::AuthMethodSwitch &msg) {
   std::vector<uint8_t> buf;
-
-  classic_protocol::capabilities::value_type shared_caps{
-      classic_protocol::capabilities::protocol_41 |
-      classic_protocol::capabilities::plugin_auth};
 
   auto encode_res = classic_protocol::encode<classic_protocol::frame::Frame<
       classic_protocol::message::server::AuthMethodSwitch>>(
-      {seq_no_++,
-       {auth_switch_resp->method(), auth_switch_resp->data() + '\0'}},
-      shared_caps, net::dynamic_buffer(buf));
+      {seq_no_++, msg}, shared_capabilities(), net::dynamic_buffer(buf));
 
   send_packet(buf);
 }
 
-void MySQLClassicProtocol::send_greeting(const Greeting *greeting_resp) {
+void MySQLClassicProtocol::send_server_greeting(
+    const classic_protocol::message::server::Greeting &greeting) {
   std::vector<uint8_t> buf;
 
-  classic_protocol::capabilities::value_type shared_caps{
-      classic_protocol::capabilities::protocol_41};
+  server_capabilities_ = greeting.capabilities();
 
   auto encode_res = classic_protocol::encode<classic_protocol::frame::Frame<
       classic_protocol::message::server::Greeting>>(
-      {seq_no_++,
-       {0x0a, greeting_resp->server_version(), greeting_resp->connection_id(),
-        greeting_resp->auth_data(), greeting_resp->capabilities(),
-        greeting_resp->character_set(), greeting_resp->status_flags(),
-        greeting_resp->auth_method()}},
-      shared_caps, net::dynamic_buffer(buf));
+      {seq_no_++, greeting}, server_capabilities(), net::dynamic_buffer(buf));
 
   send_packet(buf);
 }
 
-bool MySQLServerMockSessionClassic::handle_handshake(
-    const HandshakeResponse &response) {
-  using ResponseType = HandshakeResponse::ResponseType;
-
-  std::this_thread::sleep_for(response.exec_time);
-
-  switch (response.response_type) {
-    case ResponseType::GREETING: {
-      auto *greeting_resp = dynamic_cast<Greeting *>(response.response.get());
-      harness_assert(greeting_resp);
-
-      protocol_->send_greeting(greeting_resp);
-    } break;
-    case ResponseType::AUTH_SWITCH: {
-      auto *auth_switch_resp =
-          dynamic_cast<AuthSwitch *>(response.response.get());
-      harness_assert(auth_switch_resp);
-
-      protocol_->send_auth_switch_message(auth_switch_resp);
-    } break;
-    case ResponseType::AUTH_FAST: {
-      // sha256-fast-auth is
-      // - 0x03
-      // - ok
-      protocol_->send_auth_fast_message();
-
-      protocol_->send_ok(0, 0, 0, 0);
-
-      return true;
-    }
-    case ResponseType::OK: {
-      auto *ok_resp = dynamic_cast<OkResponse *>(response.response.get());
-      harness_assert(ok_resp);
-
-      protocol_->send_ok(0, ok_resp->last_insert_id(), 0,
-                         ok_resp->warning_count());
-
-      return true;
-    }
-    case ResponseType::ERROR: {
-      auto *err_resp = dynamic_cast<ErrorResponse *>(response.response.get());
-      harness_assert(err_resp);
-      protocol_->send_error(err_resp->code, err_resp->msg);
-
-      return true;
-    }
-    default:
-      throw std::runtime_error(
-          "Unsupported command in handle_handshake(): " +
-          std::to_string(static_cast<int>(response.response_type)));
+bool MySQLServerMockSessionClassic::authenticate(
+    const std::vector<uint8_t> &client_auth_method_data) {
+  auto account_data_res = json_reader_->account();
+  if (!account_data_res) {
+    return false;
   }
 
-  return false;
+  auto account = account_data_res.value();
+
+  if (account.username.has_value()) {
+    if (account.username.value() != protocol_->username()) {
+      return false;
+    }
+  }
+
+  if (!account.password.has_value()) return true;
+
+  return protocol_->authenticate(
+      protocol_->auth_method_name(), protocol_->auth_method_data(),
+      account.password.value(), client_auth_method_data);
+}
+
+bool MySQLServerMockSessionClassic::handle_handshake(
+    const std::vector<uint8_t> &payload) {
+  switch (state()) {
+    case HandshakeState::INIT: {
+      auto greeting_res = json_reader_->server_greeting();
+      if (!greeting_res) {
+        protocol_->send_error(0, greeting_res.error().message(), "28000");
+        break;
+      }
+
+      std::this_thread::sleep_for(json_reader_->server_greeting_exec_time());
+
+      protocol_->send_server_greeting(greeting_res.value());
+
+      state(HandshakeState::GREETED);
+
+      break;
+    }
+    case HandshakeState::GREETED: {
+      auto decode_res =
+          classic_protocol::decode<classic_protocol::message::client::Greeting>(
+              net::buffer(payload), protocol_->server_capabilities());
+
+      if (!decode_res) {
+        throw std::system_error(decode_res.error(),
+                                "decoding client greeting failed");
+      }
+
+      const auto greeting = std::move(decode_res.value().second);
+
+      protocol_->username(greeting.username());
+      protocol_->client_capabilities(greeting.capabilities());
+
+      if (greeting.capabilities().test(
+              classic_protocol::capabilities::pos::plugin_auth)) {
+        protocol_->auth_method_name(greeting.auth_method_name());
+      } else {
+        // 4.1 or so
+        protocol_->auth_method_name(MySQLNativePassword::name);
+      }
+
+      if (protocol_->auth_method_name() == CachingSha2Password::name) {
+        // auth_response() should be empty
+        //
+        // ask for the real full authentication
+        protocol_->auth_method_data(std::string(20, 'a'));
+
+        protocol_->send_auth_switch_message(
+            {protocol_->auth_method_name(),
+             protocol_->auth_method_data() + std::string(1, '\0')});
+
+        state(HandshakeState::AUTH_SWITCHED);
+      } else if (protocol_->auth_method_name() == MySQLNativePassword::name ||
+                 protocol_->auth_method_name() == ClearTextPassword::name) {
+        // authenticate wants a vector<uint8_t>
+        auto client_auth_method_data = greeting.auth_method_data();
+        std::vector<uint8_t> auth_method_data_vec(
+            client_auth_method_data.begin(), client_auth_method_data.end());
+
+        if (!authenticate(auth_method_data_vec)) {
+          protocol_->send_error(ER_ACCESS_DENIED_ERROR,  // 1045
+                                "Access Denied for user '" +
+                                    protocol_->username() + "'@'localhost'",
+                                "28000");
+          state(HandshakeState::DONE);
+          break;
+        }
+
+        protocol_->send_ok();
+
+        state(HandshakeState::DONE);
+
+      } else {
+        protocol_->send_error(0, "unknown auth-method", "28000");
+
+        state(HandshakeState::DONE);
+      }
+
+      break;
+    }
+    case HandshakeState::AUTH_SWITCHED: {
+      auto account_data_res = json_reader_->account();
+      if (!account_data_res) {
+        // auth failed.
+        protocol_->send_error(ER_ACCESS_DENIED_ERROR,  // 1045
+                              "Access Denied for user '" +
+                                  protocol_->username() + "'@'localhost'",
+                              "28000");
+        state(HandshakeState::DONE);
+
+        break;
+      }
+
+      auto account = account_data_res.value();
+
+      // empty password is signaled by {0},
+      // -> authenticate expects {}
+      // -> client expects OK, instead of AUTH_FAST in this case
+      if (payload == std::vector<uint8_t>{0} && authenticate({})) {
+        protocol_->send_ok();
+        state(HandshakeState::DONE);
+      } else if (authenticate(payload)) {
+        if (protocol_->auth_method_name() == CachingSha2Password::name) {
+          // caching-sha2-password is special and needs the auth-fast state
+
+          protocol_->send_auth_fast_message();
+          protocol_->send_ok();
+        } else {
+          protocol_->send_ok();
+        }
+
+        state(HandshakeState::DONE);
+      } else {
+        protocol_->send_error(ER_ACCESS_DENIED_ERROR,
+                              "Access Denied for user '" +
+                                  protocol_->username() + "'@'localhost'",
+                              "28000");
+        state(HandshakeState::DONE);
+      }
+      break;
+    }
+    case HandshakeState::DONE: {
+      break;
+    }
+  }
+
+  return (state() == HandshakeState::DONE);
 }
 
 void MySQLClassicProtocol::send_error(const uint16_t error_code,
@@ -262,8 +345,13 @@ void MySQLClassicProtocol::send_error(const uint16_t error_code,
   std::vector<uint8_t> buf;
   auto encode_res = classic_protocol::encode<
       classic_protocol::frame::Frame<classic_protocol::message::server::Error>>(
-      {seq_no_++, {error_code, error_msg, sql_state}},
-      {classic_protocol::capabilities::protocol_41}, net::dynamic_buffer(buf));
+      {seq_no_++, {error_code, error_msg, sql_state}}, shared_capabilities(),
+      net::dynamic_buffer(buf));
+
+  if (!encode_res) {
+    //
+    return;
+  }
 
   send_packet(buf);
 }
@@ -277,7 +365,12 @@ void MySQLClassicProtocol::send_ok(const uint64_t affected_rows,
       classic_protocol::frame::Frame<classic_protocol::message::server::Ok>>(
       {seq_no_++,
        {affected_rows, last_insert_id, server_status, warning_count}},
-      {classic_protocol::capabilities::protocol_41}, net::dynamic_buffer(buf));
+      shared_capabilities(), net::dynamic_buffer(buf));
+
+  if (!encode_res) {
+    //
+    return;
+  }
 
   send_packet(buf);
 }
@@ -287,27 +380,34 @@ void MySQLClassicProtocol::send_resultset(
     const std::chrono::microseconds delay_ms) {
   std::vector<uint8_t> buf;
 
-  classic_protocol::capabilities::value_type shared_caps{
-      classic_protocol::capabilities::protocol_41};
+  const auto shared_caps = shared_capabilities();
 
   auto encode_res = classic_protocol::encode<
       classic_protocol::frame::Frame<classic_protocol::wire::VarInt>>(
       {seq_no_++, {static_cast<long>(response.columns.size())}}, shared_caps,
       net::dynamic_buffer(buf));
+  if (!encode_res) {
+    //
+    return;
+  }
 
   for (const auto &column : response.columns) {
     encode_res = classic_protocol::encode<classic_protocol::frame::Frame<
         classic_protocol::message::server::ColumnMeta>>(
-        {seq_no_++,
-         {column.catalog, column.schema, column.table, column.orig_table,
-          column.name, column.orig_name, column.character_set, column.length,
-          static_cast<uint8_t>(column.type), column.flags, column.decimals}},
-        shared_caps, net::dynamic_buffer(buf));
+        {seq_no_++, column}, shared_caps, net::dynamic_buffer(buf));
+    if (!encode_res) {
+      //
+      return;
+    }
   }
 
   encode_res = classic_protocol::encode<
       classic_protocol::frame::Frame<classic_protocol::message::server::Eof>>(
       {seq_no_++, {}}, shared_caps, net::dynamic_buffer(buf));
+  if (!encode_res) {
+    //
+    return;
+  }
 
   std::this_thread::sleep_for(delay_ms);
   send_packet(buf);
@@ -325,6 +425,10 @@ void MySQLClassicProtocol::send_resultset(
     encode_res = classic_protocol::encode<
         classic_protocol::frame::Frame<classic_protocol::message::server::Row>>(
         {seq_no_++, {fields}}, shared_caps, net::dynamic_buffer(buf));
+    if (!encode_res) {
+      //
+      return;
+    }
 
     send_packet(buf);
     buf.clear();
@@ -333,6 +437,10 @@ void MySQLClassicProtocol::send_resultset(
   encode_res = classic_protocol::encode<
       classic_protocol::frame::Frame<classic_protocol::message::server::Eof>>(
       {seq_no_++, {}}, shared_caps, net::dynamic_buffer(buf));
+  if (!encode_res) {
+    //
+    return;
+  }
 
   send_packet(buf);
   buf.clear();

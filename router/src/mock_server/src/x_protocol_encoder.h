@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,12 +25,11 @@
 #ifndef MYSQLD_MOCK_X_PROTOCOL_ENCODER_INCLUDED
 #define MYSQLD_MOCK_X_PROTOCOL_ENCODER_INCLUDED
 
-#include <stdint.h>
+#include <cstdint>
 #include <string>
 #include <vector>
 
-#include "mysql_protocol_common.h"
-
+#include "mysqlrouter/classic_protocol_message.h"
 #include "mysqlxclient/xprotocol.h"
 
 namespace server_mock {
@@ -42,15 +41,16 @@ class XProtocolEncoder {
                         const Mysqlx::Resultset::ColumnMetaData_FieldType type,
                         const std::string &value, const bool is_null);
 
-  void encode_metadata(Mysqlx::Resultset::ColumnMetaData &metadata_msg,
-                       const column_info_type &column);
+  void encode_metadata(
+      Mysqlx::Resultset::ColumnMetaData &metadata_msg,
+      const classic_protocol::message::server::ColumnMeta &column);
 
   void encode_error(Mysqlx::Error &err_msg, const uint16_t error_code,
                     const std::string &error_txt, const std::string &sql_state);
 
   // throws std::runtime_error
   Mysqlx::Resultset::ColumnMetaData_FieldType column_type_to_x(
-      const MySQLColumnType column_type);
+      const uint8_t column_type);
 };
 
 }  // namespace server_mock

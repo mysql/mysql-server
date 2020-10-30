@@ -246,7 +246,7 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv *env) {
         }
       } catch (const std::exception &e) {
         if (protocol != nullptr) {
-          protocol->send_error(1064, "", "reader error: "s + e.what());
+          protocol->send_error(1064, "reader error: "s + e.what());
         }
         // close the connection before Session took over.
         log_error("%s", e.what());

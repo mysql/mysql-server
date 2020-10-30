@@ -28,8 +28,10 @@
 #include <map>
 #include <string>
 
+#include "mock_session.h"
+#include "mysql/harness/stdx/expected.h"
+#include "mysqlrouter/classic_protocol_message.h"
 #include "mysqlrouter/mock_server_global_scope.h"
-#include "router/src/mock_server/src/mock_session.h"
 #include "statement_reader.h"
 
 namespace server_mock {
@@ -41,47 +43,6 @@ class DuktapeStatementReader : public StatementReaderBase {
                          const std::string &module_prefix,
                          std::map<std::string, std::string> session_data,
                          std::shared_ptr<MockServerGlobalScope> shared_globals);
-  /**
-   * handle handshake's init state.
-   *
-   * @param payload payload of the current client packet
-   * @param next_state next state of the handshake handler
-   *
-   * @return response to send to client
-   */
-  HandshakeResponse handle_handshake_init(const std::vector<uint8_t> &payload,
-                                          HandshakeState &next_state);
-
-  /**
-   * handle handshake's greeted state.
-   *
-   * @param payload payload of the current client packet
-   * @param next_state next state of the handshake handler
-   *
-   * @return response to send to client
-   */
-  HandshakeResponse handle_handshake_greeted(
-      const std::vector<uint8_t> &payload, HandshakeState &next_state);
-
-  /**
-   * handle handshake's auth_switched state.
-   *
-   * @param payload payload of the current client packet
-   * @param next_state next state of the handshake handler
-   *
-   * @return response to send to client
-   */
-  HandshakeResponse handle_handshake_auth_switched(
-      const std::vector<uint8_t> &payload, HandshakeState &next_state);
-
-  /**
-   * handle the handshake payload received from the client.
-   *
-   * @param payload payload of the client's current handshake packet
-   * @returns response to send to client
-   */
-  HandshakeResponse handle_handshake(
-      const std::vector<uint8_t> &payload) override;
 
   /**
    * handle the clients statement
@@ -98,6 +59,13 @@ class DuktapeStatementReader : public StatementReaderBase {
   ~DuktapeStatementReader() override;
 
   std::vector<AsyncNotice> get_async_notices() override;
+
+  stdx::expected<classic_protocol::message::server::Greeting, std::error_code>
+  server_greeting() override;
+
+  stdx::expected<account_data, std::error_code> account() override;
+
+  std::chrono::microseconds server_greeting_exec_time() override;
 
  private:
   struct Pimpl;

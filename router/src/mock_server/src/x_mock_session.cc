@@ -378,7 +378,8 @@ void MySQLXProtocol::send_resultset(const ResultsetResponse &response,
     for (const auto &field : row) {
       const bool is_null = !field;
       protocol_encoder_.encode_row_field(
-          row_msg, protocol_encoder_.column_type_to_x(response.columns[i].type),
+          row_msg,
+          protocol_encoder_.column_type_to_x(response.columns[i].type()),
           field.value(), is_null);
     }
     send_message(Mysqlx::ServerMessages::RESULTSET_ROW, row_msg);
