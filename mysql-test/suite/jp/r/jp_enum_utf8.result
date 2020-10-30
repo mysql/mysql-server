@@ -100,55 +100,55 @@ Table	Create Table
 Ｔ１	CREATE TABLE `Ｔ１` (
   `Ｃ１` enum('ｱ','ｲ','ｳ') DEFAULT NULL,
   KEY `Ｃ１` (`Ｃ１`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 SHOW CREATE TABLE `Ｔ２`;
 Table	Create Table
 Ｔ２	CREATE TABLE `Ｔ２` (
   `Ｃ１` enum('あ','い','う') DEFAULT NULL,
   KEY `Ｃ１` (`Ｃ１`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 SHOW CREATE TABLE `Ｔ３`;
 Table	Create Table
 Ｔ３	CREATE TABLE `Ｔ３` (
   `Ｃ１` enum('龔','龖','龗') DEFAULT NULL,
   KEY `Ｃ１` (`Ｃ１`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 SHOW CREATE TABLE `Ｔ４`;
 Table	Create Table
 Ｔ４	CREATE TABLE `Ｔ４` (
   `Ｃ１` enum('ｱ','ｲ','ｳ') DEFAULT NULL,
   KEY `Ｃ１` (`Ｃ１`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3
 SHOW CREATE TABLE `Ｔ５`;
 Table	Create Table
 Ｔ５	CREATE TABLE `Ｔ５` (
   `Ｃ１` enum('あ','い','う') DEFAULT NULL,
   KEY `Ｃ１` (`Ｃ１`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3
 SHOW CREATE TABLE `Ｔ６`;
 Table	Create Table
 Ｔ６	CREATE TABLE `Ｔ６` (
   `Ｃ１` enum('龔','龖','龗') DEFAULT NULL,
   KEY `Ｃ１` (`Ｃ１`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3
 SHOW CREATE TABLE `Ｔ７`;
 Table	Create Table
 Ｔ７	CREATE TABLE `Ｔ７` (
   `Ｃ１` enum('ｱ','ｲ','ｳ') DEFAULT NULL,
   KEY `Ｃ１` (`Ｃ１`)
-) ENGINE=MEMORY DEFAULT CHARSET=utf8
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb3
 SHOW CREATE TABLE `Ｔ８`;
 Table	Create Table
 Ｔ８	CREATE TABLE `Ｔ８` (
   `Ｃ１` enum('あ','い','う') DEFAULT NULL,
   KEY `Ｃ１` (`Ｃ１`)
-) ENGINE=MEMORY DEFAULT CHARSET=utf8
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb3
 SHOW CREATE TABLE `Ｔ９`;
 Table	Create Table
 Ｔ９	CREATE TABLE `Ｔ９` (
   `Ｃ１` enum('龔','龖','龗') DEFAULT NULL,
   KEY `Ｃ１` (`Ｃ１`)
-) ENGINE=MEMORY DEFAULT CHARSET=utf8
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb3
 DESC `Ｔ１`;
 Field	Type	Null	Key	Default	Extra
 Ｃ１	enum('ｱ','ｲ','ｳ')	YES	MUL	NULL	
@@ -191,63 +191,63 @@ Table	Create Table
   `Ｃ２` char(1) NOT NULL,
   `Ｃ１` enum('ｱ','ｲ','ｳ') DEFAULT NULL,
   KEY `Ｃ１` (`Ｃ１`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 SHOW CREATE TABLE `Ｔ２`;
 Table	Create Table
 Ｔ２	CREATE TABLE `Ｔ２` (
   `Ｃ２` char(1) NOT NULL,
   `Ｃ１` enum('あ','い','う') DEFAULT NULL,
   KEY `Ｃ１` (`Ｃ１`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 SHOW CREATE TABLE `Ｔ３`;
 Table	Create Table
 Ｔ３	CREATE TABLE `Ｔ３` (
   `Ｃ２` char(1) NOT NULL,
   `Ｃ１` enum('龔','龖','龗') DEFAULT NULL,
   KEY `Ｃ１` (`Ｃ１`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 SHOW CREATE TABLE `Ｔ４`;
 Table	Create Table
 Ｔ４	CREATE TABLE `Ｔ４` (
   `Ｃ２` char(1) NOT NULL,
   `Ｃ１` enum('ｱ','ｲ','ｳ') DEFAULT NULL,
   KEY `Ｃ１` (`Ｃ１`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3
 SHOW CREATE TABLE `Ｔ５`;
 Table	Create Table
 Ｔ５	CREATE TABLE `Ｔ５` (
   `Ｃ２` char(1) NOT NULL,
   `Ｃ１` enum('あ','い','う') DEFAULT NULL,
   KEY `Ｃ１` (`Ｃ１`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3
 SHOW CREATE TABLE `Ｔ６`;
 Table	Create Table
 Ｔ６	CREATE TABLE `Ｔ６` (
   `Ｃ２` char(1) NOT NULL,
   `Ｃ１` enum('龔','龖','龗') DEFAULT NULL,
   KEY `Ｃ１` (`Ｃ１`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3
 SHOW CREATE TABLE `Ｔ７`;
 Table	Create Table
 Ｔ７	CREATE TABLE `Ｔ７` (
   `Ｃ２` char(1) NOT NULL,
   `Ｃ１` enum('ｱ','ｲ','ｳ') DEFAULT NULL,
   KEY `Ｃ１` (`Ｃ１`)
-) ENGINE=MEMORY DEFAULT CHARSET=utf8
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb3
 SHOW CREATE TABLE `Ｔ８`;
 Table	Create Table
 Ｔ８	CREATE TABLE `Ｔ８` (
   `Ｃ２` char(1) NOT NULL,
   `Ｃ１` enum('あ','い','う') DEFAULT NULL,
   KEY `Ｃ１` (`Ｃ１`)
-) ENGINE=MEMORY DEFAULT CHARSET=utf8
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb3
 SHOW CREATE TABLE `Ｔ９`;
 Table	Create Table
 Ｔ９	CREATE TABLE `Ｔ９` (
   `Ｃ２` char(1) NOT NULL,
   `Ｃ１` enum('龔','龖','龗') DEFAULT NULL,
   KEY `Ｃ１` (`Ｃ１`)
-) ENGINE=MEMORY DEFAULT CHARSET=utf8
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb3
 DESC `Ｔ１`;
 Field	Type	Null	Key	Default	Extra
 Ｃ２	char(1)	NO		NULL	
