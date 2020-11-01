@@ -2,7 +2,6 @@
 
 # setup replication 1->2->3
 --let $rpl_topology= 1->2->3
---let $rpl_shallow_reset_slave= 1
 --source include/rpl_init.inc
 
 # create connections to first mysqld in each cluster

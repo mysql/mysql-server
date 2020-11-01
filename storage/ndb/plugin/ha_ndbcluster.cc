@@ -498,20 +498,17 @@ static int check_slave_state(THD *thd) {
 
   if (!thd->slave_thread) return 0;
 
-  const Uint32 runId = ndb_mi_get_slave_run_id();
-  DBUG_PRINT("info", ("Slave SQL thread run id is %u", runId));
-  if (unlikely(runId != g_ndb_slave_state.sql_run_id)) {
-    DBUG_PRINT("info", ("Slave run id changed from %u, "
-                        "treating as Slave restart",
-                        g_ndb_slave_state.sql_run_id));
-
+  if (g_ndb_slave_state.applier_sql_thread_start) {
+    DBUG_PRINT("info", ("We have detected Slave start/restart"));
     /*
      * Check that the slave configuration is supported
      */
     int error = check_slave_config();
     if (unlikely(error)) return error;
 
-    g_ndb_slave_state.sql_run_id = runId;
+    DBUG_PRINT("info",
+               ("Resetting g_ndb_slave_state.applier_sql_thread_start"));
+    g_ndb_slave_state.applier_sql_thread_start = false;
 
     g_ndb_slave_state.atStartSlave();
 
@@ -12137,6 +12134,7 @@ static int ndb_wait_setup_func(ulong max_wait) {
 */
 
 static int ndb_wait_setup_server_startup(void *) {
+  DBUG_TRACE;
   ndbcluster_hton->notify_alter_table = ndbcluster_notify_alter_table;
   ndbcluster_hton->notify_exclusive_mdl = ndbcluster_notify_exclusive_mdl;
   // Signal components that server is started
@@ -12200,6 +12198,8 @@ static int ndb_dd_upgrade_hook(void *) {
 */
 
 static int ndb_wait_setup_replication_applier(void *) {
+  DBUG_TRACE;
+  g_ndb_slave_state.applier_sql_thread_start = true;
   if (ndb_wait_setup_func(opt_ndb_wait_setup) != 0) {
     ndb_log_error(
         "NDB Slave: Tables not available after %lu seconds. Consider "
