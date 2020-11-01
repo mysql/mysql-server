@@ -545,15 +545,8 @@ static int check_slave_state(THD* thd)
   if (!thd->slave_thread)
     DBUG_RETURN(0);
 
-  const Uint32 runId = ndb_mi_get_slave_run_id();
-  DBUG_PRINT("info", ("Slave SQL thread run id is %u",
-                      runId));
-  if (unlikely(runId != g_ndb_slave_state.sql_run_id))
+  if (g_ndb_slave_state.applier_sql_thread_start == true)
   {
-    DBUG_PRINT("info", ("Slave run id changed from %u, "
-                        "treating as Slave restart",
-                        g_ndb_slave_state.sql_run_id));
-
     /*
      * Check for unsupported slave configuration
      */
@@ -561,7 +554,8 @@ static int check_slave_state(THD* thd)
     if (unlikely(error))
       DBUG_RETURN(error);
 
-    g_ndb_slave_state.sql_run_id = runId;
+    DBUG_PRINT("info", ("Resetting g_ndb_slave_state.applier_sql_thread_start"));
+    g_ndb_slave_state.applier_sql_thread_start = false;
 
     g_ndb_slave_state.atStartSlave();
 
@@ -9334,6 +9328,90 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
   DBUG_RETURN(res);
 }
 
+// Using interface defined in
+#include "replication.h"
+// Using
+#include "sql_plugin.h"
+
+Ndb_plugin_reference::Ndb_plugin_reference() : plugin(NULL) {}
+
+bool Ndb_plugin_reference::lock() {
+  const LEX_CSTRING plugin_name = {STRING_WITH_LEN("ndbcluster")};
+
+  // Resolve reference to "ndbcluster plugin"
+  plugin = plugin_lock_by_name(NULL, plugin_name, MYSQL_STORAGE_ENGINE_PLUGIN);
+  if (!plugin) return false;
+
+  return true;
+}
+
+st_plugin_int *Ndb_plugin_reference::handle() const {
+  return plugin_ref_to_int(plugin);
+}
+
+Ndb_plugin_reference::~Ndb_plugin_reference() {
+  if (plugin) {
+    // Unlock the "ndbcluster_plugin" reference
+    plugin_unlock(NULL, plugin);
+  }
+}
+
+bool Ndb_server_hooks::register_applier_start(hook_t *hook_func) {
+  // Only allow one applier_start hook to be installed
+  DBUG_ASSERT(!m_binlog_relay_io_observer);
+
+  Ndb_plugin_reference ndbcluster_plugin;
+
+  // Resolve pointer to the ndbcluster plugin
+  if (!ndbcluster_plugin.lock()) return false;
+
+  m_binlog_relay_io_observer = new Binlog_relay_IO_observer;
+  m_binlog_relay_io_observer->len = sizeof(Binlog_relay_IO_observer);
+  m_binlog_relay_io_observer->thread_start = NULL;
+  m_binlog_relay_io_observer->thread_stop = NULL;
+  m_binlog_relay_io_observer->applier_start = (int (*)(Binlog_relay_IO_param*)) hook_func;
+  m_binlog_relay_io_observer->applier_stop = NULL;
+  m_binlog_relay_io_observer->before_request_transmit = NULL;
+  m_binlog_relay_io_observer->after_read_event = NULL;
+  m_binlog_relay_io_observer->after_queue_event = NULL;
+  m_binlog_relay_io_observer->after_reset_slave = NULL;
+
+  // Install replication observer to be called when applier thread start
+  if (register_binlog_relay_io_observer(m_binlog_relay_io_observer,
+                                        ndbcluster_plugin.handle())) {
+    ndb_log_error("Failed to register binlog relay io observer");
+    return false;
+  }
+  return true;
+}
+
+void Ndb_server_hooks::unregister_all(void) {
+  if (m_binlog_relay_io_observer)
+    unregister_binlog_relay_io_observer(m_binlog_relay_io_observer, NULL);
+}
+
+Ndb_server_hooks::~Ndb_server_hooks() {
+  delete m_binlog_relay_io_observer;
+}
+
+/*
+  Function installed as server hook to be called before the applier thread
+  starts. Wait --ndb-wait-setup= seconds for ndbcluster connect to NDB
+  and complete setup.
+*/
+
+static int ndb_wait_setup_replication_applier(void *) {
+  DBUG_ENTER("ndb_wait_setup_replication_applier");
+  g_ndb_slave_state.applier_sql_thread_start = true;
+  if (ndb_wait_setup_func(opt_ndb_wait_setup) != 0) {
+    ndb_log_error("NDB Slave: Tables not available after %lu seconds. Consider "
+                  "increasing --ndb-wait-setup value",
+                  opt_ndb_wait_setup);
+  }
+  DBUG_RETURN(0);  // NOTE! could return error to fail applier
+}
+
+static Ndb_server_hooks ndb_server_hooks;
 
 static const char* ndb_table_modifier_prefix = "NDB_TABLE=";
 
@@ -14033,6 +14111,10 @@ int ndbcluster_init(void* p)
 
   // Initialize NdbApi
   ndb_init_internal(1);
+
+  if (!ndb_server_hooks.register_applier_start(ndb_wait_setup_replication_applier)) {
+    ndbcluster_init_abort("Failed to register ndb_wait_setup at applier start");
+  }
 
   /* allocate connection resources and connect to cluster */
   const uint global_opti_node_select= THDVAR(NULL, optimized_node_selection);
