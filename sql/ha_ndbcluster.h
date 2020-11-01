@@ -103,6 +103,34 @@ public:
   }
 };
 
+/*
+  RAII style class for locking the "ndbcluster plugin" and accessing
+  it's handle
+*/
+class Ndb_plugin_reference {
+  plugin_ref plugin;
+
+ public:
+  Ndb_plugin_reference();
+
+  bool lock();
+  st_plugin_int *handle() const;
+  ~Ndb_plugin_reference();
+};
+
+// Server callback help class
+class Ndb_server_hooks {
+  typedef int hook_t(void*);
+
+  struct Binlog_relay_IO_observer *m_binlog_relay_io_observer = NULL;
+
+ public:
+  ~Ndb_server_hooks();
+
+  bool register_applier_start(hook_t *);
+  void unregister_all(void);
+};
+
 
 #include "ndb_ndbapi_util.h"
 #include "ndb_share.h"

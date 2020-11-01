@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -905,7 +905,7 @@ st_ndb_slave_state::st_ndb_slave_state()
     total_reflect_op_discard_count(0),
     total_refresh_op_count(0),
     max_rep_epoch(0),
-    sql_run_id(~Uint32(0)),
+    applier_sql_thread_start(true),
     trans_row_conflict_count(0),
     trans_row_reject_count(0),
     trans_detect_iter_count(0),
@@ -1117,7 +1117,7 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
     epoch - to make sure that we are getting a sensible sequence
     of epochs.
   */
-  bool first_epoch_since_slave_start = (ndb_mi_get_slave_run_id() != sql_run_id);
+  bool first_epoch_since_slave_start = applier_sql_thread_start;
   
   DBUG_PRINT("info", ("ndb_apply_status write from upstream master."
                       "ServerId %u, Epoch %llu/%llu (%llu) "
@@ -1131,8 +1131,6 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
                       current_master_server_epoch & 0xffffffff,
                       current_master_server_epoch,
                       current_master_server_epoch_committed));
-  DBUG_PRINT("info", ("mi_slave_run_id=%u, ndb_slave_state_run_id=%u",
-                      ndb_mi_get_slave_run_id(), sql_run_id));
   DBUG_PRINT("info", ("First epoch since slave start : %u",
                       first_epoch_since_slave_start));
              
@@ -1152,8 +1150,6 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
                         "previously applied epoch %llu/%llu (%llu).  "
                         "Group Master Log : %s  "
                         "Group Master Log Pos : %llu.  "
-                        "Slave run id from slave's master info %u, "
-                        "Slave run id %u.  "
                         "Check slave positioning.  ",
                         next_epoch >> 32,
                         next_epoch & 0xffffffff,
@@ -1163,9 +1159,7 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
                         current_master_server_epoch & 0xffffffff,
                         current_master_server_epoch,
                         ndb_mi_get_group_master_log_name(),
-                        ndb_mi_get_group_master_log_pos(),
-                        ndb_mi_get_slave_run_id(),
-                        sql_run_id);
+                        ndb_mi_get_group_master_log_pos());
       /* Slave not stopped */
     }
     else if (next_epoch == current_master_server_epoch)
@@ -1200,9 +1194,7 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
                       "Master ServerId %u which is lower than "
                       "previously applied epoch %llu/%llu (%llu).  "
                       "Group Master Log : %s  "
-                      "Group Master Log Pos : %llu.  "
-                      "Slave run id from slave's master info %u, "
-                      "Slave run id %u.  ",
+                      "Group Master Log Pos : %llu.  ",
                       next_epoch >> 32,
                       next_epoch & 0xffffffff,
                       next_epoch,
@@ -1211,9 +1203,7 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
                       current_master_server_epoch & 0xffffffff,
                       current_master_server_epoch,
                       ndb_mi_get_group_master_log_name(),
-                      ndb_mi_get_group_master_log_pos(),
-                      ndb_mi_get_slave_run_id(),
-                      sql_run_id);
+                      ndb_mi_get_group_master_log_pos());
       /* Stop the slave */
       DBUG_RETURN(false);
     }
@@ -1230,17 +1220,13 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
                         "reapply already committed epoch %llu/%llu (%llu) "
                         "from server id %u.  "
                         "Group Master Log : %s  "
-                        "Group Master Log Pos : %llu.  "
-                        "Slave run id from slave's master info %u, "
-                        "Slave run id %u.  ",
+                        "Group Master Log Pos : %llu.  ",
                         current_master_server_epoch >> 32,
                         current_master_server_epoch & 0xffffffff,
                         current_master_server_epoch,
                         master_server_id,
                         ndb_mi_get_group_master_log_name(),
-                        ndb_mi_get_group_master_log_pos(),
-                        ndb_mi_get_slave_run_id(),
-                        sql_run_id);
+                        ndb_mi_get_group_master_log_pos());
         /* Stop the slave */
         DBUG_RETURN(false);
       }
@@ -1269,9 +1255,7 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
                         "received epoch %llu/%llu (%llu) has not been "
                         "committed.  Master server id : %u.  "
                         "Group Master Log : %s  "
-                        "Group Master Log Pos : %llu.  "
-                        "Slave run id from slave's master info %u, "
-                        "Slave run id %u.  ",
+                        "Group Master Log Pos : %llu.  ",
                         next_epoch >> 32,
                         next_epoch & 0xffffffff,
                         next_epoch,
@@ -1280,9 +1264,7 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
                         current_master_server_epoch,
                         master_server_id,
                         ndb_mi_get_group_master_log_name(),
-                        ndb_mi_get_group_master_log_pos(),
-                        ndb_mi_get_slave_run_id(),
-                        sql_run_id);
+                        ndb_mi_get_group_master_log_pos());
         /* Stop the slave */
         DBUG_RETURN(false);
       }
@@ -1357,9 +1339,6 @@ st_ndb_slave_state::atResetSlave()
 {
   /* Reset the Maximum replicated epoch vars
    * on slave reset
-   * No need to touch the sql_run_id as that
-   * will increment if the slave is started
-   * again.
    */
   resetPerAttemptCounters();
 
