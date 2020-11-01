@@ -403,7 +403,8 @@ struct st_ndb_slave_state {
   Uint64 total_reflect_op_discard_count;
   Uint64 total_refresh_op_count;
   Uint64 max_rep_epoch;
-  Uint32 sql_run_id;
+  /* Mark if slave has been started/restarted */
+  bool applier_sql_thread_start;
   /* Transactional conflict detection */
   Uint64 trans_row_conflict_count;
   Uint64 trans_row_reject_count;

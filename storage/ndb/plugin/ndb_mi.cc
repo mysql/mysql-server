@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,11 +88,6 @@ uint64 ndb_mi_get_group_relay_log_pos() {
 bool ndb_mi_get_ignore_server_id(uint32 server_id) {
   Multisource_info_guard msi;
   return (msi.get_default_mi()->shall_ignore_server_id(server_id) != 0);
-}
-
-uint32 ndb_mi_get_slave_run_id() {
-  Multisource_info_guard msi;
-  return msi.get_default_mi()->rli->slave_run_id;
 }
 
 ulong ndb_mi_get_relay_log_trans_retries() {

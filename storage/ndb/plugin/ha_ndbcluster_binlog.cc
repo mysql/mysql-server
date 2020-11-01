@@ -684,6 +684,8 @@ int ndbcluster_binlog_end() {
 /*****************************************************************
   functions called from slave sql client threads
 ****************************************************************/
+static void ndbcluster_reset_logs() { DBUG_TRACE; }
+
 static void ndbcluster_reset_slave(THD *thd) {
   if (!ndb_binlog_running) return;
 
@@ -715,6 +717,7 @@ static int ndbcluster_binlog_func(handlerton *, THD *thd, enum_binlog_func fn,
   int res = 0;
   switch (fn) {
     case BFN_RESET_LOGS:
+      ndbcluster_reset_logs();
       break;
     case BFN_RESET_SLAVE:
       ndbcluster_reset_slave(thd);
