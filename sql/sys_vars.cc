@@ -3173,7 +3173,7 @@ static bool check_optimizer_switch(sys_var *, THD *thd MY_ATTRIBUTE((unused)),
       var->save_result.ulonglong_value |= OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER;
     }
   } else if (!current_hypergraph_optimizer && want_hypergraph_optimizer) {
-#ifndef DBUG_OFF
+#ifdef WITH_HYPERGRAPH_OPTIMIZER
     // Allow, with a warning.
     push_warning(thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
                  ER_THD(thd, ER_WARN_HYPERGRAPH_EXPERIMENTAL));

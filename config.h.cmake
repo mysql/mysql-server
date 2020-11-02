@@ -211,6 +211,7 @@
 #cmakedefine ENABLED_LOCAL_INFILE 1
 #cmakedefine KERBEROS_LIB_CONFIGURED
 #cmakedefine SCRAM_LIB_CONFIGURED
+#cmakedefine WITH_HYPERGRAPH_OPTIMIZER
 
 /* Lock Order */
 #cmakedefine WITH_LOCK_ORDER 1
