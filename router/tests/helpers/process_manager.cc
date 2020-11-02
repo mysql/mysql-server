@@ -323,6 +323,43 @@ ProcessWrapper &ProcessManager::launch_router(
   return router;
 }
 
+std::vector<std::string> ProcessManager::mysql_server_mock_cmdline_args(
+    const std::string &json_file, uint16_t port, uint16_t http_port,
+    uint16_t x_port, const std::string &module_prefix /* = "" */,
+    const std::string &bind_address /*= "0.0.0.0"*/) {
+  std::vector<std::string> server_params{
+      "--filename",     json_file,             //
+      "--port",         std::to_string(port),  //
+      "--bind-address", bind_address,
+  };
+
+  server_params.emplace_back("--module-prefix");
+  if (module_prefix.empty()) {
+    server_params.emplace_back(get_data_dir().str());
+  } else {
+    server_params.emplace_back(module_prefix);
+  }
+
+  if (http_port > 0) {
+    server_params.emplace_back("--http-port");
+    server_params.emplace_back(std::to_string(http_port));
+  }
+
+  if (x_port > 0) {
+    server_params.emplace_back("--xport");
+    server_params.emplace_back(std::to_string(x_port));
+  }
+
+  return server_params;
+}
+
+ProcessWrapper &ProcessManager::launch_mysql_server_mock(
+    const std::vector<std::string> &server_params, int expected_exit_code,
+    std::chrono::milliseconds wait_for_notify_ready /*= 5s*/) {
+  return launch_command(mysqlserver_mock_exec_.str(), server_params,
+                        expected_exit_code, true, wait_for_notify_ready);
+}
+
 ProcessWrapper &ProcessManager::launch_mysql_server_mock(
     const std::string &json_file, unsigned port, int expected_exit_code,
     bool debug_mode, uint16_t http_port, uint16_t x_port,
@@ -332,23 +369,15 @@ ProcessWrapper &ProcessManager::launch_mysql_server_mock(
   if (mysqlserver_mock_exec_.str().empty())
     throw std::logic_error("path to mysql-server-mock must not be empty");
 
-  std::vector<std::string> server_params(
-      {"--filename=" + json_file, "--port=" + std::to_string(port),
-       "--bind-address=" + bind_address,
-       "--http-port=" + std::to_string(http_port),
-       "--module-prefix=" +
-           (!module_prefix.empty() ? module_prefix : get_data_dir().str())});
+  auto server_params = mysql_server_mock_cmdline_args(
+      json_file, port, http_port, x_port, module_prefix, bind_address);
 
   if (debug_mode) {
     server_params.emplace_back("--verbose");
   }
 
-  if (x_port > 0) {
-    server_params.emplace_back("--xport=" + std::to_string(x_port));
-  }
-
-  return launch_command(mysqlserver_mock_exec_.str(), server_params,
-                        expected_exit_code, true, wait_for_notify_ready);
+  return launch_mysql_server_mock(server_params, expected_exit_code,
+                                  wait_for_notify_ready);
 }
 
 std::map<std::string, std::string> ProcessManager::get_DEFAULT_defaults()
