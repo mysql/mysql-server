@@ -103,6 +103,7 @@ public:
   }
 };
 
+#ifndef EMBEDDED_LIBRARY
 /*
   RAII style class for locking the "ndbcluster plugin" and accessing
   it's handle
@@ -131,7 +132,7 @@ class Ndb_server_hooks {
   bool register_applier_start(hook_t *);
   void unregister_all(void);
 };
-
+#endif
 
 #include "ndb_ndbapi_util.h"
 #include "ndb_share.h"
