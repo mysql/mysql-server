@@ -220,6 +220,21 @@ SET(INNOBASE_SOURCES
   ut/ut0vec.cc
   ut/ut0wqueue.cc)
 
+# There seems to be a bug in gcc for Oracle Linux 8 on ARM.
+# storage/innobase/ut/ut0test.cc:213:76:
+# warning: requested alignment 512 is larger than 16 [-Wattributes]
+# alignas(OS_FILE_LOG_BLOCK_SIZE) ....
+# We downgrade -Werror to warning to avoid broken build:
+IF(MY_COMPILER_IS_GNU AND CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+  MY_CHECK_CXX_COMPILER_WARNING("error=attributes" HAS_WARN_FLAG)
+  IF(HAS_WARN_FLAG)
+    ADD_COMPILE_FLAGS(
+      ut/ut0test.cc
+      COMPILE_FLAGS ${HAS_WARN_FLAG}
+      )
+  ENDIF()
+ENDIF()
+
 ADD_LIBRARY(innodb_zipdecompress STATIC ${INNOBASE_ZIP_DECOMPRESS_SOURCES})
 TARGET_COMPILE_DEFINITIONS(
   innodb_zipdecompress PRIVATE UNIV_LIBRARY UNIV_NO_ERR_MSGS)
