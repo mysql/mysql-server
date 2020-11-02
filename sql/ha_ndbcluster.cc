@@ -9307,6 +9307,10 @@ void Ndb_server_hooks::unregister_all(void) {
     unregister_binlog_relay_io_observer(m_binlog_relay_io_observer, NULL);
 }
 
+Ndb_server_hooks::Ndb_server_hooks() {
+  m_binlog_relay_io_observer = NULL;
+}
+
 Ndb_server_hooks::~Ndb_server_hooks() {
   delete m_binlog_relay_io_observer;
 }
