@@ -1,0 +1,58 @@
+--source include/have_case_sensitive_file_system.inc
+
+###############################################################################
+#
+# Bug#31789964	: HELP TABLES UPGRADE FAILS ENTIRE SERVER UPGRADE - WITHOUT
+#                PRINTING ERROR...
+#
+###############################################################################
+#   To create the file std_data/upgrade/data_57_help_tables.zip
+#
+#   - In 5.7, execute:
+#
+#       CREATE SCHEMA test;
+#       ALTER TABLE mysql.help_topic    CONVERT TO CHARACTER SET latin1;
+#       ALTER TABLE mysql.help_category CONVERT TO CHARACTER SET latin1;
+#       ALTER TABLE mysql.help_relation CONVERT TO CHARACTER SET latin1;
+#       ALTER TABLE mysql.help_keyword  CONVERT TO CHARACTER SET latin1;
+#
+#   - then zip the data folder
+#
+#       zip -r data_57_help_tables.zip db/
+#
+###############################################################################
+
+--echo # Copy the 5.7 data zip file to working directory and check it exists.
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/data_57_help_tables.zip $MYSQL_TMP_DIR/data_57_help_tables.zip
+--file_exists $MYSQL_TMP_DIR/data_57_help_tables.zip
+
+--echo # Unzip 5.7 data directory.
+--exec unzip -qo $MYSQL_TMP_DIR/data_57_help_tables.zip -d $MYSQL_TMP_DIR/data_57_help_tables
+
+--echo # Set data directory and log file
+--let $MYSQLD_DATADIR1= $MYSQL_TMP_DIR/data_57_help_tables/db
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/data_57_help_tables.log
+
+--echo # Restart server to trigger upgrade.
+--echo # Upgrade of help tables should succeed.
+
+--replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG MYSQLD_LOG
+--let $restart_parameters = restart: --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
+
+--echo # Check for errors in the error log.
+--let SEARCH_FILE= $MYSQLD_LOG
+--let SEARCH_PATTERN= \[ERROR\]
+--source include/search_pattern.inc
+
+--echo # Check for mysql_upgrade_info file in data directory.
+--file_exists $MYSQLD_DATADIR1/mysql_upgrade_info
+
+--echo # Cleanup.
+--remove_file $MYSQL_TMP_DIR/data_57_help_tables.zip
+--force-rmdir $MYSQL_TMP_DIR/data_57_help_tables
+
+--echo # Restart the server with default options.
+--let $restart_parameters=
+--source include/restart_mysqld.inc

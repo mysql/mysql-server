@@ -990,6 +990,14 @@ ALTER TABLE help_category MODIFY url TEXT NOT NULL;
 ALTER TABLE help_topic MODIFY url TEXT NOT NULL;
 
 --
+-- Upgrade help tables character set to utf8
+--
+ALTER TABLE help_topic CONVERT TO CHARACTER SET utf8;
+ALTER TABLE help_category CONVERT TO CHARACTER SET utf8;
+ALTER TABLE help_relation CONVERT TO CHARACTER SET utf8;
+ALTER TABLE help_keyword CONVERT TO CHARACTER SET utf8;
+
+--
 -- Upgrade a table engine from MyISAM to InnoDB for the system tables
 -- help_topic, help_category, help_relation, help_keyword, plugin, servers,
 -- time_zone, time_zone_leap_second, time_zone_name, time_zone_transition,
