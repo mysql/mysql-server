@@ -1938,12 +1938,6 @@ static int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
   merge_chunk->set_max_keys(param->max_rows_per_buffer);
 
   do {
-    if (merge_chunk->mem_count() > max_rows) {
-      merge_chunk->set_mem_count(max_rows); /* Don't write too many records */
-      merge_chunk->set_rowcount(0);         /* Don't read more */
-    }
-    max_rows -= merge_chunk->mem_count();
-
     for (uint ix = 0; ix < merge_chunk->mem_count(); ++ix) {
       unsigned row_length, payload_length;
       param->get_rec_and_res_len(merge_chunk->current_key(), &row_length,
@@ -1962,6 +1956,10 @@ static int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
         if (my_b_write(to_file, merge_chunk->current_key() + offset,
                        bytes_to_write)) {
           return 1; /* purecov: inspected */
+        }
+        if (!--max_rows) {
+          error = 0; /* purecov: inspected */
+          goto end;  /* purecov: inspected */
         }
       }
       merge_chunk->advance_current_key(row_length);
