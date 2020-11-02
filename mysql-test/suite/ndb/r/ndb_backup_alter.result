@@ -14,6 +14,6 @@ Start backup nowait
 Starting backup
 Backup started
 Wait for backup to complete
-Starting backup
-Backup started
+Waiting for backup to complete
+Backup completed
 drop table t1;
