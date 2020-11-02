@@ -5336,25 +5336,6 @@ Backup::startBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
     return;
   }
 
-  /* 
-   * We reply to client after create trigger
-   */
-  if (SEND_BACKUP_STARTED_FLAG(ptr.p->flags))
-  {
-    BackupConf * conf = (BackupConf*)signal->getDataPtrSend();
-    conf->backupId = ptr.p->backupId;
-    conf->senderData = ptr.p->clientData;
-    sendSignal(ptr.p->clientRef, GSN_BACKUP_CONF, signal,
-             BackupConf::SignalLength, JBB);
-  }
-
-  signal->theData[0] = NDB_LE_BackupStarted;
-  signal->theData[1] = ptr.p->clientRef;
-  signal->theData[2] = ptr.p->backupId;
-  // Node bitmask is not used at the receiver, so zeroing it out.
-  NdbNodeBitmask::clear(signal->theData + 3, NdbNodeBitmask48::Size);
-  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3 + NdbNodeBitmask48::Size, JBB);
-
   /**
    * Wait for startGCP to a establish a consistent point at backup start.
    * This point is consistent since backup logging has started but scans
@@ -5431,6 +5412,25 @@ Backup::execWAIT_GCP_CONF(Signal* signal){
   if(ptr.p->masterData.waitGCP.startBackup) {
     jam();
     CRASH_INSERTION((10008));
+    /*
+     * We reply to client after startGCP completes
+     */
+    if (SEND_BACKUP_STARTED_FLAG(ptr.p->flags))
+    {
+      BackupConf * conf = (BackupConf*)signal->getDataPtrSend();
+      conf->backupId = ptr.p->backupId;
+      conf->senderData = ptr.p->clientData;
+      sendSignal(ptr.p->clientRef, GSN_BACKUP_CONF, signal,
+               BackupConf::SignalLength, JBB);
+    }
+
+    signal->theData[0] = NDB_LE_BackupStarted;
+    signal->theData[1] = ptr.p->clientRef;
+    signal->theData[2] = ptr.p->backupId;
+    // Node bitmask is not used at the receiver, so zeroing it out.
+    NdbNodeBitmask::clear(signal->theData + 3, NdbNodeBitmask48::Size);
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3 + NdbNodeBitmask48::Size, JBB);
+
     ptr.p->startGCP = gcp;
     ptr.p->masterData.sendCounter= 0;
     ptr.p->masterData.gsn = GSN_BACKUP_FRAGMENT_REQ;
