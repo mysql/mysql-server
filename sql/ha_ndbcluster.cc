@@ -9245,6 +9245,7 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
   DBUG_RETURN(res);
 }
 
+#ifndef EMBEDDED_LIBRARY
 // Using interface defined in
 #include "replication.h"
 // Using
@@ -9333,6 +9334,7 @@ static int ndb_wait_setup_replication_applier(void *) {
 }
 
 static Ndb_server_hooks ndb_server_hooks;
+#endif
 
 static const char* ndb_table_modifier_prefix = "NDB_TABLE=";
 
@@ -14075,9 +14077,11 @@ int ndbcluster_init(void* p)
   // Initialize NdbApi
   ndb_init_internal(1);
 
+#ifndef EMBEDDED_LIBRARY
   if (!ndb_server_hooks.register_applier_start(ndb_wait_setup_replication_applier)) {
     ndbcluster_init_abort("Failed to register ndb_wait_setup at applier start");
   }
+#endif
 
   /* allocate connection resources and connect to cluster */
   const uint global_opti_node_select= THDVAR(NULL, optimized_node_selection);
@@ -14169,6 +14173,11 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
   ndb_index_stat_thread.stop();
   ndb_util_thread.stop();
   ndbcluster_binlog_end();
+
+#ifndef EMBEDDED_LIBRARY
+  // Unregister all server hooks
+  ndb_server_hooks.unregister_all();
+#endif
 
   {
     mysql_mutex_lock(&ndbcluster_mutex);
