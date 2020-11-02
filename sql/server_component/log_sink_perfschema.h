@@ -136,36 +136,13 @@ size_t log_sink_pfs_event_count();
   Get oldest event still in ring-buffer.
   Caller should hold read-lock on THR_LOCK_log_perfschema when calling this.
 
-  @retval  nullptr    No events in buffer
-  @retval  otherwise  Address of oldest event in ring-buffer
+  @returns  nullptr    No events in buffer
+  @returns  otherwise  Address of oldest event in ring-buffer
 */
 log_sink_pfs_event *log_sink_pfs_event_first();
 
-/**
-  Get event following the supplied one.
-  Caller should hold read-lock on THR_LOCK_log_perfschema when calling this.
-
-  @param   e          Last event the caller was processing.
-                      This event should be valid, non-NULL,
-                      and should not be a wrap-around marker
-                      (m_messages_length == 0).
-
-  @retval  nullptr    No more events in ring-buffer
-  @retval  otherwise  Address of the next event in the ring-buffer
-*/
 log_sink_pfs_event *log_sink_pfs_event_next(log_sink_pfs_event *e);
 
-/**
-  Use timestamp to check whether a given event-pointer still points
-  to a valid event in the ring-buffer.
-  Caller should hold THR_LOCK_log_perfschema when calling this.
-
-  @param   e          Address of event
-  @param   logged     unique timestamp of event
-
-  @retval  nullptr    Event no longer exists in ring-buffer
-  @retval  otherwise  Address of the event in the ring-buffer
-*/
 log_sink_pfs_event *log_sink_pfs_event_valid(log_sink_pfs_event *e,
                                              ulonglong logged);
 
@@ -174,80 +151,24 @@ log_sink_pfs_event *log_sink_pfs_event_valid(log_sink_pfs_event *e,
 /**
   Set up ring-buffer for error-log.
 
-  @retval 0    Success - buffer was allocated.
-  @retval !=0  Failure - buffer was not allocated.
+  @returns 0    Success - buffer was allocated.
+  @returns !=0  Failure - buffer was not allocated.
 */
 int log_error_read_log_init();
 
 /**
   Release error log ring-buffer.
 
-  @retval 0 Success - buffer was released, or did not exist in the first
+  @returns 0 Success - buffer was released, or did not exist in the first
   place.
 */
 int log_error_read_log_exit();
 
-/**
-  Restore error log messages from previous shutdown.
-
-  We try restoring from the first (leftmost) of those services
-  listed in @@global.log_error_services that have the
-  LOG_SERVICE_LOG_PARSER characteristic.
-
-  It is assumed that the last run's log file name is the same
-  as the current one's. That is to say, we check whether the
-  file supplied to --log-error already exists.
-
-  Once we have determined what file to read from, we'll call
-  @see log_error_read_loop() to do the actual reading and parsing.
-
-  @param  log_name  The log file to read (log_error_dest).
-
-  @retval LOG_SERVICE_SUCCESS                 Success (log read and parsed)
-  @retval LOG_SERVICE_UNABLE_TO_READ          Could not read/access() file
-  @retval LOG_SERVICE_INVALID_ARGUMENT        Invalid file-name (no '.')
-  @retval LOG_SERVICE_NOT_AVAILABLE           No log_component active that can
-                                              parse log-files
-  @retval LOG_SERVICE_ARGUMENT_TOO_LONG       File-name too long
-  @retval LOG_SERVICE_COULD_NOT_MAKE_LOG_NAME Could not determine file extension
-  @retval otherwise                           Return value from reader
-*/
 log_service_error log_error_read_log(const char *log_name);
 
-/**
-  Add a log-event to the ring buffer.
-
-  In the ring-buffer, each event exists as a header and a blob.
-  The header is a log_sink_pfs_event struct containing the
-  traditional error-log columns. It is followed by a variable-length
-  blob that contains just the message string in traditional log mode,
-  and the complete event as JSON in JSON log format.
-  If the variable-length is odd, we adjust to the next even boundary.
-
-  If writing the event would go past the end of the ring-buffer,
-  we wrap around to the beginning of the buffer.
-
-  @param  e         filled-in event struct to copy into the ring-buffer
-  @param  blob_src  variable-length part of the event to add to the ring-buffer
-
-  @retval LOG_SERVICE_SUCCESS
-  @retval LOG_SERVICE_INVALID_ARGUMENT
-*/
 log_service_error log_sink_pfs_event_add(log_sink_pfs_event *e,
                                          const char *blob_src);
 
-/**
-  services: log sinks: logging to performance_schema ring-buffer
-
-  Will write timestamp, label, thread-ID, and message to stderr/file.
-  If you should not be able to specify a label, one will be generated
-  for you from the line's priority field.
-
-  @param           instance             instance handle
-  @param           ll                   the log line to write
-
-  @retval          int                  number of added fields, if any
-*/
 int log_sink_perfschema(void *instance MY_ATTRIBUTE((unused)), log_line *ll);
 
 #endif /* LOG_SINK_PERFSCHEMA_H */
