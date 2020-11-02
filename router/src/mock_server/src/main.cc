@@ -50,6 +50,16 @@ struct MysqlServerMockConfig {
   unsigned http_port{0};
   unsigned xport{0};
   bool verbose{false};
+
+  std::string ssl_cert;
+  std::string ssl_key;
+  std::string ssl_mode;
+  std::string tls_version;
+  std::string ssl_ca;
+  std::string ssl_capath;
+  std::string ssl_crl;
+  std::string ssl_crlpath;
+  std::string ssl_cipher;
 };
 
 static void init_DIM() {
@@ -174,6 +184,15 @@ class MysqlServerMockFrontend {
     mock_server_config.set("filename", config_.queries_filename);
     mock_server_config.set("module_prefix", config_.module_prefix);
     mock_server_config.set("protocol", "classic");
+    mock_server_config.set("ssl_mode", config_.ssl_mode);
+    mock_server_config.set("ssl_cert", config_.ssl_cert);
+    mock_server_config.set("ssl_key", config_.ssl_key);
+    mock_server_config.set("tls_version", config_.tls_version);
+    mock_server_config.set("ssl_cipher", config_.ssl_cipher);
+    mock_server_config.set("ssl_ca", config_.ssl_ca);
+    mock_server_config.set("ssl_capath", config_.ssl_capath);
+    mock_server_config.set("ssl_crl", config_.ssl_crl);
+    mock_server_config.set("ssl_crlpath", config_.ssl_crlpath);
 
     if (config_.xport != 0) {
       auto &mock_x_server_config = loader_config->add("mock_server", "x");
@@ -182,6 +201,15 @@ class MysqlServerMockFrontend {
       mock_x_server_config.set("filename", config_.queries_filename);
       mock_x_server_config.set("module_prefix", config_.module_prefix);
       mock_x_server_config.set("protocol", "x");
+      mock_x_server_config.set("ssl_mode", config_.ssl_mode);
+      mock_x_server_config.set("ssl_cert", config_.ssl_cert);
+      mock_x_server_config.set("ssl_key", config_.ssl_key);
+      mock_x_server_config.set("tls_version", config_.tls_version);
+      mock_x_server_config.set("ssl_cipher", config_.ssl_cipher);
+      mock_x_server_config.set("ssl_ca", config_.ssl_ca);
+      mock_x_server_config.set("ssl_capath", config_.ssl_capath);
+      mock_x_server_config.set("ssl_crl", config_.ssl_crl);
+      mock_x_server_config.set("ssl_crlpath", config_.ssl_crlpath);
     }
 
     mysql_harness::DIM::instance().set_Config(
@@ -258,6 +286,45 @@ class MysqlServerMockFrontend {
         CmdOption::OptionNames({"--verbose"}), "verbose",
         CmdOptionValueReq::none, "",
         [this](const std::string &) { config_.verbose = true; });
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"--ssl-cert"}),
+        "path to PEM file containing a SSL certificate",
+        CmdOptionValueReq::required, "path",
+        [this](const std::string &value) { config_.ssl_cert = value; });
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"--ssl-key"}),
+        "path to PEM file containing a SSL key", CmdOptionValueReq::required,
+        "path", [this](const std::string &value) { config_.ssl_key = value; });
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"--ssl-mode"}), "SSL mode",
+        CmdOptionValueReq::required, "mode",
+        [this](const std::string &value) { config_.ssl_mode = value; });
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"--tls-version"}), "TLS version",
+        CmdOptionValueReq::required, "version",
+        [this](const std::string &value) { config_.tls_version = value; });
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"--ssl-cipher"}), "SSL ciphers",
+        CmdOptionValueReq::required, "cipher-list",
+        [this](const std::string &value) { config_.ssl_cipher = value; });
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"--ssl-ca"}), "PEM file containg CA",
+        CmdOptionValueReq::required, "PEM_file",
+        [this](const std::string &value) { config_.ssl_ca = value; });
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"--ssl-capath"}),
+        "directory containing PEM files of CA", CmdOptionValueReq::required,
+        "directory",
+        [this](const std::string &value) { config_.ssl_capath = value; });
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"--ssl-crl"}), "PEM file containg CRL",
+        CmdOptionValueReq::required, "PEM_file",
+        [this](const std::string &value) { config_.ssl_crl = value; });
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"--ssl-crlpath"}),
+        "directory containing PEM files of CRL", CmdOptionValueReq::required,
+        "directory",
+        [this](const std::string &value) { config_.ssl_crlpath = value; });
   }
 
   CmdArgHandler arg_handler_;

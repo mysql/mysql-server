@@ -24,11 +24,15 @@
 
 #include "classic_mock_session.h"
 
+#include <openssl/bio.h>
+#include <openssl/x509.h>
 #include <array>
 #include <chrono>
 #include <memory>
 #include <system_error>
 #include <thread>
+
+#include <openssl/ssl.h>
 
 #include "harness_assert.h"
 #include "mysql/harness/logging/logging.h"
@@ -188,6 +192,37 @@ void MySQLClassicProtocol::send_server_greeting(
   send_packet(buf);
 }
 
+stdx::expected<std::string, std::error_code> cert_get_name(X509_NAME *name) {
+  std::unique_ptr<BIO, decltype(&BIO_free)> bio{BIO_new(BIO_s_mem()),
+                                                &BIO_free};
+  // X509_NAME_oneline() is a legacy function and supposed to be not used for
+  // new apps, but the server uses it, so we do to get the same serialization.
+#if 0
+  int res = X509_NAME_print_ex(bio.get(), name, 0, XN_FLAG_ONELINE);
+  if (res <= 0) {
+    return stdx::make_unexpected(make_tls_error());
+  }
+
+  BUF_MEM *buf;
+
+  BIO_get_mem_ptr(bio.get(), &buf);
+
+  return {stdx::in_place, buf->data, buf->data + buf->length};
+#else
+  std::array<char, 256> buf;
+
+  return {stdx::in_place, X509_NAME_oneline(name, buf.data(), buf.size())};
+#endif
+}
+
+stdx::expected<std::string, std::error_code> cert_get_subject_name(X509 *cert) {
+  return cert_get_name(X509_get_subject_name(cert));
+}
+
+stdx::expected<std::string, std::error_code> cert_get_issuer_name(X509 *cert) {
+  return cert_get_name(X509_get_issuer_name(cert));
+}
+
 bool MySQLServerMockSessionClassic::authenticate(
     const std::vector<uint8_t> &client_auth_method_data) {
   auto account_data_res = json_reader_->account();
@@ -203,18 +238,64 @@ bool MySQLServerMockSessionClassic::authenticate(
     }
   }
 
-  if (!account.password.has_value()) return true;
+  if (account.password.has_value()) {
+    if (!protocol_->authenticate(
+            protocol_->auth_method_name(), protocol_->auth_method_data(),
+            account.password.value(), client_auth_method_data)) {
+      return false;
+    }
+  }
 
-  return protocol_->authenticate(
-      protocol_->auth_method_name(), protocol_->auth_method_data(),
-      account.password.value(), client_auth_method_data);
+  if (account.cert_required) {
+    auto *ssl = protocol_->ssl();
+
+    std::unique_ptr<X509, decltype(&X509_free)> client_cert{
+        SSL_get_peer_certificate(ssl), &X509_free};
+    if (!client_cert) {
+      log_info("cert required, no cert received.");
+      return false;
+    }
+
+    if (account.cert_subject.has_value()) {
+      auto subject_res = cert_get_subject_name(client_cert.get());
+      if (!subject_res) {
+        throw std::system_error(subject_res.error(), "cert_get_subject_name");
+      }
+      log_debug("client-cert::subject: %s", subject_res.value().c_str());
+
+      if (account.cert_subject.value() != subject_res.value()) {
+        return false;
+      }
+    }
+
+    if (account.cert_issuer.has_value()) {
+      auto issuer_res = cert_get_issuer_name(client_cert.get());
+      if (!issuer_res) {
+        throw std::system_error(issuer_res.error(), "cert_get_issuer_name");
+      }
+      log_debug("client-cert::issuer: %s", issuer_res.value().c_str());
+
+      if (account.cert_issuer.value() != issuer_res.value()) {
+        return false;
+      }
+    }
+
+    const auto verify_res = SSL_get_verify_result(protocol_->ssl());
+
+    if (verify_res != X509_V_OK) {
+      log_info("ssl-verify failed: %ld", verify_res);
+      return false;
+    }
+  }
+
+  return true;
 }
 
 bool MySQLServerMockSessionClassic::handle_handshake(
     const std::vector<uint8_t> &payload) {
   switch (state()) {
     case HandshakeState::INIT: {
-      auto greeting_res = json_reader_->server_greeting();
+      auto greeting_res = json_reader_->server_greeting(with_tls_);
       if (!greeting_res) {
         protocol_->send_error(0, greeting_res.error().message(), "28000");
         break;
@@ -240,8 +321,25 @@ bool MySQLServerMockSessionClassic::handle_handshake(
 
       const auto greeting = std::move(decode_res.value().second);
 
-      protocol_->username(greeting.username());
       protocol_->client_capabilities(greeting.capabilities());
+
+      if (protocol_->shared_capabilities().test(
+              classic_protocol::capabilities::pos::ssl) &&
+          !protocol_->is_tls()) {
+        protocol_->init_tls();
+
+        auto tls_accept_res = protocol_->tls_accept();
+        if (!tls_accept_res) {
+          throw std::system_error(tls_accept_res.error());
+        }
+
+        auto *ssl = protocol_->ssl();
+        json_reader_->set_session_ssl_info(ssl);
+
+        break;
+      }
+
+      protocol_->username(greeting.username());
 
       if (greeting.capabilities().test(
               classic_protocol::capabilities::pos::plugin_auth)) {
@@ -281,7 +379,6 @@ bool MySQLServerMockSessionClassic::handle_handshake(
         protocol_->send_ok();
 
         state(HandshakeState::DONE);
-
       } else {
         protocol_->send_error(0, "unknown auth-method", "28000");
 
@@ -291,27 +388,12 @@ bool MySQLServerMockSessionClassic::handle_handshake(
       break;
     }
     case HandshakeState::AUTH_SWITCHED: {
-      auto account_data_res = json_reader_->account();
-      if (!account_data_res) {
-        // auth failed.
-        protocol_->send_error(ER_ACCESS_DENIED_ERROR,  // 1045
-                              "Access Denied for user '" +
-                                  protocol_->username() + "'@'localhost'",
-                              "28000");
-        state(HandshakeState::DONE);
-
-        break;
-      }
-
-      auto account = account_data_res.value();
-
       // empty password is signaled by {0},
       // -> authenticate expects {}
       // -> client expects OK, instead of AUTH_FAST in this case
-      if (payload == std::vector<uint8_t>{0} && authenticate({})) {
-        protocol_->send_ok();
-        state(HandshakeState::DONE);
-      } else if (authenticate(payload)) {
+      if (authenticate(payload == std::vector<uint8_t>{0}
+                           ? std::vector<uint8_t>{}
+                           : payload)) {
         if (protocol_->auth_method_name() == CachingSha2Password::name) {
           // caching-sha2-password is special and needs the auth-fast state
 

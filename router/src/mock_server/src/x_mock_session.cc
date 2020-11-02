@@ -214,11 +214,12 @@ void MySQLXProtocol::send_async_notice(const AsyncNotice &async_notice) {
 MySQLServerMockSessionX::MySQLServerMockSessionX(
     MySQLXProtocol *protocol,
     std::unique_ptr<StatementReaderBase> statement_processor,
-    const bool debug_mode)
+    const bool debug_mode, bool with_tls)
     : MySQLServerMockSession(protocol, std::move(statement_processor),
                              debug_mode),
       async_notices_(this->json_reader_->get_async_notices()),
-      protocol_{protocol} {}
+      protocol_{protocol},
+      with_tls_{with_tls} {}
 
 bool MySQLServerMockSessionX::process_handshake() {
   xcl::XProtocol::Client_message_type_id out_msg_id;
@@ -238,11 +239,22 @@ bool MySQLServerMockSessionX::process_handshake() {
           if (capability.name() == "tls") tls_request = true;
         }
 
-        // we do not support TLS so if the client requested it
-        // we need to reject it
         if (tls_request) {
-          protocol_->send_error(ER_X_CAPABILITIES_PREPARE_FAILED,
-                                "Capability prepare failed for tls");
+          if (with_tls_) {
+            Mysqlx::Ok ok_msg;
+            protocol_->send_message(Mysqlx::ServerMessages::OK, ok_msg);
+
+            protocol_->init_tls();
+            auto tls_accept_res = protocol_->tls_accept();
+            if (!tls_accept_res) {
+              throw std::system_error(tls_accept_res.error());
+            }
+
+            json_reader_->set_session_ssl_info(protocol_->ssl());
+          } else {
+            protocol_->send_error(ER_X_CAPABILITIES_PREPARE_FAILED,
+                                  "Capability prepare failed for tls");
+          }
         } else {
           Mysqlx::Ok ok_msg;
           protocol_->send_message(Mysqlx::ServerMessages::OK, ok_msg);
@@ -251,6 +263,21 @@ bool MySQLServerMockSessionX::process_handshake() {
       }
       case Mysqlx::ClientMessages::CON_CAPABILITIES_GET: {
         Mysqlx::Connection::Capabilities msg_capab;
+
+        if (with_tls_) {
+          auto scalar = new Mysqlx::Datatypes::Scalar;
+          scalar->set_type(Mysqlx::Datatypes::Scalar_Type::Scalar_Type_V_BOOL);
+          scalar->set_v_bool(true);
+
+          auto any = new Mysqlx::Datatypes::Any;
+          any->set_type(Mysqlx::Datatypes::Any_Type::Any_Type_SCALAR);
+          any->set_allocated_scalar(scalar);
+
+          auto *tls_cap = msg_capab.add_capabilities();
+          tls_cap->set_name("tls");
+          tls_cap->set_allocated_value(any);
+        }
+
         protocol_->send_message(Mysqlx::ServerMessages::CONN_CAPABILITIES,
                                 msg_capab);
         break;

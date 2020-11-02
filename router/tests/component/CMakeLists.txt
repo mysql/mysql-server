@@ -46,7 +46,6 @@ FOREACH(test_file
     test_logging_eventlog.cc
     test_master_key_reader_writer.cc
     test_metadata_ttl.cc
-    test_mock_server.cc
     test_pidfile.cc
     test_rest_api.cc
     test_rest_api_enable.cc
@@ -99,6 +98,7 @@ ENDFOREACH()
 
 FOREACH(test_file
     test_routing_splicer.cc
+    test_mock_server.cc
     )
 add_router_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   MODULE "component"

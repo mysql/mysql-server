@@ -71,8 +71,7 @@ function ensure_type(options, field, expected_type) {
  *     response
  * @returns On success, response object, otherwise 'undefined'
  */
-exports.get =
-    function get(stmt_key, options) {
+exports.get = function get(stmt_key, options) {
   // let 'options' overwrite the 'defaults'
   options = Object.assign({}, defaults, options);
 
@@ -516,9 +515,21 @@ exports.get =
           {"type": "STRING", "name": "Variable_name"},
           {"type": "STRING", "name": "Value"}
         ],
-        "rows": [["Ssl_cipher", ""]]
+        "rows": [["Ssl_cipher", mysqld.session.ssl_cipher]]
       }
     },
+
+    router_show_mysqlx_cipher_status: {
+      "stmt": "show status like 'mysqlx_ssl_cipher'",
+      "result": {
+        "columns": [
+          {"type": "STRING", "name": "Variable_name"},
+          {"type": "STRING", "name": "Value"}
+        ],
+        "rows": [["Mysqlx_ssl_cipher", mysqld.session.mysqlx_ssl_cipher]]
+      }
+    },
+
 
     router_select_cluster_instances_v1: {
       "stmt": "SELECT F.cluster_id, F.cluster_name, " +
@@ -722,17 +733,16 @@ exports.get =
   };
 
   return statements[stmt_key];
-}
+};
 
-    /**
-     * create the response for commonly used statements
-     *
-     * @param {array} stmt_keys - statement keys
-     * @param {array} options   - parameters
-     * @returns {object} object of 'statement text': response object
-     */
-    exports.prepare_statement_responses =
-        function(stmt_keys, options) {
+/**
+ * create the response for commonly used statements
+ *
+ * @param {array} stmt_keys - statement keys
+ * @param {array} options   - parameters
+ * @returns {object} object of 'statement text': response object
+ */
+exports.prepare_statement_responses = function(stmt_keys, options) {
   return stmt_keys.reduce(function(acc, stmt_key) {
     // lookup the results by stmt_key
     var res = exports.get(stmt_key, options);
@@ -740,18 +750,37 @@ exports.get =
 
     return acc;
   }, {});
-}
+};
+
+/**
+ * create the callable responses for commonly used statements.
+ *
+ * @param {array} stmt_keys - statement keys
+ * @param {array} options   - parameters
+ * @returns {object} object of 'statement text': callable which returns
+ *     a response object
+ */
+exports.prepare_callable_statement_responses = function(stmt_keys, options) {
+  return stmt_keys.reduce(function(acc, stmt_key) {
+    // lookup the results by stmt_key
+    var res = exports.get(stmt_key, options);
+    acc[res.stmt] = function() {
+      return exports.get(stmt_key, options);
+    };
+
+    return acc;
+  }, {});
+};
 
 
-        /**
-         * create the response for commonly used regex statements
-         *
-         * @param {array} stmt_keys - statement keys
-         * @param {array} options   - parameters
-         * @returns {object} object of 'statement text': response object
-         */
-        exports.prepare_statement_responses_regex =
-            function(stmt_keys, options) {
+/**
+ * create the response for commonly used regex statements
+ *
+ * @param {array} stmt_keys - statement keys
+ * @param {array} options   - parameters
+ * @returns {object} object of 'statement text': response object
+ */
+exports.prepare_statement_responses_regex = function(stmt_keys, options) {
   return stmt_keys.reduce(function(acc, stmt_key) {
     // lookup the results by stmt_key
     var res = exports.get(stmt_key, options);
@@ -759,32 +788,31 @@ exports.get =
 
     return acc;
   }, {});
-}
+};
 
-            /**
-             * create error-response for unknown statements
-             *
-             * @param {string} stmt statement text
-             * @returns error response
-             */
-            exports.unknown_statement_response =
-                function(stmt) {
+/**
+ * create error-response for unknown statements
+ *
+ * @param {string} stmt statement text
+ * @returns error response
+ */
+exports.unknown_statement_response = function(stmt) {
   return {
     error: {code: 1273, sql_state: "HY001", message: "Syntax Error at: " + stmt}
   }
-}
+};
 
-                /**
-                 * checks if a given statment matches any stmt_regex in
-                 * in the responses object
-                 *
-                 * @param {string} regex_stmt regex statement text
-                 * @param {object} common_responses_regex object containing
-                 *     common responses
-                 * @returns  response if any matches the statmenet or undefined
-                 */
-                exports.handle_regex_stmt = function(
-                    regex_stmt, common_responses_regex) {
+/**
+ * checks if a given statment matches any stmt_regex in
+ * in the responses object
+ *
+ * @param {string} regex_stmt regex statement text
+ * @param {object} common_responses_regex object containing
+ *     common responses
+ * @returns  response if any matches the statmenet or
+ *     undefined
+ */
+exports.handle_regex_stmt = function(regex_stmt, common_responses_regex) {
   for (var stmt in common_responses_regex) {
     if (regex_stmt.match(stmt)) return common_responses_regex[stmt];
   }

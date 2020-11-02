@@ -27,9 +27,10 @@
 #include <map>
 #include <stdexcept>
 #include <string>
+#include <system_error>
 
 #include <mysqld_error.h>
-#include <system_error>
+#include <openssl/ssl.h>
 
 #include "duk_logging.h"
 #include "duk_module_shim.h"
@@ -40,7 +41,7 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/classic_protocol.h"
-#include "router/src/mock_server/src/statement_reader.h"
+#include "statement_reader.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -653,7 +654,7 @@ DuktapeStatementReader::~DuktapeStatementReader() {
 }
 
 stdx::expected<classic_protocol::message::server::Greeting, std::error_code>
-DuktapeStatementReader::server_greeting() {
+DuktapeStatementReader::server_greeting(bool with_tls) {
   auto *ctx = pimpl_->ctx;
 
   // defaults
@@ -670,8 +671,9 @@ DuktapeStatementReader::server_greeting() {
       // local_files (never)
       // ignore_space (client only)
       classic_protocol::capabilities::protocol_41 |
-      // interactive
-      // ssl (not yet)
+      // interactive (client-only)
+      // ssl (below)
+      // ignore sigpipe (client-only)
       classic_protocol::capabilities::transactions |
       classic_protocol::capabilities::secure_connection |
       // multi_statements (not yet)
@@ -686,6 +688,11 @@ DuktapeStatementReader::server_greeting() {
       // optional_resultset_metadata (not yet)
       // compress_zstd (not yet)
       ;
+
+  if (with_tls) {
+    server_capabilities |= classic_protocol::capabilities::ssl;
+  }
+
   uint16_t status_flags = 0;
   uint8_t character_set = 0;
   std::string auth_method = MySQLNativePassword::name;
@@ -780,6 +787,11 @@ DuktapeStatementReader::account() {
 
   stdx::expected<std::string, void> username{stdx::make_unexpected()};
   stdx::expected<std::string, void> password{stdx::make_unexpected()};
+  bool cert_required{false};
+  stdx::expected<std::string, void> cert_issuer{stdx::make_unexpected()};
+  stdx::expected<std::string, void> cert_subject{stdx::make_unexpected()};
+
+  std::error_code ec{};
 
   duk_get_prop_string(ctx, -1, "handshake");
   if (duk_is_object(ctx, -1)) {
@@ -788,20 +800,55 @@ DuktapeStatementReader::account() {
       duk_get_prop_literal(ctx, -1, "username");
       if (duk_is_string(ctx, -1)) {
         username = std::string(duk_to_string(ctx, -1));
+      } else if (!duk_is_undefined(ctx, -1)) {
+        ec = make_error_code(std::errc::invalid_argument);
       }
       duk_pop(ctx);
 
       duk_get_prop_literal(ctx, -1, "password");
       if (duk_is_string(ctx, -1)) {
         password = std::string(duk_to_string(ctx, -1));
+      } else if (!duk_is_undefined(ctx, -1)) {
+        ec = make_error_code(std::errc::invalid_argument);
       }
       duk_pop(ctx);
+
+      duk_get_prop_literal(ctx, -1, "certificate");
+      if (duk_is_object(ctx, -1)) {
+        cert_required = true;
+
+        duk_get_prop_literal(ctx, -1, "issuer");
+        if (duk_is_string(ctx, -1)) {
+          cert_issuer = std::string(duk_to_string(ctx, -1));
+        } else if (!duk_is_undefined(ctx, -1)) {
+          ec = make_error_code(std::errc::invalid_argument);
+        }
+        duk_pop(ctx);
+
+        duk_get_prop_literal(ctx, -1, "subject");
+        if (duk_is_string(ctx, -1)) {
+          cert_subject = std::string(duk_to_string(ctx, -1));
+        } else if (!duk_is_undefined(ctx, -1)) {
+          ec = make_error_code(std::errc::invalid_argument);
+        }
+        duk_pop(ctx);
+      }
+      duk_pop(ctx);
+    } else if (!duk_is_undefined(ctx, -1)) {
+      ec = make_error_code(std::errc::invalid_argument);
     }
     duk_pop(ctx);
+  } else if (!duk_is_undefined(ctx, -1)) {
+    ec = make_error_code(std::errc::invalid_argument);
   }
   duk_pop(ctx);
 
-  return account_data{username, password};
+  if (ec) {
+    return stdx::make_unexpected(ec);
+  }
+
+  return account_data{username, password, cert_required, cert_subject,
+                      cert_issuer};
 }
 
 // @pre on the stack is an object
@@ -1024,6 +1071,24 @@ std::vector<AsyncNotice> DuktapeStatementReader::get_async_notices() {
   duk_pop_n(ctx, 2);
 
   return result;
+}
+
+void DuktapeStatementReader::set_session_ssl_info(const SSL *ssl) {
+  auto *ctx = pimpl_->ctx;
+
+  duk_push_global_object(ctx);
+  duk_get_prop_string(ctx, -1, "mysqld");
+  duk_get_prop_string(ctx, -1, "session");
+
+  duk_push_string(ctx, SSL_get_cipher_name(ssl));
+  duk_put_prop_string(ctx, -2, "ssl_cipher");
+
+  duk_push_string(ctx, SSL_get_cipher_name(ssl));
+  duk_put_prop_string(ctx, -2, "mysqlx_ssl_cipher");
+
+  duk_pop(ctx);
+  duk_pop(ctx);
+  duk_pop(ctx);
 }
 
 }  // namespace server_mock

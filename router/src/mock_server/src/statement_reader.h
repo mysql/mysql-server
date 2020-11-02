@@ -30,6 +30,7 @@
 #include <string>
 #include <vector>
 
+#include "mysql/harness/tls_server_context.h"
 #include "mysql_protocol_common.h"
 #include "mysqlrouter/classic_protocol_constants.h"
 
@@ -69,7 +70,8 @@ struct AsyncNotice {
 class ProtocolBase {
  public:
   ProtocolBase(net::ip::tcp::socket &&client_sock,
-               net::impl::socket::native_handle_type wakeup_fd);
+               net::impl::socket::native_handle_type wakeup_fd,
+               TlsServerContext &tls_ctx);
 
   virtual ~ProtocolBase() = default;
 
@@ -127,6 +129,17 @@ class ProtocolBase {
                            const std::string &password,
                            const std::vector<uint8_t> &auth_response);
 
+  void init_tls() {
+    ssl_.reset(SSL_new(tls_ctx_.get()));
+    SSL_set_fd(ssl_.get(), client_socket_.native_handle());
+  }
+
+  bool is_tls() { return bool(ssl_); }
+
+  const SSL *ssl() const { return ssl_.get(); }
+
+  stdx::expected<void, std::error_code> tls_accept();
+
  private:
   net::ip::tcp::socket client_socket_;
   net::impl::socket::native_handle_type
@@ -135,6 +148,15 @@ class ProtocolBase {
   std::string username_{};
   std::string auth_method_name_{};
   std::string auth_method_data_{};
+
+  TlsServerContext &tls_ctx_;
+
+  class SSL_Deleter {
+   public:
+    void operator()(SSL *v) { SSL_free(v); }
+  };
+
+  std::unique_ptr<SSL, SSL_Deleter> ssl_;
 };
 
 class StatementReaderBase {
@@ -156,16 +178,21 @@ class StatementReaderBase {
 
   virtual stdx::expected<classic_protocol::message::server::Greeting,
                          std::error_code>
-  server_greeting() = 0;
+  server_greeting(bool with_tls) = 0;
 
   struct account_data {
     stdx::expected<std::string, void> username;
     stdx::expected<std::string, void> password;
+    bool cert_required{false};
+    stdx::expected<std::string, void> cert_subject;
+    stdx::expected<std::string, void> cert_issuer;
   };
 
   virtual stdx::expected<account_data, std::error_code> account() = 0;
 
   virtual std::chrono::microseconds server_greeting_exec_time() = 0;
+
+  virtual void set_session_ssl_info(const SSL *ssl) = 0;
 
   virtual ~StatementReaderBase() = default;
 };

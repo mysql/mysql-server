@@ -27,6 +27,10 @@
 
 #include "mock_session.h"
 
+#include <memory>  // unique_ptr
+
+#include <openssl/ssl.h>
+
 #include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/net_ts/impl/socket_constants.h"
 
@@ -111,10 +115,11 @@ class MySQLServerMockSessionClassic : public MySQLServerMockSession {
   MySQLServerMockSessionClassic(
       MySQLClassicProtocol *protocol,
       std::unique_ptr<StatementReaderBase> statement_processor,
-      const bool debug_mode)
+      const bool debug_mode, const bool with_tls)
       : MySQLServerMockSession(protocol, std::move(statement_processor),
                                debug_mode),
-        protocol_{protocol} {}
+        protocol_{protocol},
+        with_tls_{with_tls} {}
 
   /**
    * process the handshake of the current connection.
@@ -151,6 +156,8 @@ class MySQLServerMockSessionClassic : public MySQLServerMockSession {
   HandshakeState state_{HandshakeState::INIT};
 
   MySQLClassicProtocol *protocol_;
+
+  bool with_tls_{false};
 };
 
 }  // namespace server_mock

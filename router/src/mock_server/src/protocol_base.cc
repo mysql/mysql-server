@@ -27,6 +27,8 @@
 #include <string>
 #include <vector>
 
+#include "mysql/harness/tls_error.h"
+
 namespace server_mock {
 bool ProtocolBase::authenticate(const std::string &auth_method_name,
                                 const std::string &auth_method_data,
@@ -50,5 +52,19 @@ bool ProtocolBase::authenticate(const std::string &auth_method_name,
     // - windows_authentication (5.6, ...)
     return false;
   }
+}
+
+stdx::expected<void, std::error_code> ProtocolBase::tls_accept() {
+  auto ssl = ssl_.get();
+
+  client_socket_.native_non_blocking(false);
+
+  const auto res = SSL_accept(ssl);
+  if (res != 1) {
+    return stdx::make_unexpected(make_tls_ssl_error(ssl, res));
+  }
+
+  client_socket_.native_non_blocking(true);
+  return {};
 }
 }  // namespace server_mock

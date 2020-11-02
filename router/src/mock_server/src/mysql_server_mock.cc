@@ -50,6 +50,7 @@
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/net_ts/local.h"
 #include "mysql/harness/net_ts/socket.h"
+#include "mysql/harness/tls_server_context.h"
 #include "x_mock_session.h"
 IMPORT_LOG_FUNCTIONS()
 
@@ -61,13 +62,17 @@ namespace server_mock {
 MySQLServerMock::MySQLServerMock(std::string expected_queries_file,
                                  std::string module_prefix,
                                  std::string bind_address, unsigned bind_port,
-                                 std::string protocol_name, bool debug_mode)
+                                 std::string protocol_name, bool debug_mode,
+                                 TlsServerContext &&tls_server_ctx,
+                                 mysql_ssl_mode ssl_mode)
     : bind_address_(std::move(bind_address)),
       bind_port_{bind_port},
       debug_mode_{debug_mode},
       expected_queries_file_{std::move(expected_queries_file)},
       module_prefix_{std::move(module_prefix)},
-      protocol_name_(std::move(protocol_name)) {
+      protocol_name_(std::move(protocol_name)),
+      tls_server_ctx_{std::move(tls_server_ctx)},
+      ssl_mode_{ssl_mode} {
   if (debug_mode_)
     std::cout << "\n\nExpected SQL queries come from file '"
               << expected_queries_file << "'\n\n"
@@ -210,12 +215,12 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv *env) {
       std::unique_ptr<MySQLClassicProtocol> classic_protocol;
       if (protocol_name_ == "x") {
         x_protocol = std::make_unique<MySQLXProtocol>(
-            std::move(work.client_socket), work.wakeup_fd);
+            std::move(work.client_socket), work.wakeup_fd, tls_server_ctx_);
 
         protocol = x_protocol.get();
       } else if (protocol_name_ == "classic") {
         classic_protocol = std::make_unique<MySQLClassicProtocol>(
-            std::move(work.client_socket), work.wakeup_fd);
+            std::move(work.client_socket), work.wakeup_fd, tls_server_ctx_);
         protocol = classic_protocol.get();
       }
 
@@ -226,17 +231,21 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv *env) {
                 // expose session data json-encoded string
                 {
                     {"port", std::to_string(bind_port_)},
+                    {"ssl_cipher", "\"\""},
+                    {"mysqlx_ssl_cipher", "\"\""},
                 },
                 MySQLServerSharedGlobals::get())};
 
         std::unique_ptr<MySQLServerMockSession> session;
+        const bool with_tls = ssl_mode_ != SSL_MODE_DISABLED;
         if (protocol_name_ == "classic") {
           session = std::make_unique<MySQLServerMockSessionClassic>(
               classic_protocol.get(), std::move(statement_reader),
-              work.debug_mode);
+              work.debug_mode, with_tls);
         } else if (protocol_name_ == "x") {
           session = std::make_unique<MySQLServerMockSessionX>(
-              x_protocol.get(), std::move(statement_reader), work.debug_mode);
+              x_protocol.get(), std::move(statement_reader), work.debug_mode,
+              with_tls);
         }
 
         try {

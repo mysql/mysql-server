@@ -30,9 +30,11 @@
 #include <set>
 
 #include "mock_session.h"
+#include "mysql.h"  // mysql_ssl_mode
 #include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/net_ts/local.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/tls_server_context.h"
 #include "mysqlrouter/mock_server_component.h"
 #include "statement_reader.h"
 
@@ -58,10 +60,13 @@ class MySQLServerMock {
    * @param protocol the protocol this mock instance speaks: "x" or "classic"
    * @param debug_mode Flag indicating if the handled queries should be printed
    * to the standard output
+   * @param tls_server_ctx TLS Server Context
+   * @param ssl_mode SSL mode
    */
   MySQLServerMock(std::string expected_queries_file, std::string module_prefix,
                   std::string bind_address, unsigned bind_port,
-                  std::string protocol, bool debug_mode);
+                  std::string protocol, bool debug_mode,
+                  TlsServerContext &&tls_server_ctx, mysql_ssl_mode ssl_mode);
 
   /** @brief Starts handling the clients connections in infinite loop.
    *         Will return only in case of an exception (error).
@@ -90,6 +95,10 @@ class MySQLServerMock {
   local::stream_protocol::socket
 #endif
       wakeup_sock_send_{io_ctx_};
+
+  TlsServerContext tls_server_ctx_;
+
+  mysql_ssl_mode ssl_mode_;
 };
 
 class MySQLServerSharedGlobals {

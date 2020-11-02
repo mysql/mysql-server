@@ -31,12 +31,16 @@
 #include <system_error>
 #include <thread>  // sleep_for
 
+#include <openssl/err.h>
+
 #include "classic_mock_session.h"
 #include "harness_assert.h"
 #include "mysql/harness/logging/logging.h"  // log_
 #include "mysql/harness/net_ts/internet.h"  // net::ip::tcp
 #include "mysql/harness/net_ts/socket.h"
 #include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/tls_error.h"
+#include "mysql/harness/tls_server_context.h"
 #include "x_mock_session.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -46,8 +50,11 @@ using namespace std::chrono_literals;
 namespace server_mock {
 
 ProtocolBase::ProtocolBase(net::ip::tcp::socket &&client_sock,
-                           net::impl::socket::native_handle_type wakeup_fd)
-    : client_socket_{std::move(client_sock)}, wakeup_fd_{wakeup_fd} {
+                           net::impl::socket::native_handle_type wakeup_fd,
+                           TlsServerContext &tls_ctx)
+    : client_socket_{std::move(client_sock)},
+      wakeup_fd_{wakeup_fd},
+      tls_ctx_{tls_ctx} {
   // if it doesn't work, no problem.
   //
   client_socket_.set_option(net::ip::tcp::no_delay{true});
@@ -81,37 +88,65 @@ stdx::expected<bool, std::error_code> ProtocolBase::socket_has_data(
 
 void ProtocolBase::send_buffer(net::const_buffer buf) {
   while (buf.size() > 0) {
-    auto send_res = client_socket_.send(buf);
-    if (!send_res) {
-      if (send_res.error() == std::errc::operation_would_block) {
-        auto writable_res = socket_has_data(-1ms);
+    if (is_tls()) {
+      auto ssl_res = SSL_write(ssl_.get(), buf.data(), buf.size());
+      if (ssl_res <= 0) {
+        auto ec = make_tls_ssl_error(ssl_.get(), ssl_res);
 
-        if (writable_res) continue;
-
-        throw std::system_error(writable_res.error(), "send_buffer()");
+        throw std::system_error(ec, "send_buffer()");
       }
-      throw std::system_error(send_res.error(), "send_buffer()");
-    }
+      buf += ssl_res;
+    } else {
+      auto send_res = client_socket_.send(buf);
+      if (!send_res) {
+        if (send_res.error() == std::errc::operation_would_block) {
+          auto writable_res = socket_has_data(-1ms);
 
-    buf += send_res.value();
+          if (writable_res) continue;
+
+          throw std::system_error(writable_res.error(), "send_buffer()");
+        }
+        throw std::system_error(send_res.error(), "send_buffer()");
+      }
+
+      buf += send_res.value();
+    }
   }
 }
 
 void ProtocolBase::read_buffer(net::mutable_buffer &buf) {
   while (buf.size() > 0) {
-    auto recv_res = client_socket_.receive(buf);
-    if (!recv_res) {
-      if (recv_res.error() == std::errc::operation_would_block) {
-        auto readable_res = socket_has_data(std::chrono::milliseconds{-1});
-        if (readable_res) continue;
+    if (is_tls()) {
+      const auto res = SSL_read(ssl_.get(), buf.data(), buf.size());
+      if (res <= 0) {
+        const auto ec = make_tls_ssl_error(ssl_.get(), res);
 
-        throw std::system_error(readable_res.error(), "read_buffer()");
+        if (ec == TlsErrc::kWantRead) {
+          const auto readable_res =
+              socket_has_data(std::chrono::milliseconds{-1});
+          if (readable_res) continue;
+
+          throw std::system_error(readable_res.error(), "read_buffer()::wait");
+        }
+
+        throw std::system_error(ec, "SSL_read()");
+      }
+      buf += res;
+    } else {
+      auto recv_res = client_socket_.receive(buf);
+      if (!recv_res) {
+        if (recv_res.error() == std::errc::operation_would_block) {
+          auto readable_res = socket_has_data(std::chrono::milliseconds{-1});
+          if (readable_res) continue;
+
+          throw std::system_error(readable_res.error(), "read_buffer()");
+        }
+
+        throw std::system_error(recv_res.error(), "read_buffer()");
       }
 
-      throw std::system_error(recv_res.error(), "read_buffer()");
+      buf += recv_res.value();
     }
-
-    buf += recv_res.value();
   }
 }
 
