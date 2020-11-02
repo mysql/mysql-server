@@ -6622,7 +6622,8 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
     ib::trace_1() << "Extending space id : " << space->id
                   << ", space name : " << space->name
                   << ", space size : " << space->size
-                  << " page, page size : " << phy_page_size;
+                  << " pages, page size : " << phy_page_size
+                  << ", to size : " << size;
 #endif /* UNIV_HOTBACKUP */
 
     if (file->in_use == 0) {
