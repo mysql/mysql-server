@@ -28,7 +28,7 @@ t1	CREATE TABLE `t1` (
   `c2` char(120) NOT NULL DEFAULT '',
   `c21` char(60) NOT NULL DEFAULT '',
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 SELECT c1, c2, c21 FROM t1;
 c1	c2	c21
 1	Darmstadt	City
