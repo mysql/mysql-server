@@ -122,9 +122,10 @@ class Ndb_plugin_reference {
 class Ndb_server_hooks {
   typedef int hook_t(void*);
 
-  struct Binlog_relay_IO_observer *m_binlog_relay_io_observer = NULL;
+  struct Binlog_relay_IO_observer *m_binlog_relay_io_observer;
 
  public:
+  Ndb_server_hooks();
   ~Ndb_server_hooks();
 
   bool register_applier_start(hook_t *);
