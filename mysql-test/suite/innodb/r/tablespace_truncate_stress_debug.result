@@ -1,4 +1,4 @@
-set global DEBUG="+d,buf_lru_free_page_delay_block_mutex_reacquisition";
+set global DEBUG="+d,buf_lru_free_page_delay_block_mutex_reacquisition,buf_page_free_stale_delay_lru_mutex_acquisition";
 create table evict (
 d mediumtext not null);
 create table t_temp (
@@ -2619,4 +2619,4 @@ select sum(length(d)) from evict;;
 sum(length(d))
 1054720
 DROP TABLE t_temp, evict;
-set global DEBUG="-d,buf_lru_free_page_delay_block_mutex_reacquisition";
+set global DEBUG="-d,buf_lru_free_page_delay_block_mutex_reacquisition,buf_page_free_stale_delay_lru_mutex_acquisition";
