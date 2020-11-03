@@ -7650,7 +7650,7 @@ Options to control what test suites or cases to run
                         'non-default'- will scan the mysql directory for
                                        available suites and runs only the
                                        non-default suites.
-  with-ndbcluster-only  Run only tests that include "ndb" in the filename.
+  with-ndbcluster-only  Run only ndb tests.
 
 Options that specify ports
 
