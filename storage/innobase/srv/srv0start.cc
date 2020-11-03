@@ -1352,6 +1352,11 @@ dberr_t srv_undo_tablespaces_upgrade() {
     }
   }
 
+  /* All pages should be removed from the spaces we deleted. We just collect
+  them now, so that the space_id -> shard mapping is correct - it will be
+  changed the second the trx_sys_undo_spaces is cleared.*/
+  fil_purge();
+
   /* Remove the tracking of these undo tablespaces from TRX_SYS page and
   trx_sys->rsegs. */
   trx_rseg_upgrade_undo_tablespaces();
