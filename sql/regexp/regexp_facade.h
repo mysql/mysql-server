@@ -125,6 +125,11 @@ class Regexp_facade {
   /// Delete the "engine" data structure after execution.
   void cleanup() { m_engine = nullptr; }
 
+  /// Did any operation return a warning? For unit testing.
+  bool EngineHasWarning() const {
+    return m_engine != nullptr && m_engine->HasWarning();
+  }
+
  private:
   /**
     Resets the compiled regular expression with a new string.
