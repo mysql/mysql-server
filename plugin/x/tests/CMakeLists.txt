@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 ADD_SUBDIRECTORY(driver)
+ADD_SUBDIRECTORY(components)
 
 IF(XPLUGIN_ADDITIONAL_TESTS_PATH)
   IF(EXISTS ${XPLUGIN_ADDITIONAL_TESTS_PATH}/)

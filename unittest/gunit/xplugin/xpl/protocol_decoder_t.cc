@@ -27,7 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <cstdint>
 #include <memory>
 
-#include "plugin/x/ngs/include/ngs/protocol_decoder.h"
+#include "plugin/x/src/ngs/protocol_decoder.h"
 #include "plugin/x/src/operations_factory.h"
 #include "plugin/x/src/variables/system_variables.h"
 #include "unittest/gunit/xplugin/xpl/mock/session.h"

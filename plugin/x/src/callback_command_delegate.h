@@ -32,7 +32,7 @@
 #include <string>
 #include <vector>
 
-#include "plugin/x/ngs/include/ngs/command_delegate.h"
+#include "plugin/x/src/ngs/command_delegate.h"
 
 namespace xpl {
 class Callback_command_delegate : public ngs::Command_delegate {
