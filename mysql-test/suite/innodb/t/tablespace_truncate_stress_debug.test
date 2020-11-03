@@ -4,8 +4,8 @@
 
 --source include/have_debug.inc
 
-set global DEBUG="+d,buf_lru_free_page_delay_block_mutex_reacquisition";
+set global DEBUG="+d,buf_lru_free_page_delay_block_mutex_reacquisition,buf_page_free_stale_delay_lru_mutex_acquisition";
 
 --source tablespace_truncate_stress.test
 
-set global DEBUG="-d,buf_lru_free_page_delay_block_mutex_reacquisition";
+set global DEBUG="-d,buf_lru_free_page_delay_block_mutex_reacquisition,buf_page_free_stale_delay_lru_mutex_acquisition";

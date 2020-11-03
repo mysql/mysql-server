@@ -5269,6 +5269,9 @@ bool buf_page_free_stale(buf_pool_t *buf_pool, buf_page_t *bpage,
 
   rw_lock_s_unlock(hash_lock);
 
+  DBUG_EXECUTE_IF("buf_page_free_stale_delay_lru_mutex_acquisition",
+                  os_thread_sleep(10000););
+
   mutex_enter(&buf_pool->LRU_list_mutex);
 
   /* Prepare to free, we own the LRU. */
@@ -5326,9 +5329,15 @@ void buf_page_free_stale_during_write(buf_page_t *bpage,
 
   mutex_exit(&buf_pool->flush_state_mutex);
 
-  /* Free the page. */
-  auto success = buf_LRU_free_page(bpage, true);
-  ut_a(success);
+  /* Free the page. This can fail, if some other thread start to free this stale
+  page during page creation - the buf_page_free_stale will buf fix the page
+  to acquire the LRU mutex, and right before that acquisition happens our
+  thread can be during a flush that will end up on this line.*/
+  if (!buf_LRU_free_page(bpage, true)) {
+    mutex_exit(block_mutex);
+    mutex_exit(&buf_pool->LRU_list_mutex);
+  }
+
   ut_ad(!mutex_own(block_mutex));
   ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 }
