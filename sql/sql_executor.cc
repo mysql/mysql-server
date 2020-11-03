@@ -6417,6 +6417,7 @@ bool change_to_use_tmp_fields_except_sums(mem_root_deque<Item *> *fields,
 
     new_item->update_used_tables();
 
+    assert_consistent_hidden_flags(*res_fields, new_item, item->hidden);
     new_item->hidden = item->hidden;
     res_fields->push_back(new_item);
     ref_item_array[(item->hidden ? fields->size() - i - 1
