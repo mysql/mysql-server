@@ -4303,6 +4303,30 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
     }
   }
 
+  // If we couldn't find the item, see if we can find it in a merged derived
+  // table, hidden behind an Item_view_ref. This is a lowest-priority
+  // fallback to make sure we don't add the field twice to the select list;
+  // once as hidden (directly) and once as visible (through the view_ref).
+  // Such double-adds would be a problem if we later create a temporary table
+  // containing the item, which will call item->get_tmp_table_item() and
+  // effectively peel away the ref -- an item cannot be both visible and
+  // hidden at the same time.
+  counter = 0;
+  for (auto it = VisibleFields(*fields).begin();
+       it != VisibleFields(*fields).end(); ++it, ++counter) {
+    Item *item = *it;
+    if (item->type() == Item::REF_ITEM &&
+        ((Item_ref *)item)->ref_type() == Item_ref::VIEW_REF) {
+      Item_view_ref *item_ref = down_cast<Item_view_ref *>(item);
+      if (item_ref->cached_table->is_merged() &&
+          order_item->eq(*item_ref->ref, false)) {
+        order->item = &ref_item_array[counter];
+        order->in_field_list = true;
+        return false;
+      }
+    }
+  }
+
   order->in_field_list = false;
   /*
     The call to order_item->fix_fields() means that here we resolve
