@@ -1037,14 +1037,14 @@ bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr,
 /** Enable UNDO tablespaces encryption.
 @param[in] is_boot	true if it is called during server start up. In this
                         case, default master key will be used which will be
-                        rotated later with actual master key from kyering.
+                        rotated later with actual master key from keyring.
 @return false for success, true otherwise. */
 bool srv_enable_undo_encryption(bool is_boot);
 
 /** Enable REDO log encryption.
 @param[in] is_boot	true if it is called during server start up. In this
                         case, default master key will be used which will be
-                        rotated later with actual master key from kyering.
+                        rotated later with actual master key from keyring.
 @return false for success, true otherwise. */
 bool srv_enable_redo_encryption(bool is_boot);
 

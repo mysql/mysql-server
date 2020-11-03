@@ -2678,38 +2678,20 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
   /* If the SDI flag is set in the file header page, set it in space->flags. */
   space->flags |= flags & FSP_FLAGS_MASK_SDI;
 
-#ifndef UNIV_HOTBACKUP
-  /* It is possible that
-  - For general tablespace, encryption flag is updated on disk but server
-  crashed before DD could be updated OR
-  - For DD tablespace, encryption flag is updated on disk.
-  */
-  if (FSP_FLAGS_GET_ENCRYPTION(flags)) {
+  /* Data dictionary and tablespace are flushed at different points in
+  time. If a crash happens in between, they can have different
+  encryption flags as long as the redo log is not replayed. To avoid a
+  recovery error due to differing encryption flags, ensure that the
+  fil_space_t instance has the same setting as the header page. First
+  clear the encryption flag, then set it from the flags found in the
+  file. */
+  if (recv_recovery_is_on()) {
+    fsp_flags_unset_encryption(space->flags);
     space->flags |= flags & FSP_FLAGS_MASK_ENCRYPTION;
-  }
-#endif /* UNIV_HOTBACKUP */
-
-  /* Make a copy of space->flags and flags from the page header
-  so that they can be compared. */
-  uint32_t fil_space_flags = space->flags;
-  uint32_t header_fsp_flags = flags;
-
-  /* If a crash occurs while an UNDO space is being truncated,
-  it will be created new at startup. In that case, the fil_space_t
-  object will have the ENCRYPTION flag set, but the header page will
-  not be marked until the srv_master_thread gets around to it.
-  The opposite can occur where the header page contains the encryption
-  flag but the fil_space_t does not.  It could happen that undo
-  encryption was turned off just before the crash or shutdown so that
-  the srv_master_thread did not yet have time to apply it.
-  So don't compare the encryption flag for undo tablespaces. */
-  if (fsp_is_undo_tablespace(space->id)) {
-    fsp_flags_unset_encryption(fil_space_flags);
-    fsp_flags_unset_encryption(header_fsp_flags);
   }
 
   /* Make sure the space_flags are the same as the header page flags. */
-  if (fil_space_flags != header_fsp_flags) {
+  if (space->flags != flags) {
     ib::error(ER_IB_MSG_272, ulong{space->flags}, file->name, ulonglong{flags});
     ut_error;
   }
@@ -6640,7 +6622,8 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
     ib::trace_1() << "Extending space id : " << space->id
                   << ", space name : " << space->name
                   << ", space size : " << space->size
-                  << " page, page size : " << phy_page_size;
+                  << " pages, page size : " << phy_page_size
+                  << ", to size : " << size;
 #endif /* UNIV_HOTBACKUP */
 
     if (file->in_use == 0) {
