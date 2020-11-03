@@ -302,6 +302,12 @@ class HashJoinIterator final : public RowIterator {
   ///   Whether we need to enable batch mode on the probe input table.
   ///   Only make sense if it is a single table, and we are not on the
   ///   outer side of any nested loop join.
+  /// @param hash_table_generation
+  ///   If this is non-nullptr, it is a counter of how many times the query
+  ///   block the iterator is a part of has been asked to clear hash tables,
+  ///   since outer references may have changed value. It is used to know when
+  ///   we need to drop our hash table; when the value changes, we need to drop
+  ///   it. If it is nullptr, we _always_ drop it on Init().
   HashJoinIterator(THD *thd, unique_ptr_destroy_only<RowIterator> build_input,
                    table_map build_input_tables, double estimated_build_rows,
                    unique_ptr_destroy_only<RowIterator> probe_input,
@@ -312,7 +318,8 @@ class HashJoinIterator final : public RowIterator {
                    bool allow_spill_to_disk, JoinType join_type,
                    const JOIN *join,
                    const Mem_root_array<Item *> &extra_conditions,
-                   bool probe_input_batch_mode);
+                   bool probe_input_batch_mode,
+                   uint64_t *hash_table_generation);
 
   bool Init() override;
 
@@ -491,6 +498,8 @@ class HashJoinIterator final : public RowIterator {
   };
 
   State m_state;
+  uint64_t *m_hash_table_generation;
+  uint64_t m_last_hash_table_generation;
 
   const unique_ptr_destroy_only<RowIterator> m_build_input;
   const unique_ptr_destroy_only<RowIterator> m_probe_input;

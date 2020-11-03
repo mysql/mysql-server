@@ -1077,6 +1077,7 @@ bool Query_expression::clear_correlated_query_blocks() {
   for (Query_block *sl = first_query_block(); sl; sl = sl->next_query_block()) {
     sl->join->clear_corr_derived_tmp_tables();
     sl->join->clear_sj_tmp_tables();
+    sl->join->clear_hash_tables();
   }
   if (!m_with_clause) return false;
   for (auto el : m_with_clause->m_list->elements()) {

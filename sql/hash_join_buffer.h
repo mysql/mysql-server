@@ -228,6 +228,8 @@ class HashJoinRowBuffer {
 
   bool empty() const { return m_hash_map->empty(); }
 
+  bool inited() const { return m_hash_map != nullptr; }
+
   using hash_map_type = robin_hood::unordered_flat_map<
       ImmutableStringWithLength, LinkedImmutableString, KeyHasher, KeyEquals>;
 

@@ -68,9 +68,11 @@ HashJoinIterator::HashJoinIterator(
     table_map tables_to_get_rowid_for, size_t max_memory_available,
     const std::vector<HashJoinCondition> &join_conditions,
     bool allow_spill_to_disk, JoinType join_type, const JOIN *join,
-    const Mem_root_array<Item *> &extra_conditions, bool probe_input_batch_mode)
+    const Mem_root_array<Item *> &extra_conditions, bool probe_input_batch_mode,
+    uint64_t *hash_table_generation)
     : RowIterator(thd),
       m_state(State::READING_ROW_FROM_PROBE_ITERATOR),
+      m_hash_table_generation(hash_table_generation),
       m_build_input(move(build_input)),
       m_probe_input(move(probe_input)),
       m_probe_input_tables(join, probe_input_tables, store_rowids,
@@ -143,6 +145,36 @@ bool HashJoinIterator::InitProbeIterator() {
 }
 
 bool HashJoinIterator::Init() {
+  // If we are entirely in-memory and the JOIN we are part of hasn't been
+  // asked to clear its hash tables since last time, we can reuse the table
+  // without having to rebuild it. This is useful if we are on the right side
+  // of a nested loop join, ie., we might be scanned multiple times.
+  //
+  // Note that this only ever happens in the hypergraph optimizer; see comments
+  // in CreateIteratorFromAccessPath().
+  if (m_row_buffer.inited() &&
+      (m_hash_join_type == HashJoinType::IN_MEMORY ||
+       (m_hash_join_type == HashJoinType::SPILL_TO_DISK &&
+        m_chunk_files_on_disk.empty())) &&
+      m_hash_table_generation != nullptr &&
+      *m_hash_table_generation == m_last_hash_table_generation) {
+    m_probe_row_match_flag = false;
+    m_probe_chunk_current_row = 0;
+    m_current_chunk = -1;
+    m_hash_join_type = HashJoinType::IN_MEMORY;
+
+    if (m_join_type == JoinType::ANTI && m_join_conditions.empty() &&
+        m_extra_condition == nullptr && !m_row_buffer.empty()) {
+      // See below.
+      m_state = State::END_OF_ROWS;
+      return false;
+    } else {
+      m_state = State::READING_ROW_FROM_PROBE_ITERATOR;
+      m_probe_input->EndPSIBatchModeIfStarted();
+      return InitProbeIterator();
+    }
+  }
+
   // Prepare to read the build input into the hash map.
   PrepareForRequestRowId(m_build_input_tables.tables(),
                          m_tables_to_get_rowid_for);
@@ -204,6 +236,9 @@ bool HashJoinIterator::Init() {
     assert(thd()->is_error() ||
            thd()->killed);  // my_error should have been called.
     return true;
+  }
+  if (m_hash_table_generation != nullptr) {
+    m_last_hash_table_generation = *m_hash_table_generation;
   }
 
   if (m_state == State::END_OF_ROWS) {

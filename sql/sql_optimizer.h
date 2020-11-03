@@ -393,6 +393,13 @@ class JOIN {
   int error{0};  ///< set in optimize(), exec(), prepare_result()
 
   /**
+    Incremented each time clear_hash_tables() is run, signaling to
+    HashJoinIterators that they cannot keep their hash tables anymore
+    (since outer references may have changed).
+   */
+  uint64_t hash_table_generation{0};
+
+  /**
     ORDER BY and GROUP BY lists, to transform with prepare,optimize and exec
   */
   ORDER_with_src order, group_list;
@@ -685,6 +692,7 @@ class JOIN {
       table_map plan_tables, uint idx) const;
   bool clear_sj_tmp_tables();
   bool clear_corr_derived_tmp_tables();
+  void clear_hash_tables() { ++hash_table_generation; }
 
   void mark_const_table(JOIN_TAB *table, Key_use *key);
   /// State of execution plan. Currently used only for EXPLAIN

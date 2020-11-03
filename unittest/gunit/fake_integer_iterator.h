@@ -52,6 +52,7 @@ class FakeIntegerIterator final : public TableRowIterator {
   }
 
   int Read() override {
+    ++m_num_read_calls;
     if (m_current_index == m_dataset.size()) {
       return -1;
     }
@@ -60,8 +61,11 @@ class FakeIntegerIterator final : public TableRowIterator {
     return 0;
   }
 
+  int num_read_calls() const { return m_num_read_calls; }
+
  private:
   size_t m_current_index{0};
+  int m_num_read_calls{0};
   Field_long *m_field;
   std::vector<int> m_dataset;
 };

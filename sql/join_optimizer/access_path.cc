@@ -498,12 +498,29 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         default:
           assert(false);
       }
+      // See if we can allow the hash table to keep its contents across Init()
+      // calls.
+      //
+      // The old optimizer will sometimes push join conditions referring
+      // to outer tables (in the same query block) down in under the hash
+      // operation, so without analysis of each filter and join condition, we
+      // cannot say for sure, and thus have to turn it off. But the hypergraph
+      // optimizer is strictly modular, and will never do this -- so it's safe.
+      //
+      // Regardless of optimizer, we can push outer references down in under the
+      // hash, but join->hash_table_generation will increase whenever we need to
+      // recompute the query block (in JOIN::clear_hash_tables()).
+      uint64_t *hash_table_generation = thd->lex->using_hypergraph_optimizer
+                                            ? &join->hash_table_generation
+                                            : nullptr;
+
       iterator = NewIterator<HashJoinIterator>(
           thd, move(inner), GetUsedTables(param.inner), estimated_build_rows,
           move(outer), GetUsedTables(param.outer), param.store_rowids,
           param.tables_to_get_rowid_for, thd->variables.join_buff_size,
           move(conditions), param.allow_spill_to_disk, join_type, join,
-          join_predicate->expr->join_conditions, probe_input_batch_mode);
+          join_predicate->expr->join_conditions, probe_input_batch_mode,
+          hash_table_generation);
       break;
     }
     case AccessPath::FILTER: {
