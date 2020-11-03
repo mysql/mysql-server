@@ -65,7 +65,6 @@
 #include "plugin_config.h"
 #include "protocol/base_protocol.h"
 #include "protocol/protocol.h"
-#include "socket_operations.h"
 #include "ssl_mode.h"
 #include "tcp_address.h"
 
