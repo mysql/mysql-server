@@ -75,7 +75,6 @@
 #include "router_config.h"
 #include "ssl_mode.h"
 #include "tcp_address.h"
-#include "utils.h"
 
 namespace mysql_harness {
 class PluginFuncEnv;

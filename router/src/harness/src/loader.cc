@@ -226,11 +226,6 @@ static void register_fatal_signal_handler() {
 #endif
 }
 
-/**
- * Set the log reopen completion callback function pointer.
- *
- * @param cb Function to call at completion.
- */
 void set_log_reopen_complete_callback(log_reopen_callback cb) {
   g_log_reopen_complete_callback_fp = cb;
 }

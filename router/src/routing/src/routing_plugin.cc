@@ -42,7 +42,6 @@
 #include "mysqlrouter/routing_export.h"  // ROUTING_EXPORT
 #include "plugin_config.h"
 #include "ssl_mode.h"
-#include "utils.h"
 
 using mysql_harness::AppInfo;
 using mysql_harness::ConfigSection;
