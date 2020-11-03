@@ -696,8 +696,12 @@ int runTestNoConfigCache(NDBT_Context* ctx, NDBT_Step* step)
                                              "config.ini",
                                              NULL).c_str()));
   
+  MgmdProcessList mgmds;
+
   // Start ndb_mgmd  from config.ini
   Mgmd* mgmd = new Mgmd(1);
+  mgmds.push_back(mgmd);
+
   CHECK(mgmd->start_from_config_ini(wd.path(), "--skip-config-cache", NULL));
      
   // Connect the ndb_mgmd(s)
@@ -729,8 +733,12 @@ int runTestNoConfigCache_DontCreateConfigDir(NDBT_Context* ctx, NDBT_Step* step)
                                              "config.ini",
                                              NULL).c_str()));
 
+  MgmdProcessList mgmds;
+
   g_err << "Test no configdir is created with --skip-config-cache" << endl;
   Mgmd* mgmd = new Mgmd(1);
+  mgmds.push_back(mgmd);
+
   CHECK(mgmd->start_from_config_ini(wd.path(),
                                     "--skip-config-cache",
                                     "--config-dir=dir37",
