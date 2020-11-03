@@ -598,7 +598,7 @@ bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx, KEY *key,
   }
   path.num_output_rows_before_filter = num_output_rows;
   path.cost_before_filter = cost;
-  path.init_cost = 0.0;
+  path.init_cost = path.init_once_cost = 0.0;
   path.parameter_tables = GetNodeMapFromTableMap(
       parameter_tables & ~table->pos_in_table_list->map(),
       m_graph.table_num_to_node_num);
@@ -645,7 +645,7 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx,
   double cost = table->file->table_scan_cost().total_cost();
 
   path.num_output_rows_before_filter = num_output_rows;
-  path.init_cost = 0.0;
+  path.init_cost = path.init_once_cost = 0.0;
   path.cost_before_filter = cost;
 
   ApplyPredicatesForBaseTable(node_idx, /*applied_predicates=*/0,
@@ -676,7 +676,8 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx,
     materialize_path->num_output_rows = path.num_output_rows;
     materialize_path->num_output_rows_before_filter =
         path.num_output_rows_before_filter;
-    materialize_path->init_cost = path.cost;  // Rudimentary.
+    materialize_path->init_cost = path.cost;       // Rudimentary.
+    materialize_path->init_once_cost = path.cost;  // Rudimentary.
     materialize_path->cost_before_filter = path.cost;
     materialize_path->cost = path.cost;
     materialize_path->filter_predicates = path.filter_predicates;
@@ -708,7 +709,7 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx,
           m_thd, table, tl->table_function, stable_path);
       CopyCosts(*stable_path, materialize_path);
       materialize_path->cost_before_filter = materialize_path->init_cost =
-          materialize_path->cost;
+          materialize_path->init_once_cost = materialize_path->cost;
       materialize_path->num_output_rows_before_filter =
           materialize_path->num_output_rows;
 
@@ -951,6 +952,17 @@ void CostingReceiver::ProposeHashJoin(NodeMap left, NodeMap right,
   join_path.cost_before_filter = cost;
   join_path.num_output_rows = num_output_rows;
   join_path.init_cost = build_cost + left_path->init_cost;
+
+  const double hash_memory_used_bytes =
+      edge->estimated_bytes_per_row * right_path->num_output_rows;
+  if (hash_memory_used_bytes <= m_thd->variables.join_buff_size * 0.9) {
+    // Fits in memory (with 10% estimation margin), so the hash table can be
+    // reused.
+    join_path.init_once_cost = build_cost + left_path->init_once_cost;
+  } else {
+    join_path.init_once_cost =
+        left_path->init_once_cost + right_path->init_once_cost;
+  }
   join_path.cost = cost;
 
   ApplyDelayedPredicatesAfterJoin(left, right, left_path, right_path,
@@ -1106,10 +1118,12 @@ void CostingReceiver::ProposeNestedLoopJoin(NodeMap left, NodeMap right,
   join_path.num_output_rows_before_filter = join_path.num_output_rows =
       FindOutputRowsForJoin(left_path, right_path, edge,
                             already_applied_selectivity);
+  const AccessPath *inner = join_path.nested_loop_join().inner;
+  double inner_rescan_cost = inner->cost - inner->init_once_cost;
   join_path.init_cost = left_path->init_cost;
   join_path.cost_before_filter = join_path.cost =
-      left_path->cost +
-      join_path.nested_loop_join().inner->cost * left_path->num_output_rows;
+      left_path->cost + inner->init_cost +
+      inner_rescan_cost * left_path->num_output_rows;
 
   ApplyDelayedPredicatesAfterJoin(left, right, left_path, right_path,
                                   &join_path);
@@ -1157,6 +1171,12 @@ static inline PathComparisonResult CompareAccessPaths(const AccessPath &a,
     b_is_better = true;
   }
 
+  if (a.init_once_cost < b.init_once_cost) {
+    a_is_better = true;
+  } else if (b.init_once_cost < a.init_once_cost) {
+    b_is_better = true;
+  }
+
   if (a.parameter_tables != b.parameter_tables) {
     if (!IsSubset(a.parameter_tables, b.parameter_tables)) {
       b_is_better = true;
@@ -1194,8 +1214,12 @@ static inline PathComparisonResult CompareAccessPaths(const AccessPath &a,
 
 static string PrintCost(const AccessPath &path, const JoinHypergraph &graph,
                         const char *description_for_trace) {
-  string str = StringPrintf("{cost=%.1f, init_cost=%.1f, rows=%.1f", path.cost,
-                            path.init_cost, path.num_output_rows);
+  string str =
+      StringPrintf("{cost=%.1f, init_cost=%.1f", path.cost, path.init_cost);
+  if (path.init_once_cost != 0.0) {
+    str += StringPrintf(", init_once_cost=%.1f", path.init_once_cost);
+  }
+  str += StringPrintf(", rows=%.1f", path.num_output_rows);
 
   // Print parameter tables, if any.
   if (path.parameter_tables != 0) {
@@ -1431,6 +1455,7 @@ void EstimateSortCost(AccessPath *path) {
 
   path->num_output_rows = num_rows;
   path->cost = path->init_cost = child->cost + sort_cost;
+  path->init_once_cost = 0.0;
   path->num_output_rows_before_filter = path->num_output_rows;
   path->cost_before_filter = path->cost;
 }
@@ -1549,6 +1574,8 @@ AccessPath *CreateMaterializationPathForSortingAggregates(
     stream_path->num_output_rows = path->num_output_rows;
     stream_path->cost = path->cost;
     stream_path->init_cost = path->init_cost;
+    stream_path->init_once_cost =
+        0.0;  // Never recoverable across query blocks.
     stream_path->num_output_rows_before_filter = stream_path->num_output_rows;
     stream_path->cost_before_filter = stream_path->cost;
     return stream_path;
@@ -1583,11 +1610,15 @@ void EstimateMaterializeCost(AccessPath *path) {
 
   path->cost = 0;
   path->num_output_rows = 0;
+  double cost_for_cacheable = 0.0;
   for (const MaterializePathParameters::QueryBlock &block :
        path->materialize().param->query_blocks) {
     if (block.subquery_path->num_output_rows >= 0.0) {
       path->num_output_rows += block.subquery_path->num_output_rows;
       path->cost += block.subquery_path->cost;
+      if (block.join != nullptr && block.join->query_block->is_cacheable()) {
+        cost_for_cacheable += block.subquery_path->cost;
+      }
     }
   }
   path->cost += kMaterializeOneRowCost * path->num_output_rows;
@@ -1599,11 +1630,12 @@ void EstimateMaterializeCost(AccessPath *path) {
     temp_table->file->stats.records = path->num_output_rows;
 
     table_path->num_output_rows = path->num_output_rows;
-    table_path->init_cost = 0.0;
+    table_path->init_cost = table_path->init_once_cost = 0.0;
     table_path->cost = temp_table->file->table_scan_cost().total_cost();
   }
 
   path->init_cost = path->cost + std::max(table_path->init_cost, 0.0);
+  path->init_once_cost = cost_for_cacheable;
   path->cost = path->cost + std::max(table_path->cost, 0.0);
 }
 
@@ -1614,6 +1646,7 @@ void EstimateAggregateCost(AccessPath *path) {
   // will be reducing the output by?
   path->num_output_rows = child->num_output_rows;
   path->init_cost = child->init_cost;
+  path->init_once_cost = child->init_once_cost;
   path->cost = child->cost + kAggregateOneRowCost * child->num_output_rows;
   path->num_output_rows_before_filter = path->num_output_rows;
   path->cost_before_filter = path->cost;
@@ -2107,6 +2140,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
           root_path->num_output_rows *
           EstimateSelectivity(thd, join->having_cond, trace);
       filter_path.init_cost = root_path->init_cost;
+      filter_path.init_once_cost = root_path->init_once_cost;
       filter_path.cost =
           root_path->cost +
           EstimateFilterCost(root_path->num_output_rows, join->having_cond);
@@ -2169,6 +2203,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   WalkAccessPaths(root_path, join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
                   [&](const AccessPath *path, const JOIN *) {
                     assert(path->cost >= path->init_cost);
+                    assert(path->init_cost >= path->init_once_cost);
                     return false;
                   });
 #endif

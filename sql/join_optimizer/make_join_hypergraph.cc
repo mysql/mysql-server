@@ -61,6 +61,8 @@ using hypergraph::Hyperedge;
 using hypergraph::Hypergraph;
 using hypergraph::NodeMap;
 using std::array;
+using std::max;
+using std::min;
 using std::string;
 using std::swap;
 using std::vector;
@@ -1377,6 +1379,45 @@ Hyperedge FindHyperedgeAndJoinConflicts(THD *thd, NodeMap used_nodes,
   return {left, right};
 }
 
+size_t EstimateRowWidth(const JoinHypergraph &graph,
+                        const RelationalExpression *expr) {
+  size_t ret = 0;
+
+  // Estimate size of the join keys.
+  for (Item_func_eq *join_condition : expr->equijoin_conditions) {
+    // We heuristically limit our estimate of blobs to 4 kB.
+    // Otherwise, the mere presence of a LONGBLOB field would mean
+    // we'd estimate essentially infinite row width for a join.
+    //
+    // TODO(sgunders): Do as we do in the old optimizer,
+    // where we only store hashes for strings.
+    const Item *left = join_condition->get_arg(0);
+    const Item *right = join_condition->get_arg(1);
+    ret += min<size_t>(
+        max<size_t>(left->max_char_length(), right->max_char_length()), 4096);
+  }
+
+  // Estimate size of the values.
+  for (int node_idx : BitsSetIn(expr->nodes_in_subtree)) {
+    const TABLE *table = graph.nodes[node_idx].table;
+    for (uint i = 0; i < table->s->fields; ++i) {
+      if (bitmap_is_set(table->read_set, i)) {
+        Field *field = table->field[i];
+
+        // See above.
+        ret += min<size_t>(field->max_data_length(), 4096);
+      }
+    }
+  }
+
+  // Heuristically add 20 bytes for LinkedImmutableString and hash table
+  // overhead. (The actual overhead will vary with hash table fill factor
+  // and the number of keys that have multiple rows.)
+  ret += 20;
+
+  return ret;
+}
+
 }  // namespace
 
 /**
@@ -1439,7 +1480,9 @@ void MakeJoinGraphFromRelationalExpression(THD *thd, RelationalExpression *expr,
     *trace += StringPrintf("  - total: %.3f\n", selectivity);
   }
 
-  graph->edges.push_back(JoinPredicate{expr, selectivity});
+  const size_t estimated_bytes_per_row = EstimateRowWidth(*graph, expr);
+  graph->edges.push_back(
+      JoinPredicate{expr, selectivity, estimated_bytes_per_row});
 }
 
 NodeMap GetNodeMapFromTableMap(

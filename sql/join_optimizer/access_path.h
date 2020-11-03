@@ -63,6 +63,10 @@ struct TABLE_REF;
 struct JoinPredicate {
   const RelationalExpression *expr;
   double selectivity;
+
+  // If this join is made using a hash join, estimates the width
+  // of each row as stored in the hash table, in bytes.
+  size_t estimated_bytes_per_row;
 };
 
 /**
@@ -185,6 +189,18 @@ struct AccessPath {
   /// initialization cost, so that is what we use in this member.
   /// -1.0 for unknown.
   double init_cost{-1.0};
+
+  /// Of init_cost, how much of the initialization needs only to be done
+  /// once per query block. (This is a cost, not a proportion.)
+  /// Ie., if the access path can reuse some its initialization work
+  /// if Init() is called multiple times, this member will be nonzero.
+  /// A typical example is a materialized table with rematerialize=false;
+  /// the second time Init() is called, it's a no-op. Most paths will have
+  /// init_once_cost = 0.0, ie., repeated scans will cost the same.
+  /// We do not intend to use this field to model cache effects.
+  ///
+  /// This is currently not printed in EXPLAIN, only optimizer trace.
+  double init_once_cost{0.0};
 
   /// If no filter, identical to num_output_rows, cost, respectively.
   /// init_cost is always the same (filters have zero initialization cost).
@@ -775,15 +791,16 @@ static_assert(std::is_trivially_destructible<AccessPath>::value,
               "on the MEM_ROOT and not wrapped in unique_ptr_destroy_only"
               "(because multiple candidates during planning could point to "
               "the same access paths, and refcounting would be expensive)");
-static_assert(sizeof(AccessPath) <= 128,
+static_assert(sizeof(AccessPath) <= 136,
               "We are creating a lot of access paths in the join "
               "optimizer, so be sure not to bloat it without noticing. "
-              "(88 bytes for the base, 40 bytes for the variant.)");
+              "(96 bytes for the base, 40 bytes for the variant.)");
 
 inline void CopyCosts(const AccessPath &from, AccessPath *to) {
   to->num_output_rows = from.num_output_rows;
   to->cost = from.cost;
   to->init_cost = from.init_cost;
+  to->init_once_cost = from.init_once_cost;
   to->parameter_tables = from.parameter_tables;
 }
 
@@ -883,6 +900,7 @@ inline AccessPath *NewConstTableAccessPath(THD *thd, TABLE *table,
   path->num_output_rows = 1.0;
   path->cost = 0.0;
   path->init_cost = 0.0;
+  path->init_once_cost = 0.0;
   path->const_table().table = table;
   path->const_table().ref = ref;
   return path;
@@ -1043,6 +1061,7 @@ inline AccessPath *NewLimitOffsetAccessPath(THD *thd, AccessPath *child,
     path->init_cost = child->init_cost +
                       fraction_start_read * (child->cost - child->init_cost);
   }
+  path->init_once_cost = child->init_once_cost;
 
   return path;
 }
@@ -1055,6 +1074,7 @@ inline AccessPath *NewFakeSingleRowAccessPath(THD *thd,
   path->num_output_rows = 1.0;
   path->cost = 0.0;
   path->init_cost = 0.0;
+  path->init_once_cost = 0.0;
   return path;
 }
 
@@ -1067,6 +1087,7 @@ inline AccessPath *NewZeroRowsAccessPath(THD *thd, AccessPath *child,
   path->num_output_rows = 0.0;
   path->cost = 0.0;
   path->init_cost = 0.0;
+  path->init_once_cost = 0.0;
   return path;
 }
 

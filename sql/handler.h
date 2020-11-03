@@ -2201,6 +2201,7 @@ using compare_secondary_engine_cost_t = bool (*)(THD *thd, const JOIN &join,
   better match the costs of the access path in the secondary engine. It can
   change any of the following AccessPath members:
 
+  - init_once_cost
   - init_cost
   - cost
   - cost_before_filter
