@@ -158,7 +158,7 @@ uchar *net_store_length(uchar *packet, ulonglong length) {
 */
 
 uint net_length_size(ulonglong num) {
-  if (num < (ulonglong)252LL) return 1;
+  if (num < (ulonglong)251LL) return 1;
   if (num < (ulonglong)65536LL) return 3;
   if (num < (ulonglong)16777216LL) return 4;
   return 9;
