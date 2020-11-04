@@ -33,8 +33,8 @@
 
 #include <string>  // NOLINT(build/include_order)
 
-#include "plugin/x/src/ngs/error_code.h"
-#include "plugin/x/src/ngs/protocol/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/error_code.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/xpl_error.h"
 
 namespace xpl {

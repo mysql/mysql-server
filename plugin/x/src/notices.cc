@@ -28,8 +28,8 @@
 #include <string>
 #include <vector>
 
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/interface/sql_session.h"
-#include "plugin/x/src/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/xpl_resultset.h"
 
 namespace xpl {

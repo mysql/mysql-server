@@ -29,9 +29,9 @@
 #include <unordered_map>
 #include <utility>
 
+#include "plugin/x/ngs/include/ngs/thread.h"
 #include "plugin/x/src/helper/multithread/rw_lock.h"
 #include "plugin/x/src/interface/sha256_password_cache.h"
-#include "plugin/x/src/ngs/thread.h"
 #include "plugin/x/src/xpl_performance_schema.h"
 #include "sql/auth/i_sha2_password_common.h"
 

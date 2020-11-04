@@ -29,12 +29,12 @@
 #include <string>
 #include <vector>
 
+#include "plugin/x/ngs/include/ngs/client_list.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
 #include "plugin/x/src/interface/authentication.h"
 #include "plugin/x/src/interface/authentication_container.h"
 #include "plugin/x/src/interface/document_id_generator.h"
 #include "plugin/x/src/interface/session.h"
-#include "plugin/x/src/ngs/client_list.h"
 
 namespace ngs {
 class Scheduler_dynamic;

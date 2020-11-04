@@ -24,10 +24,10 @@
 
 #include "plugin/x/src/capabilities/handler_client_interactive.h"
 
+#include "plugin/x/ngs/include/ngs/mysqlx/getter_any.h"
+#include "plugin/x/ngs/include/ngs/mysqlx/setter_any.h"
 #include "plugin/x/src/config/config.h"
 #include "plugin/x/src/interface/client.h"
-#include "plugin/x/src/ngs/mysqlx/getter_any.h"
-#include "plugin/x/src/ngs/mysqlx/setter_any.h"
 #include "plugin/x/src/xpl_log.h"
 
 namespace xpl {

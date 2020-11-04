@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,18 +20,22 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET(MYSQLX_PROTOBUF_PROTO_SRC
-  mysqlx_connection.proto
-  mysqlx_crud.proto
-  mysqlx_cursor.proto
-  mysqlx_datatypes.proto
-  mysqlx_expect.proto
-  mysqlx_expr.proto
-  mysqlx_notice.proto
-  mysqlx_prepare.proto
-  mysqlx.proto
-  mysqlx_resultset.proto
-  mysqlx_session.proto
-  mysqlx_sql.proto
+SET(MYSQLX_PROTOBUF_PROTO_DIR
+  "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+
+SET(MYSQLX_PROTOBUF_PROTO_FILES
+  "${MYSQLX_PROTOBUF_PROTO_DIR}/mysqlx.proto"
+  "${MYSQLX_PROTOBUF_PROTO_DIR}/mysqlx_datatypes.proto"
+  "${MYSQLX_PROTOBUF_PROTO_DIR}/mysqlx_connection.proto"
+  "${MYSQLX_PROTOBUF_PROTO_DIR}/mysqlx_expect.proto"
+  "${MYSQLX_PROTOBUF_PROTO_DIR}/mysqlx_expr.proto"
+  "${MYSQLX_PROTOBUF_PROTO_DIR}/mysqlx_crud.proto"
+  "${MYSQLX_PROTOBUF_PROTO_DIR}/mysqlx_sql.proto"
+  "${MYSQLX_PROTOBUF_PROTO_DIR}/mysqlx_session.proto"
+  "${MYSQLX_PROTOBUF_PROTO_DIR}/mysqlx_notice.proto"
+  "${MYSQLX_PROTOBUF_PROTO_DIR}/mysqlx_resultset.proto"
+  "${MYSQLX_PROTOBUF_PROTO_DIR}/mysqlx_cursor.proto"
+  "${MYSQLX_PROTOBUF_PROTO_DIR}/mysqlx_prepare.proto"
 )
 

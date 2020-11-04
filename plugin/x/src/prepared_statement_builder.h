@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,9 +25,9 @@
 #ifndef PLUGIN_X_SRC_PREPARED_STATEMENT_BUILDER_H_
 #define PLUGIN_X_SRC_PREPARED_STATEMENT_BUILDER_H_
 
+#include "plugin/x/ngs/include/ngs/error_code.h"
+#include "plugin/x/ngs/include/ngs/protocol_fwd.h"
 #include "plugin/x/src/expr_generator.h"
-#include "plugin/x/src/ngs/error_code.h"
-#include "plugin/x/src/ngs/protocol_fwd.h"
 #include "plugin/x/src/query_string_builder.h"
 
 namespace xpl {

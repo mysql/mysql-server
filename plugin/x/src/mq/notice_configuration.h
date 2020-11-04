@@ -31,8 +31,8 @@
 
 #include "my_dbug.h"  // NOLINT(build/include_subdir)
 
+#include "plugin/x/ngs/include/ngs/notice_descriptor.h"
 #include "plugin/x/src/interface/notice_configuration.h"
-#include "plugin/x/src/ngs/notice_descriptor.h"
 
 namespace xpl {
 

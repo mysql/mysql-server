@@ -27,10 +27,10 @@
 #include <memory>
 #include <string>
 
-#include "plugin/x/src/ngs/scheduler.h"
-#include "plugin/x/src/ngs/socket_acceptors_task.h"
-#include "plugin/x/src/ngs/socket_events.h"
-#include "plugin/x/src/ngs/timeout_callback.h"
+#include "plugin/x/ngs/include/ngs/scheduler.h"
+#include "plugin/x/ngs/include/ngs/socket_acceptors_task.h"
+#include "plugin/x/ngs/include/ngs/socket_events.h"
+#include "plugin/x/ngs/include/ngs/timeout_callback.h"
 #include "plugin/x/src/server/scheduler_monitor.h"
 #include "plugin/x/src/server/server.h"
 #include "plugin/x/src/server/session_scheduler.h"

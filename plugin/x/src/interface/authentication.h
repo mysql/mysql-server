@@ -29,8 +29,8 @@
 #include <memory>
 #include <string>
 
+#include "plugin/x/ngs/include/ngs/error_code.h"
 #include "plugin/x/src/interface/sha256_password_cache.h"
-#include "plugin/x/src/ngs/error_code.h"
 
 namespace xpl {
 namespace iface {

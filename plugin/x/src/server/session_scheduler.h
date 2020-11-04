@@ -27,7 +27,7 @@
 
 #include <memory>
 
-#include "plugin/x/src/ngs/scheduler.h"
+#include "plugin/x/ngs/include/ngs/scheduler.h"
 
 namespace xpl {
 

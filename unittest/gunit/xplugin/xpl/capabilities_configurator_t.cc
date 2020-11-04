@@ -20,12 +20,12 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "my_config.h"
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "my_config.h"  // NOLINT(build/include_subdir)
-
-#include "plugin/x/src/ngs/memory.h"
+#include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/src/xpl_error.h"
 #include "unittest/gunit/xplugin/xpl/mock/capabilities.h"
 
@@ -40,13 +40,9 @@ namespace xpl {
 
 namespace test {
 
-using testing::_;
-using testing::Ref;
-using testing::Return;
-using testing::StrictMock;
-using testing::Test;
+using namespace ::testing;
 
-class CapabilitiesConfiguratorTestSuite : public testing::Test {
+class CapabilitiesConfiguratorTestSuite : public Test {
  public:
   typedef std::shared_ptr<StrictMock<Mock_capability_handler>> Mock_ptr;
 

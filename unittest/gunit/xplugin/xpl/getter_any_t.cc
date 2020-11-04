@@ -20,16 +20,18 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "my_config.h"
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "my_config.h"  // NOLINT(build/include_subdir)
-
-#include "plugin/x/src/ngs/mysqlx/getter_any.h"
+#include "plugin/x/ngs/include/ngs/mysqlx/getter_any.h"
 
 namespace xpl {
 
 namespace test {
+
+using namespace Mysqlx::Datatypes;
 
 class Type_handler {
  public:
@@ -70,9 +72,6 @@ class Mock_type_handler : public Type_handler {
   void put() override { put_void(); }
 };
 
-using Any = Mysqlx::Datatypes::Any;
-using Scalar = Mysqlx::Datatypes::Scalar;
-
 class Getter_any_testsuite : public ::testing::Test {
  public:
   template <typename Value_type>
@@ -92,8 +91,8 @@ TEST_F(Getter_any_testsuite, put_throwError_whenPutAnyWithoutType) {
 }
 
 TEST_F(Getter_any_testsuite, put_executesNullCallback) {
-  any.set_type(Any::SCALAR);
-  any.mutable_scalar()->set_type(Scalar::V_NULL);
+  any.set_type(Any_Type_SCALAR);
+  any.mutable_scalar()->set_type(Scalar_Type_V_NULL);
 
   EXPECT_CALL(mock, put_void());
 
@@ -103,8 +102,8 @@ TEST_F(Getter_any_testsuite, put_executesNullCallback) {
 TEST_F(Getter_any_testsuite, put_executesSignedIntCallback) {
   const ::google::protobuf::int64 expected_value = -10;
 
-  any.set_type(Any::SCALAR);
-  any.mutable_scalar()->set_type(Scalar::V_SINT);
+  any.set_type(Any_Type_SCALAR);
+  any.mutable_scalar()->set_type(Scalar_Type_V_SINT);
   any.mutable_scalar()->set_v_signed_int(expected_value);
 
   EXPECT_CALL(mock,
@@ -117,8 +116,8 @@ TEST_F(Getter_any_testsuite, put_executesSignedIntCallback) {
 TEST_F(Getter_any_testsuite, put_executesUnsignedIntCallback) {
   ::google::protobuf::uint64 expected_value = 10;
 
-  any.set_type(Any::SCALAR);
-  any.mutable_scalar()->set_type(Scalar::V_UINT);
+  any.set_type(Any_Type_SCALAR);
+  any.mutable_scalar()->set_type(Scalar_Type_V_UINT);
   any.mutable_scalar()->set_v_unsigned_int(expected_value);
 
   EXPECT_CALL(mock,
@@ -131,8 +130,8 @@ TEST_F(Getter_any_testsuite, put_executesUnsignedIntCallback) {
 TEST_F(Getter_any_testsuite, put_executesBoolCallback) {
   bool expected_value = true;
 
-  any.set_type(Any::SCALAR);
-  any.mutable_scalar()->set_type(Scalar::V_BOOL);
+  any.set_type(Any_Type_SCALAR);
+  any.mutable_scalar()->set_type(Scalar_Type_V_BOOL);
   any.mutable_scalar()->set_v_bool(expected_value);
 
   EXPECT_CALL(mock, put_void(::testing::Matcher<const bool &>(expected_value)));
@@ -143,8 +142,8 @@ TEST_F(Getter_any_testsuite, put_executesBoolCallback) {
 TEST_F(Getter_any_testsuite, put_executesFloatCallback) {
   float expected_value = 1.120f;
 
-  any.set_type(Any::SCALAR);
-  any.mutable_scalar()->set_type(Scalar::V_FLOAT);
+  any.set_type(Any_Type_SCALAR);
+  any.mutable_scalar()->set_type(Scalar_Type_V_FLOAT);
   any.mutable_scalar()->set_v_float(expected_value);
 
   EXPECT_CALL(mock,
@@ -156,8 +155,8 @@ TEST_F(Getter_any_testsuite, put_executesFloatCallback) {
 TEST_F(Getter_any_testsuite, put_executesDoubleCallback) {
   double expected_value = 2.2120;
 
-  any.set_type(Any::SCALAR);
-  any.mutable_scalar()->set_type(Scalar::V_DOUBLE);
+  any.set_type(Any_Type_SCALAR);
+  any.mutable_scalar()->set_type(Scalar_Type_V_DOUBLE);
   any.mutable_scalar()->set_v_double(expected_value);
 
   EXPECT_CALL(mock,
@@ -169,8 +168,8 @@ TEST_F(Getter_any_testsuite, put_executesDoubleCallback) {
 TEST_F(Getter_any_testsuite, put_throwsError_whenStringWithoutValue) {
   std::string expected_value = "Expected string";
 
-  any.set_type(Any::SCALAR);
-  any.mutable_scalar()->set_type(Scalar::V_STRING);
+  any.set_type(Any_Type_SCALAR);
+  any.mutable_scalar()->set_type(Scalar_Type_V_STRING);
   any.mutable_scalar()->mutable_v_string();
 
   ASSERT_THROW(ngs::Getter_any::put_scalar_value_to_functor(any, *this),
@@ -180,8 +179,8 @@ TEST_F(Getter_any_testsuite, put_throwsError_whenStringWithoutValue) {
 TEST_F(Getter_any_testsuite, put_executesStringCallback) {
   std::string expected_value = "Expected string";
 
-  any.set_type(Any::SCALAR);
-  any.mutable_scalar()->set_type(Scalar::V_STRING);
+  any.set_type(Any_Type_SCALAR);
+  any.mutable_scalar()->set_type(Scalar_Type_V_STRING);
   any.mutable_scalar()->mutable_v_string()->set_value(expected_value);
 
   EXPECT_CALL(
@@ -193,8 +192,8 @@ TEST_F(Getter_any_testsuite, put_executesStringCallback) {
 TEST_F(Getter_any_testsuite, put_executesOctetsCallback) {
   std::string expected_value = "Expected string";
 
-  any.set_type(Any::SCALAR);
-  any.mutable_scalar()->set_type(Scalar::V_OCTETS);
+  any.set_type(Any_Type_SCALAR);
+  any.mutable_scalar()->set_type(Scalar_Type_V_OCTETS);
   any.mutable_scalar()->mutable_v_octets()->set_value(expected_value);
 
   EXPECT_CALL(
@@ -205,7 +204,7 @@ TEST_F(Getter_any_testsuite, put_executesOctetsCallback) {
 
 class Getter_any_type_testsuite
     : public Getter_any_testsuite,
-      public ::testing::WithParamInterface<Any::Type> {};
+      public ::testing::WithParamInterface<Any_Type> {};
 
 TEST_P(Getter_any_type_testsuite, put_throwError_whenNotSupportedType) {
   any.set_type(GetParam());
@@ -215,26 +214,26 @@ TEST_P(Getter_any_type_testsuite, put_throwError_whenNotSupportedType) {
 }
 
 INSTANTIATE_TEST_CASE_P(InstantiationNegativeTests, Getter_any_type_testsuite,
-                        ::testing::Values(Any::OBJECT, Any::ARRAY));
+                        ::testing::Values(Any_Type_OBJECT, Any_Type_ARRAY));
 
 class Getter_scalar_type_testsuite
     : public Getter_any_testsuite,
-      public ::testing::WithParamInterface<Scalar::Type> {};
+      public ::testing::WithParamInterface<Scalar_Type> {};
 
 TEST_P(Getter_scalar_type_testsuite, put_throwError_whenNotSupportedType) {
-  any.set_type(Any::SCALAR);
+  any.set_type(Any_Type_SCALAR);
   any.mutable_scalar()->set_type(GetParam());
 
   ASSERT_THROW(ngs::Getter_any::put_scalar_value_to_functor(any, *this),
                ngs::Error_code);
 }
 
-INSTANTIATE_TEST_CASE_P(InstantiationNegativeTests,
-                        Getter_scalar_type_testsuite,
-                        ::testing::Values(Scalar::V_SINT, Scalar::V_UINT,
-                                          Scalar::V_BOOL, Scalar::V_FLOAT,
-                                          Scalar::V_DOUBLE, Scalar::V_STRING,
-                                          Scalar::V_OCTETS));
+INSTANTIATE_TEST_CASE_P(
+    InstantiationNegativeTests, Getter_scalar_type_testsuite,
+    ::testing::Values(Scalar_Type_V_SINT, Scalar_Type_V_UINT,
+                      Scalar_Type_V_BOOL, Scalar_Type_V_FLOAT,
+                      Scalar_Type_V_DOUBLE, Scalar_Type_V_STRING,
+                      Scalar_Type_V_OCTETS));
 
 }  // namespace test
 }  // namespace xpl

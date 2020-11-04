@@ -31,8 +31,8 @@
 
 #include "violite.h"  // NOLINT(build/include_subdir)
 
+#include "plugin/x/ngs/include/ngs/thread.h"
 #include "plugin/x/src/helper/multithread/sync_variable.h"
-#include "plugin/x/src/ngs/thread.h"
 #include "plugin/x/src/server/server_properties.h"
 
 namespace xpl {

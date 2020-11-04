@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -32,8 +32,8 @@
 #include <stdexcept>
 #include <string>
 
+#include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/src/helper/to_string.h"
-#include "plugin/x/src/ngs/memory.h"
 
 struct CHARSET_INFO;
 
@@ -41,12 +41,12 @@ namespace xpl {
 
 class Query_formatter {
  public:
-  explicit Query_formatter(ngs::PFS_string &query, CHARSET_INFO &charser);
+  Query_formatter(ngs::PFS_string &query, CHARSET_INFO &charser);
 
   template <typename Value_type>
   class No_escape {
    public:
-    explicit No_escape(const Value_type &value) : m_value(value) {}
+    No_escape(const Value_type &value) : m_value(value) {}
 
     const Value_type &m_value;
   };

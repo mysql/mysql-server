@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,9 @@
 #include <string>
 #include <vector>
 
+#include "plugin/x/ngs/include/ngs/error_code.h"
 #include "plugin/x/src/interface/document_id_generator.h"
 #include "plugin/x/src/interface/sql_session.h"
-#include "plugin/x/src/ngs/error_code.h"
 
 namespace xpl {
 namespace iface {
