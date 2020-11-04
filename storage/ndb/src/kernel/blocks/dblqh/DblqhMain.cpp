@@ -24920,21 +24920,49 @@ void Dblqh::timeSup(Signal* signal)
   if (logPartPtr.p->logPartTimer != logPartPtr.p->logTimer)
   {
     jam();
-    if (true) // less merge conflicts
+
+    /**
+     * No file writes to this log part have been scheduled since
+     * the part timer was set.
+     * Now we will force a write of pending non-empty page or
+     * pages for this part.
+     * For the page currently being filled, we make a copy, and
+     * write to file from the copy, so that we can continue filling
+     * the original page with redo entries.
+     * If the current file is not available to write due to a file
+     * change problem, then we must wait until it is available,
+     * supervised by some higher level timing mechanism.
+     */
+
+    if ((logPartPtr.p->m_log_problems &
+         LogPartRecord::P_FILE_CHANGE_PROBLEM)!= 0)
     {
-/*---------------------------------------------------------------------------*/
-/* IDLE AND NOT WRITTEN TO DISK IN A SECOND. ALSO WHEN WE HAVE A TAIL PROBLEM*/
-/* WE HAVE TO WRITE TO DISK AT TIMES. WE WILL FIRST CHECK WHETHER ANYTHING   */
-/* AT ALL HAVE BEEN WRITTEN TO THE PAGES BEFORE WRITING TO DISK.             */
-/*---------------------------------------------------------------------------*/
-/* WE HAVE TO WRITE TO DISK IN ALL CASES SINCE THERE COULD BE INFORMATION    */
-/* STILL IN THE LOG THAT WAS GENERATED BEFORE THE PREVIOUS TIME SUPERVISION  */
-/* BUT AFTER THE LAST DISK WRITE. THIS PREVIOUSLY STOPPED ALL DISK WRITES    */
-/* WHEN NO MORE LOG WRITES WERE PERFORMED (THIS HAPPENED WHEN LOG GOT FULL   */
-/* AND AFTER LOADING THE INITIAL RECORDS IN INITIAL START).                  */
-/*---------------------------------------------------------------------------*/
-      if (((logFilePtr.p->currentFilepage + 1) & (ZPAGES_IN_MBYTE -1)) == 0)
-      {
+      jam();
+      g_eventLogger->info("LDM(%u): Gci record write is waiting for "
+                          "the redo log file to be changed: "
+                          "logpart: %u log part state: %u "
+                          "log part problem: %u "
+                          "file: %u ref %u logFileStatus %u"
+                          "fileChangeState %u "
+                          "current mbyte: %u "
+                          "logPagePtr.i %u ",
+                          instance(),
+                          logPartPtr.p->logPartNo,
+                          logPartPtr.p->logPartState,
+                          logPartPtr.p->m_log_problems,
+                          logFilePtr.p->fileNo,
+                          logFilePtr.p->fileRef,
+                          logFilePtr.p->logFileStatus,
+                          logFilePtr.p->fileChangeState,
+                          logFilePtr.p->currentMbyte,
+                          logPagePtr.i);
+      /* Wait for current file to be ready for writes */
+      sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 50, 2);
+      return;
+    }
+
+    { // less merge conflicts
+      if (((logFilePtr.p->currentFilepage + 1) & (ZPAGES_IN_MBYTE -1)) == 0) {
         jam();
 /*---------------------------------------------------------------------------*/
 /* THIS IS THE LAST PAGE IN THIS MBYTE. WRITE NEXT LOG AND SWITCH TO NEXT    */
