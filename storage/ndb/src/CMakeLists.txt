@@ -37,8 +37,6 @@ FOREACH(warning
     "error=stringop-truncation"
     # Downgrade -Werror=stringop-overflow to warning
     "error=stringop-overflow"
-    # Downgrade -Werror=format-truncation to warning
-    "error=format-truncation"
     )
   MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
   IF(HAS_WARN_FLAG)
