@@ -53,6 +53,7 @@ Tester::Tester() noexcept {
   /* Kindly keep the commands in alphabetical order. */
   DISPATCH(corrupt_ondisk_page0);
   DISPATCH(corrupt_ondisk_root_page);
+  DISPATCH(dblwr_force_crash);
   DISPATCH(find_fil_page_lsn);
   DISPATCH(find_flush_sync_lsn);
   DISPATCH(find_ondisk_page_type);
@@ -391,6 +392,21 @@ Ret_t Tester::corrupt_ondisk_root_page(
   fclose(fin);
 
   ut_free(filename);
+  return RET_PASS;
+}
+
+DISPATCH_FUNCTION_DEF(Tester::dblwr_force_crash) {
+  TLOG("Tester::dblwr_force_crash()");
+  ut_ad(tokens.size() == 3);
+  ut_ad(tokens[0] == "dblwr_force_crash");
+
+  std::string space_id_str = tokens[1];
+  std::string page_no_str = tokens[2];
+  space_id_t space_id = std::stoul(space_id_str);
+  space_id_t page_no = std::stoul(page_no_str);
+
+  page_id_t page_id(space_id, page_no);
+  dblwr::Force_crash = page_id;
   return RET_PASS;
 }
 
