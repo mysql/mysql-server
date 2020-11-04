@@ -99,7 +99,7 @@ struct Find {
 
   /** @return false if the object was found. */
   bool operator()(mtr_memo_slot_t *slot) {
-    if (m_object == slot->object && m_type == slot->type) {
+    if (m_object == slot->object && (m_type & slot->type)) {
       m_slot = slot;
       return (false);
     }
