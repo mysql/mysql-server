@@ -4004,34 +4004,42 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
   return 0;
 }
 
-inline struct in6_addr * get_in6_addr(const struct sockaddr *clnt_addr) {
-  return clnt_addr ? &((sockaddr_in6*)clnt_addr)->sin6_addr : nullptr;
-}
-
-inline bool is_loopback(const struct in6_addr *addr) {
+static inline bool is_loopback(const struct in6_addr *addr) {
   return (IN6_IS_ADDR_LOOPBACK(addr) ||
          (IN6_IS_ADDR_V4MAPPED(addr) && addr->s6_addr[12] == 0x7f));
 }
 
 static HostnameMatch
-match_hostname(const struct sockaddr *clnt_addr,
+match_hostname(const in6_addr *client_in6_addr,
                const char *config_hostname,
                LocalDnsCache & dnsCache)
 {
-  const struct in6_addr *clnt_in6_addr = get_in6_addr(clnt_addr);
-
-  if ((clnt_addr == nullptr) || is_loopback(clnt_in6_addr)) {
-    if (SocketServer::tryBind(0, config_hostname))
-      return HostnameMatch::ok_exact_match;
-    return HostnameMatch::no_match;
+  if (config_hostname == nullptr || config_hostname[0] == 0) {
+    return HostnameMatch::ok_wildcard;
   }
 
+  // Check if the configured hostname can be resolved.
+  // NOTE! Without this step it's not possible to:
+  // - try to bind() the socket (since that requires resolve)
+  // - compare the resolved address with the clients.
   struct in6_addr resolved_addr;
   if(dnsCache.getAddress(&resolved_addr, config_hostname) != 0)
     return HostnameMatch::no_resolve;
 
+  // Special case for client connecting on loopback address, check if it
+  // can use this hostname by trying to bind the configured hostname. If this
+  // process can bind it also means the client can use it (is on same machine).
+  if (is_loopback(client_in6_addr)) {
+    if (SocketServer::tryBind(0, config_hostname)) {
+      // Match clients connecting on loopback address by trying to bind the
+      // configured hostname, if it binds the client could use it as well.
+      return HostnameMatch::ok_exact_match;
+    }
+    return HostnameMatch::no_match;
+  }
+
   // Bitwise comparison of the two IPv6 addresses
-  if (memcmp(&resolved_addr, clnt_in6_addr, sizeof(resolved_addr)) != 0)
+  if (memcmp(&resolved_addr, client_in6_addr, sizeof(resolved_addr)) != 0)
     return HostnameMatch::no_match;
 
   return HostnameMatch::ok_exact_match;
@@ -4040,11 +4048,11 @@ match_hostname(const struct sockaddr *clnt_addr,
 int
 MgmtSrvr::find_node_type(NodeId node_id,
                          ndb_mgm_node_type type,
-                         const struct sockaddr* client_addr,
+                         const sockaddr_in6* client_addr,
                          Vector<PossibleNode>& nodes,
                          int& error_code, BaseString& error_string)
 {
-  const char* found_config_hostname= 0;
+  const char* found_config_hostname = nullptr;
   unsigned type_c= (unsigned)type;
   bool found_unresolved_hosts = false;
   LocalDnsCache dnsCache;
@@ -4054,62 +4062,64 @@ MgmtSrvr::find_node_type(NodeId node_id,
   ConfigIter iter(m_local_config, CFG_SECTION_NODE);
   for(iter.first(); iter.valid(); iter.next())
   {
-    unsigned id;
-    unsigned dedicated_node = 0;
-
-    if (iter.get(CFG_NODE_ID, &id))
-      require(false);
-    if (node_id && node_id != id)
+    // Check current nodeid, the caller either asks to find any
+    // nodeid (nodeid=0) or a specific node (nodeid=x)
+    unsigned current_node_id;
+    require(iter.get(CFG_NODE_ID, &current_node_id) == 0);
+    if (node_id && node_id != current_node_id)
       continue;
 
+    // Check the optional Dedicated setting
+    unsigned dedicated_node = 0;
     iter.get(CFG_NODE_DEDICATED, &dedicated_node);
-    if (dedicated_node && id != node_id)
+    if (dedicated_node && current_node_id != node_id)
     {
-      // id is only handed out if explicitly requested.
+      // This node id is only handed out if explicitly requested.
       continue;
     }
-    if (iter.get(CFG_TYPE_OF_SECTION, &type_c))
-      require(false);
+
+    // Check type of node, the caller will ask for API, MGM or NDB
+    require(iter.get(CFG_TYPE_OF_SECTION, &type_c) == 0);
     if (type_c != (unsigned)type)
     {
-      if (node_id) break;
+      if (node_id) {
+        // Caller asked for this exact nodeid, ignore that it's
+        // not the correct type and print error further down.
+        break;
+      }
       continue;
     }
-    const char *config_hostname= 0;
-    HostnameMatch matchType;
 
-    if (iter.get(CFG_NODE_HOST, &config_hostname))
-      require(false);
-    if (config_hostname == 0 || config_hostname[0] == 0)
-    {
-      config_hostname= "";
-      matchType = HostnameMatch::ok_wildcard;
-    }
-    else
-    {
-      found_config_hostname= config_hostname;
-      matchType = match_hostname(client_addr, config_hostname, dnsCache);
-    }
+    // Get configured HostName of this node
+    const char *config_hostname;
+    require(iter.get(CFG_NODE_HOST, &config_hostname) == 0);
 
+    // Check if the connecting clients address matches the configured hostname
+    const HostnameMatch matchType = match_hostname(&(client_addr->sin6_addr),
+                                                   config_hostname, dnsCache);
     switch(matchType)
     {
       case HostnameMatch::no_resolve:
+        found_config_hostname = config_hostname;
         found_unresolved_hosts = true;
         break;
 
       case HostnameMatch::no_match:
+        found_config_hostname = config_hostname;
         break;
 
       case HostnameMatch::ok_wildcard:
-        nodes.push_back({id, config_hostname, false});
+        nodes.push_back({current_node_id, "", false});
         break;
 
       case HostnameMatch::ok_exact_match:
       {
+        found_config_hostname = config_hostname;
+
         unsigned int pos = 0;
         // Insert this node into the list ahead of the non-exact matches
         for(; pos < nodes.size() && nodes[pos].exact_match ; pos++);
-        nodes.push({id, config_hostname, true}, pos);
+        nodes.push({current_node_id, config_hostname, true}, pos);
         break;
       }
     }
@@ -4132,8 +4142,7 @@ MgmtSrvr::find_node_type(NodeId node_id,
     alias= ndb_mgm_get_node_type_alias_string(type, &str);
     type_string.assfmt("%s(%s)", alias, str);
 
-    struct in6_addr conn_addr =
-      ((struct sockaddr_in6*)(client_addr))->sin6_addr;
+    struct in6_addr conn_addr = client_addr->sin6_addr;
     char* addr_str =
         Ndb_inet_ntop(AF_INET6,
                       static_cast<void*>(&conn_addr),
@@ -4173,8 +4182,7 @@ MgmtSrvr::find_node_type(NodeId node_id,
       char addr_buf[NDB_ADDR_STRLEN];
       {
         // Append error describing which host the faulty connection was from
-        struct in6_addr conn_addr =
-          ((struct sockaddr_in6*)(client_addr))->sin6_addr;
+        struct in6_addr conn_addr = client_addr->sin6_addr;
         char* addr_str =
             Ndb_inet_ntop(AF_INET6,
                           static_cast<void*>(&conn_addr),
@@ -4206,8 +4214,7 @@ MgmtSrvr::find_node_type(NodeId node_id,
   if (found_config_hostname)
   {
     char addr_buf[NDB_ADDR_STRLEN];
-    struct in6_addr conn_addr =
-      ((struct sockaddr_in6*)(client_addr))->sin6_addr;
+    struct in6_addr conn_addr = client_addr->sin6_addr;
     char *addr_str = Ndb_inet_ntop(AF_INET6,
                                    static_cast<void*>(&conn_addr),
                                    addr_buf,
@@ -4369,7 +4376,7 @@ MgmtSrvr::try_alloc_from_list(NodeId& nodeid,
 bool
 MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
                              enum ndb_mgm_node_type type,
-                             const struct sockaddr* client_addr,
+                             const sockaddr_in6* client_addr,
                              int& error_code, BaseString& error_string,
                              Uint32 timeout_s)
 {
@@ -4549,14 +4556,14 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
 
 bool
 MgmtSrvr::alloc_node_id(NodeId& nodeid,
-			enum ndb_mgm_node_type type,
-			const struct sockaddr* client_addr,
-			int& error_code, BaseString& error_string,
+                        enum ndb_mgm_node_type type,
+                        const sockaddr_in6* client_addr,
+                        int& error_code, BaseString& error_string,
                         bool log_event,
                         Uint32 timeout_s)
 {
   char addr_buf[NDB_ADDR_STRLEN];
-  struct in6_addr conn_addr = ((sockaddr_in6*)client_addr)->sin6_addr;
+  struct in6_addr conn_addr = client_addr->sin6_addr;
   const char* type_str = ndb_mgm_get_node_type_string(type);
   char* addr_str = Ndb_inet_ntop(AF_INET6,
                                  static_cast<void*>(&conn_addr),

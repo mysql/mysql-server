@@ -563,12 +563,12 @@ private:
                           BaseString& error_string);
   int find_node_type(NodeId nodeid,
                      ndb_mgm_node_type type,
-                     const struct sockaddr* client_addr,
+                     const sockaddr_in6* client_addr,
                      Vector<PossibleNode>& nodes_info,
                      int& error_code, BaseString& error_string);
   bool alloc_node_id_impl(NodeId& nodeid,
                           ndb_mgm_node_type type,
-                          const struct sockaddr* client_addr,
+                          const sockaddr_in6* client_addr,
                           int& error_code, BaseString& error_string,
                           Uint32 timeout_s = 20);
 public:
@@ -591,7 +591,7 @@ public:
    */
   bool alloc_node_id(NodeId& nodeid,
                      ndb_mgm_node_type type,
-		     const struct sockaddr* client_addr,
+                     const sockaddr_in6* client_addr,
 		     int& error_code, BaseString& error_string,
                      bool log_event = true,
 		     Uint32 timeout_s = 20);

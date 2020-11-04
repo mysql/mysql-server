@@ -554,10 +554,10 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
     return;
   }
 
-  struct sockaddr_in6 addr;
+  struct sockaddr_in6 client_addr;
   {
-    ndb_socket_len_t addrlen= sizeof(addr);
-    int r = ndb_getpeername(m_socket, (struct sockaddr*)&addr, &addrlen);
+    ndb_socket_len_t addrlen= sizeof(client_addr);
+    int r = ndb_getpeername(m_socket, (struct sockaddr*)&client_addr, &addrlen);
     if (r != 0 )
     {
       m_output->println("result: getpeername(" MY_SOCKET_FORMAT \
@@ -581,7 +581,7 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   int error_code = 0;
   if (!m_mgmsrv.alloc_node_id(tmp,
                               (ndb_mgm_node_type)nodetype,
-                              (struct sockaddr*)&addr,
+                              &client_addr,
                               error_code, error_string,
                               log_event,
                               timeout))
