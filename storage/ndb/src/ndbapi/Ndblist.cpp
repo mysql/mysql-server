@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -379,7 +379,7 @@ void
 Ndb::releaseScanOperation(NdbIndexScanOperation* aScanOperation)
 {
   DBUG_ENTER("Ndb::releaseScanOperation");
-  DBUG_PRINT("enter", ("op: 0x%lx", (long) aScanOperation));
+  DBUG_PRINT("enter", ("op: %p", aScanOperation));
 #ifdef ndb_release_check_dup
   { NdbIndexScanOperation* tOp = theScanOpIdleList;
     while (tOp != NULL) {

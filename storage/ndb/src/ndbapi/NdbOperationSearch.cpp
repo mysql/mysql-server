@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,11 +57,11 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
                          const char* aValuePassed)
 {
   DBUG_ENTER("NdbOperation::equal_impl");
-  DBUG_PRINT("enter", ("col: %s  op: %d  val: 0x%lx",
+  DBUG_PRINT("enter", ("col: %s  op: %d  val: %p",
                        (tAttrInfo == NULL) ? "NULL" :
                        tAttrInfo->m_name.c_str(), 
                        theOperationType,
-                       (long) aValuePassed));
+                       aValuePassed));
   
   const char* aValue = aValuePassed;
   const Uint32 MaxKeyLenInLongWords= (NDB_MAX_KEY_SIZE + 7)/8;

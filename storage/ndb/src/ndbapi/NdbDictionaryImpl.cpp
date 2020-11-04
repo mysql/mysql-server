@@ -1373,7 +1373,7 @@ public:
            void** pack_data, Uint32* pack_len)
   {
     DBUG_ENTER("Extra_metadata::pack");
-    DBUG_PRINT("enter", ("data: 0x%lx  len: %lu", (long) data, (ulong) len));
+    DBUG_PRINT("enter", ("data: %p  len: %lu", data, (ulong) len));
 
     // Allocate memory large enough to hold header and
     // packed data
@@ -1419,8 +1419,8 @@ public:
     *pack_data= blob;
     *pack_len=  BLOB_HEADER_SZ + compressed_len;
 
-    DBUG_PRINT("exit", ("pack_data: 0x%lx  pack_len: %lu",
-                        (long) *pack_data, (ulong) *pack_len));
+    DBUG_PRINT("exit", ("pack_data: %p  pack_len: %lu",
+                        *pack_data, (ulong) *pack_len));
     DBUG_RETURN(0);
   }
 
@@ -1444,7 +1444,7 @@ public:
              void** unpack_data, Uint32* unpack_len)
   {
      DBUG_ENTER("Extra_metadata::unpack");
-     DBUG_PRINT("enter", ("pack_data: 0x%lx", (long) pack_data));
+     DBUG_PRINT("enter", ("pack_data: %p", pack_data));
 
      const char* header = static_cast<const char*>(pack_data);
      const Uint32 orglen =  uint4korr(header+4);
@@ -1485,7 +1485,7 @@ public:
      *unpack_data= data;
      *unpack_len=  orglen;
 
-     DBUG_PRINT("exit", ("frmdata: 0x%lx  len: %lu", (long) *unpack_data,
+     DBUG_PRINT("exit", ("frmdata: %p  len: %lu", *unpack_data,
                          (ulong) *unpack_len));
      DBUG_RETURN(0);
   }

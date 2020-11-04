@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2070,9 +2070,9 @@ NdbScanOperation::doSend(int ProcessorId)
 void NdbScanOperation::close(bool forceSend, bool releaseOp)
 {
   DBUG_ENTER("NdbScanOperation::close");
-  DBUG_PRINT("enter", ("this: 0x%lx  tcon: 0x%lx  con: 0x%lx  force: %d  release: %d",
-                       (long) this,
-                       (long) m_transConnection, (long) theNdbCon,
+  DBUG_PRINT("enter", ("this: %p  tcon: %p  con: %p  force: %d  release: %d",
+                       this,
+                       m_transConnection, theNdbCon,
                        forceSend, releaseOp));
 
   if (theNdbCon != NULL)

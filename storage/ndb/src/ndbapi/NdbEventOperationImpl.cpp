@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -186,11 +186,11 @@ NdbEventOperationImpl::init(NdbEventImpl& evnt)
   m_mergeEvents = false;
 #endif
   m_ref_count = 0;
-  DBUG_PRINT("info", ("m_ref_count = 0 for op: 0x%lx", (long) this));
+  DBUG_PRINT("info", ("m_ref_count = 0 for op: %p", this));
 
   m_has_error= 0;
 
-  DBUG_PRINT("exit",("this: 0x%lx  oid: %u", (long) this, m_oid));
+  DBUG_PRINT("exit",("this: %p  oid: %u", this, m_oid));
   DBUG_VOID_RETURN;
 }
 
@@ -935,8 +935,8 @@ NdbEventOperationImpl::receive_event()
       NdbTableImpl *tmp_table_impl= m_eventImpl->m_tableImpl;
       m_eventImpl->m_tableImpl = at;
       
-      DBUG_PRINT("info", ("switching table impl 0x%lx -> 0x%lx",
-                          (long) tmp_table_impl, (long) at));
+      DBUG_PRINT("info", ("switching table impl %p -> %p",
+                          tmp_table_impl, at));
       
       // change the rec attrs to refer to the new table object
       int i;
@@ -947,9 +947,9 @@ NdbEventOperationImpl::receive_event()
         {
           int no = p->getColumn()->getColumnNo();
           NdbColumnImpl *tAttrInfo = at->getColumn(no);
-          DBUG_PRINT("info", ("rec_attr: 0x%lx  "
-                              "switching column impl 0x%lx -> 0x%lx",
-                              (long) p, (long) p->m_column, (long) tAttrInfo));
+          DBUG_PRINT("info", ("rec_attr: %p  "
+                              "switching column impl %p -> %p",
+                              p, p->m_column, tAttrInfo));
           p->m_column = tAttrInfo;
           p = p->next();
         }
@@ -961,9 +961,9 @@ NdbEventOperationImpl::receive_event()
         {
           int no = p->getColumn()->getColumnNo();
           NdbColumnImpl *tAttrInfo = at->getColumn(no);
-          DBUG_PRINT("info", ("rec_attr: 0x%lx  "
-                              "switching column impl 0x%lx -> 0x%lx",
-                              (long) p, (long) p->m_column, (long) tAttrInfo));
+          DBUG_PRINT("info", ("rec_attr: %p  "
+                              "switching column impl %p -> %p",
+                              p, p->m_column, tAttrInfo));
           p->m_column = tAttrInfo;
           p = p->next();
         }
@@ -974,9 +974,9 @@ NdbEventOperationImpl::receive_event()
       {
         int no = p->getColumn()->getColumnNo();
         NdbColumnImpl *tAttrInfo = at->getColumn(no);
-        DBUG_PRINT("info", ("blob_handle: 0x%lx  "
-                            "switching column impl 0x%lx -> 0x%lx",
-                            (long) p, (long) p->theColumn, (long) tAttrInfo));
+        DBUG_PRINT("info", ("blob_handle: %p  "
+                            "switching column impl %p -> %p",
+                            p, p->theColumn, tAttrInfo));
         p->theColumn = tAttrInfo;
         p = p->next();
       }
@@ -1867,8 +1867,8 @@ NdbEventBuffer::getEpochEventOperations(Uint32* iter, Uint32* event_types, Uint3
       *event_types = g.event_types;
     if (cumulative_any_value != NULL)
       *cumulative_any_value = g.cumulative_any_value;
-    DBUG_PRINT("info", ("gci: %u  g.op: 0x%lx  g.event_types: 0x%lx g.cumulative_any_value: 0x%lx 0x%x %s",
-                        (unsigned)epoch->m_gci.getGCI(), (long) g.op,
+    DBUG_PRINT("info", ("gci: %u  g.op: %p  g.event_types: 0x%lx g.cumulative_any_value: 0x%lx 0x%x %s",
+                        (unsigned)epoch->m_gci.getGCI(), g.op,
                         (long) g.event_types, (long) g.cumulative_any_value,
                         m_ndb->getReference(), m_ndb->getNdbObjectName()));
     DBUG_RETURN(g.op);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1086,8 +1086,8 @@ NdbOperation::branch_col(Uint32 type,
 			 Uint32 Label){
 
   DBUG_ENTER("NdbOperation::branch_col");
-  DBUG_PRINT("enter", ("type: %u  col:%u  val: 0x%lx  len: %u  label: %u",
-                       type, ColId, (long) val, len, Label));
+  DBUG_PRINT("enter", ("type: %u  col:%u  val: %p  len: %u  label: %u",
+                       type, ColId, val, len, Label));
   if (val != NULL)
     DBUG_DUMP("value", (uchar*)val, len);
 

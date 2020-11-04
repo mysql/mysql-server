@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -533,8 +533,8 @@ NdbInterpretedCode::branch_col(Uint32 branch_type,
                                Uint32 label)
 {
   DBUG_ENTER("NdbInterpretedCode::branch_col");
-  DBUG_PRINT("enter", ("type: %u  col:%u  val: 0x%lx  len: %u  label: %u",
-                       branch_type, attrId, (long) val, len, label));
+  DBUG_PRINT("enter", ("type: %u  col:%u  val: %p  len: %u  label: %u",
+                       branch_type, attrId, val, len, label));
   if (val != NULL)
     DBUG_DUMP("value", (uchar*)val, len);
   else

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -268,7 +268,7 @@ ndb_mgm_create_handle()
   h->mgmd_version_minor= -1;
   h->mgmd_version_build= -1;
 
-  DBUG_PRINT("info", ("handle: 0x%lx", (long) h));
+  DBUG_PRINT("info", ("handle: %p", h));
   DBUG_RETURN(h);
 }
 
@@ -292,7 +292,7 @@ int
 ndb_mgm_set_connectstring(NdbMgmHandle handle, const char* connect_string)
 {
   DBUG_ENTER("ndb_mgm_set_connectstring");
-  DBUG_PRINT("info", ("handle: 0x%lx", (long) handle));
+  DBUG_PRINT("info", ("handle: %p", handle));
   handle->cfg.~LocalConfig();
   new (&(handle->cfg)) LocalConfig;
   if (!handle->cfg.init(connect_string, 0) ||
@@ -388,7 +388,7 @@ ndb_mgm_destroy_handle(NdbMgmHandle * handle)
   DBUG_ENTER("ndb_mgm_destroy_handle");
   if(!handle)
     DBUG_VOID_RETURN;
-  DBUG_PRINT("info", ("handle: 0x%lx", (long) (* handle)));
+  DBUG_PRINT("info", ("handle: %p", (* handle)));
   /**
    * important! only disconnect if connected
    * other code relies on this

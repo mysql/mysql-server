@@ -1143,7 +1143,7 @@ NdbTransaction::executeNoBlobs(NdbTransaction::ExecType aTypeOfExec,
       for (unsigned i = 0; i < theNdb->theNoOfCompletedTransactions; i++)
         anyway += theNdb->theCompletedTransactionsArray[i] == this;
       if (anyway) {
-        theNdb->printState("execute %lx", (long)this);
+        theNdb->printState("execute %p", this);
         abort();
       }
 #endif
@@ -1211,8 +1211,8 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
                                      NdbOperation::AbortOption abortOption)
 {
   DBUG_ENTER("NdbTransaction::executeAsynchPrepare");
-  DBUG_PRINT("enter", ("aTypeOfExec: %d, aCallback: 0x%lx, anyObject: Ox%lx",
-		       aTypeOfExec, (long) aCallback, (long) anyObject));
+  DBUG_PRINT("enter", ("aTypeOfExec: %d, aCallback: %p, anyObject: %p",
+		       aTypeOfExec, aCallback, anyObject));
 
   /**
    * Reset error.code on execute
@@ -1779,7 +1779,7 @@ NdbTransaction::release(){
   theInUseState = false;
 #ifdef VM_TRACE
   if (theListState != NotInList && theListState != InPreparedList) {
-    theNdb->printState("release %lx", (long)this);
+    theNdb->printState("release %p", this);
     abort();
   }
 #endif
