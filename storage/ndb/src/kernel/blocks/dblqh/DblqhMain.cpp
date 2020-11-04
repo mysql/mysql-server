@@ -21051,6 +21051,7 @@ void Dblqh::execWAIT_COMPLETE_LCP_REQ(Signal *signal)
      * have already completed LCP of all fragments, so we're ready to
      * continue.
      */
+    c_localLcpId = 0;
     c_local_lcp_sent_wait_complete_conf = true;
     signal->theData[0] = reference();
     WaitCompleteLcpConf *conf =
