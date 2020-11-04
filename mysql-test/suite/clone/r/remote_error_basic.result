@@ -13,7 +13,7 @@ SET GLOBAL clone_autotune_concurrency = OFF;
 SET GLOBAL clone_max_concurrency = 8;
 SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
 CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY = 'CLONE_DATADIR';
-ERROR HY000: Clone Donor Error: Connect failed: 2003 : Can't connect to MySQL server on 'HOST' (socket errno).
+ERROR HY000: Clone Donor Error: Connect failed: 2003 : Can't connect to MySQL server on 'HOST:PORT' (socket errno).
 select ID, STATE, ERROR_NO from performance_schema.clone_status;
 ID	STATE	ERROR_NO
 1	Failed	3862

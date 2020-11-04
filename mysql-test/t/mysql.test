@@ -662,5 +662,14 @@ DROP USER bug21464621;
 --echo #
 --exec $MYSQL --binary-as-hex -e "SELECT SUBSTR(NULL, 0, 0), @novar" 2>&1
 
+--echo #
+--echo # Bug #30787660: CONTRIBUTION: INCLUDE PORT NUMBER IN CLIENT ERROR
+--echo #   MESSAGE
+--echo #
+
+--echo # Success criteria: port number present in the error text
+--error 1
+--exec $MYSQL -h 127.0.0.1 -P 99999 2>&1
+
 --echo
 --echo End of tests

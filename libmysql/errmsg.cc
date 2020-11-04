@@ -36,7 +36,7 @@ const char *client_errors[] = {
     "Unknown MySQL error",
     "Can't create UNIX socket (%d)",
     "Can't connect to local MySQL server through socket '%-.100s' (%d)",
-    "Can't connect to MySQL server on '%-.100s' (%d)",
+    "Can't connect to MySQL server on '%-.100s:%u' (%d)",
     "Can't create TCP/IP socket (%d)",
     "Unknown MySQL server host '%-.100s' (%d)",
     "MySQL server has gone away",

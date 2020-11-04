@@ -6065,7 +6065,7 @@ static mysql_state_machine_status csm_begin_connect(mysql_async_connect *ctx) {
       DBUG_PRINT("error",
                  ("Got error %d on connect to '%s'", saved_error, host));
       set_mysql_extended_error(mysql, CR_CONN_HOST_ERROR, unknown_sqlstate,
-                               ER_CLIENT(CR_CONN_HOST_ERROR), host,
+                               ER_CLIENT(CR_CONN_HOST_ERROR), host, port,
                                saved_error);
       return STATE_MACHINE_FAILED;
     }
@@ -6144,7 +6144,7 @@ static mysql_state_machine_status csm_wait_connect(mysql_async_connect *ctx) {
                    ("Got error %d on connect to '%s'", error, ctx->host));
         set_mysql_extended_error(
             ctx->mysql, CR_CONN_HOST_ERROR, unknown_sqlstate,
-            ER_CLIENT(CR_CONN_HOST_ERROR), ctx->host, error);
+            ER_CLIENT(CR_CONN_HOST_ERROR), ctx->host, ctx->port, error);
         return STATE_MACHINE_FAILED;
       }
     }

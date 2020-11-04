@@ -545,5 +545,11 @@ include/assert_grep.inc [check the output of mysql for the binary-as-hex mark in
 #
 SUBSTR(NULL, 0, 0)	@novar
 NULL	NULL
+#
+# Bug #30787660: CONTRIBUTION: INCLUDE PORT NUMBER IN CLIENT ERROR
+#   MESSAGE
+#
+# Success criteria: port number present in the error text
+ERROR 2003 (HY000): Can't connect to MySQL server on '127.0.0.1:99999' (111)
 
 End of tests
