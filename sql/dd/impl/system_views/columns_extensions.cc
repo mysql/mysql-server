@@ -82,7 +82,8 @@ Columns_extensions::Columns_extensions(const dd::String_type &n) {
       "AND CAN_ACCESS_COLUMN(sch.name, tbl.name, "
       "col.name)");
   m_target_def.add_where(
-      "AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden <> 'Visible')");
+      "AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden NOT IN ('Visible', "
+      "'User'))");
 }
 
 const dd::String_type &Columns_extensions::view_name() { return s_view_name; }

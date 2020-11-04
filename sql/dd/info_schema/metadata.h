@@ -203,6 +203,9 @@ namespace info_schema {
     Bug#31982157 THE KEYWORD LEN IN I_S GETS UPDATED WHEN
     A KEYWORD > EXISTING MAX LEN IS ADDED
 
+  - WL#10905: INFORMATION_SCHEMA.COLUMNS table is modified to list "INVISIBLE"
+              value in EXTRA column for INVISIBLE columns.
+
   80024: Next IS version number after the previous is public.
   ------------------------------------
 */

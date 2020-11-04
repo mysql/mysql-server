@@ -184,6 +184,8 @@
 
 /** Field will not be loaded in secondary engine. */
 #define NOT_SECONDARY_FLAG (1 << 29)
+/** Field is explicitly marked as invisible by the user. */
+#define FIELD_IS_INVISIBLE (1 << 30)
 
 /** @}*/
 

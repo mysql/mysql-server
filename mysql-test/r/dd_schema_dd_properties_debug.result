@@ -530,7 +530,7 @@ check_constraints=
       elem12=def=has_no_default BOOL
             lbl=FIELD_HAS_NO_DEFAULT
             pos=13
-      elem13=def=hidden ENUM('Visible', 'SE', 'SQL') NOT NULL
+      elem13=def=hidden ENUM('Visible', 'SE', 'SQL', 'User') NOT NULL
             lbl=FIELD_HIDDEN
             pos=23
       elem14=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT

@@ -369,7 +369,7 @@ DROP TABLE t1;
 # generated columns.
 CREATE TABLE t(x INT, KEY((1+1)));
 ALTER TABLE t DROP COLUMN x;
-ERROR 42000: A table must have at least 1 column
+ERROR HY000: A table must have at least one visible column.
 DROP TABLE t;
 # See that we print out the correct error message in case of duplicate
 # index names.

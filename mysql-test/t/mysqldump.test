@@ -2738,3 +2738,56 @@ USE test;
 
 --error 1
 --exec $MYSQL_DUMP --comments=0 --compatible=randomtext test
+
+
+--echo #
+--echo # WL10905 - Support for INVISIBLE columns.
+--echo #           Test case to verify Logical Dump using mysqldump tool
+--echo #
+CREATE TABLE t1(f1 INT INVISIBLE, f2 INT,
+                f3 INT AS (f1 + 10), f4 INT AS (f2 + 10) INVISIBLE,
+                f5 INT AS (f2 + 10) STORED INVISIBLE);
+CREATE TABLE t2(f1 INT, f2 INT INVISIBLE);
+INSERT INTO t1(f1, f2) VALUES (10, 20), (20, 30);
+INSERT INTO t2(f1, f2) VALUES (10, 20), (20, 30);
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_DUMP --databases test > "$MYSQLTEST_VARDIR/tmp/test1.sql" 2>&1
+--exec $MYSQL_DUMP test t2 --tab "$MYSQLTEST_VARDIR/tmp" 2>"$MYSQLTEST_VARDIR/tmp/test_t2.log"
+DROP TABLE t1, t2;
+
+--exec $MYSQL --database test < $MYSQLTEST_VARDIR/tmp/t2.sql
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/test1.sql
+SHOW CREATE TABLE t1;
+SELECT * FROM t1 ORDER BY f2;
+SELECT f1, f2, f3, f4, f5 FROM t1 ORDER BY f2;
+
+SHOW CREATE TABLE t2;
+SELECT f1, f2 FROM t2 ORDER BY f2;
+
+# In XML format.
+--exec $MYSQL_DUMP --xml test t1 > "$MYSQLTEST_VARDIR/tmp/tmp1.xml" 2>&1
+--exec $MYSQL_DUMP --xml test t2 > "$MYSQLTEST_VARDIR/tmp/tmp2.xml" 2>&1
+DELETE FROM t1;
+DELETE FROM t2;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD XML INFILE "$MYSQLTEST_VARDIR/tmp/tmp1.xml" INTO TABLE t1 (f1, f2);
+SHOW CREATE TABLE t1;
+SELECT * FROM t1 ORDER BY f2;
+SELECT f1, f2, f3, f4, f5 FROM t1 ORDER BY f2;
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD XML INFILE "$MYSQLTEST_VARDIR/tmp/tmp1.xml" INTO TABLE t2 (f1, f2);
+SHOW CREATE TABLE t2;
+SELECT f1, f2 FROM t2 ORDER BY f2;
+
+remove_file $MYSQLTEST_VARDIR/tmp/test1.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/t2.txt;
+remove_file $MYSQLTEST_VARDIR/tmp/t2.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/test_t2.log;
+remove_file $MYSQLTEST_VARDIR/tmp/tmp1.xml;
+remove_file $MYSQLTEST_VARDIR/tmp/tmp2.xml;
+DROP TABLE t1, t2;

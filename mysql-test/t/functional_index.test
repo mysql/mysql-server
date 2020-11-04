@@ -269,7 +269,7 @@ DROP TABLE t1;
 --echo # Check that we cannot drop the last visible column when we have hidden
 --echo # generated columns.
 CREATE TABLE t(x INT, KEY((1+1)));
---error ER_TABLE_MUST_HAVE_COLUMNS
+--error ER_TABLE_MUST_HAVE_A_VISIBLE_COLUMN
 ALTER TABLE t DROP COLUMN x;
 DROP TABLE t;
 

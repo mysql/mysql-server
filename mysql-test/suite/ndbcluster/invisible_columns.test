@@ -1,0 +1,7 @@
+--source include/have_ndb.inc
+
+SET SESSION DEFAULT_STORAGE_ENGINE = ndbcluster;
+
+--source include/invisible_columns.inc
+
+SET SESSION DEFAULT_STORAGE_ENGINE = DEFAULT;

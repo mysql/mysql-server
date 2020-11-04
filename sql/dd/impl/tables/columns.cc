@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -114,8 +114,9 @@ Columns::Columns() {
                          "generation_expression_utf8 LONGTEXT");
   m_target_def.add_field(FIELD_COMMENT, "FIELD_COMMENT",
                          "comment VARCHAR(2048) NOT NULL");
-  m_target_def.add_field(FIELD_HIDDEN, "FIELD_HIDDEN",
-                         "hidden ENUM('Visible', 'SE', 'SQL') NOT NULL");
+  m_target_def.add_field(
+      FIELD_HIDDEN, "FIELD_HIDDEN",
+      "hidden ENUM('Visible', 'SE', 'SQL', 'User') NOT NULL");
   m_target_def.add_field(FIELD_OPTIONS, "FIELD_OPTIONS", "options MEDIUMTEXT");
   m_target_def.add_field(FIELD_SE_PRIVATE_DATA, "FIELD_SE_PRIVATE_DATA",
                          "se_private_data MEDIUMTEXT");

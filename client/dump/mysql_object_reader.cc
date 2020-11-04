@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -63,12 +63,12 @@ int64 Mysql_object_reader::Rows_fetching_context::result_callback(
 
 Mysql_object_reader::Rows_fetching_context::Rows_fetching_context(
     Mysql_object_reader *parent, Item_processing_data *item_processing,
-    bool has_generated_column)
+    bool has_generated_columns, bool has_invisible_columns)
     : m_parent(parent),
       m_item_processing(item_processing),
       m_row_group((Table *)item_processing->get_process_task_object()
                       ->get_related_db_object(),
-                  m_fields, has_generated_column) {
+                  m_fields, has_generated_columns, has_invisible_columns) {
   m_row_group.m_rows.reserve((size_t)m_parent->m_options->m_row_group_size);
 }
 
@@ -79,7 +79,6 @@ bool Mysql_object_reader::Rows_fetching_context::is_all_rows_processed() {
 void Mysql_object_reader::read_table_rows_task(
     Table_rows_dump_task *table_rows_dump_task,
     Item_processing_data *item_to_process) {
-  bool has_generated_columns = false;
   Mysql::Tools::Base::Mysql_query_runner *runner = this->get_runner();
 
   if (!runner) return;
@@ -98,24 +97,36 @@ void Mysql_object_reader::read_table_rows_task(
       &columns);
 
   std::string column_names;
+  bool has_generated_columns = false;
+  bool has_invisible_columns = false;
   for (std::vector<
            const Mysql::Tools::Base::Mysql_query_runner::Row *>::iterator it =
            columns.begin();
        it != columns.end(); ++it) {
     const Mysql::Tools::Base::Mysql_query_runner::Row &column_data = **it;
-    if (column_data[1] == "STORED GENERATED" ||
-        column_data[1] == "VIRTUAL GENERATED")
+
+    /*
+      Find "STORED GENERATED or "VIRTUAL GENERATED" , but not
+      "DEFAULT_GENERATED" in the EXTRA column.
+    */
+    if (column_data[1].find(" GENERATED") != std::string::npos) {
       has_generated_columns = true;
-    else
+    } else {
       column_names += this->quote_name(column_data[0]) + ",";
+    }
+
+    if (!has_invisible_columns)
+      has_invisible_columns =
+          column_data[1].find("INVISIBLE") != std::string::npos;
   }
+
   /* remove last comma from column_names */
   column_names = boost::algorithm::replace_last_copy(column_names, ",", "");
 
   Mysql::Tools::Base::Mysql_query_runner::cleanup_result(&columns);
 
-  Rows_fetching_context *row_fetching_context =
-      new Rows_fetching_context(this, item_to_process, has_generated_columns);
+  Rows_fetching_context *row_fetching_context = new Rows_fetching_context(
+      this, item_to_process, has_generated_columns, has_invisible_columns);
 
   runner->run_query("SELECT " + column_names + "  FROM " +
                         this->get_quoted_object_full_name(table),

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -2348,7 +2348,7 @@ static MY_ATTRIBUTE((warn_unused_result)) int dd_fill_one_dict_index(
       col = &table->cols[field->field_index() - t_num_v];
     }
 
-    col->is_visible = !field->is_hidden_from_user();
+    col->is_visible = !field->is_hidden_by_system();
     dict_index_add_col(index, table, col, prefix_len, is_asc);
   }
 
@@ -3056,7 +3056,7 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
                                 unsigned_type | binary_type | long_true_varchar,
                             charset_no);
       dict_mem_table_add_col(m_table, heap, field->field_name, mtype, prtype,
-                             col_len, !field->is_hidden_from_user());
+                             col_len, !field->is_hidden_by_system());
     } else {
       prtype = dtype_form_prtype(
           (ulint)field->type() | nulls_allowed | unsigned_type | binary_type |
@@ -3065,7 +3065,7 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
       dict_mem_table_add_v_col(m_table, heap, field->field_name, mtype, prtype,
                                col_len, i,
                                field->gcol_info->non_virtual_base_columns(),
-                               !field->is_hidden_from_user());
+                               !field->is_hidden_by_system());
     }
 
     if (is_stored) {

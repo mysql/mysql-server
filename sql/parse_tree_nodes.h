@@ -4013,6 +4013,23 @@ class PT_alter_table_set_default final : public PT_alter_table_action {
   Item *m_expr;
 };
 
+class PT_alter_table_column_visibility final : public PT_alter_table_action {
+  typedef PT_alter_table_action super;
+
+ public:
+  PT_alter_table_column_visibility(const char *col_name, bool is_visible)
+      : super(Alter_info::ALTER_COLUMN_VISIBILITY),
+        m_alter_column(col_name, is_visible) {}
+
+  bool contextualize(Table_ddl_parse_context *pc) override {
+    return (super::contextualize(pc) ||
+            pc->alter_info->alter_list.push_back(&m_alter_column));
+  }
+
+ private:
+  Alter_column m_alter_column;
+};
+
 class PT_alter_table_index_visible final : public PT_alter_table_action {
   typedef PT_alter_table_action super;
 

@@ -447,6 +447,29 @@ static bool check_if_field_used_by_generated_column_or_default(
     TABLE *table, const Field *field, const Alter_info *alter_info);
 
 /**
+   Check if given column is reserved invisible column.
+
+   WL13784 is to implement Generated Implicit Primary Key feature. If CREATE
+   TABLE doesn't have primary key or user defined implicit key then WL13784
+   generates primary key on INVISIBLE column "my_row_id". Invisible column
+   "my_row_id" is reserved in this version for WL13784.
+
+   @param cr_field Instance of Create_field.
+
+   @return true  If given column is reserved invisible column.
+   @return false Otherwise.
+*/
+static bool is_reserved_invisible_column(const Create_field *cr_field) {
+  assert(cr_field != nullptr);
+
+  if (!is_hidden_by_user(cr_field)) return false;
+
+  const char *reserved_column_name = "my_row_id";
+  return (my_strcasecmp(system_charset_info, cr_field->field_name,
+                        reserved_column_name) == 0);
+}
+
+/**
   RAII class to control the atomic DDL commit on slave.
   A slave context flag responsible to mark the DDL as committed is
   raised and kept for the entirety of DDL commit block.
@@ -4482,6 +4505,14 @@ bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
     return true;
   }
 
+  if (is_reserved_invisible_column(sql_field)) {
+    my_printf_error(ER_UNKNOWN_ERROR,
+                    "Invisible column '%s' is reserved for purposes internal "
+                    "to the MySQL server. Please use a different name.",
+                    MYF(0), sql_field->field_name);
+    return true;
+  }
+
   LEX_CSTRING comment_cstr = {sql_field->comment.str,
                               sql_field->comment.length};
   if (is_invalid_string(comment_cstr, system_charset_info)) return true;
@@ -4593,6 +4624,7 @@ bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
         sql_field->gcol_info = dup_field->gcol_info;
         sql_field->m_default_val_expr = dup_field->m_default_val_expr;
         sql_field->stored_in_db = dup_field->stored_in_db;
+        sql_field->hidden = dup_field->hidden;
         it.remove();  // Remove first (create) definition
         (*select_field_pos)--;
         break;
@@ -4747,8 +4779,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
   Create_field *sql_field = nullptr;
   DBUG_ASSERT(create_list);
   for (Create_field &it : *create_list) {
-    if ((column->has_expression() ||
-         it.hidden == dd::Column::enum_hidden_type::HT_VISIBLE) &&
+    if ((column->has_expression() || !is_hidden_by_system(&it)) &&
         my_strcasecmp(system_charset_info, column->get_field_name(),
                       it.field_name) == 0) {
       sql_field = &it;
@@ -8476,7 +8507,7 @@ static bool create_table_impl(
     }
   }
   if (!has_visible_column) {
-    my_error(ER_TABLE_MUST_HAVE_COLUMNS, MYF(0));
+    my_error(ER_TABLE_MUST_HAVE_A_VISIBLE_COLUMN, MYF(0));
     return true;
   }
 
@@ -11422,6 +11453,8 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
   if (alter_info->flags & Alter_info::SUSPEND_CHECK_CONSTRAINT)
     ha_alter_info->handler_flags |=
         Alter_inplace_info::SUSPEND_CHECK_CONSTRAINT;
+  if (alter_info->flags & Alter_info::ALTER_COLUMN_VISIBILITY)
+    ha_alter_info->handler_flags |= Alter_inplace_info::ALTER_COLUMN_VISIBILITY;
 
   /*
     Go through fields in old version of table and detect changes to them.
@@ -13783,8 +13816,10 @@ static bool check_if_field_used_by_partitioning_func(
   return true;
 }
 
-/// Set column default, drop default or rename column name.
-static bool alter_column_name_or_default(
+/**
+  Sets column default, drops default, renames or alters visibility.
+*/
+static bool alter_column_name_default_or_visibility(
     const Alter_info *alter_info,
     Prealloced_array<const Alter_column *, 1> *alter_list, Create_field *def) {
   DBUG_TRACE;
@@ -13879,6 +13914,14 @@ static bool alter_column_name_or_default(
                                                    def->field, alter_info))
         return true;
     } break;
+
+    case Alter_column::Type::SET_COLUMN_VISIBLE:
+      def->hidden = dd::Column::enum_hidden_type::HT_VISIBLE;
+      break;
+
+    case Alter_column::Type::SET_COLUMN_INVISIBLE:
+      def->hidden = dd::Column::enum_hidden_type::HT_HIDDEN_USER;
+      break;
 
     default:
       DBUG_ASSERT(0);
@@ -14123,6 +14166,7 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
                  "Changing the STORED status");
         return true;
       }
+
       /*
         If a generated column or a default expression is dependent
         on this column, this column cannot be renamed.
@@ -14190,8 +14234,7 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
         new_create_list.push_back(def);
       }
 
-      // Change the column default OR rename just the column name.
-      if (alter_column_name_or_default(alter_info, &alter_list, def))
+      if (alter_column_name_default_or_visibility(alter_info, &alter_list, def))
         return true;
     }
   }

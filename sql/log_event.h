@@ -2566,6 +2566,7 @@ class Table_map_log_event : public binary_log::Table_map_event,
   bool init_enum_str_value_field();
   bool init_geometry_type_field();
   bool init_primary_key_field();
+  bool init_column_visibility_field();
 #endif
 
 #ifndef MYSQL_SERVER

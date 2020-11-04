@@ -5366,7 +5366,7 @@ String *Item_func_internal_get_dd_column_extra::val_str(String *str) {
 
   // Stop if any of required argument is not supplied.
   if (args[0]->is_null() || args[1]->is_null() || args[2]->is_null() ||
-      args[4]->is_null()) {
+      args[4]->is_null() || args[6]->is_null()) {
     null_value = true;
     return nullptr;
   }
@@ -5376,6 +5376,8 @@ String *Item_func_internal_get_dd_column_extra::val_str(String *str) {
   bool is_auto_increment = args[2]->val_int();
   bool has_update_option = update_option_ptr != nullptr;
   bool is_default_option = args[4]->val_int();
+  dd::Column::enum_hidden_type hidden_type =
+      static_cast<dd::Column::enum_hidden_type>(args[6]->val_int());
 
   if (is_not_generated_column) {
     if (is_default_option) oss << "DEFAULT_GENERATED";
@@ -5409,6 +5411,16 @@ String *Item_func_internal_get_dd_column_extra::val_str(String *str) {
       if (oss.str().length()) oss << " ";
       oss << "NOT SECONDARY";
     }
+  }
+
+  // Print the column visibility attribute for tables.
+  String table_type;
+  String *table_type_ptr = args[7]->val_str(&table_type);
+  if (table_type_ptr != nullptr &&
+      (strcmp(table_type_ptr->c_ptr_safe(), "BASE TABLE") == 0) &&
+      hidden_type == dd::Column::enum_hidden_type::HT_HIDDEN_USER) {
+    if (oss.str().length() > 0) oss << " ";
+    oss << "INVISIBLE";
   }
 
   str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
