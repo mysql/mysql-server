@@ -28,7 +28,7 @@
 
 #include <string>
 
-#include "plugin/x/src/ngs/mysqlx/getter_any.h"
+#include "plugin/x/ngs/include/ngs/mysqlx/getter_any.h"
 #include "plugin/x/src/xpl_error.h"
 
 namespace xpl {

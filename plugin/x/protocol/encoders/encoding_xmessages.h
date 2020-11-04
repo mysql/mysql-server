@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -30,12 +30,12 @@
 #include <string>
 #include <utility>
 
-#include "my_dbug.h"  // NOLINT(build/include_subdir)
+#include "my_dbug.h"
 
 #include "plugin/x/generated/encoding_descriptors.h"
+#include "plugin/x/ngs/include/ngs/protocol/encode_column_info.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/protocol/encoders/encoding_xprotocol.h"
-#include "plugin/x/src/ngs/protocol/encode_column_info.h"
-#include "plugin/x/src/ngs/protocol/protocol_protobuf.h"
 
 namespace protocol {
 
@@ -78,7 +78,7 @@ class XMessage_encoder_base : public Base_type {
   //
   // Using template constructor instead:
   template <typename... Args>
-  explicit XMessage_encoder_base(Args &&... args)
+  XMessage_encoder_base(Args &&... args)
       : Base_type(std::forward<Args>(args)...) {}
 
   void encode_compact_metadata(const uint8_t type, const uint64_t *collation,

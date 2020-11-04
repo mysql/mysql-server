@@ -28,10 +28,10 @@
 #include <memory>
 #include <string>
 
+#include "plugin/x/ngs/include/ngs/client.h"
 #include "plugin/x/src/interface/protocol_monitor.h"
 #include "plugin/x/src/interface/session.h"
 #include "plugin/x/src/interface/vio.h"
-#include "plugin/x/src/ngs/client.h"
 
 namespace xpl {
 class Session;

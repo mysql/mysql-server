@@ -26,9 +26,9 @@
 
 #include <vector>
 
+#include "plugin/x/ngs/include/ngs/mysqlx/setter_any.h"
 #include "plugin/x/src/interface/client.h"
 #include "plugin/x/src/interface/server.h"
-#include "plugin/x/src/ngs/mysqlx/setter_any.h"
 
 namespace xpl {
 

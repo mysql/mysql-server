@@ -29,6 +29,8 @@
 #include <string>
 #include <vector>
 
+#include "plugin/x/ngs/include/ngs/client.h"
+#include "plugin/x/ngs/include/ngs/scheduler.h"
 #include "plugin/x/src/account_verification_handler.h"
 #include "plugin/x/src/interface/account_verification.h"
 #include "plugin/x/src/interface/client.h"
@@ -38,8 +40,6 @@
 #include "plugin/x/src/interface/sql_session.h"
 #include "plugin/x/src/interface/ssl_context.h"
 #include "plugin/x/src/interface/vio.h"
-#include "plugin/x/src/ngs/client.h"
-#include "plugin/x/src/ngs/scheduler.h"
 #include "plugin/x/src/sql_data_context.h"
 #include "plugin/x/src/xpl_resultset.h"
 #include "plugin/x/src/xpl_session.h"

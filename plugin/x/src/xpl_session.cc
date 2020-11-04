@@ -24,11 +24,11 @@
 
 #include "plugin/x/src/xpl_session.h"
 
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/scheduler.h"
 #include "plugin/x/src/document_id_aggregator.h"
 #include "plugin/x/src/interface/client.h"
 #include "plugin/x/src/interface/server.h"
-#include "plugin/x/src/ngs/protocol/protocol_protobuf.h"
-#include "plugin/x/src/ngs/scheduler.h"
 #include "plugin/x/src/notices.h"
 #include "plugin/x/src/sql_data_context.h"
 #include "plugin/x/src/xpl_dispatcher.h"

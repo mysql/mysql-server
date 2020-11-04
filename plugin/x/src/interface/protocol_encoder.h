@@ -29,11 +29,11 @@
 #include <string>
 #include <vector>
 
-#include "plugin/x/src/ngs/error_code.h"
-#include "plugin/x/src/ngs/protocol/encode_column_info.h"
-#include "plugin/x/src/ngs/protocol/message.h"
-#include "plugin/x/src/ngs/protocol/metadata_builder.h"
-#include "plugin/x/src/ngs/protocol_flusher.h"
+#include "plugin/x/ngs/include/ngs/error_code.h"
+#include "plugin/x/ngs/include/ngs/protocol/encode_column_info.h"
+#include "plugin/x/ngs/include/ngs/protocol/message.h"
+#include "plugin/x/ngs/include/ngs/protocol/metadata_builder.h"
+#include "plugin/x/ngs/include/ngs/protocol_flusher.h"
 
 namespace protocol {
 

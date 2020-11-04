@@ -27,8 +27,8 @@
 
 #include <functional>
 
+#include "plugin/x/ngs/include/ngs/client_list.h"
 #include "plugin/x/src/interface/connection_acceptor.h"
-#include "plugin/x/src/ngs/client_list.h"
 #include "plugin/x/src/server/server_properties.h"
 
 namespace xpl {

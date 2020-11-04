@@ -28,10 +28,10 @@
 #include <map>
 #include <string>
 
+#include "plugin/x/ngs/include/ngs/error_code.h"
 #include "plugin/x/src/admin_cmd_arguments.h"
 #include "plugin/x/src/interface/admin_command_arguments.h"
 #include "plugin/x/src/interface/sql_session.h"
-#include "plugin/x/src/ngs/error_code.h"
 
 namespace xpl {
 

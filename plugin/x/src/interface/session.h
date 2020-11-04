@@ -27,14 +27,14 @@
 
 #include <string>
 
+#include "plugin/x/ngs/include/ngs/notice_descriptor.h"
+#include "plugin/x/ngs/include/ngs/session_status_variables.h"
 #include "plugin/x/src/interface/authentication.h"
 #include "plugin/x/src/interface/document_id_aggregator.h"
 #include "plugin/x/src/interface/notice_configuration.h"
 #include "plugin/x/src/interface/notice_output_queue.h"
 #include "plugin/x/src/interface/protocol_encoder.h"
 #include "plugin/x/src/interface/sql_session.h"
-#include "plugin/x/src/ngs/notice_descriptor.h"
-#include "plugin/x/src/ngs/session_status_variables.h"
 
 namespace xpl {
 namespace iface {

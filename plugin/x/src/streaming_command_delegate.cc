@@ -35,13 +35,13 @@
 #include "decimal.h"  // NOLINT(build/include_subdir)
 #include "my_dbug.h"  // NOLINT(build/include_subdir)
 
+#include "plugin/x/ngs/include/ngs/protocol/column_info_builder.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_const.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/protocol/encoders/encoding_xrow.h"
 #include "plugin/x/src/interface/client.h"
 #include "plugin/x/src/interface/notice_output_queue.h"
 #include "plugin/x/src/interface/protocol_encoder.h"
-#include "plugin/x/src/ngs/protocol/column_info_builder.h"
-#include "plugin/x/src/ngs/protocol/protocol_const.h"
-#include "plugin/x/src/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/notices.h"
 #include "plugin/x/src/xpl_log.h"
 

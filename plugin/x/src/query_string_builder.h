@@ -27,11 +27,11 @@
 
 #include <stdint.h>
 #include <string.h>
-#include <mutex>  // NOLINT(build/c++11)
+#include <mutex>
 #include <string>
 
-#include "plugin/x/src/ngs/memory.h"
-#include "plugin/x/src/ngs/thread.h"
+#include "plugin/x/ngs/include/ngs/memory.h"
+#include "plugin/x/ngs/include/ngs/thread.h"
 #include "plugin/x/src/query_formatter.h"
 
 struct CHARSET_INFO;
@@ -40,7 +40,7 @@ namespace xpl {
 
 class Query_string_builder {
  public:
-  explicit Query_string_builder(size_t reserve = 256);
+  Query_string_builder(size_t reserve = 256);
 
   Query_string_builder &bquote() {
     m_str.push_back('\'');

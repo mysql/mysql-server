@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,12 +26,12 @@
 
 #include <algorithm>
 
-#include "my_sys.h"  // escape_string_for_mysql  NOLINT(build/include_subdir)
-#include "plugin/x/src/ngs/error_code.h"
+#include "my_sys.h"  // escape_string_for_mysql
+#include "plugin/x/ngs/include/ngs/error_code.h"
 #include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_log.h"
 
-namespace xpl {
+using namespace xpl;
 
 enum Block_enum {
   Block_none,
@@ -263,5 +263,3 @@ void Query_formatter::put_value(const char *value, const std::size_t length) {
 std::size_t Query_formatter::count_tags() const {
   return std::count_if(m_query.begin(), m_query.end(), Sql_search_tags());
 }
-
-}  // namespace xpl

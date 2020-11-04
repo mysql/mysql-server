@@ -27,12 +27,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <queue>
 #include <string>
 
+#include "plugin/x/ngs/include/ngs/notice_descriptor.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
 #include "plugin/x/src/interface/notice_configuration.h"
 #include "plugin/x/src/interface/notice_output_queue.h"
 #include "plugin/x/src/interface/protocol_encoder.h"
 #include "plugin/x/src/interface/waiting_for_io.h"
-#include "plugin/x/src/ngs/notice_descriptor.h"
 #include "plugin/x/src/xpl_performance_schema.h"
 
 namespace xpl {

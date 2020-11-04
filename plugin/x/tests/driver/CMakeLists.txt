@@ -20,10 +20,47 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+SET(XTEST_SRC
+  driver_command_line_options.cc
+  json_to_any_handler.cc
+  mysqlx_charset.cc
+  mysqlxtest.cc
 
-INCLUDE(source_files.cmake)
-LIST(APPEND XTEST_SRC "${CMAKE_SOURCE_DIR}/sql-common/net_ns.cc")
+  common/command_line_options.cc
+  common/message_matcher.cc
+  common/utils_mysql_parsing.cc
+  common/utils_string_parsing.cc
 
+  connector/connection_manager.cc
+  connector/mysqlx_all_msgs.cc
+  connector/result_fetcher.cc
+  connector/session_holder.cc
+  connector/warning.cc
+
+  formatters/console.cc
+  formatters/message_formatter.cc
+
+  parsers/message_parser.cc
+
+  processor/command_multiline_processor.cc
+  processor/command_processor.cc
+  processor/dump_message_block_processor.cc
+  processor/macro_block_processor.cc
+  processor/send_message_block_processor.cc
+  processor/sql_block_processor.cc
+  processor/sql_stmt_processor.cc
+  processor/stream_processor.cc
+  processor/compress_single_message_block_processor.cc
+  processor/multiple_compress_block_processor.cc
+
+  processor/commands/command.cc
+  processor/commands/expected_error.cc
+  processor/commands/expected_warnings.cc
+  processor/commands/macro.cc
+  processor/commands/mysqlxtest_error_names.cc
+
+  ${CMAKE_SOURCE_DIR}/sql-common/net_ns.cc
+  )
 
 INCLUDE_DIRECTORIES(
   ${MYSQLX_GENERATE_DIR}

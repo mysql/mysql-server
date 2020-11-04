@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -29,9 +29,9 @@
 #include <string>
 #include <vector>
 
+#include "plugin/x/ngs/include/ngs/error_code.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/interface/admin_command_arguments.h"
-#include "plugin/x/src/ngs/error_code.h"
-#include "plugin/x/src/ngs/protocol/protocol_protobuf.h"
 
 namespace xpl {
 

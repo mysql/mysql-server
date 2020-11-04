@@ -27,7 +27,7 @@
 #include <algorithm>
 #include <cstddef>
 
-#include "plugin/x/src/ngs/memory.h"
+#include "plugin/x/ngs/include/ngs/memory.h"
 
 namespace xpl {
 

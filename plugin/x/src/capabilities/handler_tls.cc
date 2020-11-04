@@ -24,11 +24,11 @@
 
 #include "plugin/x/src/capabilities/handler_tls.h"
 
+#include "plugin/x/ngs/include/ngs/mysqlx/getter_any.h"
+#include "plugin/x/ngs/include/ngs/mysqlx/setter_any.h"
 #include "plugin/x/src/interface/client.h"
 #include "plugin/x/src/interface/server.h"
 #include "plugin/x/src/interface/ssl_context.h"
-#include "plugin/x/src/ngs/mysqlx/getter_any.h"
-#include "plugin/x/src/ngs/mysqlx/setter_any.h"
 
 namespace xpl {
 

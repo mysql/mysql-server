@@ -27,7 +27,7 @@
 
 #include "plugin/x/src/sql_statement_builder.h"
 
-#include "plugin/x/src/ngs/error_code.h"
+#include "plugin/x/ngs/include/ngs/error_code.h"
 #include "plugin/x/src/query_string_builder.h"
 #include "unittest/gunit/xplugin/xpl/mysqlx_pb_wrapper.h"
 

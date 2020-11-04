@@ -29,7 +29,7 @@
 #include <vector>
 
 #include "plugin/x/client/mysqlxclient/xrow.h"
-#include "plugin/x/src/ngs/protocol/protocol_const.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_const.h"
 
 namespace {
 

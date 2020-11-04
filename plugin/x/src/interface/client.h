@@ -28,13 +28,13 @@
 #include <memory>
 #include <vector>
 
+#include "plugin/x/ngs/include/ngs/compression_types.h"
+#include "plugin/x/ngs/include/ngs/protocol/message.h"
 #include "plugin/x/src/helper/chrono.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
 #include "plugin/x/src/helper/optional_value.h"
 #include "plugin/x/src/interface/session.h"
 #include "plugin/x/src/interface/vio.h"
-#include "plugin/x/src/ngs/compression_types.h"
-#include "plugin/x/src/ngs/protocol/message.h"
 
 class THD;
 
