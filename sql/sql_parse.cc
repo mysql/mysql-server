@@ -5105,7 +5105,7 @@ bool mysql_test_parse_for_slave(THD *thd) {
   @param srid                      The SRID for this column (only relevant if
                                    this is a geometry column).
   @param col_check_const_spec_list List of column check constraints.
-  @param hidden                    Whether or not this field shoud be hidden.
+  @param hidden                    Column hidden type.
   @param is_array                  Whether it's a typed array field
 
   @return
@@ -5123,7 +5123,8 @@ bool Alter_info::add_field(
     dd::Column::enum_hidden_type hidden, bool is_array) {
   uint8 datetime_precision = decimals ? atoi(decimals) : 0;
   DBUG_TRACE;
-  DBUG_ASSERT(!is_array || hidden != dd::Column::enum_hidden_type::HT_VISIBLE);
+  DBUG_ASSERT(!is_array ||
+              hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SQL);
 
   LEX_CSTRING field_name_cstr = {field_name->str, field_name->length};
 

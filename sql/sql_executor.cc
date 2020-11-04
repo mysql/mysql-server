@@ -174,7 +174,7 @@ string RefToString(const TABLE_REF &ref, const KEY *key, bool include_nulls) {
       // index. Instead, print out the indexed expression.
       ret += ItemToString(field->gcol_info->expr_item);
     } else {
-      DBUG_ASSERT(!field->is_hidden_from_user());
+      DBUG_ASSERT(!field->is_hidden_by_system());
       ret += field->field_name;
     }
     ret += "=";

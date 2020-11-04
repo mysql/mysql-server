@@ -11053,7 +11053,7 @@ inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
           dtype_form_prtype((ulint)field->type() | nulls_allowed |
                                 unsigned_type | binary_type | long_true_varchar,
                             charset_no),
-          col_len, !field->is_hidden_from_user());
+          col_len, !field->is_hidden_by_system());
     } else {
       if (is_multi_val) {
         col_len = field->key_length();
@@ -11065,7 +11065,7 @@ inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
                                 long_true_varchar | is_virtual | is_multi_val,
                             charset_no),
           col_len, i, field->gcol_info->non_virtual_base_columns(),
-          !field->is_hidden_from_user());
+          !field->is_hidden_by_system());
     }
 
     if (is_stored) {

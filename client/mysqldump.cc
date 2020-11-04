@@ -57,6 +57,7 @@
 #include "mysqld_error.h"
 #include "prealloced_array.h"
 #include "print_version.h"
+#include "scope_guard.h"
 #include "template_utils.h"
 #include "typelib.h"
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
@@ -2581,18 +2582,21 @@ static inline bool is_innodb_stats_tables_included(int argc, char **argv) {
   be dumping.
 
   ARGS
-    table       - table name
-    db          - db name
-    table_type  - table type, e.g. "MyISAM" or "InnoDB", but also "VIEW"
-    ignore_flag - what we must particularly ignore - see IGNORE_ defines above
-    real_columns- Contains one byte per column, 0 means unused, 1 is used
-                  Generated columns are marked as unused
+    table        - table name
+    db           - db name
+    table_type   - table type, e.g. "MyISAM" or "InnoDB", but also "VIEW"
+    ignore_flag  - what we must particularly ignore - see IGNORE_ defines above
+    real_columns - Contains one byte per column, 0 means unused, 1 is used
+                   Generated columns are marked as unused
+    column_list  - Contains column list when table has invisible columns.
+
   RETURN
     number of fields in table, 0 if error
 */
 
 static uint get_table_structure(const char *table, char *db, char *table_type,
-                                char *ignore_flag, bool real_columns[]) {
+                                char *ignore_flag, bool real_columns[],
+                                std::string *column_list) {
   bool init = false, write_data, complete_insert, skip_ddl;
   uint64_t num_fields;
   const char *result_table, *opt_quoted_table;
@@ -2831,17 +2835,43 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
       return 0;
     }
 
-    if (write_data && !complete_insert) {
-      /*
-        If data contents of table are to be written and complete_insert
-        is false (column list not required in INSERT statement), scan the
-        column list for generated columns, as presence of any generated column
-        will require that an explicit list of columns is printed.
-      */
+    bool has_invisible_columns = false;
+    if (write_data) {
       while ((row = mysql_fetch_row(result))) {
         if (row[SHOW_EXTRA]) {
-          complete_insert |= strcmp(row[SHOW_EXTRA], "STORED GENERATED") == 0 ||
-                             strcmp(row[SHOW_EXTRA], "VIRTUAL GENERATED") == 0;
+          /*
+            If data contents of table are to be written and option to prepare
+            INSERT statement with complete column list is not set then scan the
+            column list for generated columns and invisible columns. Presence
+            of any generated column or invisible column will require that an
+            explicit list of columns is printed for INSERT statements.
+          */
+          bool is_generated_column = false;
+          if (strcmp(row[SHOW_EXTRA], "STORED GENERATED") == 0) {
+            is_generated_column = true;
+          } else if (strcmp(row[SHOW_EXTRA], "STORED GENERATED INVISIBLE") ==
+                     0) {
+            is_generated_column = true;
+            has_invisible_columns |= true;
+          } else if (strcmp(row[SHOW_EXTRA], "VIRTUAL GENERATED") == 0) {
+            is_generated_column = true;
+          } else if (strcmp(row[SHOW_EXTRA], "VIRTUAL GENERATED INVISIBLE") ==
+                     0) {
+            is_generated_column = true;
+            has_invisible_columns |= true;
+          } else if (!has_invisible_columns &&
+                     (strstr(row[SHOW_EXTRA], "INVISIBLE") != nullptr)) {
+            /*
+              For timestamp and datetime type columns, EXTRA column might
+              contain DEFAULT_GENERATED and 'on update CURRENT TIMESTAMP'.
+              INVISIBLE keyword is appended at the end if column is invisible.
+              So finding INVISIBLE keyword in EXTRA column to check column is
+              invisible.
+            */
+            has_invisible_columns = true;
+          }
+
+          complete_insert |= (has_invisible_columns || is_generated_column);
         }
       }
       mysql_free_result(result);
@@ -2877,15 +2907,20 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
     while ((row = mysql_fetch_row(result))) {
       if (row[SHOW_EXTRA]) {
         real_columns[colno] =
-            strcmp(row[SHOW_EXTRA], "STORED GENERATED") != 0 &&
-            strcmp(row[SHOW_EXTRA], "VIRTUAL GENERATED") != 0;
+            (strcmp(row[SHOW_EXTRA], "STORED GENERATED") != 0 &&
+             strcmp(row[SHOW_EXTRA], "STORED GENERATED INVISIBLE") != 0 &&
+             strcmp(row[SHOW_EXTRA], "VIRTUAL GENERATED") != 0 &&
+             strcmp(row[SHOW_EXTRA], "VIRTUAL GENERATED INVISIBLE") != 0);
       } else
         real_columns[colno] = true;
 
+      if (has_invisible_columns && column_list != nullptr) {
+        if (!column_list->empty()) column_list->append(", ");
+        column_list->append(quote_name(row[SHOW_FIELDNAME], name_buff, false));
+      }
+
       if (real_columns[colno++] && complete_insert) {
-        if (init) {
-          dynstr_append_checked(&insert_pat, ", ");
-        }
+        if (init) dynstr_append_checked(&insert_pat, ", ");
         init = true;
         dynstr_append_checked(
             &insert_pat, quote_name(row[SHOW_FIELDNAME], name_buff, false));
@@ -2901,17 +2936,43 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
 
     if (mysql_query_with_error_report(mysql, &result, query_buff)) return 0;
 
-    if (write_data && !complete_insert) {
-      /*
-        If data contents of table are to be written and complete_insert
-        is false (column list not required in INSERT statement), scan the
-        column list for generated columns, as presence of any generated column
-        will require that an explicit list of columns is printed.
-      */
+    bool has_invisible_columns = false;
+    if (write_data) {
       while ((row = mysql_fetch_row(result))) {
         if (row[SHOW_EXTRA]) {
-          complete_insert |= strcmp(row[SHOW_EXTRA], "STORED GENERATED") == 0 ||
-                             strcmp(row[SHOW_EXTRA], "VIRTUAL GENERATED") == 0;
+          /*
+            If data contents of table are to be written and option to prepare
+            INSERT statement with complete column list is not set then scan the
+            column list for generated columns and invisible columns. Presence
+            of any generated column or invisible column will require that an
+            explicit list of columns is printed for INSERT statements.
+          */
+          bool is_generated_column = false;
+          if (strcmp(row[SHOW_EXTRA], "STORED GENERATED") == 0) {
+            is_generated_column = true;
+          } else if (strcmp(row[SHOW_EXTRA], "STORED GENERATED INVISIBLE") ==
+                     0) {
+            is_generated_column = true;
+            has_invisible_columns |= true;
+          } else if (strcmp(row[SHOW_EXTRA], "VIRTUAL GENERATED") == 0) {
+            is_generated_column = true;
+          } else if (strcmp(row[SHOW_EXTRA], "VIRTUAL GENERATED INVISIBLE") ==
+                     0) {
+            is_generated_column = true;
+            has_invisible_columns |= true;
+          } else if (!has_invisible_columns &&
+                     (strstr(row[SHOW_EXTRA], "INVISIBLE") != nullptr)) {
+            /*
+              For timestamp and datetime type columns, EXTRA column might
+              contain DEFAULT_GENERATED and 'on update CURRENT TIMESTAMP'.
+              INVISIBLE keyword is appended at the end if column is invisible.
+              So finding INVISIBLE keyword in EXTRA column to check column is
+              invisible.
+            */
+            has_invisible_columns = true;
+          }
+
+          complete_insert |= (has_invisible_columns || is_generated_column);
         }
       }
       mysql_free_result(result);
@@ -2966,10 +3027,17 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
 
       if (row[SHOW_EXTRA]) {
         real_columns[colno] =
-            strcmp(row[SHOW_EXTRA], "STORED GENERATED") != 0 &&
-            strcmp(row[SHOW_EXTRA], "VIRTUAL GENERATED") != 0;
+            (strcmp(row[SHOW_EXTRA], "STORED GENERATED") != 0 &&
+             strcmp(row[SHOW_EXTRA], "STORED GENERATED INVISIBLE") != 0 &&
+             strcmp(row[SHOW_EXTRA], "VIRTUAL GENERATED") != 0 &&
+             strcmp(row[SHOW_EXTRA], "VIRTUAL GENERATED INVISIBLE") != 0);
       } else
         real_columns[colno] = true;
+
+      if (has_invisible_columns && column_list != nullptr) {
+        if (!column_list->empty()) column_list->append(", ");
+        column_list->append(quote_name(row[SHOW_FIELDNAME], name_buff, false));
+      }
 
       if (!real_columns[colno++]) continue;
 
@@ -3540,8 +3608,9 @@ static void dump_table(char *table, char *db) {
     Make sure you get the create table info before the following check for
     --no-data flag below. Otherwise, the create table info won't be printed.
   */
-  num_fields =
-      get_table_structure(table, db, table_type, &ignore_flag, real_columns);
+  std::string column_list;
+  num_fields = get_table_structure(table, db, table_type, &ignore_flag,
+                                   real_columns, &column_list);
 
   /*
     The "table" could be a view.  If so, we don't do anything here.
@@ -3609,8 +3678,12 @@ static void dump_table(char *table, char *db) {
 
     /* now build the query string */
 
-    dynstr_append_checked(&query_string,
-                          "SELECT /*!40001 SQL_NO_CACHE */ * INTO OUTFILE '");
+    dynstr_append_checked(&query_string, "SELECT /*!40001 SQL_NO_CACHE */ ");
+    if (column_list.empty())
+      dynstr_append_checked(&query_string, "*");
+    else
+      dynstr_append_checked(&query_string, column_list.c_str());
+    dynstr_append_checked(&query_string, " INTO OUTFILE '");
     dynstr_append_checked(&query_string, filename);
     dynstr_append_checked(&query_string, "'");
 
@@ -3659,8 +3732,12 @@ static void dump_table(char *table, char *db) {
                   "\n--\n-- Dumping data for table %s\n--\n", data_text);
     if (data_freemem) my_free(const_cast<char *>(data_text));
 
-    dynstr_append_checked(&query_string,
-                          "SELECT /*!40001 SQL_NO_CACHE */ * FROM ");
+    dynstr_append_checked(&query_string, "SELECT /*!40001 SQL_NO_CACHE */ ");
+    if (column_list.empty())
+      dynstr_append_checked(&query_string, "*");
+    else
+      dynstr_append_checked(&query_string, column_list.c_str());
+    dynstr_append_checked(&query_string, " FROM ");
     dynstr_append_checked(&query_string, result_table);
 
     if (where) {
@@ -4554,14 +4631,14 @@ static int dump_all_tables_in_db(char *database) {
     char ignore_flag;
     if (general_log_table_exists) {
       if (!get_table_structure("general_log", database, table_type,
-                               &ignore_flag, real_columns))
+                               &ignore_flag, real_columns, nullptr))
         verbose_msg(
             "-- Warning: get_table_structure() failed with some internal "
             "error for 'general_log' table\n");
     }
     if (slow_log_table_exists) {
       if (!get_table_structure("slow_log", database, table_type, &ignore_flag,
-                               real_columns))
+                               real_columns, nullptr))
         verbose_msg(
             "-- Warning: get_table_structure() failed with some internal "
             "error for 'slow_log' table\n");

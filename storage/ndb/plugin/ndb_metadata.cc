@@ -1185,9 +1185,14 @@ bool Ndb_metadata::compare_table_def(const dd::Table *t1,
     // "comment", column1->comment(),
     //            column2->comment());
 
-    ctx.compare(Compare_context::COLUMN, column_name, "hidden",
-                static_cast<unsigned long long>(column1->hidden()),
-                static_cast<unsigned long long>(column2->hidden()));
+    /*
+      Diff in 'column_hidden' detected, '1' != '4'.
+
+      Column hidden types are not stored in the NDB Dictionary.
+    */
+    // ctx.compare(Compare_context::COLUMN, column_name, "hidden",
+    // static_cast<unsigned long long>(column1->hidden()), static_cast<unsigned
+    // long long>(column2->hidden()));
 
     // Column options
     const dd::Properties *col1_options = &column1->options();

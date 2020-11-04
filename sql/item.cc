@@ -5363,8 +5363,11 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
       return false;
     }
 
-    if (from_field->is_hidden_from_user()) {
-      // This field is hidden from users, so report it as "not found".
+    if (from_field->is_hidden_by_system()) {
+      /*
+        This field is either hidden by the storage engine or SQL layer. In
+        either case, report column "not found" error.
+      */
       my_error(ER_BAD_FIELD_ERROR, MYF(0), from_field->field_name, thd->where);
       return true;
     }

@@ -812,9 +812,29 @@ class Field {
     @retval true if this field should be hidden away from users.
     @retval false is this field is visible to the user.
   */
-  bool is_hidden_from_user() const {
+  bool is_hidden() const {
     return hidden() != dd::Column::enum_hidden_type::HT_VISIBLE &&
            DBUG_EVALUATE_IF("show_hidden_columns", false, true);
+  }
+
+  /**
+    @retval true  If this column is hidden either in the storage engine
+                  or SQL layer. Either way, it is completely hidden from
+                  the user.
+    @retval false Otherwise.
+  */
+  bool is_hidden_by_system() const {
+    return (hidden() == dd::Column::enum_hidden_type::HT_HIDDEN_SE ||
+            hidden() == dd::Column::enum_hidden_type::HT_HIDDEN_SQL) &&
+           DBUG_EVALUATE_IF("show_hidden_columns", false, true);
+  }
+
+  /**
+    @retval true  If this column is hidden by the user.
+    @retval false otherwise.
+  */
+  bool is_hidden_by_user() const {
+    return hidden() == dd::Column::enum_hidden_type::HT_HIDDEN_USER;
   }
 
   /**

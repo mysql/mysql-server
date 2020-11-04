@@ -3010,6 +3010,9 @@ class Alter_inplace_info {
   // Suspend check constraint.
   static const HA_ALTER_FLAGS SUSPEND_CHECK_CONSTRAINT = 1ULL << 48;
 
+  // Alter column visibility.
+  static const HA_ALTER_FLAGS ALTER_COLUMN_VISIBILITY = 1ULL << 49;
+
   /**
     Create options (like MAX_ROWS) for the new version of table.
 

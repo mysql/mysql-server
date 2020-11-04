@@ -1,0 +1,68 @@
+#
+# WL#10905 - Support for INVISIBLE columns.
+#
+# Test case to verify that INVISIBLE columns are included in the binlog event.
+SET @start_row_image_value = @@session.binlog_row_image;
+RESET MASTER;
+CREATE TABLE t1 (f1 INT,
+f2 INT INVISIBLE DEFAULT(10),
+f3 INT INVISIBLE DEFAULT(905),
+f4 LONGTEXT DEFAULT('longtext'),
+CONSTRAINT PRIMARY KEY (f1, f2));
+SET @@session.binlog_row_image = MINIMAL;
+INSERT INTO t1(f1) VALUES (1);
+UPDATE t1 SET f3=10905 WHERE f1 = 1 AND f2 = 10;
+SET @@session.binlog_row_image = NOBLOB;
+INSERT INTO t1(f1) VALUES (2);
+UPDATE t1 SET f3=10905 WHERE f1 = 2 AND f2 = 10;
+SET @@session.binlog_row_image = FULL;
+INSERT INTO t1(f1) VALUES (3);
+UPDATE t1 SET f3=10905 WHERE f1 =3 AND f2 = 10;
+DROP TABLE t1;
+FLUSH LOGS;
+SET @@session.binlog_row_image = @start_row_image_value;
+include/mysqlbinlog.inc
+### INSERT INTO `test`.`t1`
+### SET
+###   @1=1
+###   @2=10
+###   @3=905
+###   @4='longtext'
+### UPDATE `test`.`t1`
+### WHERE
+###   @1=1
+###   @2=10
+### SET
+###   @3=10905
+### INSERT INTO `test`.`t1`
+### SET
+###   @1=2
+###   @2=10
+###   @3=905
+###   @4='longtext'
+### UPDATE `test`.`t1`
+### WHERE
+###   @1=2
+###   @2=10
+###   @3=905
+### SET
+###   @1=2
+###   @2=10
+###   @3=10905
+### INSERT INTO `test`.`t1`
+### SET
+###   @1=3
+###   @2=10
+###   @3=905
+###   @4='longtext'
+### UPDATE `test`.`t1`
+### WHERE
+###   @1=3
+###   @2=10
+###   @3=905
+###   @4='longtext'
+### SET
+###   @1=3
+###   @2=10
+###   @3=10905
+###   @4='longtext'

@@ -6126,12 +6126,12 @@
                 "comment": "",
                 "generation_expression": "",
                 "generation_expression_utf8": "",
-                "options": "interval_count=3;",
+                "options": "interval_count=4;",
                 "se_private_data": "table_id=X",
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 1,
-                "column_type_utf8": "enum('Visible','SE','SQL')",
+                "column_type_utf8": "enum('Visible','SE','SQL','User')",
                 "elements": [
                     {
                         "name": "VmlzaWJsZQ==", "decoded-name": "Visible",
@@ -6144,6 +6144,10 @@
                     {
                         "name": "U1FM", "decoded-name": "SQL",
                         "index": 3
+                    },
+                    {
+                        "name": "VXNlcg==", "decoded-name": "User",
+                        "index": 4
                     }
                 ],
                 "collation_id": X,

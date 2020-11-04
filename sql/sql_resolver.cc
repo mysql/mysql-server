@@ -4929,8 +4929,8 @@ bool validate_gc_assignment(const mem_root_deque<Item *> &fields,
       rfield = *(fld++);
     if (rfield->table != table) continue;
 
-    // Skip fields that are hidden from the user.
-    if (rfield->is_hidden_from_user()) continue;
+    // Skip hidden system fields.
+    if (rfield->is_hidden_by_system()) continue;
 
     // If any of the explicit values is DEFAULT
     if (rfield->m_default_val_expr &&

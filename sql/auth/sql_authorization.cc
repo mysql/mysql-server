@@ -4099,6 +4099,10 @@ bool check_grant_all_columns(THD *thd, ulong want_access_arg,
   if (!acl_cache_lock.lock()) return true;
 
   for (; !fields->end_of_fields(); fields->next()) {
+    // Skip invisible columns.
+    if (fields->field() != nullptr && fields->field()->is_hidden_by_user())
+      continue;
+
     grant = fields->grant(); /* Get cached GRANT_INFO on field */
     // Check the privileges at column level if table does not have wanted access
     want_access = want_access_arg & ~grant->privilege;

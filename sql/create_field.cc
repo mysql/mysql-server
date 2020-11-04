@@ -776,3 +776,12 @@ size_t Create_field::key_length() const {
 bool is_field_for_functional_index(const Create_field *create_field) {
   return create_field->hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SQL;
 }
+
+bool is_hidden_by_system(const Create_field *create_field) {
+  return create_field->hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SE ||
+         create_field->hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SQL;
+}
+
+bool is_hidden_by_user(const Create_field *create_field) {
+  return create_field->hidden == dd::Column::enum_hidden_type::HT_HIDDEN_USER;
+}

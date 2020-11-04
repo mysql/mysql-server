@@ -76,8 +76,8 @@ class Alter_drop {
 };
 
 /**
-  Class representing SET DEFAULT, DROP DEFAULT and RENAME
-  COLUMN clause in ALTER TABLE statement.
+  Class representing SET DEFAULT, DROP DEFAULT, RENAME COLUMN, SET VISIBLE and
+  SET INVISIBLE clause in ALTER TABLE statement.
 */
 
 class Alter_column {
@@ -94,7 +94,13 @@ class Alter_column {
   /// The new colum name.
   const char *m_new_name;
 
-  enum class Type { SET_DEFAULT, DROP_DEFAULT, RENAME_COLUMN };
+  enum class Type {
+    SET_DEFAULT,
+    DROP_DEFAULT,
+    RENAME_COLUMN,
+    SET_COLUMN_VISIBLE,
+    SET_COLUMN_INVISIBLE
+  };
 
  public:
   /// Type of change requested in ALTER TABLE.
@@ -127,6 +133,13 @@ class Alter_column {
         def(nullptr),
         m_new_name(new_name),
         m_type(Type::RENAME_COLUMN) {}
+
+  /// Constructor used while altering column visibility.
+  Alter_column(const char *par_name, bool par_is_visible)
+      : name(par_name), def(nullptr), m_new_name(nullptr) {
+    m_type = (par_is_visible ? Type::SET_COLUMN_VISIBLE
+                             : Type::SET_COLUMN_INVISIBLE);
+  }
 
  private:
   Type m_type;
@@ -328,7 +341,10 @@ class Alter_info {
     /// this is NOT to be set for SECONDARY_ENGINE_ATTRIBUTE as this flag
     /// controls if execution should check if SE supports engine
     /// attributes.
-    ANY_ENGINE_ATTRIBUTE = 1ULL << 39
+    ANY_ENGINE_ATTRIBUTE = 1ULL << 39,
+
+    /// Set for column visibility attribute alter.
+    ALTER_COLUMN_VISIBILITY = 1ULL << 40
   };
 
   enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };

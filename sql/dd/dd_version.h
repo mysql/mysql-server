@@ -184,22 +184,27 @@
       mysql.indexes.secondary_engine_attribute
       mysql.tablespaces.engine_attribute
 
-  80022: Current.
+  80022: Published in 8.0.22
   ----------------------------------------------------------------------------
   Changes from version 80021:
 
   - Bug#31587625: PERFORMANCE DEGRADATION AFTER WL14073: Adds definer index for
     mysql.{events, routines, tables, triggers}.
 
-  80023: Next DD version number after the previous is public.
+  80023: Current.
   ----------------------------------------------------------------------------
   Changes from version 80022:
-  - No changes, this version number is not active yet.
 
+  - WL#10905 adds new hidden type 'USER' to mysql.columns.hidden column.
+
+  80024: Next DD version number after the previous is public.
+  ----------------------------------------------------------------------------
+  Changes from version 80023:
+  - No changes, this version number is not active yet.
  */
 namespace dd {
 
-static const uint DD_VERSION = 80022;
+static const uint DD_VERSION = 80023;
 static_assert(DD_VERSION <= MYSQL_VERSION_ID,
               "This release can not use a version number from the future");
 

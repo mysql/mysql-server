@@ -8315,6 +8315,18 @@ static bool mark_common_columns(THD *thd, TABLE_LIST *table_ref_1,
   DBUG_PRINT("info", ("operand_1: %s  operand_2: %s", table_ref_1->alias,
                       table_ref_2->alias));
 
+  /*
+    Hidden columns for functional indexes don't participate in NATURAL /
+    USING JOIN and invisible columns don't participate in NATURAL JOIN.
+    (we need to go through get_or_create_column_ref() before calling
+     this method).
+  */
+  auto is_non_participant_column = [using_fields](Field *field) {
+    return (field != nullptr &&
+            (field->is_field_for_functional_index() ||
+             ((using_fields == nullptr) && field->is_hidden_by_user())));
+  };
+
   Prepared_stmt_arena_holder ps_arena_holder(thd);
 
   *found_using_fields = 0;
@@ -8325,12 +8337,8 @@ static bool mark_common_columns(THD *thd, TABLE_LIST *table_ref_1,
     /* true if field_name_1 is a member of using_fields */
     bool is_using_column_1;
     if (!(nj_col_1 = it_1.get_or_create_column_ref(thd, leaf_1))) return true;
-    if (it_1.field() != nullptr && it_1.field()->is_hidden_from_user()) {
-      // Hidden columns for functional indexes don't participate in
-      // NATURAL JOIN, so skip it (but we need to go through
-      // get_or_create_column_ref() first).
-      continue;
-    }
+    if (is_non_participant_column(it_1.field())) continue;
+
     field_name_1 = nj_col_1->name();
     is_using_column_1 =
         using_fields && test_if_string_in_list(field_name_1, using_fields);
@@ -8351,13 +8359,9 @@ static bool mark_common_columns(THD *thd, TABLE_LIST *table_ref_1,
       const char *cur_field_name_2;
       if (!(cur_nj_col_2 = it_2.get_or_create_column_ref(thd, leaf_2)))
         return true;
+      if (is_non_participant_column(it_2.field())) continue;
+
       cur_field_name_2 = cur_nj_col_2->name();
-      if (it_2.field() != nullptr && it_2.field()->is_hidden_from_user()) {
-        // Hidden columns for functional indexes don't participate in
-        // NATURAL JOIN, so skip it (but we need to go through
-        // get_or_create_column_ref() first).
-        continue;
-      }
       DBUG_PRINT("info",
                  ("cur_field_name_2=%s.%s",
                   cur_nj_col_2->table_name() ? cur_nj_col_2->table_name() : "",
@@ -8939,11 +8943,11 @@ bool setup_fields(THD *thd, ulong want_privilege, bool allow_sum_func,
       return true; /* purecov: inspected */
     }
 
-    // Check that we don't have a field that is hidden from users. This should
+    // Check that we don't have a field that is hidden sytem field. This should
     // be caught in Item_field::fix_fields.
     DBUG_ASSERT(
         item->type() != Item::FIELD_ITEM ||
-        !static_cast<const Item_field *>(item)->field->is_hidden_from_user());
+        !static_cast<const Item_field *>(item)->field->is_hidden_by_system());
 
     if (!ref.is_null()) {
       ref[0] = item;
@@ -9266,9 +9270,16 @@ bool insert_fields(THD *thd, SELECT_LEX *select_lex, const char *db_name,
 
       if (item->type() == Item::FIELD_ITEM) {
         Item_field *field = down_cast<Item_field *>(item);
-        // If the column is hidden from users, do not add this column in place
-        // of '*'.
-        if (field->field->is_hidden_from_user()) continue;
+        /*
+          If the column is hidden from users and not used in USING clause of
+          a join, do not add this column in place of '*'.
+        */
+        bool is_hidden = field->field->is_hidden();
+        is_hidden &= (tables->join_using_fields == nullptr ||
+                      !test_if_string_in_list(field->field_name,
+                                              tables->join_using_fields));
+        if (is_hidden) continue;
+
         /* cache the table for the Item_fields inserted by expanding stars */
         if (tables->cacheable_table) field->cached_table = tables;
       }
@@ -9818,8 +9829,8 @@ bool fill_record(THD *thd, TABLE *table, Field **ptr,
   Field *field;
   auto value_it = VisibleFields(values).begin();
   while ((field = *ptr++) && !thd->is_error()) {
-    // Skip fields invisible to the user
-    if (field->is_hidden_from_user()) continue;
+    // Skip hidden system field.
+    if (field->is_hidden_by_system()) continue;
 
     Item *value = *value_it++;
     DBUG_ASSERT(field->table == table);

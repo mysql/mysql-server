@@ -152,7 +152,8 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_INPLACE_IGNORE =
     Alter_inplace_info::ALTER_RENAME | Alter_inplace_info::CHANGE_INDEX_OPTION |
     Alter_inplace_info::ADD_CHECK_CONSTRAINT |
     Alter_inplace_info::DROP_CHECK_CONSTRAINT |
-    Alter_inplace_info::SUSPEND_CHECK_CONSTRAINT;
+    Alter_inplace_info::SUSPEND_CHECK_CONSTRAINT |
+    Alter_inplace_info::ALTER_COLUMN_VISIBILITY;
 
 /** Operations on foreign key definitions (changing the schema only) */
 static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_FOREIGN_OPERATIONS =
@@ -4589,12 +4590,12 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
             ctx->new_table, ctx->heap, field->field_name, col_type,
             dtype_form_prtype(field_type, charset_no), col_len, i,
             field->gcol_info->non_virtual_base_columns(),
-            !field->is_hidden_from_user());
+            !field->is_hidden_by_system());
       } else {
         dict_mem_table_add_col(ctx->new_table, ctx->heap, field->field_name,
                                col_type,
                                dtype_form_prtype(field_type, charset_no),
-                               col_len, !field->is_hidden_from_user());
+                               col_len, !field->is_hidden_by_system());
       }
     }
 

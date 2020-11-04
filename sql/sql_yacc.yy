@@ -7188,6 +7188,10 @@ column_attribute:
           {
             $$ = make_column_secondary_engine_attribute(YYMEM_ROOT, $3);
           }
+        | visibility
+          {
+            $$ = NEW_PTN PT_column_visibility_attr($1);
+          }
         ;
 
 column_format:
@@ -8647,6 +8651,11 @@ alter_list_item:
         | ALTER opt_column ident DROP DEFAULT_SYM
           {
             $$= NEW_PTN PT_alter_table_set_default($3.str, NULL);
+          }
+
+        | ALTER opt_column ident SET_SYM visibility
+          {
+            $$= NEW_PTN PT_alter_table_column_visibility($3.str, $5);
           }
         | ALTER INDEX_SYM ident visibility
           {

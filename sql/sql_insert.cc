@@ -183,7 +183,7 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
     if (check_grant_all_columns(thd, INSERT_ACL, &it)) return true;
 
     for (it.set(table_list); !it.end_of_fields(); it.next()) {
-      if (it.field()->is_hidden_from_user()) continue;
+      if (it.field()->is_hidden()) continue;
       Item *item = it.create_item(thd);
       if (item == nullptr) return true;
       fields->push_back(item);
@@ -2692,6 +2692,13 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       }
     });
     DBUG_ASSERT(!cr_field->is_array);
+
+    /*
+      If INVISIBLE field is explicitly used in the column list of SELECT query
+      then mark it as VISIBLE column in the table being created.
+    */
+    if (cr_field->hidden == dd::Column::enum_hidden_type::HT_HIDDEN_USER)
+      cr_field->hidden = dd::Column::enum_hidden_type::HT_VISIBLE;
 
     alter_info->create_list.push_back(cr_field);
   }

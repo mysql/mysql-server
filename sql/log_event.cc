@@ -10935,7 +10935,7 @@ void Table_map_log_event::init_metadata_fields() {
         init_charset_field(&is_enum_or_set_field, ENUM_AND_SET_DEFAULT_CHARSET,
                            ENUM_AND_SET_COLUMN_CHARSET) ||
         init_set_str_value_field() || init_enum_str_value_field() ||
-        init_primary_key_field()) {
+        init_primary_key_field() || init_column_visibility_field()) {
       m_metadata_buf.length(0);
     }
   }
@@ -11189,6 +11189,33 @@ bool Table_map_log_event::init_primary_key_field() {
     }
     return write_tlv_field(m_metadata_buf, PRIMARY_KEY_WITH_PREFIX, buf);
   }
+}
+
+bool Table_map_log_event::init_column_visibility_field() {
+  /*
+    Buffer to store column visibility. Each column take a bit. Bit is set if
+    column is visible.
+  */
+  StringBuffer<128> buf;
+  unsigned char flags = 0;
+  unsigned char mask = 0x80;
+
+  for (auto field : this->m_fields) {
+    if (!field->is_hidden_by_user()) flags |= mask;
+    mask >>= 1;
+
+    // 8 columns are tested. Store the result and clear the flag.
+    if (mask == 0) {
+      buf.append(flags);
+      flags = 0;
+      mask = 0x80;
+    }
+  }
+
+  // Store the flag for last few columns.
+  if (mask != 0x80) buf.append(flags);
+
+  return write_tlv_field(m_metadata_buf, COLUMN_VISIBILITY, buf);
 }
 
 /*
@@ -11481,6 +11508,8 @@ void Table_map_log_event::print_columns(
   std::vector<unsigned int>::const_iterator geometry_type_it =
       fields.m_geometry_type.begin();
   uint geometry_type = 0;
+  std::vector<bool>::const_iterator column_visibility_it =
+      fields.m_column_visibility.begin();
 
   my_b_printf(file, "# Columns(");
 
@@ -11569,6 +11598,12 @@ void Table_map_log_event::print_columns(
     if (cs != nullptr &&
         (is_enum_or_set_type(real_type) || cs->number != my_charset_bin.number))
       my_b_printf(file, " CHARSET %s COLLATE %s", cs->csname, cs->name);
+
+    // If column is invisible then print 'INVISIBLE'.
+    if (column_visibility_it != fields.m_column_visibility.end()) {
+      if (!(*column_visibility_it)) my_b_printf(file, " INVISIBLE");
+      column_visibility_it++;
+    }
 
     if (i != m_colcnt - 1) my_b_printf(file, ",\n#         ");
   }
