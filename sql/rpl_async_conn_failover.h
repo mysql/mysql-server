@@ -50,7 +50,7 @@ class Async_conn_failover_manager {
   /**
     Re-establishes connection to next available source.
 
-    @param[in] channel_name    the channel of the failed connection which
+    @param[in] mi              the mi of the failed connection which
                                needs to be reconnected to the new source.
     @param[in] force_highest_weight When true, sender with highest weight is
     chosen, otherwise the next sender from the current one is chosen.
@@ -58,7 +58,7 @@ class Async_conn_failover_manager {
     @retval Please see enum_do_auto_conn_failover_error.
  */
   static enum_do_auto_conn_failover_error do_auto_conn_failover(
-      const std::string &channel_name, bool force_highest_weight);
+      Master_info *mi, bool force_highest_weight);
 
   /*
     Get source quorum status in case source has Group Replication enabled.

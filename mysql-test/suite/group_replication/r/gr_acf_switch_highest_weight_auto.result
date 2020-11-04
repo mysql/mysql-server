@@ -11,6 +11,7 @@ call mtr.add_suppression("The source.*for channel.*has left the group.*and so re
 call mtr.add_suppression("The IO thread detected that the source .* does not belong to the group majority, thence the channel .* will try to connect to another source.");
 call mtr.add_suppression("The Monitor IO thread detected that the source .* does not belong to the group majority, thence the channel .* will try to connect to another source.");
 call mtr.add_suppression("The group .* for the channel .* has been added, and so added its entry in replication_asynchronous_connection_failover_managed and source to replication_asynchronous_connection_failover table.");
+call mtr.add_suppression("The Monitor IO thread failed to detect if the source belongs to the group majority on the source .* for channel 'ch1_5'.");
 SET SESSION sql_log_bin = 1;
 
 # 1. Configure first group members: server1 and 2.
@@ -103,6 +104,12 @@ include/stop_group_replication.inc
 [connection server5]
 include/stop_slave.inc [FOR CHANNEL 'ch1_5']
 include/rpl_reset_slave.inc
+SELECT asynchronous_connection_failover_delete_managed('ch1_5', 'GROUP_NAME1');
+asynchronous_connection_failover_delete_managed('ch1_5', 'GROUP_NAME1')
+The UDF asynchronous_connection_failover_delete_managed() executed successfully.
+SELECT asynchronous_connection_failover_delete_managed('ch1_5', 'GROUP_NAME2');
+asynchronous_connection_failover_delete_managed('ch1_5', 'GROUP_NAME2')
+The UDF asynchronous_connection_failover_delete_managed() executed successfully.
 [connection server3]
 include/stop_slave.inc [FOR CHANNEL 'ch1_3']
 Warnings:

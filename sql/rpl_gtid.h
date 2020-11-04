@@ -505,6 +505,23 @@ class Checkable_rwlock {
     return ret;
   }
 
+  /**
+    Return 0 if the read lock is held, otherwise an error will be returned.
+  */
+  inline int tryrdlock() {
+    int ret = mysql_rwlock_tryrdlock(&m_rwlock);
+
+    if (ret == 0) {
+      assert_no_wrlock();
+#ifndef DBUG_OFF
+      if (m_dbug_trace) DBUG_PRINT("info", ("%p.rdlock()", this));
+      ++m_lock_state;
+#endif
+    }
+
+    return ret;
+  }
+
   /// Assert that some thread holds either the read or the write lock.
   inline void assert_some_lock() const { DBUG_ASSERT(get_state() != 0); }
   /// Assert that some thread holds the read lock.

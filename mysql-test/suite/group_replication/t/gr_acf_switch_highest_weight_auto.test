@@ -35,6 +35,7 @@ call mtr.add_suppression("The source.*for channel.*has left the group.*and so re
 call mtr.add_suppression("The IO thread detected that the source .* does not belong to the group majority, thence the channel .* will try to connect to another source.");
 call mtr.add_suppression("The Monitor IO thread detected that the source .* does not belong to the group majority, thence the channel .* will try to connect to another source.");
 call mtr.add_suppression("The group .* for the channel .* has been added, and so added its entry in replication_asynchronous_connection_failover_managed and source to replication_asynchronous_connection_failover table.");
+call mtr.add_suppression("The Monitor IO thread failed to detect if the source belongs to the group majority on the source .* for channel 'ch1_5'.");
 SET SESSION sql_log_bin = 1;
 
 --echo
@@ -286,6 +287,12 @@ while ($_rpl_server)
 --let $rpl_multi_source= 1
 --let $rpl_reset_slave_all= 1
 --source include/rpl_reset_slave.inc
+
+--replace_result $_tmp_gr_group_name1 GROUP_NAME1
+--eval SELECT asynchronous_connection_failover_delete_managed('ch1_5', '$_tmp_gr_group_name1')
+
+--replace_result $_tmp_gr_group_name2 GROUP_NAME2
+--eval SELECT asynchronous_connection_failover_delete_managed('ch1_5', '$_tmp_gr_group_name2')
 
 
 --let $rpl_connection_name= server3

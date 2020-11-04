@@ -24,10 +24,6 @@ binlog.binlog_mysqlbinlog_rewrite_db @windows     : BUG#26717205 Requires a debu
 funcs_1.is_basics_mixed @darwin  : BUG#25882809 INCORRECT RESULT WHEN USING SUBQUERY ON TOP OF VIEW.
 funcs_1.is_basics_mixed @windows : BUG#25882809 INCORRECT RESULT WHEN USING SUBQUERY ON TOP OF VIEW.
 
-# group_replication suite tests
-group_replication.gr_acf_switch_highest_weight_auto : BUG#32050454 GR_ACF_SWITCH_HIGHEST_WEIGHT_AUTO TESTCASE CRASHING ON WEEKLY TRUNK
-group_replication.gr_acf_msr_2groups_failover       : BUG#32050607 GR_ACF_MSR_2GROUPS_FAILOVER TESTCASE CRASHING ON WEEKLY TRUNK
-
 # innodb suite tests
 innodb.analyze_table @solaris                     : BUG#22607584 Failing too often on PB2 due to timeout.
 innodb.log_corruption @darwin                     : BUG#27760219 Test fails consistently on freebsd and Mac after WL#11009.

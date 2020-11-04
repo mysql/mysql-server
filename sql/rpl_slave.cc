@@ -1728,8 +1728,8 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
       channel_map.get_number_of_connection_auto_failover_channels_running() ==
           1) {
     DBUG_PRINT("info", ("Terminating Monitor IO thread"));
-    if ((error = Source_IO_monitor::get_instance().terminate_monitoring_process(
-             true, 5)) &&
+    if ((error = Source_IO_monitor::get_instance()
+                     .terminate_monitoring_process()) &&
         !force_all) {
       if (error == 1) {
         return ER_STOP_REPLICA_MONITOR_IO_THREAD_TIMEOUT;
@@ -5698,10 +5698,23 @@ ignore_log_space_limit=%d",
          (!io_slave_killed(thd, mi) && mi->is_network_error()))) {
       DBUG_EXECUTE_IF("async_conn_failover_crash", DBUG_SUICIDE(););
 
-      /* Get the sender to connect to. */
+      /*
+        Get the sender to connect to.
+        If there is a STOP REPLICA ongoing for any channel, that is, a
+        channel_map lock cannot be acquired by this channel IO thread,
+        then this channel IO thread does skip the next sender selection.
+      */
+      Async_conn_failover_manager::enum_do_auto_conn_failover_error
+          update_source_error =
+              Async_conn_failover_manager::ACF_RETRIABLE_ERROR;
+      if (!channel_map.tryrdlock()) {
+        update_source_error =
+            Async_conn_failover_manager::do_auto_conn_failover(mi, false);
+        channel_map.unlock();
+      }
+
       if (Async_conn_failover_manager::ACF_NO_SOURCES_ERROR !=
-          Async_conn_failover_manager::do_auto_conn_failover(mi->get_channel(),
-                                                             false)) {
+          update_source_error) {
         /* Wait before reconnect to avoid resources starvation. */
         my_sleep(1000000);
 
@@ -10134,8 +10147,7 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
           channel_map
                   .get_number_of_connection_auto_failover_channels_running() ==
               1) {
-        if (Source_IO_monitor::get_instance().terminate_monitoring_process(true,
-                                                                           5)) {
+        if (Source_IO_monitor::get_instance().terminate_monitoring_process()) {
           error = ER_STOP_REPLICA_MONITOR_IO_THREAD_TIMEOUT;
           my_error(error, MYF(0));
           goto err;
