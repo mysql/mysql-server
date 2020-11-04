@@ -29,10 +29,10 @@
 #include <memory>
 #include <string>
 
-#include "plugin/x/ngs/include/ngs/compression_types.h"
 #include "plugin/x/src/capabilities/handler.h"
 #include "plugin/x/src/capabilities/set_variable_adaptor.h"
 #include "plugin/x/src/helper/optional_value.h"
+#include "plugin/x/src/ngs/compression_types.h"
 #include "plugin/x/src/variables/system_variables.h"
 
 namespace xpl {

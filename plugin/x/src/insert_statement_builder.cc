@@ -24,8 +24,8 @@
 
 #include "plugin/x/src/insert_statement_builder.h"
 
-#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/json_utils.h"
+#include "plugin/x/src/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_log.h"
 

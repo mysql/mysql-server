@@ -27,9 +27,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <memory>
 #include <string>
 
-#include "plugin/x/ngs/include/ngs/notice_descriptor.h"
 #include "plugin/x/src/interface/server_task.h"
 #include "plugin/x/src/mq/broker_context.h"
+#include "plugin/x/src/ngs/notice_descriptor.h"
 
 namespace xpl {
 

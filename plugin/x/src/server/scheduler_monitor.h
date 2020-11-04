@@ -25,7 +25,7 @@
 #ifndef PLUGIN_X_SRC_SERVER_SCHEDULER_MONITOR_H_
 #define PLUGIN_X_SRC_SERVER_SCHEDULER_MONITOR_H_
 
-#include "plugin/x/ngs/include/ngs/scheduler.h"
+#include "plugin/x/src/ngs/scheduler.h"
 #include "plugin/x/src/variables/xpl_global_status_variables.h"
 
 namespace xpl {

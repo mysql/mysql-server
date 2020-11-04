@@ -29,13 +29,13 @@
 #include <string>
 #include <vector>
 
-#include "plugin/x/ngs/include/ngs/client_session.h"
-#include "plugin/x/ngs/include/ngs/session_status_variables.h"
 #include "plugin/x/src/document_id_aggregator.h"
 #include "plugin/x/src/interface/notice_output_queue.h"
 #include "plugin/x/src/interface/protocol_encoder.h"
 #include "plugin/x/src/mq/notice_configuration.h"
 #include "plugin/x/src/mq/notice_output_queue.h"
+#include "plugin/x/src/ngs/client_session.h"
+#include "plugin/x/src/ngs/session_status_variables.h"
 #include "plugin/x/src/sql_data_context.h"
 #include "plugin/x/src/variables/xpl_global_status_variables.h"
 #include "plugin/x/src/xpl_dispatcher.h"

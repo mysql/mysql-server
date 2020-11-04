@@ -23,20 +23,8 @@
 SET(CLIENT_FULL_LIB_NAME mysqlxclient)
 SET(CLIENT_LITE_LIB_NAME mysqlxclient_lite)
 
-SET(CLIENT_SRC
-  authentication/mysql41_hash.cc
-  authentication/password_hasher.cc
-  authentication/sha256_scramble_generator.cc
-  xprotocol_impl.cc
-  xrow_impl.cc
-  xquery_result_impl.cc
-  xsession_impl.cc
-  xconnection_impl.cc
-  xcompression_negotiator.cc
-  xcompression_impl.cc
-  xrow.cc
-  ${CMAKE_SOURCE_DIR}/sql-common/net_ns.cc
-)
+INCLUDE(source_files.cmake)
+LIST(APPEND CLIENT_SRC "${CMAKE_SOURCE_DIR}/sql-common/net_ns.cc")
 
 INCLUDE_DIRECTORIES(
   ${MYSQLX_GENERATE_DIR}

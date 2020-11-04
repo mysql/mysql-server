@@ -28,10 +28,10 @@
 #include <map>
 #include <memory>
 #include <string>
-#include "plugin/x/ngs/include/ngs/error_code.h"
 #include "plugin/x/src/interface/account_verification.h"
 #include "plugin/x/src/interface/authentication.h"
 #include "plugin/x/src/interface/session.h"
+#include "plugin/x/src/ngs/error_code.h"
 #include "plugin/x/src/sql_user_require.h"
 
 namespace xpl {

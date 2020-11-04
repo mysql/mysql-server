@@ -26,9 +26,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <memory>
 #include <string>
 
-#include "plugin/x/ngs/include/ngs/notice_descriptor.h"
 #include "plugin/x/src/interface/protocol_encoder.h"
 #include "plugin/x/src/interface/waiting_for_io.h"
+#include "plugin/x/src/ngs/notice_descriptor.h"
 
 namespace xpl {
 namespace iface {
