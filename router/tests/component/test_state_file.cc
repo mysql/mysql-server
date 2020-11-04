@@ -651,9 +651,8 @@ INSTANTIATE_TEST_SUITE_P(
 
 /**
  * @test
- *      Verify that in case of empty metada-server-addess list in the state file
- * the Router logs proper error and accepts (and errors out) the client
- * connections.
+ *      Verify that in case of empty metada-server-address list in the state
+ * file the Router logs proper error and exits.
  */
 TEST_F(StateFileDynamicChangesTest, EmptyMetadataServersList) {
   constexpr const char kGroupId[] = "3a0be5af-0022-11e8-9655-0800279e6a88";
@@ -678,7 +677,8 @@ TEST_F(StateFileDynamicChangesTest, EmptyMetadataServersList) {
   auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
                                routing_section, state_file, EXIT_FAILURE, -1s);
 
-  wait_for_port_ready(router_port);
+  // wait for shutdown before checking the logfile.
+  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
 
   // proper error should get logged
   EXPECT_TRUE(wait_log_file_contains(
@@ -687,11 +687,6 @@ TEST_F(StateFileDynamicChangesTest, EmptyMetadataServersList) {
       "or not set and list of 'cluster-metadata-servers' in "
       "'dynamic_config'-file is empty, too.",
       3 * kTTL));
-
-  // now try to connect to the router port, we expect error 2003
-  std::string out_port_unused;
-  EXPECT_NO_THROW(connect_client_and_query_port(router_port, out_port_unused,
-                                                /*should_fail=*/true));
 }
 
 //////////////////////////////////////////////////////////////////////////
