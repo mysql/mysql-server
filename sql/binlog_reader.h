@@ -377,6 +377,8 @@ class Basic_binlog_file_reader {
       [Rotate_event]           : In the case rotating relaylog, no Rotate here
       Format_description_event : master's Format_description_event
     */
+    int fdl_cnt = 0;
+    my_off_t first_fde_pos = position();
     while (position() < offset) {
       m_event_start_pos = position();
 
@@ -385,6 +387,7 @@ class Basic_binlog_file_reader {
 
       if (ev == nullptr) break;
       if (ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT) {
+        fdl_cnt++;
         delete fdle;
         fdle = dynamic_cast<Format_description_log_event *>(ev);
         m_fde = *fdle;
@@ -399,6 +402,9 @@ class Basic_binlog_file_reader {
     if (has_fatal_error()) {
       delete fdle;
       return nullptr;
+    }
+    if (fdl_cnt == 1 && first_fde_pos != m_event_start_pos) {
+      m_event_start_pos = first_fde_pos;
     }
     return fdle;
   }
