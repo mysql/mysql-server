@@ -294,6 +294,7 @@ dberr_t row_fts_psort_info_init(trx_t *trx, row_merge_dup_t *dup,
 
 func_exit:
   if (error != DB_SUCCESS) {
+    row_fts_free_pll_merge_buf(psort_info);
     row_fts_psort_info_destroy(psort_info, merge_info);
     *psort = nullptr;
     *merge = nullptr;
@@ -348,7 +349,8 @@ void row_fts_free_pll_merge_buf(
 
   for (j = 0; j < fts_sort_pll_degree; j++) {
     for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
-      row_merge_buf_free(psort_info[j].merge_buf[i]);
+      if (psort_info[j].merge_buf[i])
+        row_merge_buf_free(psort_info[j].merge_buf[i]);
     }
   }
 
