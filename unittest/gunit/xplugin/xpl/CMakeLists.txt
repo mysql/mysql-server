@@ -78,10 +78,6 @@ IF(WIN32)
   SET_TARGET_PROPERTIES(${XPL_UNIT_TESTS} PROPERTIES COMPILE_FLAGS "/wd4373")
 ENDIF(WIN32)
 
-IF(MY_COMPILER_IS_CLANG)
-  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-deprecated")
-ENDIF()
-
 # assertion failed in function assert_with_dumps() @ ssa.c:621 when using -xO3
 # Segfault in the unit test, so lower optimization level there as well
 IF(MY_COMPILER_IS_SUNPRO)
