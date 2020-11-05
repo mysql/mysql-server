@@ -1276,3 +1276,17 @@ Warnings:
 Warning	1260	Row 5 was cut by GROUP_CONCAT()
 SET group_concat_max_len= DEFAULT;
 DROP TABLE t1, t2, t3;
+#
+# Bug #32118201 GET RID OF MY_ATOF
+#
+CREATE TABLE t2 (grp INT, a CHAR(2));
+INSERT INTO t2 VALUES (1,"a"), (2,"2"), (2,"4"), (3,"c");
+SELECT grp, GROUP_concat(a SEPARATOR "") + 1.0  FROM t2 GROUP BY grp;
+grp	GROUP_concat(a SEPARATOR "") + 1.0
+1	1
+2	25
+3	1
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+DROP TABLE t2;

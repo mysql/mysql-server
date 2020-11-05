@@ -4571,6 +4571,13 @@ void Item_func_group_concat::make_unique() {
   tree = nullptr;
 }
 
+double Item_func_group_concat::val_real() {
+  String *res = val_str(&str_value);
+  if (res == nullptr) return 0.0;
+  return double_from_string_with_check(collation.collation, res->ptr(),
+                                       res->ptr() + res->length());
+}
+
 String *Item_func_group_concat::val_str(String *) {
   DBUG_ASSERT(fixed == 1);
   if (null_value) return nullptr;

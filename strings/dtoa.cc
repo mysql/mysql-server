@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2020, Oracle and/or its affiliates.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -523,12 +523,6 @@ double my_strtod(const char *str, const char **end, int *error) {
 
   res = my_strtod_int(str, end, error, buf, sizeof(buf));
   return (*error == 0) ? res : (res < 0 ? -DBL_MAX : DBL_MAX);
-}
-
-double my_atof(const char *nptr) {
-  int error;
-  const char *end = nptr + 65535; /* Should be enough */
-  return (my_strtod(nptr, &end, &error));
 }
 
 /****************************************************************

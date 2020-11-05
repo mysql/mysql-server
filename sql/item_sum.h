@@ -2166,11 +2166,7 @@ class Item_func_group_concat final : public Item_sum {
   bool fix_fields(THD *, Item **) override;
   bool setup(THD *thd) override;
   void make_unique() override;
-  double val_real() override {
-    String *res;
-    res = val_str(&str_value);
-    return res ? my_atof(res->c_ptr()) : 0.0;
-  }
+  double val_real() override;
   longlong val_int() override {
     String *res;
     int error;
