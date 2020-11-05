@@ -273,6 +273,12 @@ struct Tester {
   Ret_t corrupt_ondisk_page0(std::vector<std::string> &tokens) noexcept
       MY_ATTRIBUTE((warn_unused_result));
 
+  /** Set the dblwr::Force_crash to the desired page.  This will
+  crash the server after flushing the page to dblwr.
+  @param[in]   tokens   the given command line
+  @return RET_PASS on success, or the error code. */
+  DISPATCH_FUNCTION(dblwr_force_crash);
+
   /** Destroy the tester object. */
   void destroy() noexcept;
 
