@@ -38,6 +38,7 @@
 #include "my_io.h"
 #include "mysys/mysys_priv.h"
 #include "prealloced_array.h"
+#include "template_utils.h"
 
 #if defined(_WIN32)
 #define DELIM ';'
@@ -71,11 +72,16 @@ bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist) {
     length = cleanup_dirname(buff, buff);
     if (!(copy = my_strndup(key_memory_MY_TMPDIR_full_list, buff, length,
                             MYF(MY_WME))) ||
-        full_list.push_back(copy))
+        full_list.push_back(copy)) {
+      delete_container_pointers(full_list);
       return true;
+    }
     // Check that each tmpdir exists.
     MY_STAT dir_stat;
-    if (!(my_stat(copy, &dir_stat, MYF(MY_FAE)))) return true;
+    if (!(my_stat(copy, &dir_stat, MYF(MY_FAE)))) {
+      delete_container_pointers(full_list);
+      return true;
+    }
     pathlist = end + 1;
   } while (*end);
 
