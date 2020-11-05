@@ -50,6 +50,23 @@
 #include <NodeBitmask.hpp>
 #include <NdbMutex.h>
 
+#ifndef _WIN32
+/*
+ * Shared memory (SHM) transporter is not implemented on Windows.
+ *
+ * This macro is not intended for turning SHM transporter feature on and off,
+ * it should always be on for any platform that supports it.
+ *
+ * If one still want to try and build without full SHM transporter, partly
+ * simulate a Windows build, support one also need to remove:
+ *
+ *   SET(EXTRA_SRC SHM_Transporter.unix.cpp SHM_Transporter.cpp)
+ *
+ * from CMakeLists.txt
+ */
+#define NDB_SHM_TRANSPORTER_SUPPORTED 1
+#endif
+
 // A transporter is always in an IOState.
 // NoHalt is used initially and as long as it is no restrictions on
 // sending or receiving.
@@ -544,8 +561,10 @@ private:
   Transporter**     allTransporters;
   Multi_Transporter** theMultiTransporters;
   TCP_Transporter** theTCPTransporters;
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   SHM_Transporter** theSHMTransporters;
-  
+#endif
+
   /**
    * Array, indexed by nodeId, holding all transporters
    */
@@ -624,7 +643,9 @@ private:
   Uint32 check_TCP(TransporterReceiveHandle&, Uint32 timeoutMillis);
   Uint32 spin_check_transporters(TransporterReceiveHandle&);
 
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   int m_shm_own_pid;
+#endif
   Uint32 m_transp_count;
 
 public:

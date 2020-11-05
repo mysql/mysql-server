@@ -1255,9 +1255,9 @@ Ndbfs::createAsyncFile()
     // Print info about all open files
     for (unsigned i = 0; i < theFiles.size(); i++){
       AsyncFile* file = theFiles[i];
-      ndbout_c("%2d (0x%lx): %s",
+      ndbout_c("%2d (%p): %s",
                i,
-               (long) file,
+               file,
                file->isOpen() ?"OPEN" : "CLOSED");
     }
     ndbout_c("m_maxFiles: %u, theFiles.size() = %u",
@@ -1810,10 +1810,10 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
     
     for (unsigned i = 0; i < theOpenFiles.size(); i++){
       AsyncFile* file = theOpenFiles.getFile(i);
-      infoEvent("%2d (0x%lx): %s thr: %lx", i,
-                (long)file,
+      infoEvent("%2d (%p): %s thr: %p", i,
+                file,
                 file->theFileName.c_str(),
-                (long)file->getThread());
+                file->getThread());
     }
     return;
   }
@@ -1822,7 +1822,7 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
     
     for (unsigned i = 0; i < theFiles.size(); i++){
       AsyncFile* file = theFiles[i];
-      infoEvent("%2d (0x%lx): %s", i, (long)file, file->isOpen()?"OPEN":"CLOSED");
+      infoEvent("%2d (%p): %s", i, file, file->isOpen()?"OPEN":"CLOSED");
     }
     return;
   }
@@ -1832,7 +1832,7 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
 
     for (unsigned i = 0; i < theIdleFiles.size(); i++){
       AsyncFile* file = theIdleFiles[i];
-      infoEvent("%2d (0x%lx): %s", i, (long)file, file->isOpen()?"OPEN":"CLOSED");
+      infoEvent("%2d (%p): %s", i, file, file->isOpen()?"OPEN":"CLOSED");
     }
 
     return;
@@ -1892,7 +1892,7 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
     ndbout << "All files: " << endl;
     for (unsigned i = 0; i < theFiles.size(); i++){
       AsyncFile* file = theFiles[i];
-      ndbout_c("%2d (0x%lx): %s", i, (long) file, file->isOpen()?"OPEN":"CLOSED");
+      ndbout_c("%2d (%p): %s", i, file, file->isOpen()?"OPEN":"CLOSED");
     }
 #endif
   }

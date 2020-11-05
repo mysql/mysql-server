@@ -2804,11 +2804,11 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
      */
     if (signal->length() == 2)
     {
-      if (signal->theData[1] == true)
+      if (signal->theData[1] == 1)
       {
         c_defaults.m_encryption_required = true;
       }
-      else if (signal->theData[1] == false)
+      else if (signal->theData[1] == 0)
       {
         c_defaults.m_encryption_required = false;
       }

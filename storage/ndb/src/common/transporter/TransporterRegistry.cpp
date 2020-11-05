@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@
 #include "Multi_Transporter.hpp"
 #include "Loopback_Transporter.hpp"
 
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
 #include "SHM_Transporter.hpp"
 #endif
 
@@ -295,7 +295,9 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
 
   allTransporters     = new Transporter*      [maxTransporters];
   theTCPTransporters  = new TCP_Transporter * [maxTransporters];
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   theSHMTransporters  = new SHM_Transporter * [maxTransporters];
+#endif
   theTransporterTypes = new TransporterType   [MAX_NODES];
   theNodeIdTransporters = new Transporter   * [MAX_NODES];
   theMultiTransporters = new Multi_Transporter * [MAX_NODES];
@@ -337,7 +339,9 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
   {
     allTransporters[i]    = NULL;
     theTCPTransporters[i] = NULL;
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
     theSHMTransporters[i] = NULL;
+#endif
   }
   theMultiTransporterMutex = NdbMutex_Create();
   DBUG_VOID_RETURN;
@@ -374,7 +378,9 @@ TransporterRegistry::~TransporterRegistry()
   
   delete[] allTransporters;
   delete[] theTCPTransporters;
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   delete[] theSHMTransporters;
+#endif
   delete[] theTransporterTypes;
   delete[] theMultiTransporters;
   delete[] theNodeIdTransporters;
@@ -405,10 +411,12 @@ TransporterRegistry::removeAll()
   {
     delete theTCPTransporters[i];
   }
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   for (Uint32 i = 0; i < nSHMTransporters; i++)
   {
     delete theSHMTransporters[i];
   }
+#endif
   for (Uint32 i = 0; i < nMultiTransporters; i++)
   {
     delete theMultiTransporters[i];
@@ -427,7 +435,7 @@ TransporterRegistry::disconnectAll(){
   {
     theTCPTransporters[i]->doDisconnect();
   }
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   for (Uint32 i = 0; i < nSHMTransporters; i++)
   {
     theSHMTransporters[i]->doDisconnect();
@@ -901,7 +909,7 @@ TransporterRegistry::createMultiTransporter(Uint32 node_id, Uint32 num_trps)
       new_trp->set_multi_transporter_instance(i + 1);
       theTCPTransporters[nTCPTransporters++] = new_trp;
     }
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
     else if (type == tt_SHM_TRANSPORTER)
     {
       SHM_Transporter *shm_trp = (SHM_Transporter*)base_trp;
@@ -960,7 +968,7 @@ TransporterRegistry::createTCPTransporter(TransporterConfiguration *config) {
 bool
 TransporterRegistry::createSHMTransporter(TransporterConfiguration *config)
 {
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   DBUG_ENTER("TransporterRegistry::createTransporter SHM");
 
   /* Don't use index 0, special use case for extra  transporters */
@@ -1386,7 +1394,7 @@ TransporterRegistry::poll_SHM(TransporterReceiveHandle& recvdata,
 
   Uint32 retVal = 0;
   any_connected = false;
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   for (Uint32 i = 0; i < recvdata.nSHMTransporters; i++)
   {
     SHM_Transporter * t = theSHMTransporters[i];
@@ -1415,7 +1423,7 @@ TransporterRegistry::spin_check_transporters(
                           TransporterReceiveHandle& recvdata)
 {
   Uint32 res = 0;
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   Uint64 micros_passed = 0;
   bool any_connected = false;
   Uint64 spintime = Uint64(recvdata.m_spintime);
@@ -1468,7 +1476,7 @@ TransporterRegistry::pollReceive(Uint32 timeOutMillis,
     timeOutMillis = 0;
     retVal = 1;
   }
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   if (recvdata.nSHMTransporters > 0)
   {
     /**
@@ -1532,7 +1540,7 @@ TransporterRegistry::pollReceive(Uint32 timeOutMillis,
   }
 #endif
   retVal |= check_TCP(recvdata, timeOutMillis);
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   if (recvdata.nSHMTransporters > 0)
   {
     /**
@@ -1580,7 +1588,7 @@ TransporterRegistry::reset_shm_awake_state(TransporterReceiveHandle& recvdata,
                                        bool& sleep_state_set)
 {
   int res = 0;
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   for (Uint32 i = 0; i < recvdata.nSHMTransporters; i++)
   {
     SHM_Transporter * t = theSHMTransporters[i];
@@ -1622,7 +1630,7 @@ TransporterRegistry::reset_shm_awake_state(TransporterReceiveHandle& recvdata,
 void
 TransporterRegistry::set_shm_awake_state(TransporterReceiveHandle& recvdata)
 {
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   for (Uint32 i = 0; i < recvdata.nSHMTransporters; i++)
   {
     SHM_Transporter * t = theSHMTransporters[i];
@@ -1685,7 +1693,7 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
     }
   }
 
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   for (Uint32 j = 0; j < recvdata.nSHMTransporters; j++)
   {
     /**
@@ -1737,7 +1745,7 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
         }
       }
     }
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
     for (Uint32 j = 0; j < recvdata.nSHMTransporters; j++)
     {
       /**
@@ -1895,7 +1903,7 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata,
     }
     else
     {
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
       require(transp->getTransporterType() == tt_SHM_TRANSPORTER);
       SHM_Transporter * t = (SHM_Transporter*)transp;
       assert(recvdata.m_transporters.get(trp_id));
@@ -1980,7 +1988,7 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata,
         }
         else
         {
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
           require(t->getTransporterType() == tt_SHM_TRANSPORTER);
           SHM_Transporter *t_shm = (SHM_Transporter*)t;
           Uint32 * readPtr, * eodPtr, * endPtr;
@@ -3133,7 +3141,7 @@ TransporterRegistry::update_connections(TransporterReceiveHandle& recvdata,
 
     switch(performStates[nodeId]){
     case CONNECTED:
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
       if (t->getTransporterType() == tt_SHM_TRANSPORTER)
       {
         SHM_Transporter *shm_trp = (SHM_Transporter*)t;
@@ -3482,7 +3490,7 @@ TransporterRegistry::startReceiving()
 {
   DBUG_ENTER("TransporterRegistry::startReceiving");
 
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   m_shm_own_pid = getpid();
 #endif
   DBUG_VOID_RETURN;
