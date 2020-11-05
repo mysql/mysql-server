@@ -463,9 +463,27 @@ BasicSplicer::State ClassicProtocolSplicer::client_greeting() {
              (server_protocol()->client_greeting() &&
               (client_protocol()->client_greeting()->attributes() !=
                server_protocol()->client_greeting()->attributes()))) {
-    // something changed, encode the greeting packet instead of reusing the one
-    // the client sent.
-    client_greeting_msg.capabilities(caps);
+    // something changed, encode the greeting packet instead of reusing the
+    // one the client sent.
+
+    if (server_protocol()->shared_capabilities().test(
+            classic_protocol::capabilities::pos::ssl)) {
+      // if we switch to TLS, make sure we don't send more than needed to
+      // initiate a TLS connection.
+      //
+      // setting username == "" leads to a short, switch-to-ssl
+      // client::Greeting.
+      client_greeting_msg = {caps,
+                             client_greeting_msg.max_packet_size(),
+                             client_greeting_msg.collation(),
+                             "",
+                             "",
+                             "",
+                             "",
+                             ""};
+    } else {
+      client_greeting_msg.capabilities(caps);
+    }
 
     const auto encode_res = classic_protocol::encode(
         classic_protocol::frame::Frame<
