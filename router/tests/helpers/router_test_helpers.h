@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,8 @@
 #include <map>
 #include <stdexcept>
 #include <typeinfo>
+
+#include "mysql/harness/stdx/attribute.h"
 
 #define SKIP_GIT_TESTS(COND)                                       \
   if (COND) {                                                      \
@@ -172,6 +174,7 @@ void init_windows_sockets();
  *
  * @returns true if the selected port accepts connections, false otherwise
  */
+STDX_NODISCARD
 bool wait_for_port_ready(
     uint16_t port, std::chrono::milliseconds timeout = kDefaultPortReadyTimeout,
     const std::string &hostname = "127.0.0.1");
