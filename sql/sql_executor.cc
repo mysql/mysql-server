@@ -4636,41 +4636,42 @@ static bool buffer_record_somewhere(THD *thd, Window *w, int64 rowno) {
     DBUG_ASSERT(t->s->db_type() == innodb_hton);
     if (t->file->ha_rnd_init(true)) return true; /* purecov: inspected */
 
-    /*
-      Reset all hints since they all pertain to the in-memory file, not the
-      new on-disk one.
-    */
-    for (size_t i = first_in_partition;
-         i < Window::FRAME_BUFFER_POSITIONS_CARD +
-                 w->opt_nth_row().m_offsets.size() +
-                 w->opt_lead_lag().m_offsets.size();
-         i++) {
-      void *r = (*THR_MALLOC)->Alloc(t->file->ref_length);
-      if (r == nullptr) return true;
-      w->m_frame_buffer_positions[i].m_position = static_cast<uchar *>(r);
-      w->m_frame_buffer_positions[i].m_rowno = -1;
+    if (!w->m_frame_buffer_positions.empty()) {
+      /*
+        Reset all hints since they all pertain to the in-memory file, not the
+        new on-disk one.
+      */
+      for (size_t i = first_in_partition;
+           i < Window::FRAME_BUFFER_POSITIONS_CARD +
+                   w->opt_nth_row().m_offsets.size() +
+                   w->opt_lead_lag().m_offsets.size();
+           i++) {
+        void *r = (*THR_MALLOC)->Alloc(t->file->ref_length);
+        if (r == nullptr) return true;
+        w->m_frame_buffer_positions[i].m_position = static_cast<uchar *>(r);
+        w->m_frame_buffer_positions[i].m_rowno = -1;
+      }
+
+      if ((w->m_tmp_pos.m_position =
+               (uchar *)(*THR_MALLOC)->Alloc(t->file->ref_length)) == nullptr)
+        return true;
+
+      w->m_frame_buffer_positions[first_in_partition].m_rowno = 1;
+      /* Update the partition offset if we are starting a new partition */
+      if (rowno == 1)
+        w->set_frame_buffer_partition_offset(w->frame_buffer_total_rows());
+      /*
+        The auto-generated primary key of the first row is 1. Our offset is
+        also one-based, so we can use w->frame_buffer_partition_offset() "as is"
+        to construct the position.
+      */
+      encode_innodb_position(
+          w->m_frame_buffer_positions[first_in_partition].m_position,
+          t->file->ref_length, w->frame_buffer_partition_offset());
+
+      return is_duplicate ? true : false;
     }
-
-    if ((w->m_tmp_pos.m_position =
-             (uchar *)(*THR_MALLOC)->Alloc(t->file->ref_length)) == nullptr)
-      return true;
-
-    w->m_frame_buffer_positions[first_in_partition].m_rowno = 1;
-    /* Update the partition offset if we are starting a new partition */
-    if (rowno == 1)
-      w->set_frame_buffer_partition_offset(w->frame_buffer_total_rows());
-    /*
-      The auto-generated primary key of the first row is 1. Our offset is
-      also one-based, so we can use w->frame_buffer_partition_offset() "as is"
-      to construct the position.
-    */
-    encode_innodb_position(
-        w->m_frame_buffer_positions[first_in_partition].m_position,
-        t->file->ref_length, w->frame_buffer_partition_offset());
-
-    return is_duplicate ? true : false;
   }
-
   /* Save position in frame buffer file of first row in a partition */
   if (rowno == 1) {
     if (w->m_frame_buffer_positions.empty()) {
