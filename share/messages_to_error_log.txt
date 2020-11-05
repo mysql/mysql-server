@@ -11181,6 +11181,15 @@ ER_GRP_RPL_APPLIER_CHANNEL_STILL_RUNNING
 ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF_CHANNEL
   eng "Detected misconfiguration: replication channel \'%.192s\' was configured with SOURCE_CONNECTION_AUTO_FAILOVER = 1, but the server was started with a value other then --gtid-mode = ON. Either reconfigure replication using CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 0 FOR CHANNEL \'%.192s\', or change GTID_MODE to value ON, before starting the replica receiver thread."
 
+ER_FIREWALL_SERVICES_NOT_ACQUIRED
+  eng "Could not acquire required component services."
+
+ER_FIREWALL_UDF_REGISTER_FAILED
+  eng "Automatic registration of function(s) failed."
+
+ER_FIREWALL_PFS_TABLE_REGISTER_FAILED
+  eng "Automatic registration of Performance schema table(s) failed."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
