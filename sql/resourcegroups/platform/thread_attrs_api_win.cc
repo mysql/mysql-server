@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@ bool bind_to_cpu(cpu_id_t cpu_id, my_thread_os_id_t thread_id) {
                       thread_id);
   if (handle != nullptr) {
     DWORD_PTR cpu_mask = 0;
-    cpu_mask |= 1 << cpu_id;
+    cpu_mask |= 1LL << cpu_id;
     res = SetThreadAffinityMask(handle, cpu_mask);
     if (!res) {
       char errbuf[MYSQL_ERRMSG_SIZE];
@@ -77,7 +77,7 @@ bool bind_to_cpus(const std::vector<cpu_id_t> &cpu_ids,
                       thread_id);
   if (handle != nullptr) {
     DWORD_PTR cpu_mask = 0;
-    for (const auto &cpu_id : cpu_ids) cpu_mask |= 1 << cpu_id;
+    for (const auto &cpu_id : cpu_ids) cpu_mask |= 1LL << cpu_id;
     res = SetThreadAffinityMask(handle, cpu_mask);
     if (res == 0) {
       char errbuf[MYSQL_ERRMSG_SIZE];
