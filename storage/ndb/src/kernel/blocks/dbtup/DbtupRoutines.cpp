@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2787,7 +2787,11 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
   case AttributeHeader::INDEX_STAT_KEY:
   case AttributeHeader::INDEX_STAT_VALUE:
   {
-    const Uint32 DataSz = MAX_INDEX_STAT_KEY_SIZE;
+    /*
+     * One extra word, 2 bytes for preceding length, 2 bytes for zero padding
+     * to even words.
+     */
+    const Uint32 DataSz = MAX_INDEX_STAT_KEY_SIZE + 1;
     SignalT<DataSz> signalT;
     Signal * signal = new (&signalT) Signal(0);
 
