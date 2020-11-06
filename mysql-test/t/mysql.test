@@ -681,6 +681,9 @@ DROP USER bug21464621;
 --echo #
 
 --echo # Success criteria: port number present in the error text
+# Some OSes return "Unknown host" in this case. Skipping these.
+# Windows returns a different error code. Adjusting for this
+--replace_result "ERROR 2005 (HY000): Unknown MySQL server host '127.0.0.1' (0)" "ERROR 2003 (HY000): Can't connect to MySQL server on '127.0.0.1:99999' (111)" "(10061)" "(111)"
 --error 1
 --exec $MYSQL -h 127.0.0.1 -P 99999 2>&1
 
