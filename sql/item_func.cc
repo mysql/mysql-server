@@ -4169,7 +4169,9 @@ void udf_handler::free_handler() {
 
 bool Item_udf_func::fix_fields(THD *thd, Item **) {
   DBUG_ASSERT(fixed == 0);
+  DBUG_ASSERT(!thd->is_error());
   if (udf.fix_fields(thd, this, arg_count, args)) return true;
+  if (thd->is_error()) return true;
   used_tables_cache = udf.used_tables_cache;
   fixed = true;
   return false;
