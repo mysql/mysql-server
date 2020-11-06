@@ -6,7 +6,7 @@
 # on other members times out, it is finally able to rejoin the group.
 # Test :
 # 0. This test requires a group with 3 servers.
-# 1. Set the group_replication_member_expel_timeout parameter to 30 seconds.
+# 1. Set the group_replication_member_expel_timeout parameter to 3600 seconds.
 # 2. Create table t1 and insert some data, checking that it is replicated to all
 #    servers.
 # 3. Crash server 3 and it will restart.
@@ -38,19 +38,19 @@
 --echo
 --echo ############################################################
 --echo # 1. Set group_replication_member_expel_timeout to
---echo #    60 seconds.
+--echo #    3600 seconds.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
-SET GLOBAL group_replication_member_expel_timeout = 60;
+SET GLOBAL group_replication_member_expel_timeout = 3600;
 --let $server1_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
-SET GLOBAL group_replication_member_expel_timeout = 60;
+SET GLOBAL group_replication_member_expel_timeout = 3600;
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
-SET GLOBAL group_replication_member_expel_timeout = 60;
+SET GLOBAL group_replication_member_expel_timeout = 3600;
 set session sql_log_bin=0;
 call mtr.add_suppression("read failed");
 call mtr.add_suppression("The member was unable to join the group. Local port: *.*");
@@ -141,6 +141,13 @@ START GROUP_REPLICATION;
 --echo # 7. Wait until server 3 is expelled from the group.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+SET GLOBAL group_replication_member_expel_timeout = DEFAULT;
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_member_expel_timeout = DEFAULT;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
 let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members;
 --source include/wait_condition.inc
 
@@ -156,6 +163,7 @@ let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
 --source include/start_group_replication.inc
+SET GLOBAL group_replication_member_expel_timeout = DEFAULT;
 
 
 --let $rpl_connection_name= server1
