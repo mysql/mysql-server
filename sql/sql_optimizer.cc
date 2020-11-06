@@ -8012,16 +8012,22 @@ static bool update_ref_and_keys(THD *thd, Key_use_array *keyuse,
     if (add_key_fields(thd, join, &end, &and_level, cond, normal_tables,
                        sargables))
       return true;
-    for (Key_field *fld = field; fld != end; fld++) {
-      /* Mark that we can optimize LEFT JOIN */
-      if (fld->val->type() == Item::NULL_ITEM &&
-          !fld->item_field->field->is_nullable()) {
-        /*
-          Example:
-          SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a WHERE t2.a IS NULL;
-          this just wants rows of t1 where t1.a does not exist in t2.
-        */
-        fld->item_field->field->table->reginfo.not_exists_optimize = true;
+
+    // The relevant secondary engines don't support antijoin, so don't enable
+    // this optimization for them.
+    if (thd->secondary_engine_optimization() !=
+        Secondary_engine_optimization::SECONDARY) {
+      for (Key_field *fld = field; fld != end; fld++) {
+        /* Mark that we can optimize LEFT JOIN */
+        if (fld->val->type() == Item::NULL_ITEM &&
+            !fld->item_field->field->is_nullable()) {
+          /*
+            Example:
+            SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a WHERE t2.a IS NULL;
+            this just wants rows of t1 where t1.a does not exist in t2.
+          */
+          fld->item_field->field->table->reginfo.not_exists_optimize = true;
+        }
       }
     }
   }
@@ -8539,6 +8545,11 @@ bool JOIN::attach_join_conditions(plan_idx last_tab) {
     if (cond->fix_fields(thd, nullptr)) return true;
     if (lt->and_with_condition(cond)) return true;
     lt->table()->reginfo.not_exists_optimize = true;
+
+    // The relevant secondary engines don't support antijoin, so don't enable
+    // this optimization for them.
+    assert(thd->secondary_engine_optimization() !=
+           Secondary_engine_optimization::SECONDARY);
   }
 
   return false;
