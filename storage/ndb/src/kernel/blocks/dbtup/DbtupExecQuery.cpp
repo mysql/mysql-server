@@ -5437,6 +5437,7 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
       if (unlikely(new_var_part==NULL))
       {
         jam();
+        c_lqh->reset_old_fragment_lock_status();
         return -1;
       }
       /* Mark the tuple grown, store the original length at the end. */
