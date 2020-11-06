@@ -2802,7 +2802,11 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
   case AttributeHeader::INDEX_STAT_KEY:
   case AttributeHeader::INDEX_STAT_VALUE:
   {
-    const Uint32 DataSz = MAX_INDEX_STAT_KEY_SIZE;
+    /*
+     * One extra word, 2 bytes for preceding length, 2 bytes for zero padding
+     * to even words.
+     */
+    const Uint32 DataSz = MAX_INDEX_STAT_KEY_SIZE + 1;
     SignalT<DataSz> signalT;
     Signal * signal = new (&signalT) Signal(0);
 
