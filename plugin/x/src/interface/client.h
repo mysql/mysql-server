@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@
 #include "plugin/x/src/interface/vio.h"
 #include "plugin/x/src/ngs/compression_types.h"
 #include "plugin/x/src/ngs/protocol/message.h"
+#include "plugin/x/src/ngs/protocol_fwd.h"
 
 class THD;
 
@@ -43,6 +44,7 @@ namespace iface {
 
 class Protocol_encoder;
 class Server;
+class Waiting_for_io;
 
 class Client {
  public:
@@ -115,7 +117,7 @@ class Client {
   virtual void set_capabilities(
       const Mysqlx::Connection::CapabilitiesSet &msg) = 0;
 
-  virtual xpl::iface::Waiting_for_io *get_idle_processing() = 0;
+  virtual iface::Waiting_for_io *get_idle_processing() = 0;
 };
 
 }  // namespace iface

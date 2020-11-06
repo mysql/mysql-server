@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -58,8 +58,8 @@ Param_is_id_in_json is_id_in_json_param[] = {
     {true, "{\"a\": {\"_id\": 2}, \"_id\": 3, \"b\": {\"_id\": 4}}"},
 };
 
-INSTANTIATE_TEST_CASE_P(is_id_in_json, Is_id_in_json_test,
-                        testing::ValuesIn(is_id_in_json_param));
+INSTANTIATE_TEST_SUITE_P(is_id_in_json, Is_id_in_json_test,
+                         testing::ValuesIn(is_id_in_json_param));
 
 }  // namespace test
 }  // namespace xpl

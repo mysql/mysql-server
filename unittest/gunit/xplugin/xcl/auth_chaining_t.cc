@@ -655,7 +655,7 @@ TEST_P(Auth_chaining_test_suite, custom_error_handling) {
             m_sut->connect("host", 1290, "user", "pass", "schema").error());
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Instantiation_custom_error_handling, Auth_chaining_test_suite,
     ::testing::Values(std::vector<std::string>{"PLAIN", "MYSQL41"},
                       std::vector<std::string>{"MYSQL41", "PLAIN"},
@@ -682,7 +682,7 @@ TEST_P(Auth_chaining_test_suite_sha256_fail_no_ssl, sha256_fail_with_no_ssl) {
             m_sut->connect("host", 1290, "user", "pass", "schema").error());
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Instantiation_sha256_fail, Auth_chaining_test_suite_sha256_fail_no_ssl,
     ::testing::Values(std::vector<std::string>{"SHA256_MEMORY"},
                       std::vector<std::string>{"MYSQL41", "SHA256_MEMORY"},
@@ -712,12 +712,12 @@ TEST_P(Auth_chaining_fatal_errors, break_chain_on_fatal_errors) {
             m_sut->connect("host", 1290, "user", "pass", "schema").error());
 }
 
-INSTANTIATE_TEST_CASE_P(Instantiation_auth_chaining_fatal_errors,
-                        Auth_chaining_fatal_errors,
-                        ::testing::Values(xcl::XError{CR_X_READ_TIMEOUT, ""},
-                                          xcl::XError{CR_X_WRITE_TIMEOUT, ""},
-                                          xcl::XError{CR_SERVER_GONE_ERROR,
-                                                      ""}));
+INSTANTIATE_TEST_SUITE_P(Instantiation_auth_chaining_fatal_errors,
+                         Auth_chaining_fatal_errors,
+                         ::testing::Values(xcl::XError{CR_X_READ_TIMEOUT, ""},
+                                           xcl::XError{CR_X_WRITE_TIMEOUT, ""},
+                                           xcl::XError{CR_SERVER_GONE_ERROR,
+                                                       ""}));
 
 }  // namespace test
 }  // namespace xcl

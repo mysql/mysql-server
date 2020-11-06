@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,6 @@
 #include "plugin/x/src/xpl_error.h"
 #include "unittest/gunit/xplugin/xpl/admin_cmd_handler_t.h"
 #include "unittest/gunit/xplugin/xpl/assert_error_code.h"
-#include "unittest/gunit/xplugin/xpl/mock/ngs_general.h"
 
 namespace xpl {
 namespace test {

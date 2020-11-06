@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -84,7 +84,7 @@ TEST_P(Prepare_param_handler_argument_consistency_test,
       m_handler.check_argument_placeholder_consistency(param.args_size, 0));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Prepare_command_handler, Prepare_param_handler_argument_consistency_test,
     testing::ValuesIn(check_argument_placeholder_consistency_param));
 
@@ -269,9 +269,9 @@ TEST_P(Prepare_command_handler_prepare_parameters_test, prepare_parameters) {
   EXPECT_EQ(param.expect_param_values, m_handler.get_values());
 }
 
-INSTANTIATE_TEST_CASE_P(Prepare_command_handler,
-                        Prepare_command_handler_prepare_parameters_test,
-                        testing::ValuesIn(prepare_parameters_param));
+INSTANTIATE_TEST_SUITE_P(Prepare_command_handler,
+                         Prepare_command_handler_prepare_parameters_test,
+                         testing::ValuesIn(prepare_parameters_param));
 
 }  // namespace test
 }  // namespace xpl

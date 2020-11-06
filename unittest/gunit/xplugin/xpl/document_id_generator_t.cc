@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -157,9 +157,9 @@ Param_document_id document_id_param[] = {
     {"0000000000000000000000000005", 0, 1, 0, 5, 10},
     {"000000000000000000000000000f", 0, 5, 0, 5, 10}};
 
-INSTANTIATE_TEST_CASE_P(document_id_generation,
-                        Document_id_generator_param_test,
-                        testing::ValuesIn(document_id_param));
+INSTANTIATE_TEST_SUITE_P(document_id_generation,
+                         Document_id_generator_param_test,
+                         testing::ValuesIn(document_id_param));
 
 }  // namespace test
 }  // namespace xpl

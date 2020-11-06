@@ -49,7 +49,7 @@ TEST_P(Mysql_function_names_order_test, mysqld_function_order) {
                                    << "' and '" << *p.first << "'";
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Order_mysql_functions, Mysql_function_names_order_test,
     ::testing::Values(
         mysql_function_names_test::get_native_mysql_functions(),
@@ -77,14 +77,14 @@ const char *const other_mysql_functions_param[] = {
     "GEOMCOLLECTION", "LAG",          "LEAD",         "LOCALTIME",
     "LOCALTIMESTAMP", "SCHEMA",       "DISTINCT",     ${OTHER_MYSQL_FUNCTIONS}};
 
-INSTANTIATE_TEST_CASE_P(Native_mysql_functions, Mysql_function_names_pass_test,
-                        ::testing::ValuesIn(native_mysql_functions_param));
+INSTANTIATE_TEST_SUITE_P(Native_mysql_functions, Mysql_function_names_pass_test,
+                         ::testing::ValuesIn(native_mysql_functions_param));
 
-INSTANTIATE_TEST_CASE_P(Special_mysql_functions, Mysql_function_names_pass_test,
-                        ::testing::ValuesIn(special_mysql_functions_param));
+INSTANTIATE_TEST_SUITE_P(Special_mysql_functions, Mysql_function_names_pass_test,
+                         ::testing::ValuesIn(special_mysql_functions_param));
 
-INSTANTIATE_TEST_CASE_P(Other_mysql_functions, Mysql_function_names_pass_test,
-                        ::testing::ValuesIn(other_mysql_functions_param));
+INSTANTIATE_TEST_SUITE_P(Other_mysql_functions, Mysql_function_names_pass_test,
+                         ::testing::ValuesIn(other_mysql_functions_param));
 
 class Mysql_function_names_fail_test
     : public ::testing::TestWithParam<const char *> {};
@@ -93,9 +93,9 @@ TEST_P(Mysql_function_names_fail_test, is_not_mysqld_function) {
   ASSERT_FALSE(is_native_mysql_function(GetParam()));
 }
 
-INSTANTIATE_TEST_CASE_P(Mysql_function_names_fail,
-                        Mysql_function_names_fail_test,
-                        ::testing::Values("meeny", "miny", "moe"));
+INSTANTIATE_TEST_SUITE_P(Mysql_function_names_fail,
+                         Mysql_function_names_fail_test,
+                         ::testing::Values("meeny", "miny", "moe"));
 
 class Mysql_function_names_reverse_test
     : public ::testing::TestWithParam<const char *> {
@@ -117,7 +117,7 @@ TEST_P(Mysql_function_names_reverse_test, mysqld_function_reverse_scenario) {
       << "Function '" << name << "' should be removed";
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Mysql_function_names_reverse, Mysql_function_names_reverse_test,
     ::testing::ValuesIn(
         mysql_function_names_test::get_all_mysql_function_names()));
@@ -619,7 +619,7 @@ TEST_P(Mysql_function_names_documentation_test,
       << (param.expect ? "PASS" : "FAIL");
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Mysql_function_names_documentation, Mysql_function_names_documentation_test,
     ::testing::ValuesIn(documentation_mysql_functions_param));
 

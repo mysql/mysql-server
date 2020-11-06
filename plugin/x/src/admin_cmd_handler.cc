@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -41,6 +41,7 @@
 #include "plugin/x/src/interface/server.h"
 #include "plugin/x/src/interface/session.h"
 #include "plugin/x/src/mysql_function_names.h"
+#include "plugin/x/src/ngs/client_list.h"
 #include "plugin/x/src/ngs/notice_descriptor.h"
 #include "plugin/x/src/ngs/protocol/column_info_builder.h"
 #include "plugin/x/src/query_string_builder.h"

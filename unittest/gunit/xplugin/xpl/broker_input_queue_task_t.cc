@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,8 @@
 
 #include "plugin/x/src/mq/broker_task.h"
 #include "plugin/x/src/mq/notice_input_queue.h"
+#include "unittest/gunit/xplugin/xpl/mock/client.h"
+#include "unittest/gunit/xplugin/xpl/mock/notice_output_queue.h"
 #include "unittest/gunit/xplugin/xpl/mock/session.h"
 
 namespace xpl {
@@ -61,9 +63,9 @@ class Broker_input_queue_testsuite : public Test {
 
   void assert_do_loop() { sut_task->loop(); }
 
-  std::shared_ptr<Mock_client> mock_client{new Mock_client()};
-  Mock_session mock_session;
-  StrictMock<Mock_notice_output_queue> mock_notice_out_queue;
+  std::shared_ptr<mock::Client> mock_client{new mock::Client()};
+  mock::Session mock_session;
+  StrictMock<mock::Notice_output_queue> mock_notice_out_queue;
 
   ngs::Client_list m_client_list;
   Task_context m_sut_context{Task_context::On_connection(), nullptr,

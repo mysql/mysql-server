@@ -214,8 +214,8 @@ TEST_P(Getter_any_type_testsuite, put_throwError_whenNotSupportedType) {
                ngs::Error_code);
 }
 
-INSTANTIATE_TEST_CASE_P(InstantiationNegativeTests, Getter_any_type_testsuite,
-                        ::testing::Values(Any::OBJECT, Any::ARRAY));
+INSTANTIATE_TEST_SUITE_P(InstantiationNegativeTests, Getter_any_type_testsuite,
+                         ::testing::Values(Any::OBJECT, Any::ARRAY));
 
 class Getter_scalar_type_testsuite
     : public Getter_any_testsuite,
@@ -229,12 +229,12 @@ TEST_P(Getter_scalar_type_testsuite, put_throwError_whenNotSupportedType) {
                ngs::Error_code);
 }
 
-INSTANTIATE_TEST_CASE_P(InstantiationNegativeTests,
-                        Getter_scalar_type_testsuite,
-                        ::testing::Values(Scalar::V_SINT, Scalar::V_UINT,
-                                          Scalar::V_BOOL, Scalar::V_FLOAT,
-                                          Scalar::V_DOUBLE, Scalar::V_STRING,
-                                          Scalar::V_OCTETS));
+INSTANTIATE_TEST_SUITE_P(InstantiationNegativeTests,
+                         Getter_scalar_type_testsuite,
+                         ::testing::Values(Scalar::V_SINT, Scalar::V_UINT,
+                                           Scalar::V_BOOL, Scalar::V_FLOAT,
+                                           Scalar::V_DOUBLE, Scalar::V_STRING,
+                                           Scalar::V_OCTETS));
 
 }  // namespace test
 }  // namespace xpl

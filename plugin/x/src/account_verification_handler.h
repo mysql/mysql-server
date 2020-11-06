@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 #include <memory>
 #include <string>
 #include "plugin/x/src/interface/account_verification.h"
+#include "plugin/x/src/interface/account_verification_handler.h"
 #include "plugin/x/src/interface/authentication.h"
 #include "plugin/x/src/interface/session.h"
 #include "plugin/x/src/ngs/error_code.h"
@@ -36,7 +37,8 @@
 
 namespace xpl {
 
-class Account_verification_handler {
+class Account_verification_handler
+    : public iface::Account_verification_handler {
  public:
   using Unique_ptr = std::unique_ptr<Account_verification_handler>;
 
@@ -50,17 +52,14 @@ class Account_verification_handler {
     add_account_verificator(account_type, verificator);
   }
 
-  virtual ~Account_verification_handler() {}
-
-  virtual ngs::Error_code authenticate(
-      const iface::Authentication &account_verificator,
-      iface::Authentication_info *authenication_info,
-      const std::string &sasl_message) const;
+  ngs::Error_code authenticate(const iface::Authentication &account_verificator,
+                               iface::Authentication_info *authenication_info,
+                               const std::string &sasl_message) const override;
 
   ngs::Error_code verify_account(
       const std::string &user, const std::string &host,
       const std::string &passwd,
-      const iface::Authentication_info *authenication_info) const;
+      const iface::Authentication_info *authenication_info) const override;
 
   void add_account_verificator(
       const iface::Account_verification::Account_type account_type,
@@ -68,8 +67,9 @@ class Account_verification_handler {
     m_verificators[account_type].reset(verificator);
   }
 
-  virtual const iface::Account_verification *get_account_verificator(
-      const iface::Account_verification::Account_type account_type) const;
+  const iface::Account_verification *get_account_verificator(
+      const iface::Account_verification::Account_type account_type)
+      const override;
 
  private:
   using Account_verificator_list =

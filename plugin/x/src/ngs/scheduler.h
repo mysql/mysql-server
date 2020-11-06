@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -34,38 +34,31 @@
 
 #include "plugin/x/src/helper/multithread/cond.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
+#include "plugin/x/src/interface/scheduler_dynamic.h"
 #include "plugin/x/src/ngs/memory.h"
 #include "plugin/x/src/ngs/thread.h"
 
 namespace ngs {
 // Scheduler with dynamic thread pool.
-class Scheduler_dynamic {
+class Scheduler_dynamic : public xpl::iface::Scheduler_dynamic {
  public:
-  class Monitor_interface {
-   public:
-    virtual ~Monitor_interface() {}
+  using Task = std::function<void()>;
 
-    virtual void on_worker_thread_create() = 0;
-    virtual void on_worker_thread_destroy() = 0;
-    virtual void on_task_start() = 0;
-    virtual void on_task_end() = 0;
-  };
+  Scheduler_dynamic(
+      const char *name, PSI_thread_key thread_key,
+      std::unique_ptr<xpl::iface::Scheduler_dynamic::Monitor> monitor = {});
 
-  typedef std::function<void()> Task;
+  ~Scheduler_dynamic() override { stop(); }
 
-  Scheduler_dynamic(const char *name, PSI_thread_key thread_key,
-                    std::unique_ptr<Monitor_interface> monitor = {});
-  virtual ~Scheduler_dynamic();
-
-  virtual void launch();
-  virtual void stop();
-  virtual unsigned int set_num_workers(unsigned int n);
+  void launch() override;
+  void stop() override;
+  unsigned int set_num_workers(unsigned int n) override;
   void set_idle_worker_timeout(unsigned long long milliseconds);
   bool post(Task *task);
   bool post(const Task &task);
 
-  virtual bool thread_init() { return true; }
-  virtual void thread_end();
+  bool thread_init() override { return true; }
+  void thread_end() override;
 
   bool is_worker_thread(my_thread_t thread_id);
   bool is_running();
@@ -151,7 +144,7 @@ class Scheduler_dynamic {
   lock_list<Task *> m_tasks;
   lock_list<Thread_t> m_threads;
   lock_list<my_thread_t> m_terminating_workers;
-  std::unique_ptr<Monitor_interface> m_monitor;
+  std::unique_ptr<xpl::iface::Scheduler_dynamic::Monitor> m_monitor;
   PSI_thread_key m_thread_key;
 };
 }  // namespace ngs

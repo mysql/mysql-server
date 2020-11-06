@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -1195,8 +1195,8 @@ Param_function_call function_call_param[] = {
      Function_call("JSON_KEYS", Column_identifier(Document_path{"path"})),
      EMPTY_SCHEMA}};
 
-INSTANTIATE_TEST_CASE_P(xpl_expr_generator_function_call, Function_call_test,
-                        testing::ValuesIn(function_call_param));
+INSTANTIATE_TEST_SUITE_P(xpl_expr_generator_function_call, Function_call_test,
+                         testing::ValuesIn(function_call_param));
 
 struct Param_placeholders {
   std::string expect;
@@ -1244,8 +1244,8 @@ Param_placeholders placeholders_param[] = {
      {PH{2}, PH{0}, PH{3}, PH{1}, PH{2}}},
 };
 
-INSTANTIATE_TEST_CASE_P(xpl_expr_generator_placeholders, Placeholders_test,
-                        testing::ValuesIn(placeholders_param));
+INSTANTIATE_TEST_SUITE_P(xpl_expr_generator_placeholders, Placeholders_test,
+                         testing::ValuesIn(placeholders_param));
 
 struct Param_operator_pass {
   std::string expect;
@@ -1367,8 +1367,8 @@ Param_operator_pass cont_in_pass_param[] = {
      {}},
 };
 
-INSTANTIATE_TEST_CASE_P(xpl_expr_generator_cont_in_pass, Operator_pass_test,
-                        testing::ValuesIn(cont_in_pass_param));
+INSTANTIATE_TEST_SUITE_P(xpl_expr_generator_cont_in_pass, Operator_pass_test,
+                         testing::ValuesIn(cont_in_pass_param));
 
 struct Param_operator_fail {
   Operator operator_;
@@ -1423,8 +1423,8 @@ Param_operator_fail cont_in_fail_param[] = {
     //  identifier
 };
 
-INSTANTIATE_TEST_CASE_P(xpl_expr_generator_cont_in_fail, Operator_fail_test,
-                        testing::ValuesIn(cont_in_fail_param));
+INSTANTIATE_TEST_SUITE_P(xpl_expr_generator_cont_in_fail, Operator_fail_test,
+                         testing::ValuesIn(cont_in_fail_param));
 
 Param_operator_pass overlaps_pass_param[] = {
     // literals
@@ -1538,8 +1538,8 @@ Param_operator_pass overlaps_pass_param[] = {
      {}},
 };
 
-INSTANTIATE_TEST_CASE_P(xpl_expr_generator_overlaps_pass, Operator_pass_test,
-                        testing::ValuesIn(overlaps_pass_param));
+INSTANTIATE_TEST_SUITE_P(xpl_expr_generator_overlaps_pass, Operator_pass_test,
+                         testing::ValuesIn(overlaps_pass_param));
 
 Param_operator_fail overlaps_fail_param[] = {
     //  literals
@@ -1578,8 +1578,8 @@ Param_operator_fail overlaps_fail_param[] = {
     //  identifier
 };
 
-INSTANTIATE_TEST_CASE_P(xpl_expr_generator_overlaps_fail, Operator_fail_test,
-                        testing::ValuesIn(overlaps_fail_param));
+INSTANTIATE_TEST_SUITE_P(xpl_expr_generator_overlaps_fail, Operator_fail_test,
+                         testing::ValuesIn(overlaps_fail_param));
 
 }  // namespace test
 }  // namespace xpl

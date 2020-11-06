@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -618,7 +618,7 @@ auto param_pack_builder_reauthenticate = [](const std::string &method) {
       Open_close_methods::start_connected, method};
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Instantiation_connection_method, Xcl_session_impl_tests_connect_param,
     Values(param_pack_builder_connect("PLAIN"),
            param_pack_builder_connect_to_localhost("PLAIN"),
@@ -630,13 +630,13 @@ INSTANTIATE_TEST_CASE_P(
            param_pack_builder_connect_to_localhost("SHA256_MEMORY"),
            param_pack_builder_reauthenticate("SHA256_MEMORY")));
 
-INSTANTIATE_TEST_CASE_P(Instantiation_connection_method,
-                        Xcl_session_impl_tests_plain_connect_param,
-                        Values(param_pack_builder_connect("PLAIN"),
-                               param_pack_builder_connect_to_localhost("PLAIN"),
-                               param_pack_builder_reauthenticate("PLAIN")));
+INSTANTIATE_TEST_SUITE_P(
+    Instantiation_connection_method, Xcl_session_impl_tests_plain_connect_param,
+    Values(param_pack_builder_connect("PLAIN"),
+           param_pack_builder_connect_to_localhost("PLAIN"),
+           param_pack_builder_reauthenticate("PLAIN")));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Instantiation_connection_method,
     Xcl_session_impl_tests_challenge_response_connect_param,
     Values(param_pack_builder_connect("MYSQL41"),

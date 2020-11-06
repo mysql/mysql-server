@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@
 namespace xpl {
 
 using Monitor_interface_ptr =
-    std::unique_ptr<ngs::Scheduler_dynamic::Monitor_interface>;
+    std::unique_ptr<iface::Scheduler_dynamic::Monitor>;
 
 Server_builder::Server_builder(MYSQL_PLUGIN plugin_handle)
     : m_events(ngs::allocate_shared<ngs::Socket_events>()),

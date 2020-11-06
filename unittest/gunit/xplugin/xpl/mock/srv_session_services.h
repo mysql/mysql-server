@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_MOCK_SRV_SESSION_SERVICES_H_
-#define UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_MOCK_SRV_SESSION_SERVICES_H_
+#ifndef UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_SRV_SESSION_SERVICES_H_
+#define UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_SRV_SESSION_SERVICES_H_
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -41,42 +41,44 @@ class THD;
 
 namespace xpl {
 namespace test {
+namespace mock {
 
-class Mock_srv_session {
+class Srv_session {
  public:
-  Mock_srv_session() {
+  Srv_session() {
     DBUG_ASSERT(nullptr == m_srv_session);
     m_srv_session = this;
   }
-  ~Mock_srv_session() { m_srv_session = nullptr; }
+  ~Srv_session() { m_srv_session = nullptr; }
 
-  MOCK_METHOD1(init_session_thread, int(const void *plugin));
-  MOCK_METHOD0(deinit_session_thread, void());
-  MOCK_METHOD2(open_session,
-               MYSQL_SESSION(srv_session_error_cb error_cb, void *plugix_ctx));
-  MOCK_METHOD1(detach_session, int(MYSQL_SESSION session));
-  MOCK_METHOD1(close_session, int(MYSQL_SESSION session));
-  MOCK_METHOD0(server_is_available, int());
-  MOCK_METHOD2(attach_session,
-               int(MYSQL_SESSION session, MYSQL_THD *ret_previous_thd));
+  MOCK_METHOD(int, init_session_thread, (const void *plugin));
+  MOCK_METHOD(void, deinit_session_thread, ());
+  MOCK_METHOD(MYSQL_SESSION, open_session,
+              (srv_session_error_cb error_cb, void *plugix_ctx));
+  MOCK_METHOD(int, detach_session, (MYSQL_SESSION session));
+  MOCK_METHOD(int, close_session, (MYSQL_SESSION session));
+  MOCK_METHOD(int, server_is_available, ());
+  MOCK_METHOD(int, attach_session,
+              (MYSQL_SESSION session, MYSQL_THD *ret_previous_thd));
 
-  static Mock_srv_session *m_srv_session;
+  static Srv_session *m_srv_session;
 };
 
-class Mock_srv_session_info {
+class Srv_session_info {
  public:
-  Mock_srv_session_info() {
+  Srv_session_info() {
     DBUG_ASSERT(nullptr == m_srv_session_info);
     m_srv_session_info = this;
   }
-  ~Mock_srv_session_info() { m_srv_session_info = nullptr; }
+  ~Srv_session_info() { m_srv_session_info = nullptr; }
 
-  MOCK_METHOD1(get_session_id, my_thread_id(MYSQL_SESSION session));
+  MOCK_METHOD(my_thread_id, get_session_id, (MYSQL_SESSION session));
 
-  static Mock_srv_session_info *m_srv_session_info;
+  static Srv_session_info *m_srv_session_info;
 };
 
+}  // namespace mock
 }  // namespace test
 }  // namespace xpl
 
-#endif  //  UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_MOCK_SRV_SESSION_SERVICES_H_
+#endif  //  UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_SRV_SESSION_SERVICES_H_

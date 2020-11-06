@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,47 +22,38 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_CAPABILITIES_H_
-#define UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_CAPABILITIES_H_
+#ifndef UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_CAPABILITY_HANDLER_H_
+#define UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_CAPABILITY_HANDLER_H_
 
-#include "plugin/x/src/capabilities/configurator.h"
-#include "plugin/x/src/capabilities/handler.h"
+#include <gmock/gmock.h>
+#include <string>
+
+#include "plugin/x/src/interface/capability_handler.h"
 
 namespace xpl {
-
 namespace test {
+namespace mock {
 
-class Mock_capabilities_configurator : public Capabilities_configurator {
+class Capability_handler : public iface::Capability_handler {
  public:
-  Mock_capabilities_configurator()
-      : Capabilities_configurator(std::vector<Capability_handler_ptr>()) {}
-
-  MOCK_METHOD0(get, ::Mysqlx::Connection::Capabilities *());
-
-  MOCK_METHOD1(
-      prepare_set,
-      ngs::Error_code(const ::Mysqlx::Connection::Capabilities &capabilities));
-  MOCK_METHOD0(commit, void());
-};
-
-class Mock_capability_handler : public Capability_handler {
- public:
-  MOCK_CONST_METHOD0(name, std::string());
-  MOCK_CONST_METHOD0(is_supported_impl, bool());
-  MOCK_CONST_METHOD0(is_settable, bool());
-  MOCK_CONST_METHOD0(is_gettable, bool());
-  MOCK_METHOD1(set_impl, ngs::Error_code(const ::Mysqlx::Datatypes::Any &));
+  MOCK_METHOD(std::string, name, (), (const, override));
+  MOCK_METHOD(bool, is_supported, (), (const, override));
+  MOCK_METHOD(bool, is_settable, (), (const, override));
+  MOCK_METHOD(bool, is_gettable, (), (const, override));
+  MOCK_METHOD(ngs::Error_code, set, (const ::Mysqlx::Datatypes::Any &),
+              (override));
 
   // Workaround for GMOCK undefined behaviour with ResultHolder
-  MOCK_METHOD1(get_void, bool(::Mysqlx::Datatypes::Any *));
-  MOCK_METHOD0(commit_void, bool());
+  MOCK_METHOD(bool, get_void, (::Mysqlx::Datatypes::Any *));
+  MOCK_METHOD(bool, commit_void, ());
 
-  void get_impl(::Mysqlx::Datatypes::Any *any) override { get_void(any); }
+  void get(::Mysqlx::Datatypes::Any *any) override { get_void(any); }
 
   void commit() override { commit_void(); }
 };
 
+}  // namespace mock
 }  // namespace test
 }  // namespace xpl
 
-#endif  // UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_CAPABILITIES_H_
+#endif  // UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_CAPABILITY_HANDLER_H_

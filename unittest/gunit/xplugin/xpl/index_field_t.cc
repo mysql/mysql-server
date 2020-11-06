@@ -28,9 +28,11 @@
 
 #include "plugin/x/src/admin_cmd_arguments.h"
 #include "plugin/x/src/index_field.h"
+#include "plugin/x/src/query_string_builder.h"
 #include "plugin/x/src/xpl_error.h"
 #include "unittest/gunit/xplugin/xpl/assert_error_code.h"
 #include "unittest/gunit/xplugin/xpl/mock/session.h"
+#include "unittest/gunit/xplugin/xpl/mock/sql_session.h"
 #include "unittest/gunit/xplugin/xpl/mysqlx_pb_wrapper.h"
 #include "unittest/gunit/xplugin/xpl/one_row_resultset.h"
 
@@ -156,8 +158,8 @@ Field_info fail_on_create_param[] = {
     {PATH, "char(10,2)"},
 };
 
-INSTANTIATE_TEST_CASE_P(fail_on_create_field, Index_field_create_test,
-                        ::testing::ValuesIn(fail_on_create_param));
+INSTANTIATE_TEST_SUITE_P(fail_on_create_field, Index_field_create_test,
+                         ::testing::ValuesIn(fail_on_create_param));
 
 struct Param_index_field_add_field {
   std::string expect;
@@ -234,8 +236,8 @@ Param_index_field_add_field add_field_param[] = {
      {PATH, "char character set latin1", NOT_REQUIRED}},
 };
 
-INSTANTIATE_TEST_CASE_P(get_index_field_name, Index_field_add_field_test,
-                        ::testing::ValuesIn(add_field_param));
+INSTANTIATE_TEST_SUITE_P(get_index_field_name, Index_field_add_field_test,
+                         ::testing::ValuesIn(add_field_param));
 
 struct Param_index_field_add_column {
   std::string expect;
@@ -308,8 +310,8 @@ Param_index_field_add_column add_column_param[] = {
      {PATH, "TEXT(64) CHARACTER SET latin1 COLLATE latin1_bin", NOT_REQUIRED}},
 };
 
-INSTANTIATE_TEST_CASE_P(add_column, Index_field_add_column_test,
-                        ::testing::ValuesIn(add_column_param));
+INSTANTIATE_TEST_SUITE_P(add_column, Index_field_add_column_test,
+                         ::testing::ValuesIn(add_column_param));
 
 class Index_field_is_column_exists_test : public ::testing::Test {
  public:
@@ -321,7 +323,7 @@ class Index_field_is_column_exists_test : public ::testing::Test {
   }
 
   using Sql = ngs::PFS_string;
-  ::testing::StrictMock<Mock_sql_data_context> data_context;
+  ::testing::StrictMock<mock::Sql_session> data_context;
   std::unique_ptr<const Index_field> field;
 };
 
