@@ -316,8 +316,13 @@ AsyncIoThread::buildIndxReq(Request* request)
 
   mt_BuildIndxReq req;
   memcpy(&req, &request->par.build.m_req, sizeof(req));
-  req.mem_buffer = request->file->m_page_ptr.p;
-  req.buffer_size = request->file->m_page_cnt * sizeof(GlobalPage);
+  Uint32 rg;
+  Ptr<GlobalPage> ptr;
+  Uint32 cnt;
+  bool has_buffer = request->file->get_buffer(rg, ptr, cnt);
+  require(has_buffer);
+  req.mem_buffer = ptr.p;
+  req.buffer_size = cnt * sizeof(GlobalPage);
   NDBFS_SET_REQUEST_ERROR(request, (* req.func_ptr)(&req));
 }
 

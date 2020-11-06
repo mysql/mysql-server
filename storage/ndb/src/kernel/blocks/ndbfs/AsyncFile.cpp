@@ -25,8 +25,10 @@
 #include "util/require.h"
 #include <ndb_global.h>
 
+#include <algorithm>
+#include <memory>
+#include <math.h>            // sqrt
 #include "my_thread_local.h" // my_errno
-#include "util/ndbzio.h"
 #include "util/ndb_math.h"
 #include "util/ndb_az31.h"
 #include "util/ndb_ndbxfrm1.h"
@@ -49,15 +51,7 @@
 
 //#define DEBUG_ODIRECT
 
-AsyncFile::AsyncFile(Ndbfs& fs) :
-  theFileName(),
-  m_thread_bound(false),
-  use_gz(0),
-  use_enc(0),
-  openssl_evp_op(&openssl_evp),
-  m_file_format(FF_UNKNOWN),
-  m_next_read_pos(UINT64_MAX),
-  m_fs(fs)
+AsyncFile::AsyncFile(Ndbfs& fs) : theFileName(), m_thread_bound(false), m_fs(fs)
 {
   m_thread = 0;
 
@@ -66,63 +60,12 @@ AsyncFile::AsyncFile(Ndbfs& fs) :
   m_page_ptr.setNull();
   theWriteBuffer = 0;
   theWriteBufferSize = 0;
-
-  memset(&nzf,0,sizeof(nzf));
 }
 
-AsyncFile::~AsyncFile()
-{
-  /* Free the read and write buffer memory used by ndbzio */
-  if (nzfBufferUnaligned)
-    ndbd_free(nzfBufferUnaligned,
-              ndbz_bufsize_read() +
-              ndbz_bufsize_write() +
-              NDB_O_DIRECT_WRITE_ALIGNMENT-1);
-  nzfBufferUnaligned = NULL;
-
-  /* Free the inflate/deflate buffers for ndbzio */
-  if(nz_mempool.mem)
-    ndbd_free(nz_mempool.mem, nz_mempool.size);
-  nz_mempool.mem = NULL;
-  // TODO Unset memory for zlib
-}
+AsyncFile::~AsyncFile() {}
 
 int AsyncFile::init()
 {
-  /*
-    Preallocate read and write buffers for ndbzio to workaround
-    default behaviour of alloc/free at open/close
-  */
-  const size_t read_size = ndbz_bufsize_read();
-  const size_t write_size = ndbz_bufsize_write();
-
-  nzfBufferUnaligned= ndbd_malloc(read_size + write_size +
-                                  NDB_O_DIRECT_WRITE_ALIGNMENT-1);
-  nzf.inbuf= (Byte*)(((UintPtr)nzfBufferUnaligned
-                      + NDB_O_DIRECT_WRITE_ALIGNMENT - 1) &
-                     ~(UintPtr)(NDB_O_DIRECT_WRITE_ALIGNMENT - 1));
-  nzf.outbuf= nzf.inbuf + read_size;
-
-  /* Preallocate inflate/deflate buffers for ndbzio */
-  const size_t inflate_size = ndbz_inflate_mem_size();
-  if (inflate_size == SIZE_T_MAX)
-    return -1;
-  const size_t deflate_size = ndbz_deflate_mem_size();
-  if (deflate_size == SIZE_T_MAX)
-    return -1;
-  nz_mempool.size = nz_mempool.mfree = inflate_size + deflate_size;
-  if (nz_mempool.size < zlib.MEMORY_NEED)
-  {
-    nz_mempool.size = nz_mempool.mfree = zlib.MEMORY_NEED;
-  }
-
-  g_eventLogger->info("NDBFS/AsyncFile: Allocating %u for In/Deflate buffer",
-                      (unsigned int)nz_mempool.size);
-  nz_mempool.mem = (char*) ndbd_malloc(nz_mempool.size);
-
-  nzf.stream.opaque= &nz_mempool;
-
-  zlib.set_memory(nz_mempool.mem, nz_mempool.size);
   return 0;
 }
 
@@ -152,19 +95,34 @@ AsyncFile::detach(AsyncIoThread* thr)
 void
 AsyncFile::openReq(Request * request)
 {
-  m_compress_buffer.init();
-  m_encrypt_buffer.init();
-  openssl_evp.reset();
-
+  require(!m_file.is_open());
   // For open.flags, see signal FSOPENREQ
   m_open_flags = request->par.open.flags;
   Uint32 flags = m_open_flags;
+
+  if ((flags & FsOpenReq::OM_READ_WRITE_MASK) == FsOpenReq::OM_WRITEONLY &&
+      !(flags & FsOpenReq::OM_CREATE))
+  {
+    /* If file is write only one can not read and detect fileformat!
+     * Change to allow both read and write.
+     * This mode is used by dbdict for schema log file, and by restore for lcp
+     * ctl file.
+     */
+    flags = (flags & ~FsOpenReq::OM_READ_WRITE_MASK) | FsOpenReq::OM_READWRITE;
+  }
+
+  const Uint32 page_size = request->par.open.page_size;
+  const Uint64 data_size = request->par.open.file_size;
 
   // Validate some flag combination.
 
   // Not both OM_INIT and OM_GZ
   require(!(flags & FsOpenReq::OM_INIT) ||
           !(flags & FsOpenReq::OM_GZ));
+
+  // Set flags for compression (OM_GZ) and encryption (OM_ENCRYPT)
+  const bool use_gz = (flags & FsOpenReq::OM_GZ);
+  const bool use_enc = (flags & FsOpenReq::OM_ENCRYPT);
 
   // OM_DIRECT_SYNC is not valid without OM_DIRECT
   require(!(flags & FsOpenReq::OM_DIRECT_SYNC) ||
@@ -205,7 +163,6 @@ AsyncFile::openReq(Request * request)
       created = true;
     }
   }
-
   // Open file (OM_READ_WRITE_MASK, OM_APPEND)
   constexpr Uint32 open_flags =
       FsOpenReq::OM_READ_WRITE_MASK | FsOpenReq::OM_APPEND;
@@ -227,15 +184,147 @@ AsyncFile::openReq(Request * request)
     }
   }
 
+  // Treat open zero sized file as creation of file if creation flags passed
+  // (including case when file was truncated).
+  if (!created && m_file.get_size() == 0)
+  {
+    if (flags & (FsOpenReq::OM_CREATE | FsOpenReq::OM_CREATE_IF_NONE))
+    {
+      require(!(flags & FsOpenReq::OM_CREATE_IF_NONE));
+      created = true;
+    }
+    else
+    {
+#if defined(VM_TRACE) || !defined(NDEBUG)
+      /*
+       * LCP/0/T13F7.ctl has been seen with zero size, open flags OM_READWRITE |
+       * OM_APPEND Likely a partial read or failed read will be catched by
+       * application level, and file ignored. Are there ever files that can be
+       * empty in ndb_x_fs? Else we could treat zero file as no file, must then
+       * remove I guess to not trick create_if_none?
+       *
+       * D1/NDBCNTR/P0.sysfile: ABORT: open empty not fake created page_size 0
+       * flags 0x00000000  : OM_READONLY?
+       */
+      if (strstr(theFileName.c_str(), "LCP") &&
+          strstr(theFileName.c_str(), ".ctl"))
+        ;  // TODO maybe not safe on all os file system, upper/lowercase?
+      else if (strstr(theFileName.c_str(), "NDBCNTR") &&
+               strstr(theFileName.c_str(), ".sysfile"))
+        ;  // OM_READONLY?
+      else if (strstr(theFileName.c_str(), "DBDIH") &&
+               strstr(theFileName.c_str(), ".FragList"))
+      {
+        ; // OM_READWRITE existing: D1/DBDIH/S17.FragList - disk full?
+        // Maybe should fail open-request? Or wait for underflow on later read?
+      }
+      else
+      {
+        abort(); // TODO: relax since could be caused by previous disk full?
+      }
+#endif
+    }
+  }
+
+  // append only allowed if file is created
+  require(created || !(FsOpenReq::OM_APPEND & flags));
+
+  //
+  {
+    int pwd_len = use_enc ? m_password.password_length : 0;
+    ndb_openssl_evp::byte* pwd = use_enc
+                                     ? reinterpret_cast<ndb_openssl_evp::byte*>(
+                                           m_password.encryption_password)
+                                     : nullptr;
+    int rc;
+    if (created)
+    {
+      bool backup = (theFileName.get_base_path_spec() == FsOpenReq::BP_BACKUP);
+      int key_cipher = (backup ? ndb_ndbxfrm1::cipher_cbc :
+                                 ndb_ndbxfrm1::cipher_xts);
+      int key_count;
+      int key_data_unit_size;
+      int file_block_size;
+      if (page_size == 0 || use_gz)
+      {
+        size_t xts_data_unit_size = GLOBAL_PAGE_SIZE;
+        const bool use_cbc = (key_cipher == ndb_ndbxfrm1::cipher_cbc);
+        const bool use_xts = (key_cipher == ndb_ndbxfrm1::cipher_xts);
+        key_data_unit_size = ((use_enc && use_xts) ? xts_data_unit_size : 0);
+        /*
+         * For XTS we currently use maximal set of keys since we do not know
+         * how big the file will be.
+         */
+        key_count = (use_xts ? ndb_openssl_evp::MAX_SALT_COUNT : 1);
+        /*
+         * For compressed files we use 512 byte file block size to be
+         * compatible with old compressed files (AZ31 format).
+         * Also when using CBC-mode we use 512 byte file block size to be
+         * compatible with old encrypted backup files.
+         */
+        file_block_size = ((use_enc && use_xts) ? xts_data_unit_size :
+                           (use_gz || (use_enc && use_cbc)) ? 512 : 0);
+      }
+      else
+      {
+        Uint64 page_count = data_size / page_size;
+        if (page_count >= ndb_openssl_evp::MAX_SALT_COUNT *
+                            ndb_openssl_evp::MAX_SALT_COUNT)
+          key_count = ndb_openssl_evp::MAX_SALT_COUNT;
+        else if (page_count <= 1)
+          key_count = 1;
+        else
+        {
+          key_count = sqrt(double(page_count)) + 1;
+        }
+        key_data_unit_size = page_size;
+        file_block_size = page_size;
+      }
+      if (m_open_flags & FsOpenReq::OM_APPEND)
+        require(!ndbxfrm_file::is_definite_size(data_size));
+      rc = m_xfile.create(m_file,
+                          use_gz,
+                          pwd,
+                          pwd_len,
+                          ndb_openssl_evp::DEFAULT_KDF_ITER_COUNT,
+                          key_cipher,
+                          ((key_count == 1)
+                          ? ndb_ndbxfrm1::key_selection_mode_same
+                          : ndb_ndbxfrm1::key_selection_mode_mix_pair),
+                          key_count,
+                          key_data_unit_size,
+                          file_block_size,
+                          data_size);
+      if (rc < 0) NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
+    }
+    else
+    {
+      rc = m_xfile.open(m_file, pwd, pwd_len);
+      if (rc < 0) NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
+    }
+    if (rc < 0)
+    {
+      m_file.close();
+      goto remove_if_created;
+    }
+    if (ndbxfrm_file::is_definite_size(data_size) &&
+        size_t(m_xfile.get_data_size()) != data_size)
+    {
+      NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrInvalidFileSize);
+      m_file.close();
+      goto remove_if_created;
+    }
+  }
+
   // Verify file size (OM_CHECK_SIZE)
   if (flags & FsOpenReq::OM_CHECK_SIZE)
   {
-    ndb_file::off_t file_size = m_file.get_size();
-    if (file_size == -1)
+    ndb_file::off_t file_data_size = m_xfile.get_size();
+    if (file_data_size == -1)
     {
       NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
     }
-    else if ((Uint64)file_size != request->par.open.file_size)
+    else if ((Uint64)file_data_size != request->par.open.file_size)
     {
       NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrInvalidFileSize);
     }
@@ -267,7 +356,8 @@ AsyncFile::openReq(Request * request)
       if (m_file.set_direct_io(direct_sync) == -1)
       {
         ndbout_c("%s Failed to set ODirect errno: %u",
-                 theFileName.c_str(), get_last_os_error());
+                 theFileName.c_str(),
+                 get_last_os_error());
       }
 #ifdef DEBUG_ODIRECT
       else
@@ -282,19 +372,11 @@ AsyncFile::openReq(Request * request)
 
   if (flags & FsOpenReq::OM_INIT)
   {
-    require(m_file_format == FF_UNKNOWN);
-    m_file_format = FF_RAW; // TODO also allow NDBXFRM1 for encrypted
-    m_file.set_autosync(1024 * 1024);
+    off_t file_data_size = m_xfile.get_size();
+    off_t data_size = request->par.open.file_size;
+    require(file_data_size == data_size);
 
-    // Extend file size
-    require(request->par.open.file_size <= ndb_file::OFF_T_MAX);
-    const ndb_file::off_t file_size = (ndb_file::off_t)request->par.open.file_size;
-    if (m_file.extend(file_size, ndb_file::NO_FILL) == -1)
-    {
-      NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
-      m_file.close();
-      goto remove_if_created;
-    }
+    m_file.set_autosync(1024 * 1024);
 
     // Reserve disk blocks for whole file
     if (m_file.allocate() == -1)
@@ -316,12 +398,23 @@ AsyncFile::openReq(Request * request)
     Uint32 write_cnt = 0;
     const NDB_TICKS start = NdbTick_getCurrentTicks();
 #endif
-    require(m_file.get_pos() == 0);
-    while (off < file_size)
+    ndb_openssl_evp::operation* openssl_evp_op = nullptr;
+    /*
+     * Block code will initialize one page at a time for a given position in
+     * the file.
+     * The block code will be called for a range of pages and when written to
+     * file in big chunks.
+     * For transformed files, we always pass the last page in range to block
+     * code to initialize, then we transform it and write it to right position
+     * in page range, and then write them to file.
+     */
+    Uint32 page_cnt =
+        (!m_xfile.is_transformed()) ? m_page_cnt : (m_page_cnt - 1);
+    while (off < file_data_size)
     {
       ndb_file::off_t size = 0;
       Uint32 cnt = 0;
-      while (cnt < m_page_cnt && (off + size) < file_size)
+      while (cnt < page_cnt && (off + size) < file_data_size)
       {
         req->filePointer = 0;          // DATA 0
         req->userPointer = request->theUserPointer;          // DATA 2
@@ -330,22 +423,45 @@ AsyncFile::openReq(Request * request)
         req->operationFlag = 0;
         FsReadWriteReq::setFormatFlag(req->operationFlag,
                                       FsReadWriteReq::fsFormatSharedPage);
-        req->data.sharedPage.pageNumber = m_page_ptr.i + cnt;
+        if (!m_xfile.is_transformed())
+          req->data.sharedPage.pageNumber = m_page_ptr.i + cnt;
+        else
+          req->data.sharedPage.pageNumber = m_page_ptr.i + page_cnt;
 
         m_fs.callFSWRITEREQ(request->theUserReference, req);
+
+        if (m_xfile.is_transformed())
+        {
+          const GlobalPage* src = m_page_ptr.p + page_cnt;
+          GlobalPage* dst = m_page_ptr.p + cnt;
+          ndbxfrm_input_iterator in = {
+              (const byte*)src, (const byte*)(src + 1), false};
+          ndbxfrm_output_iterator out = {(byte*)dst, (byte*)(dst + 1), false};
+          if (m_xfile.transform_pages(
+                  openssl_evp_op, (index - 1) * GLOBAL_PAGE_SIZE, &out, &in) == -1)
+          {
+            fflush(stderr);
+            abort();
+          }
+        }
 
         cnt++;
         size += request->par.open.page_size;
       }
       ndb_file::off_t save_size = size;
-      char* buf = (char*)m_page_ptr.p;
+      byte* buf = (byte*)m_page_ptr.p;
       while (size > 0)
       {
 #ifdef TRACE_INIT
         write_cnt++;
 #endif
         int n;
-        n = m_file.write_forward(buf, size);
+        ndbxfrm_input_iterator in = {buf, buf + size, false};
+        int rc = m_xfile.write_transformed_pages(off, &in);
+        if (rc == -1)
+          n = -1;
+        else
+          n = in.cbegin() - buf;
         if (n == -1 || n == 0)
         {
           g_eventLogger->info("write returned %d: errno: %d my_errno: %d", n,
@@ -374,10 +490,12 @@ AsyncFile::openReq(Request * request)
     Uint64 diff = NdbTick_Elapsed(start, stop).milliSec();
     if (diff == 0)
       diff = 1;
-    g_eventLogger->info(
-        "wrote %umb in %u writes %us -> %ukb/write %umb/s",
-        Uint32(file_size / (1024 * 1024)), write_cnt, Uint32(diff / 1000),
-        Uint32(file_size / 1024 / write_cnt), Uint32(file_size / diff));
+    g_eventLogger->info("wrote %umb in %u writes %us -> %ukb/write %umb/s",
+                        Uint32(file_data_size / (1024 * 1024)),
+                        write_cnt,
+                        Uint32(diff / 1000),
+                        Uint32(file_data_size / 1024 / write_cnt),
+                        Uint32(file_data_size / diff));
 #endif
 
     if (m_file.set_pos(0) == -1)
@@ -402,10 +520,6 @@ AsyncFile::openReq(Request * request)
   }
 #endif 
 
-  // Set flags for compression (OM_GZ) and encryption (OM_ENCRYPT)
-  use_gz = (flags & FsOpenReq::OM_GZ);
-  use_enc = (flags & FsOpenReq::OM_ENCRYPT);
-
   // Turn on direct io (OM_DIRECT, OM_DIRECT_SYNC) after init
   if (flags & FsOpenReq::OM_DIRECT)
   {
@@ -415,7 +529,8 @@ AsyncFile::openReq(Request * request)
       if (m_file.set_direct_io(direct_sync) == -1)
       {
         g_eventLogger->info("%s Failed to set ODirect errno: %u",
-                            theFileName.c_str(), get_last_os_error());
+                            theFileName.c_str(),
+                            get_last_os_error());
       }
 #ifdef DEBUG_ODIRECT
       else
@@ -445,18 +560,15 @@ AsyncFile::openReq(Request * request)
   // Read file size
   if (flags & FsOpenReq::OM_READ_SIZE)
   {
-    // TODO yyy Typically fixed size files, not gzipped. And not init:ed?
-    require(m_file_format == FF_UNKNOWN);
-    m_file_format = FF_RAW; // TODO allow NDBXFRM1 for encypted
-    ndb_file::off_t file_size = m_file.get_size();
-    if (file_size == -1)
+    ndb_file::off_t file_data_size = m_xfile.get_size();
+    if (file_data_size == -1)
     {
       NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
       m_file.close();
       goto remove_if_created;
     }
-    request->m_file_size_hi = Uint32(file_size >> 32);
-    request->m_file_size_lo = Uint32(file_size & 0xFFFFFFFF);
+    request->m_file_size_hi = Uint32(file_data_size >> 32);
+    request->m_file_size_lo = Uint32(file_data_size & 0xFFFFFFFF);
   }
   else
   {
@@ -467,8 +579,6 @@ AsyncFile::openReq(Request * request)
   // Turn on compression (OM_GZ) and encryption (OM_ENCRYPT)
   if (use_gz || use_enc)
   {
-    require(m_file_format == FF_UNKNOWN);
-    int err;
     int ndbz_flags = 0;
     if (flags & (FsOpenReq::OM_CREATE | FsOpenReq::OM_CREATE_IF_NONE))
     {
@@ -498,42 +608,17 @@ AsyncFile::openReq(Request * request)
       m_file.close();
       goto remove_if_created;
     }
-    m_crc32 = crc32(0L, nullptr, 0);
-    m_data_size = 0;
-    if (flags & FsOpenReq::OM_APPEND)
+    if (flags & FsOpenReq::OM_APPEND ||
+        ((flags & FsOpenReq::OM_READ_WRITE_MASK) == FsOpenReq::OM_WRITEONLY))
     { // WRITE compressed (BACKUP, LCP)
-      m_file_format = (use_enc ? FF_NDBXFRM1 : FF_AZ31);
-      int rv = 0;
-      if (use_gz)
-      {
-        rv = zlib.deflate_init();
-      }
-      if (rv == -1)
-      {
-        NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrInvalidParameters);
-        m_file.close();
-      }
     }
     else if ((flags & FsOpenReq::OM_READ_WRITE_MASK) == FsOpenReq::OM_READONLY)
     { // READ compressed (LCP)
-#if !defined(_WIN32)
-      require(!use_enc);
-      m_file_format = FF_RAW;
-      if ((err= ndbzdopen(&nzf, m_file.get_os_handle(), ndbz_flags)) < 1)
-      {
-        g_eventLogger->info("Stewart's brain broke: %d %d %s", err, my_errno(),
-                            theFileName.c_str());
-        require(!"ndbzdopen");
-      }
-#else
-      // Compressed LCP files are not yet supported on Windows.
-      abort();
-#endif
     }
     else
     {
       // Compression and encryption only for appendable files
-      abort();
+      require(!use_gz);
     }
   }
 
@@ -543,53 +628,6 @@ AsyncFile::openReq(Request * request)
     m_file.set_autosync(request->par.open.auto_sync_size);
   }
 
-  if (m_file_format == FF_UNKNOWN)
-    m_file_format = FF_RAW;
-
-  if (m_file_format == FF_AZ31)
-  {
-    require(!use_enc);
-    require(use_gz);
-    require(flags & (FsOpenReq::OM_CREATE | FsOpenReq::OM_CREATE_IF_NONE));
-    ndbxfrm_output_iterator out = m_compress_buffer.get_output_iterator();
-    require(ndb_az31::write_header(&out) == 0);
-    m_compress_buffer.update_write(out);
-  }
-  else if (m_file_format == FF_NDBXFRM1)
-  {
-    require(flags & (FsOpenReq::OM_CREATE | FsOpenReq::OM_CREATE_IF_NONE));
-    ndbxfrm_buffer* file_buffer = (use_enc ? &m_encrypt_buffer : &m_compress_buffer);
-    ndbxfrm_output_iterator out = file_buffer->get_output_iterator();
-    ndb_ndbxfrm1::header ndbxfrm1;
-    ndbxfrm1.set_file_block_size(NDB_O_DIRECT_WRITE_ALIGNMENT);
-    if (use_gz)
-    {
-      ndbxfrm1.set_compression_method(1 /* deflate */);
-    }
-    if (use_enc)
-    {
-      openssl_evp.set_aes_256_cbc(true, 0);
-      ndbxfrm1.set_encryption_cipher(1 /* CBC-STREAM */);
-      ndbxfrm1.set_encryption_padding(1 /* ON PKCS */);
-
-      byte salt[ndb_openssl_evp::SALT_LEN];
-      openssl_evp.generate_salt256(salt);
-      ndbxfrm1.set_encryption_salts(salt, ndb_openssl_evp::SALT_LEN, 1);
-      Uint32 kdf_iter_count = ndb_openssl_evp::DEFAULT_KDF_ITER_COUNT;
-      int pwd_len = m_password.password_length;
-      ndb_openssl_evp::byte* pwd =
-        reinterpret_cast<ndb_openssl_evp::byte*>(m_password.encryption_password);
-      openssl_evp.derive_and_add_key_iv_pair(pwd, pwd_len, kdf_iter_count, salt);
-      ndbxfrm1.set_encryption_kdf(1 /* pbkdf2_sha256 */);
-      ndbxfrm1.set_encryption_kdf_iter_count(kdf_iter_count);
-      int rv = openssl_evp_op.encrypt_init(0, 0);
-      require(rv == 0);
-    }
-    require(ndbxfrm1.prepare_for_write() == 0);
-    require(ndbxfrm1.get_size() <= out.size());
-    require(ndbxfrm1.write_header(&out) == 0);
-    file_buffer->update_write(out);
-  }
 
   /*
    * If OM_READ_FORWARD it is expected that application layer read the file
@@ -610,12 +648,14 @@ AsyncFile::openReq(Request * request)
   return;
 
 remove_if_created:
-  m_file_format = FF_UNKNOWN;
+//  require(!created);
   if (created && m_file.remove(theFileName.c_str()) == -1)
   {
     g_eventLogger->info(
         "Could not remove '%s' (err %u) after open failure (err %u).",
-        theFileName.c_str(), get_last_os_error(), request->error.code);
+        theFileName.c_str(),
+        get_last_os_error(),
+        request->error.code);
   }
 }
 
@@ -623,190 +663,31 @@ void
 AsyncFile::closeReq(Request *request)
 {
   // If closeRemove no final write or sync is needed!
-  bool no_write = (request->action & Request::closeRemove);
+  bool abort = (request->action & Request::closeRemove);
   if (m_open_flags & (
       FsOpenReq::OM_WRITEONLY |
       FsOpenReq::OM_READWRITE |
       FsOpenReq::OM_APPEND )) {
-    if (!no_write) syncReq(request);
+    if (!abort) syncReq(request);
   }
   int r = 0;
 #ifndef NDEBUG
   if (!m_file.is_open())
   {
     DEBUG(g_eventLogger->info("close on already closed file"));
-    abort();
+    ::abort();
   }
 #endif
-  if(use_gz || use_enc)
+  if (m_xfile.is_open())
   {
-    if (m_open_flags & (
-      FsOpenReq::OM_WRITEONLY |
-      FsOpenReq::OM_READWRITE |
-      FsOpenReq::OM_APPEND ))
-    { // APPEND backup
-      require(m_open_flags & FsOpenReq::OM_APPEND);
-      if (!no_write)
-      {
-        require((m_file_format == FF_AZ31) ||
-                (m_file_format == FF_NDBXFRM1));
-
-        ndbxfrm_input_iterator in(nullptr, nullptr, true);
-
-        /*
-         * In some cases flushing zlib::deflate() did not flush out and even
-         * returned without outputting anything, and needed a second call
-         * requesting flush.
-         */
-        for (int Guard = 5; Guard > 0; Guard--)
-        {
-          int r = ndbxfrm_append(request, &in);
-          if (r == -1)
-          {
-            NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
-            if (request->error.code == 0)
-            {
-              NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrUnknown);
-            }
-          }
-          if (r == 0) break;
-        }
-        if (r != 0 || !m_compress_buffer.last())
-        {
-          NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
-          if (request->error.code == 0)
-          {
-            NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrUnknown);
-          }
-        }
-      }
-      if (use_gz)
-      {
-        int r = zlib.deflate_end();
-        if (!no_write) require(r == 0);
-      }
-      if (use_enc)
-      {
-        int r = openssl_evp_op.encrypt_end();
-        if (!no_write) require(r == 0);
-      }
-    }
-    else
-    { // READ lcp
-      r= ndbzclose(&nzf);
-      m_file.invalidate();
-    }
-  }
-  if (m_open_flags & (FsOpenReq::OM_APPEND ) && !no_write)
-  {
-    if (m_file_format == FF_NDBXFRM1)
-    {
-      require(m_open_flags & FsOpenReq::OM_APPEND);
-      require(m_file.is_open());
-
-      if (use_enc)
-      {
-        ndbxfrm_input_iterator wr_in = m_compress_buffer.get_input_iterator();
-        require(wr_in.empty());
-        require(wr_in.last());
-      }
-      ndbxfrm_buffer* file_buffer = (use_enc ? &m_encrypt_buffer : &m_compress_buffer);
-      file_buffer->clear_last();
-      off_t file_pos = m_file.get_pos();
-      {
-        ndbxfrm_input_iterator wr_in = file_buffer->get_input_iterator();
-        file_pos += wr_in.size();
-      }
-      ndb_ndbxfrm1::trailer ndbxfrm1;
-      require(ndbxfrm1.set_data_size(m_data_size) == 0);
-      require(ndbxfrm1.set_data_crc32(m_crc32) == 0);
-      require(ndbxfrm1.set_file_pos(file_pos) == 0);
-      require(ndbxfrm1.set_file_block_size(NDB_O_DIRECT_WRITE_ALIGNMENT) == 0);
-      require(ndbxfrm1.prepare_for_write() == 0);
-  
-      ndbxfrm_output_iterator out = file_buffer->get_output_iterator();
-      if (out.size() < ndbxfrm1.get_size())
-      {
-        file_buffer->rebase(NDB_O_DIRECT_WRITE_BLOCKSIZE);
-        out = file_buffer->get_output_iterator();
-      }
-      require(out.size() >= ndbxfrm1.get_size());
-      require(ndbxfrm1.write_trailer(&out) == 0);
-      file_buffer->update_write(out);
-
-      ndbxfrm_input_iterator wr_in = file_buffer->get_input_iterator();
-      size_t write_len = wr_in.size();
-      require(write_len % NDB_O_DIRECT_WRITE_ALIGNMENT == 0);
-
-      int n = m_file.append(wr_in.cbegin(), write_len);
-      if (n > 0) wr_in.advance(n);
-      if (n == -1 || size_t(n) != write_len)
-      {
-        NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
-      }
-      if (wr_in.empty()) wr_in.set_last();
-      require(wr_in.last());
-      file_buffer->update_read(wr_in);
-      syncReq(request);
-    }
-    if (m_file_format == FF_AZ31)
-    {
-      require(m_open_flags & FsOpenReq::OM_APPEND);
-      require(m_file.is_open());
-      require(m_compress_buffer.last());
-      m_compress_buffer.clear_last();
-      ndbxfrm_output_iterator out = m_compress_buffer.get_output_iterator();
-      ndb_az31 az31;
-      const size_t trailer_size = az31.get_trailer_size();
-      if (out.size() < trailer_size)
-      {
-        m_compress_buffer.rebase(NDB_O_DIRECT_WRITE_BLOCKSIZE);
-        out = m_compress_buffer.get_output_iterator();
-      }
-      require(out.size() >= trailer_size);
-      /*
-       * Since m_compress_buffer size is multiple of 512, and buffer only
-       * "wrap" when completely full we can use out.size() to determine amount
-       * of padding needed
-       */
-      require(az31.set_data_size(m_data_size) == 0);
-      require(az31.set_data_crc32(m_crc32) == 0);
-      size_t pad_len =
-          (out.size() - trailer_size) % NDB_O_DIRECT_WRITE_ALIGNMENT;
-      require(az31.write_trailer(&out, pad_len) == 0);
-      m_compress_buffer.update_write(out);
-
-      ndbxfrm_input_iterator wr_in = m_compress_buffer.get_input_iterator();
-      size_t write_len = wr_in.size();
-      require(write_len % NDB_O_DIRECT_WRITE_ALIGNMENT == 0);
-
-      int n = m_file.append(wr_in.cbegin(), write_len);
-      if (n > 0) wr_in.advance(n);
-      if (n == -1 || size_t(n) != write_len)
-      {
-        NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
-      }
-      if (wr_in.empty()) wr_in.set_last();
-      require(wr_in.last());
-      m_compress_buffer.update_read(wr_in);
-      syncReq(request);
-    }
+    int r = m_xfile.close(abort);
+    require(r == 0);
   }
   if (m_file.is_open())
   {
+    if (!abort) m_file.sync();
     r= m_file.close();
   }
-  m_file_format = FF_UNKNOWN;
-  use_gz= 0;
-  use_enc = 0;
-  Byte *a,*b;
-  a= nzf.inbuf;
-  b= nzf.outbuf;
-  memset(&nzf,0,sizeof(nzf));
-  nzf.inbuf= a;
-  nzf.outbuf= b;
-  nzf.stream.opaque = (void*)&nz_mempool;
-
   if (-1 == r) {
     NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
   }
@@ -816,51 +697,206 @@ void
 AsyncFile::readReq( Request * request)
 {
   const bool read_forward = (m_open_flags & FsOpenReq::OM_READ_FORWARD);
-
-  for(int i = 0; i < request->par.readWrite.numberOfPages ; i++)
-  {
-    off_t offset = request->par.readWrite.pages[i].offset;
-    size_t size  = request->par.readWrite.pages[i].size;
-    char * buf   = request->par.readWrite.pages[i].buf;
-
-    if (read_forward && offset != (off_t)m_next_read_pos)
+  if (!read_forward)
+  { // Read random page
+    require(m_xfile.get_random_access_block_size() > 0);
+    ndb_openssl_evp::operation* openssl_evp_op = nullptr;
+    if (!thread_bound() && m_xfile.is_encrypted())
     {
-      request->par.readWrite.pages[0].size = 0;
-      if (offset > (off_t)m_next_read_pos)
+      openssl_evp_op = &request->thread->m_openssl_evp_op;
+    }
+    /*
+     * current_data_offset is the offset relative plain data.
+     * current_file_offset is the offset relative the corresponding transformed
+     * data on file.
+     * Note, current_file_offset will not include NDBXFRM1 or AZ31 header, that
+     * is, current_data_offset zero always corresponds to
+     * current_file_offset zero.
+     */
+    off_t current_data_offset = request->par.readWrite.pages[0].offset;
+    /*
+     * Assumes size-preserving transform is used, currently either raw or
+     * encrypted.
+     */
+    off_t current_file_offset = current_data_offset;
+    for (int i = 0; i < request->par.readWrite.numberOfPages; i++)
+    {
+      if (current_data_offset != request->par.readWrite.pages[i].offset)
       {
-        // assume speculative read beyond end of file
+        g_eventLogger->info("%s: All parts of read do not form a consecutive "
+                            "read from file.",
+                            theFileName.c_str());
+        NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrUnknown);
+        return;
+      }
+      Uint64 size = request->par.readWrite.pages[i].size;
+      byte* buf = reinterpret_cast<byte*>(request->par.readWrite.pages[i].buf);
+
+      request->par.readWrite.pages[i].size = 0;
+
+      ndbxfrm_output_iterator out = {buf, buf + size, false};
+      if (m_xfile.read_transformed_pages(current_file_offset, &out) == -1)
+      {
+        NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
+        return;
+      }
+      size_t bytes_read = out.begin() - buf;
+      if (bytes_read != size)
+      {
         if (request->action != Request::readPartial)
         {
           NDBFS_SET_REQUEST_ERROR(request, ERR_ReadUnderflow);
+          return;
         }
+      }
+      current_file_offset += bytes_read;
+
+      if (!m_xfile.is_transformed())
+      {
+        current_data_offset += bytes_read;
+      }
+      else
+      {
+        /*
+         * If transformed content, read transformed data from return buffer and
+         * untransform into local buffer, then copy back to return buffer.
+         * This way adds data copies that could be avoided but is an easy way
+         * to be able to always read all at once instead of issuing several
+         * system calls to read smaller chunks at a time.
+         */
+        ndbxfrm_input_iterator in = {buf, buf + bytes_read, false};
+        while (!in.empty())
+        {
+          byte buffer[GLOBAL_PAGE_SIZE];
+          ndbxfrm_output_iterator out = {buffer, buffer + GLOBAL_PAGE_SIZE, false};
+          const byte* in_cbegin = in.cbegin();
+          if (m_xfile.untransform_pages(openssl_evp_op,
+                                        current_data_offset,
+                                        &out,
+                                        &in) == -1)
+          {
+            g_eventLogger->info("%s: Transformation of reads from file buffer "
+                                "failed.",
+                                theFileName.c_str());
+            NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrUnknown);
+          }
+          size_t bytes = in.cbegin() - in_cbegin;
+          current_data_offset += bytes;
+          byte* dst = buf + (in_cbegin - buf);
+          memcpy(dst, buffer, bytes);
+        }
+        require(in.empty());
+      }
+      require(current_data_offset == current_file_offset);
+
+      request->par.readWrite.pages[0].size += bytes_read;
+      if (i > 0)
+        request->par.readWrite.pages[i].size += bytes_read;
+
+      if (bytes_read != size)
+      { // eof
         return;
       }
-      NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrUnknown); // read out sync
+    }
+    return;
+  }
+
+  // Stream read forward.
+  require(thread_bound());
+  // Only one page supported.
+  require(request->par.readWrite.numberOfPages == 1);
+  {
+    off_t offset = request->par.readWrite.pages[0].offset;
+    size_t size  = request->par.readWrite.pages[0].size;
+    char * buf   = request->par.readWrite.pages[0].buf;
+
+    size_t bytes_read = 0;
+    if (offset != (off_t)m_next_read_pos && offset < m_xfile.get_data_size())
+    {
+      // read out of sync
+      request->par.readWrite.pages[0].size = 0;
+      NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrUnknown);
       return;
     }
-    int err = readBuffer(request, buf, size, offset);
-    if(err != 0){
-      NDBFS_SET_REQUEST_ERROR(request, err);
+    if (m_xfile.get_data_pos() < offset)
+    {
+      // Likely a speculative read request beyond end when restoring LCP data
+      require(m_xfile.get_data_pos() == m_xfile.get_data_size());
+    }
+    else
+    {
+      require(m_xfile.get_data_pos() == offset);
+      int return_value = 0;
+      byte* byte_buf = reinterpret_cast<byte*>(buf);
+      ndbxfrm_output_iterator out = {byte_buf, byte_buf + size, false};
+      return_value = m_xfile.read_forward(&out);
+      if (return_value >= 0) bytes_read = out.begin() - byte_buf;
+      if (return_value == -1)
+      {
+        NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
+        return;
+      }
+    }
+    request->par.readWrite.pages[0].size = bytes_read;
+    if (bytes_read == 0)
+    {
+      if (request->action == Request::readPartial)
+      {
+        return;
+      }
+      DEBUG(g_eventLogger->info("Read underflow %d %d %x %d", size,
+                                offset, buf, bytes_read));
+      NDBFS_SET_REQUEST_ERROR(request, ERR_ReadUnderflow);
       return;
     }
-    if (read_forward) m_next_read_pos += request->par.readWrite.pages[0].size;
+    m_next_read_pos += request->par.readWrite.pages[0].size;
+    require((off_t)m_next_read_pos <= m_xfile.get_data_size());
+    if (bytes_read != size)
+    {
+      DEBUG(g_eventLogger->info("Warning partial read %d != %d on %s",
+                                bytes_read, size, theFileName.c_str()));
+      if (request->action == Request::readPartial)
+      {
+        return;
+      }
+      NDBFS_SET_REQUEST_ERROR(request, ERR_ReadUnderflow);
+      return;
+    }
   }
 }
 
 void
 AsyncFile::writeReq(Request * request)
 {
+  /*
+   * Always postitioned writes of blocks that can be transformed independent
+   * of other blocks.
+   */
+  require(m_xfile.get_random_access_block_size() > 0);
+  require(!m_xfile.is_compressed());
+
   const Uint32 cnt = request->par.readWrite.numberOfPages;
-  if (theWriteBuffer == 0 || cnt == 1)
+  if (!m_xfile.is_transformed() && (cnt == 1 || theWriteBuffer == nullptr))
   {
+    /*
+     * Fast path for raw files written page by page directly from data buffers
+     * in request.
+     */
     for (Uint32 i = 0; i<cnt; i++)
     {
-      int err = writeBuffer(request->par.readWrite.pages[i].buf,
-                            request->par.readWrite.pages[i].size,
-                            request->par.readWrite.pages[i].offset);
-      if (err)
+      Uint64 offset = request->par.readWrite.pages[i].offset;
+      Uint32 size = request->par.readWrite.pages[i].size;
+      const byte* buf = (const byte*)request->par.readWrite.pages[i].buf;
+      ndbxfrm_input_iterator in = {buf, buf + size, false};
+      int rc = m_xfile.write_transformed_pages(offset, &in);
+      if (rc == -1)
       {
-        NDBFS_SET_REQUEST_ERROR(request, err);
+        NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
+        return;
+      }
+      if (!in.empty())
+      {
+        NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrUnknown);
         return;
       }
     }
@@ -871,59 +907,122 @@ AsyncFile::writeReq(Request * request)
     return;
   }
 
+  /*
+   * For raw data this path is used for copying all data from request into
+   * contiguous memory to reduce number of system calls for write.
+   *
+   * For transformed data one always need to transform data first before write.
+   */
+  byte unaligned_buffer[GLOBAL_PAGE_SIZE +  NDB_O_DIRECT_WRITE_ALIGNMENT];
+  byte* file_buffer;
+  size_t file_buffer_size;
+  if (theWriteBuffer != nullptr)
   {
-    int page_num = 0;
-    bool write_not_complete = true;
-
-    while(write_not_complete) {
-      size_t totsize = 0;
-      off_t offset = request->par.readWrite.pages[page_num].offset;
-      char* bufptr = theWriteBuffer;
-
-      write_not_complete = false;
-      if (request->par.readWrite.numberOfPages > 1) {
-        off_t page_offset = offset;
-
-        // Multiple page write, copy to buffer for one write
-        for(int i=page_num; i < request->par.readWrite.numberOfPages; i++) {
-          memcpy(bufptr,
-                 request->par.readWrite.pages[i].buf,
-                 request->par.readWrite.pages[i].size);
-          bufptr += request->par.readWrite.pages[i].size;
-          totsize += request->par.readWrite.pages[i].size;
-          if (((i + 1) < request->par.readWrite.numberOfPages)) {
-            // There are more pages to write
-            // Check that offsets are consequtive
-            off_t tmp=(off_t)(page_offset+request->par.readWrite.pages[i].size);
-            if (tmp != request->par.readWrite.pages[i+1].offset) {
-              // Next page is not aligned with previous, not allowed
-              DEBUG(g_eventLogger->info("Page offsets are not aligned"));
-              NDBFS_SET_REQUEST_ERROR(request, EINVAL);
-              return;
-            }
-            if ((unsigned)(totsize + request->par.readWrite.pages[i+1].size) > (unsigned)theWriteBufferSize) {
-              // We are not finished and the buffer is full
-              write_not_complete = true;
-              // Start again with next page
-              page_num = i + 1;
-              break;
-            }
-          }
-          page_offset += (off_t)request->par.readWrite.pages[i].size;
-        }
-        bufptr = theWriteBuffer;
-      } else {
-        // One page write, write page directly
-        bufptr = request->par.readWrite.pages[0].buf;
-        totsize = request->par.readWrite.pages[0].size;
-      }
-      int err = writeBuffer(bufptr, totsize, offset);
-      if(err != 0){
-        NDBFS_SET_REQUEST_ERROR(request, err);
-        return;
-      }
-    } // while(write_not_complete)
+    // Use pre allocated big write buffer
+    require(thread_bound());
+    file_buffer = reinterpret_cast<byte*>(theWriteBuffer);
+    file_buffer_size = theWriteBufferSize;
   }
+  else
+  {
+    // Use a single page buffer for transform
+    file_buffer = unaligned_buffer;
+    size_t file_buffer_space = sizeof(unaligned_buffer);
+    file_buffer_size = GLOBAL_PAGE_SIZE;
+    void* voidp = file_buffer;
+    require(std::align(NDB_O_DIRECT_WRITE_ALIGNMENT,
+                       file_buffer_size,
+                       voidp,
+                       file_buffer_space) != nullptr);
+    file_buffer = reinterpret_cast<byte*>(voidp);
+  }
+
+  ndb_openssl_evp::operation* openssl_evp_op = nullptr;
+  if (m_xfile.is_encrypted() && !thread_bound())
+  {
+    /*
+     * For files that can use multiple threads for concurrent reads and writes
+     * one can not reuse the encryption context from file object but need to
+     * reuse the encryption context from thread.
+     */
+    openssl_evp_op = &request->thread->m_openssl_evp_op;
+  }
+
+  ndbxfrm_output_iterator file_out = { file_buffer,
+                                       file_buffer + file_buffer_size,
+                                       false};
+  /*
+   * current_data_offset is the offset relative plain data.
+   * current_file_offset is the offset relative the corresponding transformed
+   * data on file.
+   * Note, current_file_offset will not include NDBXFRM1 or AZ31 header, that
+   * is, current_data_offset zero always corresponds to
+   * current_file_offset zero.
+   */
+  off_t current_data_offset = request->par.readWrite.pages[0].offset;
+  /*
+   * Assumes size-preserving transform is used, currently either raw or
+   * encrypted.
+   */
+  off_t current_file_offset = current_data_offset;
+  for (Uint32 i = 0; i < cnt; i++)
+  {
+    if (current_data_offset != request->par.readWrite.pages[i].offset)
+    {
+      g_eventLogger->info("%s: All parts of write do not form a consecutive "
+                          "write to file.",
+                          theFileName.c_str());
+      NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrUnknown);
+      return;
+    }
+    Uint32 size = request->par.readWrite.pages[i].size;
+    const byte* raw = (const byte*)request->par.readWrite.pages[i].buf;
+    ndbxfrm_input_iterator raw_in = {raw, raw + size, false};
+
+    do {
+      const byte* raw_in_begin = raw_in.cbegin();
+      if (m_xfile.transform_pages(openssl_evp_op,
+                                  current_data_offset,
+                                  &file_out,
+                                  &raw_in) == -1)
+      {
+        g_eventLogger->info("%s: Transformation of writes to file buffer "
+                            "failed.",
+                            theFileName.c_str());
+        NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrUnknown);
+      }
+      current_data_offset += (raw_in.cbegin() - raw_in_begin);
+
+      if (file_out.empty())
+      {
+        ndbxfrm_input_iterator in = {file_buffer, file_out.begin(), false};
+        const byte* in_cbegin = in.cbegin();
+        m_xfile.write_transformed_pages(current_file_offset, &in);
+        current_file_offset += (in.cbegin() - in_cbegin);
+        if (!in.empty())
+        {
+          NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
+          return;
+        }
+        file_out = { file_buffer, file_buffer + file_buffer_size, false};
+      }
+    } while (!raw_in.empty());
+  }
+
+  if (file_out.begin() != file_buffer)
+  {
+    ndbxfrm_input_iterator in = {file_buffer, file_out.begin(), false};
+    const byte* in_cbegin = in.cbegin();
+    m_xfile.write_transformed_pages(current_file_offset, &in);
+    current_file_offset += (in.cbegin() - in_cbegin);
+    if (!in.empty())
+    {
+      NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
+      return;
+    }
+  }
+  require(current_file_offset == current_data_offset);
+
   if (m_file.sync_on_write() == -1)
   {
     NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
@@ -960,326 +1059,38 @@ bool AsyncFile::check_odirect_request(const char* buf,
   return true;
 }
 
-int AsyncFile::readBuffer(Request *req, char *buf,
-                          size_t size, off_t offset)
-{
-  require(!use_enc);
-  // TODO ensure OM_THREAD_POOL is respected!
-  int return_value;
-  req->par.readWrite.pages[0].size = 0;
-
-  if (!check_odirect_request(buf, size, offset))
-    return FsRef::fsErrInvalidParameters;
-
-  if (use_gz)
-  {
-    /*
-     * For compressed files one can only read forward from current position.
-     */
-    off_t curr = ndbzseek(&nzf, 0, SEEK_CUR);
-    if (curr == -1)
-    {
-      /*
-       * This should never happen, ndbzseek(0,SEEK_CUR) should always succeed.
-       */
-      return FsRef::fsErrUnknown;
-    }
-    if (offset < curr)
-    {
-      /*
-       * Seek and read are not supported for compressed files.
-       */
-      return FsRef::fsErrInvalidParameters;
-    }
-    if (offset > curr)
-    {
-      /*
-       * Seek and read are not supported for compressed files.
-       * But handle speculative reads beyond end.
-       */
-      if (nzf.z_eof == 1 || nzf.z_err == Z_STREAM_END)
-      {
-        if (req->action == Request::readPartial)
-        {
-          return 0;
-        }
-        DEBUG(g_eventLogger->info("Read underflow %d %d %x %d %d", size, offset,
-                                  buf, bytes_read, return_value));
-        return ERR_ReadUnderflow;
-      }
-      return FsRef::fsErrInvalidParameters;
-    }
-  }
-
-  int error = 0;
-
-  while (size > 0)
-  {
-    size_t bytes_read = 0;
-
-    if (!use_gz)
-    {
-      return_value = m_file.read_pos(buf, size, offset);
-    }
-    else
-    {
-      return_value = ndbzread(&nzf, buf, size, &error);
-      if (return_value == 0)
-      {
-        if (nzf.z_eof != 1 && nzf.z_err != Z_STREAM_END)
-        {
-          g_eventLogger->info("ERROR IN PosixAsyncFile::readBuffer %d %d %d",
-                              my_errno(), nzf.z_err, error);
-          require(my_errno() != 0);
-          set_last_os_error(my_errno());
-          return_value = -1;
-        }
-      }
-    }
-    if (return_value == -1)
-    {
-      return get_last_os_error();
-    }
-    bytes_read = return_value;
-    req->par.readWrite.pages[0].size += bytes_read;
-    if (bytes_read == 0)
-    {
-      if (req->action == Request::readPartial)
-      {
-	return 0;
-      }
-      DEBUG(g_eventLogger->info("Read underflow %d %d %x %d %d", size,
-                                offset, buf, bytes_read, return_value));
-      return ERR_ReadUnderflow;
-    }
-
-    if (bytes_read != size)
-    {
-      DEBUG(g_eventLogger->info("Warning partial read %d != %d on %s",
-                                bytes_read, size, theFileName.c_str()));
-    }
-
-    buf += bytes_read;
-    size -= bytes_read;
-    offset += bytes_read;
-  }
-  return 0;
-}
-
-int AsyncFile::writeBuffer(const char *buf, size_t size, off_t offset)
-{
-  /*
-   * Compression and encryption are only supported by appended files which uses appendReq().
-   */
-  require(!use_gz);
-  require(!use_enc);
-
-  size_t chunk_size = 256*1024;
-  size_t bytes_to_write = chunk_size;
-  int return_value;
-
-  if (!check_odirect_request(buf, size, offset))
-    return FsRef::fsErrInvalidParameters;
-
-  while (size > 0)
-  {
-    if (size < bytes_to_write)
-    {
-      // We are at the last chunk
-      bytes_to_write = size;
-    }
-    size_t bytes_written = 0;
-    return_value = m_file.write_pos(buf, bytes_to_write, offset);
-
-    if (return_value == -1)
-    {
-      g_eventLogger->info("ERROR IN PosixAsyncFile::writeBuffer %d %d",
-                          get_last_os_error() /*m_file.get_error()*/,
-                          nzf.z_err);
-      return get_last_os_error();
-    }
-    else
-    {
-      bytes_written = return_value;
-
-      if (bytes_written == 0)
-      {
-        DEBUG(g_eventLogger->info("no bytes written"));
-        require(bytes_written > 0);
-      }
-
-      if (bytes_written != bytes_to_write)
-      {
-        DEBUG(g_eventLogger->info("Warning partial write %d != %d",
-                                  bytes_written, bytes_to_write));
-      }
-    }
-
-    buf += bytes_written;
-    size -= bytes_written;
-    offset += bytes_written;
-  }
-  return 0;
-}
-
-int AsyncFile::ndbxfrm_append(Request *request, ndbxfrm_input_iterator* in)
-{
-  bool transform_failed = false;
-  const byte* in_cbegin = in->cbegin();
-  ndbxfrm_buffer* file_bufp = nullptr;
-  ndbxfrm_input_iterator file_in = *in;
-
-  /*
-   * If data is both compressed and encrypted, data will always first be
-   * compressed than encrypted.
-   */
-  if (use_gz)
-  {
-    ndbxfrm_output_iterator out = m_compress_buffer.get_output_iterator();
-    if (out.size() < NDB_O_DIRECT_WRITE_BLOCKSIZE)
-    {
-      m_compress_buffer.rebase(NDB_O_DIRECT_WRITE_BLOCKSIZE);
-      out = m_compress_buffer.get_output_iterator();
-    }
-    int rv = zlib.deflate(&out, in);
-    if (rv == -1)
-    {
-      transform_failed = true;
-      NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
-      return -1;
-    }
-    if (!in->last()) require(!out.last());
-    m_compress_buffer.update_write(out);
-    file_bufp = &m_compress_buffer;
-    file_in = file_bufp->get_input_iterator();
-  }
-  else if (use_enc)
-  {
-    /*
-     * Copy (uncompressed) app data into m_compress_buffer.
-     *
-     * This since later encryption step will use m_compress_buffer as input
-     * buffer.
-     */
-    ndbxfrm_output_iterator out = m_compress_buffer.get_output_iterator();
-    if (out.size() < NDB_O_DIRECT_WRITE_BLOCKSIZE)
-    {
-      m_compress_buffer.rebase(NDB_O_DIRECT_WRITE_BLOCKSIZE);
-      out = m_compress_buffer.get_output_iterator();
-    }
-    size_t copy_len = std::min(in->size(), out.size());
-    memcpy(out.begin(), in->cbegin(), copy_len);
-    out.advance(copy_len);
-    in->advance(copy_len);
-    require(!out.last());
-    if (in->last() && in->empty()) out.set_last();
-
-    m_compress_buffer.update_write(out);
-  }
-
-  if (use_enc)
-  { // encrypt data from m_compress_buffer into m_encrypt_buffer
-    ndbxfrm_input_iterator c_in = m_compress_buffer.get_input_iterator();
-    ndbxfrm_output_iterator out = m_encrypt_buffer.get_output_iterator();
-    if (out.size() < NDB_O_DIRECT_WRITE_BLOCKSIZE)
-    {
-      m_encrypt_buffer.rebase(NDB_O_DIRECT_WRITE_BLOCKSIZE);
-      out = m_encrypt_buffer.get_output_iterator();
-    }
-    int rv = openssl_evp_op.encrypt(&out, &c_in);
-    if (rv == -1)
-    {
-      transform_failed = true;
-      NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
-      return -1;
-    }
-    m_compress_buffer.update_read(c_in);
-    m_compress_buffer.rebase(NDB_O_DIRECT_WRITE_BLOCKSIZE);
-    m_encrypt_buffer.update_write(out);
-    file_bufp = &m_encrypt_buffer;
-    file_in = file_bufp->get_input_iterator();
-  }
-
-  if (!transform_failed)
-  {
-    size_t write_len = file_in.size();
-    if (file_bufp != nullptr)
-      write_len -= write_len % NDB_O_DIRECT_WRITE_BLOCKSIZE;
-    int n;
-    if (write_len > 0)
-      n = m_file.append(file_in.cbegin(), write_len);
-    else
-      n = 0;
-    if (n > 0) file_in.advance(n);
-    // Fail if not all written and no buffer is used.
-    if (n == -1 || (file_bufp == nullptr && !file_in.empty()))
-    {
-      NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
-      return -1;
-    }
-    if (file_bufp != nullptr)
-    {
-      file_bufp->update_read(file_in);
-      file_bufp->rebase(NDB_O_DIRECT_WRITE_BLOCKSIZE);
-    }
-    else
-      in->advance(n);
-  }
-  else
-  {
-    NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
-    return -1;
-  }
-#if 0
-  if (n == 0)
-  {
-    DEBUG(g_eventLogger->info("append with n=0"));
-    require(n != 0);
-  }
-#endif
-
-  int n = in->cbegin() - in_cbegin;
-  if (n > 0) m_crc32 = crc32(m_crc32, in_cbegin, n);
-  m_data_size += n;
-
-  return file_in.last() ? 0 : 1;
-}
-
 void AsyncFile::appendReq(Request *request)
 {
+  require(thread_bound());
   const byte * buf = reinterpret_cast<const byte*>(request->par.append.buf);
   Uint32 size = request->par.append.size;
 
   if (!check_odirect_request(request->par.append.buf, size, 0))
-    NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrInvalidParameters);
-
-  int Guard = 80;
-  while (size > 0)
   {
-    require(Guard--);
-
-    int n;
-    ndbxfrm_input_iterator in(buf, buf + size, false);
-
-    const byte* in_begin = in.cbegin();
-    int r;
-    if ((r = ndbxfrm_append(request, &in)) == -1)
-    {
-      NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
-      if (request->error.code == 0)
-      {
-        NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrUnknown);
-      }
-      return;
-    }
-    if (r == 0)
-    {
-      require(in.empty());
-    }
-    n = in.cbegin() - in_begin;
-    size -= n;
-    buf += n;
+    NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrInvalidParameters);
   }
+
+  ndbxfrm_input_iterator in(buf, buf + size, false);
+
+  const byte* in_begin = in.cbegin();
+  int r = m_xfile.write_forward(&in);
+  if (r == -1)
+  {
+    NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
+    if (request->error.code == 0)
+    {
+      NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrUnknown);
+    }
+    return;
+  }
+  if (!in.empty())
+  {
+    NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrUnknown);
+    return;
+  }
+  int n = in.cbegin() - in_begin;
+  size -= n;
+  buf += n;
 
   if (m_file.sync_on_write() == -1)
   {

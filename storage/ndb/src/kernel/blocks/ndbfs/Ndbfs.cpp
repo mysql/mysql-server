@@ -610,8 +610,7 @@ Ndbfs::execFSOPENREQ(Signal* signal)
     m_ctx.m_mm.alloc_pages(RT_NDBFS_INIT_FILE_PAGE, &page_ptr.i, &cnt, 1);
     if(cnt == 0)
     {
-      file->m_page_ptr.setNull();
-      file->m_page_cnt = 0;
+      ndbrequire(!file->has_buffer());
       
       FsRef * const fsRef = (FsRef *)&signal->theData[0];
       fsRef->userPointer  = userPointer; 
@@ -633,8 +632,7 @@ Ndbfs::execFSOPENREQ(Signal* signal)
     if (cnt == 0)
     {
       jam();
-      file->m_page_ptr.setNull();
-      file->m_page_cnt = 0;
+      ndbrequire(!file->has_buffer());
 
       FsRef * const fsRef = (FsRef *)&signal->theData[0];
       fsRef->userPointer  = userPointer;
@@ -649,9 +647,7 @@ Ndbfs::execFSOPENREQ(Signal* signal)
   }
   else
   {
-    ndbassert(file->m_page_ptr.isNull());
-    file->m_page_ptr.setNull();
-    file->m_page_cnt = 0;
+    ndbrequire(!file->has_buffer());
   }
   
   if (getenv("NDB_TRACE_OPEN"))
@@ -1223,9 +1219,7 @@ Ndbfs::execBUILD_INDX_IMPL_REQ(Signal* signal)
   m_ctx.m_mm.alloc_pages(RT_NDBFS_BUILD_INDEX_PAGE, &page_ptr.i, &cnt, cnt);
   if(cnt == 0)
   {
-    file->m_page_ptr.setNull();
-    file->m_page_cnt = 0;
-
+    ndbrequire(!file->has_buffer());
     ndbabort(); // TODO
     return;
   }
@@ -1421,7 +1415,6 @@ Ndbfs::report(Request * request, Signal* signal)
       log_file_error(GSN_FSOPENREF, nullptr, request, fsRef);
       // Put the file back in idle files list
       pushIdleFile(request->file);
-//ndbabort();
       sendSignal(ref, GSN_FSOPENREF, signal, FsRef::SignalLength, JBB);
       break;
     }
