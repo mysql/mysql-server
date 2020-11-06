@@ -52,7 +52,8 @@ enum class enum_sql_query_tag : uint {
   CONFIG_MODE_QUORUM_MONITOR = 0,
   CONFIG_MODE_QUORUM_IO,
   GR_MEMBER_ALL_DETAILS,
-  GR_MEMBER_ALL_DETAILS_FETCH_FOR_57
+  GR_MEMBER_ALL_DETAILS_FETCH_FOR_57,
+  QUERY_SERVER_SELECT_ONE
 };
 
 /* Configuration mode quorum status */
@@ -298,6 +299,20 @@ class Source_IO_monitor {
     @return false if success, true otherwise.
   */
   int connect_senders(THD *thd, const std::string &channel_name);
+
+  /**
+    It connects to server and runs a simple query.
+
+    @param[in] thd   The thread.
+    @param[in] mi    The pointer to the Master_info object.
+    @param[in] conn_detail  std::tuple containing <channel, host, port,
+                             network_namespace, weight, group_name>
+
+    @return true on success
+            false on failure like unable to connect or query fails
+  */
+  bool check_connection_and_run_query(THD *thd, Master_info *mi,
+                                      RPL_FAILOVER_SOURCE_TUPLE &conn_detail);
 
   /**
     It connects to each stored sender in connect_senders() and check for quorum
