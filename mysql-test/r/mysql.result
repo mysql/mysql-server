@@ -546,6 +546,10 @@ include/assert_grep.inc [check the output of mysql for the binary-as-hex mark in
 SUBSTR(NULL, 0, 0)	@novar
 NULL	NULL
 #
+# Bug #32092739: MYSQL HELP OUTPUT INCORRECT FOR QUERY_ATTRIBUTES
+#
+include/assert_grep.inc [look for query_attributes in help]
+#
 # Bug #30787660: CONTRIBUTION: INCLUDE PORT NUMBER IN CLIENT ERROR
 #   MESSAGE
 #
