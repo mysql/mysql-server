@@ -655,6 +655,6 @@ Dbtup::alloc_var_rowid(Uint32 * err,
   PagePtr pagePtr;
   c_page_pool.getPtr(pagePtr, key->m_page_no);
   free_fix_rec(fragPtr, tabPtr, key, (Fix_page*)pagePtr.p);
-  release_frag_mutex(fragPtr, key->m_page_no);
+  release_frag_mutex(fragPtr, *out_frag_page_id);
   return 0;
 }
