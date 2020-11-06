@@ -4845,6 +4845,7 @@ private:
   void init_frags_to_execute_sr();
   Uint32 get_frags_to_execute_sr();
 public:
+  void reset_old_fragment_lock_status();
   void acquire_frag_commit_access_write_key();
   void acquire_frag_commit_access_exclusive();
 
@@ -5400,6 +5401,12 @@ Dblqh::acquire_frag_scan_access_new(Fragrecord *fragPtrP,
     jamDebug();
     handle_acquire_scan_frag_access(fragPtrP);
   }
+}
+
+inline void
+Dblqh::reset_old_fragment_lock_status()
+{
+  m_old_fragment_lock_status = FRAGMENT_UNLOCKED;
 }
 
 inline void
