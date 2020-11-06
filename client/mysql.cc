@@ -354,7 +354,7 @@ static void get_current_os_sudouser();
 
 typedef struct {
   const char *name;                 /* User printable name of the function. */
-  char cmd_char;                    /* msql command character */
+  char cmd_char;                    /* mysql command character. NULL if none */
   int (*func)(String *str, char *); /* Function to call to do the job. */
   bool takes_params;                /* Max parameters for command */
   const char *doc;                  /* Documentation for this function.  */
@@ -3223,9 +3223,13 @@ static int com_help(String *buffer MY_ATTRIBUTE((unused)),
     end = my_stpcpy(buff, commands[i].name);
     for (j = (int)strlen(commands[i].name); j < 10; j++)
       end = my_stpcpy(end, " ");
-    if (commands[i].func)
-      tee_fprintf(stdout, "%s(\\%c) %s\n", buff, commands[i].cmd_char,
-                  commands[i].doc);
+    if (commands[i].func) {
+      if (commands[i].cmd_char)
+        tee_fprintf(stdout, "%s(\\%c) %s\n", buff, commands[i].cmd_char,
+                    commands[i].doc);
+      else
+        tee_fprintf(stdout, "%s %s\n", buff, commands[i].doc);
+    }
   }
   if (connected && mysql_get_server_version(&mysql) >= 40100)
     put_info("\nFor server side help, type 'help contents'\n", INFO_INFO);
