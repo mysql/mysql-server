@@ -563,13 +563,17 @@ dberr_t Parallel_reader::Ctx::traverse_recs(PCursor *pcursor, mtr_t *mtr) {
     const rec_t *rec = page_cur_get_rec(cur);
     offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
-    bool skip{false};
+    if (end_tuple != nullptr) {
+      ut_ad(rec != nullptr);
 
-    if (page_is_leaf(cur->block->frame)) {
-      skip = !m_scan_ctx->check_visibility(rec, offsets, heap, mtr);
-    }
+      /* Key value of a record can change only if the record is deleted or if
+      its updated. And an update is essentially a delete + insert. So in both
+      the cases we just delete mark the record and the original key value is
+      preserved on the page.
 
-    if (rec != nullptr && end_tuple != nullptr) {
+      Since the range creation is based on the key values and the key value do
+      not ever change the latest (non-MVCC) version of the record should always
+      tell us correctly whether we're within the range or outside of it. */
       auto ret = end_tuple->compare(rec, index, offsets);
 
       /* Note: The range creation doesn't use MVCC. Therefore it's possible
@@ -577,6 +581,12 @@ dberr_t Parallel_reader::Ctx::traverse_recs(PCursor *pcursor, mtr_t *mtr) {
       if (ret <= 0) {
         break;
       }
+    }
+
+    bool skip{};
+
+    if (page_is_leaf(cur->block->frame)) {
+      skip = !m_scan_ctx->check_visibility(rec, offsets, heap, mtr);
     }
 
     if (!skip) {
