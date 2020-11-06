@@ -66,6 +66,11 @@ bool Source_IO_monitor::m_monitor_thd_initiated = false;
     In mysql-5.7 performance_schema.replication_group_members do not have
     member role column but its fetched from group_replication_primary_member
     status variable, when group is on single-primary mode.
+
+  5. QUERY_SERVER_SELECT_ONE:
+    Its used by Monitor IO thread to check single-server is in working state.
+    It establishes connection with single server and executes this
+    query to confirm that connection to SOURCE is working.
 */
 static const char *SQL_QUERIES[] = {
     "SELECT * FROM ( "
@@ -123,7 +128,8 @@ static const char *SQL_QUERIES[] = {
     "                VARIABLE_NAME='group_replication_single_primary_mode') "
     "                GR_SINGLE_PRIMARY_MODE "
     "       ) MEMBER_ROLE "
-    "FROM performance_schema.replication_group_members PRGM"};
+    "FROM performance_schema.replication_group_members PRGM",
+    "SELECT 1"};
 
 MYSQL_RES_TUPLE execute_query(const Mysql_connection *conn,
                               enum_sql_query_tag qtag) {
@@ -317,6 +323,7 @@ std::tuple<bool, std::string> Source_IO_monitor::write_rows(
 int Source_IO_monitor::connect_senders(THD *thd,
                                        const std::string &channel_name) {
   std::vector<SENDER_CONN_MERGE_TUPLE> failover_table_detail_list{};
+  std::vector<RPL_FAILOVER_SOURCE_TUPLE> source_conn_detail_list{};
   bool error{false};
   /* highest group failover weight for the current channel. */
   uint curr_highest_group_weight{0};
@@ -324,10 +331,6 @@ int Source_IO_monitor::connect_senders(THD *thd,
   uint curr_highest_weight_single_sender{0};
   /* weight for current connected sender */
   uint curr_conn_weight{0};
-
-#ifndef DBUG_OFF
-  uint source_conn_detail_list_size{0};
-#endif
 
   if (is_monitor_killed(thd, nullptr)) return 1;
 
@@ -342,15 +345,19 @@ int Source_IO_monitor::connect_senders(THD *thd,
   }
 
   /*
-    2. Get weight of current connected sender and highest weight of single
-       sender.
+    2. Get weight of current connected sender.
   */
   {
     Rpl_async_conn_failover_table_operations table_op_src(TL_READ);
 
-    std::vector<RPL_FAILOVER_SOURCE_TUPLE> source_conn_detail_list{};
     std::tie(error, source_conn_detail_list) =
         table_op_src.read_source_rows_for_channel(channel_name);
+
+    std::sort(source_conn_detail_list.begin(), source_conn_detail_list.end(),
+              [](const RPL_FAILOVER_SOURCE_TUPLE &element1,
+                 const RPL_FAILOVER_SOURCE_TUPLE &element2) -> bool {
+                return std::get<4>(element1) > std::get<4>(element2);
+              });
 
     channel_map.rdlock();
     Master_info *mi = channel_map.get_mi(channel_name.c_str());
@@ -360,26 +367,22 @@ int Source_IO_monitor::connect_senders(THD *thd,
     }
     const std::string mi_host{mi->host};
     const uint mi_port = mi->port;
+    const std::string mi_network_namespace(mi->network_namespace_str());
     channel_map.unlock();
-
-#ifndef DBUG_OFF
-    source_conn_detail_list_size = source_conn_detail_list.size();
-#endif
 
     for (auto source_conn_detail : source_conn_detail_list) {
       uint port{0}, weight{0};
-      std::string host{""}, group_name{""};
+      std::string host{""}, network_namespace{""};
 
-      std::tie(std::ignore, host, port, std::ignore, weight, group_name) =
-          source_conn_detail;
+      std::tie(std::ignore, host, port, network_namespace, weight,
+               std::ignore) = source_conn_detail;
 
       /* save weight for current connected sender */
-      if ((host.compare(mi_host) == 0) && (port == mi_port))
+      if ((host.compare(mi_host) == 0) && (port == mi_port) &&
+          (network_namespace == mi_network_namespace)) {
         curr_conn_weight = weight;
-
-      /* save highest weight of single senders for the current channel */
-      if ((weight > curr_highest_weight_single_sender) && group_name.empty())
-        curr_highest_weight_single_sender = weight;
+        break;
+      }
     }
   }
 
@@ -530,18 +533,41 @@ int Source_IO_monitor::connect_senders(THD *thd,
   }
 
   /*
-    4. If weight of current connected sender is less then any of
+    4. Get highest weight of single sender.
+  */
+  {
+    channel_map.rdlock();
+    Master_info *mi = channel_map.get_mi(channel_name.c_str());
+    if (nullptr == mi) {
+      channel_map.unlock();
+      return 2;
+    }
+    for (auto source_conn_detail : source_conn_detail_list) {
+      std::string group_name{""};
+      uint weight{0};
+      /* save highest weight of single senders for the current channel */
+      std::tie(std::ignore, std::ignore, std::ignore, std::ignore, weight,
+               group_name) = source_conn_detail;
+      if (weight > curr_highest_weight_single_sender && group_name.empty() &&
+          weight > curr_conn_weight && weight > curr_highest_group_weight &&
+          check_connection_and_run_query(thd, mi, source_conn_detail)) {
+        curr_highest_weight_single_sender = weight;
+      }
+    }
+    channel_map.unlock();
+  }
+
+  /*
+    5. If weight of current connected sender is less then any of
        ONLINE group member or single server, then disconnect it.
        The reconnection would be done by IO thread.
   */
   DBUG_EXECUTE_IF("async_conn_failover_disable_weight_check", return 0;);
   DBUG_EXECUTE_IF("async_conn_failover_check_interim_sender", {
-    if (source_conn_detail_list_size == 4) {
-      DBUG_ASSERT(curr_highest_weight_single_sender == 80);
+    if (source_conn_detail_list.size() == 4) {
       return 0;
     }
   });
-
   if ((curr_highest_group_weight > curr_conn_weight) ||
       (curr_highest_weight_single_sender > curr_conn_weight)) {
     ulong rpl_stop_timeout = LONG_TIMEOUT;
@@ -567,6 +593,24 @@ int Source_IO_monitor::connect_senders(THD *thd,
   }
 
   return 0;
+}
+
+bool Source_IO_monitor::check_connection_and_run_query(
+    THD *thd, Master_info *mi, RPL_FAILOVER_SOURCE_TUPLE &conn_detail) {
+  uint query_failed{1};
+  uint port{0};
+  std::string host{""}, network_namespace{""};
+  std::tie(std::ignore, host, port, network_namespace, std::ignore,
+           std::ignore) = conn_detail;
+
+  Mysql_connection *conn_single_server =
+      new Mysql_connection(thd, mi, host, port, network_namespace);
+  if (conn_single_server != nullptr && conn_single_server->is_connected())
+    std::tie(query_failed, std::ignore) = execute_query(
+        conn_single_server, enum_sql_query_tag::QUERY_SERVER_SELECT_ONE);
+  delete conn_single_server;
+  conn_single_server = nullptr;
+  return !query_failed;
 }
 
 int Source_IO_monitor::save_group_members(
