@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@
 #include <new>
 
 #include "lex_string.h"
+#include "m_ctype.h"
 #include "m_string.h"  // _dig_vec_lower
 #include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
@@ -370,23 +371,6 @@ Opt_trace_struct &Opt_trace_struct::do_add(const char *key, Item *item) {
 Opt_trace_struct &Opt_trace_struct::do_add(const char *key,
                                            const Cost_estimate &value) {
   return do_add(key, value.total_cost());
-}
-
-Opt_trace_struct &Opt_trace_struct::do_add_hex(const char *key, uint64 val) {
-  DBUG_ASSERT(started);
-  char buf[2 + 16], *p_end = buf + sizeof(buf) - 1, *p = p_end;
-  for (;;) {
-    *p-- = _dig_vec_lower[val & 15];
-    *p-- = _dig_vec_lower[(val & 240) >> 4];
-    val >>= 8;
-    if (val == 0) break;
-  }
-  *p-- = 'x';
-  *p = '0';
-  const size_t len = p_end + 1 - p;
-  DBUG_PRINT("opt", ("%s: %.*s", key, static_cast<int>(len), p));
-  stmt->add(check_key(key), p, len, false, false);
-  return *this;
 }
 
 Opt_trace_struct &Opt_trace_struct::do_add_utf8_table(const TABLE_LIST *tl) {

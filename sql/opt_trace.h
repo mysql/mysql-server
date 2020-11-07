@@ -23,13 +23,10 @@
 #ifndef OPT_TRACE_INCLUDED
 #define OPT_TRACE_INCLUDED
 
-#include "my_config.h"
-
 #include <limits.h>
 #include <string.h>
 #include <sys/types.h>
 
-#include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"          // enum_sql_command
@@ -41,6 +38,7 @@ class THD;
 class set_var_base;
 class sp_head;
 class sp_printable;
+struct CHARSET_INFO;
 struct TABLE_LIST;
 template <class T>
 class List;
@@ -639,15 +637,6 @@ class Opt_trace_struct {
     if (likely(!started)) return *this;
     return do_add(nullptr, value);
   }
-  /// Adds a 64-bit integer to trace, in hexadecimal format
-  Opt_trace_struct &add_hex(const char *key, uint64 value) {
-    if (likely(!started)) return *this;
-    return do_add_hex(key, value);
-  }
-  Opt_trace_struct &add_hex(uint64 value) {
-    if (likely(!started)) return *this;
-    return do_add_hex(nullptr, value);
-  }
   /// Adds a JSON null object (==Python's "None")
   Opt_trace_struct &add_null(const char *key) {
     if (likely(!started)) return *this;
@@ -761,7 +750,6 @@ class Opt_trace_struct {
   Opt_trace_struct &do_add(const char *key, longlong value);
   Opt_trace_struct &do_add(const char *key, ulonglong value);
   Opt_trace_struct &do_add(const char *key, double value);
-  Opt_trace_struct &do_add_hex(const char *key, uint64 value);
   Opt_trace_struct &do_add_null(const char *key);
   Opt_trace_struct &do_add_utf8_table(const TABLE_LIST *tab);
   Opt_trace_struct &do_add(const char *key, const Cost_estimate &value);
