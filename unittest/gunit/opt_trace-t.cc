@@ -29,6 +29,8 @@
 #include <limits.h>
 #include <string.h>
 #include <sys/types.h>
+#include <cmath>
+#include <limits>
 #include <regex>
 #include <string>
 
@@ -1106,6 +1108,86 @@ TEST_F(TraceContentTest, NoOptTraceStmt) {
   trace.end();
   trace.end();
   trace.end();
+}
+
+TEST_F(TraceContentTest, DoubleValues) {
+  ASSERT_FALSE(
+      trace.start(true, false, false, false, -1, 1, ULONG_MAX, all_features));
+  {
+    Opt_trace_object oto(&trace);
+    oto.add("max", std::numeric_limits<double>::max());
+    oto.add("lowest", std::numeric_limits<double>::lowest());
+    oto.add("min", std::numeric_limits<double>::min());
+    oto.add("pi", M_PI);
+    oto.add("e", M_E);
+    oto.add("zero", 0);
+    oto.add("one", 1);
+    oto.add("0.123456", 0.123456);
+    oto.add("-0.123456", -0.123456);
+    oto.add("1.123456", 1.123456);
+    oto.add("-1.123456", -1.123456);
+    oto.add("12.123456", 12.123456);
+    oto.add("-12.123456", -12.123456);
+    oto.add("123.123456", 123.123456);
+    oto.add("-123.123456", -123.123456);
+    oto.add("1234.123456", 1234.123456);
+    oto.add("-1234.123456", -1234.123456);
+    oto.add("12345.123456", 12345.123456);
+    oto.add("-12345.123456", -12345.123456);
+    oto.add("123456.123456", 123456.123456);
+    oto.add("-123456.123456", -123456.123456);
+    oto.add("1234567.123456", 1234567.123456);
+    oto.add("-1234567.123456", -1234567.123456);
+    oto.add("12345678.123456", 12345678.123456);
+    oto.add("-12345678.123456", -12345678.123456);
+    oto.add("123456789.123456", 123456789.123456);
+    oto.add("-123456789.123456", -123456789.123456);
+  }
+  trace.end();
+
+  Opt_trace_iterator it(&trace);
+  ASSERT_FALSE(it.at_end());
+  Opt_trace_info info;
+  it.get_value(&info);
+  // TODO(khatlen) The compliance check is disabled because the value emitted
+  // for "lowest" is not accepted by the JSON parser.
+  // check_json_compliance(info.trace_ptr, info.trace_length);
+  const char expected[] = R"({
+  "max": 1e308,
+  "lowest": -2e308,
+  "min": 2e-308,
+  "pi": 3.1416,
+  "e": 2.7183,
+  "zero": 0,
+  "one": 1,
+  "0.123456": 0.1235,
+  "-0.123456": -0.123,
+  "1.123456": 1.1235,
+  "-1.123456": -1.123,
+  "12.123456": 12.123,
+  "-12.123456": -12.12,
+  "123.123456": 123.12,
+  "-123.123456": -123.1,
+  "1234.123456": 1234.1,
+  "-1234.123456": -1234,
+  "12345.123456": 12345,
+  "-12345.123456": -12345,
+  "123456.123456": 123456,
+  "-123456.123456": -1.2e5,
+  "1234567.123456": 1.23e6,
+  "-1234567.123456": -1.2e6,
+  "12345678.123456": 1.23e7,
+  "-12345678.123456": -1.2e7,
+  "123456789.123456": 1.23e8,
+  "-123456789.123456": -1.2e8
+})";
+  EXPECT_STREQ(expected, info.trace_ptr);
+  EXPECT_EQ(sizeof(expected) - 1, info.trace_length);
+  EXPECT_EQ(0, info.missing_bytes);
+  EXPECT_FALSE(info.missing_priv);
+  EXPECT_FALSE(oom);
+  it.next();
+  ASSERT_TRUE(it.at_end());
 }
 
 }  // namespace opt_trace_unittest
