@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -82,16 +82,6 @@ Description: Data node
  storage engine. It comes in two variants: ndbd and ndbmtd, the former
  is single threaded while the latter is multi-threaded.
 
-Package: mysql-${DEB_PRODUCTNAME}-auto-installer
-Architecture: any
-Depends: \${shlibs:Depends}, \${misc:Depends},
- python-paramiko
-Description: Data node
- This package contains MySQL Cluster Data Node Daemon, it's the process
- that is used to handle all the data in tables using the NDB Cluster
- storage engine. It comes in two variants: ndbd and ndbmtd, the former
- is single threaded while the latter is multi-threaded.
-
 Package: ndbclient
 Architecture: any
 Depends: \${shlibs:Depends}, \${misc:Depends}
@@ -162,7 +152,6 @@ Description: nodejs
 /usr/bin/ndb_restore
 /usr/bin/ndb_select_all
 /usr/bin/ndb_select_count
-/usr/bin/ndb_setup.py
 /usr/bin/ndb_show_tables
 /usr/bin/ndb_size.pl
 /usr/bin/ndb_top
@@ -192,7 +181,6 @@ Description: nodejs
 /usr/share/man/man1/ndb_restore.1*
 /usr/share/man/man1/ndb_select_all.1*
 /usr/share/man/man1/ndb_select_count.1*
-/usr/share/man/man1/ndb_setup.py.1*
 /usr/share/man/man1/ndb_show_tables.1*
 /usr/share/man/man1/ndb_size.pl.1*
 /usr/share/man/man1/ndb_top.1*
