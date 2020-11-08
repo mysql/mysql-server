@@ -36,6 +36,7 @@ have_open_file_limit_more_than_5000.inc
 have_partition_open_file_limit.inc
 have_posix_locale.inc
 have_punch_hole.inc
+have_no_punch_hole.inc
 # Test need to run only on Linux and OSX and skip all other platforms.
 costmodel_planchange.test
 # Checks if server is started with MET timezone. Including the below inc file until Bug#25188655 is fixed.
