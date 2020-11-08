@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -28,10 +28,6 @@ mysql-@DEB_PRODUCTNAME@ source: source-nmu-has-incorrect-version-number
 # using it has been removed from the source
 mysql-@DEB_PRODUCTNAME@ source: license-problem-json-evil LICENSE
 mysql-@DEB_PRODUCTNAME@ source: license-problem-json-evil extra/rapidjson/license.txt
-
-# Precompiled ndb files included for historic reasons, but archive
-# also contains the source
-mysql-@DEB_PRODUCTNAME@ source: source-is-missing storage/ndb/mcc/frontend*
 
 # Translations not currently supported
 mysql-@DEB_PRODUCTNAME@ source: untranslatable-debconf-templates

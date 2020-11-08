@@ -188,7 +188,6 @@ mkdir release
            %{?mecab_option} \
 %if 0%{?cluster}
            -DWITH_NDBCLUSTER=1 \
-           -DWITH_MCC=0 \
            -DNDB_UTILS_LINK_DYNAMIC=1 \
 %endif
 %if 0%{?commercial}
@@ -236,10 +235,10 @@ for f in innochecksum ibd2sdi myisamchk myisam_ftdump myisamlog myisampack \
 done
 
 %if 0%{?cluster}
-for f in mcc_config.py ndb_error_reporter ndb_move_data \
+for f in ndb_error_reporter ndb_move_data \
          ndb_perror ndb_print_backup_file ndb_print_file ndb_print_frag_file \
          ndb_print_schema_file ndb_print_sys_file \
-         ndb_setup.py ndb_size.pl ; do
+         ndb_size.pl ; do
     rm -f %{buildroot}%{_bindir}/$f
 done
 %endif
@@ -315,7 +314,6 @@ rm -f %{buildroot}%{_datadir}/mysql-*/{mysql.server,mysqld_multi.server,mysql-lo
 
 # Extra files/dirs removed from Cluster build
 %if 0%{?cluster}
-rm -rf %{buildroot}/usr/share/mysql-*/mcc
 rm -f %{buildroot}/lib/memcached_path.pl
 rm -f %{buildroot}/%{_bindir}/memclient
 rm -rf %{buildroot}%{_datadir}/mysql-*/nodejs/
