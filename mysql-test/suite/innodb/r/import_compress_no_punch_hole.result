@@ -1,0 +1,8 @@
+CREATE TABLE t1(a int PRIMARY KEY) COMPRESSION='zlib';
+ALTER TABLE t1 DISCARD TABLESPACE;
+# copy unzipped .ibd and .cfg
+call mtr.add_suppression("\\[Warning\\] .* Compression failed while importing tablespace - .*");
+ALTER TABLE t1 IMPORT TABLESPACE;
+Warnings:
+Warning	4035	Compression failed while doing import with the following error : Punch hole not supported by the file system
+DROP TABLE t1;

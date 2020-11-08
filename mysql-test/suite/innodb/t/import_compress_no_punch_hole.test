@@ -1,0 +1,27 @@
+--source include/have_innodb_16k.inc
+--source include/have_no_punch_hole.inc
+
+--let $MYSQLD_DATADIR= `SELECT @@datadir`
+
+--copy_file $MYSQLTEST_VARDIR/std_data/import_compression_8_0_23.zip $MYSQL_TMP_DIR/import_compression_8_0_23.zip
+--file_exists $MYSQL_TMP_DIR/import_compression_8_0_23.zip
+--exec unzip -qo $MYSQL_TMP_DIR/import_compression_8_0_23.zip -d $MYSQL_TMP_DIR
+
+--disable_warnings
+CREATE TABLE t1(a int PRIMARY KEY) COMPRESSION='zlib';
+--enable_warnings
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+--echo # copy unzipped .ibd and .cfg
+--copy_files_wildcard $MYSQL_TMP_DIR/import_compression_8_0_23/ $MYSQLD_DATADIR/test/ *
+
+call mtr.add_suppression("\\[Warning\\] .* Compression failed while importing tablespace - .*");
+
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+# Cleanup
+--force-rmdir $MYSQL_TMP_DIR/import_compression_8_0_23
+--remove_file $MYSQL_TMP_DIR/import_compression_8_0_23.zip
+
+DROP TABLE t1;
