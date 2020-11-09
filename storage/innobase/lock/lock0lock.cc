@@ -1449,10 +1449,13 @@ static void lock_rec_add_to_queue(ulint type_mode, const buf_block_t *block,
         ut_ad(!found_waiter_before_lock ||
               (ULINT_UNDEFINED == lock_rec_find_set_bit(lock)));
 
-        lock_rec_set_nth_bit(lock, heap_no);
-        if (found_waiter_before_lock) {
-          lock_rec_move_granted_to_front(lock, RecID{lock, heap_no});
+        if (!lock_rec_get_nth_bit(lock, heap_no)) {
+          lock_rec_set_nth_bit(lock, heap_no);
+          if (found_waiter_before_lock) {
+            lock_rec_move_granted_to_front(lock, RecID{lock, heap_no});
+          }
         }
+
         return;
       }
     }
