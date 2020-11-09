@@ -5203,3 +5203,14 @@ DROP TABLE t1;
 SELECT INSERT(1, 1, 2, _utf8mb4 x'E4B8ADE69687');
 INSERT(1, 1, 2, _utf8mb4 x'E4B8ADE69687')
 中文
+# Bug#32096341: ISNULL continuously returns the same value for LOAD_FILE
+CREATE TABLE t1(id INTEGER NOT NULL PRIMARY KEY);
+INSERT INTO t1 VALUES(0);
+CALL p1();
+is null
+1
+CALL p1();
+is null
+0
+DROP PROCEDURE p1;
+DROP TABLE t1;
