@@ -86,8 +86,9 @@ void lock_rec_set_nth_bit(lock_t *lock, /*!< in: record lock */
 
   byte_index = i / 8;
   bit_index = i % 8;
-
-  ((byte *)&lock[1])[byte_index] |= 1 << bit_index;
+  byte *const the_byte = ((byte *)&lock[1]) + byte_index;
+  ut_ad(!(*the_byte & (1 << bit_index)));
+  *the_byte |= 1 << bit_index;
 
   lock->trx->lock.n_rec_locks.fetch_add(1, std::memory_order_relaxed);
 }

@@ -1,0 +1,79 @@
+#
+# Bug#32068538 TRX->LOCK.N_REC_LOCKS INCONSISTENT WITH REAL NUM OF TRX REC LOCKS
+#
+# In this scenario, a lock on a deleted record is inherited to a gap during
+# purge for transaction which already has this gap locked before, which could
+# lead to wrong count of locks reported.
+--source include/have_debug_sync.inc
+
+CREATE TABLE t1 (id INT PRIMARY KEY);
+INSERT INTO t1 (id) VALUES (1),(2),  (4),(5);
+# We want the qury plan to be deterministic, so that just one record is locked
+# with each point select (as opposed to full scan for example).
+ANALYZE TABLE t1;
+
+--connect (c1, localhost, root,,)
+  BEGIN;
+  DELETE FROM t1 WHERE id=2;
+
+--connect (c2, localhost, root,,)
+  BEGIN;
+  # This doesn't have to wait, but creates an S,GAP lock on gap before 4
+  SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE id=3 FOR SHARE;
+  SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL c2_will_wait WAIT_FOR c2_can_go';
+  # This one has to wait for the DELETE of id=2 to COMMIT or ROLLBACK.
+  # It will create a WAITING S,REC_NOT_GAP on record id=2.
+  --send
+  SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE id=2 FOR SHARE;
+
+--connection c1
+  SET DEBUG_SYNC = 'now WAIT_FOR c2_will_wait';
+  SELECT trx_id
+    FROM information_schema.innodb_trx
+    WHERE trx_query =
+      'SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE id=2 FOR SHARE'
+    INTO @c2_trx_id;
+  # This will first release the X,REC_NOT_GAP lock from id=2 and grant it to c2
+  COMMIT;
+
+
+# Purge will remove the no longer needed row with id=2 and move all
+# locks from it to the gap before 4.
+# As c2 already has S,GAP lock before 4 we will double count it.
+
+# We don't use wait_innodb_all_purged.inc here, because even with nudging purge
+# by innodb_purge_stop_now + innodb_purge_run_now there's no guarantee that
+# purge threads will update purge_sys->done.trx before we get here, and
+# srv_export_innodb_status() reports the initial purge_sys->done.trx==0 as
+# INNODB_PURGE_TRX_ID_AGE=0, which looks like there's nothing to wait for.
+# We use COUNT(*)=1 as opposed to checking for LOCK_DATA=2, because LOCK_DATA
+# can be NULL if the page is missing from buffer pool. Also, we don't check for
+# lock_status='WAITING', because a lock becomes granted on COMMIT, which is
+# before it is moved to the gap by purge. We don't check ENGINE_TRANSACTION_ID,
+# because at this point the only transaction holding locks on t1 must be c2's.
+let $wait_condition = SELECT COUNT(*)=1
+  FROM performance_schema.data_locks
+  WHERE object_schema='test'
+  AND object_name='t1'
+  AND lock_type='RECORD';
+--source include/wait_condition.inc
+
+# Even though the lock is already (re)moved from id=2 when we get here, there's
+# still a possibility that reported trx_rows_locked is 2, because innodb_trx is
+# cached for 0.1 second. Therefore we wait here for expected result to appear.
+# We expect number of record locks to be one less than before, and to match
+# actual number of lock_type='RECORD', which is 1.
+# The reason we also wait for data_locks to drop to 1, is to make sure the
+# test scenario is really testing what we wanted, and that the two tables match.
+let $wait_condition = SELECT trx_rows_locked=1
+    FROM information_schema.innodb_trx
+    WHERE trx_id=@c2_trx_id;
+--source include/wait_condition.inc
+
+# Clean up the test
+--connection default
+  SET DEBUG_SYNC = 'now SIGNAL c2_can_go';
+--disconnect c2
+--disconnect c1
+
+DROP TABLE t1;
