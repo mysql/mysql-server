@@ -30,6 +30,7 @@
 #include <vector>
 
 #include "plugin/x/src/account_verification_handler.h"
+#include "plugin/x/src/client.h"
 #include "plugin/x/src/interface/account_verification.h"
 #include "plugin/x/src/interface/client.h"
 #include "plugin/x/src/interface/document_id_aggregator.h"
@@ -38,11 +39,10 @@
 #include "plugin/x/src/interface/sql_session.h"
 #include "plugin/x/src/interface/ssl_context.h"
 #include "plugin/x/src/interface/vio.h"
-#include "plugin/x/src/ngs/client.h"
 #include "plugin/x/src/ngs/scheduler.h"
+#include "plugin/x/src/session.h"
 #include "plugin/x/src/sql_data_context.h"
 #include "plugin/x/src/xpl_resultset.h"
-#include "plugin/x/src/xpl_session.h"
 
 namespace xpl {
 namespace test {
@@ -309,6 +309,7 @@ class Mock_notice_configuration : public iface::Notice_configuration {
 
 class Mock_protocol_monitor : public iface::Protocol_monitor {
  public:
+  MOCK_METHOD1(init, void(iface::Client *));
   MOCK_METHOD0(on_notice_warning_send, void());
   MOCK_METHOD0(on_notice_other_send, void());
   MOCK_METHOD0(on_notice_global_send, void());
@@ -366,25 +367,6 @@ class Mock_message_dispatcher
   MOCK_METHOD1(handle, void(ngs::Message_request *));
 };
 
-class Mock_ngs_client : public ngs::Client {
- public:
-  using ngs::Client::Client;
-  using ngs::Client::read_one_message_and_dispatch;
-  using ngs::Client::set_encoder;
-  void set_session(const std::shared_ptr<xpl::iface::Session> &session) {
-    m_session = session;
-  }
-  void set_idle_reporting(xpl::iface::Waiting_for_io *reporter) {
-    m_idle_reporting.reset(reporter);
-  }
-
-  MOCK_METHOD0(resolve_hostname, std::string());
-  MOCK_CONST_METHOD0(is_interactive, bool());
-  MOCK_METHOD1(set_is_interactive, void(const bool));
-  MOCK_METHOD0(kill, void());
-  MOCK_METHOD1(handle_message, void(ngs::Message_request *));
-};
-
 class Mock_client : public iface::Client {
  public:
   MOCK_METHOD0(get_session_exit_mutex, Mutex &());
@@ -408,6 +390,7 @@ class Mock_client : public iface::Client {
   MOCK_METHOD0(session, iface::Session *());
   MOCK_CONST_METHOD0(session_shared_ptr, std::shared_ptr<iface::Session>());
   MOCK_CONST_METHOD0(supports_expired_passwords, bool());
+  MOCK_METHOD1(set_supports_expired_passwords, void(bool));
 
   MOCK_CONST_METHOD0(is_interactive, bool());
   MOCK_METHOD1(set_is_interactive, void(bool));

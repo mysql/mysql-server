@@ -24,9 +24,9 @@
 
 #include "plugin/x/src/interface/notice_output_queue.h"
 
+#include "plugin/x/src/session.h"
 #include "plugin/x/src/xpl_dispatcher.h"
 #include "plugin/x/src/xpl_error.h"
-#include "plugin/x/src/xpl_session.h"
 
 namespace xpl {
 ngs::Error_code Dispatcher::execute(const ngs::Message_request &command) {

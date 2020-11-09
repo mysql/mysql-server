@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@ namespace xpl {
 
 class Capability_auth_mech : public Capability_handler {
  public:
-  Capability_auth_mech(iface::Client &client) : m_client(client) {}
+  explicit Capability_auth_mech(iface::Client *client) : m_client(client) {}
 
   std::string name() const override { return "authentication.mechanisms"; }
   bool is_gettable() const override { return true; }
@@ -47,7 +47,7 @@ class Capability_auth_mech : public Capability_handler {
   ngs::Error_code set_impl(const ::Mysqlx::Datatypes::Any &any) override;
   bool is_supported_impl() const override;
 
-  iface::Client &m_client;
+  iface::Client *m_client;
 };
 
 }  // namespace xpl

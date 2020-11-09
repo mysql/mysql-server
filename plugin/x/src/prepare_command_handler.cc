@@ -29,9 +29,9 @@
 
 #include "plugin/x/src/notices.h"
 #include "plugin/x/src/prepared_statement_builder.h"
+#include "plugin/x/src/session.h"
 #include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_log.h"
-#include "plugin/x/src/xpl_session.h"
 
 namespace xpl {
 

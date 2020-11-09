@@ -32,10 +32,10 @@
 #include "plugin/x/src/index_array_field.h"
 #include "plugin/x/src/index_field.h"
 #include "plugin/x/src/query_string_builder.h"
+#include "plugin/x/src/session.h"
 #include "plugin/x/src/sql_data_result.h"
 #include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_log.h"
-#include "plugin/x/src/xpl_session.h"
 
 namespace xpl {
 

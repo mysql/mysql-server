@@ -33,9 +33,9 @@
 namespace xpl {
 
 Capability_client_interactive::Capability_client_interactive(
-    iface::Client &client)
+    iface::Client *client)
     : m_client(client) {
-  m_value = m_client.is_interactive();
+  m_value = m_client->is_interactive();
 }
 
 void Capability_client_interactive::get_impl(::Mysqlx::Datatypes::Any *any) {
@@ -56,7 +56,7 @@ ngs::Error_code Capability_client_interactive::set_impl(
 }
 
 void Capability_client_interactive::commit() {
-  m_client.set_is_interactive(m_value);
+  m_client->set_is_interactive(m_value);
 }
 
 }  // namespace xpl

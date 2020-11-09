@@ -36,13 +36,13 @@
 #include "plugin/x/src/interface/server.h"
 #include "plugin/x/src/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/notices.h"
+#include "plugin/x/src/session.h"
 #include "plugin/x/src/sql_data_result.h"
 #include "plugin/x/src/update_statement_builder.h"
 #include "plugin/x/src/view_statement_builder.h"
 #include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_log.h"
 #include "plugin/x/src/xpl_resultset.h"
-#include "plugin/x/src/xpl_session.h"
 
 namespace xpl {
 
