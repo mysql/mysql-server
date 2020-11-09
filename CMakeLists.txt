@@ -1556,7 +1556,8 @@ ELSE()
   SET(WITH_HYPERGRAPH_OPTIMIZER_DEFAULT OFF)
 ENDIF()
 OPTION(WITH_HYPERGRAPH_OPTIMIZER
-  "Allow use of the hypergraph join optimizer" ${WITH_HYPERGRAPH_OPTIMIZER}
+  "Allow use of the hypergraph join optimizer"
+  ${WITH_HYPERGRAPH_OPTIMIZER_DEFAULT}
   )
 
 ADD_SUBDIRECTORY(include)
