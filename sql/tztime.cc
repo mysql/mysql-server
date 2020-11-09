@@ -57,6 +57,7 @@
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_time.h"  // MY_TIME_T_MIN
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
@@ -65,7 +66,6 @@
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_base.h"
 #include "mysqld_error.h"
 #include "sql/dd/types/event.h"
 #include "sql/field.h"

@@ -3,6 +3,15 @@
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_file_bits.h"
+#include <mysql/components/services/bits/psi_bits.h>
+static constexpr unsigned PSI_INSTRUMENT_ME = 0;
+static constexpr unsigned PSI_NOT_INSTRUMENTED = 0;
+struct PSI_placeholder {
+  int m_placeholder;
+};
+struct PSI_instr {
+  bool m_enabled;
+};
 #include <mysql/components/services/my_io_bits.h>
 typedef int File;
 typedef mode_t MY_MODE;

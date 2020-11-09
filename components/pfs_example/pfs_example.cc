@@ -21,6 +21,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <mysql/components/component_implementation.h>
+#include <mysql/components/services/bits/psi_bits.h>
 #include <mysql/components/services/mysql_cond.h>
 #include <mysql/components/services/mysql_mutex.h>
 #include <mysql/components/services/mysql_rwlock.h>
@@ -40,9 +41,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/psi_thread.h>
 #include <mysql/components/services/psi_tls_channel.h>
 #include <mysql/components/services/psi_transaction.h>
-
-// FIXME: need to be visible in include
-#include <mysql/psi/psi_base.h>
 
 /* Mutex */
 

@@ -57,6 +57,7 @@
 #include "my_sqlcommand.h"
 #include "my_sys.h"  // MEM_DEFINED_IF_ADDRESSABLE()
 #include "myisam.h"  // TT_FOR_UPGRADE
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/plugin.h"
@@ -64,7 +65,6 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_table.h"
 #include "mysql/psi/mysql_transaction.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_table.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"

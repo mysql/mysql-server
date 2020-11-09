@@ -37,10 +37,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_loglevel.h"   /* WARNING_LEVEL, loglevel, ERROR_LEVEL */
 #include "my_sqlcommand.h" /* SQLCOM_ALTER_USER, SQLCOM_GRANT */
 #include "my_sys.h"        /* my_error */
-#include "mysql/components/services/log_builtins.h" /* for LogEvent, LogErr */
+#include "mysql/components/services/bits/psi_bits.h" /* PSI_NOT_INSTRUMENTED */
+#include "mysql/components/services/log_builtins.h"  /* for LogEvent, LogErr */
 #include "mysql/plugin.h" /* st_mysql_plugin, MYSQL_AUTHENTICATION_PLUGIN */
 #include "mysql/plugin_auth.h"      /* st_mysql_auth */
-#include "mysql/psi/psi_base.h"     /* PSI_NOT_INSTRUMENTED */
 #include "mysql_time.h"             /* MYSQL_TIME, MYSQL_TIMESTAMP_ERROR */
 #include "mysqld_error.h"           /* ER_* */
 #include "prealloced_array.h"       /* Prealloced_array */

@@ -41,8 +41,8 @@
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/psi/mysql_memory.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysys_err.h"
 

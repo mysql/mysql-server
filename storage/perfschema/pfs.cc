@@ -2498,7 +2498,12 @@ PSI_mutex *pfs_init_mutex_v1(PSI_mutex_key key, const void *identity) {
     return nullptr;
   }
   pfs = create_mutex(klass, identity);
-  return reinterpret_cast<PSI_mutex *>(pfs);
+
+  /*
+    PFS_mutex is a PSI_mutex,
+    and the caller will use PSI_mutex::m_enabled.
+  */
+  return pfs;
 }
 
 /**
@@ -2525,7 +2530,12 @@ PSI_rwlock *pfs_init_rwlock_v2(PSI_rwlock_key key, const void *identity) {
     return nullptr;
   }
   pfs = create_rwlock(klass, identity);
-  return reinterpret_cast<PSI_rwlock *>(pfs);
+
+  /*
+    PFS_rwlock is a PSI_rwlock,
+    and the caller will use PSI_rwlock::m_enabled.
+  */
+  return pfs;
 }
 
 /**
@@ -2552,7 +2562,12 @@ PSI_cond *pfs_init_cond_v1(PSI_cond_key key, const void *identity) {
     return nullptr;
   }
   pfs = create_cond(klass, identity);
-  return reinterpret_cast<PSI_cond *>(pfs);
+
+  /*
+    PFS_cond is a PSI_cond,
+    and the caller will use PSI_cond::m_enabled.
+  */
+  return pfs;
 }
 
 /**
@@ -2760,7 +2775,12 @@ PSI_socket *pfs_init_socket_v1(PSI_socket_key key, const my_socket *fd,
     return nullptr;
   }
   pfs = create_socket(klass, fd, addr, addr_len);
-  return reinterpret_cast<PSI_socket *>(pfs);
+
+  /*
+    PFS_socket is a PSI_socket,
+    and the caller will use PSI_socket::m_enabled.
+  */
+  return pfs;
 }
 
 void pfs_destroy_socket_v1(PSI_socket *socket) {
@@ -3512,9 +3532,12 @@ PSI_mutex_locker *pfs_start_mutex_wait_v1(PSI_mutex_locker_state *state,
   DBUG_ASSERT(pfs_mutex != nullptr);
   DBUG_ASSERT(pfs_mutex->m_class != nullptr);
 
+  /* The caller checks for m_enabled. */
+#if 0
   if (!pfs_mutex->m_enabled) {
     return nullptr;
   }
+#endif
 
   uint flags;
   ulonglong timer_start = 0;
@@ -3617,9 +3640,12 @@ static PSI_rwlock_locker *pfs_start_rwlock_wait_v2(
       (op == PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK) ||
       (op == PSI_RWLOCK_TRYEXCLUSIVELOCK));
 
+  /* The caller checks for m_enabled. */
+#if 0
   if (!pfs_rwlock->m_enabled) {
     return nullptr;
   }
+#endif
 
   uint flags;
   ulonglong timer_start = 0;
@@ -3744,9 +3770,12 @@ PSI_cond_locker *pfs_start_cond_wait_v1(PSI_cond_locker_state *state,
   DBUG_ASSERT(pfs_cond != nullptr);
   DBUG_ASSERT(pfs_cond->m_class != nullptr);
 
+  /* The caller checks for m_enabled. */
+#if 0
   if (!pfs_cond->m_enabled) {
     return nullptr;
   }
+#endif
 
   uint flags;
   ulonglong timer_start = 0;
@@ -4425,9 +4454,12 @@ PSI_socket_locker *pfs_start_socket_wait_v1(PSI_socket_locker_state *state,
   DBUG_ASSERT(pfs_socket != nullptr);
   DBUG_ASSERT(pfs_socket->m_class != nullptr);
 
+  /* The caller checks for m_enabled. */
+#if 0
   if (!pfs_socket->m_enabled) {
     return nullptr;
   }
+#endif
 
   uint flags = 0;
   ulonglong timer_start = 0;
@@ -4538,9 +4570,18 @@ void pfs_unlock_mutex_v1(PSI_mutex *mutex) {
     and therefore is thread safe. See inline_mysql_mutex_unlock().
   */
 
-  /* Always update the instrumented state */
+  /* The caller checks for m_enabled. */
+#if 0
+  if (!pfs_mutex->m_enabled) {
+    /*
+      Disabled mutexes are not updated,
+      to avoid bottlenecks.
+    */
+    return;
+  }
+#endif
+
   pfs_mutex->m_owner = nullptr;
-  pfs_mutex->m_last_locked = 0;
 
 #ifdef LATER_WL2333
   /*
@@ -4548,10 +4589,6 @@ void pfs_unlock_mutex_v1(PSI_mutex *mutex) {
     PFS_mutex::m_lock_stat is not exposed in user visible tables
     currently, so there is no point spending time computing it.
   */
-  if (!pfs_mutex->m_enabled) {
-    return;
-  }
-
   if (!pfs_mutex->m_timed) {
     return;
   }
@@ -4559,6 +4596,7 @@ void pfs_unlock_mutex_v1(PSI_mutex *mutex) {
   ulonglong locked_time;
   locked_time = get_wait_timer() - pfs_mutex->m_last_locked;
   pfs_mutex->m_mutex_stat.m_lock_stat.aggregate_value(locked_time);
+  pfs_mutex->m_last_locked = 0;
 #endif
 }
 
@@ -4574,9 +4612,6 @@ void pfs_unlock_rwlock_v2(PSI_rwlock *rwlock,
   DBUG_ASSERT(pfs_rwlock->m_class != nullptr);
   DBUG_ASSERT(pfs_rwlock->m_lock.is_populated());
 
-  bool last_writer = false;
-  bool last_reader = false;
-
   /*
     Note that this code is still protected by the instrumented rwlock,
     and therefore is:
@@ -4585,7 +4620,21 @@ void pfs_unlock_rwlock_v2(PSI_rwlock *rwlock,
     See inline_mysql_rwlock_unlock()
   */
 
-  /* Always update the instrumented state */
+  /* The caller checks for m_enabled. */
+#if 0
+  if (!pfs_rwlock->m_enabled) {
+    /*
+      Disabled rwlocks are not updated,
+      to avoid bottlenecks.
+    */
+    return;
+  }
+#endif
+
+  bool last_writer = false;
+  bool last_reader = false;
+
+  /* Update the instrumented state */
   if (pfs_rwlock->m_writer != nullptr) {
     /* Nominal case, a writer is unlocking. */
     last_writer = true;
@@ -4612,10 +4661,6 @@ void pfs_unlock_rwlock_v2(PSI_rwlock *rwlock,
 
 #ifdef LATER_WL2333
   /* See WL#2333: SHOW ENGINE ... LOCK STATUS. */
-
-  if (!pfs_rwlock->m_enabled) {
-    return;
-  }
 
   if (!pfs_rwlock->m_timed) {
     return;
@@ -4835,7 +4880,9 @@ void pfs_end_mutex_wait_v1(PSI_mutex_locker *locker, int rc) {
 
   if (likely(rc == 0)) {
     mutex->m_owner = thread;
+#ifdef LATER_WL2333
     mutex->m_last_locked = timer_end;
+#endif /* LATER_WL2333 */
   }
 
   if (flags & STATE_FLAG_THREAD) {
@@ -4907,9 +4954,11 @@ void pfs_end_rwlock_rdwait_v2(PSI_rwlock_locker *locker, int rc) {
       The statistics generated are not safe, which is why they are
       just statistics, not facts.
     */
+#ifdef LATER_WL2333
     if (rwlock->m_readers == 0) {
       rwlock->m_last_read = timer_end;
     }
+#endif /* LATER_WL2333 */
     rwlock->m_writer = nullptr;
     rwlock->m_readers++;
   }
@@ -4979,13 +5028,17 @@ void pfs_end_rwlock_wrwait_v2(PSI_rwlock_locker *locker, int rc) {
   if (likely(rc == 0)) {
     /* Thread safe : we are protected by the instrumented rwlock */
     rwlock->m_writer = thread;
+#ifdef LATER_WL2333
     rwlock->m_last_written = timer_end;
+#endif /* LATER_WL2333 */
 
     if ((state->m_operation != PSI_RWLOCK_SHAREDEXCLUSIVELOCK) &&
         (state->m_operation != PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK)) {
       /* Reset the readers stats, they could be off */
       rwlock->m_readers = 0;
+#ifdef LATER_WL2333
       rwlock->m_last_read = 0;
+#endif /* LATER_WL2333 */
     }
   }
 

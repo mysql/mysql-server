@@ -25,7 +25,7 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "mysql/psi/psi_base.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "prealloced_array.h"
 
 /**

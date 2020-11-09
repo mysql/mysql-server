@@ -44,13 +44,13 @@
 
 #include "include/compression.h"
 #include "include/mutex_lock.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/psi_memory_bits.h"
 #include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/status_var.h"
 #include "sql/rpl_channel_service_interface.h"
 #ifdef HAVE_SYS_TIME_H

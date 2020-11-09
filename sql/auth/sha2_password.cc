@@ -45,6 +45,7 @@
 #include "my_inttypes.h" /* typedefs                    */
 #include "my_macros.h"
 #include "mysql/components/my_service.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/psi_rwlock_bits.h"
 #include "mysql/mysql_lex_string.h"
@@ -53,7 +54,6 @@
 #include "mysql/plugin_auth.h"        /* MYSQL_SERVER_AUTH_INFO      */
 #include "mysql/plugin_auth_common.h" /* MYSQL_PLUGIN_VIO            */
 #include "mysql/psi/mysql_rwlock.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_my_plugin_log.h" /* plugin_log_level            */
 #include "mysql/service_mysql_password_policy.h"
 #include "mysql_com.h"

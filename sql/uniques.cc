@@ -50,8 +50,8 @@
 #include "my_dbug.h"
 #include "my_io.h"
 #include "my_tree.h"  // element_count
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/psi/mysql_file.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "priority_queue.h"
 #include "sql/field.h"    // Field

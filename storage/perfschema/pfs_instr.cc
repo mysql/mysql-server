@@ -321,7 +321,9 @@ PFS_mutex *create_mutex(PFS_mutex_class *klass, const void *identity) {
     pfs->m_timed = klass->m_timed;
     pfs->m_mutex_stat.reset();
     pfs->m_owner = nullptr;
+#ifdef LATER_WL2333
     pfs->m_last_locked = 0;
+#endif /* LATER_WL2333 */
     pfs->m_lock.dirty_to_allocated(&dirty_state);
     if (klass->is_singleton()) {
       klass->m_singleton = pfs;
@@ -367,8 +369,10 @@ PFS_rwlock *create_rwlock(PFS_rwlock_class *klass, const void *identity) {
     pfs->m_rwlock_stat.reset();
     pfs->m_writer = nullptr;
     pfs->m_readers = 0;
+#ifdef LATER_WL2333
     pfs->m_last_written = 0;
     pfs->m_last_read = 0;
+#endif /* LATER_WL2333 */
     pfs->m_lock.dirty_to_allocated(&dirty_state);
     if (klass->is_singleton()) {
       klass->m_singleton = pfs;

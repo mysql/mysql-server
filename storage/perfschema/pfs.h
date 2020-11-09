@@ -30,7 +30,7 @@
 
 #define HAVE_PSI_1
 
-#include <mysql/psi/psi_base.h>
+#include <mysql/components/services/bits/psi_bits.h>
 #include <mysql/psi/psi_data_lock.h>
 
 #include "my_thread.h"

@@ -32,7 +32,7 @@
 #include "my_dbug.h"
 #include "my_io.h"
 #include "my_sqlcommand.h"
-#include "mysql/psi/psi_base.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "nullable.h"
 #include "sql/dd/types/column.h"
 #include "sql/gis/srid.h"

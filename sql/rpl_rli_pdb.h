@@ -37,10 +37,10 @@
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_psi_config.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "prealloced_array.h"  // Prealloced_array
 #include "sql/log_event.h"     // Format_description_log_event

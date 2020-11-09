@@ -2,6 +2,15 @@
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_memory_bits.h"
+#include <mysql/components/services/bits/psi_bits.h>
+static constexpr unsigned PSI_INSTRUMENT_ME = 0;
+static constexpr unsigned PSI_NOT_INSTRUMENTED = 0;
+struct PSI_placeholder {
+  int m_placeholder;
+};
+struct PSI_instr {
+  bool m_enabled;
+};
 typedef unsigned int PSI_memory_key;
 struct PSI_thread;
 struct PSI_memory_info_v1 {

@@ -33,7 +33,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <my_compiler.h>
 #include <mysql/psi/mysql_memory.h>
-#include <mysql/psi/psi_base.h>
 
 static REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
 static REQUIRES_SERVICE_PLACEHOLDER(mysql_query_attributes_iterator);

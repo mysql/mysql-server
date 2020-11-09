@@ -23,6 +23,8 @@
 #ifndef COMPONENTS_SERVICES_PSI_STAGE_BITS_H
 #define COMPONENTS_SERVICES_PSI_STAGE_BITS_H
 
+#include <mysql/components/services/bits/psi_bits.h>
+
 /**
   @file
   Performance schema instrumentation interface.

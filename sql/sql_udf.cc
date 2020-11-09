@@ -50,6 +50,7 @@
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/components/service_implementation.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/mysql_rwlock_bits.h"
@@ -57,7 +58,6 @@
 #include "mysql/components/services/psi_rwlock_bits.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_rwlock.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"  // ER_*
 #include "sql/field.h"

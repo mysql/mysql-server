@@ -53,7 +53,7 @@
 #include "my_double2ulonglong.h"
 #include "my_sys.h"
 #include "my_time.h"
-#include "mysql/psi/psi_base.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"  // ER_*

@@ -27,6 +27,8 @@
 #include <stddef.h> /* size_t */
 #endif
 
+#include <mysql/components/services/bits/psi_bits.h>
+
 /**
   @file
   Performance schema instrumentation interface.

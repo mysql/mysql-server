@@ -27,8 +27,8 @@
 
 #include "lex_string.h"
 #include "my_inttypes.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/mysql_lex_string.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_security_context.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"

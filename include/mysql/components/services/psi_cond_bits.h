@@ -23,6 +23,8 @@
 #ifndef COMPONENTS_SERVICES_PSI_COND_BITS_H
 #define COMPONENTS_SERVICES_PSI_COND_BITS_H
 
+#include <mysql/components/services/bits/psi_bits.h>
+
 /**
   @file
   Performance schema instrumentation interface.
@@ -58,7 +60,7 @@ typedef unsigned int PSI_cond_key;
   Interface for an instrumented condition.
   This is an opaque structure.
 */
-struct PSI_cond;
+struct PSI_cond : PSI_instr {};
 typedef struct PSI_cond PSI_cond;
 
 /**

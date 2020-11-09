@@ -34,7 +34,9 @@
 
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
-#include "psi_base.h"
+
+/* HAVE_PSI_*_INTERFACE */
+#include "my_psi_config.h"  // IWYU pragma: keep
 
 #ifdef HAVE_PSI_DATA_LOCK_INTERFACE
 

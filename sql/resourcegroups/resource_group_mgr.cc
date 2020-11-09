@@ -36,9 +36,9 @@
 #include "my_compiler.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"  // LogErr
 #include "mysql/psi/mysql_rwlock.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_plugin_registry.h"
 #include "mysql/thread_type.h"
 #include "mysql_com.h"

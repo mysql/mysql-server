@@ -58,7 +58,7 @@
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_table_map.h"
-#include "mysql/psi/psi_base.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql_com.h"  // NAME_LEN
 #include "mysqld_error.h"
 #include "prealloced_array.h"     // Prealloced_array

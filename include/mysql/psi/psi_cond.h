@@ -40,7 +40,6 @@
 
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_cond_bits.h"
-#include "psi_base.h"
 
 /** Entry point for the performance schema interface. */
 struct PSI_cond_bootstrap {

@@ -708,8 +708,10 @@ struct PolicyMutex {
                                    const char *name,
                                    uint32_t line) UNIV_NOTHROW {
     if (m_ptr != nullptr) {
-      return (PSI_MUTEX_CALL(start_mutex_wait)(state, m_ptr, PSI_MUTEX_LOCK,
-                                               name, (uint)line));
+      if (m_ptr->m_enabled) {
+        return (PSI_MUTEX_CALL(start_mutex_wait)(state, m_ptr, PSI_MUTEX_LOCK,
+                                                 name, (uint)line));
+      }
     }
 
     return (nullptr);
@@ -723,8 +725,10 @@ struct PolicyMutex {
                                       const char *name,
                                       uint32_t line) UNIV_NOTHROW {
     if (m_ptr != nullptr) {
-      return (PSI_MUTEX_CALL(start_mutex_wait)(state, m_ptr, PSI_MUTEX_TRYLOCK,
-                                               name, (uint)line));
+      if (m_ptr->m_enabled) {
+        return (PSI_MUTEX_CALL(start_mutex_wait)(
+            state, m_ptr, PSI_MUTEX_TRYLOCK, name, (uint)line));
+      }
     }
 
     return (nullptr);
@@ -742,7 +746,9 @@ struct PolicyMutex {
   /** Performance schema monitoring - register mutex release */
   void pfs_exit() {
     if (m_ptr != nullptr) {
-      PSI_MUTEX_CALL(unlock_mutex)(m_ptr);
+      if (m_ptr->m_enabled) {
+        PSI_MUTEX_CALL(unlock_mutex)(m_ptr);
+      }
     }
   }
 
