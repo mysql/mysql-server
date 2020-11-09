@@ -5237,3 +5237,14 @@ CONCAT('2005' , '-01-01') - 100
 1905
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: '2005-01-01'
+# Bug#32096341: ISNULL continuously returns the same value for LOAD_FILE
+CREATE TABLE t1(id INTEGER NOT NULL PRIMARY KEY);
+INSERT INTO t1 VALUES(0);
+CALL p1();
+is null
+1
+CALL p1();
+is null
+0
+DROP PROCEDURE p1;
+DROP TABLE t1;

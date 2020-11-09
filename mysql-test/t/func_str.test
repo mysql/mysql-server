@@ -2133,3 +2133,21 @@ SELECT CAST(CONCAT('a') as DOUBLE);
 
 SELECT '2005-01-01' - 100;
 SELECT CONCAT('2005' , '-01-01') - 100;
+--echo # Bug#32096341: ISNULL continuously returns the same value for LOAD_FILE
+
+--let $file=$MYSQLTEST_VARDIR/tmp/bug32096341.txt
+CREATE TABLE t1(id INTEGER NOT NULL PRIMARY KEY);
+INSERT INTO t1 VALUES(0);
+--disable_query_log
+eval CREATE PROCEDURE p1()
+SELECT ISNULL(LOAD_FILE("$file")) AS "is null";
+--enable_query_log
+CALL p1();
+--disable_query_log
+eval SELECT * INTO OUTFILE "$file" from t1;
+--enable_query_log
+CALL p1();
+DROP PROCEDURE p1;
+DROP TABLE t1;
+#isable_query_log;
+remove_file $file;
