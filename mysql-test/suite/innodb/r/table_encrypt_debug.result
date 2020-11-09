@@ -23,7 +23,7 @@ SET debug='+d,skip_dd_table_access_check';
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE OPTIONS LIKE '%encryption=Y%';
 NAME	OPTIONS
 mysql	encryption=Y;
-tde_db/t1	autoextend_size=0;encryption=Y;max_size=0;
+tde_db/t1	autoextend_size=0;encryption=Y;
 SET debug='-d,skip_dd_table_access_check';
 SHOW CREATE TABLE tde_db.t1;
 Table	Create Table
@@ -45,7 +45,7 @@ SET debug='+d,skip_dd_table_access_check';
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE OPTIONS LIKE '%encryption=Y%';
 NAME	OPTIONS
 mysql	encryption=Y;
-tde_db/t1	autoextend_size=0;encryption=Y;max_size=0;
+tde_db/t1	autoextend_size=0;encryption=Y;
 SET debug='-d,skip_dd_table_access_check';
 INSERT INTO tde_db.t1 VALUES(4, "eeeee");
 SELECT * FROM tde_db.t1 ORDER BY c1;
@@ -67,8 +67,8 @@ SET debug='+d,skip_dd_table_access_check';
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE OPTIONS LIKE '%encryption=Y%';
 NAME	OPTIONS
 mysql	encryption=Y;
-tde_db/t1	autoextend_size=0;encryption=Y;max_size=0;
-tde_db/t2	autoextend_size=0;encryption=Y;max_size=0;
+tde_db/t1	autoextend_size=0;encryption=Y;
+tde_db/t2	autoextend_size=0;encryption=Y;
 SET debug='-d,skip_dd_table_access_check';
 INSERT INTO tde_db.t2 VALUES(0, "aaaaa");
 INSERT INTO tde_db.t2 VALUES(1, "bbbbb");
@@ -85,8 +85,8 @@ SET debug='+d,skip_dd_table_access_check';
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE OPTIONS LIKE '%encryption=Y%';
 NAME	OPTIONS
 mysql	encryption=Y;
-tde_db/t1	autoextend_size=0;encryption=Y;max_size=0;
-tde_db/t2	autoextend_size=0;encryption=Y;max_size=0;
+tde_db/t1	autoextend_size=0;encryption=Y;
+tde_db/t2	autoextend_size=0;encryption=Y;
 SET debug='-d,skip_dd_table_access_check';
 INSERT INTO tde_db.t1 VALUES(5, "fffff");
 SELECT * FROM tde_db.t1 ORDER BY c1;
@@ -116,8 +116,8 @@ SET debug='+d,skip_dd_table_access_check';
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE OPTIONS LIKE '%encryption=Y%';
 NAME	OPTIONS
 mysql	encryption=Y;
-tde_db/t1	autoextend_size=0;encryption=Y;max_size=0;
-tde_db/t2	autoextend_size=0;encryption=Y;max_size=0;
+tde_db/t1	autoextend_size=0;encryption=Y;
+tde_db/t2	autoextend_size=0;encryption=Y;
 SET debug='-d,skip_dd_table_access_check';
 SELECT * FROM tde_db.t1 ORDER BY c1 ;
 c1	c2
@@ -136,7 +136,7 @@ ALTER TABLESPACE mysql ENCRYPTION='N';
 SET debug='+d,skip_dd_table_access_check';
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE OPTIONS LIKE '%encryption=Y%';
 NAME	OPTIONS
-tde_db/t1	autoextend_size=0;encryption=Y;max_size=0;
+tde_db/t1	autoextend_size=0;encryption=Y;
 SET debug='-d,skip_dd_table_access_check';
 #
 # Test crash point `ib_crash_during_create_for_encryption` during a CREATE TABLE
@@ -150,7 +150,7 @@ SET SESSION DEBUG="-d,ib_crash_during_create_for_encryption";
 SET debug='+d,skip_dd_table_access_check';
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE OPTIONS LIKE '%encryption=Y%';
 NAME	OPTIONS
-tde_db/t1	autoextend_size=0;encryption=Y;max_size=0;
+tde_db/t1	autoextend_size=0;encryption=Y;
 SET debug='-d,skip_dd_table_access_check';
 SELECT * FROM tde_db.t1 ORDER BY c1 LIMIT 5;
 c1	c2

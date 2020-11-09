@@ -294,10 +294,6 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table,
           table->space,
           (create_info ? create_info->m_implicit_tablespace_autoextend_size
                        : 0));
-
-      fil_set_max_size(
-          table->space,
-          (create_info ? create_info->m_implicit_tablespace_max_size : 0));
     }
 
     mtr_commit(&mtr);

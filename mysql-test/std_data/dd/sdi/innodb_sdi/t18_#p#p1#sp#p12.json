@@ -12,7 +12,7 @@
     "dd_object": {
         "name": "test/t18_#p#p1#sp#p12",
         "comment": "",
-        "options": "autoextend_size=0;encryption=N;max_size=0;",
+        "options": "autoextend_size=0;encryption=N;",
         "se_private_data": "flags=X;id=Y;server_version=Z;space_version=M;state=normal;",
         "engine": "InnoDB",
         "engine_attribute": "",

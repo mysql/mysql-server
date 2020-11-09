@@ -3038,16 +3038,24 @@ void warn_on_deprecated_prefix_key_partition(THD *thd, const char *schema_name,
 }
 
 bool get_implicit_tablespace_options(THD *thd, const Table *table,
-                                     ulonglong *autoextend_size,
-                                     ulonglong *max_size) {
+                                     ulonglong *autoextend_size) {
   DBUG_ASSERT(table->engine() == "InnoDB");
 
-  if (table->is_explicit_tablespace()) {
+  /* Find out if the user has specified the tablespace name as
+  'innodb_file_per_table' */
+  String_type name;
+  bool is_file_per_table = table->options().exists("tablespace") &&
+                           !table->options().get("tablespace", &name) &&
+                           name.compare("innodb_file_per_table") == 0;
+
+  /* Find out the tablespace option only for implicit tablespaces or
+  'innodb_file_per_table' tablespace. */
+  if (table->is_explicit_tablespace() && !is_file_per_table) {
     return false;
   }
 
-  // AUTOEXTEND_SIZE and MAX_SIZE are tablespace attributes. In order to find
-  // these attributes, first find the tablespace associated with the table
+  // AUTOEXTEND_SIZE is a tablespace attribute. In order to find it,
+  // first find the tablespace associated with the table
   Object_id space_id{};
   Tablespace *tbsp{};
 
@@ -3063,8 +3071,7 @@ bool get_implicit_tablespace_options(THD *thd, const Table *table,
     // Find out the space_id from the first index on the first partition in case
     // of partitioned tables or from the first index on the first sub-partition
     // if the table has sub-partitions. The implicit tablespace for each
-    // partition or sub-partition will have the same AUTOEXTEND_SIZE and
-    // MAX_SIZE values
+    // partition or sub-partition will have the same AUTOEXTEND_SIZE value.
     const Partition *part = *table->partitions().begin();
 
     if (part) {
@@ -3097,10 +3104,6 @@ bool get_implicit_tablespace_options(THD *thd, const Table *table,
 
     if (p.exists("autoextend_size")) {
       p.get("autoextend_size", autoextend_size);
-    }
-
-    if (p.exists("max_size")) {
-      p.get("max_size", max_size);
     }
   } else {
     /* purecov: begin deadcode */

@@ -44,8 +44,7 @@ struct Tablespace_options {
   ulonglong redo_buffer_size = 8 * 1024 * 1024;  // Default 8 MByte
   ulonglong initial_size = 128 * 1024 * 1024;    // Default 128 MByte
   Mysql::Nullable<ulonglong> autoextend_size;    // No autoextension as default
-  Mysql::Nullable<ulonglong>
-      max_size;                   // Max size == initial size => no extension
+  ulonglong max_size = 0;         // Max size == initial size => no extension
   ulonglong file_block_size = 0;  // 0=default or must be a valid Page Size
   uint nodegroup_id = UNDEF_NODEGROUP;
   bool wait_until_completed = true;

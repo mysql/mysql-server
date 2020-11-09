@@ -8912,7 +8912,7 @@ bool mysql_create_table_no_lock(THD *thd, const char *db,
     return true;
   }
 
-  // Do not accept ENCRYPTION, AUTOEXTEND_SIZE and MAX_SIZE clauses for
+  // Do not accept ENCRYPTION and AUTOEXTEND_SIZE clauses for
   // temporary table.
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
     if (create_info->encrypt_type.length) {
@@ -8922,11 +8922,6 @@ bool mysql_create_table_no_lock(THD *thd, const char *db,
 
     if (create_info->m_implicit_tablespace_autoextend_size > 0) {
       my_error(ER_CANNOT_USE_AUTOEXTEND_SIZE_CLAUSE, MYF(0), "temporary");
-      return true;
-    }
-
-    if (create_info->m_implicit_tablespace_max_size > 0) {
-      my_error(ER_CANNOT_USE_MAX_SIZE_CLAUSE, MYF(0), "temporary");
       return true;
     }
   }
@@ -14733,29 +14728,15 @@ bool mysql_prepare_alter_table(THD *thd, const dd::Table *src_table,
 
   table->file->update_create_info(create_info);
 
-  /* Get the autoextend_size and max_size values for the old table if the user
-    did not specify them on the command line */
+  /* Get the autoextend_size value for the old table if the user did not
+  specify it on the command line */
   if (src_table && src_table->engine() == "InnoDB") {
     ulonglong autoextend_size{};
-    ulonglong max_size{};
 
-    dd::get_implicit_tablespace_options(thd, src_table, &autoextend_size,
-                                        &max_size);
+    dd::get_implicit_tablespace_options(thd, src_table, &autoextend_size);
 
     if (!create_info->m_implicit_tablespace_autoextend_size_change) {
       create_info->m_implicit_tablespace_autoextend_size = autoextend_size;
-    }
-
-    if (!create_info->m_implicit_tablespace_max_size_change) {
-      create_info->m_implicit_tablespace_max_size = max_size;
-    }
-
-    /* Setting a non-zero MAX_SIZE value for a partitioned table is not allowed
-     */
-    if (src_table->partition_type() != dd::Table::PT_NONE &&
-        create_info->m_implicit_tablespace_max_size > 0) {
-      my_error(ER_INNODB_MAX_SIZE_NOT_ALLOWED, MYF(0));
-      return true;
     }
   }
 
@@ -15797,16 +15778,11 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     }
   }
 
-  /* Validate that AUTOEXTEND_SIZE and MAX_SIZE options are not specified for
+  /* Validate that AUTOEXTEND_SIZE option is not specified for
   temporary tables */
   if (is_temporary_table(table_list)) {
     if (create_info->m_implicit_tablespace_autoextend_size > 0) {
       my_error(ER_CANNOT_USE_AUTOEXTEND_SIZE_CLAUSE, MYF(0), "temporary");
-      return true;
-    }
-
-    if (create_info->m_implicit_tablespace_max_size > 0) {
-      my_error(ER_CANNOT_USE_MAX_SIZE_CLAUSE, MYF(0), "temporary");
       return true;
     }
   }
@@ -16638,7 +16614,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       (create_info->used_fields & HA_CREATE_USED_TABLESPACE ||
        create_info->used_fields & HA_CREATE_USED_ENCRYPT ||
        create_info->used_fields & HA_CREATE_USED_AUTOEXTEND_SIZE ||
-       create_info->used_fields & HA_CREATE_USED_MAX_SIZE ||
        alter_ctx.is_database_changed())) {
     bool source_is_general_tablespace{false};
     bool source_encrytion_type{false};

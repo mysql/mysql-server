@@ -57,7 +57,6 @@ class Tablespace {
         m_path(),
         m_flags(),
         m_autoextend_size(),
-        m_max_size(),
         m_ignore_read_only(false) {
     /* No op */
   }
@@ -190,12 +189,6 @@ class Tablespace {
   /* Get the autoextend size for the tablespace */
   uint64_t get_autoextend_size() const { return m_autoextend_size; }
 
-  /* Set the max size of the tablespace */
-  void set_max_size(uint64_t size) { m_max_size = size; }
-
-  /* Get the max size of the tablespace */
-  uint64_t get_max_size() const { return m_max_size; }
-
  private:
   /**
   @param[in]	filename	Name to lookup in the data files.
@@ -222,9 +215,6 @@ class Tablespace {
 
   /** Autoextend size */
   uint64_t m_autoextend_size;
-
-  /** Max size */
-  uint64_t m_max_size;
 
  protected:
   /** Ignore server read only configuration for this tablespace. */

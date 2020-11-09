@@ -1,14 +1,11 @@
 --source include/have_innodb_16k.inc
 
 --echo #
---echo # IMPORT/EXPORT for non-partitioned tables with autoextend_size and max_size
+--echo # IMPORT/EXPORT for non-partitioned tables with autoextend_size
 --echo #
 --echo
 
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* InnoDB: Size of tablespace db_source/tsource is more than the maximum size allowed.");
-call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* InnoDB: Size of tablespace db_destination/tsource is more than the maximum size allowed.");
-call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The table 'tsource' is full");
 call mtr.add_suppression("\\[Warning] .*MY-\\d+.* Cannot calculate statistics for table");
 --enable_query_log
 
@@ -47,8 +44,8 @@ END
 DELIMITER ;|
 
 --echo # Scenario-1:
---echo #   Create and populate a non-partitioned table on the source db with autoextend_size 4m and max_size 8m
---echo #   Create a table on the destination db with same schema and autoextend_size and max_size
+--echo #   Create and populate a non-partitioned table on the source db with autoextend_size 4m
+--echo #   Create a table on the destination db with same schema and autoextend_size
 --echo #      values as that on the source db
 --echo #   ALTER TABLE ... DISCARD TABLESPACE on the destination table
 --echo #   FLUSH TABLE ... FOR EXPORT on the source table
@@ -58,16 +55,15 @@ DELIMITER ;|
 --echo #   Verify that the number of rows seen on the destination table are same as seen on the source table
 --echo
 USE db_source;
-CREATE TABLE tsource (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M MAX_SIZE 8M;
+CREATE TABLE tsource (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M;
 
---error ER_RECORD_FILE_FULL
 call bulk_insert_source();
 SELECT COUNT(*) FROM tsource;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
   WHERE NAME LIKE '%tsource%';
 
 USE db_destination;
-CREATE TABLE tsource (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M MAX_SIZE 8M;
+CREATE TABLE tsource (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M;
 ALTER TABLE tsource DISCARD TABLESPACE;
 
 USE db_source;
@@ -86,7 +82,7 @@ UNLOCK TABLES;
 USE db_destination;
 ALTER TABLE tsource IMPORT TABLESPACE;
 SELECT COUNT(*) FROM tsource;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
   WHERE NAME LIKE '%tsource%';
 
 DROP TABLE tsource;
@@ -98,16 +94,15 @@ DROP TABLE tsource;
 --echo #   Same as scenario-1. But, do not copy the .cfg file and verify the contents on the source and destination
 --echo
 USE db_source;
-CREATE TABLE tsource (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M MAX_SIZE 8M;
+CREATE TABLE tsource (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M;
 
---error ER_RECORD_FILE_FULL
 call bulk_insert_source();
 SELECT COUNT(*) FROM tsource;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
   WHERE NAME LIKE '%tsource%';
 
 USE db_destination;
-CREATE TABLE tsource (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M MAX_SIZE 8M;
+CREATE TABLE tsource (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M;
 --disable_warnings
 ALTER TABLE tsource DISCARD TABLESPACE;
 --enable_warnings
@@ -129,7 +124,7 @@ USE db_destination;
 ALTER TABLE tsource IMPORT TABLESPACE;
 --enable_warnings
 SELECT COUNT(*) FROM tsource;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
   WHERE NAME LIKE '%tsource%';
 
 DROP TABLE tsource;
@@ -138,28 +133,20 @@ USE db_source;
 DROP TABLE tsource;
 
 --echo # Scenario-3:
---echo #   Create and populate a non-partitioned table on the source db with autoextend_size 4m and max_size 8m
---echo #   Create a table on the destination db with the same schema and autoextend_size, but with max_size as 4m
---echo #   Discard the tablespace on the destination table
---echo #   Flush the source table for export
---echo #   Copy the .cfg and .ibd files from source db to destination db
+--echo #   Create an empty table on source with autoextend_size 8m
+--echo #   Create a table with the same schema as the source but with autoextend_size 4m
+--echo #   Discard tablespace on destination
+--echo #   Flush source table for export
+--echo #   Copy .cfg and .ibd file from source to destination
 --echo #   UNLOCK TABLES
---echo #   Expect an error while running ALTER TABLE ... IMPORT TABLESPACE on the destination table
---echo #   ALTER TABLE ... MAX_SIZE 8m on the destination table
---echo #   ALTER TABLE ... IMPORT TABLESPACE on the destination table
---echo #   Verify the content of the source table and destination table
+--echo #   Import tablespace on the destination
+--echo #   Load data on the destination table
 --echo
 USE db_source;
-CREATE TABLE tsource (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M MAX_SIZE 8M;
-
---error ER_RECORD_FILE_FULL
-call bulk_insert_source();
-SELECT COUNT(*) FROM tsource;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
-  WHERE NAME LIKE '%tsource%';
+CREATE TABLE tsource (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 8M;
 
 USE db_destination;
-CREATE TABLE tsource (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M MAX_SIZE 4M;
+CREATE TABLE tsource (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4m;
 ALTER TABLE tsource DISCARD TABLESPACE;
 
 USE db_source;
@@ -176,15 +163,14 @@ FLUSH TABLE tsource FOR EXPORT;
 UNLOCK TABLES;
 
 USE db_destination;
---error ER_IMPORT_TABLESPACE_LARGER_THAN_MAX_SIZE
 ALTER TABLE tsource IMPORT TABLESPACE;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+  WHERE NAME LIKE '%tsource%';
 
-ALTER TABLE tsource MAX_SIZE 8M;
-
-ALTER TABLE tsource IMPORT TABLESPACE;
+call bulk_insert_dest();
 
 SELECT COUNT(*) FROM tsource;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
   WHERE NAME LIKE '%tsource%';
 
 DROP TABLE tsource;
@@ -193,120 +179,24 @@ USE db_source;
 DROP TABLE tsource;
 
 --echo # Scenario-4:
---echo #   Same as scenario-3. But do not copy the .cfg file and verify the contents on the source
---echo #     and destination after the import
---echo
-USE db_source;
-CREATE TABLE tsource (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M MAX_SIZE 8M;
-
---error ER_RECORD_FILE_FULL
-call bulk_insert_source();
-SELECT COUNT(*) FROM tsource;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
-  WHERE NAME LIKE '%tsource%';
-
-USE db_destination;
-CREATE TABLE tsource (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M MAX_SIZE 4M;
-ALTER TABLE tsource DISCARD TABLESPACE;
-
-USE db_source;
-FLUSH TABLE tsource FOR EXPORT;
-
---echo # List of files on source
---list_files $MYSQLD_DATADIR/db_source
---copy_file $MYSQLD_DATADIR/db_source/tsource.ibd $MYSQLD_DATADIR/db_destination/tsource.ibd
-
---echo # List of files on destination
---list_files $MYSQLD_DATADIR/db_destination
-
-UNLOCK TABLES;
-
-USE db_destination;
---error ER_IMPORT_TABLESPACE_LARGER_THAN_MAX_SIZE
-ALTER TABLE tsource IMPORT TABLESPACE;
-
-ALTER TABLE tsource MAX_SIZE 8M;
-
---disable_warnings
-ALTER TABLE tsource IMPORT TABLESPACE;
---enable_warnings
-
-SELECT COUNT(*) FROM tsource;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
-  WHERE NAME LIKE '%tsource%';
-
-DROP TABLE tsource;
-
-USE db_source;
-DROP TABLE tsource;
-
---echo # Scenario-5:
---echo #   Create an empty table on source with max_size 8m
---echo #   Create a table with the same schema as the source but with max_size 4m
---echo #   Discard tablespace on destination
---echo #   Flush source table for export
---echo #   Copy .cfg and .ibd file from source to destination
---echo #   UNLOCK TABLES
---echo #   Import tablespace on the destination
---echo #   Load data on the destination table and verify out of space error is thrown when the
---echo #     tablespace size reacheѕ 4m
---echo
-USE db_source;
-CREATE TABLE tsource (c1 INT, c2 TEXT) MAX_SIZE 8M;
-
-USE db_destination;
-CREATE TABLE tsource (c1 INT, c2 TEXT) MAX_SIZE 4m;
-ALTER TABLE tsource DISCARD TABLESPACE;
-
-USE db_source;
-FLUSH TABLE tsource FOR EXPORT;
-
---echo # List of files on source
---list_files $MYSQLD_DATADIR/db_source
---copy_file $MYSQLD_DATADIR/db_source/tsource.ibd $MYSQLD_DATADIR/db_destination/tsource.ibd
---copy_file $MYSQLD_DATADIR/db_source/tsource.cfg $MYSQLD_DATADIR/db_destination/tsource.cfg
-
---echo # List of files on destination
---list_files $MYSQLD_DATADIR/db_destination
-
-UNLOCK TABLES;
-
-USE db_destination;
-ALTER TABLE tsource IMPORT TABLESPACE;
-
---error ER_RECORD_FILE_FULL
-call bulk_insert_dest();
-
-SELECT COUNT(*) FROM tsource;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
-  WHERE NAME LIKE '%tsource%';
-
-DROP TABLE tsource;
-
-USE db_source;
-DROP TABLE tsource;
-
---echo # Scenario-6:
---echo #   Create a table with encryption turned on with max_size as 8M
---echo #   Create a table on the destination with the same schema as the source but with max_size 4M
+--echo #   Create a table with encryption turned on with autoextend_size as 8M
+--echo #   Create a table on the destination with the same schema as the source but with autoextend_size 4M
 --echo #   Discard tablespace on destination
 --echo #   Flush source table for export
 --echo #   Copy .cfg, .cfp and .ibd file from source to destination
 --echo #   UNLOCK TABLES
 --echo #   Import tablespace on the destination
---echo #   Load data on the destination table and verify out of space error is thrown when the tablespace
---echo #     size reacheѕ 4m
+--echo #   Load data on the destination table
 --echo
 USE db_source;
-CREATE TABLE tsource (c1 INT, c2 TEXT) MAX_SIZE 8M, ENCRYPTION='Y';
+CREATE TABLE tsource (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 8M, ENCRYPTION='Y';
 
---error ER_RECORD_FILE_FULL
 call bulk_insert_source();
 
 SELECT COUNT(*) FROM tsource;
 
 USE db_destination;
-CREATE TABLE tsource (c1 INT, c2 TEXT) MAX_SIZE 4m, ENCRYPTION='Y';
+CREATE TABLE tsource (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4m, ENCRYPTION='Y';
 ALTER TABLE tsource DISCARD TABLESPACE;
 
 USE db_source;
@@ -324,15 +214,10 @@ FLUSH TABLE tsource FOR EXPORT;
 UNLOCK TABLES;
 
 USE db_destination;
---error ER_IMPORT_TABLESPACE_LARGER_THAN_MAX_SIZE
-ALTER TABLE tsource IMPORT TABLESPACE;
-
-ALTER TABLE tsource MAX_SIZE 0;
-
 ALTER TABLE tsource IMPORT TABLESPACE;
 
 SELECT COUNT(*) FROM tsource;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
   WHERE NAME LIKE '%tsource%';
 
 DROP TABLE tsource;
@@ -340,27 +225,25 @@ DROP TABLE tsource;
 USE db_source;
 DROP TABLE tsource;
 
---echo # Scenario-7:
---echo #   Create a table with encryption turned on with max_size as 8M
---echo #   Create a table on the destination with the same schema as the source but with max_size 4M
+--echo # Scenario-5:
+--echo #   Create a table with encryption turned on with autoextend_size as 8M
+--echo #   Create a table on the destination with the same schema as the source but with default autoextend_size
 --echo #   Discard tablespace on destination
 --echo #   Flush source table for export
 --echo #   Copy .cfg and .ibd file from source to destination but do not copy .cfp file
 --echo #   UNLOCK TABLES
 --echo #   Import tablespace on the destination
---echo #   Load data on the destination table and verify out of space error is thrown when the tablespace
---echo #     size reacheѕ 4m
+--echo #   Load data on the destination table
 --echo
 USE db_source;
-CREATE TABLE tsource (c1 INT, c2 TEXT) MAX_SIZE 8M, ENCRYPTION='Y';
+CREATE TABLE tsource (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 8M, ENCRYPTION='Y';
 
---error ER_RECORD_FILE_FULL
 call bulk_insert_source();
 
 SELECT COUNT(*) FROM tsource;
 
 USE db_destination;
-CREATE TABLE tsource (c1 INT, c2 TEXT) MAX_SIZE 4m, ENCRYPTION='Y';
+CREATE TABLE tsource (c1 INT, c2 TEXT) ENCRYPTION='Y';
 ALTER TABLE tsource DISCARD TABLESPACE;
 
 USE db_source;
@@ -393,7 +276,7 @@ USE db_source;
 FLUSH TABLE tsource FOR EXPORT;
 
 SELECT COUNT(*) FROM tsource;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
   WHERE NAME LIKE '%tsource%';
 
 --echo # List of files on source
@@ -409,6 +292,10 @@ UNLOCK TABLES;
 
 USE db_destination;
 ALTER TABLE tsource IMPORT TABLESPACE;
+
+SELECT COUNT(*) FROM tsource;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+  WHERE NAME LIKE '%tsource%';
 
 DROP TABLE tsource;
 
@@ -429,7 +316,7 @@ DROP TABLE tsource;
 --echo #   UNLOCK TABLES
 --echo #   Import tablespace on the destination
 --echo #   Verify the contents of the source and destination tables
---echo #   Verify that the autoextend_size and max_size values are retained
+--echo #   Verify that the autoextend_size values are retained
 --echo #     on all the partitions after import
 --echo
 USE db_source;
@@ -442,7 +329,7 @@ CREATE TABLE tsource(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M
 call bulk_insert_source();
 
 SELECT COUNT(*) FROM tsource;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
   WHERE NAME LIKE '%tsource%';
 
 USE db_destination;
@@ -471,7 +358,7 @@ USE db_destination;
 ALTER TABLE tsource IMPORT TABLESPACE;
 
 SELECT COUNT(*) FROM tsource;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
   WHERE NAME LIKE '%tsource%';
 
 DROP TABLE tsource;
@@ -492,7 +379,7 @@ CREATE TABLE tsource(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M
 call bulk_insert_source();
 
 SELECT COUNT(*) FROM tsource;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
   WHERE NAME LIKE '%tsource%';
 
 USE db_destination;
@@ -522,7 +409,7 @@ ALTER TABLE tsource IMPORT TABLESPACE;
 --enable_warnings
 
 SELECT COUNT(*) FROM tsource;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
   WHERE NAME LIKE '%tsource%';
 
 DROP TABLE tsource;
@@ -543,7 +430,7 @@ CREATE TABLE tsource(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M
 call bulk_insert_source();
 
 SELECT COUNT(*) FROM tsource;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
   WHERE NAME LIKE '%tsource%';
 
 USE db_destination;
@@ -575,7 +462,7 @@ ALTER TABLE tsource IMPORT TABLESPACE;
 --enable_warnings
 
 SELECT COUNT(*) FROM tsource;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
   WHERE NAME LIKE '%tsource%';
 
 DROP TABLE tsource;
@@ -605,7 +492,7 @@ CREATE TABLE tsource(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M, ENCRYPTION='Y'
 call bulk_insert_source();
 
 SELECT COUNT(*) FROM tsource;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
   WHERE NAME LIKE '%tsource%';
 
 USE db_destination;
@@ -637,7 +524,7 @@ ALTER TABLE tsource IMPORT TABLESPACE;
 --enable_warnings
 
 SELECT COUNT(*) FROM tsource;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
   WHERE NAME LIKE '%tsource%';
 
 DROP TABLE tsource;
@@ -660,7 +547,7 @@ CREATE TABLE tsource(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M, ENCRYPTION='Y'
 call bulk_insert_source();
 
 SELECT COUNT(*) FROM tsource;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
   WHERE NAME LIKE '%tsource%';
 
 USE db_destination;
@@ -724,7 +611,7 @@ ALTER TABLE tsource IMPORT TABLESPACE;
 --enable_warnings
 
 SELECT COUNT(*) FROM tsource;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
   WHERE NAME LIKE '%tsource%';
 
 DROP TABLE tsource;
@@ -747,7 +634,7 @@ CREATE TABLE tsource(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M, ENCRYPTION='Y'
 call bulk_insert_source();
 
 SELECT COUNT(*) FROM tsource;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
   WHERE NAME LIKE '%tsource%';
 
 USE db_destination;
@@ -810,7 +697,7 @@ ALTER TABLE tsource IMPORT TABLESPACE;
 --enable_warnings
 
 SELECT COUNT(*) FROM tsource;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
   WHERE NAME LIKE '%tsource%';
 
 DROP TABLE tsource;

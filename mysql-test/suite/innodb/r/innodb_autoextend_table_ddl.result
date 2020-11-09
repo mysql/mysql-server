@@ -1,11 +1,7 @@
 #
-# Tests for CREATE/ALTER TABLE with AUTOEXTEND_SIZE and MAX_SIZE clauses
+# Tests for CREATE/ALTER TABLE with AUTOEXTEND_SIZE clause
 #
 # Test error situations for CREATE TABLE
-CREATE TABLE mytable(c1 INT) AUTOEXTEND_SIZE 4M MAX_SIZE 1M;
-ERROR HY000: MAX_SIZE value should be greater than 4M
-CREATE TABLE mytable(c1 INT) AUTOEXTEND_SIZE 16M MAX_SIZE 8M;
-ERROR HY000: AUTOEXTEND_SIZE cannot be greater than the MAX_SIZE
 CREATE TABLE mytable(c1 INT) AUTOEXTEND_SIZE 48k;
 ERROR HY000: AUTOEXTEND_SIZE value should be between 4M and 64M
 CREATE TABLE mytable(c1 INT) AUTOEXTEND_SIZE 1M;
@@ -16,168 +12,27 @@ CREATE TABLE mytable(c1 INT) AUTOEXTEND_SIZE 5M;
 ERROR HY000: AUTOEXTEND_SIZE should be a multiple of 4M
 CREATE TABLE mytable(c1 INT) AUTOEXTEND_SIZE=1.5M;
 ERROR 42000: Only integers allowed as number here near '1.5M' at line 1
-CREATE TABLE mytable(c1 INT) MAX_SIZE 4096;
-ERROR HY000: MAX_SIZE value should be greater than 4M
-CREATE TABLE mytable(c1 INT) AUTOEXTEND_SIZE 4M MAX_SIZE 4096;
-ERROR HY000: MAX_SIZE value should be greater than 4M
-# Create table with autoextend_size > 0 but max_size set to 0
-CREATE TABLE mytable(c1 INT) AUTOEXTEND_SIZE 4M MAX_SIZE 0;
-ALTER TABLE mytable AUTOEXTEND_SIZE 8M MAX_SIZE 4M;
-ERROR HY000: AUTOEXTEND_SIZE cannot be greater than the MAX_SIZE
-ALTER TABLE mytable MAX_SIZE 4096;
-ERROR HY000: MAX_SIZE value should be greater than 4M
-ALTER TABLE mytable AUTOEXTEND_SIZE 8M MAX_SIZE 4096;
-ERROR HY000: MAX_SIZE value should be greater than 4M
-ALTER TABLE mytable AUTOEXTEND_SIZE 4M MAX_SIZE 0;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+# Create table with autoextend_size > 0
+CREATE TABLE mytable(c1 INT) AUTOEXTEND_SIZE 4M;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%mytable%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/mytable	4194304	4194304	0
-ALTER TABLE mytable AUTOEXTEND_SIZE 0 MAX_SIZE 16M;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
-WHERE NAME LIKE '%mytable%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/mytable	4194304	0	16777216
-SHOW CREATE TABLE mytable;
-Table	Create Table
-mytable	CREATE TABLE `mytable` (
-  `c1` int DEFAULT NULL
-) /*!80023 MAX_SIZE=16777216 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE mytable;
-# Test CREATE/ALTER TABLE with AUTOEXTEND_SIZE and MAX_SIZE values specified as
-# absolute number of bytes without K, M or G qualifiers
-CREATE TABLE mytable (c1 INT) AUTOEXTEND_SIZE 4194304 MAX_SIZE 10000000;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
-WHERE NAME LIKE '%mytable%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/mytable	4194304	4194304	10000000
-ALTER TABLE mytable AUTOEXTEND_SIZE 8388608 MAX_SIZE=20000000;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
-WHERE NAME LIKE '%mytable%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/mytable	4194304	8388608	20000000
-DROP TABLE mytable;
-# Test CREATE TABLE LIKE statement for non-partitioned tables
-CREATE TABLE mytable (c1 INT) AUTOEXTEND_SIZE 4M MAX_SIZE 64M;
-SHOW CREATE TABLE mytable;
-Table	Create Table
-mytable	CREATE TABLE `mytable` (
-  `c1` int DEFAULT NULL
-) /*!80023 AUTOEXTEND_SIZE=4194304 */ /*!80023 MAX_SIZE=67108864 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
-WHERE NAME LIKE '%mytable%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/mytable	4194304	4194304	67108864
-CREATE TABLE mytable_copy LIKE mytable;
-SHOW CREATE TABLE mytable_copy;
-Table	Create Table
-mytable_copy	CREATE TABLE `mytable_copy` (
-  `c1` int DEFAULT NULL
-) /*!80023 AUTOEXTEND_SIZE=4194304 */ /*!80023 MAX_SIZE=67108864 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
-WHERE NAME LIKE '%mytable_copy%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/mytable_copy	4194304	4194304	67108864
-DROP TABLE mytable_copy;
-ALTER TABLE mytable MAX_SIZE 0;
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/mytable	4194304	4194304
 SHOW CREATE TABLE mytable;
 Table	Create Table
 mytable	CREATE TABLE `mytable` (
   `c1` int DEFAULT NULL
 ) /*!80023 AUTOEXTEND_SIZE=4194304 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+ALTER TABLE mytable AUTOEXTEND_SIZE 0;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%mytable%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/mytable	4194304	4194304	0
-CREATE TABLE mytable_copy LIKE mytable;
-SHOW CREATE TABLE mytable_copy;
-Table	Create Table
-mytable_copy	CREATE TABLE `mytable_copy` (
-  `c1` int DEFAULT NULL
-) /*!80023 AUTOEXTEND_SIZE=4194304 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
-WHERE NAME LIKE '%mytable_copy%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/mytable_copy	4194304	4194304	0
-DROP TABLE mytable_copy;
-ALTER TABLE mytable AUTOEXTEND_SIZE 0 MAX_SIZE 64M;
-SHOW CREATE TABLE mytable;
-Table	Create Table
-mytable	CREATE TABLE `mytable` (
-  `c1` int DEFAULT NULL
-) /*!80023 MAX_SIZE=67108864 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
-WHERE NAME LIKE '%mytable%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/mytable	4194304	0	67108864
-CREATE TABLE mytable_copy LIKE mytable;
-SHOW CREATE TABLE mytable_copy;
-Table	Create Table
-mytable_copy	CREATE TABLE `mytable_copy` (
-  `c1` int DEFAULT NULL
-) /*!80023 MAX_SIZE=67108864 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
-WHERE NAME LIKE '%mytable_copy%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/mytable_copy	114688	0	67108864
-DROP TABLE mytable_copy;
-DROP TABLE mytable;
-# Validate the initial size of the table when created without the AUTOEXTEND_SIZE clause
-CREATE TABLE mytable (c1 INT);
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
-WHERE NAME LIKE '%mytable%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/mytable	114688	0	0
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/mytable	4194304	0
 SHOW CREATE TABLE mytable;
 Table	Create Table
 mytable	CREATE TABLE `mytable` (
   `c1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-# Verify the autoextend_size and max_size attributes are updated in the DD
-ALTER TABLE mytable AUTOEXTEND_SIZE=4M;
-ALTER TABLE mytable MAX_SIZE=20M;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
-WHERE NAME LIKE '%mytable%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/mytable	114688	4194304	20971520
-# Validate SHOW CREATE TABLE displays autoextend_size and max_size clauses
-SHOW CREATE TABLE mytable;
-Table	Create Table
-mytable	CREATE TABLE `mytable` (
-  `c1` int DEFAULT NULL
-) /*!80023 AUTOEXTEND_SIZE=4194304 */ /*!80023 MAX_SIZE=20971520 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-# Validate that the attributes are persisted properly and seen beyond server restart
-# restart
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
-WHERE NAME LIKE '%mytable%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/mytable	114688	4194304	20971520
-DROP TABLE mytable;
-# Test that max_size cannot be smaller than the current size of the tablespace
-CREATE TABLE mytable(c1 INT) AUTOEXTEND_SIZE 8M MAX_SIZE 20M;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
-WHERE NAME LIKE '%mytable%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/mytable	8388608	8388608	20971520
-ALTER TABLE mytable AUTOEXTEND_SIZE 0 MAX_SIZE 4M;
-ERROR HY000: InnoDB: MAX_SIZE should not be smaller than the tablespace size
-ALTER TABLE mytable MAX_SIZE 8M;
-DROP TABLE mytable;
-# Test that the initial size of the table is same as AUTOEXTEND_SIZE, if the clause if mentioned
-CREATE TABLE mytable(c1 INT) AUTOEXTEND_SIZE 8M MAX_SIZE 20M;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
-WHERE NAME LIKE '%mytable%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/mytable	8388608	8388608	20971520
-# Test ALTER TABLE statement
-ALTER TABLE mytable AUTOEXTEND_SIZE 64M;
-ERROR HY000: AUTOEXTEND_SIZE cannot be greater than the MAX_SIZE
-SELECT * FROM mytable;
-c1
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
-WHERE NAME LIKE '%mytable%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/mytable	8388608	8388608	20971520
 ALTER TABLE mytable AUTOEXTEND_SIZE 48k;
 ERROR HY000: AUTOEXTEND_SIZE value should be between 4M and 64M
 ALTER TABLE mytable AUTOEXTEND_SIZE 1M;
@@ -186,102 +41,186 @@ ALTER TABLE mytable AUTOEXTEND_SIZE 65M;
 ERROR HY000: AUTOEXTEND_SIZE value should be between 4M and 64M
 ALTER TABLE mytable AUTOEXTEND_SIZE 5M;
 ERROR HY000: AUTOEXTEND_SIZE should be a multiple of 4M
-ALTER TABLE mytable AUTOEXTEND_SIZE 12M;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+DROP TABLE mytable;
+# Create table with autoextend_size = 0
+CREATE TABLE mytable(c1 INT) AUTOEXTEND_SIZE=0;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%mytable%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/mytable	8388608	12582912	20971520
-ALTER TABLE mytable MAX_SIZE 8M;
-ERROR HY000: AUTOEXTEND_SIZE cannot be greater than the MAX_SIZE
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
-WHERE NAME LIKE '%mytable%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/mytable	8388608	12582912	20971520
-ALTER TABLE mytable ADD COLUMN c2 INT, AUTOEXTEND_SIZE 4M;
-SELECT * FROM mytable;
-c1	c2
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
-WHERE NAME LIKE '%mytable%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/mytable	4194304	4194304	20971520
-ALTER TABLE mytable ADD COLUMN c3 INT, MAX_SIZE=1M;
-ERROR HY000: MAX_SIZE value should be greater than 4M
-SELECT * FROM mytable;
-c1	c2
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
-WHERE NAME LIKE '%mytable%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/mytable	4194304	4194304	20971520
-ALTER TABLE mytable ADD COLUMN c3 INT, MAX_SIZE=10M;
-SELECT * FROM mytable;
-c1	c2	c3
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
-WHERE NAME LIKE '%mytable%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/mytable	4194304	4194304	10485760
-ALTER TABLE mytable DROP COLUMN c3, AUTOEXTEND_SIZE=20M;
-ERROR HY000: AUTOEXTEND_SIZE cannot be greater than the MAX_SIZE
-SELECT * FROM mytable;
-c1	c2	c3
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
-WHERE NAME LIKE '%mytable%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/mytable	4194304	4194304	10485760
-ALTER TABLE mytable DROP COLUMN c3, AUTOEXTEND_SIZE=0;
-SELECT * FROM mytable;
-c1	c2
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
-WHERE NAME LIKE '%mytable%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/mytable	114688	0	10485760
-ALTER TABLE mytable DROP COLUMN c2, MAX_SIZE=0;
-SELECT * FROM mytable;
-c1
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
-WHERE NAME LIKE '%mytable%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/mytable	114688	0	0
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/mytable	114688	0
 SHOW CREATE TABLE mytable;
 Table	Create Table
 mytable	CREATE TABLE `mytable` (
   `c1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE mytable;
-# Test that AUTOEXTEND_SIZE and MAX_SIZE do not change after ALTER TABLE ... ALGORITHM COPY
-CREATE TABLE t1 (c1 INT , c2 varchar(100)) AUTOEXTEND_SIZE =4m MAX_SIZE =10M;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+# Test CREATE/ALTER TABLE with AUTOEXTEND_SIZE value specified as
+# absolute number of bytes without K, M or G qualifiers
+CREATE TABLE mytable (c1 INT) AUTOEXTEND_SIZE 4194304;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%mytable%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/mytable	4194304	4194304
+ALTER TABLE mytable AUTOEXTEND_SIZE 8388608;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%mytable%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/mytable	4194304	8388608
+DROP TABLE mytable;
+# Test CREATE TABLE LIKE statement for non-partitioned tables
+CREATE TABLE mytable (c1 INT) AUTOEXTEND_SIZE 4M;
+SHOW CREATE TABLE mytable;
+Table	Create Table
+mytable	CREATE TABLE `mytable` (
+  `c1` int DEFAULT NULL
+) /*!80023 AUTOEXTEND_SIZE=4194304 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%mytable%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/mytable	4194304	4194304
+CREATE TABLE mytable_copy LIKE mytable;
+SHOW CREATE TABLE mytable_copy;
+Table	Create Table
+mytable_copy	CREATE TABLE `mytable_copy` (
+  `c1` int DEFAULT NULL
+) /*!80023 AUTOEXTEND_SIZE=4194304 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%mytable_copy%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/mytable_copy	4194304	4194304
+DROP TABLE mytable_copy;
+ALTER TABLE mytable AUTOEXTEND_SIZE 0;
+SHOW CREATE TABLE mytable;
+Table	Create Table
+mytable	CREATE TABLE `mytable` (
+  `c1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%mytable%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/mytable	4194304	0
+CREATE TABLE mytable_copy LIKE mytable;
+SHOW CREATE TABLE mytable_copy;
+Table	Create Table
+mytable_copy	CREATE TABLE `mytable_copy` (
+  `c1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%mytable_copy%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/mytable_copy	114688	0
+DROP TABLE mytable_copy;
+ALTER TABLE mytable AUTOEXTEND_SIZE 64M;
+SHOW CREATE TABLE mytable;
+Table	Create Table
+mytable	CREATE TABLE `mytable` (
+  `c1` int DEFAULT NULL
+) /*!80023 AUTOEXTEND_SIZE=67108864 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%mytable%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/mytable	4194304	67108864
+CREATE TABLE mytable_copy LIKE mytable;
+SHOW CREATE TABLE mytable_copy;
+Table	Create Table
+mytable_copy	CREATE TABLE `mytable_copy` (
+  `c1` int DEFAULT NULL
+) /*!80023 AUTOEXTEND_SIZE=67108864 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%mytable_copy%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/mytable_copy	67108864	67108864
+DROP TABLE mytable_copy;
+DROP TABLE mytable;
+# Validate the initial size of the table when created without the AUTOEXTEND_SIZE clause
+CREATE TABLE mytable (c1 INT);
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%mytable%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/mytable	114688	0
+SHOW CREATE TABLE mytable;
+Table	Create Table
+mytable	CREATE TABLE `mytable` (
+  `c1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Verify the autoextend_size attribute is updated in the data dictionary
+ALTER TABLE mytable AUTOEXTEND_SIZE=4M;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%mytable%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/mytable	114688	4194304
+# Validate SHOW CREATE TABLE displays autoextend_size clause
+SHOW CREATE TABLE mytable;
+Table	Create Table
+mytable	CREATE TABLE `mytable` (
+  `c1` int DEFAULT NULL
+) /*!80023 AUTOEXTEND_SIZE=4194304 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Validate that the AUTOEXTEND_SIZE attribute is persisted properly and seen beyond server restart
+# restart
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%mytable%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/mytable	114688	4194304
+DROP TABLE mytable;
+# Test that the initial size of the table is same as AUTOEXTEND_SIZE, if the clause if mentioned
+CREATE TABLE mytable(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 8M;
+INSERT INTO mytable VALUES (1, 'aaaaaa');
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%mytable%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/mytable	8388608	8388608
+# Test ALTER TABLE statement
+ALTER TABLE mytable ADD COLUMN c3 INT, AUTOEXTEND_SIZE 4M;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%mytable%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/mytable	4194304	4194304
+SELECT * FROM mytable;
+c1	c2	c3
+1	aaaaaa	NULL
+ALTER TABLE mytable DROP COLUMN c3, AUTOEXTEND_SIZE=0;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%mytable%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/mytable	114688	0
+SHOW CREATE TABLE mytable;
+Table	Create Table
+mytable	CREATE TABLE `mytable` (
+  `c1` int DEFAULT NULL,
+  `c2` text
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM mytable;
+c1	c2
+1	aaaaaa
+DROP TABLE mytable;
+# Test that AUTOEXTEND_SIZE does not change after ALTER TABLE ... ALGORITHM COPY
+CREATE TABLE t1 (c1 INT , c2 varchar(100)) AUTOEXTEND_SIZE =4m;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%t1%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/t1	4194304	4194304	10485760
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/t1	4194304	4194304
 ALTER TABLE t1 ADD INDEX idx (c2), ALGORITHM=copy;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%t1%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/t1	4194304	4194304	10485760
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/t1	4194304	4194304
 DROP TABLE t1;
-# Tests for partitioned tables. The autoextend_size and max_size should be updated
+# Tests for partitioned tables. The autoextend_size should be updated
 # for each partitioned tablespace
 # Create a non-partitioned table and add partitions to it and verify that the
-# autoextend_size and max_size attributes are applied to all the partitions
-CREATE TABLE tpart(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M MAX_SIZE 20M;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+# autoextend_size attribute is applied to all the partitions
+CREATE TABLE tpart(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%tpart%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/tpart	4194304	4194304	20971520
-# Return error while converting a non-partitioned table to partitioned table and
-# max_size is set to a non-zero value on the source table
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tpart	4194304	4194304
 ALTER TABLE tpart PARTITION BY RANGE (c1) (PARTITION p0 VALUES LESS THAN (50),
 PARTITION p1 VALUES LESS THAN (100));
-ERROR HY000: Non-zero MAX_SIZE value is not allowed with paritioned tables
-# A non-partitioned table can be converted to a partitioned table if max_size is set
-# to 0 in the ALTER TABLE ... PARTITION command
-ALTER TABLE tpart MAX_SIZE 0 PARTITION BY RANGE (c1) (PARTITION p0 VALUES LESS THAN (50),
-PARTITION p1 VALUES LESS THAN (100));
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%tpart%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/tpart#p#p0	4194304	4194304	0
-test/tpart#p#p1	4194304	4194304	0
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tpart#p#p0	4194304	4194304
+test/tpart#p#p1	4194304	4194304
 SHOW CREATE TABLE tpart;
 Table	Create Table
 tpart	CREATE TABLE `tpart` (
@@ -292,36 +231,36 @@ tpart	CREATE TABLE `tpart` (
 (PARTITION p0 VALUES LESS THAN (50) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (100) ENGINE = InnoDB) */
 ALTER TABLE tpart ADD PARTITION (PARTITION p2 VALUES LESS THAN (200));
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%tpart%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/tpart#p#p0	4194304	4194304	0
-test/tpart#p#p1	4194304	4194304	0
-test/tpart#p#p2	4194304	4194304	0
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tpart#p#p0	4194304	4194304
+test/tpart#p#p1	4194304	4194304
+test/tpart#p#p2	4194304	4194304
 ALTER TABLE tpart DROP PARTITION p1;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%tpart%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/tpart#p#p0	4194304	4194304	0
-test/tpart#p#p2	4194304	4194304	0
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tpart#p#p0	4194304	4194304
+test/tpart#p#p2	4194304	4194304
 DROP TABLE tpart;
 # Create a non-partitioned table and alter it to add partitions while also modifying
-# the autoextend_size and max_size
-CREATE TABLE tpart(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M MAX_SIZE 20M;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+# the autoextend_size
+CREATE TABLE tpart(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%tpart%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/tpart	4194304	4194304	20971520
-ALTER TABLE tpart AUTOEXTEND_SIZE 8M MAX_SIZE 200M PARTITION BY RANGE (c1) (PARTITION p0 VALUES LESS THAN (50),
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tpart	4194304	4194304
+ALTER TABLE tpart AUTOEXTEND_SIZE 1M PARTITION BY RANGE (c1) (PARTITION p0 VALUES LESS THAN (50),
 PARTITION p1 VALUES LESS THAN (100));
-ERROR HY000: Non-zero MAX_SIZE value is not allowed with paritioned tables
-ALTER TABLE tpart AUTOEXTEND_SIZE 8M MAX_SIZE 0 PARTITION BY RANGE (c1) (PARTITION p0 VALUES LESS THAN (50),
+ERROR HY000: AUTOEXTEND_SIZE value should be between 4M and 64M
+ALTER TABLE tpart AUTOEXTEND_SIZE 8M PARTITION BY RANGE (c1) (PARTITION p0 VALUES LESS THAN (50),
 PARTITION p1 VALUES LESS THAN (100));
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%tpart%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/tpart#p#p0	8388608	8388608	0
-test/tpart#p#p1	8388608	8388608	0
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tpart#p#p0	8388608	8388608
+test/tpart#p#p1	8388608	8388608
 SHOW CREATE TABLE tpart;
 Table	Create Table
 tpart	CREATE TABLE `tpart` (
@@ -332,27 +271,26 @@ tpart	CREATE TABLE `tpart` (
 (PARTITION p0 VALUES LESS THAN (50) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (100) ENGINE = InnoDB) */
 ALTER TABLE tpart ADD PARTITION (PARTITION p2 VALUES LESS THAN (200));
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%tpart%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/tpart#p#p0	8388608	8388608	0
-test/tpart#p#p1	8388608	8388608	0
-test/tpart#p#p2	8388608	8388608	0
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tpart#p#p0	8388608	8388608
+test/tpart#p#p1	8388608	8388608
+test/tpart#p#p2	8388608	8388608
 DROP TABLE tpart;
-# Create a partitioned table and verify autoextend_size and max_size values for the
-## partitions
-CREATE TABLE tpart(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M MAX_SIZE 20M PARTITION BY RANGE (c1) (
+# Create a partitioned table and verify autoextend_size value for the partitions
+CREATE TABLE tpart(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 1M PARTITION BY RANGE (c1) (
 PARTITION p0 VALUES LESS THAN (50),
 PARTITION p1 VALUES LESS THAN (100));
-ERROR HY000: Non-zero MAX_SIZE value is not allowed with paritioned tables
-CREATE TABLE tpart(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M MAX_SIZE 0 PARTITION BY RANGE (c1) (
+ERROR HY000: AUTOEXTEND_SIZE value should be between 4M and 64M
+CREATE TABLE tpart(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M PARTITION BY RANGE (c1) (
 PARTITION p0 VALUES LESS THAN (50),
 PARTITION p1 VALUES LESS THAN (100));
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%tpart%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/tpart#p#p0	4194304	4194304	0
-test/tpart#p#p1	4194304	4194304	0
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tpart#p#p0	4194304	4194304
+test/tpart#p#p1	4194304	4194304
 SHOW CREATE TABLE tpart;
 Table	Create Table
 tpart	CREATE TABLE `tpart` (
@@ -366,11 +304,11 @@ DROP TABLE tpart;
 CREATE TABLE tpart(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M PARTITION BY RANGE (c1) (
 PARTITION p0 VALUES LESS THAN (50),
 PARTITION p1 VALUES LESS THAN (100));
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%tpart%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/tpart#p#p0	4194304	4194304	0
-test/tpart#p#p1	4194304	4194304	0
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tpart#p#p0	4194304	4194304
+test/tpart#p#p1	4194304	4194304
 SHOW CREATE TABLE tpart;
 Table	Create Table
 tpart	CREATE TABLE `tpart` (
@@ -381,11 +319,11 @@ tpart	CREATE TABLE `tpart` (
 (PARTITION p0 VALUES LESS THAN (50) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (100) ENGINE = InnoDB) */
 CREATE TABLE tpart_copy LIKE tpart;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%tpart_copy%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/tpart_copy#p#p0	4194304	4194304	0
-test/tpart_copy#p#p1	4194304	4194304	0
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tpart_copy#p#p0	4194304	4194304
+test/tpart_copy#p#p1	4194304	4194304
 SHOW CREATE TABLE tpart_copy;
 Table	Create Table
 tpart_copy	CREATE TABLE `tpart_copy` (
@@ -396,7 +334,7 @@ tpart_copy	CREATE TABLE `tpart_copy` (
 (PARTITION p0 VALUES LESS THAN (50) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (100) ENGINE = InnoDB) */
 DROP TABLE tpart_copy;
-# Test ALTER TABLE ... AUTOEXTEND_SIZE and MAX_SIZE changes on partitioned tableѕ
+# Test ALTER TABLE ... AUTOEXTEND_SIZE changes on partitioned tableѕ
 ALTER TABLE tpart AUTOEXTEND_SIZE 48k;
 ERROR HY000: AUTOEXTEND_SIZE value should be between 4M and 64M
 ALTER TABLE tpart AUTOEXTEND_SIZE 1M;
@@ -406,25 +344,6 @@ ERROR HY000: AUTOEXTEND_SIZE value should be between 4M and 64M
 ALTER TABLE tpart AUTOEXTEND_SIZE 5M;
 ERROR HY000: AUTOEXTEND_SIZE should be a multiple of 4M
 ALTER TABLE tpart AUTOEXTEND_SIZE 8M;
-ALTER TABLE tpart MAX_SIZE 16M;
-ERROR HY000: Non-zero MAX_SIZE value is not allowed with paritioned tables
-SHOW CREATE TABLE tpart;
-Table	Create Table
-tpart	CREATE TABLE `tpart` (
-  `c1` int DEFAULT NULL,
-  `c2` text
-) /*!80023 AUTOEXTEND_SIZE=8388608 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-/*!50100 PARTITION BY RANGE (`c1`)
-(PARTITION p0 VALUES LESS THAN (50) ENGINE = InnoDB,
- PARTITION p1 VALUES LESS THAN (100) ENGINE = InnoDB) */
-ALTER TABLE tpart AUTOEXTEND_SIZE 32M MAX_SIZE 400M;
-ERROR HY000: Non-zero MAX_SIZE value is not allowed with paritioned tables
-ALTER TABLE tpart MAX_SIZE 0;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
-WHERE NAME LIKE '%tpart%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/tpart#p#p0	4194304	8388608	0
-test/tpart#p#p1	4194304	8388608	0
 SHOW CREATE TABLE tpart;
 Table	Create Table
 tpart	CREATE TABLE `tpart` (
@@ -463,13 +382,13 @@ INSERT INTO tpart VALUES (1669, "Jim", "Smith"), (337, "Mary", "Jones"), (16, "F
 SELECT COUNT(*) FROM tpart;
 COUNT(*)
 4
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%tpart%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/tpart#p#p0	8388608	8388608	0
-test/tpart#p#p1	8388608	8388608	0
-test/tpart#p#p2	8388608	8388608	0
-test/tpart#p#p3	8388608	8388608	0
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tpart#p#p0	8388608	8388608
+test/tpart#p#p1	8388608	8388608
+test/tpart#p#p2	8388608	8388608
+test/tpart#p#p3	8388608	8388608
 CREATE TABLE tcopy_part LIKE tpart;
 SHOW CREATE TABLE tcopy_part;
 Table	Create Table
@@ -483,7 +402,7 @@ tcopy_part	CREATE TABLE `tcopy_part` (
  PARTITION p1 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (150) ENGINE = InnoDB,
  PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
-# Remove partitioning and validate the value of AUTOEXTEND_SIZE and MAX_SIZE
+# Remove partitioning and validate the value of AUTOEXTEND_SIZE
 ALTER TABLE tcopy_part REMOVE PARTITIONING;
 SHOW CREATE TABLE tcopy_part;
 Table	Create Table
@@ -492,10 +411,10 @@ tcopy_part	CREATE TABLE `tcopy_part` (
   `fname` varchar(30) DEFAULT NULL,
   `lname` varchar(30) DEFAULT NULL
 ) /*!80023 AUTOEXTEND_SIZE=8388608 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%tcopy_part%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/tcopy_part	8388608	8388608	0
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tcopy_part	8388608	8388608
 # Exchange a partition
 SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 'tpart';
 PARTITION_NAME	TABLE_ROWS
@@ -516,50 +435,44 @@ COUNT(*)
 SELECT COUNT(*) FROM tcopy_part;
 COUNT(*)
 3
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%tpart%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/tpart#p#p0	8388608	8388608	0
-test/tpart#p#p1	8388608	8388608	0
-test/tpart#p#p2	8388608	8388608	0
-test/tpart#p#p3	8388608	8388608	0
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tpart#p#p0	8388608	8388608
+test/tpart#p#p1	8388608	8388608
+test/tpart#p#p2	8388608	8388608
+test/tpart#p#p3	8388608	8388608
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%tcopy_part%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/tcopy_part	8388608	8388608	0
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tcopy_part	8388608	8388608
 DROP TABLE tpart;
 DROP TABLE tcopy_part;
-# Tests for sub-partitioned tables. The autoextend_size and max_size should be updated
+# Tests for sub-partitioned tables. The autoextend_size should be updated
 # for each sub-partition
 # Create a non-partitioned table and add sub-partitions to it
-CREATE TABLE tsubpart(a INT NOT NULL PRIMARY KEY, b INT) AUTOEXTEND_SIZE 4M MAX_SIZE 20M;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+CREATE TABLE tsubpart(a INT NOT NULL PRIMARY KEY, b INT) AUTOEXTEND_SIZE 4M;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%tsubpart%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/tsubpart	4194304	4194304	20971520
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tsubpart	4194304	4194304
 ALTER TABLE tsubpart PARTITION BY RANGE (a) SUBPARTITION BY HASH (a)
 SUBPARTITIONS 3 (
 PARTITION p1 VALUES LESS THAN (10),
 PARTITION p2 VALUES LESS THAN (20),
 PARTITION p3 VALUES LESS THAN maxvalue);
-ERROR HY000: Non-zero MAX_SIZE value is not allowed with paritioned tables
-ALTER TABLE tsubpart MAX_SIZE 0 PARTITION BY RANGE (a) SUBPARTITION BY HASH (a)
-SUBPARTITIONS 3 (
-PARTITION p1 VALUES LESS THAN (10),
-PARTITION p2 VALUES LESS THAN (20),
-PARTITION p3 VALUES LESS THAN maxvalue);
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%tsubpart%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/tsubpart#p#p1#sp#p1sp0	4194304	4194304	0
-test/tsubpart#p#p1#sp#p1sp1	4194304	4194304	0
-test/tsubpart#p#p1#sp#p1sp2	4194304	4194304	0
-test/tsubpart#p#p2#sp#p2sp0	4194304	4194304	0
-test/tsubpart#p#p2#sp#p2sp1	4194304	4194304	0
-test/tsubpart#p#p2#sp#p2sp2	4194304	4194304	0
-test/tsubpart#p#p3#sp#p3sp0	4194304	4194304	0
-test/tsubpart#p#p3#sp#p3sp1	4194304	4194304	0
-test/tsubpart#p#p3#sp#p3sp2	4194304	4194304	0
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tsubpart#p#p1#sp#p1sp0	4194304	4194304
+test/tsubpart#p#p1#sp#p1sp1	4194304	4194304
+test/tsubpart#p#p1#sp#p1sp2	4194304	4194304
+test/tsubpart#p#p2#sp#p2sp0	4194304	4194304
+test/tsubpart#p#p2#sp#p2sp1	4194304	4194304
+test/tsubpart#p#p2#sp#p2sp2	4194304	4194304
+test/tsubpart#p#p3#sp#p3sp0	4194304	4194304
+test/tsubpart#p#p3#sp#p3sp1	4194304	4194304
+test/tsubpart#p#p3#sp#p3sp2	4194304	4194304
 SHOW CREATE TABLE tsubpart;
 Table	Create Table
 tsubpart	CREATE TABLE `tsubpart` (
@@ -574,47 +487,40 @@ SUBPARTITIONS 3
  PARTITION p2 VALUES LESS THAN (20) ENGINE = InnoDB,
  PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 ALTER TABLE tsubpart DROP PARTITION p3;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%tsubpart%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/tsubpart#p#p1#sp#p1sp0	4194304	4194304	0
-test/tsubpart#p#p1#sp#p1sp1	4194304	4194304	0
-test/tsubpart#p#p1#sp#p1sp2	4194304	4194304	0
-test/tsubpart#p#p2#sp#p2sp0	4194304	4194304	0
-test/tsubpart#p#p2#sp#p2sp1	4194304	4194304	0
-test/tsubpart#p#p2#sp#p2sp2	4194304	4194304	0
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tsubpart#p#p1#sp#p1sp0	4194304	4194304
+test/tsubpart#p#p1#sp#p1sp1	4194304	4194304
+test/tsubpart#p#p1#sp#p1sp2	4194304	4194304
+test/tsubpart#p#p2#sp#p2sp0	4194304	4194304
+test/tsubpart#p#p2#sp#p2sp1	4194304	4194304
+test/tsubpart#p#p2#sp#p2sp2	4194304	4194304
 DROP TABLE tsubpart;
 # Create a non-partitioned table and add sub-partitions to it whle also modifying
-# autoextend_size and max_size
-CREATE TABLE tsubpart(a INT NOT NULL PRIMARY KEY, b INT) AUTOEXTEND_SIZE 4M MAX_SIZE 20M;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+# autoextend_size
+CREATE TABLE tsubpart(a INT NOT NULL PRIMARY KEY, b INT) AUTOEXTEND_SIZE 4M;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%tsubpart%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/tsubpart	4194304	4194304	20971520
-ALTER TABLE tsubpart AUTOEXTEND_SIZE 8M MAX_SIZE 200M PARTITION BY RANGE (a) SUBPARTITION BY HASH (a)
-SUBPARTITIONS 3 (
-PARTITION p1 VALUES LESS THAN (10),
-PARTITION p2 VALUES LESS THAN (20),
-PARTITION p3 VALUES LESS THAN maxvalue);
-ERROR HY000: Non-zero MAX_SIZE value is not allowed with paritioned tables
-ALTER TABLE tsubpart MAX_SIZE 0;
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tsubpart	4194304	4194304
 ALTER TABLE tsubpart AUTOEXTEND_SIZE 8M PARTITION BY RANGE (a) SUBPARTITION BY HASH (a)
 SUBPARTITIONS 3 (
 PARTITION p1 VALUES LESS THAN (10),
 PARTITION p2 VALUES LESS THAN (20),
 PARTITION p3 VALUES LESS THAN maxvalue);
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%tsubpart%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/tsubpart#p#p1#sp#p1sp0	8388608	8388608	0
-test/tsubpart#p#p1#sp#p1sp1	8388608	8388608	0
-test/tsubpart#p#p1#sp#p1sp2	8388608	8388608	0
-test/tsubpart#p#p2#sp#p2sp0	8388608	8388608	0
-test/tsubpart#p#p2#sp#p2sp1	8388608	8388608	0
-test/tsubpart#p#p2#sp#p2sp2	8388608	8388608	0
-test/tsubpart#p#p3#sp#p3sp0	8388608	8388608	0
-test/tsubpart#p#p3#sp#p3sp1	8388608	8388608	0
-test/tsubpart#p#p3#sp#p3sp2	8388608	8388608	0
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tsubpart#p#p1#sp#p1sp0	8388608	8388608
+test/tsubpart#p#p1#sp#p1sp1	8388608	8388608
+test/tsubpart#p#p1#sp#p1sp2	8388608	8388608
+test/tsubpart#p#p2#sp#p2sp0	8388608	8388608
+test/tsubpart#p#p2#sp#p2sp1	8388608	8388608
+test/tsubpart#p#p2#sp#p2sp2	8388608	8388608
+test/tsubpart#p#p3#sp#p3sp0	8388608	8388608
+test/tsubpart#p#p3#sp#p3sp1	8388608	8388608
+test/tsubpart#p#p3#sp#p3sp2	8388608	8388608
 SHOW CREATE TABLE tsubpart;
 Table	Create Table
 tsubpart	CREATE TABLE `tsubpart` (
@@ -629,17 +535,17 @@ SUBPARTITIONS 3
  PARTITION p2 VALUES LESS THAN (20) ENGINE = InnoDB,
  PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 ALTER TABLE tsubpart DROP PARTITION p3;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%tsubpart%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/tsubpart#p#p1#sp#p1sp0	8388608	8388608	0
-test/tsubpart#p#p1#sp#p1sp1	8388608	8388608	0
-test/tsubpart#p#p1#sp#p1sp2	8388608	8388608	0
-test/tsubpart#p#p2#sp#p2sp0	8388608	8388608	0
-test/tsubpart#p#p2#sp#p2sp1	8388608	8388608	0
-test/tsubpart#p#p2#sp#p2sp2	8388608	8388608	0
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tsubpart#p#p1#sp#p1sp0	8388608	8388608
+test/tsubpart#p#p1#sp#p1sp1	8388608	8388608
+test/tsubpart#p#p1#sp#p1sp2	8388608	8388608
+test/tsubpart#p#p2#sp#p2sp0	8388608	8388608
+test/tsubpart#p#p2#sp#p2sp1	8388608	8388608
+test/tsubpart#p#p2#sp#p2sp2	8388608	8388608
 DROP TABLE tsubpart;
-# Create a sub-partitioned table and verify that changes to AUTOEXTEND_SIZE and MAX_SIZE
+# Create a sub-partitioned table and verify that changes to AUTOEXTEND_SIZE
 # are applied to all the subpartitions
 CREATE TABLE tsubpart (a INT NOT NULL PRIMARY KEY, b INT)
 AUTOEXTEND_SIZE 4M
@@ -662,18 +568,18 @@ SUBPARTITIONS 3
 (PARTITION p1 VALUES LESS THAN (10) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (20) ENGINE = InnoDB,
  PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%tsubpart%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/tsubpart#p#p1#sp#p1sp0	4194304	4194304	0
-test/tsubpart#p#p1#sp#p1sp1	4194304	4194304	0
-test/tsubpart#p#p1#sp#p1sp2	4194304	4194304	0
-test/tsubpart#p#p2#sp#p2sp0	4194304	4194304	0
-test/tsubpart#p#p2#sp#p2sp1	4194304	4194304	0
-test/tsubpart#p#p2#sp#p2sp2	4194304	4194304	0
-test/tsubpart#p#p3#sp#p3sp0	4194304	4194304	0
-test/tsubpart#p#p3#sp#p3sp1	4194304	4194304	0
-test/tsubpart#p#p3#sp#p3sp2	4194304	4194304	0
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tsubpart#p#p1#sp#p1sp0	4194304	4194304
+test/tsubpart#p#p1#sp#p1sp1	4194304	4194304
+test/tsubpart#p#p1#sp#p1sp2	4194304	4194304
+test/tsubpart#p#p2#sp#p2sp0	4194304	4194304
+test/tsubpart#p#p2#sp#p2sp1	4194304	4194304
+test/tsubpart#p#p2#sp#p2sp2	4194304	4194304
+test/tsubpart#p#p3#sp#p3sp0	4194304	4194304
+test/tsubpart#p#p3#sp#p3sp1	4194304	4194304
+test/tsubpart#p#p3#sp#p3sp2	4194304	4194304
 CREATE TABLE tsubpart_copy LIKE tsubpart;
 SHOW CREATE TABLE tsubpart_copy;
 Table	Create Table
@@ -688,18 +594,18 @@ SUBPARTITIONS 3
 (PARTITION p1 VALUES LESS THAN (10) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (20) ENGINE = InnoDB,
  PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%tsubpart_copy%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/tsubpart_copy#p#p1#sp#p1sp0	4194304	4194304	0
-test/tsubpart_copy#p#p1#sp#p1sp1	4194304	4194304	0
-test/tsubpart_copy#p#p1#sp#p1sp2	4194304	4194304	0
-test/tsubpart_copy#p#p2#sp#p2sp0	4194304	4194304	0
-test/tsubpart_copy#p#p2#sp#p2sp1	4194304	4194304	0
-test/tsubpart_copy#p#p2#sp#p2sp2	4194304	4194304	0
-test/tsubpart_copy#p#p3#sp#p3sp0	4194304	4194304	0
-test/tsubpart_copy#p#p3#sp#p3sp1	4194304	4194304	0
-test/tsubpart_copy#p#p3#sp#p3sp2	4194304	4194304	0
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tsubpart_copy#p#p1#sp#p1sp0	4194304	4194304
+test/tsubpart_copy#p#p1#sp#p1sp1	4194304	4194304
+test/tsubpart_copy#p#p1#sp#p1sp2	4194304	4194304
+test/tsubpart_copy#p#p2#sp#p2sp0	4194304	4194304
+test/tsubpart_copy#p#p2#sp#p2sp1	4194304	4194304
+test/tsubpart_copy#p#p2#sp#p2sp2	4194304	4194304
+test/tsubpart_copy#p#p3#sp#p3sp0	4194304	4194304
+test/tsubpart_copy#p#p3#sp#p3sp1	4194304	4194304
+test/tsubpart_copy#p#p3#sp#p3sp2	4194304	4194304
 DROP TABLE tsubpart_copy;
 ALTER TABLE tsubpart AUTOEXTEND_SIZE 8M;
 SHOW CREATE TABLE tsubpart;
@@ -715,21 +621,19 @@ SUBPARTITIONS 3
 (PARTITION p1 VALUES LESS THAN (10) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (20) ENGINE = InnoDB,
  PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%tsubpart%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/tsubpart#p#p1#sp#p1sp0	4194304	8388608	0
-test/tsubpart#p#p1#sp#p1sp1	4194304	8388608	0
-test/tsubpart#p#p1#sp#p1sp2	4194304	8388608	0
-test/tsubpart#p#p2#sp#p2sp0	4194304	8388608	0
-test/tsubpart#p#p2#sp#p2sp1	4194304	8388608	0
-test/tsubpart#p#p2#sp#p2sp2	4194304	8388608	0
-test/tsubpart#p#p3#sp#p3sp0	4194304	8388608	0
-test/tsubpart#p#p3#sp#p3sp1	4194304	8388608	0
-test/tsubpart#p#p3#sp#p3sp2	4194304	8388608	0
-ALTER TABLE tsubpart MAX_SIZE 16M;
-ERROR HY000: Non-zero MAX_SIZE value is not allowed with paritioned tables
-ALTER TABLE tsubpart AUTOEXTEND_SIZE 0 MAX_SIZE 0;
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tsubpart#p#p1#sp#p1sp0	4194304	8388608
+test/tsubpart#p#p1#sp#p1sp1	4194304	8388608
+test/tsubpart#p#p1#sp#p1sp2	4194304	8388608
+test/tsubpart#p#p2#sp#p2sp0	4194304	8388608
+test/tsubpart#p#p2#sp#p2sp1	4194304	8388608
+test/tsubpart#p#p2#sp#p2sp2	4194304	8388608
+test/tsubpart#p#p3#sp#p3sp0	4194304	8388608
+test/tsubpart#p#p3#sp#p3sp1	4194304	8388608
+test/tsubpart#p#p3#sp#p3sp2	4194304	8388608
+ALTER TABLE tsubpart AUTOEXTEND_SIZE 0;
 SHOW CREATE TABLE tsubpart;
 Table	Create Table
 tsubpart	CREATE TABLE `tsubpart` (
@@ -743,18 +647,18 @@ SUBPARTITIONS 3
 (PARTITION p1 VALUES LESS THAN (10) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (20) ENGINE = InnoDB,
  PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%tsubpart%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/tsubpart#p#p1#sp#p1sp0	4194304	0	0
-test/tsubpart#p#p1#sp#p1sp1	4194304	0	0
-test/tsubpart#p#p1#sp#p1sp2	4194304	0	0
-test/tsubpart#p#p2#sp#p2sp0	4194304	0	0
-test/tsubpart#p#p2#sp#p2sp1	4194304	0	0
-test/tsubpart#p#p2#sp#p2sp2	4194304	0	0
-test/tsubpart#p#p3#sp#p3sp0	4194304	0	0
-test/tsubpart#p#p3#sp#p3sp1	4194304	0	0
-test/tsubpart#p#p3#sp#p3sp2	4194304	0	0
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tsubpart#p#p1#sp#p1sp0	4194304	0
+test/tsubpart#p#p1#sp#p1sp1	4194304	0
+test/tsubpart#p#p1#sp#p1sp2	4194304	0
+test/tsubpart#p#p2#sp#p2sp0	4194304	0
+test/tsubpart#p#p2#sp#p2sp1	4194304	0
+test/tsubpart#p#p2#sp#p2sp2	4194304	0
+test/tsubpart#p#p3#sp#p3sp0	4194304	0
+test/tsubpart#p#p3#sp#p3sp1	4194304	0
+test/tsubpart#p#p3#sp#p3sp2	4194304	0
 DROP TABLE tsubpart;
 # Test ALTER TABLE ... REMOVE PARTITIONING and ALTER TABLE ... EXCHANGE PARTITION
 # for sub-partitioned table
@@ -788,17 +692,17 @@ INSERT INTO tsubpart VALUES (1669, "Jim", "Smith"), (337, "Mary", "Jones"), (16,
 SELECT COUNT(*) FROM tsubpart;
 COUNT(*)
 4
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%tsubpart%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/tsubpart#p#p0#sp#p0sp0	8388608	8388608	0
-test/tsubpart#p#p0#sp#p0sp1	8388608	8388608	0
-test/tsubpart#p#p1#sp#p1sp0	8388608	8388608	0
-test/tsubpart#p#p1#sp#p1sp1	8388608	8388608	0
-test/tsubpart#p#p2#sp#p2sp0	8388608	8388608	0
-test/tsubpart#p#p2#sp#p2sp1	8388608	8388608	0
-test/tsubpart#p#p3#sp#p3sp0	8388608	8388608	0
-test/tsubpart#p#p3#sp#p3sp1	8388608	8388608	0
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tsubpart#p#p0#sp#p0sp0	8388608	8388608
+test/tsubpart#p#p0#sp#p0sp1	8388608	8388608
+test/tsubpart#p#p1#sp#p1sp0	8388608	8388608
+test/tsubpart#p#p1#sp#p1sp1	8388608	8388608
+test/tsubpart#p#p2#sp#p2sp0	8388608	8388608
+test/tsubpart#p#p2#sp#p2sp1	8388608	8388608
+test/tsubpart#p#p3#sp#p3sp0	8388608	8388608
+test/tsubpart#p#p3#sp#p3sp1	8388608	8388608
 CREATE TABLE tcopy_subpart LIKE tsubpart;
 SHOW CREATE TABLE tcopy_subpart;
 Table	Create Table
@@ -814,7 +718,7 @@ SUBPARTITIONS 2
  PARTITION p1 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (150) ENGINE = InnoDB,
  PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
-# Remove partitioning and validate the value of AUTOEXTEND_SIZE and MAX_SIZE
+# Remove partitioning and validate the value of AUTOEXTEND_SIZE
 ALTER TABLE tcopy_subpart REMOVE PARTITIONING;
 SHOW CREATE TABLE tcopy_subpart;
 Table	Create Table
@@ -823,10 +727,10 @@ tcopy_subpart	CREATE TABLE `tcopy_subpart` (
   `fname` varchar(30) DEFAULT NULL,
   `lname` varchar(30) DEFAULT NULL
 ) /*!80023 AUTOEXTEND_SIZE=8388608 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%tcopy_subpart%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/tcopy_subpart	8388608	8388608	0
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tcopy_subpart	8388608	8388608
 # Exchange a partition
 SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 'tsubpart';
 PARTITION_NAME	TABLE_ROWS
@@ -855,45 +759,37 @@ COUNT(*)
 SELECT COUNT(*) FROM tcopy_subpart;
 COUNT(*)
 1
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%tsubpart%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/tsubpart#p#p0#sp#p0sp0	8388608	8388608	0
-test/tsubpart#p#p0#sp#p0sp1	8388608	8388608	0
-test/tsubpart#p#p1#sp#p1sp0	8388608	8388608	0
-test/tsubpart#p#p1#sp#p1sp1	8388608	8388608	0
-test/tsubpart#p#p2#sp#p2sp0	8388608	8388608	0
-test/tsubpart#p#p2#sp#p2sp1	8388608	8388608	0
-test/tsubpart#p#p3#sp#p3sp1	8388608	8388608	0
-test/tsubpart#p#p3#sp#p3sp0	8388608	8388608	0
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tsubpart#p#p0#sp#p0sp0	8388608	8388608
+test/tsubpart#p#p0#sp#p0sp1	8388608	8388608
+test/tsubpart#p#p1#sp#p1sp0	8388608	8388608
+test/tsubpart#p#p1#sp#p1sp1	8388608	8388608
+test/tsubpart#p#p2#sp#p2sp0	8388608	8388608
+test/tsubpart#p#p2#sp#p2sp1	8388608	8388608
+test/tsubpart#p#p3#sp#p3sp1	8388608	8388608
+test/tsubpart#p#p3#sp#p3sp0	8388608	8388608
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%tcopy_subpart%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/tcopy_subpart	8388608	8388608	0
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tcopy_subpart	8388608	8388608
 DROP TABLE tsubpart;
 DROP TABLE tcopy_subpart;
-# Validate that AUTOEXTEND_SIZE and MAX_SIZE clauses are not supported with temporary tables
+# Validate that AUTOEXTEND_SIZE clause is not supported with temporary tables
 CREATE TEMPORARY TABLE temp1 (c1 int) AUTOEXTEND_SIZE 4M;
 ERROR HY000: AUTOEXTEND_SIZE clause is not valid for temporary tablespace.
-CREATE TEMPORARY TABLE temp1 (c1 int) AUTOEXTEND_SIZE 4M MAX_SIZE 64M;
-ERROR HY000: AUTOEXTEND_SIZE clause is not valid for temporary tablespace.
-CREATE TEMPORARY TABLE temp1 (c1 int) MAX_SIZE 4M;
-ERROR HY000: MAX_SIZE clause is not valid for temporary tablespace.
 CREATE TEMPORARY TABLE temp1(c1 INT);
 ALTER TABLE temp1 AUTOEXTEND_SIZE 4M;
 ERROR HY000: AUTOEXTEND_SIZE clause is not valid for temporary tablespace.
-ALTER TABLE temp1 MAX_SIZE 64M;
-ERROR HY000: MAX_SIZE clause is not valid for temporary tablespace.
-ALTER TABLE temp1 AUTOEXTEND_SIZE 4M MAX_SIZE 64M;
-ERROR HY000: AUTOEXTEND_SIZE clause is not valid for temporary tablespace.
 DROP TEMPORARY TABLE temp1;
-# Validate that AUTOEXTEND_SIZE and MAX_SIZE values are effective when the server is started
+# Validate that AUTOEXTEND_SIZE value is effective when the server is started
 # with --skip-innodb-validate-tablespace-paths command like option
-CREATE TABLE t1(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M MAX_SIZE 8M;
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+CREATE TABLE t1(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%t1%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/t1	4194304	4194304	8388608
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/t1	4194304	4194304
 CREATE PROCEDURE bulk_insert()
 BEGIN
 DECLARE i INT DEFAULT 1;
@@ -906,14 +802,13 @@ END
 |
 # restart: --skip-innodb-validate-tablespace-paths
 call bulk_insert();
-ERROR HY000: The table 't1' is full
 SELECT COUNT(*) FROM t1;
 COUNT(*)
-104
-SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+9999
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%t1%';
-NAME	FILE_SIZE	AUTOEXTEND_SIZE	MAX_SIZE
-test/t1	8388608	4194304	8388608
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/t1	662700032	4194304
 DROP PROCEDURE bulk_insert;
 DROP TABLE t1;
 # restart

@@ -2655,13 +2655,6 @@ void HA_CREATE_INFO::init_create_options_from_share(const TABLE_SHARE *share,
     m_implicit_tablespace_autoextend_size_change = false;
   }
 
-  if (!(used_fields & HA_CREATE_USED_MAX_SIZE)) {
-    /* m_implicit_tablespace_max_size = 0 is a valid value. Hence,
-    we need a mechanism to indicate the value change. */
-    m_implicit_tablespace_max_size = share->max_size;
-    m_implicit_tablespace_max_size_change = false;
-  }
-
   if (engine_attribute.str == nullptr)
     engine_attribute = share->engine_attribute;
 

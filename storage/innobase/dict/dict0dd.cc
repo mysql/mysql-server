@@ -3130,7 +3130,7 @@ bool dd_create_tablespace(dd::cache::Dictionary_client *dd_client, THD *thd,
                           const char *dd_space_name, space_id_t space_id,
                           uint32_t flags, const char *filename, bool discarded,
                           dd::Object_id &dd_space_id) {
-  /* Get the autoextend_size and max_size attributes for the tablespace */
+  /* Get the autoextend_size attribute for the tablespace */
   fil_space_t *space = fil_space_get(space_id);
   ut_ad(space != nullptr);
 
@@ -3174,7 +3174,6 @@ bool dd_create_tablespace(dd::cache::Dictionary_client *dd_client, THD *thd,
   }
 
   toptions.set(autoextend_size_str, space->autoextend_size_in_bytes);
-  toptions.set(max_size_str, space->max_size_in_bytes);
 
   if (dd_client->store(dd_space.get())) {
     return true;
@@ -3282,17 +3281,15 @@ bool dd_tablespace_is_implicit(dd::cache::Dictionary_client *client,
   return fail;
 }
 
-/** Get the autoextend_size and max_size attribute values for the tablespace
-with id dd_space_id
+/** Get the autoextend_size attribute value for the tablespace with id
+dd_space_id
 @param[in,out]	dd_client	data dictionary client
 @param[in]	dd_space_id	tablespace id
 @param[out]	autoextend_size autoextend_size attribute value
-@param[out]	max_size	max_size attribute value
 @return false if successful */
 bool dd_get_tablespace_size_option(dd::cache::Dictionary_client *dd_client,
                                    const dd::Object_id dd_space_id,
-                                   uint64_t *autoextend_size,
-                                   uint64_t *max_size) {
+                                   uint64_t *autoextend_size) {
   /* Get the tablespace object. */
   dd::Tablespace *dd_space = nullptr;
 
@@ -3315,47 +3312,6 @@ bool dd_get_tablespace_size_option(dd::cache::Dictionary_client *dd_client,
     *autoextend_size = 0;
   }
 
-  if (p.exists(max_size_str)) {
-    p.get(max_size_str, max_size);
-  } else {
-    *max_size = 0;
-  }
-
-  return false;
-}
-
-/** Set the autoextend_size and max_size tablespace options for a tablespace
-@param[in,out]	dd_client	data dictionary client
-@param[in]	dd_space_id	tablespace id
-@param[in]	autoextend_size autoextend_size attribute value
-@param[in]	max_size	max_size attribute value
-@return false if successful */
-bool dd_set_tablespace_size_option(dd::cache::Dictionary_client *dd_client,
-                                   const dd::Object_id dd_space_id,
-                                   uint64_t autoextend_size,
-                                   uint64_t max_size) {
-  dd::Tablespace *dd_space = nullptr;
-
-  if (dd_client->acquire_uncached_uncommitted<dd::Tablespace>(dd_space_id,
-                                                              &dd_space)) {
-    /* purecov: begin inspected */
-    my_error(ER_INTERNAL_ERROR, MYF(0),
-             " InnoDB: Can't get tablespace object for space ", dd_space_id);
-    return true;
-    /* purecov: end */
-  }
-
-  ut_a(dd_space != nullptr);
-
-  dd::Properties &p = dd_space->options();
-
-  p.set(autoextend_size_str, autoextend_size);
-  p.set(max_size_str, max_size);
-
-  if (dd_client->update(dd_space)) {
-    return true; /* purecov: inspected */
-  }
-
   return false;
 }
 
@@ -3370,8 +3326,7 @@ bool dd_set_tablespace_size_option(dd::cache::Dictionary_client *dd_client,
 bool dd_implicit_alter_tablespace(dd::cache::Dictionary_client *dd_client,
                                   THD *thd, dd::Object_id dd_space_id,
                                   HA_CREATE_INFO *create_info) {
-  ut_a(create_info->m_implicit_tablespace_autoextend_size_change ||
-       create_info->m_implicit_tablespace_max_size_change);
+  ut_a(create_info->m_implicit_tablespace_autoextend_size_change);
 
   dd::Tablespace *dd_space = nullptr;
   bool is_implicit{};
@@ -3409,76 +3364,13 @@ bool dd_implicit_alter_tablespace(dd::cache::Dictionary_client *dd_client,
   /* Find out if the tablespace is discarded. */
   bool is_discarded = dd_tablespace_is_discarded(dd_space);
 
-  fil_space_t *space = fil_space_get(id);
+  ut_ad(fil_space_get(id) != nullptr || is_discarded);
 
-  ut_ad(space || is_discarded);
-  /* Validate autoextend_size and max_size values. */
-
-  /* Get the current values of autoextend_size and max_size. */
-  uint64_t autoextend_size{};
-  uint64_t max_size{};
-
-  if (p.exists(autoextend_size_str)) {
-    p.get(autoextend_size_str, &autoextend_size);
-  }
-
-  if (p.exists(max_size_str)) {
-    p.get(max_size_str, &max_size);
-  }
-
-  if (create_info->m_implicit_tablespace_autoextend_size_change) {
-    if (create_info->m_implicit_tablespace_autoextend_size > 0) {
-      if (validate_autoextend_size_value(
-              create_info->m_implicit_tablespace_autoextend_size) !=
-          DB_SUCCESS) {
-        return true;
-      }
-
-      /* Validate that the autoextend_size is not greater than the max_size.
-      Consider the new value of max_size if it is also being modified in the
-      same ALTER TABLE statement. */
-      if (create_info->m_implicit_tablespace_max_size_change) {
-        max_size = create_info->m_implicit_tablespace_max_size;
-      }
-
-      if (max_size > 0 &&
-          create_info->m_implicit_tablespace_autoextend_size > max_size) {
-        my_error(ER_INNODB_AUTOEXTEND_GREATER_THAN_MAX_SIZE, MYF(0));
-
-        return true;
-      }
-    }
-  }
-
-  if (create_info->m_implicit_tablespace_max_size_change) {
-    /* Validate that the max_size is not less than the autoextend_size. */
-    if (create_info->m_implicit_tablespace_max_size > 0) {
-      /* Validate that the new max_size is within the range */
-      if (validate_max_size_value(
-              create_info->m_implicit_tablespace_max_size) != DB_SUCCESS) {
-        return true;
-      }
-
-      /* Validate that the new max_size is not smaller than the current
-      tablespace size. */
-      if (!is_discarded && (create_info->m_implicit_tablespace_max_size <
-                            (space->size * srv_page_size))) {
-        my_error(ER_INNODB_TBSP_MAX_SIZE_LESS_THAN_FILE_SIZE, MYF(0));
-        return true;
-      }
-
-      /* Consider the new value of autoextend_size if it is also being modified
-      in the same ALTER TABLE statement. */
-      if (create_info->m_implicit_tablespace_autoextend_size_change) {
-        autoextend_size = create_info->m_implicit_tablespace_autoextend_size;
-      }
-
-      if (autoextend_size > 0 &&
-          autoextend_size > create_info->m_implicit_tablespace_max_size) {
-        my_error(ER_INNODB_AUTOEXTEND_GREATER_THAN_MAX_SIZE, MYF(0));
-        return true;
-      }
-    }
+  if (create_info->m_implicit_tablespace_autoextend_size_change &&
+      create_info->m_implicit_tablespace_autoextend_size > 0 &&
+      validate_autoextend_size_value(
+          create_info->m_implicit_tablespace_autoextend_size) != DB_SUCCESS) {
+    return true;
   }
 
   /* Set the autoextend_size attribute if changed. */
@@ -3487,28 +3379,19 @@ bool dd_implicit_alter_tablespace(dd::cache::Dictionary_client *dd_client,
           create_info->m_implicit_tablespace_autoextend_size);
   }
 
-  /* Set the max_size attribute if changed. */
-  if (create_info->m_implicit_tablespace_max_size_change) {
-    p.set(max_size_str, create_info->m_implicit_tablespace_max_size);
-  }
-
   if (dd_client->update(dd_space)) {
     return true;
   }
 
-  /* Set the autoextend_size and max_size values in the cached space object. */
+  /* Set the autoextend_size value in the cached space object. */
 
   /* Space could be invalid in case of a discarded tablespaces. The
-  autoextend_size and max_size attributes will be set in the fil_space_t when it
+  autoextend_size attribute will be set in the fil_space_t when it
   is re-initialized during import. */
   if (!is_discarded) {
     if (create_info->m_implicit_tablespace_autoextend_size_change) {
       fil_set_autoextend_size(
           id, create_info->m_implicit_tablespace_autoextend_size);
-    }
-
-    if (create_info->m_implicit_tablespace_max_size_change) {
-      fil_set_max_size(id, create_info->m_implicit_tablespace_max_size);
     }
   }
 
@@ -4151,20 +4034,6 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
   if (err == DB_SUCCESS) {
     /* This will set the DATA DIRECTORY for SHOW CREATE TABLE. */
     dd_get_and_save_data_dir_path(table, dd_table, true);
-
-    /* Set the autoextend_size and max_size attributes for the table. */
-    dd::cache::Dictionary_client *client = dd::get_dd_client(current_thd);
-    dd::cache::Dictionary_client::Auto_releaser releaser(client);
-    uint64_t autoextend_size{};
-    uint64_t max_size{};
-    if (!dd_get_tablespace_size_option(client, table->dd_space_id,
-                                       &autoextend_size, &max_size)) {
-      ut_d(dberr_t ret =)
-          fil_set_autoextend_size(table->space, autoextend_size);
-      ut_ad(ret == DB_SUCCESS);
-      ut_d(ret =) fil_set_max_size(table->space, max_size);
-      ut_ad(ret == DB_SUCCESS);
-    }
   } else {
     /* We failed to find a sensible tablespace file */
     table->ibd_file_missing = TRUE;
@@ -4423,6 +4292,23 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
       mutex_enter(&dict_sys->mutex);
       dd_load_tablespace(dd_table, m_table, heap, DICT_ERR_IGNORE_RECOVER_LOCK,
                          dd_fsp_flags);
+
+      if (dd_space && m_table->space != TRX_SYS_SPACE &&
+          fil_space_get(m_table->space) != nullptr) {
+        /* Get the autoextend_size property from the tablespace
+        and set the fil_space_t::autoextend_size attribute. */
+        const dd::Properties &o = dd_space->options();
+        uint64_t autoextend_size{};
+
+        if (o.exists(autoextend_size_str)) {
+          o.get(autoextend_size_str, &autoextend_size);
+        }
+
+        ut_d(dberr_t ret =)
+            fil_set_autoextend_size(m_table->space, autoextend_size);
+        ut_ad(ret == DB_SUCCESS);
+      }
+
       mutex_exit(&dict_sys->mutex);
       first_index = false;
     }
@@ -5403,7 +5289,6 @@ bool dd_process_dd_indexes_rec_simple(mem_heap_t *heap, const rec_t *rec,
 @param[in,out]  space_version   space version
 @param[out]     is_encrypted    true if tablespace is encrypted
 @param[out]     autoextend_size autoextend_size attribute value
-@param[out]     max_size        max_size attribute value
 @param[in,out]  state           space state
 @param[in]      dd_spaces       dict_table_t obj of mysql.tablespaces
 @return true if data is retrived */
@@ -5412,7 +5297,7 @@ bool dd_process_dd_tablespaces_rec(mem_heap_t *heap, const rec_t *rec,
                                    uint32_t *flags, uint32 *server_version,
                                    uint32 *space_version, bool *is_encrypted,
                                    uint64_t *autoextend_size,
-                                   uint64_t *max_size, dd::String_type *state,
+                                   dd::String_type *state,
                                    dict_table_t *dd_spaces) {
   ulint len;
   const byte *field;
@@ -5478,15 +5363,6 @@ bool dd_process_dd_tablespaces_rec(mem_heap_t *heap, const rec_t *rec,
   *autoextend_size = 0;
   if (o->exists(autoextend_size_str) &&
       o->get(autoextend_size_str, autoextend_size)) {
-    /* purecov: begin inspected */
-    delete o;
-    return false;
-    /* purecov: end */
-  }
-
-  /* Get max_size. */
-  *max_size = 0;
-  if (o->exists(max_size_str) && o->get(max_size_str, max_size)) {
     /* purecov: begin inspected */
     delete o;
     return false;
@@ -6468,24 +6344,16 @@ bool dd_tablespace_update_cache(THD *thd) {
       }
     }
     if (id != TRX_SYS_SPACE && fil_space_get(id) != nullptr) {
-      /* Get the autoextend_size and max_size properties from the
-      tablespace and set the fil_space_t::autoextend_size and
-      fil_space_t::max_size attributes. */
+      /* Get the autoextend_size property from the tablespace
+      and set the fil_space_t::autoextend_size attribute. */
       const dd::Properties &o = t->options();
       uint64_t autoextend_size{};
-      uint64_t max_size{};
 
       if (o.exists(autoextend_size_str)) {
         o.get(autoextend_size_str, &autoextend_size);
       }
 
-      if (o.exists(max_size_str)) {
-        o.get(max_size_str, &max_size);
-      }
-
       ut_d(dberr_t ret =) fil_set_autoextend_size(id, autoextend_size);
-      ut_ad(ret == DB_SUCCESS);
-      ut_d(ret =) fil_set_max_size(id, max_size);
       ut_ad(ret == DB_SUCCESS);
     }
   }

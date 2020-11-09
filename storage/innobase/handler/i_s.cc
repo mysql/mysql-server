@@ -6608,33 +6608,26 @@ static ST_FIELD_INFO innodb_tablespaces_fields_info[] = {
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, 0)},
 
-#define INNODB_TABLESPACES_MAX_SIZE 11
-    {STRUCT_FLD(field_name, "MAX_SIZE"),
-     STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
-     STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
-     STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, 0)},
-
-#define INNODB_TABLESPACES_SERVER_VERSION 12
+#define INNODB_TABLESPACES_SERVER_VERSION 11
     {STRUCT_FLD(field_name, "SERVER_VERSION"), STRUCT_FLD(field_length, 10),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, 0)},
 
-#define INNODB_TABLESPACES_SPACE_VERSION 13
+#define INNODB_TABLESPACES_SPACE_VERSION 12
     {STRUCT_FLD(field_name, "SPACE_VERSION"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, 0)},
 
-#define INNODB_TABLESPACES_ENCRYPTION 14
+#define INNODB_TABLESPACES_ENCRYPTION 13
     {STRUCT_FLD(field_name, "ENCRYPTION"), STRUCT_FLD(field_length, 1),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, 0)},
 
-#define INNODB_TABLESPACES_STATE 15
+#define INNODB_TABLESPACES_STATE 14
     {STRUCT_FLD(field_name, "STATE"), STRUCT_FLD(field_length, 10),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
@@ -6654,15 +6647,13 @@ collected by scanning INNODB_TABLESPACESS table.
 @param[in]      space_version   tablespace version
 @param[in]      is_encrypted    true if tablespace is encrypted
 @param[in]	autoextend_size autoextend_size attribute value
-@param[in]	max_size	max_size attribute value
 @param[in]      state           tablespace state
 @param[in,out]  table_to_fill   fill this table
 @return 0 on success */
 static int i_s_dict_fill_innodb_tablespaces(
     THD *thd, space_id_t space_id, const char *name, uint32_t flags,
     uint32 server_version, uint32 space_version, bool is_encrypted,
-    uint64_t autoextend_size, uint64_t max_size, const char *state,
-    TABLE *table_to_fill) {
+    uint64_t autoextend_size, const char *state, TABLE *table_to_fill) {
   Field **fields;
   ulint atomic_blobs = FSP_FLAGS_HAS_ATOMIC_BLOBS(flags);
   bool is_compressed = FSP_FLAGS_GET_ZIP_SSIZE(flags);
@@ -6716,8 +6707,6 @@ static int i_s_dict_fill_innodb_tablespaces(
                         is_encrypted ? "Y" : "N"));
 
   OK(fields[INNODB_TABLESPACES_AUTOEXTEND_SIZE]->store(autoextend_size, true));
-
-  OK(fields[INNODB_TABLESPACES_MAX_SIZE]->store(max_size, true));
 
   OK(field_store_string(fields[INNODB_TABLESPACES_ROW_FORMAT], row_format));
 
@@ -6831,13 +6820,12 @@ static int i_s_innodb_tablespaces_fill_table(THD *thd, TABLE_LIST *tables,
     bool is_encrypted = false;
     dd::String_type state;
     uint64_t autoextend_size;
-    uint64_t max_size;
 
     /* Extract necessary information from a INNODB_TABLESPACES
     row */
     ret = dd_process_dd_tablespaces_rec(
         heap, rec, &space, &name, &flags, &server_version, &space_version,
-        &is_encrypted, &autoextend_size, &max_size, &state, dd_spaces);
+        &is_encrypted, &autoextend_size, &state, dd_spaces);
 
     mtr_commit(&mtr);
     mutex_exit(&dict_sys->mutex);
@@ -6845,7 +6833,7 @@ static int i_s_innodb_tablespaces_fill_table(THD *thd, TABLE_LIST *tables,
     if (ret && space != 0) {
       i_s_dict_fill_innodb_tablespaces(
           thd, space, name, flags, server_version, space_version, is_encrypted,
-          autoextend_size, max_size, state.c_str(), tables->table);
+          autoextend_size, state.c_str(), tables->table);
     }
 
     mem_heap_empty(heap);

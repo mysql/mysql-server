@@ -5,7 +5,7 @@
 
 --echo #
 --echo # This test upgrades a database from 8.0.21 and attempts to add
---echo # autoextend_size and max_size tablespace attributes to it's tables
+--echo # autoextend_size tablespace attribute to it's tables
 --echo # and tablespaces
 --echo #
 
@@ -31,16 +31,16 @@ let $BUGDATADIR = $MYSQL_TMP_DIR/data80021_autoextend_size;
 --source include/start_mysqld.inc
 
 --echo # Check the contents of INFORMATION_SCHEMA.INNODB_TABLESPACES
-SELECT lower(name), file_size, autoextend_size, max_size from
+SELECT lower(name), file_size, autoextend_size from
   INFORMATION_SCHEMA.INNODB_TABLESPACES where name like '%t%';
 
---echo # Update autoextend_size and max_size attributes both for the implicit as
+--echo # Update autoextend_size attribute both for the implicit as
 --echo # well as explicit tablespaces
-ALTER TABLE t5 AUTOEXTEND_SIZE 4M MAX_SIZE 400M;
-ALTER TABLESPACE ts1 AUTOEXTEND_SIZE 4M MAX_SIZE 400M;
+ALTER TABLE t5 AUTOEXTEND_SIZE 4M;
+ALTER TABLESPACE ts1 AUTOEXTEND_SIZE 4M;
 
 --echo # Check the contents of INFORMATION_SCHEMA.INNODB_TABLESPACES
-SELECT lower(name), file_size, autoextend_size, max_size from
+SELECT lower(name), file_size, autoextend_size from
   INFORMATION_SCHEMA.INNODB_TABLESPACES where name like '%t%';
 
 --echo # Cleanup
