@@ -35,8 +35,6 @@
 #
 ###############################################################################
 
-# BUG#32068730: FAILURES ON GR_AUTOREJOIN_WHILE_RECOVERY_LOCKED AND GR_AUTOREJOIN_WITH_CLONE_WHI
---source include/have_64bit.inc
 --source include/linux.inc
 --source include/big_test.inc
 --source include/not_have_privilege_checks_user.inc
