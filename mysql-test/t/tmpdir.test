@@ -13,7 +13,7 @@ SET @@tmpdir= 'no/such/directory';
 --source include/shutdown_mysqld.inc
 
 # Start with an invalid tmpdir.
---error 1
+--error 1,42,134
 --exec $MYSQLD --no-defaults --secure-file-priv="" --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --tmpdir=no/such/directory > $MYSQLD_LOG 2>&1
 
 # Search the error log for error message.
