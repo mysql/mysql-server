@@ -892,6 +892,7 @@ BasicSplicer::State ClassicProtocolSplicer::splice_int(
 #endif
 
       if (plain_buf.size() < tls_header_size + tls_payload_size) {
+        src_channel->want_recv(1);
         return state();
       }
 
@@ -934,6 +935,12 @@ BasicSplicer::State ClassicProtocolSplicer::splice_int(
       const auto header_size = frame_header_res.first;
       const auto seq_id = frame_header_res.second.seq_id();
       const auto payload_size = frame_header_res.second.payload_size();
+
+      if (plain_buf.size() < payload_size + header_size) {
+        // wait until the whole frame is received before forwarding it.
+        src_channel->want_recv(1);
+        return state();
+      }
 
       src_protocol->seq_id(seq_id);
 

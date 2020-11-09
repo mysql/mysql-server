@@ -119,6 +119,35 @@ exports.get = function get(stmt_key, options) {
         ]
       }
     },
+    select_repeat_4097: {
+      stmt: "select repeat('a', 4097) as a",
+      result: {
+        columns: [
+          {
+            name: "a",
+            type: "STRING"
+          }
+        ],
+        rows: [
+          [ "a".repeat(4097) ]
+        ]
+      }
+    },
+    select_length_4097: {
+      stmt: "select length(" + 'a'.repeat(4097) + ") as length",
+      result: {
+        columns: [
+          {
+            name: "length",
+            type: "LONG"
+          }
+        ],
+        rows: [
+          [ 4097 ]
+        ]
+      }
+    },
+
     router_select_schema_version: {
       stmt: "SELECT * FROM mysql_innodb_cluster_metadata.schema_version",
       exec_time: options["exec_time"],

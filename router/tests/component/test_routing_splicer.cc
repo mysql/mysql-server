@@ -103,10 +103,7 @@ TEST_F(SplicerTest, ssl_mode_default_passthrough) {
   const auto server_port = port_pool_.get_next_available();
   const auto router_port = port_pool_.get_next_available();
 
-  const std::string mock_file =
-      get_data_dir()
-          .join("bootstrap_report_host.js")
-          .str();  // we piggy back on existing .js to avoid creating a new one
+  const std::string mock_file = get_data_dir().join("tls_endpoint.js").str();
   launch_mysql_server_mock(mock_file, server_port);
 
   auto config = mysql_harness::join(
@@ -129,10 +126,7 @@ TEST_F(SplicerTest, ssl_mode_default_preferred) {
   const auto server_port = port_pool_.get_next_available();
   const auto router_port = port_pool_.get_next_available();
 
-  const std::string mock_file =
-      get_data_dir()
-          .join("bootstrap_report_host.js")
-          .str();  // we piggy back on existing .js to avoid creating a new one
+  const std::string mock_file = get_data_dir().join("tls_endpoint.js").str();
   launch_mysql_server_mock(mock_file, server_port);
 
   auto config = mysql_harness::join(
@@ -168,10 +162,7 @@ TEST_P(SplicerFailParamTest, fails) {
   const auto server_port = port_pool_.get_next_available();
   const auto router_port = port_pool_.get_next_available();
 
-  const std::string mock_file =
-      get_data_dir()
-          .join("bootstrap_report_host.js")
-          .str();  // we piggy back on existing .js to avoid creating a new one
+  const std::string mock_file = get_data_dir().join("tls_endpoint.js").str();
   launch_mysql_server_mock(mock_file, server_port);
 
   std::string mock_server_host{"127.0.0.1"s};
@@ -589,10 +580,7 @@ TEST_P(SplicerConnectParamTest, check) {
   const auto server_port = port_pool_.get_next_available();
   const auto router_port = port_pool_.get_next_available();
 
-  const std::string mock_file =
-      get_data_dir()
-          .join("bootstrap_report_host.js")
-          .str();  // we piggy back on existing .js to avoid creating a new one
+  const std::string mock_file = get_data_dir().join("tls_endpoint.js").str();
   launch_mysql_server_mock(mock_file, server_port);
 
   auto it = std::find_if(
@@ -1243,7 +1231,7 @@ const SplicerConnectParam splicer_connect_tls_params[] = {
                       "",                         // socket
                       ""                          // schema
          );
-         auto row = sess.query_one("SHOW STATUS LIKE 'ssl_cipher'");
+         auto row = sess.query_one("show status like 'ssl_cipher'");
          ASSERT_EQ(row->size(), 2);
 
          // some cipher is set.
@@ -1851,10 +1839,7 @@ TEST_F(SplicerTest, classic_protocol_default_preferred_as_client) {
   const auto server_port = port_pool_.get_next_available();
   const auto router_port = port_pool_.get_next_available();
 
-  const std::string mock_file =
-      get_data_dir()
-          .join("bootstrap_report_host.js")
-          .str();  // we piggy back on existing .js to avoid creating a new one
+  const std::string mock_file = get_data_dir().join("tls_endpoint.js").str();
   launch_mysql_server_mock(mock_file, server_port);
 
   auto config = mysql_harness::join(
@@ -1911,10 +1896,7 @@ TEST_P(SplicerParamTest, classic_protocol) {
   const auto server_port = port_pool_.get_next_available();
   const auto router_port = port_pool_.get_next_available();
 
-  const std::string mock_file =
-      get_data_dir()
-          .join("bootstrap_report_host.js")
-          .str();  // we piggy back on existing .js to avoid creating a new one
+  const std::string mock_file = get_data_dir().join("tls_endpoint.js").str();
   launch_mysql_server_mock(mock_file, server_port);
 
 #if defined(HAS_TLS_AWARE_SERVER)
@@ -1986,7 +1968,7 @@ TEST_P(SplicerParamTest, classic_protocol) {
     EXPECT_EQ(is_encrypted, GetParam().expect_client_encrypted);
 
     try {
-      auto row = sess.query_one("SHOW STATUS LIKE 'ssl_cipher'");
+      auto row = sess.query_one("show status like 'ssl_cipher'");
       ASSERT_EQ(row->size(), 2);
 
       if (GetParam().expect_server_encrypted) {
@@ -2000,6 +1982,25 @@ TEST_P(SplicerParamTest, classic_protocol) {
       } else {
         FAIL() << e.what();
       }
+    }
+
+    try {
+      auto row = sess.query_one("select repeat('a', 4097) as a");
+      ASSERT_EQ(row->size(), 1);
+
+      EXPECT_EQ((*row)[0], std::string(4097, 'a'));
+    } catch (const mysqlrouter::MySQLSession::Error &e) {
+      FAIL() << e.what();
+    }
+
+    try {
+      auto row = sess.query_one("select length(" + std::string(4097, 'a') +
+                                ") as length");
+      ASSERT_EQ(row->size(), 1);
+
+      EXPECT_STREQ((*row)[0], "4097");
+    } catch (const mysqlrouter::MySQLSession::Error &e) {
+      FAIL() << e.what();
     }
 
   } catch (const mysqlrouter::MySQLSession::Error &e) {
@@ -2033,10 +2034,7 @@ TEST_P(SplicerParamTest, xproto) {
   const auto router_port = port_pool_.get_next_available();
   const auto server_port_x = port_pool_.get_next_available();
 
-  const std::string mock_file =
-      get_data_dir()
-          .join("bootstrap_report_host.js")
-          .str();  // we piggy back on existing .js to avoid creating a new one
+  const std::string mock_file = get_data_dir().join("tls_endpoint.js").str();
   launch_mysql_server_mock(mock_file, server_port, EXIT_SUCCESS, false, 0,
                            server_port_x);
 
@@ -2112,7 +2110,7 @@ TEST_P(SplicerParamTest, xproto) {
   if (GetParam().expected_success == 0) {
     xcl::XError xerr;
     auto result =
-        sess->execute_sql("SHOW STATUS LIKE 'Mysqlx_ssl_cipher'", &xerr);
+        sess->execute_sql("show status like 'Mysqlx_ssl_cipher'", &xerr);
     ASSERT_TRUE(result) << xerr;
 
     if (!result->has_resultset()) {
