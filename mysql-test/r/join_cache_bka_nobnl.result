@@ -31,6 +31,11 @@ Country char(3) NOT NULL default '',
 Language char(30) NOT NULL default '',
 Percentage float NOT NULL default '0.0'
 );
+ANALYZE TABLE city, country, countrylanguage;
+Table	Op	Msg_type	Msg_text
+world.city	analyze	status	OK
+world.country	analyze	status	OK
+world.countrylanguage	analyze	status	OK
 SELECT COUNT(*) FROM country;
 COUNT(*)
 239
@@ -462,6 +467,11 @@ Percentage float NOT NULL default '0.0',
 PRIMARY KEY  (Country, Language),
 INDEX (Percentage)
 );
+ANALYZE TABLE city, country, countrylanguage;
+Table	Op	Msg_type	Msg_text
+world.city	analyze	status	OK
+world.country	analyze	status	OK
+world.countrylanguage	analyze	status	OK
 show variables like 'join_buffer_size';
 Variable_name	Value
 join_buffer_size	262144
@@ -1480,10 +1490,14 @@ INSERT INTO t2 VALUES (1,10), (4,20), (3,20), (7,20), (7,10), (1,20);
 set join_buffer_size=32;
 Warnings:
 Warning	1292	Truncated incorrect join_buffer_size value: '32'
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN SELECT * FROM t1,t2 WHERE t1.a=t2.a AND t1.b >= 30;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	idx	idx	5	NULL	3	100.00	Using index condition; Using where; Using MRR
-1	SIMPLE	t2	NULL	ref	idx	idx	5	test.t1.a	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t2	NULL	ref	idx	idx	5	test.t1.a	2	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`b` >= 30))
 SELECT * FROM t1,t2 WHERE t1.a=t2.a AND t1.b >= 30;
@@ -1702,9 +1716,9 @@ SELECT COUNT(*) FROM t1,t2,t3
 WHERE t1.a=t2.a AND t2.a=t3.a AND
 t1.b IS NULL AND t2.b IS NULL AND t3.b IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	16400	10.00	Using where
-1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	10.00	Using where
-1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	10.00	Using where
+1	SIMPLE	#	NULL	ALL	PRIMARY	NULL	NULL	#	16400	10.00	Using where
+1	SIMPLE	#	NULL	eq_ref	PRIMARY	PRIMARY	4	#	1	10.00	Using where
+1	SIMPLE	#	NULL	eq_ref	PRIMARY	PRIMARY	4	#	1	10.00	Using where
 SELECT COUNT(*) FROM t1,t2,t3
 WHERE t1.a=t2.a AND t2.a=t3.a AND
 t1.b IS NULL AND t2.b IS NULL AND t3.b IS NULL;
@@ -2174,6 +2188,11 @@ CREATE TABLE t2 (a INT, b INT);
 INSERT INTO t2 VALUES (1,1),(2,2);
 CREATE TABLE t3 (a INT, b INT);
 INSERT INTO t3 VALUES (1,1),(2,2);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 EXPLAIN SELECT t1.* FROM t1,t2,t3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
@@ -2221,6 +2240,12 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES (2);
 CREATE TABLE t4 (a varchar(10));
+ANALYZE TABLE t1, t2, t3, t4;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
 EXPLAIN SELECT 1
 FROM t2 LEFT JOIN
 ((t1 JOIN t3 ON t1.a = t3.pk)
@@ -2332,6 +2357,10 @@ CREATE TABLE t1 (b int);
 INSERT INTO t1 VALUES (NULL),(3);
 CREATE TABLE t2 (a int, b int, KEY (b));
 INSERT INTO t2 VALUES (100,NULL),(150,200);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN SELECT t2.a FROM t1 LEFT JOIN t2 FORCE INDEX (b) ON t2.b  = t1.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
@@ -2344,6 +2373,10 @@ NULL
 NULL
 delete from t1;
 INSERT INTO t1 VALUES (NULL),(NULL);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN SELECT t2.a FROM t1 LEFT JOIN t2 FORCE INDEX (b) ON t2.b  = t1.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
@@ -2359,6 +2392,10 @@ CREATE TABLE t1 (b varchar(100));
 INSERT INTO t1 VALUES (NULL),("some varchar");
 CREATE TABLE t2 (a int, b varchar(100), KEY (b));
 INSERT INTO t2 VALUES (100,NULL),(150,"varchar"),(200,NULL),(250,"long long varchar");
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
@@ -2386,6 +2423,9 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (4,9,'k','k');
 INSERT INTO t1 VALUES (12,5,'k','k');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain SELECT table2 .`col_int_key` FROM t1 table2,
 t1 table3 force index (`col_varchar_key`)
 where table3 .`pk` and table3 .`col_int_key`  >= table2 .`pk`  
@@ -2423,6 +2463,10 @@ KEY `col_int_key` (`col_int_key`)
 );
 INSERT INTO t2 VALUES (14,1);
 INSERT INTO t2 VALUES (98,1);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 explain SELECT t1.col_int_key, t1.col_datetime 
 FROM t1,t2
 WHERE t2.col_int_key = 1 AND t2.col_int >= 3
@@ -2443,6 +2487,10 @@ LIMIT 2;
 col_int_key	col_datetime
 0	2000-09-26 07:45:57
 2	2003-02-11 21:19:41
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 explain SELECT t1.col_int_key, t1.col_datetime 
 FROM t1 force index (col_int_key), t2 ignore index (col_int_key)
 WHERE t2.col_int_key = 1 AND t2.col_int >= 3
@@ -2618,6 +2666,11 @@ KEY k1 (c1)
 INSERT INTO t3 VALUES (NULL), (NULL);
 set @old_opt_switch=@@optimizer_switch;
 
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 explain format=tree SELECT t3.c1 FROM t3
 WHERE t3.c1 = SOME (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
 XOR TRUE;
@@ -2674,7 +2727,7 @@ WHERE t3.c1 IN (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	col_int_key	NULL	NULL	NULL	1	100.00	Start temporary
 1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	1	100.00	Range checked for each record (index map: 0x1)
-1	SIMPLE	t3	NULL	ref	k1	k1	5	test.t1.c2_key	1	100.00	Using index; End temporary
+1	SIMPLE	t3	NULL	ref	k1	k1	5	test.t1.c2_key	2	100.00	Using index; End temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`c1` AS `c1` from `test`.`t3` semi join (`test`.`t2` join `test`.`t1`) where ((`test`.`t3`.`c1` = `test`.`t1`.`c2_key`) and (`test`.`t2`.`pk` < `test`.`t1`.`c1`))
 SELECT t3.c1 FROM t3
@@ -2783,6 +2836,10 @@ INSERT INTO t2 VALUES
 (1,'j'),(2,'v'),(3,'c'),(4,'m'),(5,'d'),(6,'d'),(7,'y'),
 (8,'t'),(9,'d'),(10,'s'),(11,'r'),(12,'m'),(13,'b'),(14,'x'),
 (15,'g'),(16,'p'),(17,'q'),(18,'w'),(19,'d'),(20,'e');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 explain SELECT t2.col_varchar_key AS field1 , COUNT(DISTINCT t1.col_varchar_nokey), t2.pk AS field4
 FROM t1
 RIGHT JOIN t2 ON t2.pk = t1.col_int_key 
@@ -2903,6 +2960,12 @@ INSERT INTO t1 VALUES (6,NULL,6),(0,1,11);
 INSERT INTO t2 VALUES (1,NULL,NULL),(4,7,NULL);
 INSERT INTO t3 VALUES (2,3,0),(3,4,4);
 INSERT INTO t4 VALUES (1,9,-1),(4,7,NULL);
+ANALYZE TABLE t1, t2, t3, t4;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
 EXPLAIN SELECT t2.pk as t2_pk, t4.pk as t4_pk, t4.k as t4_k, t4.i
 as t4_i FROM t1
 LEFT JOIN t2 ON t1.k = t2.pk
@@ -3019,6 +3082,10 @@ INSERT INTO t2 VALUES (9, '2002-08-25 20:35:06', 'e'),
 (9, '2002-08-25 20:35:06', 'e');
 set @optimizer_switch_saved=@@session.optimizer_switch;
 set @@session.optimizer_switch='semijoin=off';
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN SELECT parent1.col_varchar_key
 FROM t2 AS parent1 LEFT JOIN t1 USING (col_int_nokey)
 WHERE parent1.col_varchar_key IN
@@ -3072,6 +3139,10 @@ col_int int(11)
 ) ENGINE=innodb;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN SELECT * FROM t1 AS table1
 WHERE
 table1.col_varchar_10_unique = ALL (
