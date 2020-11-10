@@ -6040,15 +6040,13 @@ sub mysqld_stop {
   my $args;
   mtr_init_args(\$args);
 
-  mtr_add_arg($args, "--no-defaults");
-  mtr_add_arg($args, "--character-sets-dir=%s",
-              $mysqld->value('character-sets-dir'));
-  mtr_add_arg($args, "--user=%s", $opt_user);
-  mtr_add_arg($args, "--password=");
-  mtr_add_arg($args, "--port=%d", $mysqld->value('port'));
-  mtr_add_arg($args, "--host=%s", $mysqld->value('#host'));
-  mtr_add_arg($args, "--connect_timeout=20");
-  mtr_add_arg($args, "--protocol=tcp");
+  mtr_add_arg($args, "--defaults-file=%s",         $path_config_file);
+  mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
+  mtr_add_arg($args, "--connect-timeout=20");
+  if (IS_WINDOWS) {
+    mtr_add_arg($args, "--protocol=pipe");
+  }
+  mtr_add_arg($args, "--shutdown-timeout=$opt_shutdown_timeout");
   mtr_add_arg($args, "shutdown");
 
   My::SafeProcess->run(name  => "mysqladmin shutdown " . $mysqld->name(),
