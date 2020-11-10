@@ -109,7 +109,9 @@ std::unique_ptr<BasicSplicer> make_splicer(
           [conn]() { return conn->context().source_ssl_ctx()->get(); },
           [conn]() {
             return conn->context()
-                .dest_ssl_ctx(conn->get_destination_id())
+                .dest_ssl_ctx(
+                    mysqlrouter::split_addr_port(conn->get_destination_id())
+                        .first)
                 ->get();
           },
           initial_connection_attributes<ClientProtocol>(
@@ -120,7 +122,9 @@ std::unique_ptr<BasicSplicer> make_splicer(
           [conn]() { return conn->context().source_ssl_ctx()->get(); },
           [conn]() {
             return conn->context()
-                .dest_ssl_ctx(conn->get_destination_id())
+                .dest_ssl_ctx(
+                    mysqlrouter::split_addr_port(conn->get_destination_id())
+                        .first)
                 ->get();
           },
           initial_connection_attributes<ClientProtocol>(
