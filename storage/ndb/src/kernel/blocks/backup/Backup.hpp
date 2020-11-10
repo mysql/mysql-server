@@ -1077,7 +1077,7 @@ public:
   void measure_change_speed(Signal*, Uint64 millis_since_last_call);
   void debug_report_redo_control(Uint32);
   void lcp_start_point(Signal*);
-  void lcp_end_point(BackupRecordPtr);
+  bool lcp_end_point(BackupRecordPtr);
   Uint64 calculate_proposed_disk_write_speed();
 
   Uint32 m_curr_lcp_id;
@@ -1410,7 +1410,10 @@ public:
   void check_empty_queue_waiters(Signal*, BackupRecordPtr ptr);
   void delete_lcp_file_processing(Signal*);
   void finished_removing_files(Signal*, BackupRecordPtr);
+  void handleEND_LCPCONF(Signal*, BackupRecordPtr);
   void sendEND_LCPCONF(Signal*, BackupRecordPtr);
+  void checkEND_LCPCONF(Signal*, BackupRecordPtr, bool ready);
+  void check_pgman_prep_lcp_ready(Signal *signal, Uint32 ptrI);
   void send_firstSYNC_EXTENT_PAGES_REQ(Signal*, BackupRecordPtr);
   void sendINFORM_BACKUP_DROP_TAB_CONF(Signal*, BackupRecordPtr);
 

@@ -610,7 +610,7 @@ private:
 
   bool m_track_lcp_speed_loop_ongoing;
 public:
-  void lcp_end_point(Uint32 lcp_time_in_ms);
+  bool lcp_end_point(Uint32 lcp_time_in_ms, bool first, bool internal);
   void set_lcp_dd_percentage(Uint32 dd_percentage);
   void set_current_disk_write_speed(Uint64);
   void lcp_start_point(Signal*, Uint32, Uint32);
