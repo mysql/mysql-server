@@ -4427,3 +4427,63 @@ SELECT a, MAX(TRIM('1' FROM ~1)) FROM t GROUP BY a;
 a	MAX(TRIM('1' FROM ~1))
 a	8446744073709551614
 DROP TABLE t;
+#
+# Bug#30242457 ASSERTION "!TABLE->CONST_TABLE"
+#
+CREATE TABLE t2(id1 INT, id2 CHAR (1), id3 INT, value INT,
+KEY (id1,id2,id3)) COLLATE LATIN1_BIN;
+CREATE TABLE t1(a INT,b INT, PRIMARY KEY(a)) ENGINE=MEMORY;
+# One row in an in-memory table: row will be read before
+# optimizing MAX in subquery. No result set, either when t2 is
+# empty or not, since t1.a <> t1.b
+INSERT INTO t1 VALUES(1,0);
+SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2);
+a	b
+INSERT INTO t2 VALUES (0, 'a', 3, 4);
+SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2);
+a	b
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2);
+EXPLAIN
+-> Zero rows (Impossible WHERE noticed after reading const tables)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
+DELETE FROM t1;
+DELETE FROM t2;
+# Now t1.a = t1.b, still not result if t2 is empty
+INSERT INTO t1 VALUES(1,1);
+SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2);
+a	b
+# If t2 has at least one row, we will get a result row
+INSERT INTO t2 VALUES (0, 'a', 3, 4);
+SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2);
+a	b
+1	1
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2);
+EXPLAIN
+-> Rows fetched before execution  (cost=0.00 rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
+# If we have two rows in t1, t1 will not be read before
+# optimization of the subquery, so this didn't use to fail
+# before this patch.
+INSERT INTO t1 VALUES(0,0);
+SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2);
+a	b
+1	1
+0	0
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2);
+EXPLAIN
+-> Filter: <in_optimizer>(t1.a,<exists>(select #2))  (cost=2.73 rows=2)
+    -> Table scan on t1  (cost=2.73 rows=2)
+    -> Select #2 (subquery in condition; dependent)
+        -> Limit: 1 row(s)
+            -> Filter: (<cache>(t1.a) = <ref_null_helper>(max(t1.b)))
+                -> Aggregate: max(t1.b)
+                    -> Rows fetched before execution  (cost=0.00 rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
+DROP TABLE t1, t2;
+# End of test for Bug#30242457
