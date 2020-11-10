@@ -6037,8 +6037,19 @@ longlong user_var_entry::val_int(bool *null_value) const {
   if ((*null_value = (m_ptr == nullptr))) return 0LL;
 
   switch (m_type) {
-    case REAL_RESULT:
-      return (longlong) * (double *)m_ptr;
+    case REAL_RESULT: {
+      // TODO(tdidriks): Consider reporting a possible overflow warning.
+      double var_val = *(reinterpret_cast<double *>(m_ptr));
+      longlong res;
+      if (var_val <= LLONG_MIN) {
+        res = LLONG_MIN;
+      } else if (var_val >= LLONG_MAX_DOUBLE) {
+        res = LLONG_MAX;
+      } else
+        res = var_val;
+
+      return res;
+    }
     case INT_RESULT:
       return *(longlong *)m_ptr;
     case DECIMAL_RESULT: {
