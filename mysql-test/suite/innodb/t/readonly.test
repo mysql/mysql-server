@@ -42,7 +42,7 @@ INSERT INTO t1 VALUES(1);
 --source include/shutdown_mysqld.inc
 
 # Start with an invalid tmpdir and search the error log for the error message.
---error 1,42,134,-1073741571
+--error 1,-1073741571
 --exec $MYSQLD --no-defaults --secure-file-priv="" --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --tmpdir=no/such/directory > $MYSQLD_LOG 2>&1
 --let $grep_file= $MYSQLD_LOG
 --let $grep_pattern= No such file or directory
