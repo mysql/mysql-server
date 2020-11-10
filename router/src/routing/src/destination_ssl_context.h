@@ -53,8 +53,8 @@ class DestinationTlsContext {
           tls_contexts_.emplace(dest_id, std::make_unique<TlsClientContext>());
       auto *tls_ctx = res.first->second.get();
 
-      tls_ctx->cipher_list(ciphers_);
-      tls_ctx->curves_list(curves_);
+      if (!ciphers_.empty()) tls_ctx->cipher_list(ciphers_);
+      if (!curves_.empty()) tls_ctx->curves_list(curves_);
 
       switch (ssl_verify_) {
         case SslVerify::kDisabled:

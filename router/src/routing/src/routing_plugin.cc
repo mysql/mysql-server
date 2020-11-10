@@ -35,6 +35,7 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/tls_server_context.h"
+#include "mysql/harness/utility/string.h"  // join
 #include "mysql_routing.h"
 #include "mysqlrouter/destination.h"
 #include "mysqlrouter/io_component.h"
@@ -244,6 +245,10 @@ static void ensure_readable_directory(const std::string &opt_name,
   }
 }
 
+static std::string get_default_ciphers() {
+  return mysql_harness::join(TlsServerContext::default_ciphers(), ":");
+}
+
 static void start(mysql_harness::PluginFuncEnv *env) {
   const mysql_harness::ConfigSection *section = get_config_section(env);
 
@@ -313,12 +318,15 @@ static void start(mysql_harness::PluginFuncEnv *env) {
         }
       }
 
-      if (!config.source_ssl_cipher.empty()) {
-        const auto res = source_tls_ctx.cipher_list(config.source_ssl_cipher);
+      {
+        const std::string ssl_cipher = config.source_ssl_cipher.empty()
+                                           ? get_default_ciphers()
+                                           : config.source_ssl_cipher;
+
+        const auto res = source_tls_ctx.cipher_list(ssl_cipher);
         if (!res) {
           throw std::system_error(res.error(), "setting client_ssl_cipher=" +
-                                                   config.source_ssl_cipher +
-                                                   " failed");
+                                                   ssl_cipher + " failed");
         }
       }
     }
@@ -328,13 +336,16 @@ static void start(mysql_harness::PluginFuncEnv *env) {
       // validate the config-values one time
       TlsServerContext tls_server_ctx;
 
-      if (!config.dest_ssl_cipher.empty()) {
-        const auto res = tls_server_ctx.cipher_list(config.dest_ssl_cipher);
+      {
+        const std::string dest_ssl_cipher = config.dest_ssl_cipher.empty()
+                                                ? get_default_ciphers()
+                                                : config.dest_ssl_cipher;
+        const auto res = tls_server_ctx.cipher_list(dest_ssl_cipher);
         if (!res) {
           throw std::system_error(res.error(), "setting server_ssl_cipher=" +
-                                                   config.dest_ssl_cipher +
-                                                   " failed");
+                                                   dest_ssl_cipher + " failed");
         }
+        dest_tls_ctx.ciphers(dest_ssl_cipher);
       }
       if (!config.dest_ssl_curves.empty()) {
         const auto res = tls_server_ctx.curves_list(config.dest_ssl_curves);
@@ -343,6 +354,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
                                                    config.dest_ssl_curves +
                                                    " failed");
         }
+        dest_tls_ctx.curves(config.dest_ssl_curves);
       }
       if (!config.dest_ssl_ca_file.empty() || !config.dest_ssl_ca_dir.empty()) {
         if (!config.dest_ssl_ca_dir.empty()) {
@@ -358,7 +370,10 @@ static void start(mysql_harness::PluginFuncEnv *env) {
                                " and server_ssl_capath=" +
                                config.dest_ssl_ca_dir + " failed");
         }
+        dest_tls_ctx.ca_file(config.dest_ssl_ca_file);
+        dest_tls_ctx.ca_path(config.dest_ssl_ca_dir);
       }
+
       if (!config.dest_ssl_crl_file.empty() ||
           !config.dest_ssl_crl_dir.empty()) {
         if (!config.dest_ssl_crl_dir.empty()) {
@@ -375,15 +390,12 @@ static void start(mysql_harness::PluginFuncEnv *env) {
                   " and server_ssl_crlpath=" + config.dest_ssl_crl_dir +
                   " failed");
         }
+
+        dest_tls_ctx.crl_file(config.dest_ssl_crl_file);
+        dest_tls_ctx.crl_path(config.dest_ssl_crl_dir);
       }
 
-      dest_tls_ctx.ca_file(config.dest_ssl_ca_file);
-      dest_tls_ctx.ca_path(config.dest_ssl_ca_dir);
-      dest_tls_ctx.crl_file(config.dest_ssl_crl_file);
-      dest_tls_ctx.crl_path(config.dest_ssl_crl_dir);
       dest_tls_ctx.verify(config.dest_ssl_verify);
-      dest_tls_ctx.curves(config.dest_ssl_curves);
-      dest_tls_ctx.ciphers(config.dest_ssl_cipher);
     }
 
     net::io_context &io_ctx = IoComponent::get_instance().io_context();
