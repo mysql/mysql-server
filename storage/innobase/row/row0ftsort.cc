@@ -319,14 +319,6 @@ void row_fts_psort_info_destroy(
 
         ut_free(psort_info[j].block_alloc[i]);
         ut_free(psort_info[j].merge_file[i]);
-
-        /* We also need to free the merge buffer. Note that the
-        *merge_buf[i] struct is allocated within the merge_buf[i]->heap,
-        so we don't need to free the struct explicitly since the heap
-        containing the struct is freed below. */
-        if (psort_info[j].merge_buf[i]) {
-          row_merge_buf_free(psort_info[j].merge_buf[i]);
-        }
       }
 
       // If error is unset, then the mutex has not been initialized yet.
