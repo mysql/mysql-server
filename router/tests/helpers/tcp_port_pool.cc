@@ -55,6 +55,11 @@ bool UniqueId::lock_file(const std::string &file_name) {
   lock_file_fd_ = open(file_name.c_str(), O_RDWR | O_CREAT, 0666);
 
   if (lock_file_fd_ >= 0) {
+    // don't pass the lock-fd to the child processes
+    int flag = fcntl(lock_file_fd_, F_GETFD);
+    flag |= FD_CLOEXEC;
+    fcntl(lock_file_fd_, F_SETFD, &flag);
+
     // open() honours umask and we want to make sure this directory is
     // accessible for every user regardless of umask settings
     ::chmod(file_name.c_str(), 0666);
@@ -73,6 +78,7 @@ bool UniqueId::lock_file(const std::string &file_name) {
     if (lock) {
       // no lock so no luck, try the next one
       close(lock_file_fd_);
+      lock_file_fd_ = -1;
       return false;
     }
 
