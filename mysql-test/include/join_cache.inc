@@ -18,7 +18,7 @@ use world;
 --enable_warnings
 --enable_result_log
 --enable_query_log
-
+ANALYZE TABLE city, country, countrylanguage;
 SELECT COUNT(*) FROM country;
 SELECT COUNT(*) FROM city;
 SELECT COUNT(*) FROM countrylanguage;
@@ -101,7 +101,7 @@ use world;
 --enable_warnings
 --enable_result_log
 --enable_query_log
-
+ANALYZE TABLE city, country, countrylanguage;
 show variables like 'join_buffer_size';
 
 # Somewhat unstable filtering numbers
@@ -515,7 +515,7 @@ INSERT INTO t2 VALUES (7,10), (1,20), (2,20), (8,20), (8,10), (1,20);
 INSERT INTO t2 VALUES (1,10), (4,20), (3,20), (7,20), (7,10), (1,20); 
     
 set join_buffer_size=32; 
- 
+ANALYZE TABLE t1, t2;
 EXPLAIN SELECT * FROM t1,t2 WHERE t1.a=t2.a AND t1.b >= 30; 
 --sorted_result  
 SELECT * FROM t1,t2 WHERE t1.a=t2.a AND t1.b >= 30;  
@@ -686,6 +686,7 @@ INSERT INTO t3 SELECT * FROM t1;
 
 set join_buffer_size=1024*1024;
 ANALYZE TABLE t1, t2, t3;
+--replace_column 3 # 9 #
 EXPLAIN
 SELECT COUNT(*) FROM t1,t2,t3
   WHERE t1.a=t2.a AND t2.a=t3.a AND
@@ -1369,7 +1370,7 @@ INSERT INTO t2 VALUES (1,1),(2,2);
 
 CREATE TABLE t3 (a INT, b INT);
 INSERT INTO t3 VALUES (1,1),(2,2);
-
+ANALYZE TABLE t1, t2, t3;
 EXPLAIN SELECT t1.* FROM t1,t2,t3;
 --sorted_result
 SELECT t1.* FROM t1,t2,t3;
@@ -1404,7 +1405,7 @@ INSERT INTO t2 VALUES ('f'),('x');
 CREATE TABLE t3 (pk int(11) PRIMARY KEY);
 INSERT INTO t3 VALUES (2);
 CREATE TABLE t4 (a varchar(10));
-
+ANALYZE TABLE t1, t2, t3, t4;
 EXPLAIN SELECT 1
 FROM t2 LEFT JOIN
        ((t1 JOIN t3 ON t1.a = t3.pk)
@@ -1498,7 +1499,7 @@ INSERT INTO t1 VALUES (NULL),(3);
 
 CREATE TABLE t2 (a int, b int, KEY (b));
 INSERT INTO t2 VALUES (100,NULL),(150,200);
-
+ANALYZE TABLE t1, t2;
 let $query= SELECT t2.a FROM t1 LEFT JOIN t2 FORCE INDEX (b) ON t2.b  = t1.b;
 --eval EXPLAIN $query
 --sorted_result
@@ -1507,7 +1508,7 @@ let $query= SELECT t2.a FROM t1 LEFT JOIN t2 FORCE INDEX (b) ON t2.b  = t1.b;
 # test crash when no key is worth collecting by BKA for t2's ref
 delete from t1;
 INSERT INTO t1 VALUES (NULL),(NULL);
-
+ANALYZE TABLE t1, t2;
 --eval EXPLAIN $query
 --sorted_result
 --eval $query
@@ -1520,7 +1521,7 @@ INSERT INTO t1 VALUES (NULL),("some varchar");
 
 CREATE TABLE t2 (a int, b varchar(100), KEY (b));
 INSERT INTO t2 VALUES (100,NULL),(150,"varchar"),(200,NULL),(250,"long long varchar");
-
+ANALYZE TABLE t1, t2;
 explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
 --sorted_result
 SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
@@ -1547,7 +1548,7 @@ let $query_i= SELECT table2 .`col_int_key` FROM t1 table2,
 t1 table3 force index (`col_varchar_key`)
 where table3 .`pk` and table3 .`col_int_key`  >= table2 .`pk`  
  and table3 .`col_varchar_key`  = table2 .`col_varchar_nokey`;
-
+ANALYZE TABLE t1;
 eval explain $query_i;
 eval $query_i;
 
@@ -1589,7 +1590,7 @@ WHERE t2.col_int_key = 1 AND t2.col_int >= 3
 GROUP BY t1.col_int_key
 ORDER BY t1.col_int_key, t1.col_datetime
 LIMIT 2;
-
+ANALYZE TABLE t1, t2;
 eval explain $query;
 eval $query;
 
@@ -1601,7 +1602,7 @@ WHERE t2.col_int_key = 1 AND t2.col_int >= 3
 GROUP BY t1.col_int_key
 ORDER BY t1.col_int_key, t1.col_datetime
 LIMIT 2;
-
+ANALYZE TABLE t1, t2;
 eval explain $query;
 eval $query;
 
@@ -1788,6 +1789,7 @@ SELECT t3.c1 FROM t3
 WHERE t3.c1 = SOME (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
 XOR TRUE;
 
+ANALYZE TABLE t1, t2, t3;
 --skip_if_hypergraph  # Depends on the query plan.
 eval explain format=tree $query_some;  # Tests FORMAT=tree for AlternativeIterator.
 eval explain $query_some;
@@ -1900,6 +1902,8 @@ INSERT INTO t2 VALUES
 (8,'t'),(9,'d'),(10,'s'),(11,'r'),(12,'m'),(13,'b'),(14,'x'),
 (15,'g'),(16,'p'),(17,'q'),(18,'w'),(19,'d'),(20,'e');
 
+ANALYZE TABLE t1, t2;
+
 let $query=SELECT t2.col_varchar_key AS field1 , COUNT(DISTINCT t1.col_varchar_nokey), t2.pk AS field4
 FROM t1
 RIGHT JOIN t2 ON t2.pk = t1.col_int_key 
@@ -1974,7 +1978,7 @@ INSERT INTO t1 VALUES (6,NULL,6),(0,1,11);
 INSERT INTO t2 VALUES (1,NULL,NULL),(4,7,NULL);
 INSERT INTO t3 VALUES (2,3,0),(3,4,4);
 INSERT INTO t4 VALUES (1,9,-1),(4,7,NULL);
-
+ANALYZE TABLE t1, t2, t3, t4;
 let $query=SELECT t2.pk as t2_pk, t4.pk as t4_pk, t4.k as t4_k, t4.i
   as t4_i FROM t1
   LEFT JOIN t2 ON t1.k = t2.pk
@@ -2091,6 +2095,7 @@ WHERE parent1.col_varchar_key IN
         WHERE parent1.col_datetime_nokey IS NULL
               AND t1.col_int_nokey IS NULL )
 ;
+ANALYZE TABLE t1, t2;
 eval EXPLAIN $query;
 eval $query;
 
@@ -2139,7 +2144,7 @@ WHERE
       t4 AS table4s LEFT JOIN
         (t3 AS table3s JOIN t2 AS table2s)
       ON table3s.col_int_unique = table4s.col_int_unique);
-
+ANALYZE TABLE t1, t2;
 eval EXPLAIN $query;
 eval $query;
 
