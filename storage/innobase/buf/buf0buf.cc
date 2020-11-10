@@ -4826,10 +4826,9 @@ buf_page_t *buf_page_init_for_read(dberr_t *err, ulint mode,
     /* So that we can attach the fil_space_t instance. */
     bpage->reset_page_id(page_id);
     bpage->reset_flush_observer();
+    bpage->state = BUF_BLOCK_ZIP_PAGE;
 
     buf_page_init_low(bpage);
-
-    bpage->state = BUF_BLOCK_ZIP_PAGE;
 
     ut_d(bpage->in_page_hash = FALSE);
     ut_d(bpage->in_zip_hash = FALSE);
