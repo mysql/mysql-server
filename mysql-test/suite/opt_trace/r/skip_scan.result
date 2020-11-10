@@ -182,7 +182,7 @@ EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) A
                   ],
                   "best_covering_index_scan": {
                     "index": "b",
-                    "cost": 252.08,
+                    "cost": 252.077,
                     "chosen": true
                   },
                   "setup_range_conditions": [
@@ -198,7 +198,7 @@ EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) A
                         "tree_travel_cost": 0.6,
                         "num_groups": 76,
                         "rows": 249,
-                        "cost": 129.04
+                        "cost": 129.041
                       },
                       {
                         "index": "b",
@@ -264,7 +264,7 @@ EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) A
                         "using_mrr": false,
                         "index_only": true,
                         "rows": 750,
-                        "cost": 79.015,
+                        "cost": 79.0151,
                         "chosen": true
                       },
                       {
@@ -279,7 +279,7 @@ EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) A
                         "using_mrr": false,
                         "index_only": true,
                         "rows": 3,
-                        "cost": 0.5615,
+                        "cost": 0.561462,
                         "chosen": true
                       }
                     ],
@@ -300,7 +300,7 @@ EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) A
                       ]
                     },
                     "rows_for_plan": 3,
-                    "cost_for_plan": 0.5615,
+                    "cost_for_plan": 0.561462,
                     "chosen": true
                   }
                 }
@@ -325,14 +325,14 @@ EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) A
                         "used_index": "b"
                       },
                       "resulting_rows": 1.5,
-                      "cost": 0.8615,
+                      "cost": 0.861462,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 1.5,
-                "cost_for_plan": 0.8615,
+                "cost_for_plan": 0.861462,
                 "chosen": true
               }
             ]
@@ -479,7 +479,7 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND c > 4 AND d < 3	{
                   ],
                   "best_covering_index_scan": {
                     "index": "b",
-                    "cost": 252.08,
+                    "cost": 252.077,
                     "chosen": true
                   },
                   "setup_range_conditions": [
@@ -495,14 +495,14 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND c > 4 AND d < 3	{
                         "tree_travel_cost": 0.6,
                         "num_groups": 6,
                         "rows": 83,
-                        "cost": 19.98
+                        "cost": 19.9798
                       },
                       {
                         "index": "b",
                         "tree_travel_cost": 0.6,
                         "num_groups": 6,
                         "rows": 833,
-                        "cost": 133.01
+                        "cost": 133.008
                       }
                     ]
                   },
@@ -566,7 +566,7 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND c > 4 AND d < 3	{
                       ]
                     },
                     "rows_for_plan": 83,
-                    "cost_for_plan": 19.98,
+                    "cost_for_plan": 19.9798,
                     "chosen": true
                   }
                 }
@@ -585,7 +585,7 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND c > 4 AND d < 3	{
                       "access_type": "ref",
                       "index": "PRIMARY",
                       "rows": 250,
-                      "cost": 25.492,
+                      "cost": 25.4922,
                       "chosen": true
                     },
                     {
@@ -597,15 +597,15 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND c > 4 AND d < 3	{
                       "range_details": {
                         "used_index": "index_for_skip_scan(PRIMARY)"
                       },
-                      "resulting_rows": 27.664,
-                      "cost": 28.28,
+                      "resulting_rows": 27.6639,
+                      "cost": 28.2798,
                       "chosen": false
                     }
                   ]
                 },
-                "condition_filtering_pct": 11.109,
-                "rows_for_plan": 27.772,
-                "cost_for_plan": 25.492,
+                "condition_filtering_pct": 11.1089,
+                "rows_for_plan": 27.7722,
+                "cost_for_plan": 25.4922,
                 "chosen": true
               }
             ]
@@ -761,7 +761,7 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND d < 3	{
                   ],
                   "best_covering_index_scan": {
                     "index": "b",
-                    "cost": 252.08,
+                    "cost": 252.077,
                     "chosen": true
                   },
                   "setup_range_conditions": [
@@ -777,14 +777,14 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND d < 3	{
                         "tree_travel_cost": 0.6,
                         "num_groups": 26,
                         "rows": 83,
-                        "cost": 43.98
+                        "cost": 43.9798
                       },
                       {
                         "index": "b",
                         "tree_travel_cost": 0.6,
                         "num_groups": 6,
                         "rows": 833,
-                        "cost": 133.01
+                        "cost": 133.008
                       }
                     ]
                   },
@@ -860,7 +860,7 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND d < 3	{
                       "access_type": "ref",
                       "index": "PRIMARY",
                       "rows": 250,
-                      "cost": 25.492,
+                      "cost": 25.4922,
                       "chosen": true
                     },
                     {
@@ -875,7 +875,7 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND d < 3	{
                 },
                 "condition_filtering_pct": 33.33,
                 "rows_for_plan": 83.325,
-                "cost_for_plan": 25.492,
+                "cost_for_plan": 25.4922,
                 "chosen": true
               }
             ]
@@ -1019,7 +1019,7 @@ EXPLAIN SELECT b FROM t WHERE d < 2	{
                   ],
                   "best_covering_index_scan": {
                     "index": "b",
-                    "cost": 252.08,
+                    "cost": 252.077,
                     "chosen": true
                   },
                   "setup_range_conditions": [
@@ -1039,7 +1039,7 @@ EXPLAIN SELECT b FROM t WHERE d < 2	{
                         "tree_travel_cost": 0.6,
                         "num_groups": 251,
                         "rows": 250,
-                        "cost": 339.19
+                        "cost": 339.192
                       },
                       {
                         "index": "b",

@@ -27,9 +27,7 @@
 
 #include "sql/opt_trace.h"
 
-#include <float.h>
 #include <stdio.h>
-#include <algorithm>  // std::min
 #include <new>
 
 #include "lex_string.h"
@@ -334,15 +332,12 @@ Opt_trace_struct &Opt_trace_struct::do_add(const char *key, ulonglong val) {
 
 Opt_trace_struct &Opt_trace_struct::do_add(const char *key, double val) {
   DBUG_ASSERT(started);
-  char buf[32];  // 32 is enough for digits of a double
-  /*
-    To fit in FLT_DIG digits, my_gcvt rounds DBL_MAX (1.7976931...e308), or
-    anything >=1.5e308, to 2e308. But JSON parsers refuse to read 2e308. So,
-    lower the number.
-  */
-  my_gcvt(std::min(1e308, val), MY_GCVT_ARG_DOUBLE, FLT_DIG, buf, nullptr);
+  // The buffer must be big enough to hold six digits of precision, sign,
+  // decimal point and exponent.
+  char buf[sizeof("-1.23456e+308")];
+  const int len = std::snprintf(buf, sizeof(buf), "%g", val);
   DBUG_PRINT("opt", ("%s: %s", key, buf));
-  stmt->add(key, buf, strlen(buf), false, false);
+  stmt->add(key, buf, len, false, false);
   return *this;
 }
 

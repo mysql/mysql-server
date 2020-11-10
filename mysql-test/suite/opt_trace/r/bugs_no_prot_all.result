@@ -548,7 +548,7 @@ FROM t1
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 1,
-                  "cost": 0.5012
+                  "cost": 0.501221
                 } /* table_scan */
               }
             ] /* rows_estimation */
@@ -568,14 +568,14 @@ FROM t1
                             "rows_to_scan": 1,
                             "access_type": "scan",
                             "resulting_rows": 1,
-                            "cost": 0.6012,
+                            "cost": 0.601221,
                             "chosen": true
                           }
                         ] /* considered_access_paths */
                       } /* best_access_path */,
                       "condition_filtering_pct": 100,
                       "rows_for_plan": 1,
-                      "cost_for_plan": 0.6012,
+                      "cost_for_plan": 0.601221,
                       "chosen": true
                     }
                   ] /* considered_execution_plans */
@@ -596,14 +596,14 @@ FROM t1
                       "rows_to_scan": 1,
                       "access_type": "scan",
                       "resulting_rows": 1,
-                      "cost": 0.6012,
+                      "cost": 0.601221,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
-                "cost_for_plan": 0.6012,
+                "cost_for_plan": 0.601221,
                 "semijoin_strategy_choice": [
                   {
                     "strategy": "FirstMatch",
@@ -611,20 +611,20 @@ FROM t1
                       "tables": [
                       ] /* tables */
                     } /* recalculate_access_paths_and_cost */,
-                    "cost": 0.6012,
+                    "cost": 0.601221,
                     "rows": 1,
                     "chosen": true
                   },
                   {
                     "strategy": "MaterializeLookup",
-                    "cost": 1.8012,
+                    "cost": 1.80122,
                     "rows": 1,
                     "duplicate_tables_left": false,
                     "chosen": false
                   },
                   {
                     "strategy": "DuplicatesWeedout",
-                    "cost": 1.8012,
+                    "cost": 1.80122,
                     "rows": 1,
                     "duplicate_tables_left": false,
                     "chosen": false
@@ -939,7 +939,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                       "table": "`t1`",
                                       "table_scan": {
                                         "rows": 4,
-                                        "cost": 0.5017
+                                        "cost": 0.501709
                                       } /* table_scan */
                                     }
                                   ] /* rows_estimation */
@@ -956,14 +956,14 @@ ON table2 .col_int_key = table1 .col_int_key
                                             "rows_to_scan": 4,
                                             "access_type": "scan",
                                             "resulting_rows": 4,
-                                            "cost": 0.9017,
+                                            "cost": 0.901709,
                                             "chosen": true
                                           }
                                         ] /* considered_access_paths */
                                       } /* best_access_path */,
                                       "condition_filtering_pct": 100,
                                       "rows_for_plan": 4,
-                                      "cost_for_plan": 0.9017,
+                                      "cost_for_plan": 0.901709,
                                       "chosen": true
                                     }
                                   ] /* considered_execution_plans */
@@ -1038,7 +1038,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                       "table": "`t1`",
                                       "table_scan": {
                                         "rows": 4,
-                                        "cost": 0.5017
+                                        "cost": 0.501709
                                       } /* table_scan */
                                     }
                                   ] /* rows_estimation */
@@ -1055,14 +1055,14 @@ ON table2 .col_int_key = table1 .col_int_key
                                             "rows_to_scan": 4,
                                             "access_type": "scan",
                                             "resulting_rows": 4,
-                                            "cost": 0.9017,
+                                            "cost": 0.901709,
                                             "chosen": true
                                           }
                                         ] /* considered_access_paths */
                                       } /* best_access_path */,
                                       "condition_filtering_pct": 100,
                                       "rows_for_plan": 4,
-                                      "cost_for_plan": 0.9017,
+                                      "cost_for_plan": 0.901709,
                                       "chosen": true
                                     }
                                   ] /* considered_execution_plans */
@@ -1185,21 +1185,21 @@ ON table2 .col_int_key = table1 .col_int_key
                 "table": "`where_subselect_20070`",
                 "table_scan": {
                   "rows": 6,
-                  "cost": 0.5048
+                  "cost": 0.504761
                 } /* table_scan */
               },
               {
                 "table": "`t1` `table1`",
                 "table_scan": {
                   "rows": 4,
-                  "cost": 0.5017
+                  "cost": 0.501709
                 } /* table_scan */
               },
               {
                 "table": "`t1` `table2`",
                 "table_scan": {
                   "rows": 4,
-                  "cost": 0.5017
+                  "cost": 0.501709
                 } /* table_scan */
               }
             ] /* rows_estimation */
@@ -1228,14 +1228,14 @@ ON table2 .col_int_key = table1 .col_int_key
                             "final_filtering_effect": 1,
                             "access_type": "scan",
                             "resulting_rows": 4,
-                            "cost": 0.9017,
+                            "cost": 0.901709,
                             "chosen": true
                           }
                         ] /* considered_access_paths */
                       } /* best_access_path */,
                       "condition_filtering_pct": 100,
                       "rows_for_plan": 4,
-                      "cost_for_plan": 0.9017,
+                      "cost_for_plan": 0.901709,
                       "rest_of_plan": [
                         {
                           "plan_prefix": [
@@ -1248,7 +1248,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                 "access_type": "ref",
                                 "index": "col_int_key",
                                 "rows": 2,
-                                "cost": 1.8233,
+                                "cost": 1.82326,
                                 "chosen": true
                               },
                               {
@@ -1260,14 +1260,14 @@ ON table2 .col_int_key = table1 .col_int_key
                                 "using_join_cache": true,
                                 "buffers_needed": 1,
                                 "resulting_rows": 4,
-                                "cost": 2.1017,
+                                "cost": 2.10175,
                                 "chosen": false
                               }
                             ] /* considered_access_paths */
                           } /* best_access_path */,
                           "condition_filtering_pct": 100,
                           "rows_for_plan": 8,
-                          "cost_for_plan": 2.725,
+                          "cost_for_plan": 2.72496,
                           "chosen": true
                         }
                       ] /* rest_of_plan */
@@ -1291,14 +1291,14 @@ ON table2 .col_int_key = table1 .col_int_key
                             "final_filtering_effect": 1,
                             "access_type": "scan",
                             "resulting_rows": 4,
-                            "cost": 0.9017,
+                            "cost": 0.901709,
                             "chosen": true
                           }
                         ] /* considered_access_paths */
                       } /* best_access_path */,
                       "condition_filtering_pct": 100,
                       "rows_for_plan": 4,
-                      "cost_for_plan": 0.9017,
+                      "cost_for_plan": 0.901709,
                       "rest_of_plan": [
                         {
                           "plan_prefix": [
@@ -1311,7 +1311,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                 "access_type": "ref",
                                 "index": "col_int_key",
                                 "rows": 2,
-                                "cost": 1.8233,
+                                "cost": 1.82326,
                                 "chosen": true
                               },
                               {
@@ -1323,14 +1323,14 @@ ON table2 .col_int_key = table1 .col_int_key
                                 "using_join_cache": true,
                                 "buffers_needed": 1,
                                 "resulting_rows": 4,
-                                "cost": 2.1017,
+                                "cost": 2.10175,
                                 "chosen": false
                               }
                             ] /* considered_access_paths */
                           } /* best_access_path */,
                           "condition_filtering_pct": 100,
                           "rows_for_plan": 8,
-                          "cost_for_plan": 2.725,
+                          "cost_for_plan": 2.72496,
                           "pruned_by_cost": true
                         }
                       ] /* rest_of_plan */
@@ -1355,14 +1355,14 @@ ON table2 .col_int_key = table1 .col_int_key
                       "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 6,
-                      "cost": 1.1048,
+                      "cost": 1.10476,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 6,
-                "cost_for_plan": 1.1048,
+                "cost_for_plan": 1.10476,
                 "semijoin_strategy_choice": [
                 ] /* semijoin_strategy_choice */,
                 "rest_of_plan": [
@@ -1377,7 +1377,7 @@ ON table2 .col_int_key = table1 .col_int_key
                           "access_type": "ref",
                           "index": "col_int_key",
                           "rows": 2,
-                          "cost": 2.7349,
+                          "cost": 2.73488,
                           "chosen": true
                         },
                         {
@@ -1389,14 +1389,14 @@ ON table2 .col_int_key = table1 .col_int_key
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "resulting_rows": 4,
-                          "cost": 2.9019,
+                          "cost": 2.90186,
                           "chosen": false
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
                     "condition_filtering_pct": 100,
                     "rows_for_plan": 12,
-                    "cost_for_plan": 3.8396,
+                    "cost_for_plan": 3.83964,
                     "semijoin_strategy_choice": [
                     ] /* semijoin_strategy_choice */,
                     "rest_of_plan": [
@@ -1412,7 +1412,7 @@ ON table2 .col_int_key = table1 .col_int_key
                               "access_type": "ref",
                               "index": "col_int_key",
                               "rows": 2,
-                              "cost": 5.4698,
+                              "cost": 5.46977,
                               "chosen": true
                             },
                             {
@@ -1424,14 +1424,14 @@ ON table2 .col_int_key = table1 .col_int_key
                               "using_join_cache": true,
                               "buffers_needed": 1,
                               "resulting_rows": 4,
-                              "cost": 5.3021,
+                              "cost": 5.30212,
                               "chosen": true
                             }
                           ] /* considered_access_paths */
                         } /* best_access_path */,
                         "condition_filtering_pct": 25,
                         "rows_for_plan": 12,
-                        "cost_for_plan": 9.1418,
+                        "cost_for_plan": 9.14177,
                         "semijoin_strategy_choice": [
                           {
                             "strategy": "FirstMatch",
@@ -1445,7 +1445,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                         "access_type": "ref",
                                         "index": "col_int_key",
                                         "rows": 2,
-                                        "cost": 5.4698,
+                                        "cost": 5.46977,
                                         "chosen": true
                                       },
                                       {
@@ -1455,7 +1455,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                         "final_filtering_effect": 1,
                                         "access_type": "scan",
                                         "resulting_rows": 4,
-                                        "cost": 10.821,
+                                        "cost": 10.8205,
                                         "chosen": false
                                       }
                                     ] /* considered_access_paths */
@@ -1463,20 +1463,20 @@ ON table2 .col_int_key = table1 .col_int_key
                                 }
                               ] /* tables */
                             } /* recalculate_access_paths_and_cost */,
-                            "cost": 9.3094,
+                            "cost": 9.30941,
                             "rows": 6,
                             "chosen": true
                           },
                           {
                             "strategy": "MaterializeLookup",
-                            "cost": 6.2297,
+                            "cost": 6.22973,
                             "rows": 6,
                             "duplicate_tables_left": false,
                             "chosen": true
                           },
                           {
                             "strategy": "DuplicatesWeedout",
-                            "cost": 11.942,
+                            "cost": 11.9418,
                             "rows": 6,
                             "duplicate_tables_left": false,
                             "chosen": false
@@ -1497,7 +1497,7 @@ ON table2 .col_int_key = table1 .col_int_key
                           "access_type": "ref",
                           "index": "col_int_key",
                           "rows": 2,
-                          "cost": 2.7349,
+                          "cost": 2.73488,
                           "chosen": true
                         },
                         {
@@ -1509,14 +1509,14 @@ ON table2 .col_int_key = table1 .col_int_key
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "resulting_rows": 4,
-                          "cost": 2.9019,
+                          "cost": 2.90186,
                           "chosen": false
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
                     "condition_filtering_pct": 100,
                     "rows_for_plan": 12,
-                    "cost_for_plan": 3.8396,
+                    "cost_for_plan": 3.83964,
                     "semijoin_strategy_choice": [
                     ] /* semijoin_strategy_choice */,
                     "rest_of_plan": [
@@ -1532,7 +1532,7 @@ ON table2 .col_int_key = table1 .col_int_key
                               "access_type": "ref",
                               "index": "col_int_key",
                               "rows": 2,
-                              "cost": 5.4698,
+                              "cost": 5.46977,
                               "chosen": true
                             },
                             {
@@ -1544,14 +1544,14 @@ ON table2 .col_int_key = table1 .col_int_key
                               "using_join_cache": true,
                               "buffers_needed": 1,
                               "resulting_rows": 4,
-                              "cost": 5.3021,
+                              "cost": 5.30212,
                               "chosen": true
                             }
                           ] /* considered_access_paths */
                         } /* best_access_path */,
                         "condition_filtering_pct": 25,
                         "rows_for_plan": 12,
-                        "cost_for_plan": 9.1418,
+                        "cost_for_plan": 9.14177,
                         "semijoin_strategy_choice": [
                           {
                             "strategy": "FirstMatch",
@@ -1565,7 +1565,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                         "access_type": "ref",
                                         "index": "col_int_key",
                                         "rows": 2,
-                                        "cost": 5.4698,
+                                        "cost": 5.46977,
                                         "chosen": true
                                       },
                                       {
@@ -1575,7 +1575,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                         "final_filtering_effect": 1,
                                         "access_type": "scan",
                                         "resulting_rows": 4,
-                                        "cost": 10.821,
+                                        "cost": 10.8205,
                                         "chosen": false
                                       }
                                     ] /* considered_access_paths */
@@ -1583,20 +1583,20 @@ ON table2 .col_int_key = table1 .col_int_key
                                 }
                               ] /* tables */
                             } /* recalculate_access_paths_and_cost */,
-                            "cost": 9.3094,
+                            "cost": 9.30941,
                             "rows": 6,
                             "chosen": true
                           },
                           {
                             "strategy": "MaterializeLookup",
-                            "cost": 6.2297,
+                            "cost": 6.22973,
                             "rows": 6,
                             "duplicate_tables_left": false,
                             "chosen": true
                           },
                           {
                             "strategy": "DuplicatesWeedout",
-                            "cost": 11.942,
+                            "cost": 11.9418,
                             "rows": 6,
                             "duplicate_tables_left": false,
                             "chosen": false
@@ -1627,14 +1627,14 @@ ON table2 .col_int_key = table1 .col_int_key
                       "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 4,
-                      "cost": 0.9017,
+                      "cost": 0.901709,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 4,
-                "cost_for_plan": 0.9017,
+                "cost_for_plan": 0.901709,
                 "semijoin_strategy_choice": [
                 ] /* semijoin_strategy_choice */,
                 "rest_of_plan": [
@@ -1659,9 +1659,9 @@ ON table2 .col_int_key = table1 .col_int_key
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
-                    "condition_filtering_pct": 16.667,
+                    "condition_filtering_pct": 16.6667,
                     "rows_for_plan": 4,
-                    "cost_for_plan": 3.8065,
+                    "cost_for_plan": 3.80651,
                     "semijoin_strategy_choice": [
                     ] /* semijoin_strategy_choice */,
                     "rest_of_plan": [
@@ -1677,7 +1677,7 @@ ON table2 .col_int_key = table1 .col_int_key
                               "access_type": "ref",
                               "index": "col_int_key",
                               "rows": 2,
-                              "cost": 1.8233,
+                              "cost": 1.82326,
                               "chosen": true
                             },
                             {
@@ -1689,18 +1689,18 @@ ON table2 .col_int_key = table1 .col_int_key
                               "using_join_cache": true,
                               "buffers_needed": 1,
                               "resulting_rows": 4,
-                              "cost": 2.1018,
+                              "cost": 2.10185,
                               "chosen": false
                             }
                           ] /* considered_access_paths */
                         } /* best_access_path */,
                         "condition_filtering_pct": 100,
                         "rows_for_plan": 8,
-                        "cost_for_plan": 5.6298,
+                        "cost_for_plan": 5.62976,
                         "semijoin_strategy_choice": [
                           {
                             "strategy": "DuplicatesWeedout",
-                            "cost": 7.5298,
+                            "cost": 7.52976,
                             "rows": 1,
                             "duplicate_tables_left": true,
                             "chosen": true
@@ -1721,7 +1721,7 @@ ON table2 .col_int_key = table1 .col_int_key
                           "access_type": "ref",
                           "index": "col_int_key",
                           "rows": 2,
-                          "cost": 1.8233,
+                          "cost": 1.82326,
                           "chosen": true
                         },
                         {
@@ -1733,14 +1733,14 @@ ON table2 .col_int_key = table1 .col_int_key
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "resulting_rows": 4,
-                          "cost": 2.1017,
+                          "cost": 2.10175,
                           "chosen": false
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
                     "condition_filtering_pct": 100,
                     "rows_for_plan": 8,
-                    "cost_for_plan": 2.725,
+                    "cost_for_plan": 2.72496,
                     "semijoin_strategy_choice": [
                       {
                         "strategy": "MaterializeScan",
@@ -1765,14 +1765,14 @@ ON table2 .col_int_key = table1 .col_int_key
                               "using_join_cache": true,
                               "buffers_needed": 1,
                               "resulting_rows": 6,
-                              "cost": 5.3049,
+                              "cost": 5.30491,
                               "chosen": true
                             }
                           ] /* considered_access_paths */
                         } /* best_access_path */,
-                        "condition_filtering_pct": 16.667,
+                        "condition_filtering_pct": 16.6667,
                         "rows_for_plan": 8,
-                        "cost_for_plan": 8.0299,
+                        "cost_for_plan": 8.02988,
                         "semijoin_strategy_choice": [
                           {
                             "strategy": "LooseScan",
@@ -1795,7 +1795,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                         "final_filtering_effect": 1,
                                         "access_type": "scan",
                                         "resulting_rows": 4,
-                                        "cost": 0.9017,
+                                        "cost": 0.901709,
                                         "chosen": true
                                       }
                                     ] /* considered_access_paths */
@@ -1832,7 +1832,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                         "using_join_cache": true,
                                         "buffers_needed": 1,
                                         "resulting_rows": 6,
-                                        "cost": 2.9048,
+                                        "cost": 2.90484,
                                         "chosen": true
                                       }
                                     ] /* considered_access_paths */
@@ -1847,7 +1847,7 @@ ON table2 .col_int_key = table1 .col_int_key
                           },
                           {
                             "strategy": "DuplicatesWeedout",
-                            "cost": 9.9299,
+                            "cost": 9.92988,
                             "rows": 1,
                             "duplicate_tables_left": false,
                             "chosen": false
@@ -1878,14 +1878,14 @@ ON table2 .col_int_key = table1 .col_int_key
                       "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 4,
-                      "cost": 0.9017,
+                      "cost": 0.901709,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 4,
-                "cost_for_plan": 0.9017,
+                "cost_for_plan": 0.901709,
                 "semijoin_strategy_choice": [
                 ] /* semijoin_strategy_choice */,
                 "rest_of_plan": [
@@ -1910,9 +1910,9 @@ ON table2 .col_int_key = table1 .col_int_key
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
-                    "condition_filtering_pct": 16.667,
+                    "condition_filtering_pct": 16.6667,
                     "rows_for_plan": 4,
-                    "cost_for_plan": 3.8065,
+                    "cost_for_plan": 3.80651,
                     "semijoin_strategy_choice": [
                     ] /* semijoin_strategy_choice */,
                     "rest_of_plan": [
@@ -1928,7 +1928,7 @@ ON table2 .col_int_key = table1 .col_int_key
                               "access_type": "ref",
                               "index": "col_int_key",
                               "rows": 2,
-                              "cost": 1.8233,
+                              "cost": 1.82326,
                               "chosen": true
                             },
                             {
@@ -1940,18 +1940,18 @@ ON table2 .col_int_key = table1 .col_int_key
                               "using_join_cache": true,
                               "buffers_needed": 1,
                               "resulting_rows": 4,
-                              "cost": 2.1018,
+                              "cost": 2.10185,
                               "chosen": false
                             }
                           ] /* considered_access_paths */
                         } /* best_access_path */,
                         "condition_filtering_pct": 100,
                         "rows_for_plan": 8,
-                        "cost_for_plan": 5.6298,
+                        "cost_for_plan": 5.62976,
                         "semijoin_strategy_choice": [
                           {
                             "strategy": "DuplicatesWeedout",
-                            "cost": 7.5298,
+                            "cost": 7.52976,
                             "rows": 1,
                             "duplicate_tables_left": true,
                             "chosen": true
@@ -1972,7 +1972,7 @@ ON table2 .col_int_key = table1 .col_int_key
                           "access_type": "ref",
                           "index": "col_int_key",
                           "rows": 2,
-                          "cost": 1.8233,
+                          "cost": 1.82326,
                           "chosen": true
                         },
                         {
@@ -1984,14 +1984,14 @@ ON table2 .col_int_key = table1 .col_int_key
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "resulting_rows": 4,
-                          "cost": 2.1017,
+                          "cost": 2.10175,
                           "chosen": false
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
                     "condition_filtering_pct": 100,
                     "rows_for_plan": 8,
-                    "cost_for_plan": 2.725,
+                    "cost_for_plan": 2.72496,
                     "semijoin_strategy_choice": [
                       {
                         "strategy": "MaterializeScan",
@@ -2016,14 +2016,14 @@ ON table2 .col_int_key = table1 .col_int_key
                               "using_join_cache": true,
                               "buffers_needed": 1,
                               "resulting_rows": 6,
-                              "cost": 5.3049,
+                              "cost": 5.30491,
                               "chosen": true
                             }
                           ] /* considered_access_paths */
                         } /* best_access_path */,
-                        "condition_filtering_pct": 16.667,
+                        "condition_filtering_pct": 16.6667,
                         "rows_for_plan": 8,
-                        "cost_for_plan": 8.0299,
+                        "cost_for_plan": 8.02988,
                         "semijoin_strategy_choice": [
                           {
                             "strategy": "LooseScan",
@@ -2046,7 +2046,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                         "final_filtering_effect": 1,
                                         "access_type": "scan",
                                         "resulting_rows": 4,
-                                        "cost": 0.9017,
+                                        "cost": 0.901709,
                                         "chosen": true
                                       }
                                     ] /* considered_access_paths */
@@ -2057,7 +2057,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                         {
                                           "index": "col_int_key",
                                           "covering_scan": {
-                                            "cost": 0.2674,
+                                            "cost": 0.267442,
                                             "chosen": true
                                           } /* covering_scan */
                                         }
@@ -2078,7 +2078,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                         "using_join_cache": true,
                                         "buffers_needed": 1,
                                         "resulting_rows": 6,
-                                        "cost": 5.3049,
+                                        "cost": 5.30491,
                                         "chosen": true
                                       }
                                     ] /* considered_access_paths */
@@ -2086,7 +2086,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                 }
                               ] /* tables */
                             } /* recalculate_access_paths_and_cost */,
-                            "cost": 7.7956,
+                            "cost": 7.79561,
                             "rows": 1,
                             "chosen": true
                           },
@@ -2107,7 +2107,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                         "using_join_cache": true,
                                         "buffers_needed": 1,
                                         "resulting_rows": 6,
-                                        "cost": 2.9048,
+                                        "cost": 2.90484,
                                         "chosen": true
                                       }
                                     ] /* considered_access_paths */
@@ -2122,7 +2122,7 @@ ON table2 .col_int_key = table1 .col_int_key
                           },
                           {
                             "strategy": "DuplicatesWeedout",
-                            "cost": 9.9299,
+                            "cost": 9.92988,
                             "rows": 1,
                             "duplicate_tables_left": false,
                             "chosen": false
@@ -2170,7 +2170,7 @@ ON table2 .col_int_key = table1 .col_int_key
                     "range_analysis": {
                       "table_scan": {
                         "rows": 4,
-                        "cost": 3.0017
+                        "cost": 3.00171
                       } /* table_scan */,
                       "potential_range_indexes": [
                         {
@@ -2183,7 +2183,7 @@ ON table2 .col_int_key = table1 .col_int_key
                       ] /* potential_range_indexes */,
                       "best_covering_index_scan": {
                         "index": "col_int_key",
-                        "cost": 0.6674,
+                        "cost": 0.667442,
                         "chosen": true
                       } /* best_covering_index_scan */,
                       "setup_range_conditions": [
@@ -2208,7 +2208,7 @@ ON table2 .col_int_key = table1 .col_int_key
                             "using_mrr": false,
                             "index_only": true,
                             "rows": 4,
-                            "cost": 0.6774,
+                            "cost": 0.677442,
                             "chosen": false,
                             "cause": "cost"
                           }

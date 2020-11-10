@@ -507,7 +507,7 @@ EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7	{
                         "using_mrr": false,
                         "index_only": false,
                         "rows": 3,
-                        "cost": 0.5606,
+                        "cost": 0.560618,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -526,7 +526,7 @@ EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7	{
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 3,
-                    "cost_for_plan": 0.5606,
+                    "cost_for_plan": 0.560618,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -551,14 +551,14 @@ EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7	{
                         "used_index": "PRIMARY"
                       } /* range_details */,
                       "resulting_rows": 3,
-                      "cost": 0.8606,
+                      "cost": 0.860618,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 3,
-                "cost_for_plan": 0.8606,
+                "cost_for_plan": 0.860618,
                 "chosen": true
               }
             ] /* considered_execution_plans */

@@ -744,7 +744,7 @@ trace
                                     ],
                                     "best_covering_index_scan": {
                                       "index": "f1_2",
-                                      "cost": 0.551,
+                                      "cost": 0.550975,
                                       "chosen": true
                                     },
                                     "setup_range_conditions": [
@@ -1074,14 +1074,14 @@ trace
                                 "using_join_cache": true,
                                 "buffers_needed": 1,
                                 "resulting_rows": 3,
-                                "cost": 3.438,
+                                "cost": 3.43799,
                                 "chosen": true
                               }
                             ]
                           },
                           "condition_filtering_pct": 100,
                           "rows_for_plan": 9,
-                          "cost_for_plan": 6.2755,
+                          "cost_for_plan": 6.27549,
                           "chosen": true
                         }
                       ]

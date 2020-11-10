@@ -529,7 +529,7 @@ select * from t1 where c < 'ÁÂÃÄÅ'	{
                   ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "PRIMARY",
-                    "cost": 0.4502,
+                    "cost": 0.450244,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -762,7 +762,7 @@ select `col
                   ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "index\n1\ta",
-                    "cost": 0.4503,
+                    "cost": 0.450336,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -792,7 +792,7 @@ select `col
                         "using_mrr": false,
                         "index_only": true,
                         "rows": 2,
-                        "cost": 0.4603,
+                        "cost": 0.460336,
                         "chosen": false,
                         "cause": "cost"
                       }

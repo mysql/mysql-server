@@ -921,14 +921,14 @@ trace
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "resulting_rows": 2,
-                          "cost": 0.65,
+                          "cost": 0.650017,
                           "chosen": true
                         }
                       ]
                     },
                     "condition_filtering_pct": 100,
                     "rows_for_plan": 4,
-                    "cost_for_plan": 1.1,
+                    "cost_for_plan": 1.10002,
                     "rest_of_plan": [
                       {
                         "plan_prefix": [
@@ -944,14 +944,14 @@ trace
                               "using_join_cache": true,
                               "buffers_needed": 1,
                               "resulting_rows": 2,
-                              "cost": 1.05,
+                              "cost": 1.05003,
                               "chosen": true
                             }
                           ]
                         },
                         "condition_filtering_pct": 100,
                         "rows_for_plan": 8,
-                        "cost_for_plan": 2.1501,
+                        "cost_for_plan": 2.15005,
                         "rest_of_plan": [
                           {
                             "plan_prefix": [
@@ -968,14 +968,14 @@ trace
                                   "using_join_cache": true,
                                   "buffers_needed": 1,
                                   "resulting_rows": 2,
-                                  "cost": 1.8501,
+                                  "cost": 1.85007,
                                   "chosen": true
                                 }
                               ]
                             },
                             "condition_filtering_pct": 100,
                             "rows_for_plan": 16,
-                            "cost_for_plan": 4.0001,
+                            "cost_for_plan": 4.00012,
                             "chosen": true
                           }
                         ]
@@ -994,14 +994,14 @@ trace
                               "using_join_cache": true,
                               "buffers_needed": 1,
                               "resulting_rows": 2,
-                              "cost": 1.05,
+                              "cost": 1.05003,
                               "chosen": true
                             }
                           ]
                         },
                         "condition_filtering_pct": 100,
                         "rows_for_plan": 8,
-                        "cost_for_plan": 2.1501,
+                        "cost_for_plan": 2.15005,
                         "pruned_by_heuristic": true
                       }
                     ]
@@ -1019,14 +1019,14 @@ trace
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "resulting_rows": 2,
-                          "cost": 0.65,
+                          "cost": 0.650017,
                           "chosen": true
                         }
                       ]
                     },
                     "condition_filtering_pct": 100,
                     "rows_for_plan": 4,
-                    "cost_for_plan": 1.1,
+                    "cost_for_plan": 1.10002,
                     "pruned_by_heuristic": true
                   },
                   {
@@ -1042,14 +1042,14 @@ trace
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "resulting_rows": 2,
-                          "cost": 0.65,
+                          "cost": 0.650017,
                           "chosen": true
                         }
                       ]
                     },
                     "condition_filtering_pct": 100,
                     "rows_for_plan": 4,
-                    "cost_for_plan": 1.1,
+                    "cost_for_plan": 1.10002,
                     "pruned_by_heuristic": true
                   }
                 ]
@@ -2600,7 +2600,7 @@ trace
                         },
                         "condition_filtering_pct": 100,
                         "rows_for_plan": 16,
-                        "cost_for_plan": 13.899,
+                        "cost_for_plan": 13.8995,
                         "chosen": true
                       }
                     ]
