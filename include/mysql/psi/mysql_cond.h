@@ -167,26 +167,28 @@ static inline int inline_mysql_cond_wait(
 
 #ifdef HAVE_PSI_COND_INTERFACE
   if (that->m_psi != nullptr) {
-    /* Instrumentation start */
-    PSI_cond_locker *locker;
-    PSI_cond_locker_state state;
-    locker = PSI_COND_CALL(start_cond_wait)(&state, that->m_psi, mutex->m_psi,
-                                            PSI_COND_WAIT, src_file, src_line);
+    if (that->m_psi->m_enabled) {
+      /* Instrumentation start */
+      PSI_cond_locker *locker;
+      PSI_cond_locker_state state;
+      locker = PSI_COND_CALL(start_cond_wait)(
+          &state, that->m_psi, mutex->m_psi, PSI_COND_WAIT, src_file, src_line);
 
-    /* Instrumented code */
-    result = my_cond_wait(&that->m_cond, &mutex->m_mutex
+      /* Instrumented code */
+      result = my_cond_wait(&that->m_cond, &mutex->m_mutex
 #ifdef SAFE_MUTEX
-                          ,
-                          src_file, src_line
+                            ,
+                            src_file, src_line
 #endif
-    );
+      );
 
-    /* Instrumentation end */
-    if (locker != nullptr) {
-      PSI_COND_CALL(end_cond_wait)(locker, result);
+      /* Instrumentation end */
+      if (locker != nullptr) {
+        PSI_COND_CALL(end_cond_wait)(locker, result);
+      }
+
+      return result;
     }
-
-    return result;
   }
 #endif
 
@@ -209,27 +211,29 @@ static inline int inline_mysql_cond_timedwait(
 
 #ifdef HAVE_PSI_COND_INTERFACE
   if (that->m_psi != nullptr) {
-    /* Instrumentation start */
-    PSI_cond_locker *locker;
-    PSI_cond_locker_state state;
-    locker =
-        PSI_COND_CALL(start_cond_wait)(&state, that->m_psi, mutex->m_psi,
-                                       PSI_COND_TIMEDWAIT, src_file, src_line);
+    if (that->m_psi->m_enabled) {
+      /* Instrumentation start */
+      PSI_cond_locker *locker;
+      PSI_cond_locker_state state;
+      locker = PSI_COND_CALL(start_cond_wait)(&state, that->m_psi, mutex->m_psi,
+                                              PSI_COND_TIMEDWAIT, src_file,
+                                              src_line);
 
-    /* Instrumented code */
-    result = my_cond_timedwait(&that->m_cond, &mutex->m_mutex, abstime
+      /* Instrumented code */
+      result = my_cond_timedwait(&that->m_cond, &mutex->m_mutex, abstime
 #ifdef SAFE_MUTEX
-                               ,
-                               src_file, src_line
+                                 ,
+                                 src_file, src_line
 #endif
-    );
+      );
 
-    /* Instrumentation end */
-    if (locker != nullptr) {
-      PSI_COND_CALL(end_cond_wait)(locker, result);
+      /* Instrumentation end */
+      if (locker != nullptr) {
+        PSI_COND_CALL(end_cond_wait)(locker, result);
+      }
+
+      return result;
     }
-
-    return result;
   }
 #endif
 
@@ -250,7 +254,9 @@ static inline int inline_mysql_cond_signal(
   int result;
 #ifdef HAVE_PSI_COND_INTERFACE
   if (that->m_psi != nullptr) {
-    PSI_COND_CALL(signal_cond)(that->m_psi);
+    if (that->m_psi->m_enabled) {
+      PSI_COND_CALL(signal_cond)(that->m_psi);
+    }
   }
 #endif
   result = native_cond_signal(&that->m_cond);
@@ -263,7 +269,9 @@ static inline int inline_mysql_cond_broadcast(
   int result;
 #ifdef HAVE_PSI_COND_INTERFACE
   if (that->m_psi != nullptr) {
-    PSI_COND_CALL(broadcast_cond)(that->m_psi);
+    if (that->m_psi->m_enabled) {
+      PSI_COND_CALL(broadcast_cond)(that->m_psi);
+    }
   }
 #endif
   result = native_cond_broadcast(&that->m_cond);

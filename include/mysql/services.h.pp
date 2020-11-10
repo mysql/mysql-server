@@ -262,6 +262,15 @@ int my_plugin_log_message(MYSQL_PLUGIN *plugin, enum plugin_log_level level,
     MY_ATTRIBUTE((format(printf, 3, 4)));
 #include <mysql/service_mysql_alloc.h>
 #include "mysql/components/services/psi_memory_bits.h"
+#include <mysql/components/services/bits/psi_bits.h>
+static constexpr unsigned PSI_INSTRUMENT_ME = 0;
+static constexpr unsigned PSI_NOT_INSTRUMENTED = 0;
+struct PSI_placeholder {
+  int m_placeholder;
+};
+struct PSI_instr {
+  bool m_enabled;
+};
 typedef unsigned int PSI_memory_key;
 struct PSI_thread;
 struct PSI_memory_info_v1 {

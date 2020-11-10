@@ -40,7 +40,6 @@
 
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_rwlock_bits.h"
-#include "psi_base.h"
 
 /*
   MAINTAINER:

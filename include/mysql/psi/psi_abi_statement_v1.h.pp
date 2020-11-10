@@ -19,6 +19,15 @@ typedef int myf;
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_statement_bits.h"
+#include <mysql/components/services/bits/psi_bits.h>
+static constexpr unsigned PSI_INSTRUMENT_ME = 0;
+static constexpr unsigned PSI_NOT_INSTRUMENTED = 0;
+struct PSI_placeholder {
+  int m_placeholder;
+};
+struct PSI_instr {
+  bool m_enabled;
+};
 typedef unsigned int PSI_statement_key;
 struct PSI_statement_locker;
 typedef struct PSI_statement_locker PSI_statement_locker;
@@ -162,13 +171,6 @@ typedef void (*drop_sp_v1_t)(unsigned int object_type, const char *schema_name,
 typedef struct PSI_statement_info_v1 PSI_statement_info;
 typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state;
 typedef struct PSI_sp_locker_state_v1 PSI_sp_locker_state;
-#include "psi_base.h"
-#include "my_psi_config.h"
-static constexpr unsigned PSI_INSTRUMENT_ME = 0;
-static constexpr unsigned PSI_NOT_INSTRUMENTED = 0;
-struct PSI_placeholder {
-  int m_placeholder;
-};
 struct PSI_statement_bootstrap {
   void *(*get_interface)(int version);
 };

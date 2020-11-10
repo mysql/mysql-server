@@ -310,21 +310,23 @@ static inline int inline_mysql_rwlock_rdlock(
 
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
   if (that->m_psi != nullptr) {
-    /* Instrumentation start */
-    PSI_rwlock_locker *locker;
-    PSI_rwlock_locker_state state;
-    locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
-        &state, that->m_psi, PSI_RWLOCK_READLOCK, src_file, src_line);
+    if (that->m_psi->m_enabled) {
+      /* Instrumentation start */
+      PSI_rwlock_locker *locker;
+      PSI_rwlock_locker_state state;
+      locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
+          &state, that->m_psi, PSI_RWLOCK_READLOCK, src_file, src_line);
 
-    /* Instrumented code */
-    result = native_rw_rdlock(&that->m_rwlock);
+      /* Instrumented code */
+      result = native_rw_rdlock(&that->m_rwlock);
 
-    /* Instrumentation end */
-    if (locker != nullptr) {
-      PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, result);
+      /* Instrumentation end */
+      if (locker != nullptr) {
+        PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, result);
+      }
+
+      return result;
     }
-
-    return result;
   }
 #endif
 
@@ -342,21 +344,23 @@ static inline int inline_mysql_prlock_rdlock(
 
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
   if (that->m_psi != nullptr) {
-    /* Instrumentation start */
-    PSI_rwlock_locker *locker;
-    PSI_rwlock_locker_state state;
-    locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
-        &state, that->m_psi, PSI_RWLOCK_READLOCK, src_file, src_line);
+    if (that->m_psi->m_enabled) {
+      /* Instrumentation start */
+      PSI_rwlock_locker *locker;
+      PSI_rwlock_locker_state state;
+      locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
+          &state, that->m_psi, PSI_RWLOCK_READLOCK, src_file, src_line);
 
-    /* Instrumented code */
-    result = rw_pr_rdlock(&that->m_prlock);
+      /* Instrumented code */
+      result = rw_pr_rdlock(&that->m_prlock);
 
-    /* Instrumentation end */
-    if (locker != nullptr) {
-      PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, result);
+      /* Instrumentation end */
+      if (locker != nullptr) {
+        PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, result);
+      }
+
+      return result;
     }
-
-    return result;
   }
 #endif
 
@@ -374,21 +378,23 @@ static inline int inline_mysql_rwlock_wrlock(
 
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
   if (that->m_psi != nullptr) {
-    /* Instrumentation start */
-    PSI_rwlock_locker *locker;
-    PSI_rwlock_locker_state state;
-    locker = PSI_RWLOCK_CALL(start_rwlock_wrwait)(
-        &state, that->m_psi, PSI_RWLOCK_WRITELOCK, src_file, src_line);
+    if (that->m_psi->m_enabled) {
+      /* Instrumentation start */
+      PSI_rwlock_locker *locker;
+      PSI_rwlock_locker_state state;
+      locker = PSI_RWLOCK_CALL(start_rwlock_wrwait)(
+          &state, that->m_psi, PSI_RWLOCK_WRITELOCK, src_file, src_line);
 
-    /* Instrumented code */
-    result = native_rw_wrlock(&that->m_rwlock);
+      /* Instrumented code */
+      result = native_rw_wrlock(&that->m_rwlock);
 
-    /* Instrumentation end */
-    if (locker != nullptr) {
-      PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, result);
+      /* Instrumentation end */
+      if (locker != nullptr) {
+        PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, result);
+      }
+
+      return result;
     }
-
-    return result;
   }
 #endif
 
@@ -406,21 +412,23 @@ static inline int inline_mysql_prlock_wrlock(
 
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
   if (that->m_psi != nullptr) {
-    /* Instrumentation start */
-    PSI_rwlock_locker *locker;
-    PSI_rwlock_locker_state state;
-    locker = PSI_RWLOCK_CALL(start_rwlock_wrwait)(
-        &state, that->m_psi, PSI_RWLOCK_WRITELOCK, src_file, src_line);
+    if (that->m_psi->m_enabled) {
+      /* Instrumentation start */
+      PSI_rwlock_locker *locker;
+      PSI_rwlock_locker_state state;
+      locker = PSI_RWLOCK_CALL(start_rwlock_wrwait)(
+          &state, that->m_psi, PSI_RWLOCK_WRITELOCK, src_file, src_line);
 
-    /* Instrumented code */
-    result = rw_pr_wrlock(&that->m_prlock);
+      /* Instrumented code */
+      result = rw_pr_wrlock(&that->m_prlock);
 
-    /* Instrumentation end */
-    if (locker != nullptr) {
-      PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, result);
+      /* Instrumentation end */
+      if (locker != nullptr) {
+        PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, result);
+      }
+
+      return result;
     }
-
-    return result;
   }
 #endif
 
@@ -438,21 +446,23 @@ static inline int inline_mysql_rwlock_tryrdlock(
 
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
   if (that->m_psi != nullptr) {
-    /* Instrumentation start */
-    PSI_rwlock_locker *locker;
-    PSI_rwlock_locker_state state;
-    locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
-        &state, that->m_psi, PSI_RWLOCK_TRYREADLOCK, src_file, src_line);
+    if (that->m_psi->m_enabled) {
+      /* Instrumentation start */
+      PSI_rwlock_locker *locker;
+      PSI_rwlock_locker_state state;
+      locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
+          &state, that->m_psi, PSI_RWLOCK_TRYREADLOCK, src_file, src_line);
 
-    /* Instrumented code */
-    result = native_rw_tryrdlock(&that->m_rwlock);
+      /* Instrumented code */
+      result = native_rw_tryrdlock(&that->m_rwlock);
 
-    /* Instrumentation end */
-    if (locker != nullptr) {
-      PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, result);
+      /* Instrumentation end */
+      if (locker != nullptr) {
+        PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, result);
+      }
+
+      return result;
     }
-
-    return result;
   }
 #endif
 
@@ -469,21 +479,23 @@ static inline int inline_mysql_rwlock_trywrlock(
 
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
   if (that->m_psi != nullptr) {
-    /* Instrumentation start */
-    PSI_rwlock_locker *locker;
-    PSI_rwlock_locker_state state;
-    locker = PSI_RWLOCK_CALL(start_rwlock_wrwait)(
-        &state, that->m_psi, PSI_RWLOCK_TRYWRITELOCK, src_file, src_line);
+    if (that->m_psi->m_enabled) {
+      /* Instrumentation start */
+      PSI_rwlock_locker *locker;
+      PSI_rwlock_locker_state state;
+      locker = PSI_RWLOCK_CALL(start_rwlock_wrwait)(
+          &state, that->m_psi, PSI_RWLOCK_TRYWRITELOCK, src_file, src_line);
 
-    /* Instrumented code */
-    result = native_rw_trywrlock(&that->m_rwlock);
+      /* Instrumented code */
+      result = native_rw_trywrlock(&that->m_rwlock);
 
-    /* Instrumentation end */
-    if (locker != nullptr) {
-      PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, result);
+      /* Instrumentation end */
+      if (locker != nullptr) {
+        PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, result);
+      }
+
+      return result;
     }
-
-    return result;
   }
 #endif
 
@@ -499,7 +511,9 @@ static inline int inline_mysql_rwlock_unlock(
   int result;
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
   if (that->m_psi != nullptr) {
-    PSI_RWLOCK_CALL(unlock_rwlock)(that->m_psi, PSI_RWLOCK_UNLOCK);
+    if (that->m_psi->m_enabled) {
+      PSI_RWLOCK_CALL(unlock_rwlock)(that->m_psi, PSI_RWLOCK_UNLOCK);
+    }
   }
 #endif
   result = native_rw_unlock(&that->m_rwlock);
@@ -513,7 +527,9 @@ static inline int inline_mysql_prlock_unlock(
   int result;
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
   if (that->m_psi != nullptr) {
-    PSI_RWLOCK_CALL(unlock_rwlock)(that->m_psi, PSI_RWLOCK_UNLOCK);
+    if (that->m_psi->m_enabled) {
+      PSI_RWLOCK_CALL(unlock_rwlock)(that->m_psi, PSI_RWLOCK_UNLOCK);
+    }
   }
 #endif
   result = rw_pr_unlock(&that->m_prlock);

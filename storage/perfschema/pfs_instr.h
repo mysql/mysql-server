@@ -96,7 +96,14 @@ struct PFS_instr {
 };
 
 /** Instrumented mutex implementation. @see PSI_mutex. */
-struct PFS_ALIGNED PFS_mutex : public PFS_instr {
+struct PFS_mutex : public PSI_mutex {
+  /** Internal lock. */
+  pfs_lock m_lock;
+  /** Timed flag. */
+  bool m_timed;
+  /** Container page. */
+  PFS_opaque_container_page *m_page;
+
   /** Mutex identity, typically a @c pthread_mutex_t. */
   const void *m_identity;
   /** Mutex class. */
@@ -105,15 +112,24 @@ struct PFS_ALIGNED PFS_mutex : public PFS_instr {
   PFS_mutex_stat m_mutex_stat;
   /** Current owner. */
   PFS_thread *m_owner;
+#ifdef LATER_WL2333
   /**
     Time stamp of the last lock.
     This statistic is not exposed in user visible tables yet.
   */
   ulonglong m_last_locked;
+#endif /* LATER_WL2333 */
 };
 
 /** Instrumented rwlock implementation. @see PSI_rwlock. */
-struct PFS_ALIGNED PFS_rwlock : public PFS_instr {
+struct PFS_rwlock : public PSI_rwlock {
+  /** Internal lock. */
+  pfs_lock m_lock;
+  /** Timed flag. */
+  bool m_timed;
+  /** Container page. */
+  PFS_opaque_container_page *m_page;
+
   /** RWLock identity, typically a @c pthread_rwlock_t. */
   const void *m_identity;
   /** RWLock class. */
@@ -124,6 +140,7 @@ struct PFS_ALIGNED PFS_rwlock : public PFS_instr {
   PFS_thread *m_writer;
   /** Current count of readers. */
   uint m_readers;
+#ifdef LATER_WL2333
   /**
     Time stamp of the last write.
     This statistic is not exposed in user visible tables yet.
@@ -134,10 +151,18 @@ struct PFS_ALIGNED PFS_rwlock : public PFS_instr {
     This statistic is not exposed in user visible tables yet.
   */
   ulonglong m_last_read;
+#endif /* LATER_WL2333 */
 };
 
 /** Instrumented condition implementation. @see PSI_cond. */
-struct PFS_ALIGNED PFS_cond : public PFS_instr {
+struct PFS_cond : public PSI_cond {
+  /** Internal lock. */
+  pfs_lock m_lock;
+  /** Timed flag. */
+  bool m_timed;
+  /** Container page. */
+  PFS_opaque_container_page *m_page;
+
   /** Condition identity, typically a @c pthread_cond_t. */
   const void *m_identity;
   /** Condition class. */
@@ -259,7 +284,14 @@ struct PFS_ALIGNED PFS_table {
 };
 
 /** Instrumented socket implementation. @see PSI_socket. */
-struct PFS_ALIGNED PFS_socket : public PFS_instr {
+struct PFS_socket : public PSI_socket {
+  /** Internal lock. */
+  pfs_lock m_lock;
+  /** Timed flag. */
+  bool m_timed;
+  /** Container page. */
+  PFS_opaque_container_page *m_page;
+
   uint32 get_version() { return m_lock.get_version(); }
 
   /** Socket identity, typically int */

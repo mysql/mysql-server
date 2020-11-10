@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "my_dbug.h"
 #include "my_psi_config.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/psi/mysql_memory.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_memory.h"
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE

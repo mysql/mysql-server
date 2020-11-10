@@ -60,9 +60,9 @@ This file contains the implementation of error and warnings related
 #include "my_macros.h"
 #include "my_sys.h"
 #include "my_time.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
 #include "sql/derror.h"  // ER_THD

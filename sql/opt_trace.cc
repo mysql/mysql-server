@@ -38,7 +38,7 @@
 #include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
-#include "mysql/psi/psi_base.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
 #include "sql/current_thd.h"

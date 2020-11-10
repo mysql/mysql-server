@@ -23,6 +23,8 @@
 #ifndef COMPONENTS_SERVICES_PSI_RWLOCK_BITS_H
 #define COMPONENTS_SERVICES_PSI_RWLOCK_BITS_H
 
+#include <mysql/components/services/bits/psi_bits.h>
+
 /**
   @file
   Performance schema instrumentation interface.
@@ -65,7 +67,7 @@ typedef unsigned int PSI_rwlock_key;
   Interface for an instrumented rwlock.
   This is an opaque structure.
 */
-struct PSI_rwlock;
+struct PSI_rwlock : PSI_instr {};
 typedef struct PSI_rwlock PSI_rwlock;
 
 /**

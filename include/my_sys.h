@@ -61,13 +61,13 @@
 #include "my_psi_config.h" /* IWYU pragma: keep */
 
 #include "my_sharedlib.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/my_io_bits.h"
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_file_bits.h"
 #include "mysql/components/services/psi_memory_bits.h"
 #include "mysql/components/services/psi_stage_bits.h"
-#include "mysql/psi/psi_base.h"
 #include "sql/stream_cipher.h"
 
 struct CHARSET_INFO;

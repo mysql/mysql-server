@@ -26,8 +26,8 @@
 
 #include <string.h>
 #include "my_alloc.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/mysql_lex_string.h"
-#include "mysql/psi/psi_base.h"
 #include "sql/auth/auth_internal.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/field.h"

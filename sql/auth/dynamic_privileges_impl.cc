@@ -33,8 +33,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "m_string.h"
 #include "mysql/components/service.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/registry.h"
-#include "mysql/psi/psi_base.h"
 #include "sql/auth/dynamic_privilege_table.h"
 #include "sql/auth/sql_auth_cache.h"
 #include "sql/auth/sql_security_ctx.h"

@@ -27,7 +27,7 @@
 
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysql/psi/psi_base.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/service_mysql_alloc.h"
 #include "sql/psi_memory_key.h"
 #include "template_utils.h"

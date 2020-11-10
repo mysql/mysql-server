@@ -19,6 +19,15 @@ typedef int myf;
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_mutex_bits.h"
+#include <mysql/components/services/bits/psi_bits.h>
+static constexpr unsigned PSI_INSTRUMENT_ME = 0;
+static constexpr unsigned PSI_NOT_INSTRUMENTED = 0;
+struct PSI_placeholder {
+  int m_placeholder;
+};
+struct PSI_instr {
+  bool m_enabled;
+};
 typedef unsigned int PSI_mutex_key;
 struct PSI_mutex_info_v1 {
   PSI_mutex_key *m_key;
@@ -27,7 +36,7 @@ struct PSI_mutex_info_v1 {
   int m_volatility;
   const char *m_documentation;
 };
-struct PSI_mutex;
+struct PSI_mutex : PSI_instr {};
 typedef struct PSI_mutex PSI_mutex;
 struct PSI_mutex_locker;
 typedef struct PSI_mutex_locker PSI_mutex_locker;

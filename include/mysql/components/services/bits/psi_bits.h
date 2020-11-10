@@ -20,14 +20,11 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef MYSQL_PSI_BASE_H
-#define MYSQL_PSI_BASE_H
-
-/* HAVE_PSI_*_INTERFACE */
-#include "my_psi_config.h"  // IWYU pragma: keep
+#ifndef COMPONENTS_SERVICES_BITS_PSI_BITS_H
+#define COMPONENTS_SERVICES_BITS_PSI_BITS_H
 
 /**
-  @file include/mysql/psi/psi_base.h
+  @file include/mysql/components/services/bits/psi_bits.h
   Performance schema instrumentation interface.
 
   @defgroup instrumentation_interface Instrumentation Interface
@@ -134,8 +131,33 @@ struct PSI_placeholder {
 };
 
 /**
+  Instrumented artifact.
+  The object instrumented can be enabled or disabled.
+  The @c m_enabled member is visible and public,
+  and must be tested by the instrumented code
+  before making low level api calls to
+  the actual instrumentation implementation.
+*/
+struct PSI_instr {
+  /**
+    Instrumentation is enabled.
+    This flag must be checked before making calls to:
+    - @c PSI_MUTEX_CALL(start_mutex_wait)
+    - @c PSI_MUTEX_CALL(unlock_mutex)
+    - @c PSI_RWLOCK_CALL(start_rwlock_rdwait)
+    - @c PSI_RWLOCK_CALL(start_rwlock_wrwait)
+    - @c PSI_RWLOCK_CALL(unlock_rwlock)
+    - @c PSI_COND_CALL(start_cond_wait)
+    - @c PSI_COND_CALL(signal_cond)
+    - @c PSI_COND_CALL(broadcast_cond)
+    - @c PSI_SOCKET_CALL(start_socket_wait)
+  */
+  bool m_enabled;
+};
+
+/**
     @} (end of group psi_abi)
   @} (end of group instrumentation_interface)
 */
 
-#endif /* MYSQL_PSI_BASE_H */
+#endif /* COMPONENTS_SERVICES_BITS_PSI_BITS_H */

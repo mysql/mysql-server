@@ -40,6 +40,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "log_builtins_filter_imp.h"
 #include "log_sink_trad.h"
 #include "my_systime.h"  // my_micro_time()
+#include "mysql/psi/mysql_mutex.h"
 #include "sql/log.h"
 #include "sql/psi_memory_key.h"  // key_memory_log_error_stack
 
