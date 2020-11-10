@@ -4,5 +4,5 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 call mtr.add_suppression("\\[Warning\\] .* Compression failed while importing tablespace - .*");
 ALTER TABLE t1 IMPORT TABLESPACE;
 Warnings:
-Warning	4035	Compression failed while doing import with the following error : Punch hole not supported by the file system
+Warning	4029	Compression failed while doing import with the following error : Punch hole not supported by the file system
 DROP TABLE t1;
