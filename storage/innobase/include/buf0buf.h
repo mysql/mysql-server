@@ -1576,18 +1576,7 @@ struct buf_block_t {
   buf_page_init_for_read() and buf_page_create()) */
   uint32_t lock_hash_val;
   /** @} */
-  /** @name Optimistic search field */
-  /** @{ */
 
-  /** This clock is incremented every time a pointer to a record on the page
-  may become obsolete; this is used in the optimistic cursor positioning: if
-  the modify clock has not changed, we know that the pointer is still valid;
-  this field may be changed if the thread (1) owns the LRU list mutex and the
-  page is not bufferfixed, or (2) the thread has an x-latch on the block,
-  or (3) the block must belong to an intrinsic table */
-  uint64_t modify_clock;
-
-  /** @} */
   /** @name Hash search fields (unprotected)
   NOTE that these fields are NOT protected by any semaphore! */
   /** @{ */
@@ -1693,6 +1682,19 @@ struct buf_block_t {
   /** @} */
 #endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
+
+  /** @name Optimistic search field */
+  /** @{ */
+
+  /** This clock is incremented every time a pointer to a record on the page
+  may become obsolete; this is used in the optimistic cursor positioning: if
+  the modify clock has not changed, we know that the pointer is still valid;
+  this field may be changed if the thread (1) owns the LRU list mutex and the
+  page is not bufferfixed, or (2) the thread has an x-latch on the block,
+  or (3) the block must belong to an intrinsic table */
+  uint64_t modify_clock;
+
+  /** @} */
 
   /** mutex protecting this block: state (also protected by the buffer
   pool mutex), io_fix, buf_fix_count, and accessed; we introduce this
