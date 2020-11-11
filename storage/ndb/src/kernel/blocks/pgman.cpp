@@ -1723,7 +1723,7 @@ Pgman::execSYNC_PAGE_CACHE_CONF(Signal *signal)
      */ 
     NDB_TICKS now = getHighResTimer();
     Uint64 lcp_time = NdbTick_Elapsed(m_lcp_start_time,now).milliSec();
-    lcp_end_point(Uint32(lcp_time));
+    lcp_end_point(Uint32(lcp_time), true, true);
     if (isNdbMtLqh())
     {
       jam();
@@ -2792,10 +2792,12 @@ Pgman::lcp_start_point(Signal *signal,
   }
 }
 
-void
-Pgman::lcp_end_point(Uint32 lcp_time_in_ms)
+bool
+Pgman::lcp_end_point(Uint32 lcp_time_in_ms, bool first, bool internal)
 {
-  ndbrequire(m_lcp_ongoing == true);
+  ndbrequire(m_lcp_ongoing == true || !first);
+  ndbrequire(m_lcp_table_id == RNIL);
+  m_lcp_ongoing = false;
   if (m_prep_lcp_outstanding > 0)
   {
     FragmentRecordPtr tmpFragPtr;
@@ -2828,9 +2830,20 @@ Pgman::lcp_end_point(Uint32 lcp_time_in_ms)
                           instance(),
                           m_prev_lcp_table_id);
     }
+    /**
+     * We have started performing PREP_LCP writes on a fragment
+     * that was either dropped or it was recently created and
+     * performed an early checkpoint. In this case we have to
+     * wait until all PREP_LCP writes have finished before
+     * we complete the LCP.
+     *
+     * It should be a very rare event, thus we make a printout to node log
+     * here every time it happens.
+     */
+    ndbrequire(internal == false);
+    m_prev_lcp_table_id = RNIL;
+    return false;
   }
-  ndbrequire(m_prep_lcp_outstanding == 0);
-  m_lcp_ongoing = false;
   m_prev_lcp_table_id = RNIL;
   Uint32 last_lcp_pageouts = m_current_lcp_pageouts;
   m_current_lcp_pageouts = Uint64(0);
@@ -2865,6 +2878,7 @@ Pgman::lcp_end_point(Uint32 lcp_time_in_ms)
     m_raise_redo_alert_state = 0;
   }
   m_redo_alert_state_last_lcp = m_redo_alert_state;
+  return true;
 }
 
 void
@@ -3288,7 +3302,7 @@ Pgman::finish_sync_extent_pages(Signal *signal)
        */
       NDB_TICKS now = getHighResTimer();
       Uint64 lcp_time = NdbTick_Elapsed(m_lcp_start_time,now).milliSec();
-      lcp_end_point(Uint32(lcp_time));
+      lcp_end_point(Uint32(lcp_time), true, true);
       m_num_ldm_completed_lcp = 0;
     }
   }

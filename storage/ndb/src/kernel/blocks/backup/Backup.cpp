@@ -746,7 +746,7 @@ Backup::lcp_start_point(Signal *signal)
                     (m_insert_size_lcp_last / (1024 * 1024))));
 }
 
-void
+bool
 Backup::lcp_end_point(BackupRecordPtr ptr)
 {
   Uint32 num_fragments = ptr.p->m_num_fragments;
@@ -763,7 +763,7 @@ Backup::lcp_end_point(BackupRecordPtr ptr)
      * won't update any LCP sizes here.
      */
     m_last_lcp_exec_time_in_ms = 0;
-    return;
+    return true;
   }
   jam();
   ndbrequire(NdbTick_IsValid(m_lcp_start_time));
@@ -771,12 +771,13 @@ Backup::lcp_end_point(BackupRecordPtr ptr)
     NdbTick_Elapsed(m_lcp_start_time, current_time).milliSec();
   m_lcp_current_cut_point = m_lcp_start_time;
 
+  bool ready = true;
   if (isNdbMt())
   {
     /**
      * Only call for ndbmtd since ndbd has no extra PGMAN worker.
      */
-    c_pgman->lcp_end_point(m_last_lcp_exec_time_in_ms);
+    ready = c_pgman->lcp_end_point(m_last_lcp_exec_time_in_ms, true, false);
   }
   reset_lcp_timing_factors();
 
@@ -802,6 +803,7 @@ Backup::lcp_end_point(BackupRecordPtr ptr)
   m_delete_size_lcp[0] = m_delete_size_lcp[1];
   m_lcp_lag[0] = m_lcp_lag[1];
   m_lcp_lag[1] = Int64(0);
+  return ready;
 }
 
 Uint64
@@ -2351,6 +2353,12 @@ Backup::execCONTINUEB(Signal* signal)
   const Uint32 Tdata3 = signal->theData[3];
   
   switch(Tdata0) {
+  case BackupContinueB::ZCHECK_PGMAN_PREP_LCP:
+  {
+    jam();
+    check_pgman_prep_lcp_ready(signal, Tdata1);
+    return;
+  }
   case BackupContinueB::RESET_DISK_SPEED_COUNTER:
   {
     jam();
@@ -16937,7 +16945,7 @@ Backup::check_wait_end_lcp(Signal *signal, BackupRecordPtr ptr)
                  ptr.p->backupId));
     ndbrequire(ptr.p->prepareState != PREPARE_DROP);
     ptr.p->m_wait_end_lcp = false;
-    sendEND_LCPCONF(signal, ptr);
+    handleEND_LCPCONF(signal, ptr);
   }
 }
 
@@ -17242,11 +17250,11 @@ Backup::finish_end_lcp(Signal *signal, BackupRecordPtr ptr)
    * this signal until we have emptied the queue and thus completed
    * the full LCP.
    */
-  sendEND_LCPCONF(signal, ptr);
+  handleEND_LCPCONF(signal, ptr);
 }
 
 void
-Backup::sendEND_LCPCONF(Signal *signal, BackupRecordPtr ptr)
+Backup::handleEND_LCPCONF(Signal *signal, BackupRecordPtr ptr)
 {
   DEB_END_LCP(("(%u)TAGE END_LCPREQ: lcpId: %u",
                instance(),
@@ -17267,8 +17275,42 @@ Backup::sendEND_LCPCONF(Signal *signal, BackupRecordPtr ptr)
                    ptr.p->noOfBytes / (1024 * 1024),
                    m_last_lcp_dd_percentage));
   }
-  lcp_end_point(ptr);
+  bool ready = lcp_end_point(ptr);
+  checkEND_LCPCONF(signal, ptr, ready);
+}
 
+void
+Backup::check_pgman_prep_lcp_ready(Signal *signal, Uint32 ptrI)
+{
+  BackupRecordPtr ptr;
+  jamEntry();
+  c_backupPool.getPtr(ptr, ptrI);
+  bool ready = c_pgman->lcp_end_point(m_last_lcp_exec_time_in_ms,
+                                      false,
+                                      false);
+  checkEND_LCPCONF(signal, ptr, ready);
+}
+
+void
+Backup::checkEND_LCPCONF(Signal *signal, BackupRecordPtr ptr, bool ready)
+{
+  if (ready)
+  {
+    jam();
+    sendEND_LCPCONF(signal, ptr);
+  }
+  else
+  {
+    jam();
+    signal->theData[0] = BackupContinueB::ZCHECK_PGMAN_PREP_LCP;
+    signal->theData[1] = ptr.i;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 2);
+  }
+}
+
+void
+Backup::sendEND_LCPCONF(Signal *signal, BackupRecordPtr ptr)
+{
   EndLcpConf* conf= (EndLcpConf*)signal->getDataPtrSend();
   conf->senderData = ptr.p->senderData;
   conf->senderRef = reference();
