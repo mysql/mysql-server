@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -158,9 +158,9 @@ uchar *net_store_length(uchar *packet, ulonglong length) {
 */
 
 uint net_length_size(ulonglong num) {
-  if (num < (ulonglong)252LL) return 1;
-  if (num < (ulonglong)65536LL) return 3;
-  if (num < (ulonglong)16777216LL) return 4;
+  if (num < 251ULL) return 1;
+  if (num < 65536LL) return 3;
+  if (num < 16777216ULL) return 4;
   return 9;
 }
 
