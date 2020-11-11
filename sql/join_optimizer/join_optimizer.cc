@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <algorithm>
 #include <array>
+#include <initializer_list>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -48,7 +49,9 @@
 #include "sql/item_sum.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
+#include "sql/join_optimizer/estimate_filter_cost.h"
 #include "sql/join_optimizer/estimate_selectivity.h"
+#include "sql/join_optimizer/explain_access_path.h"
 #include "sql/join_optimizer/hypergraph.h"
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/join_optimizer/make_join_hypergraph.h"
@@ -76,6 +79,7 @@ using hypergraph::Hyperedge;
 using hypergraph::Hypergraph;
 using hypergraph::NodeMap;
 using std::array;
+using std::min;
 using std::string;
 using std::swap;
 using std::vector;
@@ -114,11 +118,12 @@ constexpr double kMaterializeOneRowCost = 0.1;
 class CostingReceiver {
  public:
   CostingReceiver(
-      THD *thd, const JoinHypergraph &graph, bool need_rowid,
-      uint64_t supported_access_path_types,
+      THD *thd, Query_block *query_block, const JoinHypergraph &graph,
+      bool need_rowid, uint64_t supported_access_path_types,
       secondary_engine_modify_access_path_cost_t secondary_engine_cost_hook,
       string *trace)
       : m_thd(thd),
+        m_query_block(query_block),
         m_graph(graph),
         m_need_rowid(need_rowid),
         m_supported_access_path_types(supported_access_path_types),
@@ -157,6 +162,9 @@ class CostingReceiver {
 
  private:
   THD *m_thd;
+
+  /// The query block we are planning.
+  Query_block *m_query_block;
 
   /**
     For each subset of tables that are connected in the join hypergraph,
@@ -234,10 +242,12 @@ class CostingReceiver {
                        bool *wrote_trace);
   void ApplyPredicatesForBaseTable(int node_idx, uint64_t applied_predicates,
                                    uint64_t subsumed_predicates,
+                                   bool materialize_subqueries,
                                    AccessPath *path);
   void ApplyDelayedPredicatesAfterJoin(NodeMap left, NodeMap right,
                                        const AccessPath *left_path,
                                        const AccessPath *right_path,
+                                       bool materialize_subqueries,
                                        AccessPath *join_path);
 };
 
@@ -365,6 +375,14 @@ int WasPushedDownToRef(Item *condition, const KeypartForRef *keyparts,
     }
   }
   return -1;
+}
+
+bool ContainsSubqueries(Item *item_arg) {
+  // Nearly the same as item_arg->has_subquery(), but different for
+  // Item_func_not_all, which we currently do not support.
+  return WalkItem(item_arg, enum_walk::POSTFIX, [](Item *item) {
+    return item->type() == Item::SUBSELECT_ITEM;
+  });
 }
 
 bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx, KEY *key,
@@ -603,15 +621,24 @@ bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx, KEY *key,
       parameter_tables & ~table->pos_in_table_list->map(),
       m_graph.table_num_to_node_num);
 
-  ApplyPredicatesForBaseTable(node_idx, applied_predicates, subsumed_predicates,
-                              &path);
+  for (bool materialize_subqueries : {false, true}) {
+    ApplyPredicatesForBaseTable(node_idx, applied_predicates,
+                                subsumed_predicates, materialize_subqueries,
+                                &path);
+    path.applied_sargable_join_predicates |=
+        applied_predicates & ~BitsBetween(0, m_graph.num_where_predicates);
+    path.subsumed_sargable_join_predicates |=
+        subsumed_predicates & ~BitsBetween(0, m_graph.num_where_predicates);
 
-  path.applied_sargable_join_predicates |=
-      applied_predicates & ~BitsBetween(0, m_graph.num_where_predicates);
-  path.subsumed_sargable_join_predicates |=
-      subsumed_predicates & ~BitsBetween(0, m_graph.num_where_predicates);
+    ProposeAccessPathForNodes(TableBitmap(node_idx), &path,
+                              materialize_subqueries ? "mat. subq" : key->name);
 
-  ProposeAccessPathForNodes(TableBitmap(node_idx), &path, key->name);
+    if (!Overlaps(path.filter_predicates, m_graph.materializable_predicates)) {
+      // Nothing to try to materialize.
+      break;
+    }
+  }
+
   return false;
 }
 
@@ -646,15 +673,12 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx,
 
   path.num_output_rows_before_filter = num_output_rows;
   path.init_cost = path.init_once_cost = 0.0;
-  path.cost_before_filter = cost;
-
-  ApplyPredicatesForBaseTable(node_idx, /*applied_predicates=*/0,
-                              /*subsumed_predicates=*/0, &path);
+  path.cost_before_filter = path.cost = cost;
 
   if (m_trace != nullptr) {
-    *m_trace += StringPrintf("\nFound node %s [rows=%.0f]\n",
-                             m_graph.nodes[node_idx].table->alias,
-                             path.num_output_rows);
+    *m_trace +=
+        StringPrintf("\nFound node %s [rows=%.0f]\n",
+                     m_graph.nodes[node_idx].table->alias, num_output_rows);
     for (int pred_idx : BitsSetIn(path.filter_predicates)) {
       *m_trace += StringPrintf(
           " - applied predicate %s\n",
@@ -713,6 +737,11 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx,
       materialize_path->num_output_rows_before_filter =
           materialize_path->num_output_rows;
 
+      if (materialize_path->num_output_rows_before_filter <= 0.0) {
+        materialize_path->num_output_rows = 1000.0;
+        materialize_path->num_output_rows_before_filter = 1000.0;
+      }
+
       materialize_path->parameter_tables = GetNodeMapFromTableMap(
           tl->table_function->used_tables() & ~PSEUDO_TABLE_BITS,
           m_graph.table_num_to_node_num);
@@ -736,40 +765,57 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx,
                                  m_graph.table_num_to_node_num);
     }
 
-    // TODO(sgunders): Take rematerialization cost into account,
-    // or maybe, more lack of it.
     materialize_path->filter_predicates = path.filter_predicates;
     materialize_path->delayed_predicates = path.delayed_predicates;
     stable_path->filter_predicates = stable_path->delayed_predicates = 0;
-
     path = *materialize_path;
     assert(path.cost >= 0.0);
   }
   assert(path.cost >= 0.0);
 
-  ProposeAccessPathForNodes(TableBitmap(node_idx), &path, "");
+  for (bool materialize_subqueries : {false, true}) {
+    ApplyPredicatesForBaseTable(node_idx, /*applied_predicates=*/0,
+                                /*subsumed_predicates=*/0,
+                                materialize_subqueries, &path);
+    ProposeAccessPathForNodes(TableBitmap(node_idx), &path,
+                              materialize_subqueries ? "mat. subq" : "");
+
+    if (!Overlaps(path.filter_predicates, m_graph.materializable_predicates)) {
+      // Nothing to try to materialize.
+      break;
+    }
+  }  // namespace
+
   return false;
 }
 
-double EstimateFilterCost(double num_rows, Item *condition) {
-  double cost = num_rows * kApplyOneFilterCost;
-  WalkItem(condition, enum_walk::POSTFIX, [num_rows, &cost](Item *item) {
-    if (item->type() == Item::SUBSELECT_ITEM) {
-      // This static cost will be replaced with a precise cost
-      // for running the subquery later in the worklog series.
-      cost += num_rows * 5.0;
-    }
-    return false;
-  });
-  return cost;
-}
+/**
+  See which predicates that apply to this table. Some can be applied
+  right away, some require other tables first and must be delayed.
 
-// See which predicates that apply to this table. Some can be applied right
-// away, some require other tables first and must be delayed.
+  @param node_idx Index of the base table in the nodes array.
+  @param applied_predicates Bitmap of predicates that are already
+    applied by means of ref access, and should not be recalculated selectivity
+    for.
+  @param subsumed_predicates Bitmap of predicates that are applied
+    by means of ref access and do not need to rechecked. Overrides
+    applied_predicates.
+  @param materialize_subqueries If true, any subqueries in the
+    predicate should be materialized. (If there are multiple ones,
+    this is an all-or-nothing decision, for simplicity.)
+  @param [in,out] path The access path to apply the predicates to.
+    Note that if materialize_subqueries is true, a FILTER access path
+    will be inserted (overwriting "path", although a copy of it will
+    be set as a child), as AccessPath::filter_predicates always assumes
+    non-materialized subqueries.
+ */
 void CostingReceiver::ApplyPredicatesForBaseTable(int node_idx,
                                                   uint64_t applied_predicates,
                                                   uint64_t subsumed_predicates,
+                                                  bool materialize_subqueries,
                                                   AccessPath *path) {
+  double materialize_cost = 0.0;
+
   const NodeMap my_map = TableBitmap(node_idx);
   path->num_output_rows = path->num_output_rows_before_filter;
   path->cost = path->cost_before_filter;
@@ -781,8 +827,15 @@ void CostingReceiver::ApplyPredicatesForBaseTable(int node_idx,
     }
     if (m_graph.predicates[i].total_eligibility_set == my_map) {
       path->filter_predicates |= uint64_t{1} << i;
-      path->cost += EstimateFilterCost(path->num_output_rows,
-                                       m_graph.predicates[i].condition);
+      FilterCost cost =
+          EstimateFilterCost(m_thd, path->num_output_rows,
+                             m_graph.predicates[i].condition, m_query_block);
+      if (materialize_subqueries) {
+        path->cost += cost.cost_if_materialized;
+        materialize_cost += cost.cost_to_materialize;
+      } else {
+        path->cost += cost.cost_if_not_materialized;
+      }
       if (applied_predicates & (uint64_t{1} << i)) {
         // We already factored in this predicate when calculating
         // the selectivity of the ref access, so don't do it again.
@@ -792,6 +845,16 @@ void CostingReceiver::ApplyPredicatesForBaseTable(int node_idx,
     } else if (Overlaps(m_graph.predicates[i].total_eligibility_set, my_map)) {
       path->delayed_predicates |= uint64_t{1} << i;
     }
+  }
+
+  if (materialize_subqueries) {
+    ExpandSingleFilterAccessPath(m_thd, path, m_graph.predicates,
+                                 m_graph.num_where_predicates);
+    assert(path->type == AccessPath::FILTER);
+    path->filter().materialize_subqueries = true;
+    path->cost += materialize_cost;  // Will be subtracted back for rescans.
+    path->init_cost += materialize_cost;
+    path->init_once_cost += materialize_cost;
   }
 }
 
@@ -965,9 +1028,6 @@ void CostingReceiver::ProposeHashJoin(NodeMap left, NodeMap right,
   }
   join_path.cost = cost;
 
-  ApplyDelayedPredicatesAfterJoin(left, right, left_path, right_path,
-                                  &join_path);
-
   // Only trace once; the rest ought to be identical.
   if (m_trace != nullptr && !*wrote_trace) {
     *m_trace += StringPrintf(
@@ -982,14 +1042,27 @@ void CostingReceiver::ProposeHashJoin(NodeMap left, NodeMap right,
     *wrote_trace = true;
   }
 
+  ApplyDelayedPredicatesAfterJoin(left, right, left_path, right_path,
+                                  /*materialize_subqueries=*/false, &join_path);
   ProposeAccessPathForNodes(left | right, &join_path, "hash join");
+
+  if (Overlaps(join_path.filter_predicates,
+               m_graph.materializable_predicates)) {
+    ApplyDelayedPredicatesAfterJoin(left, right, left_path, right_path,
+                                    /*materialize_subqueries=*/true,
+                                    &join_path);
+    ProposeAccessPathForNodes(left | right, &join_path, "hash join, mat. subq");
+  }
 }
 
 // Of all delayed predicates, see which ones we can apply now, and which
 // ones that need to be delayed further.
 void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
     NodeMap left, NodeMap right, const AccessPath *left_path,
-    const AccessPath *right_path, AccessPath *join_path) {
+    const AccessPath *right_path, bool materialize_subqueries,
+    AccessPath *join_path) {
+  double materialize_cost = 0.0;
+
   // Keep the information about applied_sargable_join_predicates,
   // but reset the one pertaining to filter_predicates.
   join_path->applied_sargable_join_predicates =
@@ -1004,12 +1077,30 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
     if (IsSubset(m_graph.predicates[pred_idx].total_eligibility_set,
                  ready_tables)) {
       join_path->filter_predicates |= uint64_t{1} << pred_idx;
-      join_path->cost += EstimateFilterCost(
-          join_path->num_output_rows, m_graph.predicates[pred_idx].condition);
+      FilterCost cost = EstimateFilterCost(
+          m_thd, join_path->num_output_rows,
+          m_graph.predicates[pred_idx].condition, m_query_block);
+      if (materialize_subqueries) {
+        join_path->cost += cost.cost_if_materialized;
+        materialize_cost += cost.cost_to_materialize;
+      } else {
+        join_path->cost += cost.cost_if_not_materialized;
+      }
       join_path->num_output_rows *= m_graph.predicates[pred_idx].selectivity;
     } else {
       join_path->delayed_predicates |= uint64_t{1} << pred_idx;
     }
+  }
+
+  if (materialize_subqueries) {
+    ExpandSingleFilterAccessPath(m_thd, join_path, m_graph.predicates,
+                                 m_graph.num_where_predicates);
+    assert(join_path->type == AccessPath::FILTER);
+    join_path->filter().materialize_subqueries = true;
+    join_path->cost +=
+        materialize_cost;  // Will be subtracted back for rescans.
+    join_path->init_cost += materialize_cost;
+    join_path->init_once_cost += materialize_cost;
   }
 }
 
@@ -1048,7 +1139,7 @@ void CostingReceiver::ProposeNestedLoopJoin(NodeMap left, NodeMap right,
       right_path->subsumed_sargable_join_predicates;
 
   double already_applied_selectivity = 1.0;
-  bool added_filter = false;
+  bool filter_on_stack = false;
   if (edge->expr->equijoin_conditions.size() != 0 ||
       edge->expr->join_conditions.size() != 0) {
     // Apply join filters. Don't update num_output_rows, as the join's
@@ -1057,6 +1148,10 @@ void CostingReceiver::ProposeNestedLoopJoin(NodeMap left, NodeMap right,
     // the cost here.
     filter_path.type = AccessPath::FILTER;
     filter_path.filter().child = right_path;
+
+    // We don't bother trying to materialize subqueries in join conditions,
+    // since they should be very rare.
+    filter_path.filter().materialize_subqueries = false;
 
     CopyCosts(*right_path, &filter_path);
 
@@ -1082,15 +1177,18 @@ void CostingReceiver::ProposeNestedLoopJoin(NodeMap left, NodeMap right,
       if (!subsumed) {
         items.push_back(condition);
         filter_path.cost +=
-            EstimateFilterCost(filter_path.num_output_rows, condition);
+            EstimateFilterCost(m_thd, filter_path.num_output_rows, condition,
+                               m_query_block)
+                .cost_if_not_materialized;
         filter_path.num_output_rows *=
             EstimateSelectivity(m_thd, condition, m_trace);
       }
     }
     for (Item *condition : edge->expr->join_conditions) {
       items.push_back(condition);
-      filter_path.cost +=
-          EstimateFilterCost(filter_path.num_output_rows, condition);
+      filter_path.cost += EstimateFilterCost(m_thd, filter_path.num_output_rows,
+                                             condition, m_query_block)
+                              .cost_if_not_materialized;
       filter_path.num_output_rows *=
           EstimateSelectivity(m_thd, condition, m_trace);
     }
@@ -1110,11 +1208,11 @@ void CostingReceiver::ProposeNestedLoopJoin(NodeMap left, NodeMap right,
         condition->apply_is_true();
       }
       filter_path.filter().condition = condition;
-      added_filter = true;
+      filter_on_stack = true;
     }
   }
 
-  // Ignores the cost information from filter_path; see above.
+  // Ignores the row count from filter_path; see above.
   join_path.num_output_rows_before_filter = join_path.num_output_rows =
       FindOutputRowsForJoin(left_path, right_path, edge,
                             already_applied_selectivity);
@@ -1126,15 +1224,31 @@ void CostingReceiver::ProposeNestedLoopJoin(NodeMap left, NodeMap right,
       inner_rescan_cost * left_path->num_output_rows;
 
   ApplyDelayedPredicatesAfterJoin(left, right, left_path, right_path,
-                                  &join_path);
-
+                                  /*materialize_subqueries=*/false, &join_path);
   AccessPath *insert_position =
       ProposeAccessPathForNodes(left | right, &join_path, "nested loop");
-  if (insert_position != nullptr && added_filter) {
+
+  if (insert_position != nullptr && filter_on_stack) {
     // We inserted the join path, so give filter_path stable storage
     // in the MEM_ROOT, too.
     insert_position->nested_loop_join().inner =
-        new (m_thd->mem_root) AccessPath(filter_path);
+        join_path.nested_loop_join().inner =
+            new (m_thd->mem_root) AccessPath(filter_path);
+    filter_on_stack = false;
+  }
+
+  if (Overlaps(join_path.filter_predicates,
+               m_graph.materializable_predicates)) {
+    if (filter_on_stack) {
+      join_path.nested_loop_join().inner =
+          new (m_thd->mem_root) AccessPath(filter_path);
+    }
+
+    ApplyDelayedPredicatesAfterJoin(left, right, left_path, right_path,
+                                    /*materialize_subqueries=*/true,
+                                    &join_path);
+    insert_position = ProposeAccessPathForNodes(left | right, &join_path,
+                                                "nested loop, mat. subq");
   }
 }
 
@@ -1601,7 +1715,79 @@ AccessPath *CreateMaterializationPathForSortingAggregates(
   }
 }
 
+// Estimate the width of each row produced by “query_block”,
+// for temporary table materialization.
+//
+// See EstimateRowWidth() in make_join_hypergraph.cc.
+size_t EstimateRowWidth(const Query_block &query_block) {
+  size_t ret = 0;
+  for (const Item *item : query_block.fields) {
+    ret += min<size_t>(item->max_length, 4096);
+  }
+  return ret;
+}
+
 }  // namespace
+
+FilterCost EstimateFilterCost(THD *thd, double num_rows, Item *condition,
+                              Query_block *outer_query_block) {
+  FilterCost cost{0.0, 0.0, 0.0};
+  cost.cost_if_not_materialized = num_rows * kApplyOneFilterCost;
+  cost.cost_if_materialized = num_rows * kApplyOneFilterCost;
+  WalkItem(condition, enum_walk::POSTFIX,
+           [thd, num_rows, outer_query_block, &cost](Item *item) {
+             if (!IsItemInSubSelect(item)) {
+               return false;
+             }
+             Item_in_subselect *item_subs =
+                 down_cast<Item_in_subselect *>(item);
+
+             // TODO(sgunders): Respect subquery hints, which can force the
+             // strategy to be materialize.
+             Query_block *query_block = item_subs->unit->first_query_block();
+             const bool materializeable =
+                 item_subs->subquery_allows_materialization(
+                     thd, query_block, outer_query_block) &&
+                 query_block->subquery_strategy(thd) ==
+                     Subquery_strategy::CANDIDATE_FOR_IN2EXISTS_OR_MAT;
+
+             AccessPath *path = item_subs->unit->root_access_path();
+             if (path == nullptr) {
+               // In rare situations involving IN subqueries on the left side of
+               // other IN subqueries, the query block may not be part of the
+               // parent query block's list of inner query blocks. If so, it has
+               // not been optimized here. Since this is a rare case, we'll just
+               // skip it and assign it zero cost.
+               return false;
+             }
+
+             cost.cost_if_not_materialized += num_rows * path->cost;
+             if (materializeable) {
+               // We can't ask the handler for costs at this stage, since that
+               // requires an actual TABLE, and we don't want to be creating
+               // them every time we're evaluating a cost. Thus, instead,
+               // we ask the cost model for an estimate. Longer-term, these two
+               // estimates should really be guaranteed to be the same somehow.
+               Cost_model_server::enum_tmptable_type tmp_table_type;
+               if (EstimateRowWidth(*query_block) * num_rows <
+                   thd->variables.max_heap_table_size) {
+                 tmp_table_type = Cost_model_server::MEMORY_TMPTABLE;
+               } else {
+                 tmp_table_type = Cost_model_server::DISK_TMPTABLE;
+               }
+               cost.cost_if_materialized +=
+                   thd->cost_model()->tmptable_readwrite_cost(
+                       tmp_table_type, /*write_rows=*/0,
+                       /*read_rows=*/num_rows);
+               cost.cost_to_materialize +=
+                   path->cost + kMaterializeOneRowCost * path->num_output_rows;
+             } else {
+               cost.cost_if_materialized += num_rows * path->cost;
+             }
+             return false;
+           });
+  return cost;
+}
 
 // Very rudimentary (assuming no deduplication; it's better to overestimate
 // than to understimate), so that we get something that isn't “unknown”.
@@ -1931,8 +2117,10 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
     join->refresh_base_slice();
   }
 
-  assert(join->temp_tables.empty());
-  assert(join->filesorts_to_cleanup.empty());
+  // NOTE: Normally, we'd expect join->temp_tables and
+  // join->filesorts_to_cleanup to be empty, but since we can get called twice
+  // for materialized subqueries, there may already be data there that we must
+  // keep.
 
   // Convert the join structures into a hypergraph.
   JoinHypergraph graph(thd->mem_root, query_block);
@@ -1981,6 +2169,14 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
     }
   }
 
+  // Find out which predicates contain subqueries.
+  graph.materializable_predicates = 0;
+  for (unsigned i = 0; i < graph.predicates.size(); ++i) {
+    if (ContainsSubqueries(graph.predicates[i].condition)) {
+      graph.materializable_predicates |= uint64_t{1} << i;
+    }
+  }
+
   // Run the actual join optimizer algorithm. This creates an access path
   // for the join as a whole (with lowest possible cost, and thus also
   // hopefully optimal execution time), with all pushable predicates applied.
@@ -1992,7 +2188,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   }
   const secondary_engine_modify_access_path_cost_t secondary_engine_cost_hook =
       SecondaryEngineCostHook(thd);
-  CostingReceiver receiver(thd, graph, need_rowid,
+  CostingReceiver receiver(thd, query_block, graph, need_rowid,
                            SupportedAccessPathTypes(thd),
                            secondary_engine_cost_hook, trace);
   if (EnumerateAllConnectedPartitions(graph.graph, &receiver) &&
@@ -2037,29 +2233,63 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   if (trace != nullptr) {
     *trace += "Adding final predicates\n";
   }
-  for (AccessPath *root_path : root_candidates) {
-    // Apply any predicates that don't belong to any specific table,
-    // or which are nondeterministic.
-    for (size_t i = 0; i < graph.num_where_predicates; ++i) {
-      if (!Overlaps(graph.predicates[i].total_eligibility_set,
-                    TablesBetween(0, graph.nodes.size())) ||
-          Overlaps(graph.predicates[i].total_eligibility_set, RAND_TABLE_BIT)) {
-        root_path->filter_predicates |= uint64_t{1} << i;
-        root_path->cost += EstimateFilterCost(root_path->num_output_rows,
-                                              graph.predicates[i].condition);
-        root_path->num_output_rows *= graph.predicates[i].selectivity;
-        if (trace != nullptr) {
-          *trace +=
-              StringPrintf(" - applied predicate %s\n",
-                           ItemToString(graph.predicates[i].condition).c_str());
+  {
+    Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
+    for (const AccessPath *root_path : root_candidates) {
+      for (bool materialize_subqueries : {false, true}) {
+        AccessPath path = *root_path;
+        double init_once_cost = 0.0;
+
+        // Apply any predicates that don't belong to any
+        // specific table, or which are nondeterministic.
+        for (size_t i = 0; i < graph.num_where_predicates; ++i) {
+          if (!Overlaps(graph.predicates[i].total_eligibility_set,
+                        TablesBetween(0, graph.nodes.size())) ||
+              Overlaps(graph.predicates[i].total_eligibility_set,
+                       RAND_TABLE_BIT)) {
+            path.filter_predicates |= uint64_t{1} << i;
+            FilterCost cost =
+                EstimateFilterCost(thd, root_path->num_output_rows,
+                                   graph.predicates[i].condition, query_block);
+            if (materialize_subqueries) {
+              path.cost += cost.cost_if_materialized;
+              init_once_cost += cost.cost_to_materialize;
+            } else {
+              path.cost += cost.cost_if_not_materialized;
+            }
+            path.num_output_rows *= graph.predicates[i].selectivity;
+          }
+        }
+
+        const bool contains_subqueries =
+            Overlaps(path.filter_predicates, graph.materializable_predicates);
+
+        // Now that we have decided on a full plan, expand all
+        // the applied filter maps into proper FILTER nodes
+        // for execution. This is a no-op in the second
+        // iteration.
+        ExpandFilterAccessPaths(thd, &path, join, graph.predicates,
+                                graph.num_where_predicates);
+
+        if (materialize_subqueries) {
+          assert(path.type == AccessPath::FILTER);
+          path.filter().materialize_subqueries = true;
+          path.cost += init_once_cost;  // Will be subtracted
+                                        // back for rescans.
+          path.init_cost += init_once_cost;
+          path.init_once_cost += init_once_cost;
+        }
+
+        receiver.ProposeAccessPath(&path, &new_root_candidates,
+                                   materialize_subqueries ? "mat. subq" : "");
+
+        if (!contains_subqueries) {
+          // Nothing to try to materialize.
+          break;
         }
       }
     }
-
-    // Now that we have decided on a full plan, expand all the applied
-    // filter maps into proper FILTER nodes for execution.
-    ExpandFilterAccessPaths(thd, root_path, join, graph.predicates,
-                            graph.num_where_predicates);
+    root_candidates = std::move(new_root_candidates);
   }
 
   // Apply GROUP BY, if applicable. We currently always do this by sorting
@@ -2132,21 +2362,23 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
       AccessPath filter_path;
-      NewFilterAccessPath(thd, root_path, join->having_cond);
       filter_path.type = AccessPath::FILTER;
       filter_path.filter().child = root_path;
       filter_path.filter().condition = join->having_cond;
+      // We don't currently bother with materializing subqueries
+      // in HAVING, as they should be rare.
+      filter_path.filter().materialize_subqueries = false;
       filter_path.num_output_rows =
           root_path->num_output_rows *
           EstimateSelectivity(thd, join->having_cond, trace);
       filter_path.init_cost = root_path->init_cost;
       filter_path.init_once_cost = root_path->init_once_cost;
       filter_path.cost =
-          root_path->cost +
-          EstimateFilterCost(root_path->num_output_rows, join->having_cond);
+          root_path->cost + EstimateFilterCost(thd, root_path->num_output_rows,
+                                               join->having_cond, query_block)
+                                .cost_if_not_materialized;
       filter_path.num_output_rows_before_filter = filter_path.num_output_rows;
       filter_path.cost_before_filter = filter_path.cost;
-
       receiver.ProposeAccessPath(&filter_path, &new_root_candidates, "");
     }
     root_candidates = std::move(new_root_candidates);

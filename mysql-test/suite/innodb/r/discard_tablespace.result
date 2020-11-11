@@ -34,8 +34,6 @@ test/t1	Single	DEFAULT	0	0	0	Dynamic	MYSQLD_DATADIR/test/t1.ibd
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table test/t1.
 ALTER TABLE t1 RENAME t2;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
@@ -51,8 +49,6 @@ test/t2	Single	DEFAULT	0	0	0	Dynamic	MYSQLD_DATADIR/test/t2.ibd
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table test/t2.
 CREATE TABLE t1(c INT)ENGINE=myisam;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
@@ -68,8 +64,6 @@ test/t2	Single	DEFAULT	0	0	0	Dynamic	MYSQLD_DATADIR/test/t2.ibd
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table test/t2.
 alter table t1 engine=innodb;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
@@ -88,8 +82,6 @@ Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t1	TABLESPACE	InnoDB	NORMAL	test/t1	MYSQLD_DATADIR/test/t1.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table test/t2.
 drop table t1;
 drop table t2;
 # Test Case 2:
@@ -124,8 +116,6 @@ test/t1	Single	DEFAULT	0	0	0	Dynamic	MYSQLD_DATADIR/test/t1.ibd
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table test/t1.
 ALTER TABLE t1 RENAME t2;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
@@ -141,8 +131,6 @@ test/t2	Single	DEFAULT	0	0	0	Dynamic	MYSQLD_DATADIR/test/t2.ibd
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table test/t2.
 CREATE TABLE t1(c INT)ENGINE=innodb;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
@@ -161,8 +149,6 @@ Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t1	TABLESPACE	InnoDB	NORMAL	test/t1	MYSQLD_DATADIR/test/t1.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table test/t2.
 drop table t1;
 drop table t2;
 # Test Case 3:
@@ -197,8 +183,6 @@ test/t1/t2	Single	DEFAULT	0	0	0	Dynamic	MYSQLD_DATADIR/test/t1@002ft2.ibd
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table test/t1/t2.
 ALTER TABLE `t1/t2` RENAME `t3\t4\t5`;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
@@ -214,8 +198,6 @@ test/t3\t4\t5	Single	DEFAULT	0	0	0	Dynamic	MYSQLD_DATADIR/test/t3@005ct4@005ct5.
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table test/t3\t4\t5.
 drop table `t3\t4\t5`;
 # Test Case 4:
 create database `d1/d2\d3`;
@@ -251,8 +233,6 @@ mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppr
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table d1/d2\d3/t1/t2\t3.
 ALTER TABLE `t1/t2\t3` RENAME `t3\t4/t5`;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
@@ -268,8 +248,6 @@ mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppr
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table d1/d2\d3/t3\t4/t5.
 drop table `t3\t4/t5`;
 drop database `d1/d2\d3`;
 # Test Case 5:
@@ -306,8 +284,6 @@ mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppr
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table d1/d2\d3/t1/t2\t3.
 ALTER TABLE `d1/d2\d3`.`t1/t2\t3` RENAME `d4/d5\d6`.`t3\t4/t5`;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
@@ -323,8 +299,6 @@ mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppr
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table d4/d5\d6/t3\t4/t5.
 drop table `d4/d5\d6`.`t3\t4/t5`;
 drop database `d1/d2\d3`;
 drop database `d4/d5\d6`;
@@ -362,8 +336,6 @@ mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppr
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table d1/d2/t1/t2.
 ALTER TABLE `d1/d2`.`t1/t2` RENAME `d1`.`d2/t1/t2`;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
@@ -379,8 +351,6 @@ mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppr
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table d1/d2/t1/t2.
 drop table `d1`.`d2/t1/t2`;
 drop database `d1/d2`;
 drop database `d1`;

@@ -28,6 +28,8 @@ SELECT s.name 'Space_Name',
 LET $REGEX = /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/   /#P#/#p#/  /#SP#/#sp#/   $EXTRA_I_S_FILES_REGEX;
 --replace_regex  $REGEX
 --replace_result ./ MYSQLD_DATADIR/  $MYSQLD_DATADIR/ MYSQLD_DATADIR/  $MYSQLD_DATADIR MYSQLD_DATADIR/  $MYSQL_TMP_DIR MYSQL_TMP_DIR  $INNODB_PAGE_SIZE DEFAULT
+# Hypergraph optimizer has different warnings, so disable them temporarily.
+--disable_warnings
 SELECT	s.name 'Space_Name',
 	f.file_type 'File_Type',
 	f.engine 'Engine',
@@ -44,4 +46,5 @@ SELECT	s.name 'Space_Name',
 	AND s.name NOT LIKE 'innodb_temporary'
 	AND s.name NOT LIKE '%undo%'
 	ORDER BY s.name, f.file_name;
+--enable_warnings
 --enable_query_log

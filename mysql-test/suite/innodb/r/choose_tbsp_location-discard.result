@@ -576,11 +576,6 @@ test/t5980d	Single	DEFAULT	0	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table test/t5980#.
-Warning	1812	Tablespace is missing for table test/t5980#.
-Warning	1812	Tablespace is missing for table test/t5980#.
-Warning	1812	Tablespace is missing for table test/t5980#.
 ### files in MYSQLD_DATADIR/test
 ### files in MYSQL_TMP_DIR/alt_dir/test
 #
@@ -655,11 +650,6 @@ test/t5980d	Single	DEFAULT	0	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table test/t5980#.
-Warning	1812	Tablespace is missing for table test/t5980#.
-Warning	1812	Tablespace is missing for table test/t5980#.
-Warning	1812	Tablespace is missing for table test/t5980#.
 #
 # Discarded tablespaces cannot be ALTERED with ALGORITHM=COPY.
 #
@@ -732,11 +722,6 @@ test/t5980d	Single	DEFAULT	0	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table test/t5980#.
-Warning	1812	Tablespace is missing for table test/t5980#.
-Warning	1812	Tablespace is missing for table test/t5980#.
-Warning	1812	Tablespace is missing for table test/t5980#.
 ### files in MYSQLD_DATADIR/test
 ### files in MYSQL_TMP_DIR/alt_dir/test
 #
@@ -792,11 +777,6 @@ test/t5980d	Single	DEFAULT	0	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table test/t5980#.
-Warning	1812	Tablespace is missing for table test/t5980#.
-Warning	1812	Tablespace is missing for table test/t5980#.
-Warning	1812	Tablespace is missing for table test/t5980#.
 ### files in MYSQLD_DATADIR/test
 ### files in MYSQL_TMP_DIR/alt_dir/test
 #

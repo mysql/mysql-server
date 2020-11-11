@@ -282,8 +282,33 @@ static TableCollection GetUsedTablesForAggregate(JOIN *join,
   return tables;
 }
 
+void FinalizeMaterializedSubqueries(THD *thd, JOIN *join, AccessPath *path) {
+  if (path->type != AccessPath::FILTER ||
+      !path->filter().materialize_subqueries) {
+    return;
+  }
+  WalkItem(
+      path->filter().condition, enum_walk::POSTFIX, [thd, join](Item *item) {
+        if (!IsItemInSubSelect(item)) {
+          return false;
+        }
+        Item_in_subselect *item_subs = down_cast<Item_in_subselect *>(item);
+        Query_block *subquery_block = item_subs->unit->first_query_block();
+        if (!item_subs->subquery_allows_materialization(thd, subquery_block,
+                                                        join->query_block)) {
+          return false;
+        }
+        item_subs->finalize_materialization_transform(thd,
+                                                      subquery_block->join);
+        item_subs->create_iterators(thd);
+        return false;
+      });
+}
+
 unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
     THD *thd, AccessPath *path, JOIN *join, bool eligible_for_batch_mode) {
+  FinalizeMaterializedSubqueries(thd, join, path);
+
   unique_ptr_destroy_only<RowIterator> iterator;
 
   ha_rows *examined_rows = nullptr;
@@ -818,27 +843,35 @@ static Item *ConditionFromFilterPredicates(
   }
 }
 
+void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path,
+                                  const Mem_root_array<Predicate> &predicates,
+                                  unsigned num_where_predicates) {
+  uint64_t filter_predicates =
+      path->filter_predicates & BitsBetween(0, num_where_predicates);
+  if (filter_predicates != 0) {
+    Item *condition =
+        ConditionFromFilterPredicates(predicates, filter_predicates);
+    AccessPath *new_path = new (thd->mem_root) AccessPath(*path);
+    new_path->filter_predicates = 0;
+    new_path->num_output_rows = path->num_output_rows_before_filter;
+    new_path->cost = path->cost_before_filter;
+
+    path->type = AccessPath::FILTER;
+    path->filter().condition = condition;
+    path->filter().child = new_path;
+    path->filter().materialize_subqueries = false;
+    path->filter_predicates = 0;
+  }
+}
+
 void ExpandFilterAccessPaths(THD *thd, AccessPath *path_arg, const JOIN *join,
                              const Mem_root_array<Predicate> &predicates,
                              unsigned num_where_predicates) {
   WalkAccessPaths(
       path_arg, join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
       [thd, &predicates, num_where_predicates](AccessPath *path, const JOIN *) {
-        uint64_t filter_predicates =
-            path->filter_predicates & TablesBetween(0, num_where_predicates);
-        if (filter_predicates != 0) {
-          Item *condition =
-              ConditionFromFilterPredicates(predicates, filter_predicates);
-          AccessPath *new_path = new (thd->mem_root) AccessPath(*path);
-          new_path->filter_predicates = 0;
-          new_path->num_output_rows = path->num_output_rows_before_filter;
-          new_path->cost = path->cost_before_filter;
-
-          path->type = AccessPath::FILTER;
-          path->filter().condition = condition;
-          path->filter().child = new_path;
-          path->filter_predicates = 0;
-        }
+        ExpandSingleFilterAccessPath(thd, path, predicates,
+                                     num_where_predicates);
         return false;
       });
 }

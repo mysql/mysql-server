@@ -386,42 +386,39 @@ bool Item_in_subselect::finalize_exists_transform(THD *thd,
   return false;
 }
 
-/*
-  Removes every predicate injected by IN->EXISTS.
-
-  This function is different from others:
-  - it wants to remove all traces of IN->EXISTS (for
-  materialization)
-  - remove_subq_pushed_predicates() and remove_additional_cond() want to
-  remove only the conditions of IN->EXISTS which index lookup already
-  satisfies (they are just an optimization).
-
-  @param conds  condition
-  @returns      new condition
-*/
-Item *Item_in_subselect::remove_in2exists_conds(Item *conds) {
-  if (conds->created_by_in2exists()) return nullptr;
-  if (conds->type() != Item::COND_ITEM) return conds;
-  Item_cond *cnd = static_cast<Item_cond *>(conds);
-  /*
-    If IN->EXISTS has added something to 'conds', cnd must be AND list and we
-    must inspect each member.
-  */
-  if (cnd->functype() != Item_func::COND_AND_FUNC) return conds;
-  List_iterator<Item> li(*(cnd->argument_list()));
-  Item *item;
-  while ((item = li++)) {
-    // remove() does not invalidate iterator.
-    if (item->created_by_in2exists()) li.remove();
+Item *remove_in2exists_conds(THD *thd, Item *conds) {
+  if (conds == nullptr || conds->created_by_in2exists()) {
+    return nullptr;
   }
-  switch (cnd->argument_list()->elements) {
-    case 0:
-      return nullptr;
-    case 1:  // AND(x) is the same as x, return x
-      return cnd->argument_list()->head();
-    default:  // otherwise return AND
-      return conds;
+  if (conds->type() != Item::COND_ITEM ||
+      down_cast<Item_cond *>(conds)->functype() != Item_func::COND_AND_FUNC) {
+    return conds;
   }
+
+  Mem_root_array<Item *> parts(thd->mem_root);
+  ExtractConditions(conds, &parts);
+  auto new_end = std::remove_if(parts.begin(), parts.end(), [](Item *item) {
+    return item->created_by_in2exists();
+  });
+  if (new_end == parts.end()) {
+    return conds;  // No change.
+  }
+  parts.erase(new_end, parts.end());
+  if (parts.empty()) {
+    return nullptr;
+  }
+  if (parts.size() == 1) {
+    return parts[0];
+  }
+
+  List<Item> new_conds;
+  for (Item *item : parts) {
+    new_conds.push_back(item);
+  }
+  Item_cond_and *item_and = new Item_cond_and(new_conds);
+  item_and->quick_fix_field();
+  item_and->update_used_tables();
+  return item_and;
 }
 
 bool Item_in_subselect::finalize_materialization_transform(THD *thd,
@@ -436,23 +433,23 @@ bool Item_in_subselect::finalize_materialization_transform(THD *thd,
 
   strategy = Subquery_strategy::SUBQ_MATERIALIZATION;
 
-  /*
-    We need to undo several changes which IN->EXISTS had done. But we first
-    back them up, so that the next execution of the statement is allowed to
-    choose IN->EXISTS.
-  */
+  // We need to undo several changes which IN->EXISTS had done:
 
   /*
-    Undo conditions injected by IN->EXISTS.
-    Condition guards, which those conditions maybe used, are not needed
-    anymore.
-    Subquery becomes 'not dependent' again, as before IN->EXISTS.
+    The conditions added by in2exists depend on the concrete value from the
+    outer query block, so they need to be removed before we materialize.
   */
+
+  // This part is not relevant for the hypergraph optimizer.
   if (join->where_cond)
-    join->where_cond = remove_in2exists_conds(join->where_cond);
+    join->where_cond = remove_in2exists_conds(thd, join->where_cond);
   if (join->having_cond)
-    join->having_cond = remove_in2exists_conds(join->having_cond);
+    join->having_cond = remove_in2exists_conds(thd, join->having_cond);
+
+  // This part is only relevant for the hypergraph optimizer.
+  unit->change_to_access_path_without_in2exists(thd);
   assert(!in2exists_info->dependent_before);
+
   join->query_block->uncacheable &= ~UNCACHEABLE_DEPENDENT;
   unit->uncacheable &= ~UNCACHEABLE_DEPENDENT;
 
@@ -2531,6 +2528,20 @@ bool Item_in_subselect::init_left_expr_cache(THD *thd) {
       return true;
   }
   return false;
+}
+
+bool IsItemInSubSelect(Item *item) {
+  if (item->type() != Item::SUBSELECT_ITEM) {
+    return false;
+  }
+  switch (down_cast<Item_subselect *>(item)->substype()) {
+    case Item_subselect::IN_SUBS:
+    case Item_subselect::ALL_SUBS:
+    case Item_subselect::ANY_SUBS:
+      return true;
+    default:
+      return false;
+  }
 }
 
 /**

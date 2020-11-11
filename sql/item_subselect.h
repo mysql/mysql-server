@@ -593,7 +593,6 @@ class Item_in_subselect : public Item_exists_subselect {
     bool dependent_after;
   } * in2exists_info;
 
-  Item *remove_in2exists_conds(Item *conds);
   bool mark_as_outer(Item *left_row, size_t col);
 
  public:
@@ -892,5 +891,28 @@ class subselect_hash_sj_engine final : public subselect_indexsubquery_engine {
   AccessPath *root_access_path() const { return m_root_access_path; }
   void create_iterators(THD *thd) override;
 };
+
+/**
+  Removes every predicate injected by IN->EXISTS.
+
+  This function is different from others:
+  - it wants to remove all traces of IN->EXISTS (for
+  materialization)
+  - remove_subq_pushed_predicates() and remove_additional_cond() want to
+  remove only the conditions of IN->EXISTS which index lookup already
+  satisfies (they are just an optimization).
+
+  If there are no in2exists conditions, it will return the exact same
+  pointer. If it returns a new Item, the old Item is left alone, so it
+  can be reused in other settings.
+
+  @param thd    Thread handle.
+  @param conds  Condition; may be nullptr.
+  @returns      new condition
+ */
+Item *remove_in2exists_conds(THD *thd, Item *conds);
+
+/// Returns whether the Item is an IN-subselect.
+bool IsItemInSubSelect(Item *item);
 
 #endif /* ITEM_SUBSELECT_INCLUDED */

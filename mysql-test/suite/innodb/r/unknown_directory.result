@@ -157,8 +157,6 @@ test/tsp1#p#p1#sp#s2	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p1#sp#s2	MYSQL_TMP_DIR
 test/tsp1#p#p2#sp#s3	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p2#sp#s3	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s3.ibd
 test/tsp1#p#p2#sp#s4	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p2#sp#s4	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s4.ibd
 ts1	TABLESPACE	InnoDB	NORMAL	ts1	MYSQL_TMP_DIR/remote_dir/ts1.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table undo_004.
 #
 # If implicit tablespaces that exist in unknown locations are
 # part of a TRUNCATE statement, they will be recreated in
@@ -216,8 +214,6 @@ test/tsp1#p#p1#sp#s2	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p1#sp#s2	MYSQL_TMP_DIR
 test/tsp1#p#p2#sp#s3	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p2#sp#s3	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s3.ibd
 test/tsp1#p#p2#sp#s4	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p2#sp#s4	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s4.ibd
 ts1	TABLESPACE	InnoDB	NORMAL	ts1	MYSQL_TMP_DIR/remote_dir/ts1.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table undo_004.
 #
 # EXCHANGE PARTITION does not recreate tablespaces, so files in unknown
 # locations will remain there through the exchange.
@@ -287,8 +283,6 @@ test/tsp1#p#p1#sp#s2	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p1#sp#s2	MYSQLD_DATADI
 test/tsp1#p#p2#sp#s3	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p2#sp#s3	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s3.ibd
 test/tsp1#p#p2#sp#s4	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p2#sp#s4	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s4.ibd
 ts1	TABLESPACE	InnoDB	NORMAL	ts1	MYSQL_TMP_DIR/remote_dir/ts1.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table undo_004.
 TRUNCATE TABLE t2;
 Warnings:
 Warning	3121	The DATA DIRECTORY location must be in a known directory. The DATA DIRECTORY location will be ignored and the file will be put into the default datadir location.
@@ -329,8 +323,6 @@ test/tsp1#p#p1#sp#s2	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p1#sp#s2	MYSQLD_DATADI
 test/tsp1#p#p2#sp#s3	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p2#sp#s3	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s3.ibd
 test/tsp1#p#p2#sp#s4	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p2#sp#s4	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s4.ibd
 ts1	TABLESPACE	InnoDB	NORMAL	ts1	MYSQL_TMP_DIR/remote_dir/ts1.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table undo_004.
 ALTER TABLE tsp1 EXCHANGE PARTITION s4 WITH TABLE t2;
 SHOW WARNINGS;
 Level	Code	Message
@@ -380,8 +372,6 @@ test/tsp1#p#p1#sp#s2	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p1#sp#s2	MYSQLD_DATADI
 test/tsp1#p#p2#sp#s3	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p2#sp#s3	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s3.ibd
 test/tsp1#p#p2#sp#s4	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p2#sp#s4	MYSQLD_DATADIR/test/tsp1#p#p2#sp#s4.ibd
 ts1	TABLESPACE	InnoDB	NORMAL	ts1	MYSQL_TMP_DIR/remote_dir/ts1.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table undo_004.
 #
 # RENAME TABLE does not recreate tablespaces, so files in unknown
 # locations will remain there. No error message is issued.
@@ -497,8 +487,6 @@ test/tsp1#p#p1#sp#s2	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p1#sp#s2	MYSQLD_DATADI
 test/tsp1#p#p2#sp#s3	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p2#sp#s3	MYSQLD_DATADIR/test/tsp1#p#p2#sp#s3.ibd
 test/tsp1#p#p2#sp#s4	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p2#sp#s4	MYSQLD_DATADIR/test/tsp1#p#p2#sp#s4.ibd
 ts1	TABLESPACE	InnoDB	NORMAL	ts1	MYSQL_TMP_DIR/remote_dir/ts1.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table undo_004.
 #
 # Validate the messages that should have been put into the error log.
 #

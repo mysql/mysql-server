@@ -316,6 +316,7 @@ bool JOIN::optimize() {
   // if (query_block->materialized_derived_table_count) {
   {  // WL#6570
     for (TABLE_LIST *tl = query_block->leaf_tables; tl; tl = tl->next_leaf) {
+      tl->access_path_for_derived = nullptr;
       if (tl->is_view_or_derived()) {
         if (tl->optimize_derived(thd)) return true;
       } else if (tl->is_table_function()) {
@@ -329,6 +330,19 @@ bool JOIN::optimize() {
 
         table->file->stats.records = 2;
       }
+    }
+  }
+
+  if (thd->lex->using_hypergraph_optimizer) {
+    // The hypergraph optimizer also wants all subselect items to be optimized,
+    // so that it has cost information to attach to filter nodes.
+    for (Query_expression *unit = query_block->first_inner_query_expression();
+         unit; unit = unit->next_query_expression()) {
+      // Derived tables and const subqueries are already optimized
+      if (!unit->is_optimized() &&
+          unit->optimize(thd, /*materialize_destination=*/nullptr,
+                         /*create_iterators=*/false))
+        return true;
     }
   }
 
@@ -501,9 +515,47 @@ bool JOIN::optimize() {
   if (thd->is_error()) return true;
 
   if (thd->lex->using_hypergraph_optimizer) {
-    if (thd->opt_trace.is_started()) {
-      std::string trace_str;
-      m_root_access_path = FindBestQueryPlan(thd, query_block, &trace_str);
+    Item *where_cond_no_in2exists = remove_in2exists_conds(thd, where_cond);
+    Item *having_cond_no_in2exists = remove_in2exists_conds(thd, having_cond);
+
+    std::string trace_str;
+    std::string *trace_ptr = thd->opt_trace.is_started() ? &trace_str : nullptr;
+
+    m_root_access_path = FindBestQueryPlan(thd, query_block, trace_ptr);
+
+    // If this query block was modified by IN-to-EXISTS conversion,
+    // the outer query block may want to undo that conversion and materialize
+    // us instead, depending on cost. (Materialization has high initial cost,
+    // but looking up in the materialized table is typically cheaper than
+    // running the entire query.) If so, we will need to plan the query again,
+    // but with all extra conditions added by IN-to-EXISTS removed, as those
+    // are specific to the values referred to by the outer query.
+    //
+    // Thus, we detect this here, and plan a second query plan. There are
+    // computations that could be shared between the two plans (e.g. join order
+    // between tables for which there is no IN-to-EXISTS-related condition),
+    // so it is somewhat wasteful, but experiments have shown that planning
+    // both at the same time quickly clutters the code with such handling;
+    // there are so many places such filters could be added (base table filters,
+    // filters after various types of joins, join conditions, post-join filters,
+    // HAVING, possibly others) that trying to plan paths both with and without
+    // them incurs complexity that is not justified by the small computational
+    // gain it would bring.
+    if (where_cond != where_cond_no_in2exists ||
+        having_cond != having_cond_no_in2exists) {
+      if (trace_ptr != nullptr) {
+        *trace_ptr +=
+            "\nPlanning an alternative with in2exists conditions removed:\n";
+      }
+      where_cond = where_cond_no_in2exists;
+      having_cond = having_cond_no_in2exists;
+      m_root_access_path_no_in2exists =
+          FindBestQueryPlan(thd, query_block, trace_ptr);
+    } else {
+      m_root_access_path_no_in2exists = nullptr;
+    }
+
+    if (trace != nullptr) {
       Opt_trace_object trace_wrapper2(&thd->opt_trace);
       Opt_trace_array join_optimizer(&thd->opt_trace, "join_optimizer");
 
@@ -513,9 +565,6 @@ bool JOIN::optimize() {
         join_optimizer.add_utf8(trace_str.data() + pos, len);
         pos += len + 1;
       }
-    } else {
-      m_root_access_path =
-          FindBestQueryPlan(thd, query_block, /*trace=*/nullptr);
     }
     if (m_root_access_path == nullptr) {
       return true;
@@ -926,6 +975,12 @@ setup_subq_exit:
 
   set_plan_state(ZERO_RESULT);
   return false;
+}
+
+void JOIN::change_to_access_path_without_in2exists() {
+  if (m_root_access_path_no_in2exists != nullptr) {
+    m_root_access_path = m_root_access_path_no_in2exists;
+  }
 }
 
 void JOIN::create_access_paths_for_zero_rows() {

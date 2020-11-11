@@ -741,6 +741,14 @@ class JOIN {
   AccessPath *root_access_path() const { return m_root_access_path; }
 
   /**
+    If this query block was planned twice, once with and once without conditions
+    added by in2exists, changes the root access path to the one without
+    in2exists. If not (ie., there were never any such conditions in the first
+    place), does nothing.
+   */
+  void change_to_access_path_without_in2exists();
+
+  /**
     In the case of rollup (only): After the base slice list was made, we may
     have modified the field list to add rollup group items and sum switchers,
     but there may be Items with refs that refer to the base slice. This function
@@ -973,6 +981,13 @@ class JOIN {
     (after you create an iterator from it).
    */
   AccessPath *m_root_access_path = nullptr;
+
+  /**
+    If this query block contains conditions synthesized during IN-to-EXISTS
+    conversion: A second query plan with all such conditions removed.
+    See comments in JOIN::optimize().
+   */
+  AccessPath *m_root_access_path_no_in2exists = nullptr;
 };
 
 /**

@@ -356,6 +356,14 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
   Item::Type orig_type = type;
   Item *orig_item = nullptr;
 
+  // If we are optimizing twice (due to being in the hypergraph optimizer
+  // and consider materialized subqueries), we might have Item_cache nodes
+  // that we need to ignore.
+  if (type == Item::CACHE_ITEM) {
+    item = down_cast<Item_cache *>(item)->get_example();
+    type = item->type();
+  }
+
   if (type != Item::FIELD_ITEM &&
       item->real_item()->type() == Item::FIELD_ITEM) {
     orig_item = item;

@@ -74,6 +74,7 @@
 #include "sql/item_sum.h"  // Item_sum
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
+#include "sql/join_optimizer/estimate_filter_cost.h"
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/join_optimizer/materialize_path_parameters.h"
 #include "sql/join_optimizer/relational_expression.h"
@@ -1449,6 +1450,10 @@ AccessPath *GetAccessPathForDerivedTable(
     THD *thd, TABLE_LIST *table_ref, TABLE *table, bool rematerialize,
     Mem_root_array<const AccessPath *> *invalidators, bool need_rowid,
     AccessPath *table_path) {
+  if (table_ref->access_path_for_derived != nullptr) {
+    return table_ref->access_path_for_derived;
+  }
+
   Query_expression *query_expression = table_ref->derived_query_expression();
   JOIN *subjoin = nullptr;
   Temp_table_param *tmp_table_param;
@@ -1539,6 +1544,7 @@ AccessPath *GetAccessPathForDerivedTable(
   path->cost_before_filter = path->cost;
   path->num_output_rows_before_filter = path->num_output_rows;
 
+  table_ref->access_path_for_derived = path;
   return path;
 }
 
@@ -3137,8 +3143,20 @@ AccessPath *JOIN::attach_access_paths_for_having_and_limit(AccessPath *path) {
   // Attach HAVING and LIMIT if needed.
   // NOTE: We can have HAVING even without GROUP BY, although it's not very
   // useful.
+  // We don't currently bother with materializing subqueries
+  // in HAVING, as they should be rare.
   if (having_cond != nullptr) {
+    AccessPath *old_path = path;
     path = NewFilterAccessPath(thd, path, having_cond);
+    CopyCosts(*old_path, path);
+    if (thd->lex->using_hypergraph_optimizer) {
+      // We cannot call EstimateFilterCost() in the pre-hypergraph optimizer,
+      // as on repeated execution of a prepared query, the condition may contain
+      // references to subqueries that are destroyed and not re-optimized yet.
+      path->cost += EstimateFilterCost(thd, path->num_output_rows, having_cond,
+                                       query_block)
+                        .cost_if_not_materialized;
+    }
   }
 
   // Note: For select_count, LIMIT 0 is handled in JOIN::optimize() for the

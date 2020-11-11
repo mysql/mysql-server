@@ -4478,8 +4478,8 @@ EXPLAIN
 -> Filter: <in_optimizer>(t1.a,<exists>(select #2))  (cost=2.73 rows=2)
     -> Table scan on t1  (cost=2.73 rows=2)
     -> Select #2 (subquery in condition; dependent)
-        -> Limit: 1 row(s)
-            -> Filter: (<cache>(t1.a) = <ref_null_helper>(max(t1.b)))
+        -> Limit: 1 row(s)  (cost=0.10..0.10 rows=1)
+            -> Filter: (<cache>(t1.a) = <ref_null_helper>(max(t1.b)))  (cost=0.10..0.10 rows=1)
                 -> Aggregate: max(t1.b)  (cost=0.10..0.10 rows=1)
                     -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
 

@@ -1464,6 +1464,14 @@ bool Query_expression::walk(Item_processor processor, enum_walk walk,
   return false;
 }
 
+void Query_expression::change_to_access_path_without_in2exists(THD *thd) {
+  for (Query_block *select = first_query_block(); select != nullptr;
+       select = select->next_query_block()) {
+    select->join->change_to_access_path_without_in2exists();
+  }
+  create_access_paths(thd);
+}
+
 /**
   Closes (and, if last reference, drops) temporary tables created to
   materialize derived tables, schema tables and CTEs.

@@ -85,6 +85,49 @@ class Query_block;
     5. Make access paths for the filters in nodes made by #2
        (see ExpandFilterAccessPaths()).
 
+  Materializing subqueries need some extra care. (These are typically IN
+  subqueries that for whatever reason could not be rewritten to semijoin,
+  e.g. because they have GROUP BY.) The decision on whether to materialize
+  or not needs to be done cost-based, and depends both on the inner and outer
+  query block, so it needs to be done cost-based. (Materializiation gives
+  a high up-front cost, but each execution is cheaper, so it will depend on
+  how many times we expect to execute the subquery and now expensive it is
+  to run unmaterialized.) Following the flow through the different steps:
+
+  First of all, these go through a stage known as in2exists, rewriting them
+  from e.g.
+
+    WHERE t1_outer.x IN ( SELECT t2.y FROM t2 GROUP BY ... )
+
+  to
+
+    WHERE EXISTS ( SELECT 1 FROM t2 GROUP BY ... HAVING t2.y = t1_outer.x )
+
+  This happens before the join optimizer, and the idea is that the HAVING
+  condition (known as a “created_by_in2exists condition”, possibly in WHERE
+  instead of HAVING) can be attempted pushed down into an index or similar,
+  giving more efficient execution. However, if we want to materialize the
+  subquery, these extra conditions need to be removed before materialization;
+  not only do they give the wrong result, but they can also need to wrong
+  costs and a suboptimal join order.
+
+  Thus, whenever we plan such a subquery, we plan it twice; once as usual,
+  and then a second time with all in2exists conditions removed. This gives
+  EstimateFilterCost() precise cost information for both cases, or at least
+  as precise as the cost model itself is. In the outer query block, we can
+  then weigh the two alternatives against each other when we add a filter
+  with such a subquery; we can choose to materialize it or not, and propose
+  both alternatives as with any other subplan. When we've decided on the
+  final plan, we go through all access paths and actually materialize the
+  subqueries it says to materialize.
+
+  There are lots of places these conditions can show up; to reduce complexity,
+  we only consider materialization in the most common places (filters on
+  base tables, filters after joins, filters from HAVING) -- in particular,
+  we don't bother checking on join conditions. It is never wrong to not
+  materialize a subquery, though it may be suboptimal.
+
+
   @param thd Thread handle.
   @param query_block The query block to find a plan for.
   @param trace If not nullptr, will be filled with human-readable optimizer

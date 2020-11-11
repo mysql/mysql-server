@@ -1065,7 +1065,7 @@ TEST_F(HypergraphSecondaryEngineTest, SingleTable) {
       [](THD *, const JoinHypergraph &, AccessPath *path) {
         EXPECT_EQ(AccessPath::TABLE_SCAN, path->type);
         EXPECT_STREQ("t1", path->table_scan().table->alias);
-        path->num_output_rows *= 2;
+        path->num_output_rows = 200;
         return false;
       };
 

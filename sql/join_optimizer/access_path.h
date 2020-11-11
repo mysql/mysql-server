@@ -218,7 +218,12 @@ struct AccessPath {
     ///
     /// This is used during join optimization only; before iterators are
     /// created, we will add FILTER access paths to represent these instead,
-    /// removing the dependency on the array.
+    /// removing the dependency on the array. Said FILTER paths are by
+    /// convention created with materialize_subqueries = false, since the by far
+    /// most common case is that there are no subqueries in the predicate. In
+    /// other words, if you wish to represent a filter with
+    /// materialize_subqueries = true, you will nede to make an explicit FILTER
+    /// node.
     ///
     /// TODO(sgunders): Add some technique for “overflow bitset” to allow
     /// having more than 64 predicates. (For now, we refuse queries that have
@@ -706,6 +711,16 @@ struct AccessPath {
     struct {
       AccessPath *child;
       Item *condition;
+
+      // This parameter, unlike nearly all others, is not passed to the the
+      // actual iterator. Instead, if true, it signifies that when creating
+      // the iterator, all materializable subqueries in “condition” should be
+      // materialized (with any in2exists condition removed first). In the
+      // very rare case that there are two or more such subqueries, this is
+      // an all-or-nothing decision, for simplicity.
+      //
+      // See FinalizeMaterializedSubqueries().
+      bool materialize_subqueries;
     } filter;
     struct {
       AccessPath *child;
@@ -995,6 +1010,7 @@ inline AccessPath *NewFilterAccessPath(THD *thd, AccessPath *child,
   path->type = AccessPath::FILTER;
   path->filter().child = child;
   path->filter().condition = condition;
+  path->filter().materialize_subqueries = false;
   return path;
 }
 
@@ -1194,6 +1210,14 @@ inline AccessPath *NewAppendAccessPath(
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::APPEND;
   path->append().children = children;
+  path->cost = 0.0;
+  path->init_cost = 0.0;
+  path->init_once_cost = 0.0;
+  for (const AppendPathParameters &child : *children) {
+    path->cost += child.path->cost;
+    path->init_cost += child.path->init_cost;
+    path->init_once_cost += child.path->init_once_cost;
+  }
   return path;
 }
 
@@ -1254,6 +1278,19 @@ inline AccessPath *NewInvalidatorAccessPath(THD *thd, AccessPath *child,
 
 void FindTablesToGetRowidFor(AccessPath *path);
 
+/**
+  If the path is a FILTER path marked that subqueries are to be materialized,
+  do so. If not, do nothing.
+
+  It is important that this is not called until the entire plan is ready;
+  not just when planning a single query block. The reason is that a query
+  block A with materializable subqueries may itself be part of a materializable
+  subquery B, so if one calls this when planning A, the subqueries in A will
+  irrevocably be materialized, even if that is not the optimal plan given B.
+  Thus, this is done when creating iterators.
+ */
+void FinalizeMaterializedSubqueries(THD *thd, JOIN *join, AccessPath *path);
+
 unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
     THD *thd, AccessPath *path, JOIN *join, bool eligible_for_batch_mode);
 
@@ -1286,6 +1323,12 @@ table_map GetUsedTables(const AccessPath *path);
 void ExpandFilterAccessPaths(THD *thd, AccessPath *path, const JOIN *join,
                              const Mem_root_array<Predicate> &predicates,
                              unsigned num_where_predicates);
+
+/// Like ExpandFilterAccessPaths(), but expands only the single access path
+/// at “path”.
+void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path,
+                                  const Mem_root_array<Predicate> &predicates,
+                                  unsigned num_where_predicates);
 
 /// Creates an empty bitmap of access path types. This is the base
 /// case for the function template with the same name below.

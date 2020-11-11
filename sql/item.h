@@ -6474,6 +6474,7 @@ class Item_cache : public Item_basic_constant {
     if (!example) return INT_RESULT;
     return Field::result_merge_type(example->data_type());
   }
+  Item *get_example() const { return example; }
 };
 
 class Item_cache_int final : public Item_cache {

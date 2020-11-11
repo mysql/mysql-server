@@ -2069,7 +2069,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	innr2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	SUBQUERY	innr	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`o`.`c2` AS `x` from `test`.`t1` `o` where ((<in_optimizer>(`test`.`o`.`c1`,`test`.`o`.`c1` in ( <materialize> (/* select#2 */ select `test`.`innr`.`c4` AS `y` from `test`.`t2` `innr2` join `test`.`t3` `innr` where ((`test`.`innr`.`c4` = `test`.`innr2`.`c4k`) and ((`test`.`innr`.`c1` = 6) or (`test`.`innr`.`c1` <> `test`.`innr`.`pk`))) having true ), <primary_index_lookup>(`test`.`o`.`c1` in <temporary table> on <auto_distinct_key> where ((`test`.`o`.`c1` = `<materialized_subquery>`.`y`))))) and (`test`.`o`.`c4` = 7)) xor (`test`.`o`.`pk` = 3)) order by `test`.`o`.`pk`
+Note	1003	/* select#1 */ select `test`.`o`.`c2` AS `x` from `test`.`t1` `o` where ((<in_optimizer>(`test`.`o`.`c1`,`test`.`o`.`c1` in ( <materialize> (/* select#2 */ select `test`.`innr`.`c4` AS `y` from `test`.`t2` `innr2` join `test`.`t3` `innr` where (((`test`.`innr`.`c1` = 6) or (`test`.`innr`.`c1` <> `test`.`innr`.`pk`)) and (`test`.`innr`.`c4` = `test`.`innr2`.`c4k`)) having true ), <primary_index_lookup>(`test`.`o`.`c1` in <temporary table> on <auto_distinct_key> where ((`test`.`o`.`c1` = `<materialized_subquery>`.`y`))))) and (`test`.`o`.`c4` = 7)) xor (`test`.`o`.`pk` = 3)) order by `test`.`o`.`pk`
 SELECT o.c2 AS x FROM t1 AS o
 WHERE o.c1 IN
 (SELECT innr.c4 AS y

@@ -648,7 +648,7 @@ WHERE median != 1;
 EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
     -> Materialize  (cost=*** rows=***)
-        -> Filter: (my_median(t1.f2) <> 1)
+        -> Filter: (my_median(t1.f2) <> 1)  (cost=*** rows=***)
             -> Group aggregate: my_median(t1.f2)  (cost=*** rows=***)
                 -> Sort: t1.f1  (cost=*** rows=***)
                     -> Table scan on t1  (cost=*** rows=***)
