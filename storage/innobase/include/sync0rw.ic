@@ -244,7 +244,7 @@ void rw_lock_set_writer_id_and_recursion_flag(rw_lock_t *lock, bool recursive) {
  spinning.
  @return TRUE if success */
 ALWAYS_INLINE
-ibool rw_lock_s_lock_low(
+bool rw_lock_s_lock_low(
     rw_lock_t *lock, /*!< in: pointer to rw-lock */
     ulint pass MY_ATTRIBUTE((unused)),
     /*!< in: pass value; != 0, if the lock will be
@@ -254,7 +254,7 @@ ibool rw_lock_s_lock_low(
 {
   if (!rw_lock_lock_word_decr(lock, 1, 0)) {
     /* Locking did not succeed */
-    return (FALSE);
+    return false;
   }
 
   ut_d(rw_lock_add_debug_info(lock, pass, RW_LOCK_S, file_name, line));
@@ -262,9 +262,11 @@ ibool rw_lock_s_lock_low(
   /* These debugging values are not set safely: they may be incorrect
   or even refer to a line that is invalid for the file name. */
   lock->last_s_file_name = file_name;
+  /* last_s_line is uint16_t */
+  ut_ad(line <= std::numeric_limits<decltype(lock->last_s_line)>::max());
   lock->last_s_line = line;
 
-  return (TRUE); /* locking succeeded */
+  return true; /* locking succeeded */
 }
 
 /** NOTE! Use the corresponding macro, not directly this function! Lock an
@@ -343,6 +345,8 @@ bool rw_lock_x_lock_func_nowait(
   ut_d(rw_lock_add_debug_info(lock, 0, RW_LOCK_X, file_name, line));
 
   lock->last_x_file_name = file_name;
+  /* last_x_line is uint16_t */
+  ut_ad(line <= std::numeric_limits<decltype(lock->last_x_line)>::max());
   lock->last_x_line = line;
 
   ut_ad(rw_lock_validate(lock));
@@ -706,7 +710,7 @@ ibool pfs_rw_lock_s_lock_low(
  directly this function!
  @return true if success */
 UNIV_INLINE
-ibool pfs_rw_lock_sx_lock_low(
+bool pfs_rw_lock_sx_lock_low(
     rw_lock_t *lock,       /*!< in: pointer to rw-lock */
     ulint pass,            /*!< in: pass value; != 0, if the
                            lock will be passed to another
@@ -714,7 +718,7 @@ ibool pfs_rw_lock_sx_lock_low(
     const char *file_name, /*!< in: file name where lock requested */
     ulint line)            /*!< in: line where requested */
 {
-  ibool ret;
+  bool ret;
 
   if (lock->pfs_psi != nullptr) {
     if (lock->pfs_psi->m_enabled) {
@@ -739,7 +743,7 @@ ibool pfs_rw_lock_sx_lock_low(
 
   ret = rw_lock_sx_lock_low(lock, pass, file_name, line);
 
-  return (ret);
+  return ret;
 }
 /** Performance schema instrumented wrap function for rw_lock_x_unlock_func()
  NOTE! Please use the corresponding macro rw_lock_x_unlock(), not directly

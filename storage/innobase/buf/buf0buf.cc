@@ -795,7 +795,7 @@ static void buf_block_init(
 
 #endif /* PFS_SKIP_BUFFER_MUTEX_RWLOCK || PFS_GROUP_BUFFER_SYNC */
 
-  block->lock.is_block_lock = 1;
+  block->lock.is_block_lock = true;
 
   ut_ad(rw_lock_validate(&(block->lock)));
 }

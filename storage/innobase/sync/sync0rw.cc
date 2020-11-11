@@ -237,9 +237,9 @@ void rw_lock_create_func(
 
   /* This should hold in practice. If it doesn't then we need to
   split the source file anyway. Or create the locks on lines
-  less than 8192. cline is unsigned:13. */
-  ut_ad(cline <= 8192);
-  lock->cline = (unsigned int)cline;
+  less than 65536. cline is uint16_t. */
+  ut_ad(cline <= std::numeric_limits<decltype(lock->cline)>::max());
+  lock->cline = cline;
 
   lock->count_os_wait = 0;
   lock->last_s_file_name = "not yet reserved";
@@ -249,7 +249,7 @@ void rw_lock_create_func(
   lock->event = os_event_create();
   lock->wait_ex_event = os_event_create();
 
-  lock->is_block_lock = 0;
+  lock->is_block_lock = false;
 
   mutex_enter(&rw_lock_list_mutex);
 
@@ -478,7 +478,7 @@ void rw_lock_x_lock_wait_func(
 /** Low-level function for acquiring an exclusive lock.
  @return false if did not succeed, true if success. */
 UNIV_INLINE
-ibool rw_lock_x_lock_low(
+bool rw_lock_x_lock_low(
     rw_lock_t *lock,       /*!< in: pointer to rw-lock */
     ulint pass,            /*!< in: pass value; != 0, if the lock will
                            be passed to another thread to unlock */
@@ -528,21 +528,22 @@ ibool rw_lock_x_lock_low(
       }
     } else {
       /* Another thread locked before us */
-      return (FALSE);
+      return false;
     }
   }
 
   ut_d(rw_lock_add_debug_info(lock, pass, RW_LOCK_X, file_name, line));
 
   lock->last_x_file_name = file_name;
-  lock->last_x_line = (unsigned int)line;
+  ut_ad(line <= std::numeric_limits<decltype(lock->last_x_line)>::max());
+  lock->last_x_line = line;
 
-  return (TRUE);
+  return true;
 }
 
 /** Low-level function for acquiring an sx lock.
  @return false if did not succeed, true if success. */
-ibool rw_lock_sx_lock_low(
+bool rw_lock_sx_lock_low(
     rw_lock_t *lock,       /*!< in: pointer to rw-lock */
     ulint pass,            /*!< in: pass value; != 0, if the lock will
                            be passed to another thread to unlock */
@@ -596,16 +597,18 @@ ibool rw_lock_sx_lock_low(
       }
     } else {
       /* Another thread locked before us */
-      return (FALSE);
+      return false;
     }
   }
 
   ut_d(rw_lock_add_debug_info(lock, pass, RW_LOCK_SX, file_name, line));
 
   lock->last_x_file_name = file_name;
-  lock->last_x_line = (unsigned int)line;
 
-  return (TRUE);
+  ut_ad(line <= std::numeric_limits<decltype(lock->last_x_line)>::max());
+  lock->last_x_line = line;
+
+  return true;
 }
 
 /** NOTE! Use the corresponding macro, not directly this function! Lock an
