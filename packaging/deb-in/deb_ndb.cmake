@@ -42,16 +42,6 @@ Description: Data node
  storage engine. It comes in two variants: ndbd and ndbmtd, the former
  is single threaded while the latter is multi-threaded.
 
-Package: mysql-${DEB_PRODUCTNAME}-auto-installer
-Architecture: any
-Depends: \${shlibs:Depends}, \${misc:Depends},
- python-paramiko
-Description: Data node
- This package contains MySQL Cluster Data Node Daemon, it's the process
- that is used to handle all the data in tables using the NDB Cluster
- storage engine. It comes in two variants: ndbd and ndbmtd, the former
- is single threaded while the latter is multi-threaded.
-
 Package: ndbclient
 Architecture: any
 Depends: \${shlibs:Depends}, \${misc:Depends}
@@ -114,7 +104,6 @@ Description: memcached
 /usr/bin/ndb_restore
 /usr/bin/ndb_select_all
 /usr/bin/ndb_select_count
-/usr/bin/ndb_setup.py
 /usr/bin/ndb_show_tables
 /usr/bin/ndb_size.pl
 /usr/bin/ndb_top
@@ -143,7 +132,6 @@ Description: memcached
 /usr/share/man/man1/ndb_restore.1*
 /usr/share/man/man1/ndb_select_all.1*
 /usr/share/man/man1/ndb_select_count.1*
-/usr/share/man/man1/ndb_setup.py.1*
 /usr/share/man/man1/ndb_show_tables.1*
 /usr/share/man/man1/ndb_size.pl.1*
 /usr/share/man/man1/ndb_top.1*
@@ -155,7 +143,6 @@ Description: memcached
 
   SET (DEB_NDB_RULES_LICENSE
 "
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/${DEB_INSTALL_LICENSEFILE} debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-auto-installer/${DEB_INSTALL_LICENSEFILE}
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/${DEB_INSTALL_LICENSEFILE} debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-data-node/${DEB_INSTALL_LICENSEFILE}
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/${DEB_INSTALL_LICENSEFILE} debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-java/${DEB_INSTALL_LICENSEFILE}
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/${DEB_INSTALL_LICENSEFILE} debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-management-server/${DEB_INSTALL_LICENSEFILE}
@@ -165,7 +152,6 @@ Description: memcached
 ")
   SET (DEB_NDB_RULES_README
 "
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-auto-installer/README
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-data-node/README
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-java/README
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-management-server/README
@@ -173,9 +159,8 @@ Description: memcached
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/ndbclient/README
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/ndbclient-dev/README
 ")
-  SET (DEB_NDB_RULES_DOCDIRS
+SET (DEB_NDB_RULES_DOCDIRS
 "
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-auto-installer
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-data-node
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-java
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-management-server
