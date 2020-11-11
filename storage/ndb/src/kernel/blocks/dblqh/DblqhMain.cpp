@@ -7421,7 +7421,6 @@ Dblqh::handle_acquire_scan_frag_access(Fragrecord *fragPtrP)
   Uint64 elapsed = 0;
   Uint64 spin_loops = 0;
   Uint32 num_spins = 0;
-  Uint32 i;
   bool first = true;
   NDB_TICKS now;
   NDB_TICKS start_time;
@@ -7457,7 +7456,7 @@ Dblqh::handle_acquire_scan_frag_access(Fragrecord *fragPtrP)
        */
       spin_loops++;
       num_spins += 2;
-      for (i = 0; i < num_spins; i++)
+      for (Uint32 i = 0; i < num_spins; i++)
       {
         NdbSpin();
       }
@@ -7506,7 +7505,9 @@ scan_cond_wait:
     jam();
     fragPtrP->m_cond_read_waiters--;
   }
+#ifdef NDB_HAVE_CPU_PAUSE
 got_lock:
+#endif
   fragPtrP->m_concurrent_scan_count++;
   DEB_FRAGMENT_LOCK(fragPtrP);
   NdbMutex_Unlock(&fragPtrP->frag_mutex);
@@ -7523,7 +7524,6 @@ Dblqh::handle_acquire_read_key_frag_access(Fragrecord *fragPtrP,
   Uint64 elapsed = 0;
   Uint64 spin_loops = 0;
   Uint32 num_spins = 0;
-  Uint32 i;
   bool first = true;
   NDB_TICKS now;
   NDB_TICKS start_time;
@@ -7553,7 +7553,7 @@ Dblqh::handle_acquire_read_key_frag_access(Fragrecord *fragPtrP,
     {
       spin_loops++;
       num_spins += 2;
-      for (i = 0; i < num_spins; i++)
+      for (Uint32 i = 0; i < num_spins; i++)
       {
         NdbSpin();
       }
@@ -7587,7 +7587,9 @@ read_key_cond_wait:
     fragPtrP->m_cond_read_waiters--;
     jam();
   }
+#ifdef NDB_HAVE_CPU_PAUSE
 got_lock:
+#endif
   fragPtrP->m_concurrent_read_key_count++;
   DEB_FRAGMENT_LOCK(fragPtrP);
   NdbMutex_Unlock(&fragPtrP->frag_mutex);
@@ -7603,7 +7605,6 @@ Dblqh::handle_acquire_write_key_frag_access(Fragrecord *fragPtrP,
   Uint64 elapsed = 0;
   Uint64 spin_loops = 0;
   Uint32 num_spins = 0;
-  Uint32 i;
   NDB_TICKS now;
   NDB_TICKS start_time;
   (void)now;
@@ -7639,7 +7640,7 @@ Dblqh::handle_acquire_write_key_frag_access(Fragrecord *fragPtrP,
     {
       num_spins++;
       spin_loops++;
-      for (i = 0; i < num_spins; i++)
+      for (Uint32 i = 0; i < num_spins; i++)
       {
         NdbSpin();
       }
@@ -7681,7 +7682,9 @@ cond_write_key_wait:
     jam();
     first = false;
   }
+#ifdef NDB_HAVE_CPU_PAUSE
 got_lock:
+#endif
   fragPtrP->m_spin_write_key_waiters = 0;
   fragPtrP->m_cond_write_key_waiters = 0;
   ndbrequire(fragPtrP->m_write_key_locked == false);
@@ -7701,7 +7704,6 @@ Dblqh::handle_acquire_exclusive_frag_access(Fragrecord *fragPtrP,
   Uint64 elapsed = 0;
   Uint64 spin_loops = 0;
   Uint32 num_spins = 0;
-  Uint32 i;
   NDB_TICKS now;
   NDB_TICKS start_time;
   (void)now;
@@ -7753,7 +7755,7 @@ Dblqh::handle_acquire_exclusive_frag_access(Fragrecord *fragPtrP,
        */
       num_spins++;
       spin_loops++;
-      for (i = 0; i < num_spins; i++)
+      for (Uint32 i = 0; i < num_spins; i++)
       {
         NdbSpin();
       }
@@ -7795,7 +7797,9 @@ cond_exclusive_wait:
     jam();
     first = false;
   }
+#ifdef NDB_HAVE_CPU_PAUSE
 got_lock:
+#endif
   ndbrequire(fragPtrP->m_exclusive_locked == false);
   fragPtrP->m_exclusive_locked = true;
   fragPtrP->m_cond_exclusive_waiters = 0;
