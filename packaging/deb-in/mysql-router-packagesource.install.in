@@ -30,6 +30,7 @@ usr/lib/mysqlrouter/plugin/http_server.so
 usr/lib/mysqlrouter/plugin/io.so
 usr/lib/mysqlrouter/plugin/keepalive.so
 usr/lib/mysqlrouter/plugin/routing.so
+usr/lib/mysqlrouter/plugin/router_openssl.so
 usr/lib/mysqlrouter/plugin/router_protobuf.so
 usr/lib/mysqlrouter/plugin/metadata_cache.so
 usr/lib/mysqlrouter/plugin/rest_api.so

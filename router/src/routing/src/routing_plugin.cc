@@ -447,9 +447,10 @@ static void deinit(mysql_harness::PluginFuncEnv * /* env */) {
   io_context_work_guards.clear();
 }
 
-static const std::array<const char *, 3> required = {{
+static const std::array<const char *, 4> required = {{
     "logger",
     "router_protobuf",
+    "router_openssl",
     "io",
 }};
 

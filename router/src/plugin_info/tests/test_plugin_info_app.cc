@@ -308,6 +308,7 @@ const Plugin_data router_plugins[]{
                 "0.0.1", R"(
         "logger",
         "router_protobuf",
+        "router_openssl",
         "io"
     )",
                 ""},

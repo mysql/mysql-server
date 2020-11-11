@@ -526,9 +526,6 @@ static void init(mysql_harness::PluginFuncEnv *env) {
     return;
   }
 
-  // calls the openssl library initialize code
-  TlsLibraryContext tls_lib_ctx;
-
   // assume there is only one section for us
   try {
     std::set<std::string> known_realms;
@@ -641,8 +638,9 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   }
 }
 
-const static std::array<const char *, 1> required = {{
+const static std::array<const char *, 2> required = {{
     "logger",
+    "router_openssl",
 }};
 
 extern "C" {
