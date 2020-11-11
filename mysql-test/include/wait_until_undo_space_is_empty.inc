@@ -4,6 +4,9 @@
 --disable_query_log
 --disable_result_log
 
+SET @orig_truncate_frequency = @@innodb_purge_rseg_truncate_frequency;
+SET GLOBAL innodb_purge_rseg_truncate_frequency=1;
+
 # Each inner loop is about 1 second.  Set the number of seconds to wait.
 let $wait_seconds = 30;
 if ($wait_timeout)
@@ -51,6 +54,8 @@ if (!$success_wait)
 {
   --echo # Timeout waiting for $inactive_undo_space to become empty after $repetitions tries
 }
+
+SET GLOBAL innodb_purge_rseg_truncate_frequency=@orig_truncate_frequency;
 
 --enable_result_log
 --enable_query_log
