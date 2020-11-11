@@ -59,10 +59,18 @@ class ClassicProtocolSplicer : public BasicSplicer {
   State tls_client_greeting() override;
   State tls_client_greeting_response() override;
 
-  stdx::expected<size_t, std::error_code> write_error_packet(
-      std::vector<uint8_t> &error_frame, uint16_t error_code,
+  static stdx::expected<size_t, std::error_code> encode_error_packet(
+      std::vector<uint8_t> &error_frame, const uint8_t seq_id,
+      const classic_protocol::capabilities::value_type caps,
+      const uint16_t error_code, const std::string &msg,
+      const std::string &sql_state = "HY000");
+
+  stdx::expected<size_t, std::error_code> encode_error_packet(
+      std::vector<uint8_t> &error_frame, const uint16_t error_code,
       const std::string &msg, const std::string &sql_state = "HY000");
 
+  stdx::expected<size_t, std::error_code> on_block_client_host(
+      std::vector<uint8_t> &buf) override;
   /**
    * forward bytes from one client to server.
    */

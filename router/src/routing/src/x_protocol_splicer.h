@@ -61,9 +61,12 @@ class XProtocolSplicer : public BasicSplicer {
   State tls_client_greeting() override;
   State tls_client_greeting_response() override;
 
-  stdx::expected<size_t, std::error_code> write_error_packet(
+  static stdx::expected<size_t, std::error_code> encode_error_packet(
       std::vector<uint8_t> &error_frame, uint16_t error_code,
       const std::string &msg, const std::string &sql_state = "HY000");
+
+  stdx::expected<size_t, std::error_code> on_block_client_host(
+      std::vector<uint8_t> &buf) override;
 
   /**
    * forward bytes from client to server.

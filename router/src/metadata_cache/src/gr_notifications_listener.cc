@@ -24,17 +24,19 @@
 
 #include "gr_notifications_listener.h"
 
-#include "common.h"  // rename_thread()
-#include "mysql/harness/logging/logging.h"
-#include "mysqld_error.h"
-#include "mysqlx_error.h"
-#include "mysqlxclient/xsession.h"
-#include "socket_operations.h"
-
 #include <algorithm>
 #include <map>
 #include <system_error>
 #include <thread>
+
+#include "common.h"  // rename_thread()
+#include "mysql/harness/logging/logging.h"
+#include "mysql/harness/net_ts/impl/poll.h"
+#include "mysql/harness/net_ts/impl/socket.h"
+#include "mysql/harness/net_ts/impl/socket_constants.h"
+#include "mysqld_error.h"
+#include "mysqlx_error.h"
+#include "mysqlxclient/xsession.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -52,13 +54,9 @@ const auto kXSesssionPingTimeout = kXSesssionWaitTimeout / 2;
 
 namespace {
 struct NodeId {
-#ifdef _WIN32
-  using native_handle_type = SOCKET;
-  static const native_handle_type kInvalidSocket{INVALID_SOCKET};
-#else
-  using native_handle_type = int;
-  static const native_handle_type kInvalidSocket{-1};
-#endif
+  using native_handle_type = net::impl::socket::native_handle_type;
+  static const native_handle_type kInvalidSocket{
+      net::impl::socket::kInvalidSocket};
 
   std::string host;
   uint16_t port;
@@ -239,8 +237,8 @@ void GRNotificationListener::Impl::listener_thread_func() {
       check_mysqlx_wait_timeout();
     }
 
-    const auto poll_res = mysql_harness::SocketOperations::instance()->poll(
-        fds.get(), sessions_qty, kPollTimeout);
+    const auto poll_res =
+        net::impl::poll::poll(fds.get(), sessions_qty, kPollTimeout);
     if (!poll_res) {
       // poll has failed
       if (poll_res.error() == make_error_condition(std::errc::interrupted)) {

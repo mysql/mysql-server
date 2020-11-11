@@ -29,6 +29,7 @@
 
 #include <gmock/gmock.h>
 
+#include "mysql/harness/stdx/attribute.h"
 #include "mysqlrouter/cluster_metadata.h"
 #include "process_manager.h"
 #include "process_wrapper.h"
@@ -59,6 +60,7 @@ class RouterComponentTest : public ProcessManager, public ::testing::Test {
    * @return bool value indicating if the pattern was found in the log file or
    * not
    */
+  STDX_NODISCARD
   bool wait_log_contains(const ProcessWrapper &process,
                          const std::string &pattern,
                          std::chrono::milliseconds timeout);

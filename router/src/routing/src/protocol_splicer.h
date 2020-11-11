@@ -102,7 +102,7 @@ initial_connection_attributes<local::stream_protocol>(
 template <class ClientProtocol, class ServerProtocol>
 std::unique_ptr<BasicSplicer> make_splicer(
     MySQLRoutingConnection<ClientProtocol, ServerProtocol> *conn) {
-  switch (conn->context().get_protocol().get_type()) {
+  switch (conn->context().get_protocol()) {
     case BaseProtocol::Type::kClassicProtocol:
       return std::make_unique<ClassicProtocolSplicer>(
           conn->context().source_ssl_mode(), conn->context().dest_ssl_mode(),
@@ -502,7 +502,31 @@ class Splicer : public std::enable_shared_from_this<
                conn_->context().get_name().c_str(),
                mysqlrouter::to_string(conn_->client_endpoint()).c_str());
       conn_->context().template block_client_host<ClientProtocol>(
-          conn_->client_endpoint(), conn_->server_socket().native_handle());
+          conn_->client_endpoint());
+
+      if (conn_->client_socket().is_open()) {
+        std::vector<uint8_t> buf;
+        const auto encode_res = splicer_->on_block_client_host(buf);
+
+        if (!encode_res) {
+          log_debug("[%s] fd=%d -- %d: encoding final-handshake failed: %s",
+                    conn_->context().get_name().c_str(),
+                    conn_->client_socket().native_handle(),
+                    conn_->server_socket().native_handle(),
+                    encode_res.error().message().c_str());
+        } else {
+          const auto write_res =
+              net::write(conn_->server_socket(), net::buffer(buf));
+
+          if (!write_res) {
+            log_debug("[%s] fd=%d -- %d: writing final-handshake failed: %s",
+                      conn_->context().get_name().c_str(),
+                      conn_->client_socket().native_handle(),
+                      conn_->server_socket().native_handle(),
+                      write_res.error().message().c_str());
+          }
+        }
+      }
     }
 
     // Either client or server terminated

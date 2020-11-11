@@ -76,6 +76,8 @@ class MySQLClassicProtocol : public ProtocolBase {
 
 class MySQLServerMockSessionClassic : public MySQLServerMockSession {
  public:
+  using socket_t = net::impl::socket::native_handle_type;
+
   MySQLServerMockSessionClassic(
       MySQLClassicProtocol *protocol,
       std::unique_ptr<StatementReaderBase> statement_processor,

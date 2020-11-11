@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -333,12 +333,12 @@ void MySQLProtocolEncoder::encode_msg_end(MsgBuffer &out_buffer,
 
   auto len = sizeof(header);
   for (size_t i = 0; len > 0; ++i, --len) {
-    out_buffer[i] = static_cast<byte>(header);
+    out_buffer[i] = static_cast<uint8_t>(header);
     header = static_cast<decltype(header)>(header >> 8);
   }
 }
 
-void MySQLProtocolEncoder::append_byte(MsgBuffer &buffer, byte value) {
+void MySQLProtocolEncoder::append_byte(MsgBuffer &buffer, uint8_t value) {
   buffer.push_back(value);
 }
 
@@ -354,7 +354,7 @@ void MySQLProtocolEncoder::append_buffer(MsgBuffer &buffer,
 
 void MySQLProtocolEncoder::append_lenenc_int(MsgBuffer &buffer, uint64_t val) {
   if (val < 251) {
-    append_byte(buffer, static_cast<byte>(val));
+    append_byte(buffer, static_cast<uint8_t>(val));
   } else if (val < (1 << 16)) {
     append_byte(buffer, 0xfc);
     append_int(buffer, static_cast<uint16_t>(val));

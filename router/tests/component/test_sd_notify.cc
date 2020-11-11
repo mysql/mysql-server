@@ -650,10 +650,12 @@ TEST_F(NotifyTest, NotifyTestSocketNameTooLong) {
                                /*do_create_notify_socket*/ false,
                                /*expected_exit_code*/ EXIT_SUCCESS);
 
-  EXPECT_TRUE(wait_log_contains(router,
-                                "WARNING .* Could not connect to the "
-                                "NOTIFY_SOCKET='.*': Socket name .* is invalid",
-                                500ms));
+  EXPECT_TRUE(wait_log_contains(
+      router,
+      "WARNING .* Could not connect to the "
+      "NOTIFY_SOCKET='.*': " +
+          make_error_code(std::errc::filename_too_long).message(),
+      500ms));
 }
 
 /**

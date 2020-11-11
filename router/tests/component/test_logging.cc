@@ -24,11 +24,14 @@
 
 #include <condition_variable>
 #include <csignal>
+#include <cstdlib>
 #include <fstream>
 #include <functional>
 #include <mutex>
 #include <string>
 #include <thread>
+
+#include <gmock/gmock-matchers.h>
 
 #include "dim.h"
 #include "mock_server_rest_client.h"
@@ -324,6 +327,8 @@ TEST_F(RouterLoggingTest, bad_loglevel) {
 /**************************************************/
 
 struct LoggingConfigOkParams {
+  const char *test_name;
+
   std::string logger_config;
   bool logging_folder_empty;
 
@@ -333,11 +338,13 @@ struct LoggingConfigOkParams {
   LogTimestampPrecision consolelog_expected_timestamp_precision;
   LogTimestampPrecision filelog_expected_timestamp_precision;
 
-  LoggingConfigOkParams(const std::string &logger_config_,
+  LoggingConfigOkParams(const char *test_name_,
+                        const std::string &logger_config_,
                         const bool logging_folder_empty_,
                         const LogLevel consolelog_expected_level_,
                         const LogLevel filelog_expected_level_)
-      : logger_config(logger_config_),
+      : test_name{test_name_},
+        logger_config(logger_config_),
         logging_folder_empty(logging_folder_empty_),
         consolelog_expected_level(consolelog_expected_level_),
         filelog_expected_level(filelog_expected_level_),
@@ -345,12 +352,14 @@ struct LoggingConfigOkParams {
         filelog_expected_timestamp_precision(LogTimestampPrecision::kNotSet) {}
 
   LoggingConfigOkParams(
-      const std::string &logger_config_, const bool logging_folder_empty_,
+      const char *test_name_, const std::string &logger_config_,
+      const bool logging_folder_empty_,
       const LogLevel consolelog_expected_level_,
       const LogLevel filelog_expected_level_,
       const LogTimestampPrecision consolelog_expected_timestamp_precision_,
       const LogTimestampPrecision filelog_expected_timestamp_precision_)
-      : logger_config(logger_config_),
+      : test_name{test_name_},
+        logger_config(logger_config_),
         logging_folder_empty(logging_folder_empty_),
         consolelog_expected_level(consolelog_expected_level_),
         filelog_expected_level(filelog_expected_level_),
@@ -373,34 +382,21 @@ class RouterLoggingTestConfig
 /** @test This test verifies that a proper loggs are written to selected sinks
  * for various sinks/levels combinations.
  */
-TEST_P(RouterLoggingTestConfig, LoggingTestConfig) {
+TEST_P(RouterLoggingTestConfig, check) {
   auto test_params = GetParam();
 
   TempDirectory tmp_dir;
-  TcpPortPool port_pool;
-  const auto router_port = port_pool.get_next_available();
-  const auto server_port = port_pool.get_next_available();
 
   // These are different level log entries that are expected to get logged after
   // the logger plugin has been initialized
-  const std::string kDebugLogEntry = "plugin 'logger:' doesn't implement start";
-  const std::string kInfoLogEntry = "[routing] started: listening on 127.0.0.1";
-  const std::string kWarningLogEntry =
-      "Can't connect to remote MySQL server for client";
-  // System/Note does not produce unique output today
-  const std::string kNoteLogEntry = "";
-  const std::string kSystemLogEntry = "";
+  const std::string kDebugLogEntry = "I'm a debug message";
+  const std::string kInfoLogEntry = "I'm an info message";
+  const std::string kWarningLogEntry = "I'm a warning message";
+  const std::string kNoteLogEntry = "I'm a note message";
+  const std::string kSystemLogEntry = "I'm a system message";
 
-  // to trigger the warning entry in the log
-  const std::string kRoutingConfig =
-      "[routing]\n"
-      "bind_address=127.0.0.1:" +
-      std::to_string(router_port) +
-      "\n"
-      "destinations=localhost:" +
-      std::to_string(server_port) +
-      "\n"
-      "routing_strategy=round-robin\n";
+  // trigger all messages once.
+  const std::string kOtherPluginConfig = "[routertestplugin_logger]\n";
 
   auto conf_params = get_DEFAULT_defaults();
   conf_params["logging_folder"] =
@@ -408,31 +404,21 @@ TEST_P(RouterLoggingTestConfig, LoggingTestConfig) {
 
   TempDirectory conf_dir("conf");
   const std::string conf_text =
-      test_params.logger_config + "\n" + kRoutingConfig;
+      test_params.logger_config + "\n" + kOtherPluginConfig;
 
   const std::string conf_file =
       create_config_file(conf_dir.name(), conf_text, &conf_params);
 
-  auto &router = launch_router({"-c", conf_file});
-
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
-
-  // try to make a connection; this will fail but should generate a warning in
-  // the logs
-  mysqlrouter::MySQLSession client;
-  try {
-    client.connect("127.0.0.1", router_port, "username", "password", "", "");
-  } catch (const std::exception &exc) {
-    if (std::string(exc.what()).find("Error connecting to MySQL server") !=
-        std::string::npos) {
-      // that's what we expect
-    } else
-      throw;
-  }
+  // use the parent's "launch_router" to wait for NOTIFY_SOCKET
+  auto &router = ProcessManager::launch_router({"-c", conf_file});
 
   SCOPED_TRACE("// stop router to ensure all logs are written");
   router.send_clean_shutdown_event();
-  EXPECT_NO_THROW(router.wait_for_exit());
+  try {
+    EXPECT_EQ(router.wait_for_exit(), EXIT_SUCCESS);
+  } catch (const std::exception &e) {
+    FAIL() << e.what();
+  }
 
   const std::string console_log_txt = router.get_full_output();
 
@@ -449,16 +435,12 @@ TEST_P(RouterLoggingTestConfig, LoggingTestConfig) {
 
   if (test_params.consolelog_expected_level >= LogLevel::kNote &&
       test_params.consolelog_expected_level != LogLevel::kNotSet) {
-    // No NOTE output from Router today, so check that we see info
-    EXPECT_THAT(console_log_txt, HasSubstr(kInfoLogEntry)) << "console:\n"
+    EXPECT_THAT(console_log_txt, HasSubstr(kNoteLogEntry)) << "console:\n"
                                                            << console_log_txt;
   } else {
-    // No NOTE output from Router today, so disable until Router does
-#if 0
-    EXPECT_THAT(console_log_txt, Not(HasSubstr(kInfoLogEntry)))
+    EXPECT_THAT(console_log_txt, Not(HasSubstr(kNoteLogEntry)))
         << "console:\n"
         << console_log_txt;
-#endif
   }
 
   if (test_params.consolelog_expected_level >= LogLevel::kInfo &&
@@ -485,17 +467,13 @@ TEST_P(RouterLoggingTestConfig, LoggingTestConfig) {
   if (test_params.consolelog_expected_level >= LogLevel::kSystem &&
       test_params.consolelog_expected_level != LogLevel::kNotSet) {
     // No SYSTEM output from Router today, so disable until Router does
-#if 0
     EXPECT_THAT(console_log_txt, HasSubstr(kSystemLogEntry)) << "console:\n"
                                                              << console_log_txt;
-#endif
   } else {
     // No SYSTEM output from Router today, so disable until Router does
-#if 0
     EXPECT_THAT(console_log_txt, Not(HasSubstr(kSystemLogEntry)))
         << "console:\n"
         << console_log_txt;
-#endif
   }
 
   // check the file log if it contains what's expected
@@ -517,19 +495,15 @@ TEST_P(RouterLoggingTestConfig, LoggingTestConfig) {
 
   if (test_params.filelog_expected_level >= LogLevel::kNote &&
       test_params.filelog_expected_level != LogLevel::kNotSet) {
-    // No NOTE output from Router today, so check that we see info
-    EXPECT_THAT(file_log_txt, HasSubstr(kInfoLogEntry))
+    EXPECT_THAT(file_log_txt, HasSubstr(kNoteLogEntry))
         << "file:\n"
         << file_log_txt << "\nconsole:\n"
         << console_log_txt;
   } else {
-    // No NOTE output from Router today, so disable until Router does
-#if 0
     EXPECT_THAT(file_log_txt, Not(HasSubstr(kNoteLogEntry)))
         << "file:\n"
         << file_log_txt << "\nconsole:\n"
         << console_log_txt;
-#endif
   }
 
   if (test_params.filelog_expected_level >= LogLevel::kInfo &&
@@ -560,31 +534,26 @@ TEST_P(RouterLoggingTestConfig, LoggingTestConfig) {
 
   if (test_params.filelog_expected_level >= LogLevel::kSystem &&
       test_params.filelog_expected_level != LogLevel::kNotSet) {
-    // No SYSTEM output from Router today, so disable until Router does
-#if 0
     EXPECT_THAT(file_log_txt, HasSubstr(kSystemLogEntry))
         << "file:\n"
         << file_log_txt << "\nconsole:\n"
         << console_log_txt;
-#endif
   } else {
-    // No SYSTEM output from Router today, so disable until Router does
-#if 0
     EXPECT_THAT(file_log_txt, Not(HasSubstr(kSystemLogEntry)))
         << "file:\n"
         << file_log_txt << "\nconsole:\n"
         << console_log_txt;
-#endif
   }
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    LoggingConfigTest, RouterLoggingTestConfig,
+    Spec, RouterLoggingTestConfig,
     ::testing::Values(
         // no logger section, no sinks sections
         // logging_folder not empty so we are expected to log to the file
         // with a warning level so info and debug logs will not be there
-        /*0*/ LoggingConfigOkParams(
+        LoggingConfigOkParams(
+            "no_logger_section_no_sinks_no_logger_folder",  // testname
             "",
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kNotSet,
@@ -593,8 +562,8 @@ INSTANTIATE_TEST_SUITE_P(
         // no logger section, no sinks sections
         // logging_folder empty so we are expected to log to the console
         // with a warning level so info and debug logs will not be there
-        /*1*/
         LoggingConfigOkParams(
+            "no_logger_section_no_sinks",  // testname
             "",
             /* logging_folder_empty = */ true,
             /* consolelog_expected_level =  */ LogLevel::kWarning,
@@ -604,8 +573,8 @@ INSTANTIATE_TEST_SUITE_P(
         // logging_folder not empty so we are expected to log to the file
         // with a warning level as level is not redefined in the [logger]
         // section
-        /*2*/
         LoggingConfigOkParams(
+            "logger_section_only",  // testname
             "[logger]",
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kNotSet,
@@ -614,8 +583,8 @@ INSTANTIATE_TEST_SUITE_P(
         // logger section, no sinks sections
         // logging_folder not empty so we are expected to log to the file
         // with a level defined in the logger section
-        /*3*/
         LoggingConfigOkParams(
+            "no_sinks",  // testname
             "[logger]\n"
             "level=info\n",
             /* logging_folder_empty = */ false,
@@ -625,8 +594,8 @@ INSTANTIATE_TEST_SUITE_P(
         // logger section, no sinks sections; logging_folder is empty so we are
         // expected to log to the console with a level defined in the logger
         // section
-        /*4*/
         LoggingConfigOkParams(
+            "no_sinks_no_logger_folder",  // testname
             "[logger]\n"
             "level=info\n",
             /* logging_folder_empty = */ true,
@@ -637,8 +606,8 @@ INSTANTIATE_TEST_SUITE_P(
         // config but that is not an error; even though the logging folder is
         // not empty, we still don't log to the file as sinks= setting wants use
         // the console
-        /*5*/
         LoggingConfigOkParams(
+            "consolelog",
             "[logger]\n"
             "level=debug\n"
             "sinks=consolelog\n",
@@ -650,8 +619,8 @@ INSTANTIATE_TEST_SUITE_P(
         // [logger] section so there should be no logging to the console (after
         // [logger] is initialised; prior to that all is logged to the console
         // by default)
-        /*6*/
         LoggingConfigOkParams(
+            "one_sink_ignored",  // testname
             "[logger]\n"
             "sinks=filelog\n"
             "level=debug\n"
@@ -664,8 +633,8 @@ INSTANTIATE_TEST_SUITE_P(
 
         // 2 sinks, both should inherit log level from [logger] section (which
         // is debug)
-        /*7*/
         LoggingConfigOkParams(
+            "two_sinks_inherit_log_level_debug",  // testname
             "[logger]\n"
             "sinks=filelog,consolelog\n"
             "level=debug\n"
@@ -679,6 +648,7 @@ INSTANTIATE_TEST_SUITE_P(
         // is info); debug logs are not expected for both sinks
         /*8*/
         LoggingConfigOkParams(
+            "two_sinks_inherit_log_level_info",  // testname
             "[logger]\n"
             "sinks=filelog,consolelog\n"
             "level=info\n"
@@ -691,8 +661,8 @@ INSTANTIATE_TEST_SUITE_P(
         // 2 sinks, both should inherit log level from [logger] section (which
         // is warning); neither debug not info logs are not expected for both
         // sinks
-        /*9*/
         LoggingConfigOkParams(
+            "two_sinks_inherit_warning",  // testname
             "[logger]\n"
             "sinks=filelog,consolelog\n"
             "level=warning\n"
@@ -704,8 +674,8 @@ INSTANTIATE_TEST_SUITE_P(
 
         // 2 sinks, one overwrites the default log level, the other inherits
         // default from [logger] section
-        /*10*/
         LoggingConfigOkParams(
+            "inherit_info_filelog_debug",  // testname
             "[logger]\n"
             "sinks=filelog,consolelog\n"
             "level=info\n"
@@ -718,8 +688,8 @@ INSTANTIATE_TEST_SUITE_P(
 
         // 2 sinks, each defines its own custom log level that overwrites the
         // default from [logger] section
-        /*11*/
         LoggingConfigOkParams(
+            "default_info_overwrite_debug_warning",  // testname
             "[logger]\n"
             "sinks=filelog,consolelog\n"
             "level=info\n"
@@ -733,8 +703,8 @@ INSTANTIATE_TEST_SUITE_P(
 
         // 2 sinks, each defines its own custom log level that overwrites the
         // default from [logger] section
-        /*12*/
         LoggingConfigOkParams(
+            "default_warning_overwrite_info_warning",  // testname
             "[logger]\n"
             "sinks=filelog,consolelog\n"
             "level=warning\n"
@@ -748,8 +718,8 @@ INSTANTIATE_TEST_SUITE_P(
 
         // 2 sinks, each defines its own custom log level (that is more strict)
         // that overwrites the default from [logger] section
-        /*13*/
         LoggingConfigOkParams(
+            "default_debug_overwrite_info_warning",  // testname
             "[logger]\n"
             "sinks=filelog,consolelog\n"
             "level=debug\n"
@@ -763,8 +733,8 @@ INSTANTIATE_TEST_SUITE_P(
 
         // 2 sinks,no level in the [logger] section and no level in the sinks
         // sections; default log level should be used (which is warning)
-        /*14*/
         LoggingConfigOkParams(
+            "two_sinks_all_default",  // testname
             "[logger]\n"
             "sinks=filelog,consolelog\n"
             "[filelog]\n"
@@ -775,8 +745,8 @@ INSTANTIATE_TEST_SUITE_P(
 
         // 2 sinks, level in the [logger] section is warning; it should be
         // used by the sinks as they don't redefine it in their sections
-        /*15*/
         LoggingConfigOkParams(
+            "implicit_sinks_level_warning",  // testname
             "[logger]\n"
             "level=warning\n"
             "sinks=filelog,consolelog\n",
@@ -786,8 +756,8 @@ INSTANTIATE_TEST_SUITE_P(
 
         // 2 sinks, level in the [logger] section is error; it should be used
         // by the sinks as they don't redefine it in their sections
-        /*16*/
         LoggingConfigOkParams(
+            "implicit_sinks_level_error",  // testname
             "[logger]\n"
             "level=error\n"
             "sinks=filelog,consolelog\n",
@@ -797,8 +767,8 @@ INSTANTIATE_TEST_SUITE_P(
 
         // 2 sinks, no level in the [logger] section, each defines it's own
         // level
-        /*17*/
         LoggingConfigOkParams(
+            "explicit_error_debug",  // testname
             "[logger]\n"
             "sinks=filelog,consolelog\n"
             "[filelog]\n"
@@ -811,8 +781,8 @@ INSTANTIATE_TEST_SUITE_P(
 
         // 2 sinks, no level in the [logger] section, one defines it's own
         // level, the other expected to go with default (warning)
-        /*18*/
         LoggingConfigOkParams(
+            "explicit_implicit_error",  // testname
             "[logger]\n"
             "sinks=filelog,consolelog\n"
             "[filelog]\n"
@@ -821,9 +791,8 @@ INSTANTIATE_TEST_SUITE_P(
             /* consolelog_expected_level =  */ LogLevel::kWarning,
             /* filelog_expected_level =  */ LogLevel::kError),
         // level note to filelog sink (TS_FR1_01)
-        // Note: Router does not log at NOTE now
-        /*19*/
         LoggingConfigOkParams(
+            "one_sink_note",  // testname
             "[logger]\n"
             "level=note\n"
             "sinks=filelog\n",
@@ -831,15 +800,15 @@ INSTANTIATE_TEST_SUITE_P(
             /* consolelog_expected_level =  */ LogLevel::kNotSet,
             /* filelog_expected_level =  */ LogLevel::kNote),
         // note level to filelog sink (TS_FR1_02)
-        // Note: Router does not log at NOTE now
-        /*20*/
         LoggingConfigOkParams(
+            "one_sink_system",  // testname
             "[logger]\n"
             "level=system\n"
             "sinks=filelog\n",
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kNotSet,
-            /* filelog_expected_level =  */ LogLevel::kSystem)));
+            /* filelog_expected_level =  */ LogLevel::kSystem)),
+    [](auto const &info) { return info.param.test_name; });
 
 #ifndef WIN32
 INSTANTIATE_TEST_SUITE_P(
@@ -850,8 +819,8 @@ INSTANTIATE_TEST_SUITE_P(
         // supposed to run on pb2 environment. Let's at least check that this
         // sink type is supported
         // Level note to syslog,filelog (TS_FR1_06)
-        /*0*/
         LoggingConfigOkParams(
+            "0",  // testname
             "[logger]\n"
             "level=note\n"
             "sinks=syslog,filelog\n",
@@ -859,8 +828,8 @@ INSTANTIATE_TEST_SUITE_P(
             /* consolelog_expected_level =  */ LogLevel::kNotSet,
             /* filelog_expected_level =  */ LogLevel::kNote),
         // Level system to syslog,filelog (TS_FR1_07)
-        /*1*/
         LoggingConfigOkParams(
+            "1",  // testname
             "[logger]\n"
             "level=system\n"
             "sinks=syslog,filelog\n",
@@ -868,8 +837,8 @@ INSTANTIATE_TEST_SUITE_P(
             /* consolelog_expected_level =  */ LogLevel::kNotSet,
             /* filelog_expected_level =  */ LogLevel::kSystem),
         // All sinks (TS_FR1_08)
-        /*2*/
         LoggingConfigOkParams(
+            "2",  // testname
             "[logger]\n"
             "level=debug\n"
             "sinks=syslog,filelog,consolelog\n"
@@ -881,8 +850,8 @@ INSTANTIATE_TEST_SUITE_P(
             /* consolelog_expected_level =  */ LogLevel::kNote,
             /* filelog_expected_level =  */ LogLevel::kDebug),
         // Verify filename option is disregarded by syslog sink
-        /*3*/
         LoggingConfigOkParams(
+            "3",  // testname
             "[logger]\n"
             "level=note\n"
             "sinks=syslog,filelog\n"
@@ -890,7 +859,8 @@ INSTANTIATE_TEST_SUITE_P(
             "filename=foo.log",
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kNotSet,
-            /* filelog_expected_level =  */ LogLevel::kNote)));
+            /* filelog_expected_level =  */ LogLevel::kNote)),
+    [](auto const &info) { return info.param.test_name; });
 #else
 INSTANTIATE_TEST_SUITE_P(
     LoggingConfigTestWindows, RouterLoggingTestConfig,
@@ -900,8 +870,8 @@ INSTANTIATE_TEST_SUITE_P(
         // requires admin priviledges to setup and we are supposed to run on pb2
         // environment. Let's at least check that this sink type is supported.
         // Level note to eventlog,filelog (TS_FR1_03)
-        /*0*/
         LoggingConfigOkParams(
+            "0",  // testname
             "[logger]\n"
             "level=note\n"
             "sinks=eventlog,filelog\n",
@@ -909,8 +879,8 @@ INSTANTIATE_TEST_SUITE_P(
             /* consolelog_expected_level =  */ LogLevel::kNotSet,
             /* filelog_expected_level =  */ LogLevel::kNote),
         // Level system to eventlog,filelog (TS_FR1_04)
-        /*1*/
         LoggingConfigOkParams(
+            "1",  // testname
             "[logger]\n"
             "level=system\n"
             "sinks=eventlog,filelog\n",
@@ -918,8 +888,8 @@ INSTANTIATE_TEST_SUITE_P(
             /* consolelog_expected_level =  */ LogLevel::kNotSet,
             /* filelog_expected_level =  */ LogLevel::kSystem),
         // All sinks with note and system included (TS_FR1_05)
-        /*2*/
         LoggingConfigOkParams(
+            "2",  // testname
             "[logger]\n"
             "level=debug\n"
             "sinks=eventlog,filelog,consolelog\n"
@@ -931,8 +901,8 @@ INSTANTIATE_TEST_SUITE_P(
             /* consolelog_expected_level =  */ LogLevel::kNote,
             /* filelog_expected_level =  */ LogLevel::kDebug),
         // Verify filename option is disregarded by eventlog sink
-        /*3*/
         LoggingConfigOkParams(
+            "3",  // testname
             "[logger]\n"
             "level=system\n"
             "sinks=eventlog,filelog\n"
@@ -940,7 +910,8 @@ INSTANTIATE_TEST_SUITE_P(
             "filename=foo.log",
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kNotSet,
-            /* filelog_expected_level =  */ LogLevel::kSystem)));
+            /* filelog_expected_level =  */ LogLevel::kSystem)),
+    [](auto const &info) { return info.param.test_name; });
 #endif
 
 /**************************************************/
@@ -974,7 +945,7 @@ class RouterLoggingConfigError
 /** @test This test verifies that a proper error gets printed on the console for
  * a particular logging configuration
  */
-TEST_P(RouterLoggingConfigError, LoggingConfigError) {
+TEST_P(RouterLoggingConfigError, check) {
   auto test_params = GetParam();
 
   TempDirectory tmp_dir;
@@ -983,7 +954,8 @@ TEST_P(RouterLoggingConfigError, LoggingConfigError) {
       test_params.logging_folder_empty ? "" : tmp_dir.name();
 
   TempDirectory conf_dir("conf");
-  const std::string conf_text = "[keepalive]\n" + test_params.logger_config;
+  const std::string conf_text =
+      "[routertestplugin_logger]\n" + test_params.logger_config;
 
   const std::string conf_file =
       create_config_file(conf_dir.name(), conf_text, &conf_params);
@@ -1003,7 +975,7 @@ TEST_P(RouterLoggingConfigError, LoggingConfigError) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    LoggingConfigError, RouterLoggingConfigError,
+    Spec, RouterLoggingConfigError,
     ::testing::Values(
         // Unknown sink name in the [logger] section
         /*0*/ LoggingConfigErrorParams(
@@ -1176,43 +1148,42 @@ class RouterLoggingTestTimestampPrecisionConfig
     : public RouterLoggingTest,
       public ::testing::WithParamInterface<LoggingConfigOkParams> {};
 
-#define DATE_REGEX "[0-9]{4}-[0-9]{2}-[0-9]{2}"
-#define TIME_REGEX "[0-9]{2}:[0-9]{2}:[0-9]{2}"
-#define TS_MSEC_REGEX ".[0-9]{3}"
-#define TS_USEC_REGEX ".[0-9]{6}"
-#define TS_NSEC_REGEX ".[0-9]{9}"
-#define TS_REGEX DATE_REGEX " " TIME_REGEX
+static std::string ts_regex(LogTimestampPrecision precision) {
+  const std::string base_regex(
+      "[0-9]{4}-[0-9]{2}-[0-9]{2} "
+      "[0-9]{2}:[0-9]{2}:[0-9]{2}");
 
-const std::string kTimestampSecRegex = TS_REGEX " ";
-const std::string kTimestampMillisecRegex = TS_REGEX TS_MSEC_REGEX " ";
-const std::string kTimestampMicrosecRegex = TS_REGEX TS_USEC_REGEX " ";
-const std::string kTimestampNanosecRegex = TS_REGEX TS_NSEC_REGEX " ";
+  switch (precision) {
+    case LogTimestampPrecision::kNotSet:
+    case LogTimestampPrecision::kSec:
+      // EXPECT 12:00:00
+      return base_regex + " ";
+    case LogTimestampPrecision::kMilliSec:
+      // EXPECT 12:00:00.000
+      return base_regex + "\\.[0-9]{3} ";
+    case LogTimestampPrecision::kMicroSec:
+      // EXPECT 12:00:00.000000
+      return base_regex + "\\.[0-9]{6} ";
+    case LogTimestampPrecision::kNanoSec:
+      // EXPECT 12:00:00.000000000
+      return base_regex + "\\.[0-9]{9} ";
+  }
+
+  return {};
+}
 
 /** @test This test verifies that a proper loggs are written to selected sinks
  * for various sinks/levels combinations.
  */
-TEST_P(RouterLoggingTestTimestampPrecisionConfig,
-       LoggingTestTimestampPrecisionConfig) {
+TEST_P(RouterLoggingTestTimestampPrecisionConfig, check) {
   auto test_params = GetParam();
 
   TempDirectory tmp_dir;
-  TcpPortPool port_pool;
-  const auto router_port = port_pool.get_next_available();
-  const auto server_port = port_pool.get_next_available();
 
   // Different log entries that are expected for different levels, but we only
   // care that something is logged, not what, when checking timestamps.
 
-  // to trigger the warning entry in the log
-  const std::string kRoutingConfig =
-      "[routing]\n"
-      "bind_address=127.0.0.1:" +
-      std::to_string(router_port) +
-      "\n"
-      "destinations=localhost:" +
-      std::to_string(server_port) +
-      "\n"
-      "routing_strategy=round-robin\n";
+  const std::string kOtherPluginConfig = "[routertestplugin_logger]\n";
 
   auto conf_params = get_DEFAULT_defaults();
   conf_params["logging_folder"] =
@@ -1220,29 +1191,12 @@ TEST_P(RouterLoggingTestTimestampPrecisionConfig,
 
   TempDirectory conf_dir("conf");
   const std::string conf_text =
-      test_params.logger_config + "\n" + kRoutingConfig;
+      test_params.logger_config + "\n" + kOtherPluginConfig;
 
   const std::string conf_file =
       create_config_file(conf_dir.name(), conf_text, &conf_params);
 
-  auto &router = launch_router({"-c", conf_file});
-
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
-
-  // try to make a connection; this will fail but should generate a warning in
-  // the logs
-  mysqlrouter::MySQLSession client;
-  try {
-    client.connect("127.0.0.1", router_port, "username", "password", "", "");
-  } catch (const std::exception &exc) {
-    if (std::string(exc.what()).find("Error connecting to MySQL server") !=
-        std::string::npos) {
-      // that's what we expect
-    } else
-      throw;
-  }
-
-  SCOPED_TRACE("// stop router to ensure all logs are written");
+  auto &router = ProcessManager::launch_router({"-c", conf_file});
   router.send_clean_shutdown_event();
   EXPECT_NO_THROW(router.wait_for_exit());
 
@@ -1258,29 +1212,16 @@ TEST_P(RouterLoggingTestTimestampPrecisionConfig,
   }
 
   if (test_params.consolelog_expected_level != LogLevel::kNotSet) {
-    switch (test_params.consolelog_expected_timestamp_precision) {
-      case LogTimestampPrecision::kNotSet:
-      case LogTimestampPrecision::kSec:
-        // EXPECT 12:00:00
-        EXPECT_TRUE(pattern_found(console_log_txt, kTimestampSecRegex))
-            << console_log_txt;
-        break;
-      case LogTimestampPrecision::kMilliSec:
-        // EXPECT 12:00:00.000
-        EXPECT_TRUE(pattern_found(console_log_txt, kTimestampMillisecRegex))
-            << console_log_txt;
-        break;
-      case LogTimestampPrecision::kMicroSec:
-        // EXPECT 12:00:00.000000
-        EXPECT_TRUE(pattern_found(console_log_txt, kTimestampMicrosecRegex))
-            << console_log_txt;
-        break;
-      case LogTimestampPrecision::kNanoSec:
-        // EXPECT 12:00:00.000000000
-        EXPECT_TRUE(pattern_found(console_log_txt, kTimestampNanosecRegex))
-            << console_log_txt;
-        break;
+    std::vector<std::string> lines;
+    std::istringstream ss(console_log_txt);
+    for (std::string line; std::getline(ss, line);) {
+      lines.push_back(line);
     }
+
+    auto regex = ts_regex(test_params.consolelog_expected_timestamp_precision);
+    ASSERT_FALSE(regex.empty());
+
+    EXPECT_THAT(lines, ::testing::Contains(::testing::ContainsRegex(regex)));
   }
 
   // check the file log if it contains what's expected
@@ -1295,29 +1236,16 @@ TEST_P(RouterLoggingTestTimestampPrecisionConfig,
   }
 
   if (test_params.filelog_expected_level != LogLevel::kNotSet) {
-    switch (test_params.filelog_expected_timestamp_precision) {
-      case LogTimestampPrecision::kNotSet:
-      case LogTimestampPrecision::kSec:
-        // EXPECT 12:00:00
-        EXPECT_TRUE(pattern_found(file_log_txt, kTimestampSecRegex))
-            << file_log_txt;
-        break;
-      case LogTimestampPrecision::kMilliSec:
-        // EXPECT 12:00:00.000
-        EXPECT_TRUE(pattern_found(file_log_txt, kTimestampMillisecRegex))
-            << file_log_txt;
-        break;
-      case LogTimestampPrecision::kMicroSec:
-        // EXPECT 12:00:00.000000
-        EXPECT_TRUE(pattern_found(file_log_txt, kTimestampMicrosecRegex))
-            << file_log_txt;
-        break;
-      case LogTimestampPrecision::kNanoSec:
-        // EXPECT 12:00:00.000000000
-        EXPECT_TRUE(pattern_found(file_log_txt, kTimestampNanosecRegex))
-            << file_log_txt;
-        break;
+    std::vector<std::string> lines;
+    std::istringstream ss(file_log_txt);
+    for (std::string line; std::getline(ss, line);) {
+      lines.push_back(line);
     }
+
+    auto regex = ts_regex(test_params.filelog_expected_timestamp_precision);
+    ASSERT_FALSE(regex.empty());
+
+    EXPECT_THAT(lines, ::testing::Contains(::testing::ContainsRegex(regex)));
   }
 }
 
@@ -1334,13 +1262,13 @@ TEST_P(RouterLoggingTestTimestampPrecisionConfig,
 #define TS_FR1_3_STR(x) TS_FR1_1_STR(x)
 
 INSTANTIATE_TEST_SUITE_P(
-    LoggingConfigTimestampPrecisionTest,
-    RouterLoggingTestTimestampPrecisionConfig,
+    Spec, RouterLoggingTestTimestampPrecisionConfig,
     ::testing::Values(
         // no logger section, no sinks sections
         // logging_folder not empty so we are expected to log to the file
         // with a warning level so info and debug logs will not be there
-        /*0*/ LoggingConfigOkParams(
+        LoggingConfigOkParams(
+            "0",  // testname
             "",
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kNotSet,
@@ -1351,8 +1279,9 @@ INSTANTIATE_TEST_SUITE_P(
             LogTimestampPrecision::kNotSet),
         // Two sinks, common timestamp_precision
         /*** TS_FR1_1 ***/
-        /*1*/ /*TS_FR1_1.1*/
+        /*TS_FR1_1.1*/
         LoggingConfigOkParams(
+            "1",  // testname
             TS_FR1_1_STR("second"),
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kDebug,
@@ -1361,8 +1290,9 @@ INSTANTIATE_TEST_SUITE_P(
             LogTimestampPrecision::kSec,
             /* filelog_expected_timestamp_precision = */
             LogTimestampPrecision::kSec),
-        /*2*/ /*TS_FR1_1.2*/
+        /*TS_FR1_1.2*/
         LoggingConfigOkParams(
+            "2",  // testname
             TS_FR1_1_STR("Second"),
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kDebug,
@@ -1371,8 +1301,9 @@ INSTANTIATE_TEST_SUITE_P(
             LogTimestampPrecision::kSec,
             /* filelog_expected_timestamp_precision = */
             LogTimestampPrecision::kSec),
-        /*3*/ /*TS_FR1_1.3*/
+        /*TS_FR1_1.3*/
         LoggingConfigOkParams(
+            "3",  // testname
             TS_FR1_1_STR("sec"),
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kDebug,
@@ -1381,8 +1312,9 @@ INSTANTIATE_TEST_SUITE_P(
             LogTimestampPrecision::kSec,
             /* filelog_expected_timestamp_precision = */
             LogTimestampPrecision::kSec),
-        /*4*/ /*TS_FR1_1.4*/
+        /*TS_FR1_1.4*/
         LoggingConfigOkParams(
+            "4",  // testname
             TS_FR1_1_STR("SEC"),
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kDebug,
@@ -1391,8 +1323,9 @@ INSTANTIATE_TEST_SUITE_P(
             LogTimestampPrecision::kSec,
             /* filelog_expected_timestamp_precision = */
             LogTimestampPrecision::kSec),
-        /*5*/ /*TS_FR1_1.5*/
+        /*TS_FR1_1.5*/
         LoggingConfigOkParams(
+            "5",  // testname
             TS_FR1_1_STR("s"),
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kDebug,
@@ -1401,8 +1334,9 @@ INSTANTIATE_TEST_SUITE_P(
             LogTimestampPrecision::kSec,
             /* filelog_expected_timestamp_precision = */
             LogTimestampPrecision::kSec),
-        /*6*/ /*TS_FR1_1.6*/
+        /*TS_FR1_1.6*/
         LoggingConfigOkParams(
+            "6",  // testname
             TS_FR1_1_STR("S"),
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kDebug,
@@ -1412,8 +1346,9 @@ INSTANTIATE_TEST_SUITE_P(
             /* filelog_expected_timestamp_precision = */
             LogTimestampPrecision::kSec),
         /*** TS_FR1_2 ***/
-        /*7*/ /*TS_FR1_2.1*/
+        /*TS_FR1_2.1*/
         LoggingConfigOkParams(
+            "7",  // testname
             TS_FR1_2_STR("millisecond"),
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kDebug,
@@ -1422,8 +1357,9 @@ INSTANTIATE_TEST_SUITE_P(
             LogTimestampPrecision::kMilliSec,
             /* filelog_expected_timestamp_precision = */
             LogTimestampPrecision::kMilliSec),
-        /*8*/ /*TS_FR1_2.2*/
+        /*TS_FR1_2.2*/
         LoggingConfigOkParams(
+            "8",  // testname
             TS_FR1_2_STR("MILLISECOND"),
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kDebug,
@@ -1432,8 +1368,9 @@ INSTANTIATE_TEST_SUITE_P(
             LogTimestampPrecision::kMilliSec,
             /* filelog_expected_timestamp_precision = */
             LogTimestampPrecision::kMilliSec),
-        /*9*/ /*TS_FR1_2.3*/
+        /*TS_FR1_2.3*/
         LoggingConfigOkParams(
+            "9",  // testname
             TS_FR1_2_STR("msec"),
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kDebug,
@@ -1442,8 +1379,9 @@ INSTANTIATE_TEST_SUITE_P(
             LogTimestampPrecision::kMilliSec,
             /* filelog_expected_timestamp_precision = */
             LogTimestampPrecision::kMilliSec),
-        /*10*/ /*TS_FR1_2.4*/
+        /*TS_FR1_2.4*/
         LoggingConfigOkParams(
+            "10",  // testname
             TS_FR1_2_STR("MSEC"),
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kDebug,
@@ -1452,8 +1390,9 @@ INSTANTIATE_TEST_SUITE_P(
             LogTimestampPrecision::kMilliSec,
             /* filelog_expected_timestamp_precision = */
             LogTimestampPrecision::kMilliSec),
-        /*11*/ /*TS_FR1_2.5*/
+        /*TS_FR1_2.5*/
         LoggingConfigOkParams(
+            "11",  // testname
             TS_FR1_2_STR("ms"),
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kDebug,
@@ -1462,8 +1401,9 @@ INSTANTIATE_TEST_SUITE_P(
             LogTimestampPrecision::kMilliSec,
             /* filelog_expected_timestamp_precision = */
             LogTimestampPrecision::kMilliSec),
-        /*12*/ /*TS_FR1_2.6*/
+        /*TS_FR1_2.6*/
         LoggingConfigOkParams(
+            "12",  // testname
             TS_FR1_2_STR("MS"),
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kDebug,
@@ -1473,8 +1413,9 @@ INSTANTIATE_TEST_SUITE_P(
             /* filelog_expected_timestamp_precision = */
             LogTimestampPrecision::kMilliSec),
         /*** TS_FR1_3 ***/
-        /*13*/ /*TS_FR1_3.1*/
+        /*TS_FR1_3.1*/
         LoggingConfigOkParams(
+            "13",  // testname
             TS_FR1_3_STR("microsecond"),
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kDebug,
@@ -1483,8 +1424,9 @@ INSTANTIATE_TEST_SUITE_P(
             LogTimestampPrecision::kMicroSec,
             /* filelog_expected_timestamp_precision = */
             LogTimestampPrecision::kMicroSec),
-        /*14*/ /*TS_FR1_3.2*/
+        /*TS_FR1_3.2*/
         LoggingConfigOkParams(
+            "14",  // testname
             TS_FR1_3_STR("Microsecond"),
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kDebug,
@@ -1493,8 +1435,9 @@ INSTANTIATE_TEST_SUITE_P(
             LogTimestampPrecision::kMicroSec,
             /* filelog_expected_timestamp_precision = */
             LogTimestampPrecision::kMicroSec),
-        /*15*/ /*TS_FR1_3.3*/
+        /*TS_FR1_3.3*/
         LoggingConfigOkParams(
+            "15",  // testname
             TS_FR1_3_STR("usec"),
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kDebug,
@@ -1503,8 +1446,9 @@ INSTANTIATE_TEST_SUITE_P(
             LogTimestampPrecision::kMicroSec,
             /* filelog_expected_timestamp_precision = */
             LogTimestampPrecision::kMicroSec),
-        /*16*/ /*TS_FR1_3.4*/
+        /*TS_FR1_3.4*/
         LoggingConfigOkParams(
+            "16",  // testname
             TS_FR1_3_STR("UsEC"),
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kDebug,
@@ -1513,8 +1457,9 @@ INSTANTIATE_TEST_SUITE_P(
             LogTimestampPrecision::kMicroSec,
             /* filelog_expected_timestamp_precision = */
             LogTimestampPrecision::kMicroSec),
-        /*17*/ /*TS_FR1_3.5*/
+        /*TS_FR1_3.5*/
         LoggingConfigOkParams(
+            "17",  // testname
             TS_FR1_3_STR("us"),
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kDebug,
@@ -1523,8 +1468,9 @@ INSTANTIATE_TEST_SUITE_P(
             LogTimestampPrecision::kMicroSec,
             /* filelog_expected_timestamp_precision = */
             LogTimestampPrecision::kMicroSec),
-        /*18*/ /*TS_FR1_3.5*/
+        /*TS_FR1_3.5*/
         LoggingConfigOkParams(
+            "18",  // testname
             TS_FR1_3_STR("US"),
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kDebug,
@@ -1534,8 +1480,9 @@ INSTANTIATE_TEST_SUITE_P(
             /* filelog_expected_timestamp_precision = */
             LogTimestampPrecision::kMicroSec),
         /*** TS_FR1_4 ***/
-        /*19*/ /*TS_FR1_4.1*/
+        /*TS_FR1_4.1*/
         LoggingConfigOkParams(
+            "19",  // testname
             TS_FR1_3_STR("nanosecond"),
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kDebug,
@@ -1544,8 +1491,9 @@ INSTANTIATE_TEST_SUITE_P(
             LogTimestampPrecision::kNanoSec,
             /* filelog_expected_timestamp_precision = */
             LogTimestampPrecision::kNanoSec),
-        /*20*/ /*TS_FR1_4.2*/
+        /*TS_FR1_4.2*/
         LoggingConfigOkParams(
+            "20",  // testname
             TS_FR1_3_STR("NANOSECOND"),
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kDebug,
@@ -1554,8 +1502,9 @@ INSTANTIATE_TEST_SUITE_P(
             LogTimestampPrecision::kNanoSec,
             /* filelog_expected_timestamp_precision = */
             LogTimestampPrecision::kNanoSec),
-        /*21*/ /*TS_FR1_4.3*/
+        /*TS_FR1_4.3*/
         LoggingConfigOkParams(
+            "21",  // testname
             TS_FR1_3_STR("nsec"),
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kDebug,
@@ -1564,8 +1513,9 @@ INSTANTIATE_TEST_SUITE_P(
             LogTimestampPrecision::kNanoSec,
             /* filelog_expected_timestamp_precision = */
             LogTimestampPrecision::kNanoSec),
-        /*22*/ /*TS_FR1_4.4*/
+        /*TS_FR1_4.4*/
         LoggingConfigOkParams(
+            "22",  // testname
             TS_FR1_3_STR("nSEC"),
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kDebug,
@@ -1574,8 +1524,9 @@ INSTANTIATE_TEST_SUITE_P(
             LogTimestampPrecision::kNanoSec,
             /* filelog_expected_timestamp_precision = */
             LogTimestampPrecision::kNanoSec),
-        /*23*/ /*TS_FR1_4.5*/
+        /*TS_FR1_4.5*/
         LoggingConfigOkParams(
+            "23",  // testname
             TS_FR1_3_STR("ns"),
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kDebug,
@@ -1584,8 +1535,9 @@ INSTANTIATE_TEST_SUITE_P(
             LogTimestampPrecision::kNanoSec,
             /* filelog_expected_timestamp_precision = */
             LogTimestampPrecision::kNanoSec),
-        /*24*/ /*TS_FR1_4.6*/
+        /*TS_FR1_4.6*/
         LoggingConfigOkParams(
+            "24",  // testname
             TS_FR1_3_STR("NS"),
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kDebug,
@@ -1594,8 +1546,9 @@ INSTANTIATE_TEST_SUITE_P(
             LogTimestampPrecision::kNanoSec,
             /* filelog_expected_timestamp_precision = */
             LogTimestampPrecision::kNanoSec),
-        /*25*/ /*TS_FR4_2*/
+        /*TS_FR4_2*/
         LoggingConfigOkParams(
+            "25",  // testname
             "[logger]\n"
             "level=debug\n"
             "sinks=filelog\n"
@@ -1608,8 +1561,9 @@ INSTANTIATE_TEST_SUITE_P(
             LogTimestampPrecision::kNotSet,
             /* filelog_expected_timestamp_precision = */
             LogTimestampPrecision::kMilliSec),
-        /*26*/ /*TS_FR4_3*/
+        /*TS_FR4_3*/
         LoggingConfigOkParams(
+            "26",  // testname
             "[logger]\n"
             "level=debug\n"
             "sinks=filelog,consolelog\n"
@@ -1621,10 +1575,11 @@ INSTANTIATE_TEST_SUITE_P(
             /* consolelog_expected_timestamp_precision = */
             LogTimestampPrecision::kNanoSec,
             /* filelog_expected_timestamp_precision = */
-            LogTimestampPrecision::kSec)));
+            LogTimestampPrecision::kSec)),
+    [](auto const &info) { return info.param.test_name; });
 
 INSTANTIATE_TEST_SUITE_P(
-    LoggingConfigTimestampPrecisionError, RouterLoggingConfigError,
+    Failures, RouterLoggingConfigError,
     ::testing::Values(
         // Unknown timestamp_precision value in a sink
         /*0*/ /*TS_FR3_1*/ LoggingConfigErrorParams(
@@ -2295,21 +2250,20 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_stdout) {
 #define USER_LOGFILE_NAME_2 "bar.log"
 
 struct LoggingConfigFilenameOkParams {
-  std::string logger_config;
-  std::string filename;
-  bool console_to_stderr;
+  const std::string logger_config;
+  const std::string filename;
+  const bool console_to_stderr;
 
-  LoggingConfigFilenameOkParams(const std::string &logger_config_,
-                                const std::string filename_)
-      : logger_config(logger_config_),
-        filename(filename_),
+  LoggingConfigFilenameOkParams(std::string logger_config_,
+                                std::string filename_)
+      : logger_config(std::move(logger_config_)),
+        filename(std::move(filename_)),
         console_to_stderr(true) {}
 
-  LoggingConfigFilenameOkParams(const std::string &logger_config_,
-                                const std::string filename_,
-                                bool console_to_stderr_)
-      : logger_config(logger_config_),
-        filename(filename_),
+  LoggingConfigFilenameOkParams(std::string logger_config_,
+                                std::string filename_, bool console_to_stderr_)
+      : logger_config(std::move(logger_config_)),
+        filename(std::move(filename_)),
         console_to_stderr(console_to_stderr_) {}
 };
 
@@ -2328,19 +2282,21 @@ TEST_P(RouterLoggingTestConfigFilename, LoggingTestConfigFilename) {
   conf_params["logging_folder"] = tmp_dir.name();
 
   TempDirectory conf_dir("conf");
-  const std::string conf_text = "[routing]\n\n" + test_params.logger_config;
+  const std::string conf_text =
+      "[routertestplugin_logger]\n\n" + test_params.logger_config;
   const std::string conf_file =
       create_config_file(conf_dir.name(), conf_text, &conf_params);
 
-  // empty routing section results in a failure, but while logging to file
-  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
-  check_exit_code(router, EXIT_FAILURE);
+  auto &router = ProcessManager::launch_router({"-c", conf_file});
+  router.send_clean_shutdown_event();
+  check_exit_code(router, EXIT_SUCCESS);
 
   // check the file log if it contains what's expected
   const std::string file_log_txt =
       router.get_full_logfile(test_params.filename, tmp_dir.name());
 
-  EXPECT_THAT(file_log_txt, HasSubstr("plugin 'routing' init failed"))
+  // check the routertestplugin_logger's message is in the logfile.
+  EXPECT_THAT(file_log_txt, HasSubstr("I'm a system message"))
       << "\file_log_txt:\n"
       << file_log_txt;
 }
@@ -2473,7 +2429,12 @@ TEST_P(RouterLoggingTestConfigFilenameDevices,
 
   TempDirectory conf_dir("conf");
   const std::string conf_text =
-      "[routing]\n\n[logger]\nsinks=consolelog\n[consolelog]\ndestination=" +
+      "[routing]\n"
+      "\n"
+      "[logger]\n"
+      "sinks=consolelog\n"
+      "[consolelog]\n"
+      "destination=" +
       destination.str();
   const std::string conf_file =
       create_config_file(conf_dir.name(), conf_text, &conf_params);
@@ -2882,8 +2843,7 @@ class RouterLoggingTestConfigFilenameLoggingFolder
 /** @test This test verifies that consolelog destination may be set to various
  * devices
  */
-TEST_P(RouterLoggingTestConfigFilenameLoggingFolder,
-       LoggingTestFilenameLoggingFolder) {
+TEST_P(RouterLoggingTestConfigFilenameLoggingFolder, check) {
   auto test_params = GetParam();
 
   TempRelativeDirectory tmp_dir;

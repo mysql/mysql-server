@@ -106,51 +106,6 @@ TEST_F(TestBlockClients, BlockClientHost) {
   //  ASSERT_THAT(blocked_hosts[1], ContainerEq(client_ip_array2));
 }
 
-TEST_F(TestBlockClients, BlockClientHostWithFakeResponse) {
-  unsigned long long max_connect_errors = 2;
-  auto client_connect_timeout = 2s;
-
-  auto ipv6_1_res = net::ip::make_address("::1");
-  ASSERT_TRUE(ipv6_1_res);
-
-  auto ipv6_1 = net::ip::tcp::endpoint(ipv6_1_res.value(), 0);
-
-  MySQLRouting r(
-      io_ctx_, routing::RoutingStrategy::kNextAvailable, 7001,
-      Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
-      "127.0.0.1", mysql_harness::Path(), "routing:connect_erros", 1,
-      std::chrono::seconds(1), max_connect_errors, client_connect_timeout);
-
-  std::FILE *fd_response = std::fopen("fake_response.data", "w");
-  ASSERT_NE(fd_response, nullptr);
-
-  ASSERT_FALSE(r.get_context().block_client_host<net::ip::tcp>(
-      ipv6_1, fileno(fd_response)));
-  std::fclose(fd_response);
-#ifndef _WIN32
-  // block_client_host() will not be able to write data to the file because in
-  // windows, the syscall to writing to sockets is different than for files
-  fd_response = std::fopen("fake_response.data", "r");
-  ASSERT_NE(fd_response, nullptr);
-
-  const auto fake_response = mysql_protocol::HandshakeResponsePacket(
-      1, {}, "ROUTER", "", "fake_router_login");
-
-  std::vector<uint8_t> written_data;
-  for (;;) {
-    auto c = std::fgetc(fd_response);
-    if (c == EOF) break;
-
-    written_data.push_back(c);
-  }
-
-  EXPECT_EQ(written_data, fake_response.message());
-
-  std::fclose(fd_response);
-#endif
-  std::remove("fake_response.data");
-}
-
 int main(int argc, char *argv[]) {
   init_windows_sockets();
   g_origin = Path(argv[0]).dirname();

@@ -26,10 +26,6 @@ IF (NOT PROTOBUF_LITE_LIBRARY)
   MESSAGE(FATAL_ERROR "Routing plugin requires protobuf-lite library")
 ENDIF()
 
-SET(ROUTING_SOURCE_FILES_X_PROTOCOL
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/protocol/x_protocol.cc
-)
-
 SET(ROUTING_SOURCE_FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/mysql_routing.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/destination.cc
@@ -38,7 +34,6 @@ SET(ROUTING_SOURCE_FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dest_next_available.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dest_round_robin.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/routing.cc
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/protocol/classic_protocol.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/context.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/mysql_routing_common.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/connection_container.cc
@@ -47,7 +42,6 @@ SET(ROUTING_SOURCE_FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/basic_protocol_splicer.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/classic_protocol_splicer.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/x_protocol_splicer.cc
-  ${ROUTING_SOURCE_FILES_X_PROTOCOL}
 )
 
 SET(ROUTING_PLUGIN_SOURCE_FILES
@@ -56,9 +50,7 @@ SET(ROUTING_PLUGIN_SOURCE_FILES
 )
 
 SET(include_dirs
-  ${PROJECT_SOURCE_DIR}/src/router/include
   ${PROJECT_SOURCE_DIR}/src/metadata_cache/include
-  ${PROJECT_SOURCE_DIR}/src/mysql_protocol/include
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_CURRENT_BINARY_DIR}/include
 )

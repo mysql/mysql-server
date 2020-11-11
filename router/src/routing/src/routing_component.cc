@@ -72,7 +72,7 @@ std::vector<MySQLRoutingAPI::ConnData> MySQLRoutingAPI::get_connections()
 }
 
 std::string MySQLRoutingAPI::get_protocol_name() const {
-  return r_->get_context().get_protocol().get_type() ==
+  return r_->get_context().get_protocol() ==
                  BaseProtocol::Type::kClassicProtocol
              ? "classic"
              : "x";

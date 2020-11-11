@@ -44,7 +44,7 @@ bool MySQLRoutingContext::is_blocked<local::stream_protocol>(
 }
 template <>
 bool MySQLRoutingContext::block_client_host<local::stream_protocol>(
-    const local::stream_protocol::endpoint & /* endpoint */, int /* server */) {
+    const local::stream_protocol::endpoint & /* endpoint */) {
   return false;
 }
 
@@ -55,7 +55,7 @@ void MySQLRoutingContext::clear_error_counter<local::stream_protocol>(
 
 template <>
 bool MySQLRoutingContext::block_client_host<net::ip::tcp>(
-    const net::ip::tcp::endpoint &endpoint, int server) {
+    const net::ip::tcp::endpoint &endpoint) {
   bool blocked = false;
   {
     std::lock_guard<std::mutex> lock(mutex_conn_errors_);
@@ -74,10 +74,6 @@ bool MySQLRoutingContext::block_client_host<net::ip::tcp>(
                connection_errors, endpoint.address().to_string().c_str(),
                max_connect_errors_);
     }
-  }
-
-  if (server >= 0) {
-    protocol_->on_block_client_host(server, name_);
   }
 
   return blocked;

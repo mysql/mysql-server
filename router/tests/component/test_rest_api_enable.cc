@@ -486,7 +486,7 @@ TEST_F(TestRestApiEnable, ensure_rest_is_disabled) {
   assert_rest_config(config_path, false);
 
   launch_router({"-c", config_path.str()}, EXIT_SUCCESS);
-  wait_for_port_ready(router_port);
+  ASSERT_TRUE(wait_for_port_ready(router_port));
 
   IOContext io_ctx;
   auto http_client =
@@ -515,7 +515,7 @@ TEST_F(TestRestApiEnable, ensure_rest_works) {
   assert_rest_config(config_path, true);
 
   launch_router({"-c", config_path.str()}, EXIT_SUCCESS);
-  wait_for_port_ready(router_port);
+  ASSERT_TRUE(wait_for_port_ready(router_port));
 
   assert_rest_works(default_rest_port);
 }
@@ -536,7 +536,7 @@ TEST_F(TestRestApiEnable, ensure_rest_works_on_custom_port) {
   assert_rest_config(config_path, true);
 
   launch_router({"-c", config_path.str()}, EXIT_SUCCESS);
-  wait_for_port_ready(router_port);
+  ASSERT_TRUE(wait_for_port_ready(router_port));
 
   assert_rest_works(custom_port);
 }
@@ -678,7 +678,7 @@ TEST_P(RestApiEnableUserCertificates, ensure_rest_works_with_user_certs) {
   EXPECT_TRUE(certificate_files_not_changed(GetParam()));
 
   launch_router({"-c", config_path.str()}, EXIT_SUCCESS);
-  wait_for_port_ready(router_port);
+  ASSERT_TRUE(wait_for_port_ready(router_port));
 
   assert_rest_works(default_rest_port);
 }
@@ -977,7 +977,7 @@ TEST_F(TestRestApiEnableBootstrapFailover,
   assert_rest_config(config_path, true);
 
   launch_router({"-c", config_path.str()}, EXIT_SUCCESS);
-  wait_for_port_ready(router_port);
+  ASSERT_TRUE(wait_for_port_ready(router_port));
 
   assert_rest_works(default_rest_port);
 }

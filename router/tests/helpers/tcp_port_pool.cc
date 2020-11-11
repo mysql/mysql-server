@@ -23,6 +23,7 @@
 */
 
 #include "mysql/harness/filesystem.h"
+#include "mysql/harness/net_ts/io_context.h"
 
 #ifndef _WIN32
 #include <netdb.h>
@@ -41,13 +42,11 @@
 #include <cstring>
 #include <stdexcept>
 
-#include "mysql/harness/net_ts/impl/socket.h"
+#include "mysql/harness/net_ts/internet.h"
 #include "mysqlrouter/utils.h"
-#include "socket_operations.h"
 #include "tcp_port_pool.h"
 
 using mysql_harness::Path;
-using mysqlrouter::get_socket_errno;
 
 const unsigned TcpPortPool::kPortsRange;
 
@@ -213,63 +212,74 @@ UniqueId::UniqueId(UniqueId &&other) {
  * It returns false if the connect returns any error (ECONNREFUSED, ENETUNREACH,
  * EACCESS etc.)
  * */
-static bool try_to_connect(uint16_t port,
-                           const std::chrono::milliseconds socket_probe_timeout,
-                           const std::string &hostname = "127.0.0.1") {
-  struct addrinfo hints, *ainfo;
-  memset(&hints, 0, sizeof hints);
-  hints.ai_family = AF_UNSPEC;
-  hints.ai_socktype = SOCK_STREAM;
-  hints.ai_flags = AI_PASSIVE;
+static stdx::expected<void, std::error_code> try_to_connect(
+    net::io_context &io_ctx, uint16_t port,
+    const std::chrono::milliseconds socket_probe_timeout,
+    const std::string &hostname = "127.0.0.1") {
+  net::ip::tcp::resolver resolver(io_ctx);
 
-  auto socket_ops = mysql_harness::SocketOperations::instance();
-
-  int status = getaddrinfo(hostname.c_str(), std::to_string(port).c_str(),
-                           &hints, &ainfo);
-  if (status != 0) {
-    throw std::runtime_error(
-        std::string("try_to_connect(): getaddrinfo() failed: ") +
-        gai_strerror(status));
-  }
-  std::shared_ptr<void> exit_freeaddrinfo(nullptr,
-                                          [&](void *) { freeaddrinfo(ainfo); });
-
-  auto sock_id =
-      socket(ainfo->ai_family, ainfo->ai_socktype, ainfo->ai_protocol);
-  if (sock_id < 0) {
-    throw std::runtime_error("try_to_connect(): socket() failed: " +
-                             std::to_string(get_socket_errno()));
-  }
-  std::shared_ptr<void> exit_close_socket(
-      nullptr, [&](void *) { socket_ops->close(sock_id); });
-
-  socket_ops->set_socket_blocking(sock_id, false);
-  auto connect_res =
-      net::impl::socket::connect(sock_id, ainfo->ai_addr, ainfo->ai_addrlen);
-  if (connect_res) {
-    return true;
+  const auto resolve_res = resolver.resolve(hostname, std::to_string(port));
+  if (!resolve_res) {
+    return resolve_res.get_unexpected();
   }
 
-  if (connect_res.error() ==
-          make_error_condition(std::errc::operation_in_progress) ||
-      connect_res.error() ==
-          make_error_condition(std::errc::operation_would_block)) {
-    const auto wait_res = socket_ops->connect_non_blocking_wait(
-        sock_id, std::chrono::milliseconds(socket_probe_timeout));
+  std::error_code last_ec{make_error_code(std::errc::address_not_available)};
 
-    if (!wait_res) {
-      return false;
+  // try all known addresses of the hostname
+  for (const auto &resolved : resolve_res.value()) {
+    net::ip::tcp::socket sock(io_ctx);
+    const auto open_res = sock.open(resolved.endpoint().protocol());
+    if (!open_res) {
+      continue;
     }
 
-    return socket_ops->connect_non_blocking_status(sock_id).has_value();
+    sock.native_non_blocking(true);
+    const auto connect_res = sock.connect(resolved.endpoint());
+
+    if (!connect_res) {
+      if (connect_res.error() ==
+              make_error_condition(std::errc::operation_in_progress) ||
+          connect_res.error() ==
+              make_error_condition(std::errc::operation_would_block)) {
+        std::array<pollfd, 1> fds = {{{sock.native_handle(), POLLOUT, 0}}};
+        const auto wait_res =
+            net::impl::poll::poll(fds.data(), fds.size(), socket_probe_timeout);
+
+        if (!wait_res) {
+          last_ec = wait_res.error();
+        } else {
+          net::socket_base::error sock_err;
+          const auto status_res = sock.get_option(sock_err);
+          if (!status_res) {
+            last_ec = status_res.error();
+
+          } else if (sock_err.value() != 0) {
+            last_ec = net::impl::socket::make_error_code(sock_err.value());
+
+          } else {
+            // success, we can continue
+            return {};
+          }
+        }
+      } else {
+        last_ec = connect_res.error();
+      }
+    } else {
+      // everything is fine, we are connected
+      return {};
+    }
+
+    // it failed, try the next address
   }
 
-  return false;
+  return stdx::make_unexpected(last_ec);
 }
 #endif
 
 uint16_t TcpPortPool::get_next_available(
     const std::chrono::milliseconds socket_probe_timeout) {
+  net::io_context io_ctx;
+
   while (true) {
     if (number_of_ids_used_ % kPortsPerFile == 0) {
       number_of_ids_used_ = 0;
@@ -289,8 +299,12 @@ uint16_t TcpPortPool::get_next_available(
 #ifndef _WIN32
     // there is no lock file for a given port but let's also check if there
     // really is nothing that will accept our connection attempt on that port
-    if (!try_to_connect(result, socket_probe_timeout, "127.0.0.1"))
+    const auto connect_res =
+        try_to_connect(io_ctx, result, socket_probe_timeout, "127.0.0.1");
+    if (!connect_res) {
+      // connect failed, looks like not in use.
       return result;
+    }
 
     std::cerr << "get_next_available(): port " << result
               << " seems busy, not using\n";

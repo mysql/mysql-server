@@ -151,6 +151,21 @@ static const char *xproto_server_message_to_string(uint8_t message_type) {
 }
 #endif
 
+static void set_capability_tls(Mysqlx::Connection::Capability *cap,
+                               bool value = true) {
+  cap->set_name("tls");
+
+  auto scalar = new Mysqlx::Datatypes::Scalar;
+  scalar->set_v_bool(value);
+  scalar->set_type(Mysqlx::Datatypes::Scalar_Type::Scalar_Type_V_BOOL);
+
+  auto any = new Mysqlx::Datatypes::Any;
+  any->set_type(Mysqlx::Datatypes::Any_Type::Any_Type_SCALAR);
+  any->set_allocated_scalar(scalar);
+
+  cap->set_allocated_value(any);
+}
+
 BasicSplicer::State XProtocolSplicer::tls_client_greeting() {
 #if 0
   log_debug("%d: >> %s", __LINE__, state_to_string(state()));
@@ -171,18 +186,8 @@ BasicSplicer::State XProtocolSplicer::tls_client_greeting() {
     // try to enable TLS
     Mysqlx::Connection::CapabilitiesSet msg;
 
-    auto cap = msg.mutable_capabilities()->add_capabilities();
-    cap->set_name("tls");
+    set_capability_tls(msg.mutable_capabilities()->add_capabilities());
 
-    auto scalar = new Mysqlx::Datatypes::Scalar;
-    scalar->set_v_bool(true);
-    scalar->set_type(Mysqlx::Datatypes::Scalar_Type::Scalar_Type_V_BOOL);
-
-    auto any = new Mysqlx::Datatypes::Any;
-    any->set_type(Mysqlx::Datatypes::Any_Type::Any_Type_SCALAR);
-    any->set_allocated_scalar(scalar);
-
-    cap->set_allocated_value(any);
     std::vector<uint8_t> out_buf;
     xproto_frame_encode(msg, out_buf);
 
@@ -355,7 +360,7 @@ BasicSplicer::State XProtocolSplicer::tls_client_greeting_response() {
   return state();
 }
 
-stdx::expected<size_t, std::error_code> XProtocolSplicer::write_error_packet(
+stdx::expected<size_t, std::error_code> XProtocolSplicer::encode_error_packet(
     std::vector<uint8_t> &error_frame, uint16_t error_code,
     const std::string &msg, const std::string &sql_state) {
   auto err_msg = Mysqlx::Error();
@@ -430,7 +435,7 @@ BasicSplicer::State XProtocolSplicer::tls_connect() {
         // - no shared cipher
         std::vector<uint8_t> error_frame;
 
-        auto encode_res = write_error_packet(
+        const auto encode_res = encode_error_packet(
             error_frame, 2026,
             "connecting to destination failed with TLS error: " +
                 res.error().message());
@@ -846,7 +851,6 @@ BasicSplicer::State XProtocolSplicer::xproto_splice_int(
           }
 
           // - hide compression from the client.
-          // - hide TLS from the client.
           if (message_type == Mysqlx::ServerMessages::CONN_CAPABILITIES) {
             auto msg = make_server_message(message_type);
             if (!msg->ParseFromArray(plain.data() + header_size + 1,
@@ -861,22 +865,46 @@ BasicSplicer::State XProtocolSplicer::xproto_splice_int(
                 bool has_changed{false};
                 auto *caps =
                     dynamic_cast<Mysqlx::Connection::Capabilities *>(msg.get());
+
+                // announce TLS to client?
+                bool client_announce_tls{true};
+                bool server_has_tls{false};
+
+                for (auto cap : caps->capabilities()) {
+                  if (cap.has_name() && cap.name() == "tls") {
+                    server_has_tls = true;
+                  }
+                }
+
+                if (source_ssl_mode() == SslMode::kDisabled ||
+                    (source_ssl_mode() == SslMode::kPassthrough &&
+                     !server_has_tls)) {
+                  client_announce_tls = false;
+                }
+
                 for (auto cur = caps->capabilities().begin();
                      cur != caps->capabilities().end();) {
                   auto &cap = *cur;
 
-                  if (cap.has_name()) {
-                    if (cap.name() == "compression" || cap.name() == "tls") {
+                  if (cap.has_name() &&
+                      (cap.name() == "compression" ||
+                       (cap.name() == "tls" && !client_announce_tls))) {
 #if 0
                       log_debug("%d: .. %s <- --cap:%s", __LINE__,
                                 state_to_string(state()), cap.name().c_str());
 #endif
-                      cur = caps->mutable_capabilities()->erase(cur);
-                      has_changed = true;
-                    } else {
-                      ++cur;
-                    }
+                    cur = caps->mutable_capabilities()->erase(cur);
+                    has_changed = true;
+                  } else {
+                    ++cur;
                   }
+                }
+
+                // server doesn't do TLS, but we want it on the client side.
+                if (client_announce_tls && !server_has_tls) {
+                  set_capability_tls(caps->add_capabilities());
+
+                  has_changed = true;
                 }
 
                 if (has_changed) {
@@ -936,4 +964,20 @@ BasicSplicer::State XProtocolSplicer::xproto_splice_int(
   log_debug("%d: << %s", __LINE__, state_to_string(state()));
 #endif
   return state();
+}
+
+stdx::expected<size_t, std::error_code> XProtocolSplicer::on_block_client_host(
+    std::vector<uint8_t> &buf) {
+  // currently the MySQL Server (X-Plugin) does not have the feature of blocking
+  // the client after reaching certain threshold of unsuccesfull connection
+  // attemps (max_connect_errors) When this is done, the code here needs to be
+  // revised to check if it prevents the server from considering the connection
+  // as an error and blaming the router for it.
+
+  // at the moment we send CapabilitiesGet message to the server assuming this
+  // will prevent the MySQL Server from considering the connection as an error
+  // and incrementing the counter.
+  Mysqlx::Connection::CapabilitiesGet capabilities_get;
+
+  return xproto_frame_encode(capabilities_get, buf);
 }

@@ -32,7 +32,9 @@
 #include <future>
 #include <memory>  // shared_ptr
 #include <mutex>
+#include <sstream>
 #include <stdexcept>
+#include <system_error>
 #include <thread>
 
 #include <sys/types.h>  // timeval
@@ -51,6 +53,9 @@
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/impl/socket_error.h"
+#include "mysql/harness/net_ts/internet.h"
+#include "mysql/harness/net_ts/io_context.h"
+#include "mysql/harness/net_ts/socket.h"
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/utility/string.h"
 
@@ -62,7 +67,6 @@
 #include "mysqlrouter/http_server_component.h"
 #include "mysqlrouter/plugin_config.h"
 #include "posix_re.h"
-#include "socket_operations.h"
 #include "static_files.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -208,108 +212,64 @@ void HttpRequestThread::wait_and_dispatch() {
 class HttpRequestMainThread : public HttpRequestThread {
  public:
   void bind(const std::string &address, uint16_t port) {
-    int err;
-    struct addrinfo hints, *ainfo;
-
-    auto *sock_ops = mysql_harness::SocketOperations::instance();
-
-    std::memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = AI_PASSIVE;
-
-    err = getaddrinfo(address.c_str(), std::to_string(port).c_str(), &hints,
-                      &ainfo);
-    if (err != 0) {
-      throw std::runtime_error(std::string("getaddrinfo() failed: ") +
-                               gai_strerror(err));
+    net::io_context io_ctx;
+    net::ip::tcp::resolver resolver(io_ctx);
+    auto resolve_res = resolver.resolve(address, std::to_string(port));
+    if (!resolve_res) {
+      throw std::system_error(resolve_res.error(),
+                              "resolving " + address + " failed");
     }
 
-    std::shared_ptr<void> exit_guard(nullptr,
-                                     [&](void *) { freeaddrinfo(ainfo); });
+    for (auto const &resolved : resolve_res.value()) {
+      net::ip::tcp::acceptor sock(io_ctx);
 
-    const auto accept_res = sock_ops->socket(
-        ainfo->ai_family, ainfo->ai_socktype, ainfo->ai_protocol);
-    if (!accept_res) {
-      throw std::system_error(accept_res.error(), "socket() failed");
-    }
+      auto open_res = sock.open(resolved.endpoint().protocol());
+      if (!open_res) {
+        throw std::system_error(open_res.error(), "socket() failed");
+      }
 
-    accept_fd_ = accept_res.value();
-
-    if (evutil_make_socket_nonblocking(accept_fd_) < 0) {
-      const auto ec = net::impl::socket::last_error_code();
-
-      sock_ops->close(accept_fd_);
-
-      throw std::system_error(ec, "evutil_make_socket_nonblocking() failed");
-    }
-
-    if (evutil_make_socket_closeonexec(accept_fd_) < 0) {
-      const auto ec = net::impl::socket::last_error_code();
-
-      sock_ops->close(accept_fd_);
-
-      throw std::system_error(ec, "evutil_make_socket_closeonexec() failed");
-    }
-
-    {
-      int option_value = 1;
-      const auto sockopt_res =
-          sock_ops->setsockopt(accept_fd_, SOL_SOCKET, SO_REUSEADDR,
-                               reinterpret_cast<const char *>(&option_value),
-                               static_cast<socklen_t>(sizeof(int)));
-      if (!sockopt_res) {
-        sock_ops->close(accept_fd_);
-
-        throw std::system_error(sockopt_res.error(),
+      sock.native_non_blocking(true);
+      auto setop_res = sock.set_option(net::socket_base::reuse_address(true));
+      if (!setop_res) {
+        throw std::system_error(setop_res.error(),
                                 "setsockopt(SO_REUSEADDR) failed");
       }
-    }
-
-    {
-      int option_value = 1;
-      const auto sockopt_res =
-          sock_ops->setsockopt(accept_fd_, SOL_SOCKET, SO_KEEPALIVE,
-                               reinterpret_cast<const char *>(&option_value),
-                               static_cast<socklen_t>(sizeof(int)));
-      if (!sockopt_res) {
-        sock_ops->close(accept_fd_);
-
-        throw std::system_error(sockopt_res.error(),
+      setop_res = sock.set_option(net::socket_base::keep_alive(true));
+      if (!setop_res) {
+        throw std::system_error(setop_res.error(),
                                 "setsockopt(SO_KEEPALIVE) failed");
       }
-    }
 
-    {
-      const auto bind_res =
-          sock_ops->bind(accept_fd_, ainfo->ai_addr, ainfo->ai_addrlen);
+      auto bind_res = sock.bind(resolved.endpoint());
       if (!bind_res) {
-        sock_ops->close(accept_fd_);
+        std::ostringstream ss;
+        ss << "bind(" << resolved.endpoint() << ") failed";
 
-        throw std::system_error(
-            bind_res.error(),
-            "bind('0.0.0.0:" + std::to_string(port) + ") failed");
+        throw std::system_error(bind_res.error(), ss.str());
       }
-    }
-
-    {
-      const auto listen_res = sock_ops->listen(accept_fd_, 128);
+      auto listen_res = sock.listen(128);
       if (!listen_res) {
-        sock_ops->close(accept_fd_);
-
-        throw std::system_error(listen_res.error(), "listen() failed");
+        throw std::system_error(setop_res.error(), "listen(128) failed");
       }
+
+      auto sock_release_res = sock.release();
+      if (!sock_release_res) {
+        throw std::system_error(sock_release_res.error(), "release() failed");
+      }
+
+      auto handle = evhttp_accept_socket_with_handle(ev_http.get(),
+                                                     sock_release_res.value());
+      if (nullptr == handle) {
+        const auto ec = net::impl::socket::last_error_code();
+
+        throw std::system_error(ec,
+                                "evhttp_accept_socket_with_handle() failed");
+      }
+
+      return;
     }
 
-    auto handle = evhttp_accept_socket_with_handle(ev_http.get(), accept_fd_);
-
-    if (nullptr == handle) {
-      const auto ec = net::impl::socket::last_error_code();
-
-      sock_ops->close(accept_fd_);
-
-      throw std::system_error(ec, "evhttp_accept_socket_with_handle() failed");
-    }
+    throw std::invalid_argument("resolved to nothing?");
   }
 };
 
@@ -331,7 +291,7 @@ class HttpsRequestMainThread : public HttpRequestMainThread {
 
 class HttpRequestWorkerThread : public HttpRequestThread {
  public:
-  explicit HttpRequestWorkerThread(harness_socket_t accept_fd) {
+  explicit HttpRequestWorkerThread(native_handle_type accept_fd) {
     accept_fd_ = accept_fd;
   }
 };
@@ -339,7 +299,7 @@ class HttpRequestWorkerThread : public HttpRequestThread {
 #ifdef EVENT__HAVE_OPENSSL
 class HttpsRequestWorkerThread : public HttpRequestWorkerThread {
  public:
-  explicit HttpsRequestWorkerThread(harness_socket_t accept_fd,
+  explicit HttpsRequestWorkerThread(native_handle_type accept_fd,
                                     SSL_CTX *ssl_ctx)
       : HttpRequestWorkerThread(accept_fd) {
     evhttp_set_bevcb(
@@ -369,7 +329,8 @@ void HttpServer::start(size_t max_threads) {
     thread_contexts_.emplace_back(std::move(main_thread));
   }
 
-  const harness_socket_t accept_fd = thread_contexts_[0].get_socket_fd();
+  const net::impl::socket::native_handle_type accept_fd =
+      thread_contexts_[0].get_socket_fd();
   for (size_t ndx = 1; ndx < max_threads; ndx++) {
     thread_contexts_.emplace_back(HttpRequestWorkerThread(accept_fd));
   }
@@ -406,7 +367,8 @@ void HttpsServer::start(size_t max_threads) {
     thread_contexts_.emplace_back(std::move(main_thread));
   }
 
-  const harness_socket_t accept_fd = thread_contexts_[0].get_socket_fd();
+  const net::impl::socket::native_handle_type accept_fd =
+      thread_contexts_[0].get_socket_fd();
   for (size_t ndx = 1; ndx < max_threads; ndx++) {
     thread_contexts_.emplace_back(
         HttpsRequestWorkerThread(accept_fd, ssl_ctx_.get()));

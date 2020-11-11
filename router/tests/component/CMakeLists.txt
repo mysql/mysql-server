@@ -20,6 +20,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+ADD_HARNESS_PLUGIN(routertestplugin_logger NO_INSTALL
+  DESTINATION harness
+  SOURCES logger_testplugin.cc)
+
 MYSQL_ADD_EXECUTABLE(master_key_test_writer
   ../helpers/master_key_test_writer.cc
   COMPONENT Router
@@ -86,6 +90,7 @@ add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   rest_router
   rest_routing
   routing
+  routertestplugin_logger
   )
 ENDFOREACH()
 
