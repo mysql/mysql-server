@@ -9,6 +9,7 @@
 *.hpp filter=codeformat
 *.i filter=codeformat
 *.ic filter=codeformat
+*.js filter=codeformat
 
 # Third-party code.
 /extra/** !filter
