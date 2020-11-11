@@ -610,19 +610,6 @@ that is used to handle all the data in tables using the NDB Cluster
 storage engine. It comes in two variants: ndbd and ndbmtd, the former
 is single threaded while the latter is multi-threaded.
 
-%package        auto-installer
-Summary:        Web-based graphical configuration installer for MySQL Cluster
-Group:          Applications/Databases
-Requires:       %{name}-server%{?_isa} = %{version}-%{release}
-Requires:       python-paramiko
-%{?el5:Requires:  python-crypto}
-%{?el6:Requires:  python-crypto}
-%{?el7:Requires:  python2-crypto}
-%description    auto-installer
-This package contains the MySQL Cluster web-based graphical
-configuration installer, which can be used to set up and start or stop
-a MySQL Cluster on one or more host computers.
-
 %package        ndbclient
 Summary:        Shared libraries for MySQL NDB storage engine client applications
 Group:          Applications/Databases
@@ -892,7 +879,7 @@ rm -f %{buildroot}%{_datadir}/mysql/audit_log_filter_win_install.sql
 
 # Remove upcoming man pages, to avoid breakage when they materialize
 # Keep this comment as a placeholder for future cases
-# rm -f %{buildroot}%{_mandir}/man1/<manpage>.1
+rm -f %{buildroot}%{_mandir}/man1/ndb_setup.py.1
 
 %check
 %if 0%{?runselftest} || 0%{?with_unittests}
@@ -1208,7 +1195,6 @@ fi
 %attr(755, root, root) %{_bindir}/ndb_restore
 %attr(755, root, root) %{_bindir}/ndb_select_all
 %attr(755, root, root) %{_bindir}/ndb_select_count
-%attr(755, root, root) %{_bindir}/ndb_setup.py
 %attr(755, root, root) %{_bindir}/ndb_show_tables
 %attr(755, root, root) %{_bindir}/ndb_size.pl
 %attr(755, root, root) %{_bindir}/ndb_top
@@ -1237,7 +1223,6 @@ fi
 %attr(644, root, root) %{_mandir}/man1/ndb_restore.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_select_all.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_select_count.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_setup.py.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_show_tables.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_size.pl.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_top.1*
@@ -1401,13 +1386,6 @@ fi
 %attr(755, root, root) %{_sbindir}/ndbmtd
 %attr(644, root, root) %{_mandir}/man8/ndbd.8*
 %attr(644, root, root) %{_mandir}/man8/ndbmtd.8*
-
-%files auto-installer
-%defattr(-, root, root, -)
-%doc %{?license_files_server}
-%attr(755, root, root) %{_bindir}/mcc_config.py
-%{_datadir}/mysql/mcc/
-%exclude %{_datadir}/mysql/mcc/tst/
 
 %files memcached
 %defattr(-, root, root, -)
