@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -605,6 +605,7 @@ install -m 644 "%{malloc_lib_source}" \
 # Remove man pages we explicitly do not want to package, avoids 'unpackaged
 # files' warning.
 # This has become obsolete:  rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
+rm -f $RBR%{_mandir}/man1/ndb_setup.py.1*
 
 ##############################################################################
 #  Post processing actions, i.e. when installed
@@ -1115,7 +1116,6 @@ echo "====="                                                       >> $STATUS_HI
 %doc %attr(644, root, man) %{_mandir}/man8/ndbmtd.8*
 %doc %attr(644, root, man) %{_mandir}/man1/ndbinfo_select_all.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb-common-options.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_setup.py.1*
 
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 %dir %{_sysconfdir}/my.cnf.d
@@ -1167,8 +1167,6 @@ echo "====="                                                       >> $STATUS_HI
 %attr(755, root, root) %{_bindir}/ndb_select_count
 %attr(755, root, root) %{_bindir}/ndb_show_tables
 %attr(755, root, root) %{_bindir}/ndb_waiter
-%attr(755, root, root) %{_bindir}/ndb_setup.py*
-%attr(644, root, root) %{_bindir}/mcc_config.py*
 
 %if %(test "@MEMCACHED_ROOT_DIR@" '!=' "MEMCACHED_ROOT_DIR-NOTFOUND" && echo 1 || echo 0)
 %attr(755, root, root) %{_sbindir}/memcached
