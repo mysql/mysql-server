@@ -48,9 +48,10 @@ constexpr uint enum_convert(enum_sender_tuple eval) {
 }
 
 Async_conn_failover_manager::enum_do_auto_conn_failover_error
-Async_conn_failover_manager::do_auto_conn_failover(
-    const std::string &channel_name, bool force_highest_weight) {
+Async_conn_failover_manager::do_auto_conn_failover(Master_info *mi,
+                                                   bool force_highest_weight) {
   DBUG_TRACE;
+  channel_map.assert_some_lock();
   Async_conn_failover_manager::enum_do_auto_conn_failover_error error{
       ACF_RETRIABLE_ERROR};
 
@@ -71,7 +72,7 @@ Async_conn_failover_manager::do_auto_conn_failover(
 
     /* Get network configuration details of all sources from this channel. */
     Rpl_async_conn_failover_table_operations table_op(TL_READ);
-    auto tmp_details = table_op.read_source_rows_for_channel(channel_name);
+    auto tmp_details = table_op.read_source_rows_for_channel(mi->get_channel());
     bool table_error = std::get<0>(tmp_details);
 
     if (!table_error) {
@@ -144,18 +145,11 @@ Async_conn_failover_manager::do_auto_conn_failover(
   /* if there are no source to connect */
   if (source_conn_detail_list.size() == 0) {
     LogErr(SYSTEM_LEVEL, ER_RPL_ASYNC_RECONNECT_FAIL_NO_SOURCE,
-           channel_name.c_str(),
+           mi->get_channel(),
            "no alternative source is"
            " specified",
            "add new source details for the channel");
     return ACF_NO_SOURCES_ERROR;
-  }
-
-  channel_map.rdlock();
-  Master_info *mi = channel_map.get_mi(channel_name.c_str());
-  if (nullptr == mi) {
-    channel_map.unlock();
-    return error;
   }
 
   /* When sender list is exhausted reset position. */
@@ -201,7 +195,6 @@ Async_conn_failover_manager::do_auto_conn_failover(
     /* Increment to next position in source_conn_detail_list list. */
     mi->increment_failover_list_position();
   }
-  channel_map.unlock();
 
   return error;
 }

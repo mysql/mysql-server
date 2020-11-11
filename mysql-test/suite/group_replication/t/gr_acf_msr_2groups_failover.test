@@ -17,8 +17,8 @@
 #  4. Create and start the managed channels.
 #  5. Stop primary from group A (server1) and the replica
 #     shall connect to new primary server2.
-#  6. Stop primary from group B (server3) and the replica
-#     shall connect to new primary server4.
+#  6. Stop primary from group B (server4) and the replica
+#     shall connect to new primary server5.
 #  7. Validate that channel ch1 did not reconnect to ch2 sources.
 #  8. Validate that channel ch2 did not reconnect to ch1 sources.
 #  9. Clean up.
@@ -130,8 +130,8 @@ SET GLOBAL group_replication_member_weight=99;
 --replace_result $SERVER_MYPORT_1 SERVER_1_PORT
 --eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root', MASTER_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, MASTER_PORT=$SERVER_MYPORT_1, MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=1 FOR CHANNEL 'ch1'
 
---replace_result $SERVER_MYPORT_3 SERVER_3PORT
---eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root', MASTER_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, MASTER_PORT=$SERVER_MYPORT_3, MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=1 FOR CHANNEL 'ch2'
+--replace_result $SERVER_MYPORT_4 SERVER_4_PORT
+--eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root', MASTER_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, MASTER_PORT=$SERVER_MYPORT_4, MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=1 FOR CHANNEL 'ch2'
 
 
 --let $rpl_channel_name='ch1'

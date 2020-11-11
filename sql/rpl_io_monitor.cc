@@ -40,6 +40,19 @@
 
 #include <string>
 
+/**
+  Restart the IO thread of the given channel.
+
+  @param[in] thd           The running thread.
+  @param[in] channel_name  the channel IO thread to restart.
+  @param[in] force_sender_with_highest_weight  When true, sender with highest
+  weight is chosen, otherwise the next sender from the current one is chosen.
+
+  @return true if IO thread was restarted, false otherwise.
+*/
+static bool restart_io_thread(THD *thd, const std::string &channel_name,
+                              bool force_sender_with_highest_weight);
+
 bool Source_IO_monitor::m_monitor_thd_initiated = false;
 
 /*
@@ -344,6 +357,8 @@ int Source_IO_monitor::connect_senders(THD *thd,
     return 2;
   }
 
+  if (is_monitor_killed(thd, nullptr)) return 1;
+
   /*
     2. Get weight of current connected sender.
   */
@@ -450,6 +465,8 @@ int Source_IO_monitor::connect_senders(THD *thd,
     conn = nullptr;
     channel_map.unlock();
 
+    if (is_monitor_killed(thd, nullptr)) return 1;
+
     if (ER_RPL_ASYNC_EXECUTING_QUERY == err) {
       continue;
     }
@@ -469,6 +486,8 @@ int Source_IO_monitor::connect_senders(THD *thd,
     } else if (err == 2) {
       return 1;
     }
+
+    if (is_monitor_killed(thd, nullptr)) return 1;
 
     /*
       3.5. Disconnect channel if current connected member through
@@ -500,37 +519,19 @@ int Source_IO_monitor::connect_senders(THD *thd,
       */
       if (!error_channel.compare(channel_name) &&
           !error_host.compare(mi_host) && error_port == mi_port) {
-        ulong rpl_stop_timeout = LONG_TIMEOUT;
-        if (channel_stop(channel_name.c_str(), CHANNEL_RECEIVER_THREAD,
-                         rpl_stop_timeout)) {
-          LogErr(WARNING_LEVEL,
-                 ER_RPL_REPLICA_MONITOR_IO_THREAD_RECONNECT_CHANNEL, "stopping",
-                 channel_name.c_str());
-        }
+        if (is_monitor_killed(thd, nullptr)) return 1;
 
-        if (Async_conn_failover_manager::do_auto_conn_failover(channel_name,
-                                                               false)) {
-          LogErr(WARNING_LEVEL,
-                 ER_RPL_REPLICA_MONITOR_IO_THREAD_RECONNECT_CHANNEL,
-                 "choosing the source for", channel_name.c_str());
-        }
+        bool restarted = restart_io_thread(thd, channel_name, false);
 
-        Channel_connection_info channel_info;
-        initialize_channel_connection_info(&channel_info);
-        if (channel_start(channel_name.c_str(), &channel_info,
-                          CHANNEL_RECEIVER_THREAD, 0)) {
-          LogErr(WARNING_LEVEL,
-                 ER_RPL_REPLICA_MONITOR_IO_THREAD_RECONNECT_CHANNEL, "starting",
-                 channel_name.c_str());
-        }
-
-        if (conn_member_quorum_lost) {
+        if (restarted && conn_member_quorum_lost) {
           LogErr(ERROR_LEVEL, ER_RPL_ASYNC_CHANNEL_STOPPED_QUORUM_LOST,
                  error_host.c_str(), error_port, "", error_channel.c_str());
         }
       }
     }
   }
+
+  if (is_monitor_killed(thd, nullptr)) return 1;
 
   /*
     4. Get highest weight of single sender.
@@ -557,6 +558,8 @@ int Source_IO_monitor::connect_senders(THD *thd,
     channel_map.unlock();
   }
 
+  if (is_monitor_killed(thd, nullptr)) return 1;
+
   /*
     5. If weight of current connected sender is less then any of
        ONLINE group member or single server, then disconnect it.
@@ -570,26 +573,7 @@ int Source_IO_monitor::connect_senders(THD *thd,
   });
   if ((curr_highest_group_weight > curr_conn_weight) ||
       (curr_highest_weight_single_sender > curr_conn_weight)) {
-    ulong rpl_stop_timeout = LONG_TIMEOUT;
-    if (channel_stop(channel_name.c_str(), CHANNEL_RECEIVER_THREAD,
-                     rpl_stop_timeout)) {
-      LogErr(WARNING_LEVEL, ER_RPL_REPLICA_MONITOR_IO_THREAD_RECONNECT_CHANNEL,
-             "stopping", channel_name.c_str());
-    }
-
-    if (Async_conn_failover_manager::do_auto_conn_failover(channel_name,
-                                                           true)) {
-      LogErr(WARNING_LEVEL, ER_RPL_REPLICA_MONITOR_IO_THREAD_RECONNECT_CHANNEL,
-             "choosing the source for", channel_name.c_str());
-    }
-
-    Channel_connection_info channel_info;
-    initialize_channel_connection_info(&channel_info);
-    if (channel_start(channel_name.c_str(), &channel_info,
-                      CHANNEL_RECEIVER_THREAD, 0)) {
-      LogErr(WARNING_LEVEL, ER_RPL_REPLICA_MONITOR_IO_THREAD_RECONNECT_CHANNEL,
-             "starting", channel_name.c_str());
-    }
+    restart_io_thread(thd, channel_name, true);
   }
 
   return 0;
@@ -990,8 +974,7 @@ Source_IO_monitor::get_senders_details(const std::string &channel_name) {
   return make_pair(error, failover_table_detail_list);
 }
 
-int Source_IO_monitor::terminate_monitoring_process(bool wait,
-                                                    uint stop_wait_timeout) {
+int Source_IO_monitor::terminate_monitoring_process() {
   if (!m_monitor_thd_initiated) return 0;
 
   mysql_mutex_lock(&m_run_lock);
@@ -1004,40 +987,38 @@ int Source_IO_monitor::terminate_monitoring_process(bool wait,
   // Awake up possible stuck conditions
   mysql_cond_broadcast(&m_run_cond);
 
-  if (wait) {
-    while (m_monitor_thd_state.is_thread_alive()) {
-      DBUG_PRINT("sleep",
-                 ("Waiting for the Monitoring IO process thread to finish"));
+  ulong stop_wait_timeout = rpl_stop_slave_timeout;
+  while (m_monitor_thd_state.is_thread_alive()) {
+    DBUG_PRINT("sleep",
+               ("Waiting for the Monitoring IO process thread to finish"));
 
-      if (m_monitor_thd_state.is_initialized()) {
-        mysql_mutex_lock(&m_monitor_thd->LOCK_thd_data);
-        m_monitor_thd->awake(THD::KILL_CONNECTION);
-        mysql_mutex_unlock(&m_monitor_thd->LOCK_thd_data);
-      }
-
-      struct timespec abstime;
-      set_timespec(&abstime, (stop_wait_timeout == 1 ? 1 : 2));
-#ifndef DBUG_OFF
-      int error =
-#endif
-          mysql_cond_timedwait(&m_run_cond, &m_run_lock, &abstime);
-
-      if (stop_wait_timeout >= 1) {
-        stop_wait_timeout =
-            stop_wait_timeout - (stop_wait_timeout == 1 ? 1 : 2);
-      }
-
-      if (m_monitor_thd_state.is_thread_alive() &&
-          stop_wait_timeout <= 0)  // quit waiting
-      {
-        mysql_mutex_unlock(&m_run_lock);
-        return 1;
-      }
-
-      DBUG_ASSERT(error == ETIMEDOUT || error == 0);
+    if (m_monitor_thd_state.is_initialized()) {
+      mysql_mutex_lock(&m_monitor_thd->LOCK_thd_data);
+      m_monitor_thd->awake(THD::KILL_CONNECTION);
+      mysql_mutex_unlock(&m_monitor_thd->LOCK_thd_data);
     }
-    DBUG_ASSERT(m_monitor_thd_state.is_thread_dead());
+
+    struct timespec abstime;
+    set_timespec(&abstime, (stop_wait_timeout == 1 ? 1 : 2));
+#ifndef DBUG_OFF
+    int error =
+#endif
+        mysql_cond_timedwait(&m_run_cond, &m_run_lock, &abstime);
+
+    if (stop_wait_timeout >= 1) {
+      stop_wait_timeout = stop_wait_timeout - (stop_wait_timeout == 1 ? 1 : 2);
+    }
+
+    if (m_monitor_thd_state.is_thread_alive() &&
+        stop_wait_timeout <= 0)  // quit waiting
+    {
+      mysql_mutex_unlock(&m_run_lock);
+      return 1;
+    }
+
+    DBUG_ASSERT(error == ETIMEDOUT || error == 0);
   }
+  DBUG_ASSERT(m_monitor_thd_state.is_thread_dead());
 
   mysql_mutex_unlock(&m_run_lock);
   cleanup_mutex();
@@ -1057,4 +1038,61 @@ bool Source_IO_monitor::is_monitoring_process_running() {
 Source_IO_monitor &Source_IO_monitor::get_instance() {
   static Source_IO_monitor shared_instance;
   return shared_instance;
+}
+
+static bool restart_io_thread(THD *thd, const std::string &channel_name,
+                              bool force_sender_with_highest_weight) {
+  if (channel_map.trywrlock()) {
+    return false;
+  }
+
+  Master_info *mi = channel_map.get_mi(channel_name.c_str());
+  if (nullptr == mi) {
+    channel_map.unlock();
+    return false;
+  }
+
+  if (Async_conn_failover_manager::do_auto_conn_failover(
+          mi, force_sender_with_highest_weight)) {
+    LogErr(WARNING_LEVEL, ER_RPL_REPLICA_MONITOR_IO_THREAD_RECONNECT_CHANNEL,
+           "choosing the source for", channel_name.c_str());
+    channel_map.unlock();
+    return false;
+  }
+
+  mi->channel_wrlock();
+  lock_slave_threads(mi);
+
+  /*
+    IO thread was stopped through STOP REPLICA, do not restart it.
+  */
+  if (!mi->is_source_connection_auto_failover() || !mi->slave_running) {
+    unlock_slave_threads(mi);
+    mi->channel_unlock();
+    channel_map.unlock();
+    return false;
+  }
+
+  int thread_mask = 0;
+  thread_mask |= SLAVE_IO;
+  thd->set_skip_readonly_check();
+
+  if (terminate_slave_threads(mi, thread_mask, rpl_stop_slave_timeout,
+                              false /*need_lock_term=false*/)) {
+    LogErr(WARNING_LEVEL, ER_RPL_REPLICA_MONITOR_IO_THREAD_RECONNECT_CHANNEL,
+           "stopping", channel_name.c_str());
+  }
+
+  if (start_slave_threads(false /*need_lock_slave=false*/,
+                          true /*wait_for_start=true*/, mi, thread_mask)) {
+    LogErr(WARNING_LEVEL, ER_RPL_REPLICA_MONITOR_IO_THREAD_RECONNECT_CHANNEL,
+           "starting", channel_name.c_str());
+  }
+
+  thd->reset_skip_readonly_check();
+  unlock_slave_threads(mi);
+  mi->channel_unlock();
+  channel_map.unlock();
+
+  return true;
 }

@@ -396,9 +396,25 @@ class Multisource_info {
   inline void rdlock() { m_channel_map_lock->rdlock(); }
 
   /**
+    Try to acquire a read lock, return 0 if the read lock is held,
+    otherwise an error will be returned.
+
+    @return 0 in case of success, or 1 otherwise.
+  */
+  inline int tryrdlock() { return m_channel_map_lock->tryrdlock(); }
+
+  /**
     Acquire the write lock.
   */
   inline void wrlock() { m_channel_map_lock->wrlock(); }
+
+  /**
+    Try to acquire a write lock, return 0 if the write lock is held,
+    otherwise an error will be returned.
+
+    @return 0 in case of success, or 1 otherwise.
+  */
+  inline int trywrlock() { return m_channel_map_lock->trywrlock(); }
 
   /**
     Release the lock (whether it is a write or read lock).

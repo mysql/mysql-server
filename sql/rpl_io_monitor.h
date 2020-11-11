@@ -155,13 +155,9 @@ class Source_IO_monitor {
   /**
     Terminate the Monitor IO thread.
 
-    @param[in] wait should it wait for the process to finish.
-    @param[in] stop_wait_timeout the timeout after which the method returns
-    error.
-
     @returns 0 in case of success, or 1 otherwise.
   */
-  int terminate_monitoring_process(bool wait, uint stop_wait_timeout);
+  int terminate_monitoring_process();
 
   /**
     Check if Monitor IO thread is killed.
@@ -379,7 +375,6 @@ class Source_IO_monitor {
 
     @param[in]  table_op     The Rpl_sys_table_access class object.
     @param[in]  table        The table object.
-    @param[in]  field_name   The name of column/field of the table.
     @param[in]  field_name   The name of column/field of the table.
     @param[in]  conn_detail  std::tuple containing <channel, host, port>
 
