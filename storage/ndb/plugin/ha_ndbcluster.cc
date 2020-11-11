@@ -36,8 +36,6 @@
 
 #include "m_ctype.h"
 #include "my_dbug.h"
-#include "mysql/components/my_service.h"
-#include "mysql/components/services/dynamic_privilege.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_thread.h"
 #include "sql/abstract_query_plan.h"
@@ -78,6 +76,7 @@
 #include "storage/ndb/plugin/ndb_metadata_sync.h"
 #include "storage/ndb/plugin/ndb_mi.h"
 #include "storage/ndb/plugin/ndb_modifiers.h"
+#include "storage/ndb/plugin/ndb_mysql_services.h"
 #include "storage/ndb/plugin/ndb_name_util.h"
 #include "storage/ndb/plugin/ndb_pfs_init.h"
 #include "storage/ndb/plugin/ndb_require.h"
@@ -12367,14 +12366,14 @@ handlerton *ndbcluster_hton;
 
 /*
   Handle failure from ndbcluster_init() by printing error
-  message(s) and exit the MySQL Server.
+  message(s) and request the MySQL Server to shutdown.
 
   NOTE! This is done to avoid the current undefined behaviour which occurs
   when an error return code from plugin's init() function just disables
   the plugin.
 */
 
-static void ndbcluster_init_abort(const char *error) {
+static int ndbcluster_init_abort(const char *error) {
   ndb_log_error("%s", error);
   ndb_log_error("Failed to initialize ndbcluster, aborting!");
   ndb_log_error("Use --skip-ndbcluster to start without ndbcluster.");
@@ -12384,7 +12383,19 @@ static void ndbcluster_init_abort(const char *error) {
                ndb_log_error_dump("ndbcluster_init_abort1"););
   DBUG_EXECUTE("ndbcluster_init_fail2",
                ndb_log_error_dump("ndbcluster_init_abort2"););
-  exit(1);
+
+  // Terminate things which cause server shutdown hang
+  ndbcluster_binlog_end();
+
+  // Use server service to ask for server shutdown
+  Ndb_mysql_services services;
+  if (services.request_mysql_server_shutdown()) {
+    // The shutdown failed -> abort the server.
+    ndb_log_error("Failed to request shutdown, aborting...");
+    abort();
+  }
+
+  return 1;  // Error
 }
 
 /*
@@ -12432,11 +12443,12 @@ static int ndbcluster_init(void *handlerton_ptr) {
 
   if (ndb_index_stat_thread.init() ||
       DBUG_EVALUATE_IF("ndbcluster_init_fail1", true, false)) {
-    ndbcluster_init_abort("Failed to initialize NDB Index Stat");
+    return ndbcluster_init_abort("Failed to initialize NDB Index Stat");
   }
 
   if (ndb_metadata_change_monitor_thread.init()) {
-    ndbcluster_init_abort("Failed to initialize NDB Metadata Change Monitor");
+    return ndbcluster_init_abort(
+        "Failed to initialize NDB Metadata Change Monitor");
   }
 
   mysql_mutex_init(PSI_INSTRUMENT_ME, &ndbcluster_mutex, MY_MUTEX_INIT_FAST);
@@ -12460,7 +12472,8 @@ static int ndbcluster_init(void *handlerton_ptr) {
   hton->get_tablespace_statistics =
       ndbcluster_get_tablespace_statistics;           /* Provide data to I_S */
   hton->partition_flags = ndbcluster_partition_flags; /* Partition flags */
-  ndbcluster_binlog_init(hton);
+  if (!ndbcluster_binlog_init(hton))
+    return ndbcluster_init_abort("Failed to initialize NDB Binlog");
   hton->flags = HTON_TEMPORARY_NOT_SUPPORTED | HTON_NO_BINLOG_ROW_OPT |
                 HTON_SUPPORTS_FOREIGN_KEYS | HTON_SUPPORTS_ATOMIC_DDL;
   hton->discover = ndbcluster_discover;
@@ -12492,12 +12505,12 @@ static int ndbcluster_init(void *handlerton_ptr) {
 
   if (!ndb_server_hooks.register_server_hooks(ndb_wait_setup_server_startup,
                                               ndb_dd_upgrade_hook)) {
-    ndbcluster_init_abort("Failed to register ndb hooks at server startup");
+    return ndbcluster_init_abort("Failed to register server start hook");
   }
 
   if (!ndb_server_hooks.register_applier_start(
           ndb_wait_setup_replication_applier)) {
-    ndbcluster_init_abort("Failed to register ndb_wait_setup at applier start");
+    return ndbcluster_init_abort("Failed to register applier start hook");
   }
 
   // Initialize NDB_SHARE factory
@@ -12511,50 +12524,40 @@ static int ndbcluster_init(void *handlerton_ptr) {
           (global_opti_node_select & 1), opt_ndb_connectstring, opt_ndb_nodeid,
           opt_ndb_recv_thread_activation_threshold,
           opt_ndb_data_node_neighbour)) {
-    ndbcluster_init_abort("Failed to initialize connection(s)");
+    return ndbcluster_init_abort("Failed to initialize connection(s)");
   }
 
   /* Translate recv thread cpu mask if set */
   if (ndb_recv_thread_cpu_mask_check_str(opt_ndb_recv_thread_cpu_mask) == 0) {
     if (recv_thread_num_cpus) {
       if (ndb_recv_thread_cpu_mask_update()) {
-        ndbcluster_init_abort("Failed to lock receive thread(s) to CPU(s)");
+        return ndbcluster_init_abort(
+            "Failed to lock receive thread(s) to CPU(s)");
       }
     }
   }
 
   /* start the ndb injector thread */
   if (ndbcluster_binlog_start()) {
-    ndbcluster_init_abort("Failed to start NDB Binlog");
+    return ndbcluster_init_abort("Failed to start NDB Binlog");
   }
 
   // Create index statistics thread
   if (ndb_index_stat_thread.start() ||
       DBUG_EVALUATE_IF("ndbcluster_init_fail2", true, false)) {
-    ndbcluster_init_abort("Failed to start NDB Index Stat");
+    return ndbcluster_init_abort("Failed to start NDB Index Stat");
   }
 
   // Create metadata change monitor thread
   if (ndb_metadata_change_monitor_thread.start()) {
-    ndbcluster_init_abort("Failed to start NDB Metadata Change Monitor");
+    return ndbcluster_init_abort("Failed to start NDB Metadata Change Monitor");
   }
 
   memset(&g_slave_api_client_stats, 0, sizeof(g_slave_api_client_stats));
 
-  // Register a dynamic privilege called NDB_STORED_USER
-  SERVICE_TYPE(registry) *registry = mysql_plugin_registry_acquire();
-  {
-    my_service<SERVICE_TYPE(dynamic_privilege_register)> service(
-        "dynamic_privilege_register.mysql_server", registry);
-    if ((!service.is_valid()) ||
-        service->register_privilege(STRING_WITH_LEN("NDB_STORED_USER"))) {
-      ndbcluster_init_abort("Failed to register dynamic privilege");
-    }
+  if (ndb_pfs_init()) {
+    return ndbcluster_init_abort("Failed to init pfs");
   }
-  if (ndb_pfs_init(registry)) {
-    ndbcluster_init_abort("Failed to acquire PFS service handles");
-  }
-  mysql_plugin_registry_release(registry);
 
   ndbcluster_inited = 1;
 
@@ -12586,9 +12589,7 @@ static int ndbcluster_end(handlerton *, ha_panic_function) {
   mysql_mutex_destroy(&ndbcluster_mutex);
   mysql_cond_destroy(&ndbcluster_cond);
 
-  SERVICE_TYPE(registry) *registry = mysql_plugin_registry_acquire();
-  ndb_pfs_deinit(registry);
-  mysql_plugin_registry_release(registry);
+  ndb_pfs_deinit();
 
   // Cleanup NdbApi
   ndb_end_internal(1);

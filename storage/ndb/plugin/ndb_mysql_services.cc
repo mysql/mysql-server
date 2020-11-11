@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,41 +22,24 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifndef SQL_NDB_STORED_GRANTS_H
-#define SQL_NDB_STORED_GRANTS_H
+// Implements
+#include "storage/ndb/plugin/ndb_mysql_services.h"
 
-#include <string>
-
-class THD;
-class Thd_ndb;
-class Acl_change_notification;
-
-/*
-   All functions return true on success
-*/
-namespace Ndb_stored_grants {
-
-// Initialize the Ndb_stored_grants component
-bool init();
-
-// Setup the Ndb_stored_grants component
-bool setup(THD *, Thd_ndb *);
-
-void shutdown(Thd_ndb *);
-
-bool apply_stored_grants(THD *);
-
-enum class Strategy { ERROR, NONE, STATEMENT, SNAPSHOT };
-
-Strategy handle_local_acl_change(THD *, const class Acl_change_notification *,
-                                 std::string *user_list,
-                                 bool *schema_dist_use_db,
-                                 bool *particpants_must_refresh);
-
-bool update_users_from_snapshot(THD *, std::string user_list);
-
-void maintain_cache(THD *);
-
-}  // namespace Ndb_stored_grants
-
+// Uses
+#ifndef NULL
+// Fix NULL used in my_host_application_signal.h without include
+#define NULL nullptr
 #endif
+#include "mysql/components/services/my_host_application_signal.h"
+#include "mysql/service_plugin_registry.h"
+
+Ndb_mysql_services::Ndb_mysql_services()
+    : m_registry(mysql_plugin_registry_acquire()) {}
+
+Ndb_mysql_services::~Ndb_mysql_services() {
+  mysql_plugin_registry_release(m_registry);
+}
+
+bool Ndb_mysql_services::request_mysql_server_shutdown() const {
+  return my_host_application_signal_shutdown(m_registry);
+}

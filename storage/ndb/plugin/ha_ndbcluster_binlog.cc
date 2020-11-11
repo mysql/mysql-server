@@ -39,7 +39,6 @@
 #include "sql/mysqld_thd_manager.h"       // Global_THD_manager
 #include "sql/protocol_classic.h"
 #include "sql/rpl_injector.h"
-#include "sql/rpl_slave.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_rewrite.h"
 #include "sql/sql_table.h"  // build_table_filename
@@ -61,6 +60,7 @@
 #include "storage/ndb/plugin/ndb_global_schema_lock_guard.h"
 #include "storage/ndb/plugin/ndb_local_connection.h"
 #include "storage/ndb/plugin/ndb_log.h"
+#include "storage/ndb/plugin/ndb_mysql_services.h"
 #include "storage/ndb/plugin/ndb_name_util.h"
 #include "storage/ndb/plugin/ndb_ndbapi_util.h"
 #include "storage/ndb/plugin/ndb_require.h"
@@ -735,10 +735,17 @@ static int ndbcluster_binlog_func(handlerton *, THD *thd, enum_binlog_func fn,
   return res;
 }
 
-void ndbcluster_binlog_init(handlerton *h) {
+bool ndbcluster_binlog_init(handlerton *h) {
   h->binlog_func = ndbcluster_binlog_func;
   h->binlog_log_query = ndbcluster_binlog_log_query;
   h->acl_notify = ndbcluster_acl_notify;
+
+  if (!Ndb_stored_grants::init()) {
+    ndb_log_error("Failed to initialize synchronized privileges");
+    return false;
+  }
+
+  return true;
 }
 
 /*
@@ -967,8 +974,8 @@ class Ndb_binlog_setup {
     // Check that references for ndb_apply_status has been created
     DBUG_ASSERT(!ndb_binlog_running || ndb_apply_status_share);
 
-    if (!Ndb_stored_grants::initialize(m_thd, thd_ndb)) {
-      ndb_log_warning("stored grants: failed to initialize");
+    if (!Ndb_stored_grants::setup(m_thd, thd_ndb)) {
+      ndb_log_warning("Failed to setup synchronized privileges");
       return false;
     }
 
@@ -5076,17 +5083,20 @@ int ndbcluster_binlog_setup_table(THD *thd, Ndb *ndb, const char *db,
   if (ret != 0) {
     ndb_log_error("Failed to setup binlogging for table '%s.%s'", db,
                   table_name);
-    ndbcluster_handle_incomplete_binlog_setup();
+
+    if (opt_ndb_log_fail_terminate) {
+      ndb_log_error("Requesting server shutdown..");
+      // Use server service to request shutdown
+      Ndb_mysql_services services;
+      if (services.request_mysql_server_shutdown()) {
+        // The shutdown failed -> abort the server.
+        ndb_log_error("Shutdown failed, aborting server...");
+        abort();
+      }
+    }
   }
 
   return ret;
-}
-
-extern void kill_mysql(void);
-
-void ndbcluster_handle_incomplete_binlog_setup() {
-  ndb_log_error("NDB Binlog: ndbcluster_handle_incomplete_binlog_setup");
-  if (opt_ndb_log_fail_terminate) kill_mysql();
 }
 
 int Ndb_binlog_client::create_event(Ndb *ndb,
@@ -6598,12 +6608,6 @@ restart_cluster_failure:
 
   log_verbose(1, "Setting up");
 
-  if (!(thd_ndb = Thd_ndb::seize(thd))) {
-    log_error("Creating Thd_ndb object failed");
-    goto err;
-  }
-  thd_ndb->set_option(Thd_ndb::NO_LOG_SCHEMA_OP);
-
   if (!(s_ndb = new (std::nothrow) Ndb(g_ndb_cluster_connection)) ||
       s_ndb->setNdbObjectName("schema change monitoring") || s_ndb->init()) {
     log_error("Creating schema Ndb object failed");
@@ -6653,8 +6657,18 @@ restart_cluster_failure:
     and thus can receive the first GAP event)
   */
   if (!wait_for_server_started()) {
+    log_error("Failed to wait for server started..");
     goto err;
   }
+
+  // Create Thd_ndb after server started when handlerton->slot has been set
+  DBUG_ASSERT(ndbcluster_hton->slot != HA_SLOT_UNDEF);
+  if (!(thd_ndb = Thd_ndb::seize(thd))) {
+    log_error("Failed to seize Thd_ndb object");
+    goto err;
+  }
+  thd_ndb->set_option(Thd_ndb::NO_LOG_SCHEMA_OP);
+  thd_set_thd_ndb(thd, thd_ndb);
 
   // Defer call of THD::init_query_mem_roots until after
   // wait_for_server_started() to ensure that the parts of
@@ -6677,7 +6691,6 @@ restart_cluster_failure:
   {
     log_verbose(1, "Wait for cluster to start");
     thd->proc_info = "Waiting for ndbcluster to start";
-    thd_set_thd_ndb(thd, thd_ndb);
 
     while (!ndbcluster_is_connected(1) || !binlog_setup.setup(thd_ndb)) {
       // Failed to complete binlog_setup, remove all existing event
@@ -7434,7 +7447,12 @@ err:
   ndb_binlog_tables_inited = false;
   mysql_mutex_unlock(&injector_data_mutex);
 
-  Ndb_stored_grants::shutdown(thd_ndb);
+  if (thd_ndb) {
+    Ndb_stored_grants::shutdown(thd_ndb);
+  } else {
+    // Coming here without thd_ndb indicates that a goto has been used and
+    // thus the Ndb_stored_grants has most likely not been initialized
+  }
 
   thd->reset_db(NULL_CSTR);  // as not to try to free memory
   remove_all_event_operations(s_ndb, i_ndb);

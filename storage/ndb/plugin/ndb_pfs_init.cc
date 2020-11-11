@@ -23,29 +23,11 @@
 // Implements
 #include "storage/ndb/plugin/ndb_pfs_init.h"
 
+// Uses
 #include "mysql/components/services/pfs_plugin_table_service.h"
+#include "storage/ndb/plugin/ndb_mysql_services.h"
 
-template <typename T>
-static bool acquire_service(SERVICE_TYPE(registry) * mysql_service_registry,
-                            T &service, const char *name) {
-  my_h_service mysql_service;
-  if (mysql_service_registry->acquire(name, &mysql_service)) {
-    return true;
-  }
-  service = reinterpret_cast<T>(mysql_service);
-  return false;
-}
-
-template <typename T>
-static void release_service(SERVICE_TYPE(registry) * mysql_service_registry,
-                            T &service) {
-  if (service != nullptr) {
-    mysql_service_registry->release(reinterpret_cast<my_h_service>(service));
-    service = nullptr;
-  }
-}
-
-SERVICE_TYPE_NO_CONST(pfs_plugin_table_v1) *pfs_table = nullptr;
+static SERVICE_TYPE_NO_CONST(pfs_plugin_table_v1) *pfs_table = nullptr;
 SERVICE_TYPE_NO_CONST(pfs_plugin_column_string_v1) *pfscol_string = nullptr;
 SERVICE_TYPE_NO_CONST(pfs_plugin_column_enum_v1) *pfscol_enum = nullptr;
 
@@ -54,33 +36,27 @@ extern PFS_engine_table_share_proxy *ndb_sync_excluded_objects_share;
 static PFS_engine_table_share_proxy *pfs_proxy_shares[2] = {
     ndb_sync_pending_objects_share, ndb_sync_excluded_objects_share};
 
-bool ndb_pfs_init(SERVICE_TYPE(registry) * mysql_service_registry) {
-  if (mysql_service_registry == nullptr) {
-    return false;
-  }
+bool ndb_pfs_init() {
+  Ndb_mysql_services services;
 
   // Get table service
-  if (acquire_service(mysql_service_registry, pfs_table, "pfs_plugin_table_v1"))
-    return true;
+  if (services.acquire_service(pfs_table, "pfs_plugin_table_v1")) return true;
   // Get column services
-  if (acquire_service(mysql_service_registry, pfscol_string,
-                      "pfs_plugin_column_string_v1"))
+  if (services.acquire_service(pfscol_string, "pfs_plugin_column_string_v1"))
     return true;
-  if (acquire_service(mysql_service_registry, pfscol_enum,
-                      "pfs_plugin_column_enum_v1"))
+  if (services.acquire_service(pfscol_enum, "pfs_plugin_column_enum_v1"))
     return true;
 
   return pfs_table->add_tables(pfs_proxy_shares, 2);
-  ;
 }
 
-void ndb_pfs_deinit(SERVICE_TYPE(registry) * mysql_service_registry) {
-  if (mysql_service_registry == nullptr) {
-    return;
+void ndb_pfs_deinit() {
+  if (pfs_table) {
+    static_cast<void>(pfs_table->delete_tables(pfs_proxy_shares, 2));
   }
 
-  static_cast<void>(pfs_table->delete_tables(pfs_proxy_shares, 2));
-  release_service(mysql_service_registry, pfs_table);
-  release_service(mysql_service_registry, pfscol_string);
-  release_service(mysql_service_registry, pfscol_enum);
+  Ndb_mysql_services services;
+  services.release_service(pfs_table);
+  services.release_service(pfscol_string);
+  services.release_service(pfscol_enum);
 }

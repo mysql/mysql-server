@@ -28,12 +28,15 @@
 #include <mutex>
 #include <unordered_set>
 
+#include "mysql/components/my_service.h"
+#include "mysql/components/services/dynamic_privilege.h"
 #include "sql/auth/acl_change_notification.h"
 #include "sql/mem_root_array.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_prepare.h"
 #include "storage/ndb/plugin/ndb_local_connection.h"
 #include "storage/ndb/plugin/ndb_log.h"
+#include "storage/ndb/plugin/ndb_mysql_services.h"
 #include "storage/ndb/plugin/ndb_retry.h"
 #include "storage/ndb/plugin/ndb_sql_metadata_table.h"
 #include "storage/ndb/plugin/ndb_thd.h"
@@ -47,9 +50,9 @@ using ChangeNotice = const Acl_change_notification;
 namespace {
 
 /* Static file-scope data */
-Ndb_sql_metadata_api metadata_table;
-std::unordered_set<std::string> local_granted_users;
-std::mutex local_granted_users_mutex;
+static Ndb_sql_metadata_api metadata_table;
+static std::unordered_set<std::string> local_granted_users;
+static std::mutex local_granted_users_mutex;
 
 /* Utility functions */
 
@@ -888,9 +891,23 @@ Ndb_stored_grants::Strategy ThreadContext::handle_change(ChangeNotice *notice) {
 // Public interface
 //
 
-/* initialize() is run as part of binlog setup.
+bool Ndb_stored_grants::init() {
+  const Ndb_mysql_services services;
+
+  // Register the NDB_STORED_USER dynamic privilege
+  // NOTE! This privilege is never unregistered
+  my_service<SERVICE_TYPE(dynamic_privilege_register)> service(
+      "dynamic_privilege_register.mysql_server", services);
+  if (!service.is_valid() ||
+      service->register_privilege(STRING_WITH_LEN("NDB_STORED_USER"))) {
+    return false;
+  }
+  return true;
+}
+
+/* setup() is run as part of binlog setup.
  */
-bool Ndb_stored_grants::initialize(THD *thd, Thd_ndb *thd_ndb) {
+bool Ndb_stored_grants::setup(THD *thd, Thd_ndb *thd_ndb) {
   if (metadata_table.isInitialized()) return true;
 
   /* Create or upgrade the ndb_sql_metadata table.
