@@ -63,6 +63,9 @@ select load_file(concat(@tmpdir,"/outfile-test.4"));
 #
 
 CREATE TABLE t1 (a INT);
+--skip_if_hypergraph  # Automatic filtering of hypergraph errors is broken
+                      # on some platforms due to diff getting confused
+                      # by binary characters in the result file.
 EXPLAIN
   SELECT *
   INTO OUTFILE '/tmp/t1.txt'

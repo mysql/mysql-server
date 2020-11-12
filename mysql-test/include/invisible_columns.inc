@@ -386,7 +386,8 @@ DROP VIEW v1, v2;
 --echo #------------------------------------------------------------------------
 --echo # Test case to verify INFORMATION_SCHEMA.COLUMNS result set.
 --echo #------------------------------------------------------------------------
-SELECT TABLE_NAME, COLUMN_NAME, EXTRA FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='test';
+SELECT TABLE_NAME, COLUMN_NAME, EXTRA FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA='test' ORDER BY TABLE_NAME, COLUMN_NAME;
 DROP VIEW v3;
 
 
