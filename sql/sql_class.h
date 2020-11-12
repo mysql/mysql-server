@@ -965,7 +965,7 @@ class THD : public MDL_context_owner,
     @note The detached transaction applier resets a memo
           mark at once with this check.
   */
-  bool rpl_unflag_detached_engine_ha_data() const;
+  bool is_engine_ha_data_detached() const;
 
   void reset_for_next_command();
   /*
@@ -4336,18 +4336,6 @@ void my_eof(THD *thd);
 bool add_item_to_list(THD *thd, Item *item);
 
 /*************************************************************************/
-
-/**
-  The function re-attaches the engine ha_data (which was previously detached by
-  detach_ha_data_from_thd) to THD.
-  This is typically done to replication applier executing
-  one of XA-PREPARE, XA-COMMIT ONE PHASE or rollback.
-
-  @param thd         thread context
-  @param hton        pointer to handlerton
-*/
-
-void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *hton);
 
 /**
   Check if engine substitution is allowed in the current thread context.

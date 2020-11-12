@@ -1869,7 +1869,7 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit) {
       At execution of XA COMMIT ONE PHASE binlog or slave applier
       reattaches the engine ha_data to THD, previously saved at XA START.
     */
-    if (all && thd->rpl_unflag_detached_engine_ha_data()) {
+    if (all && thd->is_engine_ha_data_detached()) {
       DBUG_PRINT("info", ("query='%s'", thd->query().str));
       DBUG_ASSERT(thd->lex->sql_command == SQLCOM_XA_COMMIT);
       DBUG_ASSERT(
@@ -1944,9 +1944,9 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit) {
       DBUG_ASSERT(!thd->status_var_aggregated);
       thd->status_var.ha_commit_count++;
       ha_info_next = ha_info->next();
-      if (restore_backup_ha_data) reattach_engine_ha_data_to_thd(thd, ht);
       ha_info->reset(); /* keep it conveniently zero-filled */
     }
+    if (restore_backup_ha_data) thd->rpl_reattach_engine_ha_data();
     trn_ctx->reset_scope(trx_scope);
 
     /*
@@ -2000,7 +2000,7 @@ int ha_rollback_low(THD *thd, bool all) {
       Similarly to the commit case, the binlog or slave applier
       reattaches the engine ha_data to THD.
     */
-    if (all && thd->rpl_unflag_detached_engine_ha_data()) {
+    if (all && thd->is_engine_ha_data_detached()) {
       DBUG_ASSERT(trn_ctx->xid_state()->get_state() != XID_STATE::XA_NOTR ||
                   thd->killed == THD::KILL_CONNECTION);
 
@@ -2019,9 +2019,9 @@ int ha_rollback_low(THD *thd, bool all) {
       DBUG_ASSERT(!thd->status_var_aggregated);
       thd->status_var.ha_rollback_count++;
       ha_info_next = ha_info->next();
-      if (restore_backup_ha_data) reattach_engine_ha_data_to_thd(thd, ht);
       ha_info->reset(); /* keep it conveniently zero-filled */
     }
+    if (restore_backup_ha_data) thd->rpl_reattach_engine_ha_data();
     trn_ctx->reset_scope(trx_scope);
   }
 
