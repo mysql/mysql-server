@@ -278,8 +278,12 @@ class Multisource_info {
          it != map_it->second.end(); it++) {
       Master_info *mi = it->second;
       if (Master_info::is_configured(mi) &&
-          mi->is_source_connection_auto_failover() && mi->slave_running) {
-        count++;
+          mi->is_source_connection_auto_failover()) {
+        mysql_mutex_lock(&mi->err_lock);
+        if (mi->slave_running || mi->is_error()) {
+          count++;
+        }
+        mysql_mutex_unlock(&mi->err_lock);
       }
     }
 

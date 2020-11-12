@@ -1,0 +1,88 @@
+##############################################################################
+# Validate that when a channel with SOURCE_CONNECTION_AUTO_FAILOVER=1 is stopped
+# after the channel IO Thread stopped due to a error, the Monitor IO thread is
+# also stopped.
+#
+# Test:
+# 0. The test requires two servers: S1 and S2.
+# 1. Enable Asynchronous Replication Connection Failover but
+#    do not add failover sources.
+# 2. Stop source server, replica IO thread will fail.
+#    Despite connection failover is enabled, since there are
+#    no failover sources the IO thread will stop.
+# 3. Stop replica.
+# 4. Clean up.
+################################################################################
+--let $use_gtids= 1
+--source include/master-slave.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Enable Asynchronous Replication Connection Failover but
+--echo #    do not add failover sources.
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=1, SOURCE_CONNECTION_AUTO_FAILOVER=1;
+--source include/start_slave.inc
+
+--let $assert_text= 'Asynchronous Replication Connection Failover is enabled'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_connection_configuration WHERE SOURCE_CONNECTION_AUTO_FAILOVER=1, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'There are no rows in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'Verify replica_monitor thread is running'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.threads WHERE NAME=\"thread/sql/replica_monitor\", count, 1] = 1
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Stop source server, replica IO thread will fail.
+--echo #    Despite connection failover is enabled, since there are
+--echo #    no failover sources the IO thread will stop.
+--source include/rpl_connection_master.inc
+--let $rpl_server_number= 1
+--source include/rpl_stop_server.inc
+
+--source include/rpl_connection_slave.inc
+--let $slave_io_errno= 2003
+--source include/wait_for_slave_io_error.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_connection_status WHERE SERVICE_STATE="OFF"
+--source include/wait_condition.inc
+
+--let $assert_text= 'Verify replica_monitor thread is running'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.threads WHERE NAME=\"thread/sql/replica_monitor\", count, 1] = 1
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Stop replica.
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+
+--let $assert_text= 'Verify replica_monitor thread is not running'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.threads WHERE NAME=\"thread/sql/replica_monitor\", count, 1] = 0
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Clean up
+--source include/rpl_connection_master.inc
+--let $rpl_server_number= 1
+--source include/rpl_start_server.inc
+
+--source include/rpl_connection_slave.inc
+--let $rpl_reset_slave_all= 1
+--source include/rpl_reset_slave.inc
+--let $rpl_reset_slave_all=
+
+--let $rpl_skip_sync= 1
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc
