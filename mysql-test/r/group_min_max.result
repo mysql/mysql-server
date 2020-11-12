@@ -4444,7 +4444,7 @@ SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2);
 a	b
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2);
 EXPLAIN
--> Zero rows (Impossible WHERE noticed after reading const tables)
+-> Zero rows (Impossible WHERE noticed after reading const tables)  (cost=0.00..0.00 rows=0)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
@@ -4461,7 +4461,7 @@ a	b
 1	1
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2);
 EXPLAIN
--> Rows fetched before execution  (cost=0.00 rows=1)
+-> Rows fetched before execution  (cost=0.00..0.00 rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
@@ -4481,7 +4481,7 @@ EXPLAIN
         -> Limit: 1 row(s)
             -> Filter: (<cache>(t1.a) = <ref_null_helper>(max(t1.b)))
                 -> Aggregate: max(t1.b)
-                    -> Rows fetched before execution  (cost=0.00 rows=1)
+                    -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
