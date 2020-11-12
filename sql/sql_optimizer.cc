@@ -2124,20 +2124,6 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
     const int ref_key_hint= (order_direction == 0 &&
                              tab->type() == JT_INDEX_SCAN) ? -1 : ref_key;
 
-    test_if_cheaper_ordering(tab, order, table, usable_keys,
-                             ref_key_hint,
-                             select_limit,
-                             &best_key, &best_key_direction,
-                             &select_limit, &best_key_parts,
-                             &saved_best_key_parts);
-
-    if (best_key < 0)
-    {
-      // No usable key has been found
-      can_skip_sorting= false;
-      goto fix_ICP;
-    }
-
     /*
       Does the query have a "FORCE INDEX [FOR GROUP BY] (idx)" (if
       clause is group by) or a "FORCE INDEX [FOR ORDER BY] (idx)" (if
@@ -2146,6 +2132,27 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
     const bool is_group_by= join && join->grouped && order == join->group_list;
     const bool is_force_index= table->force_index ||
       (is_group_by ? table->force_index_group : table->force_index_order);
+
+    /*
+      Find an ordering index alternative over the chosen plan iff
+      prefer_ordering_index switch is on. This switch is overridden only when
+      force index for order/group is specified.
+    */
+    if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_PREFER_ORDERING_INDEX) ||
+        is_force_index)
+      test_if_cheaper_ordering(tab, order, table, usable_keys,
+                               ref_key_hint,
+                               select_limit,
+                               &best_key, &best_key_direction,
+                               &select_limit, &best_key_parts,
+                               &saved_best_key_parts);
+
+    if (best_key < 0)
+    {
+      // No usable key has been found
+      can_skip_sorting= false;
+      goto fix_ICP;
+    }
 
     /*
       filesort() and join cache are usually faster than reading in
@@ -9449,7 +9456,15 @@ static bool make_join_select(JOIN *join, Item *cond)
                   recheck_reason= DONT_RECHECK;
                 }
               }
-              if (recheck_reason != DONT_RECHECK)
+              /*
+                We do a cost based search for an ordering index here. Do this
+                only if prefer_ordering_index switch is on or an index is
+                forced for order by
+              */
+              if (recheck_reason != DONT_RECHECK &&
+                  (tab->table()->force_index_order ||
+                   thd->optimizer_switch_flag(
+                       OPTIMIZER_SWITCH_PREFER_ORDERING_INDEX)))
               {
                 int best_key= -1;
                 ha_rows select_limit= join->unit->select_limit_cnt;
