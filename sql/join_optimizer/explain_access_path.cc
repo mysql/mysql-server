@@ -97,6 +97,7 @@ static string JoinTypeToString(JoinType join_type) {
 static string HashJoinTypeToString(RelationalExpression::Type join_type) {
   switch (join_type) {
     case RelationalExpression::INNER_JOIN:
+    case RelationalExpression::STRAIGHT_INNER_JOIN:
       return "Inner hash join";
     case RelationalExpression::LEFT_JOIN:
       return "Left hash join";

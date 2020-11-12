@@ -911,6 +911,43 @@ TEST_F(HypergraphOptimizerTest, SimpleInnerJoin) {
   EXPECT_EQ(m_thd->m_current_query_partial_plans, 6);
 }
 
+TEST_F(HypergraphOptimizerTest, StraightJoin) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT 1 FROM t1 STRAIGHT_JOIN t2 ON t1.x=t2.x",
+                      /*nullable=*/true);
+  m_fake_tables["t1"]->file->stats.records = 100;
+  m_fake_tables["t2"]->file->stats.records = 10000;
+
+  // Set up some large scan costs to discourage nested loop.
+  m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
+  m_fake_tables["t2"]->file->stats.data_file_length = 100e6;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // The optimal order would be to reorder (t2, t1), but this should be
+  // disallowed due to the use of STRAIGHT_JOIN.
+
+  ASSERT_EQ(AccessPath::HASH_JOIN, root->type);
+  EXPECT_EQ(RelationalExpression::STRAIGHT_INNER_JOIN,
+            root->hash_join().join_predicate->expr->type);
+
+  AccessPath *outer = root->hash_join().outer;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, outer->type);
+  EXPECT_EQ(m_fake_tables["t1"], outer->table_scan().table);
+
+  AccessPath *inner = root->hash_join().inner;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, inner->type);
+  EXPECT_EQ(m_fake_tables["t2"], inner->table_scan().table);
+
+  // We should see only the two table scans and then t1-t2, no other orders.
+  EXPECT_EQ(m_thd->m_current_query_partial_plans, 3);
+}
+
 TEST_F(HypergraphOptimizerTest, DistinctIsDoneAsSort) {
   Query_block *query_block =
       ParseAndResolve("SELECT DISTINCT t1.y, t1.x FROM t1", /*nullable=*/true);

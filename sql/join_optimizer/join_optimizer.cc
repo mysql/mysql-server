@@ -967,8 +967,12 @@ void CostingReceiver::ProposeNestedLoopJoin(NodeMap left, NodeMap right,
       ~(left | right);
   join_path.nested_loop_join().outer = left_path;
   join_path.nested_loop_join().inner = right_path;
-  join_path.nested_loop_join().join_type =
-      static_cast<JoinType>(edge->expr->type);
+  if (edge->expr->type == RelationalExpression::STRAIGHT_INNER_JOIN) {
+    join_path.nested_loop_join().join_type = JoinType::INNER;
+  } else {
+    join_path.nested_loop_join().join_type =
+        static_cast<JoinType>(edge->expr->type);
+  }
   join_path.nested_loop_join().pfs_batch_mode = false;
 
   const uint64_t applied_sargable_join_predicates =

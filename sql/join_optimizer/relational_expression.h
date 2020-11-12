@@ -68,6 +68,11 @@ struct RelationalExpression {
     SEMIJOIN = static_cast<int>(JoinType::SEMI),
     ANTIJOIN = static_cast<int>(JoinType::ANTI),
 
+    // STRAIGHT_JOIN is an inner join that the user has specified
+    // is noncommutative (as a hint, but one we are not allowed to
+    // disregard).
+    STRAIGHT_INNER_JOIN = 101,
+
     // Generally supported by the conflict detector only, not the parser
     // or any iterators. We include this because we will be needing it
     // when we actually implement full outer join, and because it helps

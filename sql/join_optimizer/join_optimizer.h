@@ -39,8 +39,7 @@
   we do not support:
 
     - Some SQL features: recursive CTE, window functions.
-    - Secondary engine.
-    - Hints.
+    - Hints (except STRAIGHT_JOIN).
     - TRADITIONAL and JSON formats for EXPLAIN (use FORMAT=tree).
 
   For unsupported queries, we will return an error; every valid SQL

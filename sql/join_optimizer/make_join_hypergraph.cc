@@ -112,8 +112,13 @@ RelationalExpression *MakeRelationalExpressionFromJoinList(
                                     : RelationalExpression::ANTIJOIN;
     } else {
       join->right = MakeRelationalExpression(thd, tl);
-      join->type = tl->outer_join ? RelationalExpression::LEFT_JOIN
-                                  : RelationalExpression::INNER_JOIN;
+      if (tl->outer_join) {
+        join->type = RelationalExpression::LEFT_JOIN;
+      } else if (tl->straight) {
+        join->type = RelationalExpression::STRAIGHT_INNER_JOIN;
+      } else {
+        join->type = RelationalExpression::INNER_JOIN;
+      }
     }
     if (tl->is_aj_nest()) {
       assert(tl->join_cond() != nullptr);
@@ -139,6 +144,9 @@ string PrintRelationalExpression(RelationalExpression *expr, int level) {
       return result;
     case RelationalExpression::INNER_JOIN:
       result += "* Inner join";
+      break;
+    case RelationalExpression::STRAIGHT_INNER_JOIN:
+      result += "* Inner join [forced noncommutative]";
       break;
     case RelationalExpression::LEFT_JOIN:
       result += "* Left join";
@@ -193,6 +201,11 @@ bool IsNullRejecting(const RelationalExpression &expr, table_map tables) {
     }
   }
   return false;
+}
+
+bool IsInnerJoin(RelationalExpression::Type type) {
+  return type == RelationalExpression::INNER_JOIN ||
+         type == RelationalExpression::STRAIGHT_INNER_JOIN;
 }
 
 // Returns true if (t1 <a> t2) <b> t3 === t1 <a> (t2 <b> t3).
@@ -256,8 +269,7 @@ bool OperatorsAreAssociative(const RelationalExpression &a,
 
   // For the operations we support, it can be collapsed into this simple
   // condition. (Cartesian products and inner joins are treated the same.)
-  return a.type == RelationalExpression::INNER_JOIN &&
-         b.type != RelationalExpression::FULL_OUTER_JOIN;
+  return IsInnerJoin(a.type) && b.type != RelationalExpression::FULL_OUTER_JOIN;
 }
 
 // Returns true if (t1 <a> t2) <b> t3 === (t1 <b> t3) <a> t2,
@@ -270,6 +282,26 @@ bool OperatorsAreAssociative(const RelationalExpression &a,
 // See comments on OperatorsAreAssociative().
 bool OperatorsAreLeftAsscom(const RelationalExpression &a,
                             const RelationalExpression &b) {
+  // Associative and asscom implies commutativity, and since STRAIGHT_JOIN
+  // is associative and we don't want it to be commutative, we can't make it
+  // asscom. As an example, a user writing
+  //
+  //   (t1 STRAIGHT_JOIN t2) STRAIGHT_JOIN t3
+  //
+  // would never expect it to be rewritten to
+  //
+  //   (t1 STRAIGHT_JOIN t3) STRAIGHT_JOIN t2
+  //
+  // since that would effectively switch the order of t2 and t3.
+  // It's possible we could be slightly more lenient here for some cases
+  // (e.g. if t1/t2 were a regular inner join), but presumably, people
+  // write STRAIGHT_JOIN to get _less_ leniency, so we just block them
+  // off entirely.
+  if (a.type == RelationalExpression::STRAIGHT_INNER_JOIN ||
+      b.type == RelationalExpression::STRAIGHT_INNER_JOIN) {
+    return false;
+  }
+
   // Table 3 from [Moe13]; which operator pairs are l-asscom.
   // (Cartesian products and inner joins are treated the same.)
   if (a.type == RelationalExpression::LEFT_JOIN) {
@@ -304,6 +336,8 @@ bool OperatorsAreRightAsscom(const RelationalExpression &a,
     return IsNullRejecting(a, a.right->tables_in_subtree) &&
            IsNullRejecting(b, b.right->tables_in_subtree);
   }
+
+  // See OperatorsAreLeftAsscom() for why we don't accept STRAIGHT_INNER_JOIN.
   return a.type == RelationalExpression::INNER_JOIN &&
          b.type == RelationalExpression::INNER_JOIN;
 }
@@ -449,8 +483,7 @@ bool AddJoinConditionPossiblyWithRewrite(RelationalExpression *expr, Item *cond,
   // semijoins, but having a left join doesn't stop us from doing the rewrites
   // below. Due to special semijoin rules in MySQL (see comments in
   // PushDownCondition()), we also disallow making join conditions on semijoins.
-  if (!IsBadJoinForCondition(*expr, cond) &&
-      expr->type == RelationalExpression::INNER_JOIN) {
+  if (!IsBadJoinForCondition(*expr, cond) && IsInnerJoin(expr->type)) {
     expr->join_conditions.push_back(cond);
     if (trace != nullptr && allowed != AssociativeRewritesAllowed::ANY) {
       *trace += StringPrintf(
@@ -612,7 +645,7 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
   // antijoins, since that would remove rows that should otherwise
   // be output (as NULL-complemented ones in the case if outer joins).
   const bool can_push_into_left =
-      (expr->type == RelationalExpression::INNER_JOIN ||
+      (IsInnerJoin(expr->type) ||
        expr->type == RelationalExpression::SEMIJOIN ||
        !is_join_condition_for_expr);
   if (IsSubset(used_tables, expr->left->tables_in_subtree | parameter_tables)) {
@@ -638,7 +671,7 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
   // (The user cannot cannot specify semijoins directly, so all such conditions
   // come from ourselves.)
   const bool can_push_into_right =
-      (expr->type == RelationalExpression::INNER_JOIN ||
+      (IsInnerJoin(expr->type) ||
        expr->type == RelationalExpression::SEMIJOIN ||
        is_join_condition_for_expr);
   if (IsSubset(used_tables,
