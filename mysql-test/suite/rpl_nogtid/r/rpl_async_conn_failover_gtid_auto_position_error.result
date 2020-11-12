@@ -15,7 +15,7 @@ include/assert.inc ['Asynchronous Replication Connection Failover is disabled']
 #    Connection Failover fails with error
 #    ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF.
 #
-CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER=1;
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1;
 ERROR HY000: Failed to enable Asynchronous Replication Connection Failover feature. The CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 1 can only be set when @@GLOBAL.GTID_MODE = ON.
 include/assert.inc ['Asynchronous Replication Connection Failover is disabled']
 #
@@ -34,21 +34,21 @@ include/assert.inc [gtid_mode is ON]
 #    MASTER_AUTO_POSITION is disabled.
 #
 include/assert.inc ['MASTER_AUTO_POSITION is disabled']
-CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER=1;
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1;
 ERROR HY000: Failed to enable Asynchronous Replication Connection Failover feature. The CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 1 can only be set when MASTER_AUTO_POSITION option of CHANGE MASTER TO is enabled.
 include/assert.inc ['Asynchronous Replication Connection Failover is disabled']
 #
 # 5. Enabling MASTER_AUTO_POSITION and then enable Asynchronous
 #    Replication Connection Failover and verify its enabled.
 #
-CHANGE MASTER TO MASTER_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1;
 include/assert.inc ['Asynchronous Replication Connection Failover is enabled']
 #
 # 6. Disabling MASTER_AUTO_POSITION while Asynchronous Replication
 #    Connection Failover is enabled results in
 #    ER_DISABLE_GTID_MODE_REQUIRES_ASYNC_RECONNECT_OFF error.
 #
-CHANGE MASTER TO MASTER_AUTO_POSITION=0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0;
 ERROR HY000: CHANGE MASTER TO MASTER_AUTO_POSITION = 0 cannot be executed because Asynchronous Replication Connection Failover is enabled i.e. CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 1.
 #
 # 7. Executing GTID_MODE = ON_PERMISSIVE while Asynchronous Replication
@@ -60,7 +60,7 @@ ERROR HY000: The @@GLOBAL.GTID_MODE = ON_PERMISSIVE cannot be executed because A
 #
 # 8. Clean up
 #
-CHANGE MASTER TO MASTER_AUTO_POSITION=0, SOURCE_CONNECTION_AUTO_FAILOVER=0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0, SOURCE_CONNECTION_AUTO_FAILOVER=0;
 SET GLOBAL GTID_MODE = ON_PERMISSIVE;
 SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
 SET GLOBAL GTID_MODE = OFF;

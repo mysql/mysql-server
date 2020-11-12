@@ -51,7 +51,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 call mtr.add_suppression("There was an error when connecting to the donor server.*");
 call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
 SET SESSION sql_log_bin= 1;
-CHANGE MASTER TO MASTER_USER= 'recovery_user', MASTER_PASSWORD= 'recovery_password' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER= 'recovery_user', SOURCE_PASSWORD= 'recovery_password' FOR CHANNEL 'group_replication_recovery';
 SET @group_replication_recovery_reconnect_interval_saved= @@GLOBAL.group_replication_recovery_reconnect_interval;
 SET GLOBAL group_replication_recovery_reconnect_interval= 1;
 SET GLOBAL debug= '+d,group_replication_skip_read_mode';

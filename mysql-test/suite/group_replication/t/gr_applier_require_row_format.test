@@ -24,9 +24,9 @@
 --echo
 --echo # 2) Verify that is not possible to change `REQUIRE_ROW_FORMAT` option
 --error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
---eval CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0 FOR CHANNEL "group_replication_applier"
+--eval CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0 FOR CHANNEL "group_replication_applier"
 --error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
---eval CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL "group_replication_applier"
+--eval CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL "group_replication_applier"
 
 --echo
 --echo # 3) Verify that `REQUIRE_ROW_FORMAT` is set for the GR channels.

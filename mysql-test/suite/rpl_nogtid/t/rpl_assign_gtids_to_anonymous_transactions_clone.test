@@ -60,7 +60,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --source include/rpl_set_gtid_mode.inc
 --source include/stop_slave.inc
 
-CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL for channel 'channel_1';
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL for channel 'channel_1';
 --source include/start_slave.inc
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
@@ -189,7 +189,7 @@ DROP TABLE t1;
 
 # reset the gtid value to off
 #
-CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF for channel 'channel_1';
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF for channel 'channel_1';
 
 --let $rpl_set_enforce_gtid_consistency= 0
 --let $rpl_gtid_mode= OFF
@@ -205,7 +205,7 @@ UNINSTALL PLUGIN clone;
 
 --source include/stop_slave.inc
 
-CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF for channel 'channel_1';
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF for channel 'channel_1';
 
 --let $rpl_set_enforce_gtid_consistency= 0
 --let $rpl_gtid_mode= OFF

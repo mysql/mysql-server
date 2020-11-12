@@ -89,7 +89,7 @@ SET SESSION sql_log_bin = 1;
 --source include/rpl_connection.inc
 
 --replace_result $SERVER_MYPORT_1 SERVER_1_PORT
---eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root', MASTER_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, MASTER_PORT=$SERVER_MYPORT_1, MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=2 for channel 'ch1_3'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=$SERVER_MYPORT_1, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=2 for channel 'ch1_3'
 --let $rpl_channel_name='ch1_3'
 --source include/start_slave.inc
 --let $rpl_channel_name=
@@ -218,7 +218,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --eval SELECT asynchronous_connection_failover_delete_managed('ch1_3', '$group_replication_group_name')
 
 --replace_result $SERVER_MYPORT_1 SERVER_1_PORT
---eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root', MASTER_PORT=$SERVER_MYPORT_1 FOR CHANNEL 'ch1_3'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=$SERVER_MYPORT_1 FOR CHANNEL 'ch1_3'
 
 --let $skip_recovery_configuration= 1
 --let $rpl_group_replication_reset_persistent_vars=1

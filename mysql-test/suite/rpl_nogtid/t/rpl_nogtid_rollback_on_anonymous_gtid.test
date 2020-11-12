@@ -66,7 +66,7 @@ COMMIT;
 # Make the I/O thread to ask for the full transaction from beginning
 # without purging the relay log (SQL thread is active).
 --replace_result $master_file MASTER_FILE $master_pos MASTER_POS
---eval CHANGE MASTER TO MASTER_LOG_FILE='$master_file', MASTER_LOG_POS=$master_pos
+--eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE='$master_file', SOURCE_LOG_POS=$master_pos
 
 # Restart the I/O thread
 --source include/start_slave_io.inc

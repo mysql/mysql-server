@@ -15,10 +15,10 @@ SET @@GLOBAL.server_id= 0;
 START SLAVE;
 ERROR HY000: The server is not configured as slave; fix in config file or with CHANGE MASTER TO
 include/assert_grep.inc [Slave didn't started because of server_id=0]
-CHANGE MASTER TO MASTER_LOG_POS=4;
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4;
 START SLAVE FOR CHANNEL 'any_channel';
 ERROR HY000: Slave channel 'any_channel' does not exist.
-CHANGE MASTER TO MASTER_LOG_POS=4, MASTER_HOST='127.0.0.1' FOR CHANNEL 'any_channel';
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4, SOURCE_HOST='127.0.0.1' FOR CHANNEL 'any_channel';
 START SLAVE FOR CHANNEL 'any_channel';
 ERROR HY000: The server is not configured as slave; fix in config file or with CHANGE MASTER TO
 include/assert_grep.inc [Slave for channel didn't started because of server_id=0]
@@ -35,20 +35,20 @@ include/rpl_restart_server.inc [server_number=2 parameters: --server-id=0]
 include/assert.inc [slave's server_id was 0 at startup]
 START SLAVE;
 ERROR HY000: Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log.
-CHANGE MASTER TO MASTER_LOG_POS=4;
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4;
 ERROR HY000: Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log.
 START SLAVE FOR CHANNEL 'any_channel';
 ERROR HY000: Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log.
-CHANGE MASTER TO MASTER_LOG_POS=4 FOR CHANNEL 'any_channel';
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4 FOR CHANNEL 'any_channel';
 ERROR HY000: Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log.
 SET @@GLOBAL.server_id= 2;
 START SLAVE;
 ERROR HY000: Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log.
-CHANGE MASTER TO MASTER_LOG_POS=4;
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4;
 ERROR HY000: Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log.
 START SLAVE FOR CHANNEL 'any_channel';
 ERROR HY000: Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log.
-CHANGE MASTER TO MASTER_LOG_POS=4 FOR CHANNEL 'any_channel';
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4 FOR CHANNEL 'any_channel';
 ERROR HY000: Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log.
 include/rpl_restart_server.inc [server_number=2 parameters: --server-id=2]
 [connection slave]

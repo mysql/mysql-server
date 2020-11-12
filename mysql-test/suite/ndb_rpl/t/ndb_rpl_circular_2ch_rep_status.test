@@ -134,7 +134,7 @@ let $cluster_a_master_log_pos = query_get_value("SHOW MASTER STATUS", "Position"
 --connection slave1
 --echo Slave1 (4)
 --disable_query_log
-eval CHANGE MASTER TO MASTER_LOG_FILE="$cluster_a_master_log_file", MASTER_LOG_POS=$cluster_a_master_log_pos;
+eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE="$cluster_a_master_log_file", SOURCE_LOG_POS=$cluster_a_master_log_pos;
 --enable_query_log
 
 --echo Get current master status on Cluster B new master (next pos in Binlog)
@@ -149,7 +149,7 @@ let $cluster_b_master_log_pos = query_get_value("SHOW MASTER STATUS", "Position"
 --connection master
 --echo Master (1)
 --disable_query_log
-eval CHANGE MASTER TO MASTER_LOG_FILE="$cluster_b_master_log_file", MASTER_LOG_POS=$cluster_b_master_log_pos;
+eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE="$cluster_b_master_log_file", SOURCE_LOG_POS=$cluster_b_master_log_pos;
 --enable_query_log
 
 --connection master

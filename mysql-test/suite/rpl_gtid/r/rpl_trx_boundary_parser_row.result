@@ -303,7 +303,7 @@ RESET MASTER;
 include/stop_slave.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
-CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
 include/start_slave.inc
 # Using InnoDB storage engine without auto positioning
 ## Running the test with the SQL thread stopped
@@ -595,6 +595,6 @@ DROP TABLE t1,t2;
 include/sync_slave_sql_with_master.inc
 [connection slave]
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1;
 include/start_slave.inc
 include/rpl_end.inc

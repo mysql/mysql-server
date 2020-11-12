@@ -39,7 +39,7 @@ while($k >= 0)
 {
   # Enable Master Auto Position
   --source include/stop_slave.inc
-  CHANGE MASTER TO MASTER_AUTO_POSITION=1;
+  CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=1;
   --source include/start_slave.inc
   # 1. Slave is made to crash at a state where gaps are present in MTS execution.
   #    This is done by sourcing

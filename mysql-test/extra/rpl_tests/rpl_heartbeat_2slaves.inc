@@ -24,12 +24,12 @@
 #
 --connection slave_1
 --source include/stop_slave.inc
-CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD = 0.1;
+CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD = 0.1;
 --source include/start_slave.inc
 --connection slave_2
 --source include/stop_slave.inc
 --replace_column 2 ####
-CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD = 1;
 --source include/start_slave.inc
 
 #
@@ -81,7 +81,7 @@ let $table=replication_connection_status;
 --connection slave_1
 --source include/stop_slave.inc
 --replace_column 2 ####
-CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD=0.1;
+CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=0.1;
 --source include/start_slave.inc
 
 # Check heartbeat for new replication channel slave_2->slave

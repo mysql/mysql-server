@@ -24,7 +24,7 @@
 # IN VALGRIND : Increased the time interval between the connection retries.
 --let $rpl_connection_name= slave
 --source include/rpl_connection.inc
-CHANGE MASTER TO MASTER_CONNECT_RETRY=30, MASTER_RETRY_COUNT=30;
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=30, SOURCE_RETRY_COUNT=30;
 --source include/start_slave.inc
 
 # Ensuring that prev_gtids_event will have some gtid after binlog rotation

@@ -22,7 +22,7 @@ include/start_slave.inc
 include/wait_for_slave_param.inc [Last_SQL_Errno]
 include/rpl_reset.inc
 include/stop_slave.inc
-change master to master_port=SLAVE_PORT;
+CHANGE REPLICATION SOURCE to SOURCE_PORT=SLAVE_PORT;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -31,7 +31,7 @@ include/wait_for_slave_param.inc [Last_IO_Errno]
 include/assert.inc [Last_IO_Error_Timestamp is not null and matches the expected format]
 include/stop_slave.inc
 include/assert.inc [Last_IO_Error_Timestamp matches the one reported before stopping slave threads]
-change master to master_port=MASTER_PORT;
+CHANGE REPLICATION SOURCE to SOURCE_PORT=MASTER_PORT;
 Last_IO_Errno: 13117
 include/start_slave.inc
 # assertion: show that no error is reported anymore

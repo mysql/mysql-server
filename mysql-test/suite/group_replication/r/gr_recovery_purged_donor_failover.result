@@ -38,7 +38,7 @@ call mtr.add_suppression("Slave I/O thread couldn't register on master");
 call mtr.add_suppression("Error while creating the group replication recovery channel with donor.*");
 call mtr.add_suppression("Error when configuring the asynchronous recovery channel connection to the donor.*");
 SET SESSION sql_log_bin= 1;
-CHANGE MASTER TO MASTER_USER= 'recovery_user', MASTER_PASSWORD= 'recovery_password' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER= 'recovery_user', SOURCE_PASSWORD= 'recovery_password' FOR CHANNEL 'group_replication_recovery';
 SET @debug_save_rec_int= @@GLOBAL.group_replication_recovery_reconnect_interval;
 SET GLOBAL group_replication_recovery_reconnect_interval= 1 # seconds;
 START GROUP_REPLICATION;

@@ -15,7 +15,7 @@ SET GLOBAL log_output= 'TABLE';
 TRUNCATE mysql.general_log;
 include/start_and_bootstrap_group_replication.inc
 # CHANGE MASTER with valid options will work fine and the password part will be masked with <secret>
-CHANGE MASTER TO MASTER_USER='manish', MASTER_PASSWORD='unique_password' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='manish', SOURCE_PASSWORD='unique_password' FOR CHANNEL 'group_replication_recovery';
 # Since MASTER_PASSWORD is not stored in the performance schema table
 # (performance_schema.replication_connection_configuration) it won't be visible.
 SELECT password FROM performance_schema.replication_connection_configuration;

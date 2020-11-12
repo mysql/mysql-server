@@ -44,7 +44,7 @@
 --let $rpl_connection_name= server4
 --source include/rpl_connection.inc
 --replace_result $SERVER_MYPORT_1 SERVER_1_PORT
---eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root', MASTER_AUTO_POSITION=1, MASTER_PORT=$SERVER_MYPORT_1, MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=1 FOR CHANNEL 'ch1'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=$SERVER_MYPORT_1, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1'
 
 --let $rpl_channel_name='ch1'
 --source include/start_slave.inc
@@ -62,7 +62,7 @@
 --let $rpl_connection_name= server4
 --source include/rpl_connection.inc
 
-CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1';
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1';
 
 --replace_result $SERVER_MYPORT_2 SERVER_MYPORT_2 $group_replication_group_name GROUP_NAME
 --eval SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', '$group_replication_group_name', '127.0.0.1', $SERVER_MYPORT_2, '', 90, 70)

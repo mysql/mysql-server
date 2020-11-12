@@ -64,8 +64,8 @@ CHANGE REPLICATION FILTER REPLICATE_DO_DB=();
 --echo ####################################################################
 --echo # Test Case3: CHANGE MASTER command
 --echo ####################################################################
-CHANGE MASTER TO MASTER_CONNECT_RETRY=20;
-CHANGE MASTER TO MASTER_HOST='dummy' FOR CHANNEL 'aaa';
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=20;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='dummy' FOR CHANNEL 'aaa';
 
 --echo ####################################################################
 --echo # Test Case4: RESET SLAVE FOR CHANNEL/RESET SLAVE ALL/RESET SLAVE
@@ -151,7 +151,7 @@ RESET MASTER;
 --source include/stop_slave.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
---eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc

@@ -96,14 +96,14 @@ if ($_rename_parameter == 'LOCAL')
 --echo # 3.1 Verify that CHM gives error when tried to pass group_name to ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $SERVER_MYPORT_3 SERVER_3_PORT
 --error ER_CANT_USE_SAME_UUID_AS_GROUP_NAME
---eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PASSWORD="", MASTER_PORT=$SERVER_MYPORT_3, ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS="$group_replication_group_name"
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=$SERVER_MYPORT_3, ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS="$group_replication_group_name"
 
 if ($_rename_parameter != 'LOCAL')
 {
   --replace_result $__rename_parameter RENAME_PARAMETER
 }
 --replace_result $SERVER_MYPORT_3 SERVER_3_PORT
---eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PASSWORD="", MASTER_PORT=$SERVER_MYPORT_3, ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS=$__rename_parameter
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=$SERVER_MYPORT_3, ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS=$__rename_parameter
 
 --let $save_group_replication_group_name = $group_replication_group_name
 

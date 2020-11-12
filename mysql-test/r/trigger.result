@@ -2160,7 +2160,7 @@ ALTER USER 'u1'@'localhost' PASSWORD EXPIRE;
 ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
 DROP USER 'u1'@'localhost';
 CREATE TRIGGER tr1 AFTER UPDATE ON t1 FOR EACH ROW
-CHANGE MASTER TO MASTER_SSL = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_SSL = 0;
 ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
 DROP TABLE t1;
 #

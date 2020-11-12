@@ -112,7 +112,7 @@ if (`SELECT @@BINLOG_FORMAT = 'STATEMENT'`)
 #           ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON
 #           or ER_MTS_CANT_PARALLEL (incase of MTS enabled server).
 ###############################################################################
-CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin.000005', RELAY_LOG_POS=4;
+CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='slave-relay-bin.000005', RELAY_LOG_POS=4;
 START REPLICA SQL_THREAD;
 --let $sts_error= convert_error(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON)
 --let $mts_error= convert_error(ER_MTS_CANT_PARALLEL)
@@ -133,7 +133,7 @@ ALTER TABLE t1 engine=MyISAM;
 # Start SQL thread from the begining of the XA transaction.
 START REPLICA SQL_THREAD UNTIL SQL_AFTER_MTS_GAPS;
 --source include/wait_for_slave_sql_to_stop.inc
-CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
+CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
 START REPLICA SQL_THREAD;
 
 # SQL thread should fail with ER_GTID_NEXT_TYPE_UNDEFINED_GTID
@@ -150,7 +150,7 @@ RESET MASTER;
 #           This time SQL thread should succesfully apply full XA transaction
 #           without any issues.
 ###############################################################################
-CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
+CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
 --source include/start_slave_sql.inc
 --source include/rpl_connection_master.inc
 --source include/sync_slave_sql_with_master.inc
@@ -170,7 +170,7 @@ CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
 #           executed once).
 ###############################################################################
 --source include/stop_slave_sql.inc
-CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
+CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
 --source include/start_slave_sql.inc
 
 # Check that SQL thread reached end point.

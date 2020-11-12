@@ -73,7 +73,7 @@ call mtr.add_suppression("Slave I/O for channel '': Relay log write failure: cou
 
   --source include/rpl_connection_slave.inc
 
-  CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1;
+  CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
 
   START SLAVE;
 
@@ -96,7 +96,7 @@ call mtr.add_suppression("Slave I/O for channel '': Relay log write failure: cou
 
   --echo # No issues when REQUIRE_ROW_FORMAT = 0
 
-  CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0;
+  CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;
 
   --source include/start_slave.inc
 
@@ -272,7 +272,7 @@ SET SESSION binlog_format=ROW;
 --let $binlog_format_slave_value = `SELECT @@binlog_format`
 SET GLOBAL binlog_format=ROW;
 
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
 
 --source include/rpl_connection_master.inc
 

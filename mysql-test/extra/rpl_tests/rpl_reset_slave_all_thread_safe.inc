@@ -33,6 +33,6 @@ SET debug_sync = 'RESET';
 
 --source include/rpl_connection_slave.inc
 --replace_result $binlog_file BINLOG_FILE $binlog_position BINLOG_POS $MASTER_MYPORT MASTER_PORT
-eval CHANGE MASTER TO MASTER_LOG_FILE = "$binlog_file",
-     MASTER_LOG_POS = $binlog_position, MASTER_USER='root',
-     MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT;
+eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE = "$binlog_file",
+     SOURCE_LOG_POS = $binlog_position, SOURCE_USER='root',
+     SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT;

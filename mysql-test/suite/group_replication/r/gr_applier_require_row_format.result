@@ -9,9 +9,9 @@ include/gr_stop_applier_sql_thread.inc
 STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 
 # 2) Verify that is not possible to change `REQUIRE_ROW_FORMAT` option
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0 FOR CHANNEL "group_replication_applier";
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0 FOR CHANNEL "group_replication_applier";
 ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_applier'.
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL "group_replication_applier";
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL "group_replication_applier";
 ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_applier'.
 
 # 3) Verify that `REQUIRE_ROW_FORMAT` is set for the GR channels.

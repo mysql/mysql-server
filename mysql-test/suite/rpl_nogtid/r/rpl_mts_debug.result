@@ -83,7 +83,7 @@ set @@global.slave_parallel_workers= 2;
 include/start_slave.inc
 include/stop_slave.inc
 set @@global.debug= "d,mts_debug_reset_workers_fails";
-change master to RELAY_LOG_FILE=FILE,  RELAY_LOG_POS= POS;
+CHANGE REPLICATION SOURCE to RELAY_LOG_FILE=FILE,  RELAY_LOG_POS= POS;
 ERROR HY000: Cannot clean up worker info tables. Additional error messages can be found in the MySQL error log.
 set @@global.debug= "d,mts_debug_recovery_reset_fails";
 start slave sql_thread;

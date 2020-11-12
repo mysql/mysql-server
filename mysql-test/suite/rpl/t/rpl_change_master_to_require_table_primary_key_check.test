@@ -32,39 +32,39 @@
 --echo #    Check that an error is thrown.
 
 --error ER_PARSE_ERROR
-CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = 1;
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = 1;
 
 --error ER_PARSE_ERROR
-CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'ON';
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'ON';
 
 --error ER_PARSE_ERROR
-CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = 0;
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = 0;
 
 --error ER_PARSE_ERROR
-CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = -1;
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = -1;
 
 --echo #
 --echo # 2. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` to valid values in `CHANGE MASTER TO ...`
 --echo #    Check that the replication_applier_configuration table is changed.
 
 # Initialize the channel with a fake host just to test the values
-CHANGE MASTER TO MASTER_HOST='fake-host';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='fake-host';
 
-CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM;
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM;
 
 --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE require_table_primary_key_check = 'STREAM'`
 --let $assert_text = require_table_primary_key_check in performance_schema.replication_applier_configuration is set to STREAM
 --let $assert_cond = 1 = $count
 --source include/assert.inc
 
-CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
 
 --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE require_table_primary_key_check = 'ON'`
 --let $assert_text = require_table_primary_key_check in performance_schema.replication_applier_configuration is set to ON
 --let $assert_cond = 1 = $count
 --source include/assert.inc
 
-CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
 
 --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE require_table_primary_key_check = 'OFF'`
 --let $assert_text = require_table_primary_key_check in performance_schema.replication_applier_configuration is set to OFF
@@ -105,11 +105,11 @@ RESET SLAVE ALL;
 --source include/rpl_connection.inc
 
 --error ER_SLAVE_CHANNEL_SQL_THREAD_MUST_STOP
-CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
 
 STOP SLAVE SQL_THREAD;
 
-CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
 
 START SLAVE SQL_THREAD;
 

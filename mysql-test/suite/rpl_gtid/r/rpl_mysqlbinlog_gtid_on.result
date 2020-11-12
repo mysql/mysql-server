@@ -41,4 +41,4 @@ ERROR: You cannot use both of --exclude-gtids and --raw together with one of --r
 ERROR: You cannot use --include-gtids and --raw together.
 FLUSH LOGS;
 DROP TABLE t1;
-CHANGE MASTER TO MASTER_AUTO_POSITION=0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0;

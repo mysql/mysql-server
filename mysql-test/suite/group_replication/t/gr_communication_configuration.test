@@ -189,7 +189,7 @@ SET GLOBAL group_replication_group_seeds= "";
 # Need to execute change master again as the clear configuration above resets
 # the recovery channel created in the beginning.
 --disable_warnings
-CHANGE MASTER TO MASTER_USER='root', MASTER_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
 --enable_warnings
 
 --source include/start_group_replication.inc
@@ -261,7 +261,7 @@ SET GLOBAL group_replication_local_address= @local_address;
 # Need to execute change master again as the clear configuration above resets
 # the recovery channel created in the beginning.
 --disable_warnings
-CHANGE MASTER TO MASTER_USER='root', MASTER_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
 --enable_warnings
 
 --source include/start_group_replication.inc

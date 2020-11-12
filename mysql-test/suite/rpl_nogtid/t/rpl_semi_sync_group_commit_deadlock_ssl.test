@@ -15,7 +15,7 @@
 
 --source include/rpl_connection_slave.inc
 STOP SLAVE IO_THREAD;
-CHANGE MASTER TO MASTER_SSL=1;
+CHANGE REPLICATION SOURCE TO SOURCE_SSL=1;
 START SLAVE IO_THREAD;
 
 --source include/rpl_connection_master.inc
@@ -35,7 +35,7 @@ SET @@GLOBAL.MAX_BINLOG_SIZE= @max_binlog_size_save;
 
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
-CHANGE MASTER TO MASTER_SSL = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_SSL = 0;
 
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

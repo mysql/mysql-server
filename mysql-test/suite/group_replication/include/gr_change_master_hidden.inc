@@ -28,7 +28,7 @@ TRUNCATE mysql.general_log;
 
 --echo # CHANGE MASTER with valid options will work fine and the password part will be masked with <secret>
 --disable_warnings
-CHANGE MASTER TO MASTER_USER='manish', MASTER_PASSWORD='unique_password' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='manish', SOURCE_PASSWORD='unique_password' FOR CHANNEL 'group_replication_recovery';
 --enable_warnings
 
 --echo # Since MASTER_PASSWORD is not stored in the performance schema table

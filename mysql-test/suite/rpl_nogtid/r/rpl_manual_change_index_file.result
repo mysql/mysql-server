@@ -50,7 +50,7 @@ include/stop_slave.inc
 # This operation will result in error EE_FILENOTFOUND which happens
 # when slave IO thread is connecting to master.
 [ on slave ]
-CHANGE MASTER TO master_host='127.0.0.1', master_log_file='master-bin.000001';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_LOG_FILE='master-bin.000001';
 Warnings:
 Warning	3023	CHANGE MASTER TO with a MASTER_LOG_FILE clause but no MASTER_LOG_POS clause may not be safe. The old position value may not be valid for the new binary log file.
 START SLAVE IO_THREAD;
@@ -63,7 +63,7 @@ Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary 
 [ on master ]
 # Restore master-bin.000001 file
 [ on slave ]
-CHANGE MASTER TO master_host='127.0.0.1', master_log_file='master-bin.000002';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_LOG_FILE='master-bin.000002';
 Warnings:
 Warning	3023	CHANGE MASTER TO with a MASTER_LOG_FILE clause but no MASTER_LOG_POS clause may not be safe. The old position value may not be valid for the new binary log file.
 include/start_slave.inc

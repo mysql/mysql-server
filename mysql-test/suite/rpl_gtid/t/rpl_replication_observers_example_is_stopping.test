@@ -88,7 +88,7 @@ INSERT INTO t1 VALUES (1);
 
 --source include/rpl_connection_slave.inc
 --replace_result $MASTER_MYPORT MASTER_MYPORT
---eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_AUTO_POSITION=1 FOR CHANNEL 'example_channel'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_AUTO_POSITION=1 FOR CHANNEL 'example_channel'
 
 --echo
 --echo #######################

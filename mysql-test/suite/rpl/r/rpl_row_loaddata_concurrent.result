@@ -50,8 +50,8 @@ set sql_log_bin=1;
 load data CONCURRENT infile '../../std_data/rpl_loaddata.dat' into table t1;
 include/wait_for_slave_sql_error.inc [errno=1062]
 include/stop_slave_io.inc
-change master to master_user='test';
-change master to master_user='root';
+CHANGE REPLICATION SOURCE to SOURCE_USER='test';
+CHANGE REPLICATION SOURCE to SOURCE_USER='root';
 include/check_slave_no_error.inc
 set global sql_slave_skip_counter=1;
 start slave;

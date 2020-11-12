@@ -9,7 +9,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 create table t1 (a int not null auto_increment, b int not null, primary key(a)) engine=innodb;
 include/rpl_sync.inc
 include/stop_slave.inc
-change master to master_port=SERVER_MYPORT_1;;
+CHANGE REPLICATION SOURCE to SOURCE_PORT=SERVER_MYPORT_1;;
 include/start_slave.inc
 insert into t1 values (NULL, 1);
 include/sync_slave_sql_with_master.inc
@@ -19,11 +19,11 @@ include/stop_slave.inc
 insert into t1 values (NULL, 2);
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
-change master to master_port=SERVER_MYPORT_2;
+CHANGE REPLICATION SOURCE to SOURCE_PORT=SERVER_MYPORT_2;
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [server_1:test.t1, server_2:test.t1, server_3:test.t1]
-change master to master_port=SERVER_MYPORT_1;
+CHANGE REPLICATION SOURCE to SOURCE_PORT=SERVER_MYPORT_1;
 include/start_slave.inc
 *** Clean up ***
 DROP TABLE t1;

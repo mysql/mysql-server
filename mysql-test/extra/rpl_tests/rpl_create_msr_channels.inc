@@ -52,7 +52,7 @@ while ($i <= $number_of_channels)
     --let $rpl_channel_name=''
   }
   --replace_result $master_port port
-  --eval CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= $master_port, MASTER_HOST='localhost' FOR CHANNEL $rpl_channel_name
+  --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= $master_port, SOURCE_HOST='localhost' FOR CHANNEL $rpl_channel_name
   --source include/start_slave.inc
 
   if (!$no_sample_data)

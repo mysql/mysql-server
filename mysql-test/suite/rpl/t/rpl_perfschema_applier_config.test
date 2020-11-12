@@ -61,7 +61,7 @@ source include/assert.inc;
 --echo # Verify that, when desired delay is set, the value is shown corectly.
 --echo
 
-eval change master to master_delay= 2;
+eval CHANGE REPLICATION SOURCE to SOURCE_DELAY= 2;
 source include/start_slave.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, SQL_Delay, 1);
@@ -86,7 +86,7 @@ source include/assert.inc;
 --echo # Verify that, when desired delay is reset, the value is shown corectly.
 --echo
 
-eval change master to master_delay= 0;
+eval CHANGE REPLICATION SOURCE to SOURCE_DELAY= 0;
 source include/start_slave.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, SQL_Delay, 1);

@@ -28,7 +28,7 @@ INSERT INTO t1 VALUES (1);
 # prevent the slave from purging the relay log.
 --source include/stop_slave_io.inc
 
-CHANGE MASTER TO MASTER_DELAY=1;
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY=1;
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc
@@ -41,7 +41,7 @@ CHANGE MASTER TO MASTER_DELAY=1;
 
 # Clean up
 --source include/stop_slave.inc
-CHANGE MASTER TO MASTER_DELAY=0;
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY=0;
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc

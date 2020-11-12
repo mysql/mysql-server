@@ -27,7 +27,7 @@ include/start_slave.inc
 include/assert.inc [Table mysql.slave_relay_log_info has columns for PRIVILEGE_CHECKS_USER]
 include/assert.inc [Table mysql.slave_relay_log_info has info for channel and PRIVILEGE_CHECKS_USER since --relay-log-info-repository=TABLE]
 include/stop_slave.inc
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER = NULL;
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = NULL;
 include/start_slave.inc
 include/assert.inc [Table mysql.slave_relay_log_info has info for channel and PRIVILEGE_CHECKS_USER = NULL]
 [connection master]

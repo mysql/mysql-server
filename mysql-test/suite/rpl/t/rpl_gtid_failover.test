@@ -22,7 +22,7 @@ create table t1 (a int not null auto_increment, b int not null, primary key(a)) 
 #--let $rpl_topology= 1->2, 1->3
 #--source include/rpl_change_topology.inc
 --replace_result $SERVER_MYPORT_1 SERVER_MYPORT_1
---eval change master to master_port=$SERVER_MYPORT_1;
+--eval CHANGE REPLICATION SOURCE to SOURCE_PORT=$SERVER_MYPORT_1;
 --source include/start_slave.inc
 
 --connection server_1
@@ -54,7 +54,7 @@ insert into t1 values (NULL, 2); # won't be seen by S3 until it connects to S2
 
 --connection server_3
 --replace_result $SERVER_MYPORT_2 SERVER_MYPORT_2
---eval change master to master_port=$SERVER_MYPORT_2
+--eval CHANGE REPLICATION SOURCE to SOURCE_PORT=$SERVER_MYPORT_2
 --source include/start_slave.inc
 
 --connection server_2
@@ -68,7 +68,7 @@ insert into t1 values (NULL, 2); # won't be seen by S3 until it connects to S2
 
 --connection server_2
 --replace_result $SERVER_MYPORT_1 SERVER_MYPORT_1
---eval change master to master_port=$SERVER_MYPORT_1
+--eval CHANGE REPLICATION SOURCE to SOURCE_PORT=$SERVER_MYPORT_1
 --source include/start_slave.inc
 
 #

@@ -23,7 +23,7 @@ include/rpl_gr_wait_for_number_of_members.inc
 ###############################################################
 #  3. Setup a asynchronous replication connection from M3 (GR2)
 #     to M1 (GR1).
-CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PASSWORD="", MASTER_PORT=SERVER_3_PORT, MASTER_AUTO_POSITION=1;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=SERVER_3_PORT, SOURCE_AUTO_POSITION=1;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -32,7 +32,7 @@ include/start_slave.inc
 ###############################################################
 #  4. Setup a asynchronous replication connection from M1 (GR1)
 #     to M3 (GR2).
-CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PASSWORD="", MASTER_PORT=SERVER_1_PORT, MASTER_AUTO_POSITION=1;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=SERVER_1_PORT, SOURCE_AUTO_POSITION=1;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -140,9 +140,9 @@ include/sync_slave_sql_with_master.inc
 ##############################################################
 # 13. Stop asynchronous replication between M3->M1 and M1->M3.
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION=0 FOR CHANNEL "";
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0 FOR CHANNEL "";
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION=0 FOR CHANNEL "";
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0 FOR CHANNEL "";
 
 ############################################################
 # 14. Stop Group Replication on all 5 nodes.

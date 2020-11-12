@@ -24,10 +24,10 @@ include/stop_slave.inc [FOR CHANNEL 'channel_1']
 CREATE USER 'u1'@'localhost';
 GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
 GRANT CREATE,INSERT,DROP ON *.* TO 'u1'@'localhost';
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost', REQUIRE_ROW_FORMAT = 1 FOR CHANNEL 'channel_1';
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost', REQUIRE_ROW_FORMAT = 1 FOR CHANNEL 'channel_1';
 include/start_slave.inc [FOR CHANNEL 'channel_1']
 include/stop_slave.inc [FOR CHANNEL 'channel_3']
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL 'channel_3';
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL 'channel_3';
 include/start_slave.inc [FOR CHANNEL 'channel_3']
 #
 # 4. Install clone on server 2

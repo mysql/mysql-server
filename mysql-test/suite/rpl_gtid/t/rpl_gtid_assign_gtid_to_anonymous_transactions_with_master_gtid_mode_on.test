@@ -44,7 +44,7 @@ INSERT INTO t VALUES(10);
 
 # 1) Verify that replication works fine.
 
-CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL, MASTER_AUTO_POSITION = 0;
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL, SOURCE_AUTO_POSITION = 0;
 --source include/start_slave.inc
 
 --let $slave_param= Slave_SQL_Running_State
@@ -75,7 +75,7 @@ INSERT INTO t VALUES(10);
 
 # 1) Verify that replication works fine.
 #
-CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", MASTER_AUTO_POSITION = 0;
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SOURCE_AUTO_POSITION = 0;
 --source include/start_slave.inc
 
 --let $slave_param= Slave_SQL_Running_State
@@ -100,7 +100,7 @@ DROP TABLE t;
 #    when GTID_MODE = ON and ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF
 --source include/stop_slave.inc
 
-CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF;
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF;
 
 --source include/rpl_connection_master.inc
 
@@ -117,7 +117,7 @@ INSERT INTO t VALUES(20);
 --source include/sync_slave_io_with_master.inc
 
 --replace_result $binlog_file BINLOG_FILE $binlog_position BINLOG_POS
---eval START SLAVE SQL_THREAD UNTIL MASTER_LOG_FILE = "$binlog_file", MASTER_LOG_POS = $binlog_position
+--eval START SLAVE SQL_THREAD UNTIL SOURCE_LOG_FILE = "$binlog_file", SOURCE_LOG_POS = $binlog_position
 --source include/stop_slave.inc
 
 SET GLOBAL sql_slave_skip_counter = 1;
@@ -139,7 +139,7 @@ DROP TABLE t;
 # 2) Verify that the value of sql_slave_skip_counter is considered
 #    when GTID_MODE = ON and ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS != OFF
 --source include/stop_slave.inc
-CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc

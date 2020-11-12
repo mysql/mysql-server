@@ -79,12 +79,12 @@ CREATE TABLE t3 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 CREATE USER 'u1'@'localhost';
 GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
 GRANT CREATE,INSERT,DROP ON *.* TO 'u1'@'localhost';
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost', REQUIRE_ROW_FORMAT = 1 FOR CHANNEL 'channel_1';
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost', REQUIRE_ROW_FORMAT = 1 FOR CHANNEL 'channel_1';
 --source include/start_slave.inc
 
 --let $rpl_channel_name= 'channel_3'
 --source include/stop_slave.inc
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL 'channel_3';
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL 'channel_3';
 --source include/start_slave.inc
 
 --echo #

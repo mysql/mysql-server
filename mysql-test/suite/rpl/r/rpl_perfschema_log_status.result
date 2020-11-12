@@ -11,7 +11,7 @@ channels JSON NOT NULL,
 storage_engines JSON NOT NULL);
 CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
 include/sync_slave_sql_with_master.inc
-CHANGE MASTER TO MASTER_HOST = '127.0.0.1' FOR CHANNEL 'ch1';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = '127.0.0.1' FOR CHANNEL 'ch1';
 include/save_master_pos.inc
 SELECT * FROM performance_schema.log_status INTO OUTFILE 'ILS_DUMP';
 LOAD DATA INFILE 'ILS_DUMP' INTO TABLE ils_copy;

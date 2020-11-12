@@ -3828,6 +3828,9 @@ SHOW_VAR com_status_vars[] = {
      (char *)offsetof(System_status_var,
                       com_stat[(uint)SQLCOM_CHANGE_REPLICATION_FILTER]),
      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+    {"change_replication_source",
+     (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_CHANGE_MASTER]),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
     {"check", (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_CHECK]),
      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
     {"checksum",
@@ -4563,19 +4566,20 @@ int init_common_variables() {
       Com_stmt_reset           => com_stmt_reset
       Com_stmt_send_long_data  => com_stmt_send_long_data
 
-    We also have aliases for 4 com_status_vars:
+    We also have aliases for 5 com_status_vars:
 
       Com_slave_start              => Com_replica_start
       Com_slave_stop               => Com_replica_stop
       Com_show_slave_status        => Com_show_replica_status
       Com_show_slave_hosts         => Com_show_replicas
+      Com_change_master            => Com_change_replication_source
 
     With this correction the number of Com_ variables (number of elements in
     the array, excluding the last element - terminator) must match the number
     of SQLCOM_ constants.
   */
   static_assert(sizeof(com_status_vars) / sizeof(com_status_vars[0]) - 1 ==
-                    SQLCOM_END + 11,
+                    SQLCOM_END + 12,
                 "");
 #endif
 

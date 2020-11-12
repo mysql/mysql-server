@@ -100,7 +100,7 @@ SELECT * FROM replicate_do_db.t2;
 --source include/rpl_connection_slave.inc
 
 replace_result $master_pos MASTER_POS;
-eval START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=$master_pos;
+eval START SLAVE UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=$master_pos;
 --source include/wait_for_slave_sql_to_stop.inc
 
 # Test BUG#43263
@@ -136,7 +136,7 @@ SELECT * FROM replicate_do_db.t2;
 --source include/rpl_connection_slave.inc
 
 --replace_result $master_pos MASTER_POS
-eval START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=$master_pos;
+eval START SLAVE UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=$master_pos;
 source include/wait_for_slave_sql_to_stop.inc;
 
 # Test BUG#43263

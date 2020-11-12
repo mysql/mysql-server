@@ -33,7 +33,7 @@ include/assert.inc ['There is one row in performance_schema.replication_asynchro
 #    and verify channel ch1_3 IO and SQL THREADS are ON.
 
 [connection server3]
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root', MASTER_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, MASTER_PORT=SERVER_1_PORT, MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=2 for channel 'ch1_3';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=SERVER_1_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=2 for channel 'ch1_3';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -90,7 +90,7 @@ include/rpl_reset_slave.inc
 SELECT asynchronous_connection_failover_delete_managed('ch1_3', 'GROUP_NAME');
 asynchronous_connection_failover_delete_managed('ch1_3', 'GROUP_NAME')
 The UDF asynchronous_connection_failover_delete_managed() executed successfully.
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root', MASTER_PORT=SERVER_1_PORT FOR CHANNEL 'ch1_3';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=SERVER_1_PORT FOR CHANNEL 'ch1_3';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

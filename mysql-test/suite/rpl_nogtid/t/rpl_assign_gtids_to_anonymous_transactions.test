@@ -67,7 +67,7 @@ CALL mtr.add_suppression("If you intend to use GTID_MODE = ON everywhere, change
 --let $rpl_skip_sync= 1
 --source include/rpl_set_gtid_mode.inc
 
-CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF;
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF;
 START SLAVE IO_THREAD;
 
 # Replica will complain about having different gtid value on source.
@@ -104,7 +104,7 @@ INSERT INTO t VALUES(10);
 # 1) Execute change master with GTID_MODE = OFF and check for error.
 
 --error ER_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_REQUIRES_GTID_MODE_ON
-CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
 
 # 2) Set the GTID_MODE = ON and execute CHANGE MASTER, verify that we have the
 #    warning about the limitation os the option ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
@@ -118,7 +118,7 @@ CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
 
 # We don't want to replicate the events which are already on replica.
 --replace_result $binlog_file BINLOG_FILE $binlog_position BINLOG_POS
-eval CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL, MASTER_LOG_FILE = "$binlog_file", MASTER_LOG_POS = $binlog_position;
+eval CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL, SOURCE_LOG_FILE = "$binlog_file", SOURCE_LOG_POS = $binlog_position;
 
 --let $assert_text= A warning will be generated stating the limitation of ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS option
 --let $warning_code= query_get_value(SHOW WARNINGS, Code, 1)
@@ -152,7 +152,7 @@ START SLAVE;
 
 --source include/stop_slave.inc
 --error ER_CANT_COMBINE_ANONYMOUS_TO_GTID_AND_AUTOPOSITION
-CHANGE MASTER TO  MASTER_AUTO_POSITION = 1;
+CHANGE REPLICATION SOURCE TO  SOURCE_AUTO_POSITION = 1;
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc
@@ -179,17 +179,17 @@ SET GLOBAL GTID_MODE=ON_PERMISSIVE;
 # 6) Try setting auto_pos = 1 and check for errors.
 
 --error ER_CANT_COMBINE_ANONYMOUS_TO_GTID_AND_AUTOPOSITION
-CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL, MASTER_AUTO_POSITION = 1;
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL, SOURCE_AUTO_POSITION = 1;
 
 # 7) Test that Both receiver and applier needs to be stopped to set the assign_gtids_to_anonymous_transactions
 
 --source include/start_slave_io.inc
 --error ER_SLAVE_CHANNEL_MUST_STOP
-CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
 
 --source include/start_slave_sql.inc
 --error ER_SLAVE_CHANNEL_MUST_STOP
-CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
 
 # 8) Test assign_gtids_to_anonymous_transactions with sql_slave_skip_counter and verify that
 #    it works and the correct warning is emitted.
@@ -241,10 +241,10 @@ START SLAVE UNTIL SQL_BEFORE_GTIDS='332ceb83-f759-11ea-9e3a-5076afc0021b:1-5';
 
 --replace_result $binlog_file BINLOG_FILE $binlog_position BINLOG_POS
 --error ER_WRONG_VALUE
-eval CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", MASTER_LOG_FILE = "$binlog_file", MASTER_LOG_POS = $binlog_position;
+eval CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SOURCE_LOG_FILE = "$binlog_file", SOURCE_LOG_POS = $binlog_position;
 
 --replace_result $binlog_file BINLOG_FILE $binlog_position BINLOG_POS
-eval CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", MASTER_LOG_FILE = "$binlog_file", MASTER_LOG_POS = $binlog_position;
+eval CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SOURCE_LOG_FILE = "$binlog_file", SOURCE_LOG_POS = $binlog_position;
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc
@@ -263,7 +263,7 @@ DROP TABLE t;
 #  1) Test with the value ON and expect an error in the parse phase
 
 --error ER_PARSE_ERROR
-CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = ON;
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = ON;
 
 #  2) Test with the value @@global.server_uuid and the values in P_S table
 
@@ -271,7 +271,7 @@ CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = ON;
 --let $server_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 --replace_result $server_uuid server_uuid
 
---eval CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "$server_uuid"
+--eval CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "$server_uuid"
 --source include/start_slave.inc
 
  --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE = 'UUID'`

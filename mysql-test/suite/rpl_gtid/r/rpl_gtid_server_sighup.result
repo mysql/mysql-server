@@ -4,7 +4,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_CONNECT_RETRY=30, MASTER_RETRY_COUNT=30;
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=30, SOURCE_RETRY_COUNT=30;
 include/start_slave.inc
 CREATE TABLE pid_table(pid_no INT);
 [connection server_1]

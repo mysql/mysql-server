@@ -123,7 +123,7 @@ if ($gtid_mode == OFF)
 {
   --disable_query_log
   --disable_result_log
-  --eval CHANGE MASTER TO MASTER_LOG_FILE='$master_file', MASTER_LOG_POS=$master_pos
+  --eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE='$master_file', SOURCE_LOG_POS=$master_pos
   --enable_result_log
   --enable_query_log
 }

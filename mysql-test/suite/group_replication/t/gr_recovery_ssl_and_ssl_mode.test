@@ -33,7 +33,7 @@ SET SESSION sql_log_bin=1;
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 --disable_warnings
-CHANGE MASTER TO MASTER_USER="rec_ssl_user" FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_USER="rec_ssl_user" FOR CHANNEL "group_replication_recovery";
 --enable_warnings
 
 

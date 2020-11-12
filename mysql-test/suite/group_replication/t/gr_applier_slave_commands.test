@@ -74,17 +74,17 @@
 --echo
 --echo # CHANGE MASTER command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
 --error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_replication_applier";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10 FOR CHANNEL "group_replication_applier";
 
 --echo
 --echo # CHANGE MASTER command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
 --error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
-CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL "group_replication_applier";
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL "group_replication_applier";
 
 --echo
 --echo # CHANGE MASTER command is blocked for option `PRIVILEGE_CHECKS_USER` when GR is running
 --error ER_GRP_OPERATION_NOT_ALLOWED_GR_MUST_STOP
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER='user' FOR CHANNEL "group_replication_applier";
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='user' FOR CHANNEL "group_replication_applier";
 
 --echo
 --echo # error when executing START SLAVE IO_THREAD FOR CHANNEL
@@ -99,7 +99,7 @@ STOP SLAVE IO_THREAD FOR CHANNEL 'group_replication_applier';
 --echo
 --echo # error when executing START SLAVE IO_THREAD FOR CHANNEL with UNTIL option
 --error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
-START SLAVE IO_THREAD UNTIL MASTER_LOG_FILE = 'server-binary-log.000001', MASTER_LOG_POS = 781 FOR CHANNEL 'group_replication_applier';
+START SLAVE IO_THREAD UNTIL SOURCE_LOG_FILE = 'server-binary-log.000001', SOURCE_LOG_POS = 781 FOR CHANNEL 'group_replication_applier';
 
 --echo
 --echo # error when executing START SLAVE FOR CHANNEL
@@ -162,12 +162,12 @@ START SLAVE SQL_THREAD UNTIL RELAY_LOG_FILE = 'server-relay-log-group_replicatio
 --echo
 --echo # CHANGE MASTER command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
 --error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_replication_applier";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10 FOR CHANNEL "group_replication_applier";
 
 --echo
 --echo # CHANGE MASTER command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
 --error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
-CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL "group_replication_applier";
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL "group_replication_applier";
 
 --echo
 --echo # CHANGE MASTER command allows option `PRIVILEGE_CHECKS_USER` when GR is stopped
@@ -175,8 +175,8 @@ SET SESSION sql_log_bin= 0;
 CREATE USER gr_applier_slave_user;
 SET SESSION sql_log_bin= 1;
 
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER='gr_applier_slave_user' FOR CHANNEL "group_replication_applier";
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER=NULL FOR CHANNEL "group_replication_applier";
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='gr_applier_slave_user' FOR CHANNEL "group_replication_applier";
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL FOR CHANNEL "group_replication_applier";
 
 SET SESSION sql_log_bin= 0;
 DROP USER gr_applier_slave_user;

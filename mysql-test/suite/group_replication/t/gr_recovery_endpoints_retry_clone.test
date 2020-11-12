@@ -179,7 +179,7 @@ set session sql_log_bin=1;
 UNINSTALL PLUGIN clone;
 
 # This should be done on include/rpl_change_topology_helper.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION= 0 FOR CHANNEL '';
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0 FOR CHANNEL '';
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc

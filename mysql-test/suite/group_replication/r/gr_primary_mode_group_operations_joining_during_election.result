@@ -36,7 +36,7 @@ INSERT INTO t1 VALUES (1);
 include/stop_group_replication.inc
 
 # 4. Make server 1 return insuring it uses server 3 as a donor
-CHANGE MASTER TO MASTER_USER='recovery_user', MASTER_PASSWORD='rpl' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='recovery_user', SOURCE_PASSWORD='rpl' FOR CHANNEL 'group_replication_recovery';
 include/start_group_replication.inc
 
 # 5. Check the election is running on server 2

@@ -48,7 +48,7 @@ CREATE TABLE t2_myisam (c1 INT) ENGINE=MyISAM;
 --source include/add_debug_point.inc
 
 # Create a new channel, so we can test a non-empty channel name on results
-CHANGE MASTER TO MASTER_HOST = '127.0.0.1' FOR CHANNEL 'ch1';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = '127.0.0.1' FOR CHANNEL 'ch1';
 
 # Suppression of error messages
 CALL mtr.add_suppression('Unsafe statement written to the binary log');
@@ -111,7 +111,7 @@ SET DEBUG_SYNC='now WAIT_FOR reached_collecting_instance_logs_info';
 --let $rpl_connection_name= server_2_3
 --source include/rpl_connection.inc
 --let $tid3=`SELECT CONNECTION_ID()`
---send CHANGE MASTER TO MASTER_HOST='127.0.0.1' FOR CHANNEL 'ch2'
+--send CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1' FOR CHANNEL 'ch2'
 
 # No existing channels can be removed
 --let $rpl_connection_name= server_2_4

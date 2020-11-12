@@ -17,7 +17,7 @@
 
 -- connection slave
 -- source include/stop_slave.inc
-CHANGE MASTER TO master_retry_count=3, master_host='300.1.1.1', master_connect_retry=1;
+CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT=3, SOURCE_HOST='300.1.1.1', SOURCE_CONNECT_RETRY=1;
 START SLAVE io_thread;
 
 # We wait for slave to stop and inspect the number of retries in 
@@ -38,7 +38,7 @@ if (!`SELECT "$error" LIKE "%retries: 3%"`)
 
 # Clear Slave_IO_Error
 RESET SLAVE;
-CHANGE MASTER TO master_host = '127.0.0.1';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = '127.0.0.1';
 
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

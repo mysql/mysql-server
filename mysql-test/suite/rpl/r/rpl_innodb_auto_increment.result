@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
 [connection slave]
-CHANGE MASTER TO MASTER_CONNECT_RETRY = 30 ;
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 30 ;
 include/start_slave.inc
 # Restart master with innodb_autoinc_lock_mode = 1
 include/rpl_restart_server.inc [server_number=1 parameters: --innodb_autoinc_lock_mode=1]

@@ -67,7 +67,7 @@ SET @@GLOBAL.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;
 --echo # 4. On server 2 create a slave connection to server 3
 
 --replace_result $SERVER_MYPORT_3 SERVER_3_PORT
---eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$SERVER_MYPORT_3 for channel 'ch3_2'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$SERVER_MYPORT_3 for channel 'ch3_2'
 
 --let $rpl_channel_name='ch3_2'
 --source include/start_slave.inc

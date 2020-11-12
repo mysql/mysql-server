@@ -38,7 +38,7 @@ include/assert.inc ['Asynchronous Replication Connection Failover is disabled']
 #    performance_schema.replication_connection_configuration.
 #
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=2, SOURCE_CONNECTION_AUTO_FAILOVER=1;
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=2, SOURCE_CONNECTION_AUTO_FAILOVER=1;
 include/start_slave.inc
 include/assert.inc ['Asynchronous Replication Connection Failover is enabled']
 #
@@ -145,7 +145,7 @@ include/stop_slave.inc
 #
 # 18. Clean up
 #
-CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER=0;
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=0;
 SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_3, '');;
 asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_3, '')
 The UDF asynchronous_connection_failover_delete_source() executed successfully.

@@ -244,4 +244,4 @@ DROP TABLE t1;
 --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
 --exec $MYSQL_BINLOG $datadir/$binlog_file | $MYSQL --user=root --host=127.0.0.1 --port=$SLAVE_MYPORT
 connection slave;
-CHANGE MASTER TO MASTER_AUTO_POSITION=0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0;

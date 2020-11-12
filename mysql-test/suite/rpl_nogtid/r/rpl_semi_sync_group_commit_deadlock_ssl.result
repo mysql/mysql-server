@@ -8,7 +8,7 @@ include/install_semisync.inc
 STOP SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-CHANGE MASTER TO MASTER_SSL=1;
+CHANGE REPLICATION SOURCE TO SOURCE_SSL=1;
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -86,5 +86,5 @@ SET @@GLOBAL.MAX_BINLOG_SIZE= @max_binlog_size_save;
 include/uninstall_semisync.inc
 [connection slave]
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_SSL = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_SSL = 0;
 include/rpl_end.inc

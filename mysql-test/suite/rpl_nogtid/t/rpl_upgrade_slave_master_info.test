@@ -108,11 +108,11 @@ CREATE TABLE `slave_master_info` (
 --source include/rpl_connection.inc
 
 --replace_result $SERVER_MYPORT_2 MASTER_PORT
---eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=$SERVER_MYPORT_2 FOR CHANNEL ''
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=$SERVER_MYPORT_2 FOR CHANNEL ''
 --replace_result $SERVER_MYPORT_2 MASTER_PORT
---eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=$SERVER_MYPORT_2 FOR CHANNEL 'channel_1'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=$SERVER_MYPORT_2 FOR CHANNEL 'channel_1'
 --replace_result $SERVER_MYPORT_2 MASTER_PORT
---eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=$SERVER_MYPORT_2 FOR CHANNEL 'channel_2'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=$SERVER_MYPORT_2 FOR CHANNEL 'channel_2'
 
 # Assert that all three channels are reached by name in SHOW SLAVE STATUS
 --let $channel_name= query_get_value(SHOW SLAVE STATUS, Channel_Name, 1)
@@ -136,7 +136,7 @@ RESET SLAVE ALL;
 
 # Create the default channel again
 --replace_result $SERVER_MYPORT_2 MASTER_PORT
---eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=$SERVER_MYPORT_2
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=$SERVER_MYPORT_2
 --source include/start_slave.inc
 
 # Generate traffic on the master
@@ -189,7 +189,7 @@ RESET SLAVE ALL;
 
 --replace_result $SERVER_MYPORT_2 MASTER_PORT
 --error ER_SLAVE_CONFIGURATION
---eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=$SERVER_MYPORT_2
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=$SERVER_MYPORT_2
 
 --error ER_SLAVE_CONFIGURATION
 START SLAVE;
@@ -210,7 +210,7 @@ RESET SLAVE ALL;
 # Create the default channel again
 # to replicate from the last synced position
 --replace_result $SERVER_MYPORT_2 MASTER_PORT $_saved_file FILE $_saved_pos POS
---eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=$SERVER_MYPORT_2, MASTER_LOG_FILE='$_saved_file', MASTER_LOG_POS=$_saved_pos
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=$SERVER_MYPORT_2, SOURCE_LOG_FILE='$_saved_file', SOURCE_LOG_POS=$_saved_pos
 --source include/start_slave.inc
 
 # Third part: switching positions of Tls_version and Channel_name after having
@@ -233,7 +233,7 @@ INSERT INTO t1 VALUES (2);
 
 # On channel_1
 --replace_result $SERVER_MYPORT_2 MASTER_PORT $_saved_file FILE $_saved_pos POS
---eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=$SERVER_MYPORT_2, MASTER_LOG_FILE='$_saved_file', MASTER_LOG_POS=$_saved_pos FOR CHANNEL 'channel_1'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=$SERVER_MYPORT_2, SOURCE_LOG_FILE='$_saved_file', SOURCE_LOG_POS=$_saved_pos FOR CHANNEL 'channel_1'
 --let $rpl_channel_name= 'channel_1'
 --source include/start_slave.inc
 --let $rpl_connection_name= server_2
@@ -245,7 +245,7 @@ INSERT INTO t1 VALUES (3);
 
 # On channel_2
 --replace_result $SERVER_MYPORT_2 MASTER_PORT $_saved_file FILE $_saved_pos POS
---eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=$SERVER_MYPORT_2, MASTER_LOG_FILE='$_saved_file', MASTER_LOG_POS=$_saved_pos FOR CHANNEL 'channel_2'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=$SERVER_MYPORT_2, SOURCE_LOG_FILE='$_saved_file', SOURCE_LOG_POS=$_saved_pos FOR CHANNEL 'channel_2'
 --let $rpl_channel_name= 'channel_2'
 --source include/start_slave.inc
 --let $rpl_connection_name= server_2
@@ -299,7 +299,7 @@ RESET SLAVE ALL;
 # Create the default channel again
 # to replicate from the last synced position
 --replace_result $SERVER_MYPORT_2 MASTER_PORT $_saved_file FILE $_saved_pos POS
---eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=$SERVER_MYPORT_2, MASTER_LOG_FILE='$_saved_file', MASTER_LOG_POS=$_saved_pos
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=$SERVER_MYPORT_2, SOURCE_LOG_FILE='$_saved_file', SOURCE_LOG_POS=$_saved_pos
 --source include/start_slave.inc
 
 # Cleanup

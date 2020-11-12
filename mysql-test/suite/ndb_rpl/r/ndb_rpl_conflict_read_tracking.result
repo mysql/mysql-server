@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 Setup circular replication
 RESET MASTER;
 SLAVE_SERVER_ID: 3
-CHANGE MASTER TO master_host="127.0.0.1",master_port=SLAVE_PORT,master_user="root";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1",SOURCE_PORT=SLAVE_PORT,SOURCE_USER="root";
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

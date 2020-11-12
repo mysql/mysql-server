@@ -8,11 +8,11 @@ stop slave;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 *** --replicate-same-server-id and change master option can clash ***
-change master to IGNORE_SERVER_IDS= (2, 1);
+CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= (2, 1);
 ERROR HY000: The requested server id 2 clashes with the slave startup option --replicate-same-server-id
 *** must be empty due to the error ***
 ignore server id list: 
-change master to IGNORE_SERVER_IDS= (10, 100);
+CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= (10, 100);
 *** must be 10, 100 ***
 ignore server id list: 10, 100
 reset slave;
@@ -20,9 +20,9 @@ Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 *** must be still (10,100) after reset slave ***
 ignore server id list: 10, 100
-change master to IGNORE_SERVER_IDS= (10, 100);
+CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= (10, 100);
 *** CHANGE MASTER with IGNORE_SERVER_IDS option overrides (does not increment) the previous setup ***
-change master to IGNORE_SERVER_IDS= (5, 1, 4, 3, 1);
+CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= (5, 1, 4, 3, 1);
 *** must be 1, 3, 4, 5 due to overriding policy ***
 ignore server id list: 1, 3, 4, 5
 *** ignore master (server 1) queries for a while ***
@@ -41,18 +41,18 @@ include/wait_for_slave_to_stop.inc
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-change master to IGNORE_SERVER_IDS= (10, 100);
+CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= (10, 100);
 *** the list must remain (10, 100) after reset slave ***
-change master to IGNORE_SERVER_IDS= ();
+CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= ();
 *** must be empty due to IGNORE_SERVER_IDS empty list ***
 ignore server id list: 
 *** RESET SLAVE ALL should empty the list ***
-CHANGE MASTER TO IGNORE_SERVER_IDS= (10, 100);
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (10, 100);
 ignore server id list: 10, 100
 RESET SLAVE ALL;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-change master to master_host='127.0.0.1', master_port=MASTER_PORT, master_user='root';
+CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -70,32 +70,32 @@ include/stop_slave.inc
 The list should have 0 elements.
 Replicate_Ignore_Server_Ids = ''
 
-CHANGE MASTER TO IGNORE_SERVER_IDS= (110,220,330,420);
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (110,220,330,420);
 The list should have 4 elements.
 Replicate_Ignore_Server_Ids = '110, 220, 330, 420'
 
-CHANGE MASTER TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (110,220,330,420);
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (110,220,330,420);
 The list should still have only 4 elements.
 Replicate_Ignore_Server_Ids = '110, 220, 330, 420'
 
 ISSUE WAS HERE: All server ids should be stored and showed only once, while they are set twice or even more.
 The list should have 5 elements.
-CHANGE MASTER TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (111,220,330,420);
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (111,220,330,420);
 Replicate_Ignore_Server_Ids = '110, 111, 220, 330, 420'
 
-CHANGE MASTER TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (111,221,330,420);
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (111,221,330,420);
 The list should have 6 elements.
 Replicate_Ignore_Server_Ids = '110, 111, 220, 221, 330, 420'
 
-CHANGE MASTER TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (111,221,331,420);
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (111,221,331,420);
 The list should have 7 elements.
 Replicate_Ignore_Server_Ids = '110, 111, 220, 221, 330, 331, 420'
 
-CHANGE MASTER TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (111,221,331,421);
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (111,221,331,421);
 The list should have 8 elements.
 Replicate_Ignore_Server_Ids = '110, 111, 220, 221, 330, 331, 420, 421'
 
-CHANGE MASTER TO IGNORE_SERVER_IDS= ();
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= ();
 The list should have NO elements.
 Replicate_Ignore_Server_Ids = ''
 
@@ -104,7 +104,7 @@ Replicate_Ignore_Server_Ids = ''
 SET GLOBAL master_info_repository= 'FILE';
 Warnings:
 Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
-CHANGE MASTER TO IGNORE_SERVER_IDS= (5,10,15);
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (5,10,15);
 include/start_slave.inc
 Expect 3 elements.
 Replicate_Ignore_Server_Ids = '5, 10, 15'
@@ -130,6 +130,6 @@ Expect 3 elements ONLY to verify the fix when changinf from TABLE->FILE.
 Replicate_Ignore_Server_Ids = '5, 10, 15'
 
 include/stop_slave.inc
-CHANGE MASTER TO IGNORE_SERVER_IDS= ();
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= ();
 include/start_slave.inc
 include/rpl_end.inc

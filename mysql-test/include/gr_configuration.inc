@@ -96,7 +96,7 @@ while ($_rpl_server)
     RESET REPLICA ALL FOR CHANNEL "group_replication_recovery";
     # Set distributed recovery user.
     --disable_warnings
-    CHANGE MASTER TO MASTER_USER="root" FOR CHANNEL "group_replication_recovery";
+    CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
     --enable_warnings
   }
 
@@ -122,9 +122,9 @@ while ($_rpl_server)
 
       if (!$skip_recovery_configuration)
       {
-        --eval CHANGE MASTER TO PRIVILEGE_CHECKS_USER = $rpl_instance_privilege_checks_user FOR CHANNEL "group_replication_recovery"
+        --eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = $rpl_instance_privilege_checks_user FOR CHANNEL "group_replication_recovery"
       }
-       --eval CHANGE MASTER TO PRIVILEGE_CHECKS_USER = $rpl_instance_privilege_checks_user FOR CHANNEL "group_replication_applier"
+       --eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = $rpl_instance_privilege_checks_user FOR CHANNEL "group_replication_applier"
     }
   }
 

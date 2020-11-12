@@ -18,7 +18,7 @@
 --connection server_2
 RESET SLAVE ALL;
 --replace_result $SERVER_MYPORT_1 SERVER_1_PORT
---eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PASSWORD="", MASTER_PORT=$SERVER_MYPORT_1, MASTER_AUTO_POSITION=1 FOR CHANNEL "example_channel"
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=$SERVER_MYPORT_1, SOURCE_AUTO_POSITION=1 FOR CHANNEL "example_channel"
 --source include/start_slave.inc
 
 --let $assert_text= 'The example_channel is ON'

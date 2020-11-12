@@ -9,7 +9,7 @@ call mtr.add_suppression(".*Timeout waiting for reply of binlog .* semi-sync up 
 include/sync_slave_sql_with_master.inc
 [connection slave]
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_SSL = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_SSL = 1;
 include/start_slave.inc
 
 # Try replicating CREATE TABLE and verify that everything is fine.
@@ -41,5 +41,5 @@ DROP TABLE table1;
 include/sync_slave_sql_with_master.inc
 include/uninstall_semisync.inc
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_SSL = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_SSL = 0;
 include/rpl_end.inc

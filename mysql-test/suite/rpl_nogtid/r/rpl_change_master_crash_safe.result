@@ -14,7 +14,7 @@ insert into t1 values(1);
 insert into t1 values(2);
 include/wait_for_slave_param.inc [Read_Master_Log_Pos]
 include/stop_slave.inc
-change master to master_user='root';
+CHANGE REPLICATION SOURCE to SOURCE_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -34,7 +34,7 @@ insert into t1 values (2);
 include/diff_tables.inc [master:t1, slave:t1]
 include/stop_slave.inc
 delete from t1 where a=2;
-CHANGE MASTER TO relay_log_file='slave-relay-bin.000005', relay_log_pos=4;
+CHANGE REPLICATION SOURCE TO relay_log_file='slave-relay-bin.000005', relay_log_pos=4;
 start slave sql_thread;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -49,45 +49,45 @@ drop table t1;
 include/rpl_reset.inc
 Master_Retry_Count: 
 include/stop_slave.inc
-CHANGE MASTER TO master_retry_count=20;
+CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT=20;
 include/start_slave.inc
 include/stop_slave.inc
-CHANGE MASTER TO master_retry_count=0;
+CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT=0;
 include/start_slave.inc
 include/stop_slave.inc
-CHANGE MASTER TO master_retry_count=1;
+CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT=1;
 include/start_slave.inc
 include/stop_slave.inc
-CHANGE MASTER TO master_retry_count=10;
+CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT=10;
 include/start_slave.inc
 include/stop_slave.inc
-CHANGE MASTER TO master_retry_count=RETRY_COUNT_SET;
+CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT=RETRY_COUNT_SET;
 SELECT RETRY_COUNT_EXPECTED AS current_retry_count;
 current_retry_count
 RETRY_COUNT_EXPECTED
-CHANGE MASTER TO master_connect_retry= 2;
-CHANGE MASTER TO master_connect_retry= 1;
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY= 2;
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY= 1;
 include/rpl_restart_server.inc [server_number=2]
 include/start_slave.inc
 include/stop_slave.inc
-CHANGE MASTER TO master_retry_count=10;
-CHANGE MASTER TO master_retry_count='a';
+CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT=10;
+CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT='a';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''a'' at line 1
-CHANGE MASTER TO master_retry_count=-1;
+CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT=-1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1' at line 1
 include/start_slave.inc
 include/stop_slave.inc
-CHANGE MASTER TO master_connect_retry= 200, IGNORE_SERVER_IDS= (100, 200, 300, 400, 500);
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY= 200, IGNORE_SERVER_IDS= (100, 200, 300, 400, 500);
 include/rpl_restart_server.inc [server_number=2]
 include/start_slave.inc
 Eexpected values: "100, 200, 300, 400, 500" == "100, 200, 300, 400, 500" or 200 == 200
 include/stop_slave.inc
-CHANGE MASTER TO IGNORE_SERVER_IDS= ();
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= ();
 include/start_slave.inc
 include/stop_slave.inc
 create table t1(n int, b varchar(256));
-insert into t1 values(1, <master_bind>);
-change master to master_host=<master_bind>, master_bind=<master_bind>;
+insert into t1 values(1, <source_bind>);
+CHANGE REPLICATION SOURCE to SOURCE_HOST=<source_bind>, SOURCE_BIND=<source_bind>;
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -95,15 +95,15 @@ include/wait_for_slave_to_start.inc
 drop table t1;
 include/stop_slave.inc
 create table t1(n int, b varchar(256));
-insert into t1 values(1, <master_bind>);
-change master to  master_bind=<master_bind>;
+insert into t1 values(1, <source_bind>);
+CHANGE REPLICATION SOURCE to  SOURCE_BIND=<source_bind>;
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=2003]
 got expected error 2003
 include/stop_slave.inc
-change master to master_bind='';
+CHANGE REPLICATION SOURCE to SOURCE_BIND='';
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -111,8 +111,8 @@ include/wait_for_slave_to_start.inc
 drop table t1;
 include/stop_slave.inc
 create table t1(n int, b varchar(256));
-insert into t1 values(1, <master_bind>);
-change master to master_host=<master_bind>, master_bind=<master_bind>;
+insert into t1 values(1, <source_bind>);
+CHANGE REPLICATION SOURCE to SOURCE_HOST=<source_bind>, SOURCE_BIND=<source_bind>;
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -120,14 +120,14 @@ include/wait_for_slave_to_start.inc
 drop table t1;
 include/stop_slave.inc
 create table t1(n int, b varchar(256));
-insert into t1 values(1, <master_bind>);
-change master to  master_bind=<master_bind>;
+insert into t1 values(1, <source_bind>);
+CHANGE REPLICATION SOURCE to  SOURCE_BIND=<source_bind>;
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 drop table t1;
 include/stop_slave.inc
-CHANGE MASTER TO master_host='SAVE_MASTER_HOST';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='SAVE_MASTER_HOST';
 include/start_slave.inc
 include/rpl_end.inc
