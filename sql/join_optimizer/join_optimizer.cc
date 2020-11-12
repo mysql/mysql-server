@@ -1342,10 +1342,6 @@ Mem_root_array<TABLE *> CollectTables(const Query_block *query_block,
 }
 
 bool CheckSupportedQuery(THD *thd, JOIN *join) {
-  if (join->rollup_state != JOIN::RollupState::NONE) {
-    my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "ROLLUP");
-    return true;
-  }
   if (join->query_block->has_ft_funcs()) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "fulltext search");
     return true;
@@ -1836,6 +1832,21 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   JOIN *join = query_block->join;
   if (CheckSupportedQuery(thd, join)) return nullptr;
 
+  // In the case of rollup (only): After the base slice list was made, we may
+  // have modified the field list to add rollup group items and sum switchers.
+  // The resolver also takes care to update these in query_block->order_list.
+  // However, even though the hypergraph join optimizer doesn't use slices,
+  // setup_order() later modifies order->item to point into the base slice,
+  // where the rollup group items are _not_ updated. Thus, we need to refresh
+  // the base slice before we do anything.
+  //
+  // It would be better to have rollup resolving update the base slice directly,
+  // but this would break HAVING in the old join optimizer (see the other call
+  // to refresh_base_slice(), in JOIN::make_tmp_tables_info()).
+  if (join->rollup_state != JOIN::RollupState::NONE) {
+    join->refresh_base_slice();
+  }
+
   assert(join->temp_tables.empty());
   assert(join->filesorts_to_cleanup.empty());
 
@@ -1986,7 +1997,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
             query_block->group_list.first,
             /*limit_arg=*/HA_POS_ERROR, /*force_stable_sort=*/false,
             /*remove_duplicates=*/false, /*force_sort_positions=*/false,
-            /*unwrap_rollup=*/false);
+            /*unwrap_rollup=*/true);
         join->filesorts_to_cleanup.push_back(filesort);
         AccessPath *sort_path =
             NewSortAccessPath(thd, root_path, filesort,
@@ -2001,8 +2012,9 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
       }
 
       // TODO(sgunders): We don't need to allocate this on the MEM_ROOT.
+      const bool rollup = (join->rollup_state != JOIN::RollupState::NONE);
       AccessPath *aggregate_path =
-          NewAggregateAccessPath(thd, root_path, /*rollup=*/false);
+          NewAggregateAccessPath(thd, root_path, rollup);
       EstimateAggregateCost(aggregate_path);
 
       receiver.ProposeAccessPath(aggregate_path, &new_root_candidates, "");

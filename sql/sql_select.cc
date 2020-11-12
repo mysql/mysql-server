@@ -4749,39 +4749,16 @@ bool JOIN::make_tmp_tables_info() {
     }
   }
 
-  {
-    // In the case of rollup (only): After the base slice list was made, we may
-    // have modified the field list to add rollup group items and sum switchers.
-    // Since there may be HAVING filters with refs that refer to the base slice,
-    // we need to refresh that slice (and its copy, REF_SLICE_SAVED_BASE) so
-    // that it includes the updated items.
-    //
-    // Note that we do this after we've made the TMP1 and TMP2 slices, since
-    // there's a lot of logic that looks through the GROUP BY list, which refers
-    // to the base slice and expects _not_ to find rollup items there.
-    unsigned num_hidden_fields = CountHiddenFields(*fields);
-    const size_t num_select_elements = fields->size() - num_hidden_fields;
-    const size_t orig_num_select_elements =
-        num_select_elements - query_block->m_added_non_hidden_fields;
-
-    for (unsigned i = 0; i < fields->size(); ++i) {
-      Item *item = (*fields)[i];
-      size_t pos;
-      // See change_to_use_tmp_fields_except_sums for an explanation of how
-      // the visible fields, hidden fields and additonal fields added by
-      // transformations are organized in fields and ref_item_array.
-      if (i < num_hidden_fields) {
-        pos = fields->size() - i - 1 - query_block->m_added_non_hidden_fields;
-      } else {
-        pos = i - num_hidden_fields;
-        if (pos >= orig_num_select_elements) pos += num_hidden_fields;
-      }
-      query_block->base_ref_items[pos] = item;
-      if (!ref_items[REF_SLICE_SAVED_BASE].is_null()) {
-        ref_items[REF_SLICE_SAVED_BASE][pos] = item;
-      }
-    }
-  }
+  // In the case of rollup (only): After the base slice list was made, we may
+  // have modified the field list to add rollup group items and sum switchers.
+  // Since there may be HAVING filters with refs that refer to the base slice,
+  // we need to refresh that slice (and its copy, REF_SLICE_SAVED_BASE) so
+  // that it includes the updated items.
+  //
+  // Note that we do this after we've made the TMP1 and TMP2 slices, since
+  // there's a lot of logic that looks through the GROUP BY list, which refers
+  // to the base slice and expects _not_ to find rollup items there.
+  refresh_base_slice();
 
   fields = curr_fields;
   // Reset before execution
@@ -4801,6 +4778,18 @@ bool JOIN::make_tmp_tables_info() {
   */
   assert(!query_block->is_recursive() || !tmp_tables);
   return false;
+}
+
+void JOIN::refresh_base_slice() {
+  unsigned num_hidden_fields = CountHiddenFields(*fields);
+  for (unsigned i = 0; i < fields->size(); ++i) {
+    Item *item = (*fields)[i];
+    int pos = item->hidden ? fields->size() - i - 1 : i - num_hidden_fields;
+    query_block->base_ref_items[pos] = item;
+    if (!ref_items[REF_SLICE_SAVED_BASE].is_null()) {
+      ref_items[REF_SLICE_SAVED_BASE][pos] = item;
+    }
+  }
 }
 
 void JOIN::unplug_join_tabs() {

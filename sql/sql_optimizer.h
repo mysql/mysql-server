@@ -732,6 +732,17 @@ class JOIN {
 
   AccessPath *root_access_path() const { return m_root_access_path; }
 
+  /**
+    In the case of rollup (only): After the base slice list was made, we may
+    have modified the field list to add rollup group items and sum switchers,
+    but there may be Items with refs that refer to the base slice. This function
+    refreshes the base slice (and its copy, REF_SLICE_SAVED_BASE) with a fresh
+    copy of the list from “fields”.
+
+    When we get rid of slices entirely, we can get rid of this, too.
+   */
+  void refresh_base_slice();
+
  private:
   bool optimized{false};  ///< flag to avoid double optimization in EXPLAIN
 

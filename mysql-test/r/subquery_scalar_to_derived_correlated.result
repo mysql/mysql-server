@@ -305,7 +305,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t3`.`a`) AS `COUNT(a)`,`test`.`t3`.`a` AS `a` from `test`.`t3` group by `test`.`t3`.`b`,`test`.`t3`.`a` having (count(`test`.`t3`.`a`) > 0)) `derived_1_2` where (`derived_1_2`.`a` = `test`.`t1`.`a`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t3`.`a`) AS `COUNT(a)`,`test`.`t3`.`a` AS `a` from `test`.`t3` group by `test`.`t3`.`a`,`test`.`t3`.`a` having (count(`test`.`t3`.`a`) > 0)) `derived_1_2` where (`derived_1_2`.`a` = `test`.`t1`.`a`)
 #
 # Test case that used to yield wrong result before we corrected
 # computations of slice positions to accommodate non-hidden fields
@@ -338,7 +338,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	l	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary
 Warnings:
 Note	1276	Field or reference 'test.p.p_pkey' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`l`.`l_pkey` AS `l_pkey`,`test`.`l`.`l_quantity` AS `l_quantity`,`test`.`p`.`p_pkey` AS `p_pkey` from `test`.`l` join `test`.`p` join (/* select#2 */ select (0.9 * avg(`test`.`l`.`l_quantity`)) AS `0.9 * avg(l_quantity)`,`test`.`l`.`l_pkey` AS `l_pkey` from `test`.`l` group by `test`.`l`.`l_pkey`) `derived_1_2` where ((`derived_1_2`.`l_pkey` = `test`.`l`.`l_pkey`) and (`test`.`p`.`p_pkey` = `test`.`l`.`l_pkey`) and (`test`.`l`.`l_quantity` < `derived_1_2`.`0.9 * avg(l_quantity)`))
+Note	1003	/* select#1 */ select `test`.`l`.`l_pkey` AS `l_pkey`,`test`.`l`.`l_quantity` AS `l_quantity`,`test`.`p`.`p_pkey` AS `p_pkey` from `test`.`l` join `test`.`p` join (/* select#2 */ select (0.9 * `test`.`l`.`l_pkey`) AS `0.9 * avg(l_quantity)`,`test`.`l`.`l_pkey` AS `l_pkey` from `test`.`l` group by `test`.`l`.`l_pkey`) `derived_1_2` where ((`derived_1_2`.`l_pkey` = `test`.`l`.`l_pkey`) and (`test`.`p`.`p_pkey` = `test`.`l`.`l_pkey`) and (`test`.`l`.`l_quantity` < `derived_1_2`.`0.9 * avg(l_quantity)`))
 DROP TABLE p, l;
 DROP TABLE t0, t1, t2, t3;
 #
