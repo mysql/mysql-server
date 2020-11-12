@@ -74,7 +74,7 @@ class linux_epoll_io_service : public IoServiceBase {
 
     epfd_ = *res;
 #if defined(USE_EVENTFD)
-    notify_fd_ = eventfd(0, EFD_NONBLOCK);
+    notify_fd_ = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
     if (notify_fd_ != impl::file::kInvalidHandle) {
       add_fd_interest_permanent(notify_fd_, impl::socket::wait_type::wait_read);
 
@@ -176,6 +176,11 @@ class linux_epoll_io_service : public IoServiceBase {
     if (epfd_ != impl::file::kInvalidHandle) {
       impl::file::close(epfd_);
       epfd_ = impl::file::kInvalidHandle;
+    }
+
+    if (notify_fd_ != impl::file::kInvalidHandle) {
+      impl::file::close(notify_fd_);
+      notify_fd_ = impl::file::kInvalidHandle;
     }
 
     return {};
