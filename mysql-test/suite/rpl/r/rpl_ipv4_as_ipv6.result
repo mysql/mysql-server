@@ -11,7 +11,7 @@ connection slave;
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-change master to master_host='127.0.0.1';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1';
 Master-Host: 127.0.0.1
 disconnect slave;
 disconnect master;
@@ -28,7 +28,7 @@ connection slave;
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-change master to master_host='0:0:0:0:0:FFFF:127.0.0.1';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='0:0:0:0:0:FFFF:127.0.0.1';
 Master-Host: 0:0:0:0:0:FFFF:127.0.0.1
 disconnect slave;
 disconnect master;
@@ -45,7 +45,7 @@ connection slave;
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-change master to master_host='0000:0000:0000:0000:0000:FFFF:127.0.0.1';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='0000:0000:0000:0000:0000:FFFF:127.0.0.1';
 Master-Host: 0000:0000:0000:0000:0000:FFFF:127.0.0.1
 disconnect slave;
 disconnect master;
@@ -62,7 +62,7 @@ connection slave;
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-change master to master_host='0:0000:0000:0:0000:FFFF:127.0.0.1';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='0:0000:0000:0:0000:FFFF:127.0.0.1';
 Master-Host: 0:0000:0000:0:0000:FFFF:127.0.0.1
 disconnect slave;
 disconnect master;
@@ -79,7 +79,7 @@ connection slave;
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-change master to master_host='0::0000:FFFF:127.0.0.1';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='0::0000:FFFF:127.0.0.1';
 Master-Host: 0::0000:FFFF:127.0.0.1
 disconnect slave;
 disconnect master;
@@ -96,7 +96,7 @@ connection slave;
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-change master to master_host='::FFFF:127.0.0.1';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='::FFFF:127.0.0.1';
 Master-Host: ::FFFF:127.0.0.1
 disconnect slave;
 disconnect master;
@@ -114,13 +114,13 @@ reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 Master-Host: ::FFFF:127.0.0.1
-change master to master_host='::FFFF:127.0.0.1';
+change replication source to source_host='::FFFF:127.0.0.1';
 Master-Host: ::FFFF:127.0.0.1
-change master to master_host='127.0.0.1';
+change replication source to source_host='127.0.0.1';
 Master-Host: 127.0.0.1
-change master to master_host='0:0000:0000:0:0000:FFFF:127.0.0.1';
+change replication source to source_host='0:0000:0000:0:0000:FFFF:127.0.0.1';
 Master-Host: 0:0000:0000:0:0000:FFFF:127.0.0.1
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

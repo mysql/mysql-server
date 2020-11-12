@@ -28,7 +28,7 @@ DROP TABLE relay_log_info_content;
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -44,7 +44,7 @@ DROP TABLE relay_log_info_content;
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM;
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -90,9 +90,9 @@ include/assert.inc [Check entry for default channel "" in performance_schema.rep
 #       2. A group_replication channel (group_replication_recovery)
 #       3. A channel with a privileged user (default channel)
 #     REQUIRE_TABLE_PRIMARY_KEY_CHECK is set to STREAM for all channels
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12 FOR CHANNEL "ch1" ;
-CHANGE MASTER TO MASTER_USER="root" FOR CHANNEL "group_replication_recovery";
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12 FOR CHANNEL "ch1" ;
+CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "";
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Require_table_primary_key_check;
 UPDATE mysql.slave_relay_log_info SET Number_of_lines = 11;
 include/rpl_restart_server.inc [server_number=2 parameters: --skip_slave_start --relay-log-info-repository=TABLE --upgrade=FORCE]
@@ -109,7 +109,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 #      Execute a RESET SLAVE command.
 #      The option should not be affected
 #      It also survives a server restart
-CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
 include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
 RESET SLAVE;
 Warnings:
@@ -127,7 +127,7 @@ include/assert.inc [Check entry for default channel "" in performance_schema.rep
 
 # 5.3. Make RESET SLAVE fail due to persistence issues
 #      Check that errors on slave info persistence are gracefully handled
-CHANGE MASTER TO MASTER_HOST="localhost", REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF FOR CHANNEL "";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF FOR CHANNEL "";
 include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
 SET @@GLOBAL.DEBUG = '+d,rpl_rli_clear_info_error';
 RESET SLAVE;

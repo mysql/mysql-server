@@ -47,7 +47,7 @@ include/wait_for_slave_param.inc [Slave_IO_Running]
 set global debug= '';
 reset master;
 include/stop_slave.inc
-change master to master_port=SLAVE_PORT;
+CHANGE REPLICATION SOURCE to SOURCE_PORT=SLAVE_PORT;
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -59,7 +59,7 @@ include/stop_slave_sql.inc
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-CHANGE MASTER TO MASTER_PORT=MASTER_PORT;;
+CHANGE REPLICATION SOURCE TO SOURCE_PORT=MASTER_PORT;;
 # Adding debug point 'dbug.simulate_no_such_var_server_uuid' to @@GLOBAL.debug
 include/start_slave_io.inc
 include/assert.inc [Master_uuid must be empty string]

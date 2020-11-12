@@ -21,7 +21,7 @@ Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release.
 Note	3084	Replication thread(s) for channel '' are already stopped.
 include/assert.inc ['The group replication recovery channel is ON']
 SET GLOBAL SUPER_READ_ONLY=0;
-CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PASSWORD="", MASTER_PORT=SERVER_3_PORT, MASTER_AUTO_POSITION=1 FOR CHANNEL "channel_1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=SERVER_3_PORT, SOURCE_AUTO_POSITION=1 FOR CHANNEL "channel_1";
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -31,7 +31,7 @@ ERROR HY000: RESET SLAVE ALL FOR CHANNEL cannot be performed on channel 'group_r
 include/assert.inc ['The group replication recovery channel is present']
 include/assert.inc ['The group replication recovery channel is ON']
 include/assert.inc ['The slave channel is not present']
-CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PASSWORD="", MASTER_PORT=SERVER_3_PORT, MASTER_AUTO_POSITION=1 FOR CHANNEL "channel_1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=SERVER_3_PORT, SOURCE_AUTO_POSITION=1 FOR CHANNEL "channel_1";
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -49,6 +49,6 @@ include/assert.inc ['The group replication recovery channel is OFF']
 include/assert.inc ['The created slave channel is ON']
 DROP TABLE t1;
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION=0 FOR CHANNEL "channel_1";
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0 FOR CHANNEL "channel_1";
 include/start_group_replication.inc
 include/group_replication_end.inc

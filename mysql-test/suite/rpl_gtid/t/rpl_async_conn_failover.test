@@ -103,7 +103,7 @@ SET SESSION sql_log_bin= 1;
 --echo #    performance_schema.replication_connection_configuration.
 --echo #
 --source include/stop_slave.inc
-CHANGE MASTER TO MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=2, SOURCE_CONNECTION_AUTO_FAILOVER=1;
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=2, SOURCE_CONNECTION_AUTO_FAILOVER=1;
 --source include/start_slave.inc
 
 # Verify Asynchronous Replication Connection Failover is enabled.
@@ -331,7 +331,7 @@ SET @@GLOBAL.DEBUG= @old_debug;
 --echo # 18. Clean up
 --echo #
 
-CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER=0;
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=0;
 
 --replace_result $SERVER_MYPORT_3 SERVER_MYPORT_3
 --eval SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', $SERVER_MYPORT_3, '');

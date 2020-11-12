@@ -26,7 +26,7 @@
 --source include/rpl_connection_slave.inc
 # Suppression of error messages
 CALL mtr.add_suppression('Failed to create Rotate_event .out of memory');
-CHANGE MASTER TO IGNORE_SERVER_IDS = (1);
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = (1);
 --source include/start_slave_io.inc
 
 --source include/rpl_connection_master.inc
@@ -44,7 +44,7 @@ SET @@GLOBAL.debug="-d,fail_generating_rotate_event_on_write_rotate_to_master_po
 --disable_warnings
 --source include/wait_for_slave_io_error.inc
 --enable_warnings
-CHANGE MASTER TO IGNORE_SERVER_IDS = ();
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = ();
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc
@@ -62,7 +62,7 @@ DROP TABLE t1;
 --source include/stop_slave.inc
 # Suppression of error messages
 CALL mtr.add_suppression('failed to write a Rotate event to the relay log');
-CHANGE MASTER TO IGNORE_SERVER_IDS = (1);
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = (1);
 --source include/start_slave_io.inc
 
 --source include/rpl_connection_master.inc
@@ -80,7 +80,7 @@ SET @@GLOBAL.debug="-d,fail_to_write_ignored_event_to_relay_log";
 --disable_warnings
 --source include/wait_for_slave_io_error.inc
 --enable_warnings
-CHANGE MASTER TO IGNORE_SERVER_IDS = ();
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = ();
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc
@@ -97,7 +97,7 @@ DROP TABLE t1;
 --source include/stop_slave.inc
 # Suppression of error messages
 CALL mtr.add_suppression('Failed to flush master info file');
-CHANGE MASTER TO IGNORE_SERVER_IDS = (1);
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = (1);
 --source include/start_slave_io.inc
 
 --source include/rpl_connection_master.inc
@@ -111,7 +111,7 @@ SET @@GLOBAL.debug="-d,fail_to_flush_master_info";
 
 # The failure while flushing master info is not considered an I/O thread error
 
-CHANGE MASTER TO IGNORE_SERVER_IDS = ();
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = ();
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc

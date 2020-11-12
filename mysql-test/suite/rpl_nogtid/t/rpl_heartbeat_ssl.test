@@ -21,16 +21,16 @@ RESET SLAVE;
 # Connect to master with SSL
 --replace_result $MASTER_MYPORT MASTER_PORT $MYSQL_TEST_DIR MYSQL_TEST_DIR $master_binlog MASTER_BINLOG
 --replace_column 2 ####
-eval CHANGE MASTER TO 
-    MASTER_HOST='127.0.0.1',
-    MASTER_PORT=$MASTER_MYPORT,
-    MASTER_USER='root',
-    MASTER_HEARTBEAT_PERIOD=0.1,
-    MASTER_LOG_FILE='$master_binlog',
-    MASTER_SSL=1,
-    MASTER_SSL_CA='$MYSQL_TEST_DIR/std_data/cacert.pem',
-    MASTER_SSL_CERT='$MYSQL_TEST_DIR/std_data/client-cert.pem',
-    MASTER_SSL_KEY='$MYSQL_TEST_DIR/std_data/client-key.pem';
+eval CHANGE REPLICATION SOURCE TO 
+    SOURCE_HOST='127.0.0.1',
+    SOURCE_PORT=$MASTER_MYPORT,
+    SOURCE_USER='root',
+    SOURCE_HEARTBEAT_PERIOD=0.1,
+    SOURCE_LOG_FILE='$master_binlog',
+    SOURCE_SSL=1,
+    SOURCE_SSL_CA='$MYSQL_TEST_DIR/std_data/cacert.pem',
+    SOURCE_SSL_CERT='$MYSQL_TEST_DIR/std_data/client-cert.pem',
+    SOURCE_SSL_KEY='$MYSQL_TEST_DIR/std_data/client-key.pem';
 --source include/start_slave.inc
 # Check SSL state of slave
 let $slave_ssl_status= query_get_value(SHOW SLAVE STATUS, Master_SSL_Allowed, 1);
@@ -49,10 +49,10 @@ let $status_col_comparsion= >;
 --echo *** Clean up ***
 --source include/stop_slave.inc
 --replace_column 2 ####
-CHANGE MASTER TO 
-    MASTER_SSL=0,
-    MASTER_SSL_CA='',
-    MASTER_SSL_CERT='',
-    MASTER_SSL_KEY='';
+CHANGE REPLICATION SOURCE TO 
+    SOURCE_SSL=0,
+    SOURCE_SSL_CA='',
+    SOURCE_SSL_CERT='',
+    SOURCE_SSL_KEY='';
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

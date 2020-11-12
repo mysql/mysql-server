@@ -178,8 +178,40 @@ RESET SLAVE ALL;
 RESET REPLICA ALL;
 
 --replace_result $MASTER_MYPORT MASTER_PORT
---eval CHANGE MASTER TO MASTER_HOST='127.0.0.1',MASTER_PORT=$MASTER_MYPORT,MASTER_USER='root' for CHANNEL ''
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MYPORT,SOURCE_USER='root' for CHANNEL ''
 
+### START REPLICA UNTIL SOURCE_LOG_FILE and SOURCE_LOG_POS
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1);
+--let $log_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $log_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--source include/rpl_connection_slave.inc
+# Once deprecation warnings are introduced, this statement shall
+# continue to not produce any warnings
+--eval START REPLICA UNTIL SOURCE_LOG_FILE='$log_file', SOURCE_LOG_POS=$log_pos
+--source include/wait_for_slave_sql_to_stop.inc
+--source include/stop_slave.inc
+--let $diff_tables=master:t1,slave:t1
+--source include/diff_tables.inc
+DROP TABLE t1;
+RESET REPLICA;
+RESET MASTER;
+# Once deprecation warnings are introduced, this statement shall
+# produce warnings
+--eval START REPLICA UNTIL MASTER_LOG_FILE='$log_file', MASTER_LOG_POS=$log_pos
+--source include/wait_for_slave_sql_to_stop.inc
+--source include/stop_slave.inc
+--let $diff_tables=master:t1,slave:t1
+--source include/diff_tables.inc
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+RESET MASTER;
+--source include/rpl_connection_slave.inc
+DROP TABLE t1;
+RESET REPLICA;
+RESET MASTER;
 --source include/start_slave.inc
 --source include/rpl_connection_master.inc
 

@@ -22,7 +22,7 @@ include/assert.inc [Both INNODB_TEMP_TABLE_INFO and SLAVE_OPEN_TEMP_TABLES shoul
 # Verify that after CHANGE MASTER the innodb table and slave_open_temp_table
 # both indicate that there is an open temp table at slave.
 
-CHANGE MASTER TO MASTER_PORT= MASTER_PORT;
+CHANGE REPLICATION SOURCE TO SOURCE_PORT= MASTER_PORT;
 Warnings:
 Warning	3022	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
 include/assert.inc [Both INNODB_TEMP_TABLE_INFO and SLAVE_OPEN_TEMP_TABLES should show a temp table exists.]

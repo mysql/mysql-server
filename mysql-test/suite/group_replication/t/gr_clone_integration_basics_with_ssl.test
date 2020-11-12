@@ -48,7 +48,7 @@ GRANT BACKUP_ADMIN ON *.* TO "rec_ssl_user";
 # Execute a change master here so this settings are cloned
 
 --disable_warnings
-CHANGE MASTER TO MASTER_USER="rec_ssl_user" FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_USER="rec_ssl_user" FOR CHANNEL "group_replication_recovery";
 --enable_warnings
 
 --echo
@@ -107,7 +107,7 @@ SET PERSIST group_replication_start_on_boot= ON;
 --echo #    Check clone was completed
 
 --disable_warnings
-CHANGE MASTER TO MASTER_USER="rec_ssl_user" FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_USER="rec_ssl_user" FOR CHANNEL "group_replication_recovery";
 --enable_warnings
 
 --let $_group_replication_threshold_save= `SELECT @@GLOBAL.group_replication_clone_threshold`

@@ -8,13 +8,13 @@ call mtr.add_suppression("Detected misconfiguration: replication channel '' was 
 #
 # 1. Enable AUTO_POSITION.
 #
-CHANGE MASTER TO MASTER_AUTO_POSITION=1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=1;
 #
 # 2. Verify disabling AUTO_POSITION while enabling Asynchronous
 #    Replication Connection Failover results in
 #    ER_DISABLE_AUTO_POSITION_REQUIRES_ASYNC_RECONNECT_OFF error.
 #
-CHANGE MASTER TO MASTER_AUTO_POSITION=0, SOURCE_CONNECTION_AUTO_FAILOVER=1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0, SOURCE_CONNECTION_AUTO_FAILOVER=1;
 ERROR HY000: CHANGE MASTER TO MASTER_AUTO_POSITION = 0 cannot be executed because Asynchronous Replication Connection Failover is enabled i.e. CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 1.
 #
 # 3. Verify Asynchronous Replication Connection Failover is disabled and
@@ -28,7 +28,7 @@ include/assert.inc ['Auto_position is enabled']
 #    thread from start with ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF_CHANNEL
 #    error logged in error log.
 #
-CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER=1;
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1;
 include/rpl_restart_server.inc [server_number=2 parameters: --gtid-mode=off_permissive]
 include/assert_grep.inc [Replication channel '' could not be started as GTID_MODE was not ON.]
 include/check_slave_param.inc [Slave_IO_Running FOR CHANNEL '']
@@ -42,5 +42,5 @@ ERROR HY000: Failed to enable Asynchronous Replication Connection Failover featu
 #
 # 6. Clean up.
 #
-CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 0, MASTER_AUTO_POSITION = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER = 0, SOURCE_AUTO_POSITION = 0;
 include/rpl_end.inc

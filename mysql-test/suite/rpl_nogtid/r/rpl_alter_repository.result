@@ -93,14 +93,14 @@ START SLAVE SQL_THREAD;
 ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 15, found 14. The table is probably corrupted
 RESET SLAVE ALL;
 ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 15, found 14. The table is probably corrupted
-CHANGE MASTER TO MASTER_HOST= 'MASTER_HOST', MASTER_USER= 'MASTER_USER', MASTER_PORT= MASTER_PORT, MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_LOG_POS;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'MASTER_HOST', SOURCE_USER= 'MASTER_USER', SOURCE_PORT= MASTER_PORT, SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_LOG_POS;
 ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 15, found 14. The table is probably corrupted
 ALTER TABLE mysql.slave_relay_log_info ADD COLUMN Number_of_workers INTEGER UNSIGNED AFTER Sql_delay;
 UPDATE mysql.slave_relay_log_info SET Number_of_workers= 0;
 RESET SLAVE ALL;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-CHANGE MASTER TO MASTER_HOST= 'MASTER_HOST', MASTER_USER= 'MASTER_USER', MASTER_PORT= MASTER_PORT, MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_LOG_POS;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'MASTER_HOST', SOURCE_USER= 'MASTER_USER', SOURCE_PORT= MASTER_PORT, SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_LOG_POS;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -127,14 +127,14 @@ START SLAVE SQL_THREAD;
 ERROR HY000: Column count of mysql.slave_master_info is wrong. Expected 32, found 31. The table is probably corrupted
 RESET SLAVE ALL;
 ERROR HY000: Column count of mysql.slave_master_info is wrong. Expected 32, found 31. The table is probably corrupted
-CHANGE MASTER TO MASTER_HOST= 'MASTER_HOST', MASTER_USER= 'MASTER_USER', MASTER_PORT= MASTER_PORT, MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_LOG_POS;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'MASTER_HOST', SOURCE_USER= 'MASTER_USER', SOURCE_PORT= MASTER_PORT, SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_LOG_POS;
 ERROR HY000: Column count of mysql.slave_master_info is wrong. Expected 32, found 31. The table is probably corrupted
 ALTER TABLE mysql.slave_master_info ADD COLUMN Enabled_auto_position BOOLEAN NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.' AFTER Ssl_crlpath;
 UPDATE mysql.slave_master_info SET Enabled_auto_position= 0;
 RESET SLAVE ALL;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-CHANGE MASTER TO MASTER_HOST= 'MASTER_HOST', MASTER_USER= 'MASTER_USER', MASTER_PORT= MASTER_PORT, MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_LOG_POS;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'MASTER_HOST', SOURCE_USER= 'MASTER_USER', SOURCE_PORT= MASTER_PORT, SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_LOG_POS;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

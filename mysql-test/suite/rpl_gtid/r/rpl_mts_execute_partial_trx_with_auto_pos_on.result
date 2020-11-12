@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 [connection slave]
 include/stop_slave.inc
-change master to master_auto_position=1;
+CHANGE REPLICATION SOURCE to SOURCE_AUTO_POSITION=1;
 include/start_slave.inc
 [connection master]
 CREATE TABLE t1(i INT) ENGINE=InnoDB;

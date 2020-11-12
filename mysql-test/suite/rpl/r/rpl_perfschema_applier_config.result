@@ -20,7 +20,7 @@ include/assert.inc [Value returned by SSS and PS table for Desired_Delay should 
 
 # Verify that, when desired delay is set, the value is shown corectly.
 
-change master to master_delay= 2;
+CHANGE REPLICATION SOURCE to SOURCE_DELAY= 2;
 include/start_slave.inc
 include/assert.inc [Value returned by SSS and PS table for Desired_Delay should be same.]
 
@@ -31,7 +31,7 @@ include/assert.inc [Value returned by SSS and PS table for Desired_Delay should 
 
 # Verify that, when desired delay is reset, the value is shown corectly.
 
-change master to master_delay= 0;
+CHANGE REPLICATION SOURCE to SOURCE_DELAY= 0;
 include/start_slave.inc
 include/assert.inc [Value returned by SSS and PS table for Desired_Delay should be same.]
 

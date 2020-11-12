@@ -154,7 +154,7 @@ END_OF_PROCEDURE
 --let $rpl_skip_sync= 1
 --source include/rpl_set_gtid_mode.inc
 
-CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
 
 --source include/start_slave.inc
 
@@ -167,7 +167,7 @@ CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
 
 --source include/stop_slave.inc
 
-CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 
 --source include/start_slave.inc
 
@@ -285,11 +285,11 @@ UPDATE mysql.slave_relay_log_info SET Number_of_lines = 12;
 --echo #       3. A channel with a privileged user (default channel)
 --echo #     ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS is set to OFF for all channels
 
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12 FOR CHANNEL "ch1" ;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12 FOR CHANNEL "ch1" ;
 --disable_warnings
-CHANGE MASTER TO MASTER_USER="root" FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
 --enable_warnings
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "";
 
 # Revert the table to 12 lines (pre upgrade)
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Assign_gtids_to_anonymous_transactions_type;
@@ -327,7 +327,7 @@ RESET SLAVE ALL FOR CHANNEL "group_replication_recovery";
 --let $rpl_skip_sync= 1
 --source include/rpl_set_gtid_mode.inc
 
-CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
 
 --let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE = 'LOCAL'`
 --let $assert_text = Check entry for default channel "" in mysql.slave_relay_log_info
@@ -369,7 +369,7 @@ RESET SLAVE;
 --let $rpl_skip_sync= 1
 --source include/rpl_set_gtid_mode.inc
 
-CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 
 --let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE = 'UUID'`
 --let $assert_text = Check entry for default channel "" in mysql.slave_relay_log_info
@@ -423,7 +423,7 @@ CALL mtr.add_suppression("Variable 'ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS' can'
 
 --disable_warnings
 --disable_query_log
---eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'
 --enable_query_log
 --enable_warnings
 

@@ -1,0 +1,291 @@
+--let $rpl_skip_start_slave=1
+--source include/master-slave.inc
+--source include/have_binlog_format_row.inc
+
+#
+# ==== Purpose ====
+#
+# The following test cases checks that the new terminology used in the
+# statements that configure the replica side w.r.t. the source.
+#
+# ==== Requirements ====
+#
+# CHANGE REPLICATION SOURCE shall execute 100% the same actions that
+# CHANGE MASTER does.
+#
+# CHANGE MASTER and CHANGE REPLICATION SOURCE shall accept aliases
+# for all their parameters having MASTER in their names. The alias
+# shall have MASTER replaced by SOURCE.
+#
+# ==== Implementation ====
+#
+# Issue CHANGE REPLICATION SOURCE TO for all the new statement
+# aliases and check that the configuration parameter was
+# effectively changed.
+#
+# ==== References ====
+#
+# WL#14189: Replace old terms in CHANGE MASTER TO and START SLAVE params
+#
+
+--source include/rpl_connection_slave.inc
+
+--let $get_source_public_key=1
+--let $auto_position=1
+--let $bind="eth4n"
+--let $compression_algorithm="zstd"
+--let $connect_retry=10000
+--let $delay=101010
+--let $heartbeat_period=2
+--let $host="127.0.0.1"
+--let $log_file="binlog.000001"
+--let $log_pos=200
+--let $password="secret"
+--let $port=3306
+--let $public_key_path="/path/to/source/key"
+--let $retry_count=101
+--let $server_id = 123
+--let $ssl=1
+--let $ssl_ca="ca"
+--let $ssl_capath="/path/to/ca"
+--let $ssl_cipher="cipher_foo"
+--let $ssl_cert="cert"
+--let $ssl_crl="crl_list"
+--let $ssl_crlpath="/path/to/crl"
+--let $ssl_key="key"
+--let $ssl_verify_server_cert=1
+--let $tls_ciphersuites="foo"
+--let $tls_version="TLSv1.2"
+--let $user="luis"
+--let $zstd_compression_level=14
+
+RESET REPLICA ALL;
+
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST=$host
+--let $read = query_get_value(SHOW REPLICA STATUS, Source_Host, 1)
+--let $assert_cond= "$read" = $host
+--let $assert_text="Assert that the host was set correctly"
+--source include/assert.inc
+
+--eval CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0
+--let $read = query_get_value(SHOW REPLICA STATUS, Auto_Position, 1)
+--let $assert_cond= $read = 0
+--let $assert_text="Assert that auto position set correctly"
+--source include/assert.inc
+
+--eval CHANGE REPLICATION SOURCE TO GET_SOURCE_PUBLIC_KEY=$get_source_public_key
+--let $read = query_get_value(SHOW REPLICA STATUS, Get_Source_public_key, 1)
+--let $assert_cond= $read = $get_source_public_key
+--let $assert_text="Assert that the 'get public key' was set correctly"
+--source include/assert.inc
+
+--eval CHANGE REPLICATION SOURCE TO SOURCE_BIND=$bind
+--let $read = query_get_value(SHOW REPLICA STATUS, Source_Bind, 1)
+--let $assert_cond= "$read" = $bind
+--let $assert_text="Assert that the bind was set correctly"
+--source include/assert.inc
+
+--eval CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS=$compression_algorithm
+--let $read = `SELECT Master_compression_algorithm FROM mysql.slave_master_info`
+--let $assert_cond= "$read" = $compression_algorithm
+--let $assert_text="Assert that the connect retry was set correctly"
+--source include/assert.inc
+
+--eval CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=$connect_retry
+--let $read = query_get_value(SHOW REPLICA STATUS, Connect_Retry, 1)
+--let $assert_cond= $read = $connect_retry
+--let $assert_text="Assert that the connect retry was set correctly"
+--source include/assert.inc
+
+--eval CHANGE REPLICATION SOURCE TO SOURCE_DELAY=$delay
+--let $read = query_get_value(SHOW REPLICA STATUS, SQL_Delay, 1)
+--let $assert_cond= $read = $delay
+--let $assert_text="Assert that the delay was set correctly"
+--source include/assert.inc
+
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=$heartbeat_period
+--let $read = `SELECT Heartbeat FROM mysql.slave_master_info`
+--let $assert_cond= $read = $heartbeat_period
+--let $assert_text="Assert that the heartbeat period was set correctly"
+--source include/assert.inc
+
+--eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE=$log_file
+--let $read = query_get_value(SHOW REPLICA STATUS, Source_Log_File, 1)
+--let $assert_cond= "$read" = $log_file
+--let $assert_text="Assert that the log file was set correctly"
+--source include/assert.inc
+
+--eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=$log_pos
+--let $read = query_get_value(SHOW REPLICA STATUS, Read_Source_Log_Pos, 1)
+--let $assert_cond= $read = $log_pos
+--let $assert_text="Assert that the log position was set correctly"
+--source include/assert.inc
+
+--eval CHANGE REPLICATION SOURCE TO SOURCE_PASSWORD=$password
+--let $read = `SELECT User_Password FROM mysql.slave_master_info`
+--let $assert_cond= "$read" = $password
+--let $assert_text="Assert that the password was set correctly"
+--source include/assert.inc
+
+--eval CHANGE REPLICATION SOURCE TO SOURCE_PORT=$port
+--let $read = query_get_value(SHOW REPLICA STATUS, Source_Port, 1)
+--let $assert_cond=$read = $port
+--let $assert_text="Assert that the port was set correctly"
+--source include/assert.inc
+
+--eval CHANGE REPLICATION SOURCE TO SOURCE_PUBLIC_KEY_PATH=$public_key_path
+--let $read = query_get_value(SHOW REPLICA STATUS, Source_public_key_path, 1)
+--let $assert_cond= "$read" = $public_key_path
+--let $assert_text="Assert that the source public key path was set correctly"
+--source include/assert.inc
+
+--eval CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT=$retry_count
+--let $read = query_get_value(SHOW REPLICA STATUS, Source_Retry_Count, 1)
+--let $assert_cond= $read = $retry_count
+--let $assert_text="Assert that the retry count was set correctly"
+--source include/assert.inc
+
+--eval CHANGE REPLICATION SOURCE TO SOURCE_SSL=$ssl
+--let $expected=No
+if ($ssl == 1) {
+  --let $expected=Yes
+}
+--let $read = query_get_value(SHOW REPLICA STATUS, Source_SSL_Allowed, 1)
+--let $assert_cond= "$read" = "$expected"
+--let $assert_text="Assert that the SSL was set correctly"
+--source include/assert.inc
+
+--eval CHANGE REPLICATION SOURCE TO SOURCE_SSL_CA=$ssl_ca
+--let $read = query_get_value(SHOW REPLICA STATUS, Source_SSL_CA_File, 1)
+--let $assert_cond= "$read" = $ssl_ca
+--let $assert_text="Assert that the SSL CA file was set correctly"
+--source include/assert.inc
+
+--eval CHANGE REPLICATION SOURCE TO SOURCE_SSL_CAPATH=$ssl_capath
+--let $read = query_get_value(SHOW REPLICA STATUS, Source_SSL_CA_Path, 1)
+--let $assert_cond= "$read" = $ssl_capath
+--let $assert_text="Assert that the SSL CA path was set correctly"
+--source include/assert.inc
+
+--eval CHANGE REPLICATION SOURCE TO SOURCE_SSL_CIPHER=$ssl_cipher
+--let $read = query_get_value(SHOW REPLICA STATUS, Source_SSL_Cipher, 1)
+--let $assert_cond= "$read" = $ssl_cipher
+--let $assert_text="Assert that the SSL cipher was set correctly"
+--source include/assert.inc
+
+--eval CHANGE REPLICATION SOURCE TO SOURCE_SSL_CERT=$ssl_cert
+--let $read = query_get_value(SHOW REPLICA STATUS, Source_SSL_Cert, 1)
+--let $assert_cond= "$read" = $ssl_cert
+--let $assert_text="Assert that the SSL cert was set correctly"
+--source include/assert.inc
+
+--eval CHANGE REPLICATION SOURCE TO SOURCE_SSL_CRL=$ssl_crl
+--let $read = query_get_value(SHOW REPLICA STATUS, Source_SSL_Crl, 1)
+--let $assert_cond= "$read" = $ssl_crl
+--let $assert_text="Assert that the SSL CRL was set correctly"
+--source include/assert.inc
+
+--eval CHANGE REPLICATION SOURCE TO SOURCE_SSL_CRLPATH=$ssl_crlpath
+--let $read = query_get_value(SHOW REPLICA STATUS, Source_SSL_Crlpath, 1)
+--let $assert_cond= "$read" = $ssl_crlpath
+--let $assert_text="Assert that the SSL CRL path was set correctly"
+--source include/assert.inc
+
+--eval CHANGE REPLICATION SOURCE TO SOURCE_SSL_KEY=$ssl_key
+--let $read = query_get_value(SHOW REPLICA STATUS, Source_SSL_Key, 1)
+--let $assert_cond= "$read" = $ssl_key
+--let $assert_text="Assert that the SSL key was set correctly"
+--source include/assert.inc
+
+--eval CHANGE REPLICATION SOURCE TO SOURCE_SSL_VERIFY_SERVER_CERT=$ssl_verify_server_cert
+--let $expected=No
+if ($ssl_verify_server_cert == 1) {
+  --let $expected=Yes
+}
+--let $read = query_get_value(SHOW REPLICA STATUS, Source_SSL_Verify_Server_Cert, 1)
+--let $assert_cond= "$read" = "$expected"
+--let $assert_text="Assert that the SSL verify server cert was set correctly"
+--source include/assert.inc
+
+--eval CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES=$tls_ciphersuites
+--let $read = `SELECT tls_ciphersuites FROM mysql.slave_master_info`
+--let $assert_cond= "$read" = $tls_ciphersuites
+--let $assert_text="Assert that the TLS Ciphersuites was set correctly"
+--source include/assert.inc
+
+--eval CHANGE REPLICATION SOURCE TO SOURCE_TLS_VERSION=$tls_version
+--let $read = query_get_value(SHOW REPLICA STATUS, Source_TLS_Version, 1)
+--let $assert_cond= "$read" = $tls_version
+--let $assert_text="Assert that the TLS version was set correctly"
+--source include/assert.inc
+
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER=$user
+--let $read = query_get_value(SHOW REPLICA STATUS, Source_User, 1)
+--let $assert_cond= "$read" = $user
+--let $assert_text="Assert that the user was set correctly"
+--source include/assert.inc
+
+--eval CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL=$zstd_compression_level
+--let $read = `SELECT master_zstd_compression_level FROM mysql.slave_master_info`
+--let $assert_cond= $read = $zstd_compression_level
+--let $assert_text="Assert that the ZSTD compression level was set correctly"
+--source include/assert.inc
+
+--eval CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=$auto_position
+--let $read = query_get_value(SHOW REPLICA STATUS, Auto_Position, 1)
+--let $assert_cond= $read = $auto_position
+--let $assert_text="Assert that auto position set correctly"
+--source include/assert.inc
+
+RESET REPLICA ALL;
+
+#
+# Assert that the warnings are emitted as expected
+#
+
+# three warnings shall be emitted
+--eval CHANGE MASTER TO MASTER_HOST=$host, MASTER_USER=$user
+
+# check that each individual field emits a warning
+--eval CHANGE REPLICATION SOURCE TO MASTER_HOST=$host
+--eval CHANGE REPLICATION SOURCE TO MASTER_AUTO_POSITION=0
+--eval CHANGE REPLICATION SOURCE TO GET_MASTER_PUBLIC_KEY=$get_source_public_key
+--eval CHANGE REPLICATION SOURCE TO MASTER_BIND=$bind
+--eval CHANGE REPLICATION SOURCE TO MASTER_COMPRESSION_ALGORITHMS=$compression_algorithm
+--eval CHANGE REPLICATION SOURCE TO MASTER_CONNECT_RETRY=$connect_retry
+--eval CHANGE REPLICATION SOURCE TO MASTER_DELAY=$delay
+--eval CHANGE REPLICATION SOURCE TO MASTER_HEARTBEAT_PERIOD=$heartbeat_period
+--eval CHANGE REPLICATION SOURCE TO MASTER_LOG_FILE=$log_file
+--eval CHANGE REPLICATION SOURCE TO MASTER_LOG_POS=$log_pos
+--eval CHANGE REPLICATION SOURCE TO MASTER_PASSWORD=$password
+--eval CHANGE REPLICATION SOURCE TO MASTER_PORT=$port
+--eval CHANGE REPLICATION SOURCE TO MASTER_PUBLIC_KEY_PATH=$public_key_path
+--eval CHANGE REPLICATION SOURCE TO MASTER_RETRY_COUNT=$retry_count
+--eval CHANGE REPLICATION SOURCE TO MASTER_SSL=$ssl
+--eval CHANGE REPLICATION SOURCE TO MASTER_SSL_CA=$ssl_ca
+--eval CHANGE REPLICATION SOURCE TO MASTER_SSL_CAPATH=$ssl_capath
+--eval CHANGE REPLICATION SOURCE TO MASTER_SSL_CIPHER=$ssl_cipher
+--eval CHANGE REPLICATION SOURCE TO MASTER_SSL_CERT=$ssl_cert
+--eval CHANGE REPLICATION SOURCE TO MASTER_SSL_CRL=$ssl_crl
+--eval CHANGE REPLICATION SOURCE TO MASTER_SSL_CRLPATH=$ssl_crlpath
+--eval CHANGE REPLICATION SOURCE TO MASTER_SSL_KEY=$ssl_key
+--eval CHANGE REPLICATION SOURCE TO MASTER_SSL_VERIFY_SERVER_CERT=$ssl_verify_server_cert
+--eval CHANGE REPLICATION SOURCE TO MASTER_TLS_CIPHERSUITES=$tls_ciphersuites
+--eval CHANGE REPLICATION SOURCE TO MASTER_TLS_VERSION=$tls_version
+--eval CHANGE REPLICATION SOURCE TO MASTER_USER=$user
+--eval CHANGE REPLICATION SOURCE TO MASTER_ZSTD_COMPRESSION_LEVEL=$zstd_compression_level
+--eval CHANGE REPLICATION SOURCE TO MASTER_AUTO_POSITION=$auto_position
+
+RESET REPLICA ALL;
+
+--replace_result $MASTER_MYPORT SOURCE_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT,SOURCE_USER='root'
+
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+
+#
+# End of WL#14189 test cases section
+#
+
+--source include/rpl_end.inc

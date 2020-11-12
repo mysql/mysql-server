@@ -24,7 +24,7 @@ include/stop_slave.inc
 # can not test for their exact values. We will thus check for >0 number
 # of heartbeats and last heartbeat timestamp!= zeros.
 
-change master to master_heartbeat_period= 0.5;
+CHANGE REPLICATION SOURCE to SOURCE_HEARTBEAT_PERIOD= 0.5;
 set @restore_slave_net_timeout= @@global.slave_net_timeout;
 set @@global.slave_net_timeout= 10;
 include/start_slave.inc
@@ -38,9 +38,9 @@ set @@global.slave_net_timeout= @restore_slave_net_timeout;
 # of error number, message and timestamp fields.
 
 include/stop_slave.inc
-change master to
-master_user='replssl',
-master_password='';
+CHANGE REPLICATION SOURCE to
+SOURCE_USER='replssl',
+SOURCE_PASSWORD='';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -80,9 +80,9 @@ include/assert.inc [Value returned by SSS and PS table for Last_Error_Timestamp 
 
 include/rpl_restart_server.inc [server_number=1 gtids=on]
 include/rpl_restart_server.inc [server_number=2 gtids=on]
-change master to
-master_user = 'root',
-master_auto_position= 1;
+CHANGE REPLICATION SOURCE to
+SOURCE_USER = 'root',
+SOURCE_AUTO_POSITION= 1;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

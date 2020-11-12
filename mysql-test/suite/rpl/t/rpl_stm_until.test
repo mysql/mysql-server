@@ -55,7 +55,7 @@ drop table t2;
 --echo [on slave]
 connection slave;
 --replace_result $master_log_file MASTER_LOG_FILE $master_log_pos_1 MASTER_LOG_POS
-eval start slave until master_log_file='$master_log_file', master_log_pos=$master_log_pos_1;
+eval start slave until SOURCE_LOG_FILE='$master_log_file', SOURCE_LOG_POS=$master_log_pos_1;
 --source include/wait_for_slave_io_to_start.inc
 --source include/wait_for_slave_sql_to_stop.inc
 # here table should be still not deleted
@@ -66,7 +66,7 @@ select * from t1;
 
 # this should fail right after start
 --replace_result 291 MASTER_LOG_POS
-start slave until master_log_file='master-no-such-bin.000001', master_log_pos=291;
+start slave until SOURCE_LOG_FILE='master-no-such-bin.000001', SOURCE_LOG_POS=291;
 --source include/wait_for_slave_io_to_start.inc
 --source include/wait_for_slave_sql_to_stop.inc
 # again this table should be still not deleted
@@ -99,7 +99,7 @@ connection master;
 --let $exec_log_pos_1= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
 # this should stop immediately as we are already there
 --replace_result $master_log_file MASTER_LOG_FILE $master_log_pos_2 MASTER_LOG_POS
-eval start slave until master_log_file='$master_log_file', master_log_pos=$master_log_pos_2;
+eval start slave until SOURCE_LOG_FILE='$master_log_file', SOURCE_LOG_POS=$master_log_pos_2;
 --source include/wait_for_slave_io_to_start.inc
 --source include/wait_for_slave_sql_to_stop.inc
 --let $slave_param= Exec_Master_Log_Pos
@@ -110,21 +110,21 @@ eval start slave until master_log_file='$master_log_file', master_log_pos=$maste
 
 --replace_result 561 MASTER_LOG_POS
 --error 1277
-start slave until master_log_file='master-bin', master_log_pos=561;
+start slave until SOURCE_LOG_FILE='master-bin', SOURCE_LOG_POS=561;
 --replace_result 561 MASTER_LOG_POS 12 RELAY_LOG_POS
 --error 1277
-start slave until master_log_file='master-bin.000001', master_log_pos=561, relay_log_pos=12;
+start slave until SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=561, relay_log_pos=12;
 --error 1277
-start slave until master_log_file='master-bin.000001';
+start slave until SOURCE_LOG_FILE='master-bin.000001';
 --error 1277
 start slave until relay_log_file='slave-relay-bin.000002';
 --replace_result 561 MASTER_LOG_POS
 --error 1277
-start slave until relay_log_file='slave-relay-bin.000002', master_log_pos=561;
+start slave until relay_log_file='slave-relay-bin.000002', SOURCE_LOG_POS=561;
 # Warning should be given for second command
 start slave sql_thread;
 --replace_result 776 MASTER_LOG_POS
-start slave until master_log_file='master-bin.000001', master_log_pos=776;
+start slave until SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=776;
 
 #
 # Note: The test for START SLAVE UNTIL SQL_AFTER_MTS_GAPS is located
@@ -146,7 +146,7 @@ drop table if exists t1;
 reset slave;
 RESET MASTER;
 --replace_result $MASTER_MYPORT MASTER_PORT
-eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root'; 
+eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'; 
 
 connection master;
 --disable_warnings
@@ -179,7 +179,7 @@ select count(*) as two from t1;
 
 connection slave;
 --replace_result $master_log_file MASTER_LOG_FILE $until_pos UNTIL_POS;
-eval start slave until master_log_file='$master_log_file', master_log_pos= $until_pos;
+eval start slave until SOURCE_LOG_FILE='$master_log_file', SOURCE_LOG_POS= $until_pos;
 source include/wait_for_slave_sql_to_stop.inc;
 let $slave_exec_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
 --echo slave stopped at the prescribed position
@@ -242,7 +242,7 @@ CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 
 --echo # Start SQL thread until it executed the CREATE TABLE
 --replace_result $master_file MASTER_FILE $master_pos MASTER_POS
-eval START SLAVE SQL_THREAD UNTIL MASTER_LOG_FILE = "$master_file", MASTER_LOG_POS = $master_pos;
+eval START SLAVE SQL_THREAD UNTIL SOURCE_LOG_FILE = "$master_file", SOURCE_LOG_POS = $master_pos;
 
 --echo # Wait until SQL thread reaches last master binlog file
 --let $slave_param= Relay_Master_Log_File

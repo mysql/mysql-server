@@ -64,7 +64,7 @@ PROCEDURE
     --die !!!ERROR IN TEST: you must set $expected_user
   }
   --source include/stop_slave.inc
-  --eval CHANGE MASTER TO PRIVILEGE_CHECKS_USER = $expected_user
+  --eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = $expected_user
   --source include/start_slave.inc
   --source $MYSQLTEST_VARDIR/tmp/check_pfs.inc
 #END OF
@@ -91,7 +91,7 @@ PROCEDURE
 #    ...` and check that an error is thrown.
 #
 --error ER_PARSE_ERROR
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER = CURRENT_USER();
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = CURRENT_USER();
 
 #
 # 2. Set `PRIVILEGE_CHECKS_USER` to a valid user in the the first call to

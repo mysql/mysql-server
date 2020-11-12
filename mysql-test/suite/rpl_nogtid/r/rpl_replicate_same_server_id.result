@@ -9,7 +9,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 CREATE TABLE t1 (n INT);
 RESET MASTER;
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_PORT = SLAVE_PORT;
+CHANGE REPLICATION SOURCE TO SOURCE_PORT = SLAVE_PORT;
 include/start_slave.inc
 ---- Test ----
 INSERT INTO t1 VALUES (1);
@@ -20,7 +20,7 @@ n
 ---- Clean up ----
 include/stop_slave.inc
 DROP TABLE t1;
-CHANGE MASTER TO MASTER_PORT = MASTER_PORT;
+CHANGE REPLICATION SOURCE TO SOURCE_PORT = MASTER_PORT;
 ==== START SLAVE UNTIL works with replicate-same-server-id ====
 ---- Initialize ----
 [connection master]
@@ -28,7 +28,7 @@ CREATE TABLE t1(n int);
 CREATE TABLE t2(n int);
 ---- Test ----
 [connection slave]
-START SLAVE UNTIL MASTER_LOG_FILE = 'master-bin.000001', MASTER_LOG_POS = UNTIL_POS;
+START SLAVE UNTIL SOURCE_LOG_FILE = 'master-bin.000001', SOURCE_LOG_POS = UNTIL_POS;
 include/wait_for_slave_io_to_start.inc
 include/wait_for_slave_sql_to_stop.inc
 include/assert.inc [t1 should be replicated, t2 should not]

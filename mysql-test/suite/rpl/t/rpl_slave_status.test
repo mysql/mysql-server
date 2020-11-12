@@ -42,8 +42,8 @@ GRANT REPLICATION SLAVE ON *.* TO rpluser_with_length_32_123456789@127.0.0.1;
 --source include/sync_slave_sql_with_master.inc
 source include/stop_slave.inc;
 --replace_column 2 ####
-CHANGE MASTER TO master_user='rpluser_with_length_32_123456789',
-master_password='rpl', get_master_public_key = 1, master_ssl = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_USER='rpluser_with_length_32_123456789',
+SOURCE_PASSWORD='rpl', GET_SOURCE_PUBLIC_KEY = 1, SOURCE_SSL = 1;
 source include/start_slave.inc;
 
 --echo ==== Do replication as new user ====
@@ -91,7 +91,7 @@ GRANT REPLICATION SLAVE ON *.* TO rpluser_plain@127.0.0.1;
 --echo [on slave]
 --connection slave
 source include/stop_slave.inc;
-CHANGE MASTER TO master_user='rpluser_plain', master_password='rpl', master_ssl = 0, get_master_public_key = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_USER='rpluser_plain', SOURCE_PASSWORD='rpl', SOURCE_SSL = 0, GET_SOURCE_PUBLIC_KEY = 1;
 source include/start_slave.inc;
 
 --echo [on master]
@@ -106,7 +106,7 @@ source include/stop_slave.inc;
 --echo # Resetting replication user to root
 --source include/stop_slave_sql.inc
 --replace_column 2 ####
-CHANGE MASTER TO MASTER_USER = 'root', MASTER_PASSWORD = '', MASTER_SSL = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 0;
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -125,7 +125,7 @@ source include/stop_slave.inc;
 --echo # Set the user created with authentication plugin caching_sha2_password
 --echo # as replication slave user and get RSA public key from master
 --replace_column 2 ####
-CHANGE MASTER TO master_user='u1_caching_sha2_password', master_password='pwd', master_ssl=0, get_master_public_key = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_USER='u1_caching_sha2_password', SOURCE_PASSWORD='pwd', SOURCE_SSL=0, GET_SOURCE_PUBLIC_KEY = 1;
 source include/start_slave.inc;
 
 --echo # Do replication with the user created with
@@ -167,7 +167,7 @@ source include/stop_slave.inc;
 --echo # Set the user created with authentication plugin caching_sha2_password
 --echo # as replication slave user and get RSA public key from master
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---eval CHANGE MASTER TO master_user='u1_caching_sha2_password', master_password='pwd', master_ssl = 0, master_public_key_path='$MYSQL_TEST_DIR/std_data/rsa_public_key.pem', get_master_public_key = 0;
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER='u1_caching_sha2_password', SOURCE_PASSWORD='pwd', SOURCE_SSL = 0, SOURCE_PUBLIC_KEY_PATH='$MYSQL_TEST_DIR/std_data/rsa_public_key.pem', GET_SOURCE_PUBLIC_KEY = 0;
 source include/start_slave.inc;
 
 --echo # Do replication with the user created with
@@ -210,7 +210,7 @@ source include/stop_slave.inc;
 --echo ==== Cleanup (Note that slave IO thread is not running) ====
 # cleanup: slave io thread has stopped so we reset replication
 --replace_column 2 ####
-CHANGE MASTER TO MASTER_USER = 'root', MASTER_PASSWORD = '', MASTER_SSL = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 0;
 # clear Slave_IO_Errno
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc

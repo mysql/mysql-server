@@ -92,7 +92,7 @@ INSERT INTO t1 VALUES (1);
 #
 
 --replace_result $relay_log_pos RELAY_LOG_POS $relay_log SLAVE_RELAY_LOG_FILE_NAME
---eval CHANGE MASTER TO Relay_log_pos= $relay_log_pos, Relay_log_file='$relay_log'
+--eval CHANGE REPLICATION SOURCE TO Relay_log_pos= $relay_log_pos, Relay_log_file='$relay_log'
 --source include/start_slave_sql.inc
 --let $wait_condition= SELECT COUNT(*)=1 FROM t1
 --source include/wait_condition.inc

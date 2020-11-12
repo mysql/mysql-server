@@ -66,7 +66,7 @@ EOF
 --write_file $MYSQL_TMP_DIR/non_bootstrap_server.tmp
 -->sql
 SET GLOBAL GROUP_REPLICATION_GROUP_NAME = 'aaaaaaaa-bbbb-aaaa-aaaa-aaaaaaaaaaaa';
-CHANGE MASTER TO MASTER_USER='root' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root' FOR CHANNEL 'group_replication_recovery';
 START GROUP_REPLICATION;
 -->endsql
 EOF

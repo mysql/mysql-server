@@ -12,13 +12,13 @@ include/sync_slave_sql_with_master.inc
 stop slave;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-change master to
-master_user='replssl',
-master_password='',
-master_ssl=1,
-master_ssl_ca ='MYSQL_TEST_DIR/std_data/cacert.pem',
-master_ssl_cert='MYSQL_TEST_DIR/std_data/client-cert.pem',
-master_ssl_key='MYSQL_TEST_DIR/std_data/client-key.pem';
+CHANGE REPLICATION SOURCE to
+SOURCE_USER='replssl',
+SOURCE_PASSWORD='',
+SOURCE_SSL=1,
+SOURCE_SSL_CA ='MYSQL_TEST_DIR/std_data/cacert.pem',
+SOURCE_SSL_CERT='MYSQL_TEST_DIR/std_data/client-cert.pem',
+SOURCE_SSL_KEY='MYSQL_TEST_DIR/std_data/client-key.pem';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -55,28 +55,28 @@ drop user replssl@localhost;
 drop table t1;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
-CHANGE MASTER TO
-master_user = 'root',
-master_ssl = 0,
-master_ssl_ca = '',
-master_ssl_cert = '',
-master_ssl_key = '',
-master_ssl_crl='',
-master_ssl_crlpath='';
+CHANGE REPLICATION SOURCE TO
+SOURCE_USER = 'root',
+SOURCE_SSL = 0,
+SOURCE_SSL_CA = '',
+SOURCE_SSL_CERT = '',
+SOURCE_SSL_KEY = '',
+SOURCE_SSL_CRL='',
+SOURCE_SSL_CRLPATH='';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-CHANGE MASTER TO MASTER_SSL= 1, MASTER_SSL_CRL='MYSQL_TEST_DIR/std_data/crl-client-revoked.crl', MASTER_SSL_CRLPATH='MYSQL_TEST_DIR/std_data/crldir';
+CHANGE REPLICATION SOURCE TO SOURCE_SSL= 1, SOURCE_SSL_CRL='MYSQL_TEST_DIR/std_data/crl-client-revoked.crl', SOURCE_SSL_CRLPATH='MYSQL_TEST_DIR/std_data/crldir';
 include/start_slave.inc
 include/stop_slave.inc
-CHANGE MASTER TO
-master_user = 'root',
-master_ssl = 0,
-master_ssl_ca = '',
-master_ssl_cert = '',
-master_ssl_key = '',
-master_ssl_crl='',
-master_ssl_crlpath='';
+CHANGE REPLICATION SOURCE TO
+SOURCE_USER = 'root',
+SOURCE_SSL = 0,
+SOURCE_SSL_CA = '',
+SOURCE_SSL_CERT = '',
+SOURCE_SSL_KEY = '',
+SOURCE_SSL_CRL='',
+SOURCE_SSL_CRLPATH='';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

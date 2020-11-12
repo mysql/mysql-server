@@ -14,7 +14,7 @@ include/rpl_sync.inc
 SET SESSION sql_log_bin= 0;
 include/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_AUTO_POSITION=1;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_AUTO_POSITION=1;
 include/start_slave.inc
 [connection server2]
 include/stop_group_replication.inc
@@ -31,7 +31,7 @@ include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMI
 DROP TABLE test.t1;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION=0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0;
 SET SESSION sql_log_bin= 0;
 include/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;

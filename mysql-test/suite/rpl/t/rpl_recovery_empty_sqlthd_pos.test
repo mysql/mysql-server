@@ -45,7 +45,7 @@ CREATE DATABASE test_jfg;
 --source include/rpl_connection_slave.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
---eval CHANGE MASTER TO master_host='127.0.0.1',master_port=$MASTER_MYPORT,master_user='root'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MYPORT,SOURCE_USER='root'
 START SLAVE IO_THREAD;
 source include/wait_for_slave_io_to_start.inc;
 

@@ -20,10 +20,10 @@ SET GLOBAL debug="d,simulate_io_slave_error_on_init,simulate_sql_slave_error_on_
 
 --disable_query_log
 --replace_regex /[0-9]{4}/####/
-eval CHANGE MASTER TO MASTER_USER='root',
-                      MASTER_CONNECT_RETRY=1,
-                      MASTER_HOST='127.0.0.1',
-                      MASTER_PORT=$MASTER_MYPORT;
+eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root',
+                      SOURCE_CONNECT_RETRY=1,
+                      SOURCE_HOST='127.0.0.1',
+                      SOURCE_PORT=$MASTER_MYPORT;
 --enable_query_log
 
 start slave;

@@ -157,6 +157,6 @@ call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave 
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("Plugin 'group_replication' has ref_count=1 after deinitialization.");
 SET SESSION sql_log_bin = 1;
-CHANGE MASTER TO MASTER_USER='root' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root' FOR CHANNEL 'group_replication_recovery';
 
 --source include/group_replication_end.inc

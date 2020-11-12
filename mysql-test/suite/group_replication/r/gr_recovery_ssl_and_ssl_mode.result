@@ -13,7 +13,7 @@ CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
 GRANT replication slave ON *.* TO 'rec_ssl_user'@'%';
 SET SESSION sql_log_bin=1;
 [connection server2]
-CHANGE MASTER TO MASTER_USER="rec_ssl_user" FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_USER="rec_ssl_user" FOR CHANNEL "group_replication_recovery";
 
 ############################################################
 # 2. Start Group Replication on both members and assert that

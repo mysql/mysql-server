@@ -54,7 +54,7 @@ RESET MASTER;
 --source include/stop_slave.inc
 --source include/wait_for_slave_to_stop.inc
 --replace_result $SLAVE_MYPORT SLAVE_PORT
-eval CHANGE MASTER TO MASTER_PORT=$SLAVE_MYPORT;
+eval CHANGE REPLICATION SOURCE TO SOURCE_PORT=$SLAVE_MYPORT;
 START SLAVE IO_THREAD;
 --source include/wait_for_slave_io_to_start.inc
 
@@ -79,7 +79,7 @@ START SLAVE IO_THREAD;
 
 DROP TABLE t1;
 --replace_result $MASTER_MYPORT MASTER_PORT
-eval change master to master_port=$MASTER_MYPORT;
+eval CHANGE REPLICATION SOURCE to SOURCE_PORT=$MASTER_MYPORT;
 --source include/start_slave.inc
 
 --source include/rpl_end.inc

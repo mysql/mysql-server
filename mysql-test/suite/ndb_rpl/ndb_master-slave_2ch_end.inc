@@ -16,13 +16,13 @@
 
 --source include/rpl_stop_slaves.inc
 --connection master
-CHANGE MASTER TO IGNORE_SERVER_IDS= ();
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= ();
 --connection master1
-CHANGE MASTER TO IGNORE_SERVER_IDS= ();
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= ();
 --connection slave
-CHANGE MASTER TO IGNORE_SERVER_IDS= ();
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= ();
 --connection slave1
-CHANGE MASTER TO IGNORE_SERVER_IDS= ();
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= ();
 --source include/rpl_start_slaves.inc
 
 --source include/rpl_end.inc

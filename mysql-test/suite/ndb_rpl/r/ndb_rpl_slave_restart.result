@@ -69,6 +69,6 @@ DROP TABLE t2;
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-CHANGE MASTER TO
-master_port=<MASTER_PORT>;
+CHANGE REPLICATION SOURCE TO
+SOURCE_PORT=<MASTER_PORT>;
 include/stop_dump_threads.inc

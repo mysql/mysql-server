@@ -218,7 +218,7 @@ reap;
 # Setting recovery user to avoid sporadic failures due to empty user.
 --disable_warnings
 RESET SLAVE FOR CHANNEL 'group_replication_recovery';
-CHANGE MASTER TO MASTER_USER= 'root' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER= 'root' FOR CHANNEL 'group_replication_recovery';
 --enable_warnings
 --let $wait_timeout= 300
 --source include/start_group_replication.inc

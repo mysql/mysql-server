@@ -21,7 +21,7 @@
 # First makes a sanity check, ensuring that the slave threads are not
 # running.  Then copies the $fake_relay_log to RELAY_BIN-fake.000001,
 # where RELAY_BIN is the basename of the relay log, and updates
-# RELAY_BIN.index. Finally issues CHANGE MASTER so that it uses the
+# RELAY_BIN.index. Finally issues CHANGE REPLICATION SOURCE so that it uses the
 # given files.
 #
 # ==== Side effects ====
@@ -70,7 +70,7 @@ if (!$_fake_filename) {
 let $_fake_relay_log= $_fake_datadir/$_fake_filename-fake.000001;
 let $_fake_relay_index= $_fake_datadir/$_fake_filename.index;
 # Need to restore relay_log_purge in cleanup_fake_relay_log.inc, since
-# CHANGE MASTER modifies it (see the manual for CHANGE MASTER).
+# CHANGE REPLICATION SOURCE modifies it (see the manual for CHANGE REPLICATION SOURCE).
 let $_fake_relay_log_purge= `SELECT @@global.relay_log_purge`;
 
 RESET REPLICA;
@@ -81,7 +81,7 @@ let $_orphan_relay_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
 
 # Create relay log index.
 
-# After patch for BUG#12190, the filename used in CHANGE MASTER
+# After patch for BUG#12190, the filename used in CHANGE REPLICATION SOURCE
 # RELAY_LOG_FILE will be automatically added the directory of the
 # relay log before comparison, thus we need to added the directory
 # part (./ on unix .\ on windows) when faking the relay-log-bin.index.
@@ -98,10 +98,10 @@ let $_orphan_relay_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
 --source include/write_var_to_file.inc
 
 # Remember old settings.
---let $_fake_old_master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1)
+--let $_fake_old_master_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1)
 
 # Setup replication from existing relay log.
-eval CHANGE MASTER TO MASTER_HOST='dummy.localdomain', RELAY_LOG_FILE='$_fake_filename-fake.000001', RELAY_LOG_POS=4;
+eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='dummy.localdomain', RELAY_LOG_FILE='$_fake_filename-fake.000001', RELAY_LOG_POS=4;
 
 # remove the orphan log file (became spurious)
 -- remove_file $_fake_datadir/$_orphan_relay_file

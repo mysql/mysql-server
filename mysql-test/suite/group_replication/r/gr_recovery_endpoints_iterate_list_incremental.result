@@ -33,7 +33,7 @@ INSERT INTO test.t1 (b) VALUES (2);
 
 # 4. Change the user of recovery channel for the joiner
 [connection server2]
-CHANGE MASTER TO MASTER_USER='rpl_user' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='rpl_user' FOR CHANNEL 'group_replication_recovery';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -63,7 +63,7 @@ SET @@GLOBAL.group_replication_advertise_recovery_endpoints = DEFAULT;
 include/rpl_sync.inc
 [connection server2]
 include/stop_group_replication.inc
-CHANGE MASTER TO MASTER_USER='root' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root' FOR CHANNEL 'group_replication_recovery';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

@@ -19,15 +19,15 @@ SET @@debug="";
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-change master to master_host='dummy';
+CHANGE REPLICATION SOURCE to SOURCE_HOST='dummy';
 SET @@debug="d,simulate_find_log_pos_error";
-change master to master_host='dummy';
+CHANGE REPLICATION SOURCE to SOURCE_HOST='dummy';
 ERROR HY000: Target log not found in binlog index
 SET @@debug="";
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-change master to master_host='dummy';
+CHANGE REPLICATION SOURCE to SOURCE_HOST='dummy';
 SET @@debug="d,simulate_find_log_pos_error";
 reset master;
 ERROR HY000: Target log not found in binlog index
@@ -39,5 +39,5 @@ ERROR HY000: Target log not found in binlog index
 SET @@debug="";
 purge binary logs to 'master-bin.000001';
 ==== clean up ====
-CHANGE MASTER TO MASTER_HOST = '127.0.0.1';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = '127.0.0.1';
 include/rpl_end.inc

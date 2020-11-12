@@ -32,7 +32,7 @@ FLUSH LOGS;
 --source include/sync_slave_sql_with_master.inc
 
 --source include/stop_slave.inc
-CHANGE MASTER TO MASTER_DELAY=5;
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY=5;
 --source include/start_slave.inc
 
 --connection master
@@ -48,7 +48,7 @@ let $relay_file = query_get_value( SHOW SLAVE STATUS, Relay_Log_File, 1 );
 let $relay_pos = query_get_value( SHOW SLAVE STATUS, Relay_Log_Pos, 1 );
 
 --replace_regex /RELAY_LOG_FILE=[^,]+/RELAY_LOG_FILE=FILE/ /RELAY_LOG_POS=[0-9]+/ RELAY_LOG_POS= POS/
-eval CHANGE MASTER TO RELAY_LOG_FILE='$relay_file', RELAY_LOG_POS=$relay_pos;
+eval CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='$relay_file', RELAY_LOG_POS=$relay_pos;
 
 --source include/start_slave.inc
 --sleep 5
@@ -57,7 +57,7 @@ eval CHANGE MASTER TO RELAY_LOG_FILE='$relay_file', RELAY_LOG_POS=$relay_pos;
 let $relay_file = query_get_value( SHOW SLAVE STATUS, Relay_Log_File, 1 );
 let $relay_pos = query_get_value( SHOW SLAVE STATUS, Relay_Log_Pos, 1 );
 --replace_regex /RELAY_LOG_FILE=[^,]+/RELAY_LOG_FILE=FILE/ /RELAY_LOG_POS=[0-9]+/ RELAY_LOG_POS= POS/
-eval CHANGE MASTER TO RELAY_LOG_FILE='$relay_file', RELAY_LOG_POS=$relay_pos, MASTER_DELAY=0;
+eval CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='$relay_file', RELAY_LOG_POS=$relay_pos, SOURCE_DELAY=0;
 
 --source include/start_slave.inc
 BEGIN;
@@ -99,7 +99,7 @@ let $relay_file = query_get_value( SHOW SLAVE STATUS, Relay_Log_File, 1 );
 let $relay_pos = query_get_value( SHOW SLAVE STATUS, Relay_Log_Pos, 1 );
 --replace_regex /RELAY_LOG_FILE=[^,]+/RELAY_LOG_FILE=FILE/ /RELAY_LOG_POS=[0-9]+/ RELAY_LOG_POS= POS/
 --error ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS
-eval CHANGE MASTER TO RELAY_LOG_FILE='$relay_file', RELAY_LOG_POS=$relay_pos;
+eval CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='$relay_file', RELAY_LOG_POS=$relay_pos;
 
 SET @@global.slave_parallel_workers= @save.slave_parallel_workers; # cleanup
 
@@ -215,11 +215,11 @@ FLUSH LOGS;
 --replace_result $MASTER_MYPORT MASTER_PORT  $file FILE $pos POS
 --replace_column 2 ####
 --error ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS
-eval CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= $MASTER_MYPORT, MASTER_USER= 'root',MASTER_LOG_FILE = '$file', MASTER_LOG_POS = $pos ;
+eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= $MASTER_MYPORT, SOURCE_USER= 'root',SOURCE_LOG_FILE = '$file', SOURCE_LOG_POS = $pos ;
 reset slave;
 --replace_result $MASTER_MYPORT MASTER_PORT  $file FILE $pos POS
 --replace_column 2 ####
-eval CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= $MASTER_MYPORT, MASTER_USER= 'root',MASTER_LOG_FILE = '$file', MASTER_LOG_POS = $pos ;
+eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= $MASTER_MYPORT, SOURCE_USER= 'root',SOURCE_LOG_FILE = '$file', SOURCE_LOG_POS = $pos ;
 
 --disable_warnings
 SET @@global.slave_parallel_workers= @save.slave_parallel_workers;

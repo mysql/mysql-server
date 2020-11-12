@@ -38,7 +38,7 @@ CREATE TABLE t1 (a INT);
 --source include/wait_for_status_var.inc
 
 --source include/rpl_connection_slave.inc
-CHANGE MASTER TO MASTER_LOG_FILE='master-bin.000002', MASTER_LOG_POS=4, MASTER_AUTO_POSITION=0;
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE='master-bin.000002', SOURCE_LOG_POS=4, SOURCE_AUTO_POSITION=0;
 START SLAVE;
 --let $slave_io_errno=13114
 --source include/wait_for_slave_io_error.inc
@@ -57,8 +57,8 @@ INSERT INTO t1 VALUES (20);
 
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
---replace_regex /MASTER_LOG_FILE=[^,]+/MASTER_LOG_FILE=FILE/ /MASTER_LOG_POS=[0-9]+/ MASTER_LOG_POS= POS/
-eval CHANGE MASTER TO MASTER_LOG_FILE='$master_binlog', MASTER_LOG_POS=$binlog_pos, MASTER_AUTO_POSITION=0;
+--replace_regex /SOURCE_LOG_FILE=[^,]+/SOURCE_LOG_FILE=FILE/ /SOURCE_LOG_POS=[0-9]+/ SOURCE_LOG_POS= POS/
+eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE='$master_binlog', SOURCE_LOG_POS=$binlog_pos, SOURCE_AUTO_POSITION=0;
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc

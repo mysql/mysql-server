@@ -179,7 +179,7 @@ include/diff_tables.inc [slave:test.v1, slave:test.v2]
 # Upon RESET SLAVE ALL FOR CHANNEL 'channel_2', per channel FILTERS
 # will be removed from the P_S table.
 #
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12 FOR CHANNEL "channel_2";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12 FOR CHANNEL "channel_2";
 SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 COUNT(*)
 14

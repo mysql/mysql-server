@@ -11,7 +11,7 @@ CALL mtr.add_suppression("file .* was not purged because it was being read by th
 [connection server_1]
 RESET MASTER;
 [connection server_4]
-CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= port, MASTER_HOST='localhost' FOR CHANNEL '';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST='localhost' FOR CHANNEL '';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -25,7 +25,7 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
 [connection server_2]
 RESET MASTER;
 [connection server_4]
-CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= port, MASTER_HOST='localhost' FOR CHANNEL 'channel_2';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST='localhost' FOR CHANNEL 'channel_2';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -39,7 +39,7 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
 [connection server_3]
 RESET MASTER;
 [connection server_4]
-CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= port, MASTER_HOST='localhost' FOR CHANNEL 'channel_3';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST='localhost' FOR CHANNEL 'channel_3';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -88,7 +88,7 @@ ERROR HY000: Multiple channels exist on the slave. Please provide channel name a
 SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('01010101-0101-0101-0101-010101010101:1', 1);
 ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
 ===== CHANGE MASTER without 'FOR CHANNEL' clause should throw error.
-CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD=10,  MASTER_CONNECT_RETRY=10, MASTER_RETRY_COUNT=10;
+CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=10,  SOURCE_CONNECT_RETRY=10, SOURCE_RETRY_COUNT=10;
 ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
 ===== FLUSH RELAY LOGS without 'FOR CHANNEL' clause.
 FLUSH RELAY LOGS;
@@ -117,7 +117,7 @@ include/stop_slave.inc [FOR CHANNEL '']
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
 ===== Executing CHANGE MASTER FOR CHANNEL on channel ''.
-CHANGE MASTER TO MASTER_CONNECT_RETRY=100, MASTER_RETRY_COUNT=100 FOR CHANNEL '';
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL '';
 Connect_Retry = '100'
 Master_Retry_Count = '100'
 Slave_IO_State = ''
@@ -160,7 +160,7 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
 ===== Executing STOP SLAVE FOR CHANNEL on channel 'channel_2'.
 include/stop_slave.inc [FOR CHANNEL 'channel_2']
 ===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_2'.
-CHANGE MASTER TO MASTER_CONNECT_RETRY=100, MASTER_RETRY_COUNT=100 FOR CHANNEL 'channel_2';
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_2';
 Connect_Retry = '100'
 Master_Retry_Count = '100'
 Slave_IO_State = ''
@@ -203,7 +203,7 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 ===== Executing STOP SLAVE FOR CHANNEL on channel 'channel_3'.
 include/stop_slave.inc [FOR CHANNEL 'channel_3']
 ===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_3'.
-CHANGE MASTER TO MASTER_CONNECT_RETRY=100, MASTER_RETRY_COUNT=100 FOR CHANNEL 'channel_3';
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_3';
 Connect_Retry = '100'
 Master_Retry_Count = '100'
 Slave_IO_State = ''
@@ -220,7 +220,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 [connection server_1]
 RESET MASTER;
 [connection server_4]
-CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= port, MASTER_HOST='localhost' FOR CHANNEL '';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST='localhost' FOR CHANNEL '';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -234,7 +234,7 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
 [connection server_2]
 RESET MASTER;
 [connection server_4]
-CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= port, MASTER_HOST='localhost' FOR CHANNEL 'channel_2';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST='localhost' FOR CHANNEL 'channel_2';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -248,7 +248,7 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
 [connection server_3]
 RESET MASTER;
 [connection server_4]
-CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= port, MASTER_HOST='localhost' FOR CHANNEL 'channel_3';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST='localhost' FOR CHANNEL 'channel_3';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -297,7 +297,7 @@ ERROR HY000: Multiple channels exist on the slave. Please provide channel name a
 SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('01010101-0101-0101-0101-010101010101:1', 1);
 ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
 ===== CHANGE MASTER without 'FOR CHANNEL' clause should throw error.
-CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD=10,  MASTER_CONNECT_RETRY=10, MASTER_RETRY_COUNT=10;
+CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=10,  SOURCE_CONNECT_RETRY=10, SOURCE_RETRY_COUNT=10;
 ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
 ===== FLUSH RELAY LOGS without 'FOR CHANNEL' clause.
 FLUSH RELAY LOGS;
@@ -330,7 +330,7 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
 ===== Executing STOP SLAVE FOR CHANNEL on channel ''.
 include/stop_slave.inc [FOR CHANNEL '']
 ===== Executing CHANGE MASTER FOR CHANNEL on channel ''.
-CHANGE MASTER TO MASTER_CONNECT_RETRY=100, MASTER_RETRY_COUNT=100 FOR CHANNEL '';
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL '';
 Connect_Retry = '100'
 Master_Retry_Count = '100'
 Slave_IO_State = ''
@@ -369,7 +369,7 @@ include/stop_slave.inc [FOR CHANNEL 'channel_2']
 Warnings:
 Note	3084	Replication thread(s) for channel 'channel_2' are already stopped.
 ===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_2'.
-CHANGE MASTER TO MASTER_CONNECT_RETRY=100, MASTER_RETRY_COUNT=100 FOR CHANNEL 'channel_2';
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_2';
 Connect_Retry = '100'
 Master_Retry_Count = '100'
 Slave_IO_State = ''
@@ -412,7 +412,7 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 ===== Executing STOP SLAVE FOR CHANNEL on channel 'channel_3'.
 include/stop_slave.inc [FOR CHANNEL 'channel_3']
 ===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_3'.
-CHANGE MASTER TO MASTER_CONNECT_RETRY=100, MASTER_RETRY_COUNT=100 FOR CHANNEL 'channel_3';
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_3';
 Connect_Retry = '100'
 Master_Retry_Count = '100'
 Slave_IO_State = ''
@@ -429,7 +429,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 [connection server_1]
 RESET MASTER;
 [connection server_4]
-CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= port, MASTER_HOST='localhost' FOR CHANNEL '';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST='localhost' FOR CHANNEL '';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -443,7 +443,7 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
 [connection server_2]
 RESET MASTER;
 [connection server_4]
-CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= port, MASTER_HOST='localhost' FOR CHANNEL 'channel_2';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST='localhost' FOR CHANNEL 'channel_2';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -457,7 +457,7 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
 [connection server_3]
 RESET MASTER;
 [connection server_4]
-CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= port, MASTER_HOST='localhost' FOR CHANNEL 'channel_3';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST='localhost' FOR CHANNEL 'channel_3';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -506,7 +506,7 @@ ERROR HY000: Multiple channels exist on the slave. Please provide channel name a
 SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('01010101-0101-0101-0101-010101010101:1', 1);
 ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
 ===== CHANGE MASTER without 'FOR CHANNEL' clause should throw error.
-CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD=10,  MASTER_CONNECT_RETRY=10, MASTER_RETRY_COUNT=10;
+CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=10,  SOURCE_CONNECT_RETRY=10, SOURCE_RETRY_COUNT=10;
 ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
 ===== FLUSH RELAY LOGS without 'FOR CHANNEL' clause.
 FLUSH RELAY LOGS;
@@ -539,7 +539,7 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
 ===== Executing STOP SLAVE FOR CHANNEL on channel ''.
 include/stop_slave.inc [FOR CHANNEL '']
 ===== Executing CHANGE MASTER FOR CHANNEL on channel ''.
-CHANGE MASTER TO MASTER_CONNECT_RETRY=100, MASTER_RETRY_COUNT=100 FOR CHANNEL '';
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL '';
 Connect_Retry = '100'
 Master_Retry_Count = '100'
 Slave_IO_State = ''
@@ -582,7 +582,7 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
 ===== Executing STOP SLAVE FOR CHANNEL on channel 'channel_2'.
 include/stop_slave.inc [FOR CHANNEL 'channel_2']
 ===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_2'.
-CHANGE MASTER TO MASTER_CONNECT_RETRY=100, MASTER_RETRY_COUNT=100 FOR CHANNEL 'channel_2';
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_2';
 Connect_Retry = '100'
 Master_Retry_Count = '100'
 Slave_IO_State = ''
@@ -621,7 +621,7 @@ include/stop_slave.inc [FOR CHANNEL 'channel_3']
 Warnings:
 Note	3084	Replication thread(s) for channel 'channel_3' are already stopped.
 ===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_3'.
-CHANGE MASTER TO MASTER_CONNECT_RETRY=100, MASTER_RETRY_COUNT=100 FOR CHANNEL 'channel_3';
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_3';
 Connect_Retry = '100'
 Master_Retry_Count = '100'
 Slave_IO_State = ''

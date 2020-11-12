@@ -9,16 +9,16 @@ include/stop_slave.inc
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-CHANGE MASTER TO 
-MASTER_HOST='127.0.0.1',
-MASTER_PORT=MASTER_PORT,
-MASTER_USER='root',
-MASTER_HEARTBEAT_PERIOD=0.1,
-MASTER_LOG_FILE='MASTER_BINLOG',
-MASTER_SSL=1,
-MASTER_SSL_CA='MYSQL_TEST_DIR/std_data/cacert.pem',
-MASTER_SSL_CERT='MYSQL_TEST_DIR/std_data/client-cert.pem',
-MASTER_SSL_KEY='MYSQL_TEST_DIR/std_data/client-key.pem';
+CHANGE REPLICATION SOURCE TO 
+SOURCE_HOST='127.0.0.1',
+SOURCE_PORT=MASTER_PORT,
+SOURCE_USER='root',
+SOURCE_HEARTBEAT_PERIOD=0.1,
+SOURCE_LOG_FILE='MASTER_BINLOG',
+SOURCE_SSL=1,
+SOURCE_SSL_CA='MYSQL_TEST_DIR/std_data/cacert.pem',
+SOURCE_SSL_CERT='MYSQL_TEST_DIR/std_data/client-cert.pem',
+SOURCE_SSL_KEY='MYSQL_TEST_DIR/std_data/client-key.pem';
 Warnings:
 Warning	####	CHANGE MASTER TO with a MASTER_LOG_FILE clause but no MASTER_LOG_POS clause may not be safe. The old position value may not be valid for the new binary log file.
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -29,9 +29,9 @@ Heartbeat event has received
 
 *** Clean up ***
 include/stop_slave.inc
-CHANGE MASTER TO 
-MASTER_SSL=0,
-MASTER_SSL_CA='',
-MASTER_SSL_CERT='',
-MASTER_SSL_KEY='';
+CHANGE REPLICATION SOURCE TO 
+SOURCE_SSL=0,
+SOURCE_SSL_CA='',
+SOURCE_SSL_CERT='',
+SOURCE_SSL_KEY='';
 include/rpl_end.inc

@@ -19,7 +19,7 @@
 
 # set slave_net_timeout to 10 seconds and then start slave threads
 --connection slave
-CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD=5;
+CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=5;
 SET @save_old_slave_net_timeout=@@global.slave_net_timeout;
 SET @@global.slave_net_timeout=10;
 --source include/start_slave.inc

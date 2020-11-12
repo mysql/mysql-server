@@ -28,7 +28,7 @@
 --source include/rpl_connection_slave.inc
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
 --source include/stop_slave.inc
-change master to master_auto_position=1;
+CHANGE REPLICATION SOURCE to SOURCE_AUTO_POSITION=1;
 --source include/start_slave.inc
 
 --source extra/rpl_tests/rpl_mts_execute_partial_trx_in_relay_log.inc

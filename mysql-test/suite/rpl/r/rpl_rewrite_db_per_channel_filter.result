@@ -2,8 +2,8 @@ include/rpl_init.inc [topology=1->2,3->2]
 [connection server_2]
 call mtr.add_suppression("There are per-channel replication filter.s. configured for channel '' which does not exist. The filter.s. have been discarded.");
 call mtr.add_suppression("There are per-channel replication filter.s. configured for channel 'channel_3_2' which does not exist. The filter.s. have been discarded.");
-CHANGE MASTER TO MASTER_HOST='localhost', MASTER_PORT=MASTER_PORT, MASTER_USER='root' for CHANNEL '';
-CHANGE MASTER TO MASTER_HOST='localhost', MASTER_PORT=MASTER_PORT_3, MASTER_USER='root' for CHANNEL 'channel_3_2';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root' for CHANNEL '';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_PORT=MASTER_PORT_3, SOURCE_USER='root' for CHANNEL 'channel_3_2';
 include/start_slave.inc
 
 # Restart slave server to activate replicate-rewrite-db per-channel filter.
@@ -72,8 +72,8 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 RESET SLAVE ALL FOR CHANNEL 'channel_3_2';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-CHANGE MASTER TO MASTER_HOST='localhost',MASTER_PORT=MASTER_PORT,MASTER_USER='root' for CHANNEL 'channel_1';
-CHANGE MASTER TO MASTER_HOST='localhost',MASTER_PORT=MASTER_PORT_3,MASTER_USER='root' for CHANNEL 'channel_3';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost',SOURCE_PORT=MASTER_PORT,SOURCE_USER='root' for CHANNEL 'channel_1';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost',SOURCE_PORT=MASTER_PORT_3,SOURCE_USER='root' for CHANNEL 'channel_3';
 include/rpl_end.inc
 Warnings:
 Note	3084	Replication thread(s) for channel 'channel_1' are already stopped.

@@ -9,10 +9,10 @@ include/rpl_connect.inc [creating master]
 include/rpl_connect.inc [creating slave_1]
 include/rpl_connect.inc [creating slave_2]
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD = 0.1;
+CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD = 0.1;
 include/start_slave.inc
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD = 1;
 include/start_slave.inc
 Slave has received heartbeat event
 include/assert.inc [slave_1 should have received more heartbeats than slave_2]
@@ -24,7 +24,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 include/rpl_start_slaves.inc
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD=0.1;
+CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=0.1;
 include/start_slave.inc
 slave_1 has received heartbeat event
 [on master]

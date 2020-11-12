@@ -8,12 +8,12 @@ Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_to_stop.inc
 Master_Host = '127.0.0.1' (expected '127.0.0.1')
-CHANGE MASTER TO MASTER_HOST="";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="";
 ERROR HY000: Incorrect arguments to MASTER_HOST
 Master_Host = '127.0.0.1' (expected '127.0.0.1')
-CHANGE MASTER TO MASTER_HOST="foo";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="foo";
 Master_Host = 'foo' (expected 'foo')
-CHANGE MASTER TO MASTER_HOST="127.0.0.1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1";
 Master_Host = '127.0.0.1' (expected '127.0.0.1')
 START SLAVE;
 Warnings:

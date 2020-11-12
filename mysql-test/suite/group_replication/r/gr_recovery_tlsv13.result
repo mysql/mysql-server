@@ -24,7 +24,7 @@ include/start_and_bootstrap_group_replication.inc
 # Configure a joining member to use SSL options on recovery and start it
 #
 [connection server2]
-CHANGE MASTER TO MASTER_USER="rec_ssl_user" FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_USER="rec_ssl_user" FOR CHANNEL "group_replication_recovery";
 SET @group_replication_recovery_use_ssl_saved= @@GLOBAL.group_replication_recovery_use_ssl;
 SET GLOBAL group_replication_recovery_use_ssl=1;
 include/start_group_replication.inc

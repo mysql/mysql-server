@@ -47,13 +47,13 @@ STOP SLAVE;
 # Clear Primary Binlog
 RESET MASTER;
 
---eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$SECONDARY_SERVER_PORT,master_user="root"
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1",SOURCE_PORT=$SECONDARY_SERVER_PORT,SOURCE_USER="root"
 
 # Start Primary replicating from Secondary
 START SLAVE;
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
---eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$PRIMARY_SERVER_PORT,master_user="root"
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1",SOURCE_PORT=$PRIMARY_SERVER_PORT,SOURCE_USER="root"
 
 # Start Secondary replicating from Primary
 START SLAVE;

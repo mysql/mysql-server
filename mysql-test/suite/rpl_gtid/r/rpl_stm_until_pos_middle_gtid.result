@@ -13,7 +13,7 @@ INSERT INTO t1 VALUES (1);
 COMMIT;
 include/sync_slave_io_with_master.inc
 # Start SQL thread until it executed the CREATE TABLE
-START SLAVE SQL_THREAD UNTIL MASTER_LOG_FILE = "MASTER_FILE", MASTER_LOG_POS = MASTER_POS;
+START SLAVE SQL_THREAD UNTIL SOURCE_LOG_FILE = "MASTER_FILE", SOURCE_LOG_POS = MASTER_POS;
 # Wait until SQL thread reaches last master binlog file
 include/wait_for_slave_param.inc [Relay_Master_Log_File]
 # Wait until SQL thread reaches desired master binlog position

@@ -1,15 +1,15 @@
 # ==== Purpose ====
 #
-# Execute CHANGE MASTER to make the applier threads skip to the end of
+# Execute CHANGE REPLICATION SOURCE to make the applier threads skip to the end of
 # the relay log.
 #
 # WARNING! After using this file with auto_position=0, the applier
 # thread's master_log_pos is not up to date. This can cause
-# MASTER_POS_WAIT to hang. The applier thread's master_log_pos is only
+# MASTER_POS_WAIT to hang. The applier thread's source_log_pos is only
 # updated when the applier thread executes events, not when CHANGE
 # MASTER is used to fast-forward the position as this script does.
 #
-# When used in channels with MASTER_AUTO_POSITION = 1, this include
+# When used in channels with SOURCE_AUTO_POSITION = 1, this include
 # uses GTID_FROM_GTID_SET() which exists in include/gtid_utils.inc.
 #
 # ==== Usage ====
@@ -63,7 +63,7 @@ if ($_rsteorl_is_auto_position)
 
 if (!$_rsteorl_is_auto_position)
 {
-  eval CHANGE MASTER TO RELAY_LOG_FILE = '$relay_log_file',
+  eval CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE = '$relay_log_file',
                         RELAY_LOG_POS = $relay_log_size
                         $_for_channel_clause;
 }

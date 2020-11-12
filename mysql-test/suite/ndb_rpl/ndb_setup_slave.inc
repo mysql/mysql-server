@@ -26,6 +26,6 @@ eval SELECT @the_pos:=Position,
 # 3.
 --connection slave
 --replace_result $the_pos <the_pos>
-eval CHANGE MASTER TO
-  master_log_file = '$the_file',
-  master_log_pos = $the_pos ;
+eval CHANGE REPLICATION SOURCE TO
+  SOURCE_LOG_FILE = '$the_file',
+  SOURCE_LOG_POS = $the_pos ;

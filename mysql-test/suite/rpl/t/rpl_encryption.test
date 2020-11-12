@@ -329,7 +329,7 @@ RESET SLAVE ALL;
 
 # The server is still able to encrypt new relay log files
 --replace_result $MASTER_MYPORT MASTER_MYPORT
---eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'
 --let $encrypted_relay_file=`SELECT CONCAT(@@GLOBAL.relay_log,'.000001')`
 --let $rpl_log_file=$SLAVE_DATADIR$encrypted_relay_file
 --source include/rpl_get_log_encryption_key_id.inc
@@ -367,7 +367,7 @@ RESET SLAVE ALL;
 --source include/assert.inc
 # Now, both replication threads shall work fine again
 --replace_result $MASTER_MYPORT MASTER_MYPORT
---eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'
 --let $encrypted_relay_file=`SELECT CONCAT(@@GLOBAL.relay_log,'.000001')`
 --let $rpl_log_file=$SLAVE_DATADIR$encrypted_relay_file
 --source include/rpl_get_log_encryption_key_id.inc
@@ -376,12 +376,12 @@ RESET SLAVE ALL;
 --source include/assert.inc
 if ($AUTO_POSITION) {
   --disable_query_log
-  CHANGE MASTER TO MASTER_AUTO_POSITION=1;
+  CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=1;
   --enable_query_log
 }
 if (!$AUTO_POSITION) {
   --disable_query_log
-  --eval CHANGE MASTER TO MASTER_LOG_FILE='$recover_master_file', MASTER_LOG_POS=$recover_master_pos
+  --eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE='$recover_master_file', SOURCE_LOG_POS=$recover_master_pos
   --enable_query_log
 }
 --source include/start_slave.inc

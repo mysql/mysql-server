@@ -5,26 +5,26 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 [connection slave]
 include/stop_slave.inc
-CHANGE MASTER TO IGNORE_SERVER_IDS=(1,2,3);
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS=(1,2,3);
 Warnings:
 Warning	1287	'CHANGE MASTER TO ... IGNORE_SERVER_IDS='...' (when @@GLOBAL.GTID_MODE = ON)' is deprecated and will be removed in a future release.
-CHANGE MASTER TO MASTER_HOST='dummy', IGNORE_SERVER_IDS=(1) FOR CHANNEL 'ch1';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='dummy', IGNORE_SERVER_IDS=(1) FOR CHANNEL 'ch1';
 Warnings:
 Warning	1287	'CHANGE MASTER TO ... IGNORE_SERVER_IDS='...' (when @@GLOBAL.GTID_MODE = ON)' is deprecated and will be removed in a future release.
-CHANGE MASTER TO MASTER_AUTO_POSITION=0 FOR CHANNEL '';
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0 FOR CHANNEL '';
 SET @@global.gtid_mode=ON_PERMISSIVE;
 SET @@global.gtid_mode=OFF_PERMISSIVE;
 SET @@global.gtid_mode=OFF;
 SET @@global.gtid_mode=OFF_PERMISSIVE;
 SET @@global.gtid_mode=ON_PERMISSIVE;
-CHANGE MASTER TO MASTER_AUTO_POSITION=1 FOR CHANNEL '';
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=1 FOR CHANNEL '';
 SET @@global.gtid_mode=ON;
 Warnings:
 Warning	1287	'CHANGE MASTER TO ... IGNORE_SERVER_IDS='...' (when @@GLOBAL.GTID_MODE = ON)' is deprecated and will be removed in a future release.
 SET @@global.gtid_mode=ON;
 Warnings:
 Warning	1287	'CHANGE MASTER TO ... IGNORE_SERVER_IDS='...' (when @@GLOBAL.GTID_MODE = ON)' is deprecated and will be removed in a future release.
-CHANGE MASTER TO IGNORE_SERVER_IDS=() FOR CHANNEL '';
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS=() FOR CHANNEL '';
 RESET SLAVE ALL FOR CHANNEL 'ch1';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

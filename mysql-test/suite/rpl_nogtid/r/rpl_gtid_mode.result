@@ -38,44 +38,44 @@ Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_start.inc
 include/stop_slave_io.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
 ERROR HY000: CHANGE MASTER TO MASTER_AUTO_POSITION = 1 cannot be executed because @@GLOBAL.GTID_MODE = OFF.
-CHANGE MASTER TO MASTER_AUTO_POSITION = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
 include/rpl_set_gtid_mode.inc [1 on servers 2]
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_start.inc
 include/stop_slave_io.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13117]
-CHANGE MASTER TO MASTER_AUTO_POSITION = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
 include/rpl_set_gtid_mode.inc [2 on servers 2]
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_start.inc
 include/stop_slave_io.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13117]
-CHANGE MASTER TO MASTER_AUTO_POSITION = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
 include/rpl_set_gtid_mode.inc [3 on servers 2]
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13117]
-CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13117]
-CHANGE MASTER TO MASTER_AUTO_POSITION = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
 include/rpl_set_gtid_mode.inc [1 on servers 1]
 include/rpl_set_gtid_mode.inc [0 on servers 2]
 START SLAVE IO_THREAD;
@@ -83,137 +83,137 @@ Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_start.inc
 include/stop_slave_io.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
 ERROR HY000: CHANGE MASTER TO MASTER_AUTO_POSITION = 1 cannot be executed because @@GLOBAL.GTID_MODE = OFF.
-CHANGE MASTER TO MASTER_AUTO_POSITION = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
 include/rpl_set_gtid_mode.inc [1 on servers 2]
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_start.inc
 include/stop_slave_io.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13117]
-CHANGE MASTER TO MASTER_AUTO_POSITION = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
 include/rpl_set_gtid_mode.inc [2 on servers 2]
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_start.inc
 include/stop_slave_io.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13117]
-CHANGE MASTER TO MASTER_AUTO_POSITION = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
 include/rpl_set_gtid_mode.inc [3 on servers 2]
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13117]
-CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13117]
-CHANGE MASTER TO MASTER_AUTO_POSITION = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
 include/rpl_set_gtid_mode.inc [2 on servers 1]
 include/rpl_set_gtid_mode.inc [0 on servers 2]
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13117]
-CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
 ERROR HY000: CHANGE MASTER TO MASTER_AUTO_POSITION = 1 cannot be executed because @@GLOBAL.GTID_MODE = OFF.
-CHANGE MASTER TO MASTER_AUTO_POSITION = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
 include/rpl_set_gtid_mode.inc [1 on servers 2]
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_start.inc
 include/stop_slave_io.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13117]
-CHANGE MASTER TO MASTER_AUTO_POSITION = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
 include/rpl_set_gtid_mode.inc [2 on servers 2]
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_start.inc
 include/stop_slave_io.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13117]
-CHANGE MASTER TO MASTER_AUTO_POSITION = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
 include/rpl_set_gtid_mode.inc [3 on servers 2]
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_start.inc
 include/stop_slave_io.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13117]
-CHANGE MASTER TO MASTER_AUTO_POSITION = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
 include/rpl_set_gtid_mode.inc [3 on servers 1]
 include/rpl_set_gtid_mode.inc [0 on servers 2]
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13117]
-CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
 ERROR HY000: CHANGE MASTER TO MASTER_AUTO_POSITION = 1 cannot be executed because @@GLOBAL.GTID_MODE = OFF.
-CHANGE MASTER TO MASTER_AUTO_POSITION = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
 include/rpl_set_gtid_mode.inc [1 on servers 2]
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_start.inc
 include/stop_slave_io.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_start.inc
 include/stop_slave_io.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
 include/rpl_set_gtid_mode.inc [2 on servers 2]
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_start.inc
 include/stop_slave_io.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_start.inc
 include/stop_slave_io.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
 include/rpl_set_gtid_mode.inc [3 on servers 2]
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_start.inc
 include/stop_slave_io.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_start.inc
 include/stop_slave_io.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
 #
 # Test for ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF
 #   eng "Cannot replicate GTID-transaction when GTID_MODE = OFF, at file %.512s, position %lld. Found a Gtid_log_event when @@GLOBAL.GTID_MODE = OFF.
@@ -262,7 +262,7 @@ include/start_slave.inc
 include/rpl_set_gtid_mode.inc [ON on servers 1,2]
 [connection slave]
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1;
 include/rpl_restart_server.inc [server_number=2 gtids=off]
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
 include/assert_grep.inc [While AUTO_POSITION is set, attempt to restart the slave with gtid-mode= off to get ER_STARTING_WITH_GTID_MODE_OFF_AND_AUTO_POSITION.]
@@ -272,7 +272,7 @@ include/assert_grep.inc [While AUTO_POSITION is set, attempt to restart the slav
 #
 START SLAVE IO_THREAD;
 ERROR HY000: The replication receiver thread for channel '' cannot start in AUTO_POSITION mode: this server uses @@GLOBAL.GTID_MODE = OFF.
-CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
 #
 # ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON
 #   eng "Cannot replicate anonymous transaction when GTID_MODE = ON, at file %.512s, position %lld."
@@ -336,7 +336,7 @@ INSERT INTO t5 VALUES(1);
 include/rpl_set_gtid_mode.inc [ON on servers 1]
 include/rpl_set_gtid_mode.inc [ON on servers 2]
 [connection slave]
-CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1;
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -347,7 +347,7 @@ include/rpl_restart_server.inc [server_number=1 gtids=off]
 [connection master]
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
 [connection slave]
-CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
 include/rpl_set_gtid_mode.inc [OFF on servers 2]
 [connection master]
 DROP TABLE t5;
@@ -378,14 +378,14 @@ INSERT INTO t6 VALUES(1);
 include/rpl_set_gtid_mode.inc [ON on servers 1]
 include/rpl_set_gtid_mode.inc [ON on servers 2]
 [connection slave]
-CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1;
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13122 # ER_SLAVE_RELAY_LOG_WRITE_FAILURE]
 include/assert_grep.inc [While AUTO_POSITION is enabled, Master sends an anonymous transaction resulting into ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION.]
 [connection slave]
-CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
 include/rpl_set_gtid_mode.inc [OFF on servers 1,2]
 [connection master]
 SET @@GLOBAL.DEBUG= @debug_saved;
@@ -459,10 +459,10 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 # ER_CANT_SET_GTID_MODE generated because AUTO_POSITION = 1.
 #
 include/rpl_set_gtid_mode.inc [ON on servers 1]
-CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
 SET @@GLOBAL.GTID_MODE = OFF;
 ERROR HY000: SET @@GLOBAL.GTID_MODE = OFF is not allowed because replication channel '' is configured in AUTO_POSITION mode. Execute CHANGE MASTER TO MASTER_AUTO_POSITION = 0 FOR CHANNEL '' before you set @@GLOBAL.GTID_MODE = OFF..
-CHANGE MASTER TO MASTER_AUTO_POSITION = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
 SET @@GLOBAL.GTID_MODE = OFF;
 include/rpl_set_gtid_mode.inc [OFF on servers 1]
 [connection master]

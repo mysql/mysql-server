@@ -6,7 +6,7 @@
 #
 # This file sets up variables needed by include/rpl_sync.inc and many
 # other replication scripts in the include/ directory.  It also issues
-# CHANGE MASTER on all servers where the configuration changes from
+# CHANGE REPLICATION SOURCE on all servers where the configuration changes from
 # what it was before.  It does not issue START REPLICA (use
 # include/rpl_start_slaves.inc for that).
 #
@@ -17,7 +17,7 @@
 # that, $rpl_server_count must not change until after next time the
 # test sources include/rpl_end.inc.
 #
-# Note: Since this script issues CHANGE MASTER, the test case must
+# Note: Since this script issues CHANGE REPLICATION SOURCE, the test case must
 # ensure that all slaves where the configuration changes have stopped
 # both the IO thread and the SQL thread before this script is sourced.
 #
@@ -42,28 +42,28 @@
 #
 # Parameters:
 #   $use_gtids
-#     Use option MASTER_AUTO_POSITION = 1 to CHANGE MASTER.
+#     Use option SOURCE_AUTO_POSITION = 1 to CHANGE REPLICATION SOURCE.
 #
 #   $rpl_master_log_file
-#     By default, CHANGE MASTER is executed without specifying the
-#     MASTER_LOG_FILE parameter. This variable can be set to specify a
+#     By default, CHANGE REPLICATION SOURCE is executed without specifying the
+#     SOURCE_LOG_FILE parameter. This variable can be set to specify a
 #     filename.  This variable should be a comma-separated list of the
 #     following form:
 #
 #       SERVER_NUMBER_1:FILE_NAME_1,SERVER_NUMBER_2:FILE_NAME_2,...
 #
-#     Before CHANGE MASTER is executed on server N, this script checks
+#     Before CHANGE REPLICATION SOURCE is executed on server N, this script checks
 #     if $rpl_master_log_file contains the text N:FILE_NAME. If it
-#     does, then MASTER_LOG_FILE is set to FILE_NAME. Otherwise,
-#     MASTER_LOG_FILE is not specified.  For example, to specify that
+#     does, then SOURCE_LOG_FILE is set to FILE_NAME. Otherwise,
+#     SOURCE_LOG_FILE is not specified.  For example, to specify that
 #     server_1 should start replicate from master-bin.000007 and
 #     server_5 should start replicate from master-bin.012345, do:
 #
 #       --let $rpl_master_log_file= 1:master-bin.000007,5:master-bin.012345
 #
 #   $rpl_master_log_pos
-#     By default, CHANGE MASTER is executed without specifying the
-#     MASTER_LOG_POS parameter.  This variable can be set to set a
+#     By default, CHANGE REPLICATION SOURCE is executed without specifying the
+#     SOURCE_LOG_POS parameter.  This variable can be set to set a
 #     specific position.  It has the same form as $rpl_master_log_file
 #     (see above).  For example, to specify that server_3 should start
 #     replicate from position 4711 of its master, do:
@@ -72,12 +72,13 @@
 #   $rpl_unconditional_change_master
 #     This script remembers the topology set by previous invokations
 #     of either rpl_init.inc or of this script.  By default, this
-#     script only executes CHANGE MASTER on servers that actually have
-#     a new master.  If $rpl_unconditiona_change_master is set, then
-#     this script unconditionally executes CHANGE MASTER on all
-#     servers that have a master.  This is useful either if you have
-#     changed the topology without invoking the scripts or if you want
-#     to set some other parameters of CHANGE MASTER.
+#     script only executes CHANGE REPLICATION SOURCE on servers that
+#     actually have a new master.  If $rpl_unconditiona_change_master
+#     is set, then this script unconditionally executes
+#     CHANGE REPLICATION SOURCE on all servers that have a master.  This
+#     is useful either if you have changed the topology without invoking
+#     the scripts or if you want to set some other parameters of CHANGE
+#     REPLICATION SOURCE.
 #
 #   $rpl_server_count, $rpl_topology, $rpl_debug,
 #   $rpl_skip_change_master, $rpl_multi_source
@@ -85,14 +86,14 @@
 #
 #   $rpl_group_replication
 #     This checks for whether we have Group Replication enabled or not. Based
-#     on the check this parameter we execute change master or not in this
-#     inc file.
+#     on the check this parameter we execute CHANGE REPLICATION SOURCE or
+#     not in this inc file.
 #
 #   $rpl_privilege_checks_user
-#     By default, CHANGE MASTER is executed without specifying the
+#     By default, CHANGE REPLICATION SOURCE is executed without specifying the
 #     `PRIVILEGE_CHECKS_USER` parameter. Instantiating
 #     `$rpl_privilege_checks_user` sets the `PRIVILEGE_CHECKS_USER` option for
-#     the `CHANGE MASTER TO...` command, bounding the replication applier to
+#     the `CHANGE REPLICATION SOURCE TO...` command, bounding the replication applier to
 #     execute within the security context of the given user. For example, to
 #     specify that server_1 should use 'u1'@'localhost' as base user for
 #     replication applier security context and server_5 shouldn't check
@@ -115,7 +116,7 @@
 #     $rpl_privilege_checks_user user.
 #
 #   $rpl_require_row_format
-#     Include `REQUIRE_ROW_FORMAT` option in the `CHANGE MASTER TO ...`
+#     Include `REQUIRE_ROW_FORMAT` option in the `CHANGE REPLICATION SOURCE TO ...`
 #     statement to be executed. For example, to specify that server_1 should
 #     have the flag enabled and server_5 shouldn't, do:
 #
@@ -126,10 +127,10 @@
 #       --let $rpl_require_row_format= *:1
 #
 #   $rpl_require_table_primary_key_check
-#     By default, CHANGE MASTER is executed without specifying the
+#     By default, CHANGE REPLICATION SOURCE is executed without specifying the
 #     `REQUIRE_TABLE_PRIMARY_KEY_CHECK` parameter.
 #     Instantiating `$rpl_require_table_primary_key_check` sets
-#     `REQUIRE_TABLE_PRIMARY_KEY_CHECK` for the `CHANGE MASTER TO...` command.
+#     `REQUIRE_TABLE_PRIMARY_KEY_CHECK` for the `CHANGE REPLICATION SOURCE TO...` command.
 #     For example, to specify that server_1 should use STREAM as its policy
 #     for primary keys and server_5 shouldn't do the checks do:
 #
@@ -284,7 +285,7 @@ if (!$rpl_skip_change_master)
 {
   if ($rpl_debug)
   {
-    --echo ---- Execute CHANGE MASTER on all servers ----
+    --echo ---- Execute CHANGE REPLICATION SOURCE on all servers ----
   }
 
   if (!$rpl_debug)

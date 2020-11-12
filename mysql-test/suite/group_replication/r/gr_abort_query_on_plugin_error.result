@@ -27,7 +27,7 @@ call mtr.add_suppression("Error leaving the group");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 set session sql_log_bin=1;
-CHANGE MASTER TO MASTER_USER='dummy_user' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='dummy_user' FOR CHANNEL 'group_replication_recovery';
 SET @debug_save_retries= @@GLOBAL.group_replication_recovery_retry_count;
 SET GLOBAL group_replication_recovery_retry_count= 1;
 
@@ -44,7 +44,7 @@ ERROR HY000: The MySQL server is running with the --super-read-only option so it
 ##########################################
 # Solve the issue and re-execute the query
 include/stop_group_replication.inc
-CHANGE MASTER TO MASTER_USER='root' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root' FOR CHANNEL 'group_replication_recovery';
 include/start_group_replication.inc
 INSERT INTO test.t1 (b) VALUES (1);
 include/rpl_sync.inc

@@ -28,26 +28,26 @@ slave-relay-bin.000005	#	Query	#	#	XA COMMIT X'74727831',X'',1
 [connection master]
 include/sync_slave_io_with_master.inc
 include/stop_slave_io.inc
-CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin.000005', RELAY_LOG_POS=4;
+CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='slave-relay-bin.000005', RELAY_LOG_POS=4;
 START REPLICA SQL_THREAD;
 include/wait_for_slave_sql_error.inc [errno=1782, 1755]
 ALTER TABLE t1 engine=MyISAM;
 START REPLICA SQL_THREAD UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_sql_to_stop.inc
-CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
+CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
 START REPLICA SQL_THREAD;
 include/wait_for_slave_sql_error.inc [errno=1837]
 ALTER TABLE t1 engine=Innodb;
 DELETE FROM t1;
 RESET MASTER;
-CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
+CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
 include/start_slave_sql.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t1, slave:t1]
 include/diff_tables.inc [master:t2, slave:t2]
 include/stop_slave_sql.inc
-CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
+CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
 include/start_slave_sql.inc
 include/sync_slave_sql_with_io.inc
 include/diff_tables.inc [master:t1, slave:t1]

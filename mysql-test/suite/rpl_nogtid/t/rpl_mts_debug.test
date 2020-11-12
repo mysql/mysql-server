@@ -188,7 +188,7 @@ let $relay_file = query_get_value( SHOW SLAVE STATUS, Relay_Log_File, 1 );
 let $relay_pos = query_get_value( SHOW SLAVE STATUS, Relay_Log_Pos, 1 );
 --replace_regex /relay_log_file=[^,]+/RELAY_LOG_FILE=FILE/ /relay_log_pos=[0-9]+/ RELAY_LOG_POS= POS/
 --error ER_MTS_RESET_WORKERS
-eval change master to relay_log_file='$relay_file', relay_log_pos=$relay_pos;
+eval CHANGE REPLICATION SOURCE to relay_log_file='$relay_file', relay_log_pos=$relay_pos;
 
 ## Relay_log_info::reset_workers_recovered() error branch
 

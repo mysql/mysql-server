@@ -19,7 +19,7 @@ SET @restore_slave_net_timeout=@@global.slave_net_timeout;
 SET @restore_event_scheduler=@@global.event_scheduler;
 
 *** Default value ***
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -31,7 +31,7 @@ RESET MASTER;
 
 *** Reset slave affect ***
 SET @@global.slave_net_timeout=30;
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=5;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=5;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -45,7 +45,7 @@ heartbeat_interval
 
 *** Default value if slave_net_timeout changed ***
 SET @@global.slave_net_timeout=50;
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -69,7 +69,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 RESET MASTER;
 
 *** Warning if updated slave_heartbeat_timeout > slave_net_timeout ***
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=SLAVE_NET_TIMEOUT;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=SLAVE_NET_TIMEOUT;
 Warnings:
 Warning	####	The requested value for the heartbeat period exceeds the value of `slave_net_timeout' seconds. A sensible value for the period should be less than the timeout.
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -81,7 +81,7 @@ RESET MASTER;
 
 *** CHANGE MASTER statement only updates slave_heartbeat_period ***
 SET @@global.slave_net_timeout=20;
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=5;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=5;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -111,7 +111,7 @@ RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -135,7 +135,7 @@ SET @@global.slave_net_timeout=@restore_slave_net_timeout;
 
 *** Start/stop slave ***
 SET @@global.slave_net_timeout=100;
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=20;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=20;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -151,7 +151,7 @@ heartbeat_interval
 
 *** Reload slave ***
 SET @@global.slave_net_timeout=50;
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=30;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=30;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -162,7 +162,7 @@ heartbeat_interval
 SET @restore_slave_net_timeout=@@global.slave_net_timeout;
 
 *** Disable heartbeat ***
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=0;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=0;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -196,7 +196,7 @@ Result
 1
 
 *** Min slave_heartbeat_timeout ***
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=0.001;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=0.001;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -207,7 +207,7 @@ RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=0.0009;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=0.0009;
 Warnings:
 Warning	####	The requested value for the heartbeat period is less than 1 millisecond. The value is reset to 0, meaning that heartbeating will effectively be disabled.
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -221,7 +221,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 RESET MASTER;
 
 *** Max slave_heartbeat_timeout ***
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=4294967;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=4294967;
 Warnings:
 Warning	####	The requested value for the heartbeat period exceeds the value of `slave_net_timeout' seconds. A sensible value for the period should be less than the timeout.
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -233,19 +233,19 @@ RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=4294968;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=4294968;
 ERROR HY000: The requested value for the heartbeat period is either negative or exceeds the maximum allowed (4294967 seconds).
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=8589935;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=8589935;
 ERROR HY000: The requested value for the heartbeat period is either negative or exceeds the maximum allowed (4294967 seconds).
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=4294967296;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=4294967296;
 ERROR HY000: The requested value for the heartbeat period is either negative or exceeds the maximum allowed (4294967 seconds).
 RESET SLAVE;
 Warnings:
@@ -253,19 +253,19 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 RESET MASTER;
 
 *** Misc incorrect values ***
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD='-1';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD='-1';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''-1'' at line 1
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD='123abc';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD='123abc';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''123abc'' at line 1
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD='';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD='';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '''' at line 1
 RESET SLAVE;
 Warnings:
@@ -273,7 +273,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 RESET MASTER;
 
 *** Running slave ***
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD= 3.0;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD= 3.0;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -285,7 +285,7 @@ Heartbeat event received
 
 *** Stopped slave ***
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD= 0.1;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD= 0.1;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -334,7 +334,7 @@ DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 *** Flush logs on slave ***
 include/rpl_reset.inc
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=0.5;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=0.5;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -349,7 +349,7 @@ Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 SET @@global.slave_compressed_protocol=1;
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=0.1;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=0.1;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -366,7 +366,7 @@ RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=0.1;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=0.1;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -383,7 +383,7 @@ RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=0.1;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=0.1;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -400,11 +400,11 @@ include/rpl_change_topology.inc [new topology=1->2->1]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD=1;
+CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=1;
 include/start_slave.inc
 CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(10));
 INSERT INTO t1 VALUES(1, 'on master');
-CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD=0.1;
+CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=0.1;
 include/start_slave.inc
 INSERT INTO t1 VALUES(2, 'on slave');
 include/sync_slave_sql_with_master.inc

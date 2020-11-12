@@ -61,7 +61,7 @@ insert into mysql.ndb_apply_status values (@other_remote_server_id, 444, 'Fictio
 
 let $local_server_ids = `select @other_local_server_id`;
 
---eval CHANGE MASTER TO IGNORE_SERVER_IDS=($local_server_ids);
+--eval CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS=($local_server_ids);
 start slave;
 --connection master
 --sync_slave_with_master
@@ -72,7 +72,7 @@ select server_id from mysql.ndb_apply_status order by server_id;
 
 # Clean up
 stop slave;
-CHANGE MASTER TO IGNORE_SERVER_IDS= ();
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= ();
 start slave;
 --connection master
 drop table test.t1;

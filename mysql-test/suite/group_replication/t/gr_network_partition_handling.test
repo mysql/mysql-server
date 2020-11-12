@@ -54,7 +54,7 @@
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 --replace_result $SERVER_MYPORT_4 SERVER_4_PORT
---eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root', MASTER_PORT=$SERVER_MYPORT_4 for channel 'ch4_1'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=$SERVER_MYPORT_4 for channel 'ch4_1'
 
 --let $rpl_channel_name= 'ch4_1'
 --source include/start_slave.inc

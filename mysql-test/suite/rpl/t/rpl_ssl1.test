@@ -19,7 +19,7 @@ create table t1 (t int);
 stop slave;
 --source include/wait_for_slave_to_stop.inc
 --replace_column 2 ####
-change master to master_user='replssl',master_password='';
+CHANGE REPLICATION SOURCE to SOURCE_USER='replssl',SOURCE_PASSWORD='';
 start slave;
 
 #showing that replication don't work
@@ -30,7 +30,7 @@ start slave;
 #showing that replication could work with ssl params
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --replace_column 2 ####
-eval change master to master_ssl=1 , master_ssl_ca ='$MYSQL_TEST_DIR/std_data/cacert.pem', master_ssl_cert='$MYSQL_TEST_DIR/std_data/client-cert.pem', master_ssl_key='$MYSQL_TEST_DIR/std_data/client-key.pem', master_tls_version='TLSv1.2';
+eval CHANGE REPLICATION SOURCE to SOURCE_SSL=1 , SOURCE_SSL_CA ='$MYSQL_TEST_DIR/std_data/cacert.pem', SOURCE_SSL_CERT='$MYSQL_TEST_DIR/std_data/client-cert.pem', SOURCE_SSL_KEY='$MYSQL_TEST_DIR/std_data/client-key.pem', SOURCE_TLS_VERSION='TLSv1.2';
 start slave;
 --source include/wait_for_slave_to_start.inc
 
@@ -51,7 +51,7 @@ source include/check_slave_is_running.inc;
 stop slave;
 --source include/wait_for_slave_to_stop.inc
 --replace_column 2 ####
-change master to master_user='root',master_password='', master_ssl=0;
+CHANGE REPLICATION SOURCE to SOURCE_USER='root',SOURCE_PASSWORD='', SOURCE_SSL=0;
 start slave;
 --source include/wait_for_slave_to_start.inc
 connection master;
@@ -71,13 +71,13 @@ stop slave;
 --source include/wait_for_slave_to_stop.inc
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --replace_column 2 ####
-eval change master to
- master_host="localhost",
- master_ssl=1 ,
- master_ssl_ca ='$MYSQL_TEST_DIR/std_data/cacert.pem',
- master_ssl_cert='$MYSQL_TEST_DIR/std_data/client-cert.pem',
- master_ssl_key='$MYSQL_TEST_DIR/std_data/client-key.pem',
- master_ssl_verify_server_cert=1;
+eval CHANGE REPLICATION SOURCE to
+ SOURCE_HOST="localhost",
+ SOURCE_SSL=1 ,
+ SOURCE_SSL_CA ='$MYSQL_TEST_DIR/std_data/cacert.pem',
+ SOURCE_SSL_CERT='$MYSQL_TEST_DIR/std_data/client-cert.pem',
+ SOURCE_SSL_KEY='$MYSQL_TEST_DIR/std_data/client-key.pem',
+ SOURCE_SSL_VERIFY_SERVER_CERT=1;
 start slave;
 --source include/wait_for_slave_to_start.inc
 
@@ -134,7 +134,7 @@ RESET SLAVE;
 --source include/assert.inc
 
 --replace_result $MASTER_MYPORT MASTER_MYPORT
---eval CHANGE MASTER TO MASTER_PORT= $MASTER_MYPORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_PORT= $MASTER_MYPORT
 
 --let $assert_cond= "[SHOW SLAVE STATUS, Master_SSL_Verify_Server_Cert, 1]" = "Yes"
 --let $assert_text= Master_SSL_Verify_Server_Cert should NOT change on CHANGE MASTER.
@@ -154,14 +154,14 @@ DROP TABLE IF EXISTS t1;
 --source include/stop_slave.inc
 # Clean change master options.
 --replace_column 2 ####
-CHANGE MASTER TO
- master_host="127.0.0.1",
- master_ssl_ca ='',
- master_ssl_cert='',
- master_ssl_key='',
- master_ssl_verify_server_cert=0,
- master_ssl=0,
- master_tls_version='';
+CHANGE REPLICATION SOURCE TO
+ SOURCE_HOST="127.0.0.1",
+ SOURCE_SSL_CA ='',
+ SOURCE_SSL_CERT='',
+ SOURCE_SSL_KEY='',
+ SOURCE_SSL_VERIFY_SERVER_CERT=0,
+ SOURCE_SSL=0,
+ SOURCE_TLS_VERSION='';
 
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

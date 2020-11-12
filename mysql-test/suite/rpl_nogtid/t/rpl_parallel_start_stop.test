@@ -249,8 +249,8 @@ let $master_log_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
 insert into t2 values (1);
 
 --connection slave
---replace_regex /master_log_pos=[0-9]+/master_log_pos=MASTER_LOG_POS/
-eval start slave until master_log_file='$master_log_file', master_log_pos=$master_log_pos;
+--replace_regex /SOURCE_LOG_POS=[0-9]+/SOURCE_LOG_POS=MASTER_LOG_POS/
+eval start slave until SOURCE_LOG_FILE='$master_log_file', SOURCE_LOG_POS=$master_log_pos;
 
 source include/wait_for_slave_sql_to_stop.inc;
 if (`select count(*) from t2`)
@@ -299,9 +299,9 @@ start slave until sql_after_mts_gaps relay_log_file='dummy';
 --error 1064
 start slave until sql_after_mts_gaps relay_log_pos=0;
 --error 1064
-start slave until sql_after_mts_gaps master_log_file='dummy';
+start slave until sql_after_mts_gaps SOURCE_LOG_FILE='dummy';
 --error 1064
-start slave until sql_after_mts_gaps master_log_pos=0;
+start slave until sql_after_mts_gaps SOURCE_LOG_POS=0;
 --error 1064
 start slave until sql_after_mts_gaps SQL_BEFORE_GTIDS='dummy';
 

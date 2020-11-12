@@ -140,7 +140,7 @@ move_file $MASTER_DATADIR/master-bin.000001 $MASTER_DATADIR/master-bin.bak;
 
 connection slave;
 --echo [ on slave ]
-CHANGE MASTER TO master_host='127.0.0.1', master_log_file='master-bin.000001';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_LOG_FILE='master-bin.000001';
 START SLAVE IO_THREAD;
 --echo # Instead of EE_FILENOTFOUND, ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG
 --echo # and the specific information are sent to slave.
@@ -155,7 +155,7 @@ move_file $MASTER_DATADIR/master-bin.bak $MASTER_DATADIR/master-bin.000001;
 
 connection slave;
 --echo [ on slave ]
-CHANGE MASTER TO master_host='127.0.0.1', master_log_file='master-bin.000002';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_LOG_FILE='master-bin.000002';
 source include/start_slave.inc;
 
 connection master;

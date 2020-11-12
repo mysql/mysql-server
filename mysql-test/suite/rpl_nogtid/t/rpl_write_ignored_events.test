@@ -15,7 +15,7 @@
 --source include/master-slave.inc
 
 --source include/rpl_connection_slave.inc
-CHANGE MASTER TO IGNORE_SERVER_IDS = (1);
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = (1);
 --source include/start_slave_io.inc
 
 --source include/rpl_connection_master.inc
@@ -31,7 +31,7 @@ DROP TABLE t1;
 --source include/show_relaylog_events.inc
 
 --source include/stop_slave_io.inc
-CHANGE MASTER TO IGNORE_SERVER_IDS = ();
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = ();
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc

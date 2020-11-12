@@ -10,10 +10,10 @@ SET @@global.enforce_gtid_consistency = ON;
 SET @@global.gtid_mode = OFF_PERMISSIVE;
 SET @@global.gtid_mode = ON_PERMISSIVE;
 SET @@global.gtid_mode = ON;
-CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL FOR CHANNEL 'channel_1';
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL FOR CHANNEL 'channel_1';
 Warnings:
 Note	4017	Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS creates limitations on the replication topology - you cannot fail over between downstream and upstream servers. Only use this option if it is not possible to enable GTIDs on the source, for instance, because of lack of permissions. If possible, use the procedure for enabling GTID transactions online instead, as described in the documentation.
-CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL FOR CHANNEL 'channel_2';
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL FOR CHANNEL 'channel_2';
 Warnings:
 Note	4017	Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS creates limitations on the replication topology - you cannot fail over between downstream and upstream servers. Only use this option if it is not possible to enable GTIDs on the source, for instance, because of lack of permissions. If possible, use the procedure for enabling GTID transactions online instead, as described in the documentation.
 include/start_slave_io.inc
@@ -73,8 +73,8 @@ DROP PROCEDURE workload;
 DROP TABLE t;
 SET @@session.sql_log_bin = 1;
 include/stop_slave.inc
-CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF FOR CHANNEL 'channel_1';
-CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF FOR CHANNEL 'channel_2';
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF FOR CHANNEL 'channel_1';
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF FOR CHANNEL 'channel_2';
 SET @@global.gtid_mode = ON_PERMISSIVE;
 SET @@global.gtid_mode = OFF_PERMISSIVE;
 SET @@global.gtid_mode = OFF;

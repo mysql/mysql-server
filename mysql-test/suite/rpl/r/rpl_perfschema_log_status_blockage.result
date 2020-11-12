@@ -12,7 +12,7 @@ CREATE TABLE t1_innodb (c1 INT);
 CREATE TABLE t2_myisam (c1 INT) ENGINE=MyISAM;
 include/sync_slave_sql_with_master.inc
 # Adding debug point 'pause_collecting_instance_logs_info' to @@GLOBAL.debug
-CHANGE MASTER TO MASTER_HOST = '127.0.0.1' FOR CHANNEL 'ch1';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = '127.0.0.1' FOR CHANNEL 'ch1';
 CALL mtr.add_suppression('Unsafe statement written to the binary log');
 include/save_master_pos.inc
 [connection slave1]
@@ -26,7 +26,7 @@ FLUSH LOCAL BINARY LOGS;;
 [connection server_2_2]
 SET @@GLOBAL.gtid_purged = '+00000000-0000-0000-0000-000000000000:1-999';
 [connection server_2_3]
-CHANGE MASTER TO MASTER_HOST='127.0.0.1' FOR CHANNEL 'ch2';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1' FOR CHANNEL 'ch2';
 [connection server_2_4]
 RESET SLAVE ALL FOR CHANNEL 'ch1';
 [connection server_2_5]

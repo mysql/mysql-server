@@ -166,14 +166,14 @@ grant replication slave on *.* to replssl@localhost;
 --source include/stop_slave.inc
 replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR;
 replace_column 2 ####;
-eval change master to
-  master_user= 'replssl',
-  master_password= '',
-  master_retry_count= 1,
-  master_ssl= 1,
-  master_ssl_ca= '$MYSQL_TEST_DIR/std_data/cacert.pem',
-  master_ssl_cert= '$MYSQL_TEST_DIR/std_data/client-cert.pem',
-  master_ssl_key= '$MYSQL_TEST_DIR/std_data/client-key.pem';
+eval CHANGE REPLICATION SOURCE to
+  SOURCE_USER= 'replssl',
+  SOURCE_PASSWORD= '',
+  SOURCE_RETRY_COUNT= 1,
+  SOURCE_SSL= 1,
+  SOURCE_SSL_CA= '$MYSQL_TEST_DIR/std_data/cacert.pem',
+  SOURCE_SSL_CERT= '$MYSQL_TEST_DIR/std_data/client-cert.pem',
+  SOURCE_SSL_KEY= '$MYSQL_TEST_DIR/std_data/client-key.pem';
 
 --echo
 --echo # Checking SSL parameters, they were empty in tests done in the
@@ -224,10 +224,10 @@ source include/assert.inc;
 
 # We cannot set master_ssl=1 when both ssl_crl and ssl_crlpath are used in
 # CHANGE MASTER. (See bug#18165937)
-change master to master_ssl=0;
+CHANGE REPLICATION SOURCE to SOURCE_SSL=0;
 replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR;
 replace_column 2 ####;
-eval change master to master_ssl_crl= '$MYSQL_TEST_DIR/std_data/crl-client-revoked.crl', master_ssl_crlpath= '$MYSQL_TEST_DIR/std_data/crldir';
+eval CHANGE REPLICATION SOURCE to SOURCE_SSL_CRL= '$MYSQL_TEST_DIR/std_data/crl-client-revoked.crl', SOURCE_SSL_CRLPATH= '$MYSQL_TEST_DIR/std_data/crldir';
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Master_SSL_Crl, 1);
 let $ps_value= query_get_value(select SSL_Crl_File from performance_schema.replication_connection_configuration, SSL_Crl_File, 1);
@@ -272,9 +272,9 @@ let $assert_cond= "$sss_value" = "$ps_value";
 source include/assert.inc;
 
 replace_column 2 ####;
-change master to
- master_user = 'root',
- master_auto_position= 1;
+CHANGE REPLICATION SOURCE to
+ SOURCE_USER = 'root',
+ SOURCE_AUTO_POSITION= 1;
 
 --echo
 --echo # 2) Test for Auto_position= 1.

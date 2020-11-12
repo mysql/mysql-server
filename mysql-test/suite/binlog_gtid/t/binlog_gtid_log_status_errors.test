@@ -15,7 +15,7 @@
 --source include/have_binlog_format_row.inc
 
 # Configure a slave channel
-CHANGE MASTER TO MASTER_HOST='127.0.0.1';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1';
 
 # Adding a channel to the resources list
 --let $debug_point= log_status_oom_mi

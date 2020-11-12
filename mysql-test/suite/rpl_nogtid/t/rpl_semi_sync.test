@@ -470,7 +470,7 @@ create user rpl@127.0.0.1 identified by 'rpl';
 grant replication slave on *.* to rpl@127.0.0.1;
 flush privileges;
 --replace_column 2 ####
-change master to master_user='rpl',master_password='rpl', get_master_public_key=1;
+CHANGE REPLICATION SOURCE to SOURCE_USER='rpl',SOURCE_PASSWORD='rpl', GET_SOURCE_PUBLIC_KEY=1;
 source include/start_slave.inc;
 show status like 'Rpl_semi_sync_slave_status';
 source include/rpl_connection_master.inc;
@@ -627,7 +627,7 @@ SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
 connection slave;
 --source include/stop_slave.inc
 --replace_column 2 ####
-change master to master_user='root',master_password='', get_master_public_key=0;
+CHANGE REPLICATION SOURCE to SOURCE_USER='root',SOURCE_PASSWORD='', GET_SOURCE_PUBLIC_KEY=0;
 source include/start_slave.inc;
 
 connection master;

@@ -109,7 +109,7 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Privilege_checks_hostname;
 --let $applier_user = 'u1'@'localhost'
 --eval CREATE USER $applier_user;
 --eval GRANT CREATE,INSERT,DROP,REPLICATION_APPLIER,SESSION_VARIABLES_ADMIN ON *.* TO $applier_user
---eval CHANGE MASTER TO PRIVILEGE_CHECKS_USER = $applier_user, REQUIRE_ROW_FORMAT = 1
+--eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = $applier_user, REQUIRE_ROW_FORMAT = 1
 --source include/start_slave.inc
 
 --let $channels_in_table = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE CONCAT("'", Privilege_checks_username, "'@'", Privilege_checks_hostname, "'") = "$applier_user"`

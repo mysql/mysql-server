@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 call mtr.add_suppression(".*Invalid .* username when attempting to connect to the master server.*");
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_USER= '', MASTER_PASSWORD= '';
+CHANGE REPLICATION SOURCE TO SOURCE_USER= '', SOURCE_PASSWORD= '';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -14,7 +14,7 @@ Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=1045, 13117]
 include/stop_slave_sql.inc
-CHANGE MASTER TO MASTER_USER= 'root', MASTER_PASSWORD= '';
+CHANGE REPLICATION SOURCE TO SOURCE_USER= 'root', SOURCE_PASSWORD= '';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

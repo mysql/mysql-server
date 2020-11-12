@@ -47,7 +47,7 @@ CREATE USER 'u1'@'localhost';
 GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
 GRANT CREATE,INSERT ON *.* TO 'u1'@'localhost';
 
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost' FOR CHANNEL 'group_replication_recovery';
 
 --echo #
 --echo # 3. Bootstrap server1 and add some data
@@ -154,12 +154,12 @@ DROP DATABASE db1;
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER = NULL FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = NULL FOR CHANNEL 'group_replication_recovery';
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER = NULL FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = NULL FOR CHANNEL 'group_replication_recovery';
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc

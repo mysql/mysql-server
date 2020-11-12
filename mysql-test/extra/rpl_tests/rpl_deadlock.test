@@ -90,7 +90,7 @@ DELETE FROM t2;
 # Set slave position to the BEGIN log event
 RESET MASTER;
 --replace_result $master_pos_begin MASTER_POS_BEGIN
-eval CHANGE MASTER TO MASTER_LOG_POS=$master_pos_begin;
+eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=$master_pos_begin;
 BEGIN;
 # Hold lock
 SELECT * FROM t1 FOR UPDATE;
@@ -124,7 +124,7 @@ DELETE FROM t2;
 # Set slave position to the BEGIN log event
 RESET MASTER;
 --replace_result $master_pos_begin MASTER_POS_BEGIN
-eval CHANGE MASTER TO MASTER_LOG_POS=$master_pos_begin; 
+eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=$master_pos_begin; 
 BEGIN;
 # Hold lock
 SELECT * FROM t1 FOR UPDATE;

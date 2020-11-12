@@ -857,7 +857,7 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> MASTER_PASSWORD_SYM 557
 %token<lexer.keyword> MASTER_PORT_SYM 558
 %token<lexer.keyword> MASTER_RETRY_COUNT_SYM 559
-%token<lexer.keyword> MASTER_SERVER_ID_SYM 560
+/* %token<lexer.keyword> MASTER_SERVER_ID_SYM 560 */ /* UNUSED */
 %token<lexer.keyword> MASTER_SSL_CAPATH_SYM 561
 %token<lexer.keyword> MASTER_TLS_VERSION_SYM 562
 %token<lexer.keyword> MASTER_SSL_CA_SYM 563
@@ -1326,8 +1326,35 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> REPLICA_SYM 1159
 %token<lexer.keyword> REPLICAS_SYM 1160
 
-
 %token<lexer.keyword> ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_SYM 1161      /* MYSQL */
+%token<lexer.keyword> GET_SOURCE_PUBLIC_KEY_SYM 1162           /* MYSQL */
+%token<lexer.keyword> SOURCE_AUTO_POSITION_SYM 1163            /* MYSQL */
+%token<lexer.keyword> SOURCE_BIND_SYM 1164                     /* MYSQL */
+%token<lexer.keyword> SOURCE_COMPRESSION_ALGORITHM_SYM 1165    /* MYSQL */
+%token<lexer.keyword> SOURCE_CONNECT_RETRY_SYM 1166            /* MYSQL */
+%token<lexer.keyword> SOURCE_DELAY_SYM 1167                    /* MYSQL */
+%token<lexer.keyword> SOURCE_HEARTBEAT_PERIOD_SYM 1168         /* MYSQL */
+%token<lexer.keyword> SOURCE_HOST_SYM 1169                     /* MYSQL */
+%token<lexer.keyword> SOURCE_LOG_FILE_SYM 1170                 /* MYSQL */
+%token<lexer.keyword> SOURCE_LOG_POS_SYM 1171                  /* MYSQL */
+%token<lexer.keyword> SOURCE_PASSWORD_SYM 1172                 /* MYSQL */
+%token<lexer.keyword> SOURCE_PORT_SYM 1173                     /* MYSQL */
+%token<lexer.keyword> SOURCE_PUBLIC_KEY_PATH_SYM 1174          /* MYSQL */
+%token<lexer.keyword> SOURCE_RETRY_COUNT_SYM 1175              /* MYSQL */
+%token<lexer.keyword> SOURCE_SSL_SYM 1176                      /* MYSQL */
+%token<lexer.keyword> SOURCE_SSL_CA_SYM 1177                   /* MYSQL */
+%token<lexer.keyword> SOURCE_SSL_CAPATH_SYM 1178               /* MYSQL */
+%token<lexer.keyword> SOURCE_SSL_CERT_SYM 1179                 /* MYSQL */
+%token<lexer.keyword> SOURCE_SSL_CIPHER_SYM 1180               /* MYSQL */
+%token<lexer.keyword> SOURCE_SSL_CRL_SYM 1181                  /* MYSQL */
+%token<lexer.keyword> SOURCE_SSL_CRLPATH_SYM 1182              /* MYSQL */
+%token<lexer.keyword> SOURCE_SSL_KEY_SYM 1183                  /* MYSQL */
+%token<lexer.keyword> SOURCE_SSL_VERIFY_SERVER_CERT_SYM 1184   /* MYSQL */
+%token<lexer.keyword> SOURCE_TLS_CIPHERSUITES_SYM 1185         /* MYSQL */
+%token<lexer.keyword> SOURCE_TLS_VERSION_SYM 1186              /* MYSQL */
+%token<lexer.keyword> SOURCE_USER_SYM 1187                     /* MYSQL */
+%token<lexer.keyword> SOURCE_ZSTD_COMPRESSION_LEVEL_SYM 1188   /* MYSQL */
+
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
   in the case e.g.:
@@ -2464,8 +2491,17 @@ help:
 
 /* change master */
 
+change_replication_source:
+          MASTER_SYM
+          {
+            push_deprecated_warn(YYTHD, "CHANGE MASTER",
+                                        "CHANGE REPLICATION SOURCE");
+          }
+        | REPLICATION SOURCE_SYM
+        ;
+
 change:
-          CHANGE MASTER_SYM TO_SYM
+          CHANGE change_replication_source TO_SYM
           {
             LEX *lex = Lex;
             lex->sql_command = SQLCOM_CHANGE_MASTER;
@@ -2476,7 +2512,7 @@ change:
             DBUG_ASSERT(Lex->mi.repl_ignore_server_ids.empty());
             lex->mi.set_unspecified();
           }
-          master_defs opt_channel
+          source_defs opt_channel
           {
             if (Lex->set_channel_name($6))
               MYSQL_YYABORT;  // OOM
@@ -2697,13 +2733,240 @@ filter_string:
           }
         ;
 
-master_defs:
-          master_def
-        | master_defs ',' master_def
+source_defs:
+          source_def
+        | source_defs ',' source_def
         ;
 
-master_def:
-          MASTER_HOST_SYM EQ TEXT_STRING_sys_nonewline
+change_replication_source_auto_position:
+          MASTER_AUTO_POSITION_SYM
+          {
+            push_deprecated_warn(YYTHD, "MASTER_AUTO_POSITION",
+                                        "SOURCE_AUTO_POSITION");
+
+          }
+        | SOURCE_AUTO_POSITION_SYM
+        ;
+
+change_replication_source_host:
+          MASTER_HOST_SYM
+          {
+            push_deprecated_warn(YYTHD, "MASTER_HOST",
+                                        "SOURCE_HOST");
+          }
+        | SOURCE_HOST_SYM
+        ;
+
+change_replication_source_bind:
+          MASTER_BIND_SYM
+          {
+            push_deprecated_warn(YYTHD, "MASTER_BIND",
+                                        "SOURCE_BIND");
+
+          }
+        | SOURCE_BIND_SYM
+        ;
+
+change_replication_source_user:
+          MASTER_USER_SYM
+          {
+            push_deprecated_warn(YYTHD, "MASTER_USER",
+                                        "SOURCE_USER");
+          }
+        | SOURCE_USER_SYM
+        ;
+
+change_replication_source_password:
+          MASTER_PASSWORD_SYM
+          {
+            push_deprecated_warn(YYTHD, "MASTER_PASSWORD",
+                                        "SOURCE_PASSWORD");
+          }
+        | SOURCE_PASSWORD_SYM
+        ;
+
+change_replication_source_port:
+          MASTER_PORT_SYM
+          {
+            push_deprecated_warn(YYTHD, "MASTER_PORT",
+                                        "SOURCE_PORT");
+          }
+        | SOURCE_PORT_SYM
+        ;
+
+change_replication_source_connect_retry:
+          MASTER_CONNECT_RETRY_SYM
+          {
+            push_deprecated_warn(YYTHD, "MASTER_CONNECT_RETRY",
+                                        "SOURCE_CONNECT_RETRY");
+          }
+        | SOURCE_CONNECT_RETRY_SYM
+        ;
+
+change_replication_source_retry_count:
+          MASTER_RETRY_COUNT_SYM
+          {
+            push_deprecated_warn(YYTHD, "MASTER_RETRY_COUNT",
+                                        "SOURCE_RETRY_COUNT");
+          }
+        | SOURCE_RETRY_COUNT_SYM
+        ;
+
+change_replication_source_delay:
+          MASTER_DELAY_SYM
+          {
+            push_deprecated_warn(YYTHD, "MASTER_DELAY",
+                                        "SOURCE_DELAY");
+          }
+        | SOURCE_DELAY_SYM
+        ;
+
+change_replication_source_ssl:
+          MASTER_SSL_SYM
+          {
+            push_deprecated_warn(YYTHD, "MASTER_SSL",
+                                        "SOURCE_SSL");
+          }
+        | SOURCE_SSL_SYM
+        ;
+
+change_replication_source_ssl_ca:
+          MASTER_SSL_CA_SYM
+          {
+            push_deprecated_warn(YYTHD, "MASTER_SSL_CA",
+                                        "SOURCE_SSL_CA");
+          }
+        | SOURCE_SSL_CA_SYM
+        ;
+
+change_replication_source_ssl_capath:
+          MASTER_SSL_CAPATH_SYM
+          {
+            push_deprecated_warn(YYTHD, "MASTER_SSL_CAPATH",
+                                        "SOURCE_SSL_CAPATH");
+          }
+        | SOURCE_SSL_CAPATH_SYM
+        ;
+
+change_replication_source_ssl_cipher:
+          MASTER_SSL_CIPHER_SYM
+          {
+            push_deprecated_warn(YYTHD, "MASTER_SSL_CIPHER",
+                                        "SOURCE_SSL_CIPHER");
+          }
+        | SOURCE_SSL_CIPHER_SYM
+        ;
+
+change_replication_source_ssl_crl:
+          MASTER_SSL_CRL_SYM
+          {
+            push_deprecated_warn(YYTHD, "MASTER_SSL_CRL",
+                                        "SOURCE_SSL_CRL");
+          }
+        | SOURCE_SSL_CRL_SYM
+        ;
+
+change_replication_source_ssl_crlpath:
+          MASTER_SSL_CRLPATH_SYM
+          {
+            push_deprecated_warn(YYTHD, "MASTER_SSL_CRLPATH",
+                                        "SOURCE_SSL_CRLPATH");
+          }
+        | SOURCE_SSL_CRLPATH_SYM
+        ;
+
+change_replication_source_ssl_key:
+          MASTER_SSL_KEY_SYM
+          {
+            push_deprecated_warn(YYTHD, "MASTER_SSL_KEY",
+                                        "SOURCE_SSL_KEY");
+          }
+        | SOURCE_SSL_KEY_SYM
+        ;
+
+change_replication_source_ssl_verify_server_cert:
+          MASTER_SSL_VERIFY_SERVER_CERT_SYM
+          {
+            push_deprecated_warn(YYTHD, "MASTER_SSL_VERIFY_SERVER_CERT",
+                                        "SOURCE_SSL_VERIFY_SERVER_CERT");
+          }
+        | SOURCE_SSL_VERIFY_SERVER_CERT_SYM
+        ;
+
+change_replication_source_tls_version:
+          MASTER_TLS_VERSION_SYM
+          {
+             push_deprecated_warn(YYTHD, "MASTER_TLS_VERSION",
+                                         "SOURCE_TLS_VERSION");
+          }
+        | SOURCE_TLS_VERSION_SYM
+        ;
+
+change_replication_source_tls_ciphersuites:
+          MASTER_TLS_CIPHERSUITES_SYM
+          {
+            push_deprecated_warn(YYTHD, "MASTER_TLS_CIPHERSUITES",
+                                        "SOURCE_TLS_CIPHERSUITES");
+          }
+        | SOURCE_TLS_CIPHERSUITES_SYM
+        ;
+
+change_replication_source_ssl_cert:
+          MASTER_SSL_CERT_SYM
+          {
+            push_deprecated_warn(YYTHD, "MASTER_SSL_CERT",
+                                        "SOURCE_SSL_CERT");
+          }
+        | SOURCE_SSL_CERT_SYM
+        ;
+
+change_replication_source_public_key:
+          MASTER_PUBLIC_KEY_PATH_SYM
+          {
+            push_deprecated_warn(YYTHD, "MASTER_PUBLIC_KEY_PATH",
+                                        "SOURCE_PUBLIC_KEY_PATH");
+          }
+        | SOURCE_PUBLIC_KEY_PATH_SYM
+        ;
+
+change_replication_source_get_source_public_key:
+          GET_MASTER_PUBLIC_KEY_SYM
+          {
+            push_deprecated_warn(YYTHD, "GET_MASTER_PUBLIC_KEY",
+                                        "GET_SOURCE_PUBLIC_KEY");
+          }
+        | GET_SOURCE_PUBLIC_KEY_SYM
+        ;
+
+change_replication_source_heartbeat_period:
+          MASTER_HEARTBEAT_PERIOD_SYM
+          {
+            push_deprecated_warn(YYTHD, "MASTER_HEARTBEAT_PERIOD",
+                                        "SOURCE_HEARTBEAT_PERIOD");
+          }
+        | SOURCE_HEARTBEAT_PERIOD_SYM
+        ;
+
+change_replication_source_compression_algorithm:
+          MASTER_COMPRESSION_ALGORITHM_SYM
+          {
+            push_deprecated_warn(YYTHD, "MASTER_COMPRESSION_ALGORITHM",
+                                        "SOURCE_COMPRESSION_ALGORITHM");
+          }
+        | SOURCE_COMPRESSION_ALGORITHM_SYM
+        ;
+
+change_replication_source_zstd_compression_level:
+          MASTER_ZSTD_COMPRESSION_LEVEL_SYM
+          {
+            push_deprecated_warn(YYTHD, "MASTER_ZSTD_COMPRESSION_LEVEL",
+                                        "SOURCE_ZSTD_COMPRESSION_LEVEL");
+          }
+        | SOURCE_ZSTD_COMPRESSION_LEVEL_SYM
+        ;
+
+source_def:
+          change_replication_source_host EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.host = $3.str;
           }
@@ -2711,15 +2974,15 @@ master_def:
           {
             Lex->mi.network_namespace = $3.str;
           }
-        | MASTER_BIND_SYM EQ TEXT_STRING_sys_nonewline
+        | change_replication_source_bind EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.bind_addr = $3.str;
           }
-        | MASTER_USER_SYM EQ TEXT_STRING_sys_nonewline
+        | change_replication_source_user EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.user = $3.str;
           }
-        | MASTER_PASSWORD_SYM EQ TEXT_STRING_sys_nonewline
+        | change_replication_source_password EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.password = $3.str;
             if (strlen($3.str) > 32)
@@ -2729,20 +2992,20 @@ master_def:
             }
             Lex->contains_plaintext_password= true;
           }
-        | MASTER_PORT_SYM EQ ulong_num
+        | change_replication_source_port EQ ulong_num
           {
             Lex->mi.port = $3;
           }
-        | MASTER_CONNECT_RETRY_SYM EQ ulong_num
+        | change_replication_source_connect_retry EQ ulong_num
           {
             Lex->mi.connect_retry = $3;
           }
-        | MASTER_RETRY_COUNT_SYM EQ ulong_num
+        | change_replication_source_retry_count EQ ulong_num
           {
             Lex->mi.retry_count= $3;
             Lex->mi.retry_count_opt= LEX_MASTER_INFO::LEX_MI_ENABLE;
           }
-        | MASTER_DELAY_SYM EQ ulong_num
+        | change_replication_source_delay EQ ulong_num
           {
             if ($3 > MASTER_DELAY_MAX)
             {
@@ -2753,60 +3016,60 @@ master_def:
             else
               Lex->mi.sql_delay = $3;
           }
-        | MASTER_SSL_SYM EQ ulong_num
+        | change_replication_source_ssl EQ ulong_num
           {
             Lex->mi.ssl= $3 ?
               LEX_MASTER_INFO::LEX_MI_ENABLE : LEX_MASTER_INFO::LEX_MI_DISABLE;
           }
-        | MASTER_SSL_CA_SYM EQ TEXT_STRING_sys_nonewline
+        | change_replication_source_ssl_ca EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.ssl_ca= $3.str;
           }
-        | MASTER_SSL_CAPATH_SYM EQ TEXT_STRING_sys_nonewline
+        | change_replication_source_ssl_capath EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.ssl_capath= $3.str;
           }
-        | MASTER_TLS_VERSION_SYM EQ TEXT_STRING_sys_nonewline
+        | change_replication_source_tls_version EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.tls_version= $3.str;
           }
-        | MASTER_TLS_CIPHERSUITES_SYM EQ master_tls_ciphersuites_def
-        | MASTER_SSL_CERT_SYM EQ TEXT_STRING_sys_nonewline
+        | change_replication_source_tls_ciphersuites EQ source_tls_ciphersuites_def
+        | change_replication_source_ssl_cert EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.ssl_cert= $3.str;
           }
-        | MASTER_SSL_CIPHER_SYM EQ TEXT_STRING_sys_nonewline
+        | change_replication_source_ssl_cipher EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.ssl_cipher= $3.str;
           }
-        | MASTER_SSL_KEY_SYM EQ TEXT_STRING_sys_nonewline
+        | change_replication_source_ssl_key EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.ssl_key= $3.str;
           }
-        | MASTER_SSL_VERIFY_SERVER_CERT_SYM EQ ulong_num
+        | change_replication_source_ssl_verify_server_cert EQ ulong_num
           {
             Lex->mi.ssl_verify_server_cert= $3 ?
               LEX_MASTER_INFO::LEX_MI_ENABLE : LEX_MASTER_INFO::LEX_MI_DISABLE;
           }
-        | MASTER_SSL_CRL_SYM EQ TEXT_STRING_sys_nonewline
+        | change_replication_source_ssl_crl EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.ssl_crl= $3.str;
           }
-        | MASTER_SSL_CRLPATH_SYM EQ TEXT_STRING_sys_nonewline
+        | change_replication_source_ssl_crlpath EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.ssl_crlpath= $3.str;
           }
-        | MASTER_PUBLIC_KEY_PATH_SYM EQ TEXT_STRING_sys_nonewline
+        | change_replication_source_public_key EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.public_key_path= $3.str;
           }
-        | GET_MASTER_PUBLIC_KEY_SYM EQ ulong_num
+        | change_replication_source_get_source_public_key EQ ulong_num
           {
             Lex->mi.get_public_key= $3 ?
               LEX_MASTER_INFO::LEX_MI_ENABLE :
               LEX_MASTER_INFO::LEX_MI_DISABLE;
           }
-        | MASTER_HEARTBEAT_PERIOD_SYM EQ NUM_literal
+        | change_replication_source_heartbeat_period EQ NUM_literal
           {
             Item *num= $3;
             ITEMIZE(num, &num);
@@ -2844,15 +3107,15 @@ master_def:
           {
             Lex->mi.repl_ignore_server_ids_opt= LEX_MASTER_INFO::LEX_MI_ENABLE;
            }
-        | MASTER_COMPRESSION_ALGORITHM_SYM EQ TEXT_STRING_sys
+        | change_replication_source_compression_algorithm EQ TEXT_STRING_sys
           {
             Lex->mi.compression_algorithm = $3.str;
            }
-        | MASTER_ZSTD_COMPRESSION_LEVEL_SYM EQ ulong_num
+        | change_replication_source_zstd_compression_level EQ ulong_num
           {
             Lex->mi.zstd_compression_level = $3;
            }
-        | MASTER_AUTO_POSITION_SYM EQ ulong_num
+        | change_replication_source_auto_position EQ ulong_num
           {
             Lex->mi.auto_position= $3 ?
               LEX_MASTER_INFO::LEX_MI_ENABLE :
@@ -2887,7 +3150,7 @@ master_def:
             }
           }
         | ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_SYM EQ assign_gtids_to_anonymous_transactions_def
-        | master_file_def
+        | source_file_def
         ;
 
 ignore_server_id_list:
@@ -2954,7 +3217,7 @@ assign_gtids_to_anonymous_transactions_def:
         ;
 
 
-master_tls_ciphersuites_def:
+source_tls_ciphersuites_def:
           TEXT_STRING_sys_nonewline
           {
             Lex->mi.tls_ciphersuites = LEX_MASTER_INFO::SPECIFIED_STRING;
@@ -2967,12 +3230,30 @@ master_tls_ciphersuites_def:
           }
         ;
 
-master_file_def:
-          MASTER_LOG_FILE_SYM EQ TEXT_STRING_sys_nonewline
+source_log_file:
+          MASTER_LOG_FILE_SYM
+          {
+            push_deprecated_warn(YYTHD, "MASTER_LOG_FILE",
+                                        "SOURCE_LOG_FILE");
+          }
+        | SOURCE_LOG_FILE_SYM
+        ;
+
+source_log_pos:
+          MASTER_LOG_POS_SYM
+          {
+            push_deprecated_warn(YYTHD, "MASTER_LOG_POS",
+                                        "SOURCE_LOG_POS");
+          }
+        | SOURCE_LOG_POS_SYM
+        ;
+
+source_file_def:
+          source_log_file EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.log_file_name = $3.str;
           }
-        | MASTER_LOG_POS_SYM EQ ulonglong_num
+        | source_log_pos EQ ulonglong_num
           {
             Lex->mi.pos = $3;
             /*
@@ -9097,8 +9378,8 @@ opt_replica_until:
         ;
 
 replica_until:
-          master_file_def
-        | replica_until ',' master_file_def
+          source_file_def
+        | replica_until ',' source_file_def
         | SQL_BEFORE_GTIDS EQ TEXT_STRING_sys
           {
             Lex->mi.gtid= $3.str;
@@ -13821,7 +14102,7 @@ reset_option:
             if (!(YYTHD)->global_read_lock.is_acquired())
               Lex->type|= REFRESH_TABLES | REFRESH_READ_LOCK;
           }
-          master_reset_options
+          source_reset_options
         ;
 
 opt_replica_reset_options:
@@ -13829,7 +14110,7 @@ opt_replica_reset_options:
         | ALL         { Lex->reset_slave_info.all= true; }
         ;
 
-master_reset_options:
+source_reset_options:
           /* empty */ {}
         | TO_SYM real_ulonglong_num
           {
@@ -14880,6 +15161,7 @@ ident_keywords_unambiguous:
         | GEOMETRY_SYM
         | GET_FORMAT
         | GET_MASTER_PUBLIC_KEY_SYM
+        | GET_SOURCE_PUBLIC_KEY_SYM
         | GRANTS
         | GROUP_REPLICATION
         | HASH_SYM
@@ -14927,7 +15209,6 @@ ident_keywords_unambiguous:
         | MASTER_PORT_SYM
         | MASTER_PUBLIC_KEY_PATH_SYM
         | MASTER_RETRY_COUNT_SYM
-        | MASTER_SERVER_ID_SYM
         | MASTER_SSL_CAPATH_SYM
         | MASTER_SSL_CA_SYM
         | MASTER_SSL_CERT_SYM
@@ -15083,8 +15364,34 @@ ident_keywords_unambiguous:
         | SOCKET_SYM
         | SONAME_SYM
         | SOUNDS_SYM
+        | SOURCE_AUTO_POSITION_SYM
+        | SOURCE_BIND_SYM
+        | SOURCE_COMPRESSION_ALGORITHM_SYM
         | SOURCE_CONNECTION_AUTO_FAILOVER_SYM
+        | SOURCE_CONNECT_RETRY_SYM
+        | SOURCE_DELAY_SYM
+        | SOURCE_HEARTBEAT_PERIOD_SYM
+        | SOURCE_HOST_SYM
+        | SOURCE_LOG_FILE_SYM
+        | SOURCE_LOG_POS_SYM
+        | SOURCE_PASSWORD_SYM
+        | SOURCE_PORT_SYM
+        | SOURCE_PUBLIC_KEY_PATH_SYM
+        | SOURCE_RETRY_COUNT_SYM
+        | SOURCE_SSL_CAPATH_SYM
+        | SOURCE_SSL_CA_SYM
+        | SOURCE_SSL_CERT_SYM
+        | SOURCE_SSL_CIPHER_SYM
+        | SOURCE_SSL_CRLPATH_SYM
+        | SOURCE_SSL_CRL_SYM
+        | SOURCE_SSL_KEY_SYM
+        | SOURCE_SSL_SYM
+        | SOURCE_SSL_VERIFY_SERVER_CERT_SYM
         | SOURCE_SYM
+        | SOURCE_TLS_CIPHERSUITES_SYM
+        | SOURCE_TLS_VERSION_SYM
+        | SOURCE_USER_SYM
+        | SOURCE_ZSTD_COMPRESSION_LEVEL_SYM
         | SQL_AFTER_GTIDS
         | SQL_AFTER_MTS_GAPS
         | SQL_BEFORE_GTIDS

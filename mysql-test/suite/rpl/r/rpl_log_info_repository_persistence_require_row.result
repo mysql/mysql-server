@@ -16,14 +16,14 @@ FLUSH PRIVILEGES;
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-CHANGE MASTER TO MASTER_HOST="localhost", REQUIRE_ROW_FORMAT = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", REQUIRE_ROW_FORMAT = 1;
 include/assert.inc [Check that mysql.slave_relay_log_info does not have any entry]
 include/assert.inc [REQUIRE_ROW_FORMAT enabled for default channel "" in performance_schema.replication_applier_configuration]
 include/assert_grep.inc [In the file the field is set to 1]
 
 # 1.2. Set REQUIRE_ROW_FORMAT to 0
 #      Check the performance_schema table and file repository are correct
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;
 include/assert.inc [Check that mysql.slave_relay_log_info does not have any entry]
 include/assert.inc [REQUIRE_ROW_FORMAT disabled for default channel "" in performance_schema.replication_applier_configuration]
 
@@ -43,7 +43,7 @@ include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start]
 include/assert.inc [Check that mysql.slave_relay_log_info does not have any entry]
 include/assert.inc [REQUIRE_ROW_FORMAT disabled for default channel "" in performance_schema.replication_applier_configuration]
 # Reset the repository to default values
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER=NULL, REQUIRE_ROW_FORMAT = 0;
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL, REQUIRE_ROW_FORMAT = 0;
 include/assert.inc [Check that mysql.slave_relay_log_info does not have any entry]
 include/assert.inc [REQUIRE_ROW_FORMAT disabled for default channel "" in performance_schema.replication_applier_configuration]
 
@@ -72,9 +72,9 @@ include/assert.inc [Check entry for default channel "" in performance_schema.rep
 #       2. A group_replication channel (group_replication_recovery)
 #       3. A channel with a privileged user (default channel)
 #     REQUIRE_ROW_FORMAT must be 0 for 1) and 3). It must be 1 for 2)
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12 FOR CHANNEL "ch1" ;
-CHANGE MASTER TO MASTER_USER="root" FOR CHANNEL "group_replication_recovery";
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER = 'replication_applier'@'localhost' FOR CHANNEL "";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12 FOR CHANNEL "ch1" ;
+CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER = 'replication_applier'@'localhost' FOR CHANNEL "";
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Require_row_format;
 UPDATE mysql.slave_relay_log_info SET Number_of_lines = 10;
 include/rpl_restart_server.inc [server_number=2 parameters: --skip_slave_start --relay-log-info-repository=TABLE --upgrade=FORCE]

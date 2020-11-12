@@ -21,7 +21,7 @@ reset master;
 call mtr.add_suppression("NDB Slave: At SQL thread start applying epoch .*");
 
 STOP SLAVE;
-CHANGE MASTER TO MASTER_LOG_POS=4;
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4;
 START SLAVE;
 
 --echo Capture current count of epoch decline warnings
@@ -70,7 +70,7 @@ select count(1) - @init_skipped_err_count as skipped_err_count from test.server_
 --enable_query_log
 --echo Now stop and manually replay old binlog.
 stop slave;
-change master to master_log_pos=4;
+CHANGE REPLICATION SOURCE to SOURCE_LOG_POS=4;
 
 start slave;
 
@@ -90,7 +90,7 @@ select count(1) - @init_skipped_err_count as skipped_err_count from test.server_
 
 --echo Repeat
 stop slave;
-change master to master_log_pos=4;
+CHANGE REPLICATION SOURCE to SOURCE_LOG_POS=4;
 
 start slave;
 
@@ -188,7 +188,7 @@ reset master;
 --connection slave
 stop slave;
 
-change master to master_log_pos=4;
+CHANGE REPLICATION SOURCE to SOURCE_LOG_POS=4;
 
 start slave;
 
@@ -268,7 +268,7 @@ reset master;
 --connection slave
 stop slave;
 
-change master to master_log_pos=4;
+CHANGE REPLICATION SOURCE to SOURCE_LOG_POS=4;
 
 start slave;
 
@@ -351,7 +351,7 @@ reset master;
 --connection slave
 stop slave;
 
-change master to master_log_pos=4;
+CHANGE REPLICATION SOURCE to SOURCE_LOG_POS=4;
 
 start slave;
 

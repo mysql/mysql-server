@@ -7,7 +7,7 @@ CALL mtr.add_suppression("Statement is unsafe because it is being used inside a 
 [connection master]
 [connection slave]
 Starting the slave server
-RUN CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_USER= 'root'
+RUN CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_USER= 'root'
 
 0 rows affected
 RUN START SLAVE
