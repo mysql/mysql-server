@@ -198,7 +198,7 @@ SET SQL_BUFFER_RESULT = DEFAULT;
 --echo # Bug #30509580: SERVER CRASHED DURING EXPLAIN ANALYZE WITH RECURSIVE ...
 --echo #
 
---replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+--replace_regex /cost=\d+\.\d+(\.\.\d+\.\d+)? rows=\d+/cost=N.NNN..N.NNN rows=NNN/ /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
 EXPLAIN ANALYZE WITH RECURSIVE cte (n) AS
 (
   SELECT 1

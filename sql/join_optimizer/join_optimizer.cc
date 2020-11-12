@@ -194,6 +194,14 @@ class CostingReceiver {
   /// If not nullptr, we store human-readable optimizer trace information here.
   string *m_trace;
 
+  /// A map of tables that can never be on the right side of any join,
+  /// ie., they have to be leftmost in the tree. This only affects recursive
+  /// table references (ie., when WITH RECURSIVE is in use); they work by
+  /// continuously tailing new records, which wouldn't work if we were to
+  /// scan them multiple times or put them in a hash table. Naturally,
+  /// there must be zero or one bit here; the common case is zero.
+  NodeMap forced_leftmost_table = 0;
+
   /// For trace use only.
   std::string PrintSet(NodeMap x) {
     std::string ret = "{";
@@ -215,7 +223,8 @@ class CostingReceiver {
 
   AccessPath *ProposeAccessPathForNodes(NodeMap nodes, AccessPath *path,
                                         const char *description_for_trace);
-  bool ProposeTableScan(TABLE *table, int node_idx);
+  bool ProposeTableScan(TABLE *table, int node_idx,
+                        bool is_recursive_reference);
   bool ProposeRefAccess(TABLE *table, int node_idx, KEY *key, unsigned key_idx,
                         table_map allowed_parameter_tables);
   void ProposeNestedLoopJoin(NodeMap left, NodeMap right, AccessPath *left_path,
@@ -274,11 +283,12 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
   // ha_archive, though.)
   tl->fetch_number_of_rows();
 
-  if (ProposeTableScan(table, node_idx)) {
+  if (ProposeTableScan(table, node_idx, tl->is_recursive_reference())) {
     return true;
   }
 
-  if (!Overlaps(table->file->ha_table_flags(), HA_NO_INDEX_ACCESS)) {
+  if (!Overlaps(table->file->ha_table_flags(), HA_NO_INDEX_ACCESS) &&
+      !tl->is_recursive_reference()) {
     for (unsigned key_idx = 0; key_idx < table->s->keys; ++key_idx) {
       // Propose ref access using only sargable predicates that reference no
       // other table.
@@ -605,11 +615,26 @@ bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx, KEY *key,
   return false;
 }
 
-bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx) {
+bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx,
+                                       bool is_recursive_reference) {
   AccessPath table_path;
-  table_path.type = AccessPath::TABLE_SCAN;
+  if (is_recursive_reference) {
+    table_path.type = AccessPath::FOLLOW_TAIL;
+    table_path.follow_tail().table = table;
+    assert(forced_leftmost_table == 0);  // There can only be one, naturally.
+    forced_leftmost_table = NodeMap{1} << node_idx;
+
+    // This will obviously grow, and it is zero now, so force a fairly arbitrary
+    // minimum.
+    // TODO(sgunders): We should probably go into the CTE and look at its number
+    // of expected output rows, which is another minimum.
+    table->file->stats.records =
+        std::max<ha_rows>(table->file->stats.records, 1000);
+  } else {
+    table_path.type = AccessPath::TABLE_SCAN;
+    table_path.table_scan().table = table;
+  }
   table_path.count_examined_rows = true;
-  table_path.table_scan().table = table;
 
   // Doing at least one table scan (this one), so mark the query as such.
   // TODO(sgunders): Move out when we get more types and this access path could
@@ -785,6 +810,23 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
     return false;
   }
 
+  bool is_commutative = OperatorIsCommutative(*edge->expr);
+
+  // Enforce that recursive references need to be leftmost.
+  if (Overlaps(right, forced_leftmost_table)) {
+    if (!is_commutative) {
+      assert(IsSingleBitSet(forced_leftmost_table));
+      const int node_idx = FindLowestBitSet(forced_leftmost_table);
+      my_error(ER_CTE_RECURSIVE_FORBIDDEN_JOIN_ORDER, MYF(0),
+               m_graph.nodes[node_idx].table->alias);
+      return true;
+    }
+    swap(left, right);
+  }
+  if (Overlaps(left, forced_leftmost_table)) {
+    is_commutative = false;
+  }
+
   auto left_it = m_access_paths.find(left);
   assert(left_it != m_access_paths.end());
   auto right_it = m_access_paths.find(right);
@@ -800,8 +842,7 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
       // cost.) When cost estimates are supplied by the secondary engine,
       // explore both orders, since the secondary engine might unilaterally
       // decide to prefer or reject one particular order.
-      const bool operator_is_commutative = OperatorIsCommutative(*edge->expr);
-      if (operator_is_commutative && m_secondary_engine_cost_hook == nullptr) {
+      if (is_commutative && m_secondary_engine_cost_hook == nullptr) {
         if (left_path->num_output_rows < right_path->num_output_rows) {
           ProposeHashJoin(right, left, right_path, left_path, edge,
                           &wrote_trace);
@@ -811,14 +852,14 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
         }
       } else {
         ProposeHashJoin(left, right, left_path, right_path, edge, &wrote_trace);
-        if (operator_is_commutative) {
+        if (is_commutative) {
           ProposeHashJoin(right, left, right_path, left_path, edge,
                           &wrote_trace);
         }
       }
 
       ProposeNestedLoopJoin(left, right, left_path, right_path, edge);
-      if (operator_is_commutative) {
+      if (is_commutative) {
         ProposeNestedLoopJoin(right, left, right_path, left_path, edge);
       }
 
@@ -1344,10 +1385,6 @@ Mem_root_array<TABLE *> CollectTables(const Query_block *query_block,
 bool CheckSupportedQuery(THD *thd, JOIN *join) {
   if (join->query_block->has_ft_funcs()) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "fulltext search");
-    return true;
-  }
-  if (join->query_block->is_recursive()) {
-    my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "recursive CTEs");
     return true;
   }
   if (thd->lex->m_sql_cmd->using_secondary_storage_engine() &&
