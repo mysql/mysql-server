@@ -37803,3 +37803,21 @@ Dblqh::shrinkTransientPools(Uint32 pool_index)
     c_transient_pools_shrinking.clear(pool_index);
   }
 }
+
+void
+Dblqh::increment_usage_count_for_table(Uint32 tableId)
+{
+  TablerecPtr tabPtr;
+  tabPtr.i = tableId;
+  ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
+  tabPtr.p->usageCountR++;
+}
+
+void
+Dblqh::decrement_usage_count_for_table(Uint32 tableId)
+{
+  TablerecPtr tabPtr;
+  tabPtr.i = tableId;
+  ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
+  tabPtr.p->usageCountR--;
+}
