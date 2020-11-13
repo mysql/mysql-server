@@ -9,7 +9,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #    do not add failover sources.
 [connection slave]
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=1, SOURCE_CONNECTION_AUTO_FAILOVER=1;
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1, SOURCE_CONNECTION_AUTO_FAILOVER=1;
 include/start_slave.inc
 include/assert.inc ['Asynchronous Replication Connection Failover is enabled']
 include/assert.inc ['There are no rows in performance_schema.replication_asynchronous_connection_failover']
