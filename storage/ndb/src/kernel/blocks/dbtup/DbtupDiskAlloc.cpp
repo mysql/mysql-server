@@ -1694,6 +1694,7 @@ Dbtup::disk_page_abort_prealloc(Signal *signal, Fragrecord* fragPtrP,
   {
   case 0:
     jam();
+    c_lqh->increment_usage_count_for_table(req.m_table_id);
     break;
   case -1:
     ndbabort();
@@ -1725,7 +1726,9 @@ Dbtup::disk_page_abort_prealloc_callback(Signal* signal,
   Ptr<Tablerec> tabPtr;
   tabPtr.i= pagePtr.p->m_table_id;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
-  
+
+  c_lqh->decrement_usage_count_for_table(tabPtr.i);
+
   Ptr<Fragrecord> fragPtr;
   getFragmentrec(fragPtr, pagePtr.p->m_fragment_id, tabPtr.p);
 

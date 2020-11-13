@@ -1151,6 +1151,31 @@ void Dbacc::execACCKEYREQ(Signal* signal,
   Uint32 elemConptr;
   Uint32 elemptr;
 
+  /**
+   * The below two mutexes are required to acquire for query threads.
+   * The TUP page map mutex ensures that the LDM thread won't change
+   * any mappings from logical page id to physical page id while we
+   * are searching for a row in the ACC hash index. The LDM threads
+   * are protected by this since there is only one LDM thread that
+   * can change this page map.
+   *
+   * The ACC fragment mutexes are used to ensure that we either see
+   * a row or not. This protects the local key in the elements and
+   * it protects information in the lock queue about whether the
+   * row has been deleted or not. Again the LDM thread is protected
+   * without mutex, so both these mutexes are only acquired by
+   * query threads.
+   *
+   * In the code below we will ensure that these mutexes are released
+   * in all code paths that can be taken by the query threads. Those
+   * code paths that cannot be taken by the query threads all have an
+   * ndbassert on that m_is_in_query_thread is false.
+   *
+   * We need to release the ACC fragment mutex before calling 
+   * prepareTUPKEYREQ since this function will acquire the TUP
+   * page map mutex again and doing so without releasing the
+   * ACC fragment mutex first would cause a mutex deadlock.
+   */
   c_tup->acquire_frag_page_map_mutex_read();
   acquire_frag_mutex_get(fragrecptr.p, operationRecPtr);
   const Uint32 found = getElement(req,
@@ -1210,6 +1235,7 @@ void Dbacc::execACCKEYREQ(Signal* signal,
     case ZSCAN_OP:
       if (likely(!lockOwnerPtr.p))
       {
+        release_frag_mutex_get(fragrecptr.p, operationRecPtr);
 	if(unlikely(op == ZWRITE))
 	{
 	  jam();
@@ -1263,7 +1289,6 @@ void Dbacc::execACCKEYREQ(Signal* signal,
         else
         {
           jamDebug();
-          release_frag_mutex_get(fragrecptr.p, operationRecPtr);
 	  /*---------------------------------------------------------------*/
 	  // It is a dirty read. We do not lock anything. Set state to
 	  // IDLE since no COMMIT call will come.
@@ -1277,7 +1302,6 @@ void Dbacc::execACCKEYREQ(Signal* signal,
       {
         jam();
         accIsLockedLab(signal, lockOwnerPtr);
-        release_frag_mutex_get(fragrecptr.p, operationRecPtr);
         return;
       }//if
     case ZINSERT:
@@ -1655,7 +1679,7 @@ ref:
 }
 
 void 
-Dbacc::accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr) const
+Dbacc::accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr)
 {
   Uint32 bits = operationRecPtr.p->m_op_bits;
   validate_lock_queue(lockOwnerPtr);
@@ -1663,6 +1687,7 @@ Dbacc::accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr) const
   if ((bits & Operationrec::OP_DIRTY_READ) == 0)
   {
     Uint32 return_result;
+    ndbassert(!m_is_in_query_thread);
     if ((bits & Operationrec::OP_LOCK_MODE) == ZREADLOCK)
     {
       jam();
@@ -1714,6 +1739,7 @@ Dbacc::accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr) const
 	! lockOwnerPtr.p->localdata.isInvalid())
     {
       jamDebug();
+      release_frag_mutex_get(fragrecptr.p, operationRecPtr);
       /* ---------------------------------------------------------------
        * It is a dirty read. We do not lock anything. Set state to
        * OP_EXECUTED_DIRTY_READ to prepare for COMMIT/ABORT call.
@@ -1728,6 +1754,7 @@ Dbacc::accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr) const
     else 
     {
       jam();
+      release_frag_mutex_get(fragrecptr.p, operationRecPtr);
       /*---------------------------------------------------------------*/
       // The tuple does not exist in the committed world currently.
       // Report read error.
@@ -1742,7 +1769,7 @@ Dbacc::accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr) const
 /*        I N S E R T      E X I S T      E L E M E N T                     */
 /* ------------------------------------------------------------------------ */
 void Dbacc::insertExistElemLab(Signal* signal,
-                               OperationrecPtr lockOwnerPtr) const
+                               OperationrecPtr lockOwnerPtr)
 {
   if (!lockOwnerPtr.p)
   {

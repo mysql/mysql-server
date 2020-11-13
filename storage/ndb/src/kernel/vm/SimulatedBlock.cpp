@@ -5870,7 +5870,7 @@ Uint32 SimulatedBlock::get_lqhkeyreq_ref(DistributionHandler * const handle,
                                ldm_instance_no,
                                getOwnNodeId());
       q_state->m_current_stolen_lqhkeyreq = current_stolen_count +
-                                            load_indicator - 1;
+                                            load_indicator;
 #ifdef DEBUG_SCHED_STATS
       handle->m_lqhkeyreq_lq++;
       handle->m_lqhkeyreq_qt_count[ldm_instance_no]++;
@@ -6003,7 +6003,7 @@ Uint32 SimulatedBlock::get_scan_fragreq_ref(DistributionHandler * const handle,
                                ldm_instance_no,
                                getOwnNodeId());
       q_state->m_current_stolen_scan_fragreq = current_stolen_count +
-                                               load_indicator - 1;
+                                               load_indicator;
 #ifdef DEBUG_SCHED_STATS
       handle->m_scan_fragreq_lq++;
       handle->m_scan_fragreq_qt_count[ldm_instance_no]++;
