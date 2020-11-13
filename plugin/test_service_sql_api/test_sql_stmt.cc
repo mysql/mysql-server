@@ -313,7 +313,8 @@ static int handle_start_column_metadata(void *pctx, uint num_cols, uint,
   WRITE_STR("handle_start_column_metadata\n");
   DBUG_TRACE;
   DBUG_PRINT("info", ("resultcs->number: %d", resultcs->number));
-  DBUG_PRINT("info", ("resultcs->csname: %s", resultcs->csname));
+  DBUG_PRINT("info",
+             ("resultcs->csname: %s", replace_utf8_utf8mb3(resultcs->csname)));
   DBUG_PRINT("info", ("resultcs->name: %s", resultcs->name));
 
   ctx->tables.push_back(Table(num_cols, resultcs));

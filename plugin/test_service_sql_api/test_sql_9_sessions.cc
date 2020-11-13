@@ -73,7 +73,8 @@ static int sql_start_result_metadata(void *ctx, uint num_cols, uint flags,
                                      const CHARSET_INFO *resultcs) {
   DBUG_TRACE;
   DBUG_PRINT("info", ("resultcs->number: %d", resultcs->number));
-  DBUG_PRINT("info", ("resultcs->csname: %s", resultcs->csname));
+  DBUG_PRINT("info",
+             ("resultcs->csname: %s", replace_utf8_utf8mb3(resultcs->csname)));
   DBUG_PRINT("info", ("resultcs->name: %s", resultcs->name));
   row_count = 0;
   sql_num_cols = num_cols;
