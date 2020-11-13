@@ -102,11 +102,11 @@ SELECT count(*)=1 OR count(*)=2 FROM mysql.slow_log WHERE sql_text LIKE '%REPLAC
 
 --echo ------ from file ------
 SELECT count(*)=1 OR count(*)=2 FROM test_log WHERE sql_text LIKE 'CREATE USER %' AND sql_text LIKE '%<secret>%';
-SELECT sql_text FROM test_log WHERE sql_text LIKE 'CHANGE MASTER TO MASTER_BIND %';
+SELECT sql_text FROM test_log WHERE sql_text LIKE 'CHANGE REPLICATION SOURCE TO SOURCE_BIND %';
 SELECT count(*) FROM test_log WHERE sql_text LIKE 'SET PASSWORD %' AND sql_text LIKE '%<secret>%';
 --echo ------ from table ------
 SELECT count(*)=1 OR count(*)=2 FROM mysql.slow_log WHERE sql_text LIKE 'CREATE USER %' AND sql_text LIKE '%<secret>%';
-SELECT sql_text FROM test_log WHERE sql_text LIKE 'CHANGE MASTER TO MASTER_BIND %';
+SELECT sql_text FROM test_log WHERE sql_text LIKE 'CHANGE REPLICATION SOURCE TO SOURCE_BIND %';
 SELECT count(*) FROM test_log WHERE sql_text LIKE 'SET PASSWORD %' AND sql_text LIKE '%<secret>%';
 --echo ------ done ------
 

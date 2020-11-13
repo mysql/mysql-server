@@ -284,17 +284,17 @@ class Rewriter_grant final : public I_rewriter {
   Grant_params *grant_params = nullptr;
 };
 
-/** Rewrites the CHANGE MASTER statement. */
-class Rewriter_change_master final : public I_rewriter {
+/** Rewrites the CHANGE REPLICATION SOURCE statement. */
+class Rewriter_change_replication_source final : public I_rewriter {
  public:
-  Rewriter_change_master(THD *thd, Consumer_type);
+  Rewriter_change_replication_source(THD *thd, Consumer_type);
   bool rewrite(String &rlb) const override;
 };
 
-/** Rewrites the START SLAVE statement. */
-class Rewriter_slave_start final : public I_rewriter {
+/** Rewrites the START REPLICA statement. */
+class Rewriter_replica_start final : public I_rewriter {
  public:
-  Rewriter_slave_start(THD *thd, Consumer_type type);
+  Rewriter_replica_start(THD *thd, Consumer_type type);
   bool rewrite(String &rlb) const override;
 };
 /** Base class for SERVER OPTIONS related statement */

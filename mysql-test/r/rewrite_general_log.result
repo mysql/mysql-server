@@ -84,7 +84,7 @@ CREATE USER 'test_user1'@'%' IDENTIFIED WITH 'mysql_native_password' BY <secret>
 CREATE USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' BY <secret> REQUIRE SSL
 ALTER USER 'test_user3'@'localhost' IDENTIFIED BY <secret> REQUIRE X509 WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2 MAX_CONNECTIONS_PER_HOUR 3 MAX_USER_CONNECTIONS 4
 CREATE USER 'test_user2'@'%' IDENTIFIED WITH 'mysql_native_password' BY <secret>
-CHANGE MASTER TO MASTER_PASSWORD = <secret>
+CHANGE REPLICATION SOURCE TO SOURCE_PASSWORD = <secret>
 ALTER USER 'test_user4'@'localhost' IDENTIFIED BY <secret>
 CREATE USER 'test_user5'@'%' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF','test_user6'@'%' IDENTIFIED BY <secret>
 ALTER USER IF EXISTS 'test_user5'@'%' IDENTIFIED BY <secret>,'test_user6'@'%' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF','test_user7'@'%' IDENTIFIED BY <secret>
@@ -107,7 +107,7 @@ CREATE USER 'test_user1'@'%' IDENTIFIED WITH 'mysql_native_password' BY <secret>
 CREATE USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' BY <secret> REQUIRE SSL
 ALTER USER 'test_user3'@'localhost' IDENTIFIED BY <secret> REQUIRE X509 WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2 MAX_CONNECTIONS_PER_HOUR 3 MAX_USER_CONNECTIONS 4
 CREATE USER 'test_user2'@'%' IDENTIFIED WITH 'mysql_native_password' BY <secret>
-CHANGE MASTER TO MASTER_PASSWORD = <secret>
+CHANGE REPLICATION SOURCE TO SOURCE_PASSWORD = <secret>
 ALTER USER 'test_user4'@'localhost' IDENTIFIED BY <secret>
 CREATE USER 'test_user5'@'%' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF','test_user6'@'%' IDENTIFIED BY <secret>
 ALTER USER IF EXISTS 'test_user5'@'%' IDENTIFIED BY <secret>,'test_user6'@'%' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF','test_user7'@'%' IDENTIFIED BY <secret>
