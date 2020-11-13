@@ -1,6 +1,7 @@
 --let $rpl_skip_start_slave=1
 --source include/master-slave.inc
 --source include/have_binlog_format_row.inc
+--source include/have_slave_repository_type_table.inc
 
 #
 # ==== Purpose ====
