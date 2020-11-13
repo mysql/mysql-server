@@ -653,7 +653,8 @@ DROP VIEW v1, v2;
 #------------------------------------------------------------------------
 # Test case to verify INFORMATION_SCHEMA.COLUMNS result set.
 #------------------------------------------------------------------------
-SELECT TABLE_NAME, COLUMN_NAME, EXTRA FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='test';
+SELECT TABLE_NAME, COLUMN_NAME, EXTRA FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA='test' ORDER BY TABLE_NAME, COLUMN_NAME;
 TABLE_NAME	COLUMN_NAME	EXTRA
 t1	f1	INVISIBLE
 t1	f2	
