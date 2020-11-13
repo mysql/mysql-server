@@ -1150,8 +1150,8 @@ private:
   void endofexpLab(Signal* signal);
   void endofshrinkbucketLab(Signal* signal);
   void sendholdconfsignalLab(Signal* signal) const;
-  void accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr) const;
-  void insertExistElemLab(Signal* signal, OperationrecPtr lockOwnerPtr) const;
+  void accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr);
+  void insertExistElemLab(Signal* signal, OperationrecPtr lockOwnerPtr);
   void releaseScanLab(Signal* signal);
   void initialiseRecordsLab(Signal* signal, Uint32, Uint32, Uint32);
   void checkNextBucketLab(Signal* signal);
