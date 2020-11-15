@@ -778,12 +778,14 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened) {
 
   LEX *lex = thd->lex;
   set_var_base *var;
-  {
+  if (!thd->lex->unit->is_prepared()) {
     Prepared_stmt_arena_holder ps_arena_holder(thd);
     while ((var = it++)) {
       if ((error = var->resolve(thd))) goto err;
     }
     if ((error = thd->is_error())) goto err;
+    thd->lex->unit->set_prepared();
+    if (!thd->stmt_arena->is_regular()) thd->lex->save_cmd_properties(thd);
   }
   if (opened && lock_tables(thd, lex->query_tables, lex->table_count, 0)) {
     error = 1;

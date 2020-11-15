@@ -9958,3 +9958,27 @@ CALL pc_with_flush();
 DROP PROCEDURE pc;
 DROP PROCEDURE pc_with_flush;
 DROP TABLE t1, t2;
+
+--echo # Bug#32078387: Incorrect caching of information_schema variables in procedure
+
+CREATE TABLE foo (
+  id INTEGER NOT NULL AUTO_INCREMENT,
+  fld INTEGER NOT NULL,
+  PRIMARY KEY(id),
+  UNIQUE KEY fld(fld)
+);
+delimiter //;
+CREATE PROCEDURE test() BEGIN
+ SET @exist := (SELECT COUNT(*) FROM information_schema.statistics
+                WHERE table_name = 'foo' and
+                      table_schema = database() and
+                      index_name = 'fld');
+ SELECT @exist;
+END;
+//
+delimiter ;//
+CALL test();
+CALL test();
+CALL test();
+DROP PROCEDURE test;
+DROP TABLE foo;
