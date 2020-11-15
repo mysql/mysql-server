@@ -11546,7 +11546,10 @@ void Dbdih::removeNodeFromTables(Signal* signal,
     }//if
 
     ptrAss(tabPtr, tabRecord);
-    if (tabPtr.p->tabStatus == TabRecord::TS_ACTIVE) {
+    if (tabPtr.p->tabStatus == TabRecord::TS_ACTIVE ||
+        (tabPtr.p->tabStatus == TabRecord::TS_CREATING &&
+         tabPtr.p->connectrec == RNIL)) // Create work done
+    {
       jam();
       removeNodeFromTable(signal, nodeId, tabPtr);
       return;
@@ -14762,6 +14765,8 @@ Dbdih::execDROP_TAB_REQ(Signal* signal)
     break;
   case DropTabReq::CreateTabDrop:
     jam();
+    ndbrequire(tabPtr.p->tabStatus == TabRecord::TS_CREATING);
+    tabPtr.p->tabStatus = TabRecord::TS_DROPPING;
     break;
   case DropTabReq::RestartDropTab:
     break;
