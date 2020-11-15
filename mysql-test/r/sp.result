@@ -8541,3 +8541,29 @@ ERROR 21000: Subquery returns more than 1 row
 DROP PROCEDURE pc;
 DROP PROCEDURE pc_with_flush;
 DROP TABLE t1, t2;
+# Bug#32078387: Incorrect caching of information_schema variables in procedure
+CREATE TABLE foo (
+id INTEGER NOT NULL AUTO_INCREMENT,
+fld INTEGER NOT NULL,
+PRIMARY KEY(id),
+UNIQUE KEY fld(fld)
+);
+CREATE PROCEDURE test() BEGIN
+SET @exist := (SELECT COUNT(*) FROM information_schema.statistics
+WHERE table_name = 'foo' and
+table_schema = database() and
+index_name = 'fld');
+SELECT @exist;
+END;
+//
+CALL test();
+@exist
+1
+CALL test();
+@exist
+1
+CALL test();
+@exist
+1
+DROP PROCEDURE test;
+DROP TABLE foo;
