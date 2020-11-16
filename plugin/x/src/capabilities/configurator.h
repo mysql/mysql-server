@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -29,26 +29,26 @@
 #include <string>
 #include <vector>
 
-#include "plugin/x/src/capabilities/handler.h"
+#include "plugin/x/src/interface/capabilities_configurator.h"
+#include "plugin/x/src/interface/capability_handler.h"
 #include "plugin/x/src/ngs/error_code.h"
 #include "plugin/x/src/ngs/memory.h"
 #include "plugin/x/src/ngs/protocol/protocol_protobuf.h"
 
 namespace xpl {
 
-using Capability_handler_ptr = std::shared_ptr<Capability_handler>;
+using Capability_handler_ptr = std::shared_ptr<iface::Capability_handler>;
 
-class Capabilities_configurator {
+class Capabilities_configurator : public iface::Capabilities_configurator {
  public:
   Capabilities_configurator(
       const std::vector<Capability_handler_ptr> &capabilities);
-  virtual ~Capabilities_configurator() {}
 
-  virtual ::Mysqlx::Connection::Capabilities *get();
+  ::Mysqlx::Connection::Capabilities *get() override;
 
-  virtual ngs::Error_code prepare_set(
-      const ::Mysqlx::Connection::Capabilities &capabilities);
-  virtual void commit();
+  ngs::Error_code prepare_set(
+      const ::Mysqlx::Connection::Capabilities &capabilities) override;
+  void commit() override;
 
   void add_handler(Capability_handler_ptr handler);
 

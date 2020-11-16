@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,24 +22,26 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_COMPONENT_SYS_VARIABLE_REGISTER_H_
-#define UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_COMPONENT_SYS_VARIABLE_REGISTER_H_
+#ifndef PLUGIN_X_SRC_INTERFACE_CAPABILITIES_CONFIGURATOR_H_
+#define PLUGIN_X_SRC_INTERFACE_CAPABILITIES_CONFIGURATOR_H_
 
-#include <gmock/gmock.h>
+#include "plugin/x/src/ngs/error_code.h"
+#include "plugin/x/src/ngs/protocol/protocol_protobuf.h"
 
-#include "plugin/x/src/interface/service_sys_variables.h"
+namespace xpl {
+namespace iface {
 
-namespace ngs {
-namespace test {
-
-class Mock_service_sys_variables : public xpl::iface::Service_sys_variables {
+class Capabilities_configurator {
  public:
-  MOCK_METHOD4(get_variable, bool(const char *component_name, const char *name,
-                                  void **val, size_t *out_length_of_val));
-  MOCK_CONST_METHOD0(is_valid, bool());
+  virtual ~Capabilities_configurator() = default;
+
+  virtual ::Mysqlx::Connection::Capabilities *get() = 0;
+  virtual ngs::Error_code prepare_set(
+      const ::Mysqlx::Connection::Capabilities &capabilities) = 0;
+  virtual void commit() = 0;
 };
 
-}  // namespace test
-}  // namespace ngs
+}  // namespace iface
+}  // namespace xpl
 
-#endif  //  UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_COMPONENT_SYS_VARIABLE_REGISTER_H_
+#endif  // PLUGIN_X_SRC_INTERFACE_CAPABILITIES_CONFIGURATOR_H_

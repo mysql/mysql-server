@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,13 +22,36 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "unittest/gunit/xplugin/xpl/mock/mock_srv_session_services.h"
+#ifndef UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_AUTHENTICATION_CONTAINER_H_
+#define UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_AUTHENTICATION_CONTAINER_H_
+
+#include <gmock/gmock.h>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "plugin/x/src/interface/authentication_container.h"
 
 namespace xpl {
 namespace test {
+namespace mock {
 
-Mock_srv_session *Mock_srv_session::m_srv_session = nullptr;
-Mock_srv_session_info *Mock_srv_session_info::m_srv_session_info = nullptr;
+class Authentication_container : public iface::Authentication_container {
+ public:
+  std::unique_ptr<iface::Authentication> get_auth_handler(
+      const std::string &name, iface::Session *session) override {
+    return std::unique_ptr<iface::Authentication>{
+        get_auth_handler_raw(name, session)};
+  }
 
+  MOCK_METHOD(iface::Authentication *, get_auth_handler_raw,
+              (const std::string &name, iface::Session *session));
+  MOCK_METHOD(std::vector<std::string>, get_authentication_mechanisms,
+              (iface::Client * client), (override));
+};
+
+}  // namespace mock
 }  // namespace test
 }  // namespace xpl
+
+#endif  //  UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_AUTHENTICATION_CONTAINER_H_

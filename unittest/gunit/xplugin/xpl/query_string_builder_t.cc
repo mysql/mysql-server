@@ -141,7 +141,7 @@ TEST_P(Query_string_builder_param_testsuite,
   ASSERT_STREQ(expected_query, query.get().c_str());
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     InstantiationPositiveTest, Query_string_builder_param_testsuite,
     ::testing::Values(
         Query_and_expected("SELECT ? FROM", "SELECT 'Test' FROM", "Test"),
@@ -203,7 +203,7 @@ TEST_P(Query_string_builder_multiple_tags_param_testsuite,
   ASSERT_STREQ(expected_query.c_str(), query.get().c_str());
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     InstantiationPositiveTests,
     Query_string_builder_multiple_tags_param_testsuite,
     ::testing::Values(
@@ -222,7 +222,7 @@ INSTANTIATE_TEST_CASE_P(
         Query_and_expected_values("SELECT ? FROM ?", "SELECT '?' FROM 'First'",
                                   Assign_list("?")("First"))));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     InstantiationPositiveTestsQueryOrValuesWithEscapedChars,
     Query_string_builder_multiple_tags_param_testsuite,
     ::testing::Values(
@@ -239,7 +239,7 @@ INSTANTIATE_TEST_CASE_P(
                                   "SELECT \"?\'?'?\",'','First' FROM t",
                                   Assign_list("")("First"))));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     InstantiationPositiveTestsQueryWithComment,
     Query_string_builder_multiple_tags_param_testsuite,
     ::testing::Values(
@@ -281,7 +281,7 @@ TEST_P(Query_string_builder_multiple_too_many_tags_param_testsuite,
   ASSERT_THROW(query.format() % values.back(), ngs::Error_code);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     InstantiationNegativeTest,
     Query_string_builder_multiple_too_many_tags_param_testsuite,
     ::testing::Values(

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@
 
 #include "errmsg.h"       // NOLINT(build/include_subdir)
 #include "my_compiler.h"  // NOLINT(build/include_subdir)
-#include "my_inttypes.h"
+#include "my_inttypes.h"  // NOLINT(build/include_subdir)
 #include "plugin/x/client/context/xconnection_config.h"
 #include "plugin/x/client/context/xssl_config.h"
 #include "plugin/x/client/xprotocol_impl.h"
@@ -73,7 +73,7 @@ class Xcl_protocol_impl_tests : public Test {
 
  public:
   void SetUp() override {
-    m_mock_connection = new StrictMock<Mock_connection>();
+    m_mock_connection = new StrictMock<mock::XConnection>();
 
     EXPECT_CALL(m_mock_factory, create_connection_raw(_))
         .WillOnce(Return(m_mock_connection));
@@ -82,7 +82,7 @@ class Xcl_protocol_impl_tests : public Test {
   }
 
   XQuery_result *expect_factory_new_result() {
-    Mock_query_result *result = new Mock_query_result();
+    mock::XQuery_result *result = new mock::XQuery_result();
     static XQuery_result::Metadata metadata;
 
     EXPECT_CALL(m_mock_factory, create_result_raw(_, _, _))
@@ -233,9 +233,9 @@ class Xcl_protocol_impl_tests : public Test {
     ASSERT_EQ(Message_compare<Message_type>(message), *result);
   }
 
-  StrictMock<Mock_connection> *m_mock_connection;
-  StrictMock<Mock_factory> m_mock_factory;
-  StrictMock<Mock_handlers> m_mock_handlers;
+  StrictMock<mock::XConnection> *m_mock_connection;
+  StrictMock<mock::Protocol_factory> m_mock_factory;
+  StrictMock<mock::Message_handlers> m_mock_handlers;
 
   std::shared_ptr<Context> m_context{std::make_shared<Context>()};
 
@@ -270,7 +270,7 @@ class Xcl_protocol_impl_tests_with_msg : public Xcl_protocol_impl_tests {
   }
 
   void assert_multiple_handlers(const Handler_result first_handler_consumed) {
-    StrictMock<Mock_handlers> mock_handlers[2];
+    StrictMock<mock::Message_handlers> mock_handlers[2];
 
     this->setup_required_fields_in_message();
 

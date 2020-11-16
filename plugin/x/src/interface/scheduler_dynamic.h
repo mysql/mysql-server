@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,15 +22,35 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "mock_component_services.h"
+#ifndef PLUGIN_X_SRC_INTERFACE_SCHEDULER_DYNAMIC_H_
+#define PLUGIN_X_SRC_INTERFACE_SCHEDULER_DYNAMIC_H_
 
 namespace xpl {
-namespace test {
+namespace iface {
 
-Mock_service_registry *Mock_service_registry::m_this = nullptr;
-Mock_service_admin_session *Mock_service_admin_session::m_this = nullptr;
-Mock_mysql_plugin_registry
-    *Mock_mysql_plugin_registry::m_mysql_plugin_registry = nullptr;
+// Scheduler with dynamic thread pool.
+class Scheduler_dynamic {
+ public:
+  class Monitor {
+   public:
+    virtual ~Monitor() = default;
 
-}  // namespace test
+    virtual void on_worker_thread_create() = 0;
+    virtual void on_worker_thread_destroy() = 0;
+    virtual void on_task_start() = 0;
+    virtual void on_task_end() = 0;
+  };
+
+  virtual ~Scheduler_dynamic() = default;
+
+  virtual void launch() = 0;
+  virtual void stop() = 0;
+  virtual unsigned int set_num_workers(unsigned int n) = 0;
+  virtual bool thread_init() = 0;
+  virtual void thread_end() = 0;
+};
+
+}  // namespace iface
 }  // namespace xpl
+
+#endif  // PLUGIN_X_SRC_INTERFACE_SCHEDULER_DYNAMIC_H_

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@ namespace xpl {
 
 class Sasl_plain_auth : public iface::Authentication {
  public:
-  explicit Sasl_plain_auth(Account_verification_handler *handler)
+  explicit Sasl_plain_auth(iface::Account_verification_handler *handler)
       : m_verification_handler(handler) {}
 
   static std::unique_ptr<iface::Authentication> create(
@@ -58,7 +58,7 @@ class Sasl_plain_auth : public iface::Authentication {
   }
 
  private:
-  Account_verification_handler::Unique_ptr m_verification_handler;
+  std::unique_ptr<iface::Account_verification_handler> m_verification_handler;
   iface::Authentication_info m_auth_info;
 };
 

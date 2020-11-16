@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -34,18 +34,20 @@
 
 namespace xcl {
 namespace test {
+namespace mock {
 
-class Mock_connection_state : public XConnection::State {
+class XConnection_state : public xcl::XConnection::State {
  public:
-  MOCK_CONST_METHOD0(is_ssl_configured, bool());
-  MOCK_CONST_METHOD0(is_ssl_activated, bool());
-  MOCK_CONST_METHOD0(is_connected, bool());
-  MOCK_CONST_METHOD0(get_ssl_version, std::string());
-  MOCK_CONST_METHOD0(get_ssl_cipher, std::string());
-  MOCK_CONST_METHOD0(get_connection_type, Connection_type());
-  MOCK_CONST_METHOD0(has_data, bool());
+  MOCK_METHOD(bool, is_ssl_configured, (), (const, override));
+  MOCK_METHOD(bool, is_ssl_activated, (), (const, override));
+  MOCK_METHOD(bool, is_connected, (), (const, override));
+  MOCK_METHOD(std::string, get_ssl_version, (), (const, override));
+  MOCK_METHOD(std::string, get_ssl_cipher, (), (const, override));
+  MOCK_METHOD(Connection_type, get_connection_type, (), (const, override));
+  MOCK_METHOD(bool, has_data, (), (const, override));
 };
 
+}  // namespace mock
 }  // namespace test
 }  // namespace xcl
 

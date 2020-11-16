@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,9 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "plugin/x/src/document_id_aggregator.h"
 #include "plugin/x/src/insert_statement_builder.h"
-#include "unittest/gunit/xplugin/xpl/mock/session.h"
+#include "unittest/gunit/xplugin/xpl/mock/document_id_generator.h"
 #include "unittest/gunit/xplugin/xpl/mysqlx_pb_wrapper.h"
 
 namespace xpl {
@@ -45,7 +46,7 @@ class Insert_statement_builder_stub : public Insert_statement_builder {
   using Insert_statement_builder::add_row;
   using Insert_statement_builder::add_upsert;
   using Insert_statement_builder::add_values;
-  StrictMock<Mock_id_generator> mock_id_generator;
+  StrictMock<mock::Document_id_generator> mock_id_generator;
   Document_id_aggregator m_id_agg{&mock_id_generator};
 };
 
@@ -331,9 +332,9 @@ Param_add_document add_document_param[] = {
      Scalar::String(std::string(R"({"extra":)") + k_doc_example2 +
                     R"(, "_id":"abc3"})")}};
 
-INSTANTIATE_TEST_CASE_P(Insert_statement_builder_add_document,
-                        Add_document_param_test,
-                        testing::ValuesIn(add_document_param));
+INSTANTIATE_TEST_SUITE_P(Insert_statement_builder_add_document,
+                         Add_document_param_test,
+                         testing::ValuesIn(add_document_param));
 
 struct Param_add_prep_stmt_document {
   std::string expect_query;
@@ -402,9 +403,9 @@ Param_add_prep_stmt_document add_prep_stmt_document_param[] = {
      Object{{"tree", Placeholder(0)}}},
 };
 
-INSTANTIATE_TEST_CASE_P(Insert_statement_builder_add_prep_stmt_document,
-                        Add_prep_stmt_document_param_test,
-                        testing::ValuesIn(add_prep_stmt_document_param));
+INSTANTIATE_TEST_SUITE_P(Insert_statement_builder_add_prep_stmt_document,
+                         Add_prep_stmt_document_param_test,
+                         testing::ValuesIn(add_prep_stmt_document_param));
 
 }  // namespace test
 }  // namespace xpl

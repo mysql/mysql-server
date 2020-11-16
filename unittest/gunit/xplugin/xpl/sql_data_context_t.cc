@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,8 @@
 #include <gtest/gtest.h>
 #include <memory>
 
-#include "unittest/gunit/xplugin/xpl/mock/mock_component_services.h"
-#include "unittest/gunit/xplugin/xpl/mock/mock_srv_session_services.h"
+#include "unittest/gunit/xplugin/xpl/mock/component_services.h"
+#include "unittest/gunit/xplugin/xpl/mock/srv_session_services.h"
 
 #include "plugin/x/src/sql_data_context.h"
 
@@ -42,11 +42,11 @@ using ::testing::StrictMock;
 
 class Sql_data_context_test_suite : public ::testing::Test {
  public:
-  StrictMock<Mock_mysql_plugin_registry> m_mock_plugin_registry;
-  StrictMock<Mock_service_registry> m_mock_registry;
-  StrictMock<Mock_service_admin_session> m_mock_admin_session;
-  StrictMock<Mock_srv_session> m_mock_srv_session;
-  StrictMock<Mock_srv_session_info> m_mock_srv_session_info;
+  StrictMock<mock::Mysql_plugin_registry> m_mock_plugin_registry;
+  StrictMock<mock::Service_registry> m_mock_registry;
+  StrictMock<mock::Service_admin_session> m_mock_admin_session;
+  StrictMock<mock::Srv_session> m_mock_srv_session;
+  StrictMock<mock::Srv_session_info> m_mock_srv_session_info;
   std::unique_ptr<xpl::Sql_data_context> m_sut{new xpl::Sql_data_context()};
 };
 

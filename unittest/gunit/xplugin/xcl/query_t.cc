@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -48,8 +48,8 @@ const xcl::XProtocol::Handler_id TEST_NOTICE_HANDLER_ID = 1002;
 
 class Query_test_suite : public ::testing::Test {
  public:
-  using Mock_query_instances_ptr = std::shared_ptr<Mock_query_instances>;
-  using Mock_protocol_ptr = std::shared_ptr<Mock_protocol>;
+  using Mock_query_instances_ptr = std::shared_ptr<mock::Query_instances>;
+  using Mock_protocol_ptr = std::shared_ptr<mock::XProtocol>;
   using Context_ptr = std::shared_ptr<Context>;
 
  public:
@@ -75,10 +75,10 @@ class Query_test_suite : public ::testing::Test {
   Context_ptr m_context = std::make_shared<Context>();
 
   Mock_query_instances_ptr m_mock_query_instances =
-      std::make_shared<StrictMock<Mock_query_instances>>();
+      std::make_shared<StrictMock<mock::Query_instances>>();
 
   Mock_protocol_ptr m_mock_protocol =
-      std::make_shared<StrictMock<Mock_protocol>>();
+      std::make_shared<StrictMock<mock::XProtocol>>();
 
   std::unique_ptr<XQuery_result> m_sut;
 };
@@ -252,7 +252,7 @@ template <typename T>
 class Query_active_destructor_cleanup_test_suite
     : public Query_active_test_suite {};
 
-TYPED_TEST_CASE(Query_active_destructor_cleanup_test_suite, Done_messages);
+TYPED_TEST_SUITE(Query_active_destructor_cleanup_test_suite, Done_messages);
 
 TYPED_TEST(Query_active_destructor_cleanup_test_suite,
            consumes_stmt_execute_ok) {
@@ -405,7 +405,7 @@ class Typed_query_active_test_suite : public Query_active_test_suite {
   using Unexpected_message = T;
 };
 
-TYPED_TEST_CASE(Typed_query_active_test_suite, Unexpected_messages);
+TYPED_TEST_SUITE(Typed_query_active_test_suite, Unexpected_messages);
 
 TYPED_TEST(Typed_query_active_test_suite,
            destructor_consumes_until_unexpected_message1) {
@@ -492,7 +492,7 @@ TEST_F(Query_active_test_suite, no_resultset_at_call_get_next_row) {
 template <typename T>
 class Query_active_test_suite_typed_param : public Query_active_test_suite {};
 
-TYPED_TEST_CASE(Query_active_test_suite_typed_param, Done_messages);
+TYPED_TEST_SUITE(Query_active_test_suite_typed_param, Done_messages);
 
 TYPED_TEST(Query_active_test_suite_typed_param, fetch_one_resultset) {
   InSequence s;

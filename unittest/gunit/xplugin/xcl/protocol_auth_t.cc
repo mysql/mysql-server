@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -302,7 +302,7 @@ TEST_P(Xcl_protocol_impl_tests_auth,
   assert_authenticate(GetParam().m_auth_name, expected_error_code);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     InstantiationAuthDetails, Xcl_protocol_impl_tests_auth,
     ::testing::Values(
         Auth_details{"MYSQL41", Auth_test_messages().msg_auth_start_mysql41,

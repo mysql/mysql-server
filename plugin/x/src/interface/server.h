@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -34,11 +34,11 @@
 #include "plugin/x/src/interface/authentication_container.h"
 #include "plugin/x/src/interface/document_id_generator.h"
 #include "plugin/x/src/interface/session.h"
-#include "plugin/x/src/ngs/client_list.h"
 
 namespace ngs {
 class Scheduler_dynamic;
 class Protocol_global_config;
+class Client_list;
 }  // namespace ngs
 
 namespace xpl {

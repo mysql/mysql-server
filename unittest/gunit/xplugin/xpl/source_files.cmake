@@ -47,8 +47,8 @@ SET(XPL_TEST_SRC
   listener_unix_socket_t.cc
   message_builder_t.cc
   meta_schema_validator_t.cc
-  mock/mock_component_services.cc
-  mock/mock_srv_session_services.cc
+  mock/component_services.cc
+  mock/srv_session_services.cc
   mysqlx_pb_wrapper.cc
   prepared_statement_builder_t.cc
   prepare_param_handler_t.cc

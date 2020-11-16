@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@
 #include <string>
 #include <utility>
 
-#include "errmsg.h"
+#include "errmsg.h"  // NOLINT(build/include_subdir)
 #include "plugin/x/client/xsession_impl.h"
 #include "unittest/gunit/xplugin/xcl/mock/connection.h"
 #include "unittest/gunit/xplugin/xcl/mock/connection_state.h"
@@ -62,8 +62,8 @@ class Xcl_session_impl_tests : public Test {
      The object takes ownership of the pointer. We hold a copy
      of it to setup mocking expectations.
      */
-    m_mock_protocol = new StrictMock<Mock_protocol>();
-    m_mock_factory = new StrictMock<Mock_factory>();
+    m_mock_protocol = new StrictMock<mock::XProtocol>();
+    m_mock_factory = new StrictMock<mock::Protocol_factory>();
 
     EXPECT_CALL(*m_mock_factory, create_protocol_raw(_))
         .WillOnce(DoAll(Invoke(this, &Xcl_session_impl_tests::assign_configs),
@@ -136,10 +136,10 @@ class Xcl_session_impl_tests : public Test {
   XProtocol::Notice_handler m_out_message_handler;
   const Ssl_config *m_out_ssl_config{nullptr};
   const Connection_config *m_out_connection_config{nullptr};
-  StrictMock<Mock_protocol> *m_mock_protocol{nullptr};
-  StrictMock<Mock_connection> m_mock_connection;
-  StrictMock<Mock_connection_state> m_mock_connection_state;
-  StrictMock<Mock_factory> *m_mock_factory;
+  StrictMock<mock::XProtocol> *m_mock_protocol{nullptr};
+  StrictMock<mock::XConnection> m_mock_connection;
+  StrictMock<mock::XConnection_state> m_mock_connection_state;
+  StrictMock<mock::Protocol_factory> *m_mock_factory;
   std::unique_ptr<Session_impl> m_sut;
 };
 

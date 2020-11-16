@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -35,24 +35,33 @@
 
 namespace xcl {
 namespace test {
+namespace mock {
 
-class Mock_connection : public XConnection {
+class XConnection : public xcl::XConnection {
  public:
-  MOCK_METHOD1(connect_to_localhost, XError(const std::string &unix_socket));
-  MOCK_METHOD3(connect, XError(const std::string &host, const uint16_t port,
-                               const Internet_protocol ip_mode));
-  MOCK_METHOD0(get_socket_fd, my_socket());
-  MOCK_METHOD0(activate_tls, XError());
-  MOCK_METHOD1(shutdown, XError(const Shutdown_type how_to_shutdown));
-  MOCK_METHOD2(write,
-               XError(const uint8_t *data, const std::size_t data_length));
-  MOCK_METHOD2(read, XError(uint8_t *data, const std::size_t data_length));
-  MOCK_METHOD1(set_read_timeout, XError(const int deadline_milliseconds));
-  MOCK_METHOD1(set_write_timeout, XError(const int deadline_milliseconds));
-  MOCK_METHOD0(close, void());
-  MOCK_METHOD0(state, const State &());
+  MOCK_METHOD(XError, connect_to_localhost, (const std::string &unix_socket),
+              (override));
+  MOCK_METHOD(XError, connect,
+              (const std::string &host, const uint16_t port,
+               const Internet_protocol ip_mode),
+              (override));
+  MOCK_METHOD(my_socket, get_socket_fd, (), (override));
+  MOCK_METHOD(XError, activate_tls, (), (override));
+  MOCK_METHOD(XError, shutdown, (const Shutdown_type how_to_shutdown),
+              (override));
+  MOCK_METHOD(XError, write,
+              (const uint8_t *data, const std::size_t data_length), (override));
+  MOCK_METHOD(XError, read, (uint8_t * data, const std::size_t data_length),
+              (override));
+  MOCK_METHOD(XError, set_read_timeout, (const int deadline_milliseconds),
+              (override));
+  MOCK_METHOD(XError, set_write_timeout, (const int deadline_milliseconds),
+              (override));
+  MOCK_METHOD(void, close, (), (override));
+  MOCK_METHOD(const State &, state, (), (override));
 };
 
+}  // namespace mock
 }  // namespace test
 }  // namespace xcl
 

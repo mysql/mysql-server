@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -145,9 +145,9 @@ TEST_P(Admin_cmd_modify_validation_level_strict,
                     command->modify_collection_options(m_args.get()));
 }
 
-INSTANTIATE_TEST_CASE_P(Instantiation_modify_cmd_level_strict,
-                        Admin_cmd_modify_validation_level_strict,
-                        ::testing::Values("strict", "STRICT", "sTriCT"));
+INSTANTIATE_TEST_SUITE_P(Instantiation_modify_cmd_level_strict,
+                         Admin_cmd_modify_validation_level_strict,
+                         ::testing::Values("strict", "STRICT", "sTriCT"));
 
 TEST_F(Admin_cmd_modify_collection_options_test, validation_level_invalid) {
   set_validation_details({{"level", Scalar::String{"validate_sometimes"}}});
@@ -202,7 +202,7 @@ TEST_F(Admin_cmd_modify_validation_schema_only,
                     command->modify_collection_options(m_args.get()));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Instantiation_modify_cmd_schema_only,
     Admin_cmd_modify_validation_schema_only,
     ::testing::Values(
@@ -229,7 +229,7 @@ TEST_P(Admin_cmd_modify_validation_schema_with_level_off,
                     command->modify_collection_options(m_args.get()));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Instantiation_modify_cmd_validation_off,
     Admin_cmd_modify_validation_schema_with_level_off,
     ::testing::Values(
@@ -258,7 +258,7 @@ TEST_P(Admin_cmd_modify_validation_schema_with_level_strict,
                     command->modify_collection_options(m_args.get()));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Instantiation_modify_cmd_validation_strict,
     Admin_cmd_modify_validation_schema_with_level_strict,
     ::testing::Values(

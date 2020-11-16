@@ -33,7 +33,11 @@
 
 #include "my_io.h"  // NOLINT(build/include_subdir)
 #include "plugin/x/src/io/xpl_listener_tcp.h"
-#include "unittest/gunit/xplugin/xpl/mock/ngs_general.h"
+#include "plugin/x/src/xpl_performance_schema.h"
+#include "unittest/gunit/xplugin/xpl/mock/operations_factory.h"
+#include "unittest/gunit/xplugin/xpl/mock/socket.h"
+#include "unittest/gunit/xplugin/xpl/mock/socket_events.h"
+#include "unittest/gunit/xplugin/xpl/mock/system.h"
 
 namespace xpl {
 namespace test {
@@ -65,10 +69,10 @@ class Listener_tcp_testsuite : public Test {
   void SetUp() override {
     KEY_socket_x_tcpip = 1;
 
-    m_mock_factory = std::make_shared<StrictMock<Mock_factory>>();
-    m_mock_socket = std::make_shared<StrictMock<Mock_socket>>();
-    m_mock_system = std::make_shared<StrictMock<Mock_system>>();
-    m_mock_socket_invalid = std::make_shared<StrictMock<Mock_socket>>();
+    m_mock_factory = std::make_shared<StrictMock<mock::Operations_factory>>();
+    m_mock_socket = std::make_shared<StrictMock<mock::Socket>>();
+    m_mock_system = std::make_shared<StrictMock<mock::System>>();
+    m_mock_socket_invalid = std::make_shared<StrictMock<mock::Socket>>();
 
     ASSERT_NO_FATAL_FAILURE(assert_verify_and_reinitailize_rules());
   }
@@ -99,14 +103,14 @@ class Listener_tcp_testsuite : public Test {
         port_timeout, std::ref(m_mock_socket_events), BACKLOG);
   }
 
-  void expect_create_socket(addrinfo &ai, const std::string &interface,
+  void expect_create_socket(addrinfo *ai, const std::string &interface,
                             const int family,
                             const int64_t result = SOCKET_OK) {
     make_sut(interface, PORT, PORT_TIMEOUT);
 
     EXPECT_CALL(*m_mock_system,
                 getaddrinfo(StrEq(interface), StrEq(PORT_STRING), _, _))
-        .WillOnce(DoAll(SetArgPointee<3>(&ai), Return(POSIX_OK)));
+        .WillOnce(DoAll(SetArgPointee<3>(ai), Return(POSIX_OK)));
 
     EXPECT_CALL(*m_mock_socket, get_socket_fd()).WillOnce(Return(result));
     EXPECT_CALL(*m_mock_factory,
@@ -120,12 +124,12 @@ class Listener_tcp_testsuite : public Test {
 #endif
   }
 
-  void expect_listen_socket(std::shared_ptr<Mock_socket> mock_socket,
-                            addrinfo &ai,
+  void expect_listen_socket(std::shared_ptr<mock::Socket> mock_socket,
+                            addrinfo *ai,
                             const bool socket_events_listen = true) {
     EXPECT_CALL(*mock_socket, set_socket_thread_owner());
     EXPECT_CALL(*mock_socket,
-                bind(ai.ai_addr, static_cast<socklen_t>(ai.ai_addrlen)))
+                bind(ai->ai_addr, static_cast<socklen_t>(ai->ai_addrlen)))
         .WillOnce(Return(POSIX_OK));
     EXPECT_CALL(*mock_socket, listen(BACKLOG)).WillOnce(Return(POSIX_OK));
     std::shared_ptr<iface::Socket> socket_ptr = mock_socket;
@@ -162,11 +166,11 @@ class Listener_tcp_testsuite : public Test {
   }
   std::string m_resulting_bind_address;
 
-  std::shared_ptr<Mock_socket> m_mock_socket;
-  std::shared_ptr<Mock_socket> m_mock_socket_invalid;
-  std::shared_ptr<Mock_system> m_mock_system;
-  StrictMock<Mock_socket_events> m_mock_socket_events;
-  std::shared_ptr<Mock_factory> m_mock_factory;
+  std::shared_ptr<mock::Socket> m_mock_socket;
+  std::shared_ptr<mock::Socket> m_mock_socket_invalid;
+  std::shared_ptr<mock::System> m_mock_system;
+  StrictMock<mock::Socket_events> m_mock_socket_events;
+  std::shared_ptr<mock::Operations_factory> m_mock_factory;
 
   std::shared_ptr<Listener_tcp> sut;
 };
@@ -272,7 +276,7 @@ TEST_P(Listener_tcp_retry_testsuite,
   ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Instantiation_tcp_retry_when_already_in_use, Listener_tcp_retry_testsuite,
     Values(TimeOutAndExpectedRetries(0, 1), TimeOutAndExpectedRetries(1, 2),
            TimeOutAndExpectedRetries(5, 3), TimeOutAndExpectedRetries(6, 3),
@@ -282,7 +286,7 @@ INSTANTIATE_TEST_CASE_P(
 TEST_F(Listener_tcp_testsuite, setup_listener_bind_failure) {
   addrinfo ai = get_ai_ipv6();
 
-  expect_create_socket(ai, ALL_INTERFACES_6, AF_INET6, SOCKET_OK);
+  expect_create_socket(&ai, ALL_INTERFACES_6, AF_INET6, SOCKET_OK);
 
   EXPECT_CALL(*m_mock_socket,
               set_socket_opt(SOL_SOCKET, SO_REUSEADDR, _, sizeof(int)))
@@ -304,7 +308,7 @@ TEST_F(Listener_tcp_testsuite, setup_listener_bind_failure) {
 TEST_F(Listener_tcp_testsuite, setup_listener_listen_failure) {
   addrinfo ai = get_ai_ipv6();
 
-  expect_create_socket(ai, ALL_INTERFACES_6, AF_INET6, SOCKET_OK);
+  expect_create_socket(&ai, ALL_INTERFACES_6, AF_INET6, SOCKET_OK);
 
   EXPECT_CALL(*m_mock_socket,
               set_socket_opt(SOL_SOCKET, SO_REUSEADDR, _,
@@ -328,13 +332,13 @@ TEST_F(Listener_tcp_testsuite, setup_listener_listen_failure) {
 TEST_F(Listener_tcp_testsuite, setup_listener_ipv6_success) {
   addrinfo ai = get_ai_ipv6();
 
-  expect_create_socket(ai, ALL_INTERFACES_6, AF_INET6, SOCKET_OK);
+  expect_create_socket(&ai, ALL_INTERFACES_6, AF_INET6, SOCKET_OK);
 
   EXPECT_CALL(*m_mock_socket,
               set_socket_opt(SOL_SOCKET, SO_REUSEADDR, _, sizeof(int)))
       .WillOnce(Return(POSIX_OK));
 
-  expect_listen_socket(m_mock_socket, ai);
+  expect_listen_socket(m_mock_socket, &ai);
 
   EXPECT_CALL(*m_mock_system, freeaddrinfo(&ai));
 
@@ -349,13 +353,13 @@ TEST_F(Listener_tcp_testsuite, setup_listener_ipv6_success) {
 TEST_F(Listener_tcp_testsuite, setup_listener_ipv4_success) {
   addrinfo ai = get_ai_ipv4();
 
-  expect_create_socket(ai, ALL_INTERFACES_4, AF_INET, SOCKET_OK);
+  expect_create_socket(&ai, ALL_INTERFACES_4, AF_INET, SOCKET_OK);
 
   EXPECT_CALL(*m_mock_socket,
               set_socket_opt(SOL_SOCKET, SO_REUSEADDR, _, sizeof(int)))
       .WillOnce(Return(POSIX_OK));
 
-  expect_listen_socket(m_mock_socket, ai);
+  expect_listen_socket(m_mock_socket, &ai);
 
   EXPECT_CALL(*m_mock_system, freeaddrinfo(&ai));
 
@@ -371,14 +375,14 @@ TEST_F(Listener_tcp_testsuite,
        setup_listener_failure_when_socket_event_registry_failed) {
   addrinfo ai = get_ai_ipv4();
 
-  expect_create_socket(ai, ALL_INTERFACES_4, AF_INET, SOCKET_OK);
+  expect_create_socket(&ai, ALL_INTERFACES_4, AF_INET, SOCKET_OK);
 
   EXPECT_CALL(*m_mock_socket,
               set_socket_opt(SOL_SOCKET, SO_REUSEADDR, _, sizeof(int)))
       .WillOnce(Return(POSIX_OK));
 
   const bool socket_event_listen_failed = false;
-  expect_listen_socket(m_mock_socket, ai, socket_event_listen_failed);
+  expect_listen_socket(m_mock_socket, &ai, socket_event_listen_failed);
 
   EXPECT_CALL(*m_mock_system, freeaddrinfo(&ai));
 
@@ -396,13 +400,13 @@ TEST_F(Listener_tcp_testsuite,
 
   ai4.ai_next = &ai6;
 
-  expect_create_socket(ai4, ALL_INTERFACES_4, AF_INET, SOCKET_OK);
+  expect_create_socket(&ai4, ALL_INTERFACES_4, AF_INET, SOCKET_OK);
 
   EXPECT_CALL(*m_mock_socket,
               set_socket_opt(SOL_SOCKET, SO_REUSEADDR, _, sizeof(int)))
       .WillOnce(Return(POSIX_OK));
 
-  expect_listen_socket(m_mock_socket, ai4);
+  expect_listen_socket(m_mock_socket, &ai4);
 
   EXPECT_CALL(*m_mock_system, freeaddrinfo(&ai4));
 
@@ -422,13 +426,13 @@ TEST_F(
 
   ai4.ai_next = &ai6;
 
-  expect_create_socket(ai4, ALL_INTERFACES_6, AF_INET, SOCKET_OK);
+  expect_create_socket(&ai4, ALL_INTERFACES_6, AF_INET, SOCKET_OK);
 
   EXPECT_CALL(*m_mock_socket,
               set_socket_opt(SOL_SOCKET, SO_REUSEADDR, _, sizeof(int)))
       .WillOnce(Return(POSIX_OK));
 
-  expect_listen_socket(m_mock_socket, ai4);
+  expect_listen_socket(m_mock_socket, &ai4);
 
   EXPECT_CALL(*m_mock_system, freeaddrinfo(&ai4));
 
@@ -447,9 +451,10 @@ TEST_F(Listener_tcp_testsuite,
 
   ai4.ai_next = &ai6;
 
-  expect_create_socket(ai4, ALL_INTERFACES_6, AF_INET, INVALID_SOCKET);
+  expect_create_socket(&ai4, ALL_INTERFACES_6, AF_INET, INVALID_SOCKET);
 
-  std::shared_ptr<Mock_socket> mock_socket_ipv6(new StrictMock<Mock_socket>());
+  std::shared_ptr<mock::Socket> mock_socket_ipv6(
+      new StrictMock<mock::Socket>());
   EXPECT_CALL(*mock_socket_ipv6, get_socket_fd()).WillOnce(Return(SOCKET_OK));
   EXPECT_CALL(*m_mock_factory,
               create_socket(KEY_socket_x_tcpip, AF_INET6, SOCK_STREAM, 0))
@@ -465,7 +470,7 @@ TEST_F(Listener_tcp_testsuite,
               set_socket_opt(SOL_SOCKET, SO_REUSEADDR, _, sizeof(int)))
       .WillOnce(Return(POSIX_OK));
 
-  expect_listen_socket(mock_socket_ipv6, ai6);
+  expect_listen_socket(mock_socket_ipv6, &ai6);
 
   EXPECT_CALL(*m_mock_system, freeaddrinfo(&ai4));
 
@@ -480,14 +485,14 @@ TEST_F(Listener_tcp_testsuite,
 TEST_F(Listener_tcp_testsuite, setup_listener_success_evean_socket_opt_fails) {
   addrinfo ai = get_ai_ipv6();
 
-  expect_create_socket(ai, ALL_INTERFACES_6, AF_INET6, SOCKET_OK);
+  expect_create_socket(&ai, ALL_INTERFACES_6, AF_INET6, SOCKET_OK);
 
   EXPECT_CALL(*m_mock_socket,
               set_socket_opt(SOL_SOCKET, SO_REUSEADDR, _, sizeof(int)))
       .WillOnce(Return(POSIX_FAILURE));
   EXPECT_CALL(*m_mock_system, get_socket_errno());
 
-  expect_listen_socket(m_mock_socket, ai);
+  expect_listen_socket(m_mock_socket, &ai);
 
   EXPECT_CALL(*m_mock_system, freeaddrinfo(&ai));
 

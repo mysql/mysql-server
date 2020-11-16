@@ -25,13 +25,12 @@
 #ifndef PLUGIN_X_SRC_SERVER_SCHEDULER_MONITOR_H_
 #define PLUGIN_X_SRC_SERVER_SCHEDULER_MONITOR_H_
 
-#include "plugin/x/src/ngs/scheduler.h"
+#include "plugin/x/src/interface/scheduler_dynamic.h"
 #include "plugin/x/src/variables/xpl_global_status_variables.h"
 
 namespace xpl {
 
-class Worker_scheduler_monitor
-    : public ngs::Scheduler_dynamic::Monitor_interface {
+class Worker_scheduler_monitor : public iface::Scheduler_dynamic::Monitor {
  public:
   void on_worker_thread_create() override {
     ++xpl::Global_status_variables::instance().m_worker_thread_count;

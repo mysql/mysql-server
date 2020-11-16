@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -78,7 +78,7 @@ using Resultset_types = ::testing::Types<
     Resultset_pair_type<Mysqlx::Resultset::FetchSuspended,
                         Mysqlx::ServerMessages::RESULTSET_FETCH_SUSPENDED>>;
 
-TYPED_TEST_CASE(Message_builder_encode_resultset, Resultset_types);
+TYPED_TEST_SUITE(Message_builder_encode_resultset, Resultset_types);
 
 TYPED_TEST(Message_builder_encode_resultset, encode_resultset) {
   this->m_encoder.template empty_xmessage<TypeParam::message_id>();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -40,22 +40,20 @@ TEST_P(Xcl_session_impl_tests_param_bool_option,
             m_sut->set_mysql_option(GetParam(), true).error());
 }
 
-INSTANTIATE_TEST_CASE_P(InstantiationNotSupportedBoolOptions,
-                        Xcl_session_impl_tests_param_bool_option,
-                        Values(XSession::Mysqlx_option::Read_timeout,
-                               XSession::Mysqlx_option::Write_timeout,
-                               XSession::Mysqlx_option::Connect_timeout,
-                               XSession::Mysqlx_option::Allowed_tls,
-                               XSession::Mysqlx_option::Ssl_mode,
-                               XSession::Mysqlx_option::Hostname_resolve_to,
-                               XSession::Mysqlx_option::Ssl_key,
-                               XSession::Mysqlx_option::Ssl_ca,
-                               XSession::Mysqlx_option::Ssl_ca_path,
-                               XSession::Mysqlx_option::Ssl_cert,
-                               XSession::Mysqlx_option::Ssl_cipher,
-                               XSession::Mysqlx_option::Ssl_crl,
-                               XSession::Mysqlx_option::Ssl_crl_path,
-                               XSession::Mysqlx_option::Authentication_method));
+INSTANTIATE_TEST_SUITE_P(
+    InstantiationNotSupportedBoolOptions,
+    Xcl_session_impl_tests_param_bool_option,
+    Values(
+        XSession::Mysqlx_option::Read_timeout,
+        XSession::Mysqlx_option::Write_timeout,
+        XSession::Mysqlx_option::Connect_timeout,
+        XSession::Mysqlx_option::Allowed_tls, XSession::Mysqlx_option::Ssl_mode,
+        XSession::Mysqlx_option::Hostname_resolve_to,
+        XSession::Mysqlx_option::Ssl_key, XSession::Mysqlx_option::Ssl_ca,
+        XSession::Mysqlx_option::Ssl_ca_path, XSession::Mysqlx_option::Ssl_cert,
+        XSession::Mysqlx_option::Ssl_cipher, XSession::Mysqlx_option::Ssl_crl,
+        XSession::Mysqlx_option::Ssl_crl_path,
+        XSession::Mysqlx_option::Authentication_method));
 
 class Xcl_session_impl_tests_param_int_option
     : public Xcl_session_impl_tests_param_bool_option {};
@@ -73,11 +71,11 @@ TEST_P(Xcl_session_impl_tests_param_int_option, set_not_supported_combination) {
             m_sut->set_mysql_option(GetParam(), expected_value_string).error());
 }
 
-INSTANTIATE_TEST_CASE_P(InstantiationNotSupportedIntOptions,
-                        Xcl_session_impl_tests_param_bool_option,
-                        Values(XSession::Mysqlx_option::Read_timeout,
-                               XSession::Mysqlx_option::Write_timeout,
-                               XSession::Mysqlx_option::Connect_timeout));
+INSTANTIATE_TEST_SUITE_P(InstantiationNotSupportedIntOptions,
+                         Xcl_session_impl_tests_param_bool_option,
+                         Values(XSession::Mysqlx_option::Read_timeout,
+                                XSession::Mysqlx_option::Write_timeout,
+                                XSession::Mysqlx_option::Connect_timeout));
 
 class Xcl_session_impl_tests_param_text_option
     : public Xcl_session_impl_tests_param_bool_option {};
@@ -93,18 +91,18 @@ TEST_P(Xcl_session_impl_tests_param_text_option,
             m_sut->set_mysql_option(GetParam(), expected_value_int).error());
 }
 
-INSTANTIATE_TEST_CASE_P(InstantiationNotSupportedTextOptions,
-                        Xcl_session_impl_tests_param_text_option,
-                        Values(XSession::Mysqlx_option::Hostname_resolve_to,
-                               XSession::Mysqlx_option::Allowed_tls,
-                               XSession::Mysqlx_option::Ssl_mode,
-                               XSession::Mysqlx_option::Ssl_key,
-                               XSession::Mysqlx_option::Ssl_ca,
-                               XSession::Mysqlx_option::Ssl_ca_path,
-                               XSession::Mysqlx_option::Ssl_cert,
-                               XSession::Mysqlx_option::Ssl_cipher,
-                               XSession::Mysqlx_option::Ssl_crl,
-                               XSession::Mysqlx_option::Ssl_crl_path));
+INSTANTIATE_TEST_SUITE_P(InstantiationNotSupportedTextOptions,
+                         Xcl_session_impl_tests_param_text_option,
+                         Values(XSession::Mysqlx_option::Hostname_resolve_to,
+                                XSession::Mysqlx_option::Allowed_tls,
+                                XSession::Mysqlx_option::Ssl_mode,
+                                XSession::Mysqlx_option::Ssl_key,
+                                XSession::Mysqlx_option::Ssl_ca,
+                                XSession::Mysqlx_option::Ssl_ca_path,
+                                XSession::Mysqlx_option::Ssl_cert,
+                                XSession::Mysqlx_option::Ssl_cipher,
+                                XSession::Mysqlx_option::Ssl_crl,
+                                XSession::Mysqlx_option::Ssl_crl_path));
 
 TEST_F(Xcl_session_impl_tests, xsession_option_allowed_tls) {
   const std::string expected_str_value = "expected value";

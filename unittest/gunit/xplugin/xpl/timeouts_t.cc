@@ -29,7 +29,13 @@
 #include "plugin/x/src/variables/system_variables.h"
 #include "plugin/x/src/variables/system_variables_defaults.h"
 #include "plugin/x/src/variables/timeout_config.h"
+#include "unittest/gunit/xplugin/xpl/mock/notice_output_queue.h"
+#include "unittest/gunit/xplugin/xpl/mock/protocol_encoder.h"
+#include "unittest/gunit/xplugin/xpl/mock/protocol_monitor.h"
+#include "unittest/gunit/xplugin/xpl/mock/server.h"
 #include "unittest/gunit/xplugin/xpl/mock/session.h"
+#include "unittest/gunit/xplugin/xpl/mock/vio.h"
+#include "unittest/gunit/xplugin/xpl/mock/waiting_for_io.h"
 
 namespace xpl {
 namespace test {
@@ -72,14 +78,14 @@ class Timers_test_suite : public ::testing::Test {
 
   void TearDown() override { EXPECT_CALL(*mock_vio, shutdown()); }
 
-  using Strict_mock_vio = StrictMock<Mock_vio>;
+  using Strict_mock_vio = StrictMock<mock::Vio>;
   std::shared_ptr<Strict_mock_vio> mock_vio{new Strict_mock_vio()};
-  StrictMock<Mock_server> mock_server;
-  StrictMock<Mock_protocol_monitor> *mock_protocol_monitor =
-      ngs::allocate_object<StrictMock<Mock_protocol_monitor>>();
-  StrictMock<Mock_notice_output_queue> mock_notice_output_queue;
-  StrictMock<Mock_wait_for_io> *mock_wait_for_io{
-      new StrictMock<Mock_wait_for_io>};
+  StrictMock<mock::Server> mock_server;
+  StrictMock<mock::Protocol_monitor> *mock_protocol_monitor =
+      ngs::allocate_object<StrictMock<mock::Protocol_monitor>>();
+  StrictMock<mock::Notice_output_queue> mock_notice_output_queue;
+  StrictMock<mock::Waiting_for_io> *mock_wait_for_io{
+      new StrictMock<mock::Waiting_for_io>};
 
   std::shared_ptr<ngs::Protocol_global_config> config{
       new ngs::Protocol_global_config()};
@@ -87,7 +93,7 @@ class Timers_test_suite : public ::testing::Test {
   const std::vector<unsigned char> k_msg{
       1, 0, 0, 0, 1};  // 1 = size, 0, 0, 0, 1 = Msg_CapGet
 
-  StrictMock<Mock_session> *mock_session = new StrictMock<Mock_session>();
+  StrictMock<mock::Session> *mock_session = new StrictMock<mock::Session>();
   std::shared_ptr<Client> sut;
   MYSQL_SOCKET m_socket{INVALID_SOCKET, nullptr};
 };
@@ -250,7 +256,7 @@ TEST_F(Timers_test_suite, read_one_message_failed_read) {
   EXPECT_CALL(*mock_protocol_monitor, on_receive(_)).Times(0);
   EXPECT_CALL(*mock_session, set_proto(_));
 
-  auto encoder = ngs::allocate_object<Mock_protocol_encoder>();
+  auto encoder = ngs::allocate_object<mock::Protocol_encoder>();
   ngs::Memory_block_pool memory_block_pool{{0, k_minimum_page_size}};
   protocol::Encoding_pool pool(0, &memory_block_pool);
   protocol::Encoding_buffer buffer(&pool);

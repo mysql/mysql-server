@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -621,8 +621,8 @@ Param_docpath_arg docpath_arg_param[] = {
     {ER_X_SUCCESS, "$.`a\\`"},
 };
 
-INSTANTIATE_TEST_CASE_P(docpath_arg, Admin_command_arguments_docpath_test,
-                        testing::ValuesIn(docpath_arg_param));
+INSTANTIATE_TEST_SUITE_P(docpath_arg, Admin_command_arguments_docpath_test,
+                         testing::ValuesIn(docpath_arg_param));
 
 #define INVALID_VALUE_ERROR(arg_name)      \
   ngs::Error_code(ER_X_CMD_ARGUMENT_VALUE, \

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,40 +22,41 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_MOCK_COMPONENT_SERVICES_H_
-#define UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_MOCK_COMPONENT_SERVICES_H_
+#ifndef UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_COMPONENT_SERVICES_H_
+#define UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_COMPONENT_SERVICES_H_
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "my_dbug.h"
+#include "my_dbug.h"  // NOLINT(build/include_subdir)
 #include "mysql/components/services/mysql_admin_session.h"
 #include "mysql/service_plugin_registry.h"
 
 namespace xpl {
 namespace test {
+namespace mock {
 
-class Mock_mysql_plugin_registry {
+class Mysql_plugin_registry {
  public:
-  Mock_mysql_plugin_registry() {
+  Mysql_plugin_registry() {
     DBUG_ASSERT(nullptr == m_mysql_plugin_registry);
     m_mysql_plugin_registry = this;
   }
-  ~Mock_mysql_plugin_registry() { m_mysql_plugin_registry = nullptr; }
+  ~Mysql_plugin_registry() { m_mysql_plugin_registry = nullptr; }
 
-  MOCK_METHOD1(mysql_plugin_registry_release, int(SERVICE_TYPE(registry) *));
-  MOCK_METHOD0(mysql_plugin_registry_acquire, SERVICE_TYPE(registry) * ());
+  MOCK_METHOD(int, mysql_plugin_registry_release, (SERVICE_TYPE(registry) *));
+  MOCK_METHOD(SERVICE_TYPE(registry) *, mysql_plugin_registry_acquire, ());
 
-  static xpl::test::Mock_mysql_plugin_registry *m_mysql_plugin_registry;
+  static xpl::test::mock::Mysql_plugin_registry *m_mysql_plugin_registry;
 };
 
-class Mock_service_registry {
+class Service_registry {
  public:
-  Mock_service_registry() {
+  Service_registry() {
     DBUG_ASSERT(m_this == nullptr);
     m_this = this;
   }
-  ~Mock_service_registry() { m_this = nullptr; }
+  ~Service_registry() { m_this = nullptr; }
 
   MOCK_METHOD2(acquire, mysql_service_status_t(const char *service_name,
                                                my_h_service *out_service));
@@ -63,12 +64,12 @@ class Mock_service_registry {
                mysql_service_status_t(const char *service_name,
                                       my_h_service service,
                                       my_h_service *out_service));
-  MOCK_METHOD1(release, mysql_service_status_t(my_h_service service));
+  MOCK_METHOD(mysql_service_status_t, release, (my_h_service service));
 
   SERVICE_TYPE_NO_CONST(registry) * get() { return &m_registry; }
 
  private:
-  static Mock_service_registry *m_this;
+  static xpl::test::mock::Service_registry *m_this;
 
   SERVICE_TYPE_NO_CONST(registry)
   m_registry = {[](const char *service_name, my_h_service *out_service) {
@@ -82,28 +83,30 @@ class Mock_service_registry {
                 [](my_h_service service) { return m_this->release(service); }};
 };
 
-class Mock_service_admin_session {
+class Service_admin_session {
  public:
-  Mock_service_admin_session() {
+  Service_admin_session() {
     DBUG_ASSERT(m_this == nullptr);
     m_this = this;
   }
-  ~Mock_service_admin_session() { m_this = nullptr; }
+  ~Service_admin_session() { m_this = nullptr; }
 
-  MOCK_METHOD2(open, MYSQL_SESSION(srv_session_error_cb, void *));
+  MOCK_METHOD(MYSQL_SESSION, open, (srv_session_error_cb, void *));
   SERVICE_TYPE_NO_CONST(mysql_admin_session) * get() {
     return &m_admin_session;
   }
 
  private:
-  static Mock_service_admin_session *m_this;
+  static xpl::test::mock::Service_admin_session *m_this;
+
   SERVICE_TYPE_NO_CONST(mysql_admin_session)
   m_admin_session = {[](srv_session_error_cb error_cb, void *ctxt) {
     return m_this->open(error_cb, ctxt);
   }};
 };
 
+}  // namespace mock
 }  // namespace test
 }  // namespace xpl
 
-#endif  //  UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_MOCK_COMPONENT_SERVICES_H_
+#endif  //  UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_COMPONENT_SERVICES_H_

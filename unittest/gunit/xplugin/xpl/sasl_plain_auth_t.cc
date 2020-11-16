@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@
 
 #include "plugin/x/src/auth_plain.h"
 #include "plugin/x/src/sql_user_require.h"
+#include "unittest/gunit/xplugin/xpl/mock/account_verification.h"
+#include "unittest/gunit/xplugin/xpl/mock/account_verification_handler.h"
 #include "unittest/gunit/xplugin/xpl/mock/session.h"
 
 namespace xpl {
@@ -59,10 +61,10 @@ AssertionResult assert_responce(const char *e1_expr, const char *e2_expr,
 
 class Sasl_plain_auth_test : public Test {
  public:
-  StrictMock<Mock_account_verification_handler> *mock_handler{
-      new StrictMock<Mock_account_verification_handler>(nullptr)};
+  StrictMock<mock::Account_verification_handler> *mock_handler{
+      new StrictMock<mock::Account_verification_handler>()};
   Sasl_plain_auth auth{mock_handler};
-  StrictMock<Mock_account_verification> mock_account_verification;
+  StrictMock<mock::Account_verification> mock_account_verification;
 
   typedef iface::Authentication::Response Response;
 };
