@@ -308,7 +308,7 @@ class linux_epoll_io_service : public IoServiceBase {
      * update registered fd-interest after a oneshot event fired.
      */
     stdx::expected<void, std::error_code> after_event_fired(
-        native_handle_type fd, uint32_t revent) {
+        int epfd, native_handle_type fd, uint32_t revent) {
       auto &b = bucket(fd);
 
       std::lock_guard<std::mutex> lk(b.mtx_);
@@ -337,6 +337,27 @@ class linux_epoll_io_service : public IoServiceBase {
 
       // update the fd-interest
       it->second &= ~revent;
+
+      if (it->second != 0) {
+        // if a one shot event with multiple waiting events fired for one of the
+        // events, it removes all interests for the fd.
+        //
+        // waiting for:      IN|OUT
+        // fires:            IN
+        // epoll.intersting: 0
+        // not fired:        OUT
+        //
+        // add back the events that havn't fired yet.
+        epoll_event ev{};
+        ev.data.fd = fd;
+        ev.events = it->second;
+
+        const auto ctl_res =
+            impl::epoll::ctl(epfd, impl::epoll::Cmd::mod, fd, &ev);
+        if (!ctl_res) {
+          return ctl_res.get_unexpected();
+        }
+      }
 
       return {};
     }
@@ -442,7 +463,7 @@ class linux_epoll_io_service : public IoServiceBase {
       for (size_t ndx{}; ndx < fd_events_size_; ++ndx) {
         const ::epoll_event ev = fd_events_[ndx];
 
-        auto after_res = after_event_fired(ev.data.fd, ev.events);
+        auto after_res = after_event_fired(epfd_, ev.data.fd, ev.events);
         if (!after_res) {
           std::cerr << "after_event_fired(" << ev.data.fd << ", "
                     << std::bitset<32>(ev.events) << ") " << after_res.error()
@@ -506,9 +527,10 @@ class linux_epoll_io_service : public IoServiceBase {
 
   impl::file::file_handle_type notify_fd_{impl::file::kInvalidHandle};
 
-  stdx::expected<void, std::error_code> after_event_fired(native_handle_type fd,
+  stdx::expected<void, std::error_code> after_event_fired(int epfd,
+                                                          native_handle_type fd,
                                                           uint32_t revents) {
-    return registered_events_.after_event_fired(fd, revents);
+    return registered_events_.after_event_fired(epfd, fd, revents);
   }
 };
 }  // namespace net
