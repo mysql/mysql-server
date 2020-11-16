@@ -765,6 +765,7 @@ class ha_ndbcluster : public handler, public Partition_handler {
 
   int update_stats(THD *thd, bool do_read_stat, uint part_id = ~(uint)0);
   int add_handler_to_open_tables(THD *, Thd_ndb *, ha_ndbcluster *handler);
+  uint get_field_index(KEY_PART_INFO *key_part_info, uint inx);
 };
 
 // Global handler synchronization

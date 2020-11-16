@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -327,6 +327,12 @@ public:
   static void get_empty(const Stat& stat, bool* empty);
 
   /*
+   * Get number of rows the statistcs is sampled over.
+   * Could be used as a metric for the quality of the statistic.
+   */
+  static void get_numrows(const Stat& stat, Uint32* rows);
+
+  /*
    * Get estimated RIR (records in range).  Value is always >= 1.0 since
    * no exact 0 rows can be returned.
    */
@@ -336,7 +342,16 @@ public:
    * Get estimated RPK (records per key) at given level k (from 0 to
    * NK-1 where NK = number of index keys).  Value is >= 1.0.
    */
-  static void get_rpk(const Stat& stat, Uint32 k, double* rpk);
+  static void get_rpk(const Stat& stat,
+                      Uint32 k,
+                      double* rpk);
+  /*
+   * Similar as above, with the range being 'pruned' to a single
+   * fragment due the entire partitioned key being specified.
+   */
+  static void get_rpk_pruned(const Stat& stat,
+                             Uint32 k,
+                             double* rpk);
 
   /*
    * Get a short string summarizing the rules used.

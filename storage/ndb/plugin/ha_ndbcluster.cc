@@ -1811,6 +1811,10 @@ bool ha_ndbcluster::uses_blob_value(const MY_BITMAP *bitmap) const {
   return false;
 }
 
+uint ha_ndbcluster::get_field_index(KEY_PART_INFO *key_part_info, uint inx) {
+  return key_part_info[inx].field->field_index();
+}
+
 void ha_ndbcluster::release_blobs_buffer() {
   DBUG_TRACE;
   if (m_blobs_buffer_size > 0) {
@@ -2767,7 +2771,7 @@ static const ulong index_type_flags[] = {
     /* ORDERED_INDEX */
     HA_READ_NEXT | HA_READ_PREV | HA_READ_RANGE | HA_READ_ORDER};
 
-inline NDB_INDEX_TYPE ha_ndbcluster::get_index_type(uint idx_no) const {
+NDB_INDEX_TYPE ha_ndbcluster::get_index_type(uint idx_no) const {
   DBUG_ASSERT(idx_no < MAX_KEY);
   return m_index[idx_no].type;
 }
@@ -7138,6 +7142,7 @@ int ha_ndbcluster::end_bulk_insert() {
 double ha_ndbcluster::scan_time() {
   DBUG_TRACE;
   double res = rows2double(stats.records * 1000);
+  // double res = rows2double(stats.records * 1);
   DBUG_PRINT("exit", ("table: %s value: %f", m_tabname, res));
   return res;
 }

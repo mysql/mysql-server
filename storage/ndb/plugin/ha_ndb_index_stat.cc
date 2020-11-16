@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 
 #include "my_dbug.h"
 #include "sql/mysqld.h"  // LOCK_global_system_variables
+#include "sql/partition_info.h"
 #include "storage/ndb/plugin/ha_ndbcluster.h"
 #include "storage/ndb/plugin/ha_ndbcluster_connection.h"
 #include "storage/ndb/plugin/ndb_require.h"
@@ -2515,6 +2516,11 @@ int ha_ndbcluster::ndb_index_stat_get_rir(uint inx, key_range *min_key,
   NdbIndexStat::Stat stat(stat_buffer);
   int err = ndb_index_stat_query(inx, min_key, max_key, stat, 1);
   if (err == 0) {
+    /*
+     * TODO: 'Rows in range' estimates will be inaccurate for
+     * 'pruned-scan' ranges. Need to be solved in a way similar to
+     * ::ndb_index_stat_set_rpk()
+     */
     double rir = -1.0;
     NdbIndexStat::get_rir(stat, &rir);
     ha_rows rows = ndb_index_stat_round(rir);
@@ -2540,11 +2546,62 @@ int ha_ndbcluster::ndb_index_stat_set_rpk(uint inx) {
   const key_range *max_key = 0;
   const int err = ndb_index_stat_query(inx, min_key, max_key, stat, 2);
   if (err == 0) {
+    /**
+     * Check quality of index_stat before it is used to set RPK.
+     * Index_stat is sampled over only one of the fragments of the table.
+     * Thus it might not correctly represent the table contents if
+     * the number of rows sampled is too small.
+     */
+    Uint32 rows = 0;
+    NdbIndexStat::get_numrows(stat, &rows);
+    if (rows <= 2) {  // '2' is just picked as some very small number
+      /**
+       * Decided to not use this index statistics. Optimizer will instead
+       * use heuristics based on the total number of records in the table.
+       */
+      DBUG_PRINT("index_stat", ("Too few rows sampled for: %s",
+                                m_index[inx].index->getName()));
+      return 0;
+    }
     KEY *key_info = table->key_info + inx;
+    KEY_PART_INFO *key_part_info = key_info->key_part;
+    uint num_part_fields = bitmap_bits_set(&m_part_info->full_part_field_set);
+    uint num_part_fields_found = 0;
     for (uint k = 0; k < key_info->user_defined_key_parts; k++) {
-      double rpk = -1.0;
-      NdbIndexStat::get_rpk(stat, k, &rpk);
-      key_info->set_records_per_key(k, static_cast<rec_per_key_t>(rpk));
+      double rpk = REC_PER_KEY_UNKNOWN;  // unknown -> -1.0
+      uint field_index = get_field_index(key_part_info, k);
+      if (bitmap_is_set(&m_part_info->full_part_field_set, field_index)) {
+        num_part_fields_found++;
+      }
+      if ((k == (key_info->user_defined_key_parts - 1)) &&
+          (get_index_type(inx) == UNIQUE_ORDERED_INDEX ||
+           get_index_type(inx) == PRIMARY_KEY_ORDERED_INDEX)) {
+        /**
+         * All key fields in a UQ/PK are specified. No need to consult
+         * index stat to know that only a single row will be returned.
+         */
+        rpk = 1.0;
+      } else {
+        if (num_part_fields_found >= num_part_fields) {
+          /**
+           * The records per key calculation assumes independence between
+           * distribution of data and key columns. This is true as long as
+           * the key parts don't set the entire partion key. In this case
+           * the records per key as calculated by one fragment is the
+           * records per key also for the entire table since different
+           * fragments will have its own set of unique key values in this
+           * case. For more information on this see NdbIndexStatImpl.cpp
+           * and the method iterative_solution and get_unp_factor.
+           */
+          assert(num_part_fields_found == num_part_fields);
+          NdbIndexStat::get_rpk_pruned(stat, k, &rpk);
+        } else {
+          NdbIndexStat::get_rpk(stat, k, &rpk);
+        }
+      }
+      if (rpk != REC_PER_KEY_UNKNOWN) {
+        key_info->set_records_per_key(k, static_cast<rec_per_key_t>(rpk));
+      }
 #ifndef DBUG_OFF
       char rule[NdbIndexStat::RuleBufferBytes];
       NdbIndexStat::get_rule(stat, rule);

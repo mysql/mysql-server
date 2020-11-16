@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -628,6 +628,17 @@ NdbIndexStat::get_empty(const Stat& stat_f, bool* empty)
 }
 
 void
+NdbIndexStat::get_numrows(const Stat& stat_f, Uint32* rows)
+{
+  DBUG_TRACE;
+  const NdbIndexStatImpl::Stat& stat =
+  *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
+  require(rows != nullptr);
+  *rows = stat.m_value.m_num_rows;
+  DBUG_PRINT("index_stat", ("rows:%d", *rows));
+}
+
+void
 NdbIndexStat::get_rir(const Stat& stat_f, double* rir)
 {
   DBUG_ENTER("NdbIndexStat::get_rir");
@@ -647,21 +658,72 @@ NdbIndexStat::get_rir(const Stat& stat_f, double* rir)
 }
 
 void
-NdbIndexStat::get_rpk(const Stat& stat_f, Uint32 k, double* rpk)
+NdbIndexStat::get_rpk_pruned(const Stat& stat_f,
+                             Uint32 k,
+                             double* rpk)
 {
-  DBUG_ENTER("NdbIndexStat::get_rpk");
+  DBUG_ENTER("NdbIndexStat::get_rpk_pruned");
   const NdbIndexStatImpl::Stat& stat =
     *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
-  double x = stat.m_value.m_rir / stat.m_value.m_unq[k];
-  if (x < 1.0)
-    x = 1.0;
-  require(rpk != 0);
-  *rpk = x;
+  if (unlikely(stat.m_value.m_empty))
+  {
+    // Should preferabley test get_empty() (or get_numrows()) first.
+    *rpk = -1.0; // returns 'unknown'
+  }
+  else
+  {
+    double factor = stat.m_value.m_unq_factor[k];
+    double x = stat.m_value.m_rir / stat.m_value.m_unq[k];
+    if (stat.m_value.m_rir <= stat.m_value.m_unq[k])
+      x = 1.0;
+    assert(stat.m_value.m_num_fragments > 0);
+    double fragments = stat.m_value.m_num_fragments;
+    *rpk = factor * x / fragments;
+  }
 #ifndef DBUG_OFF
   char buf[100];
   sprintf(buf, "%.2f", *rpk);
 #endif
-  DBUG_PRINT("index_stat", ("rpk[%u]:%s", k, buf));
+  DBUG_PRINT("index_stat", ("rir: %.2f, m_unq: %.2f, k: %u, frags: %u,"
+             " rpk: %s",
+              stat.m_value.m_rir,
+              stat.m_value.m_unq[k],
+              k,
+              stat.m_value.m_num_fragments,
+              buf));
+  DBUG_VOID_RETURN;
+}
+
+void
+NdbIndexStat::get_rpk(const Stat& stat_f,
+                      Uint32 k,
+                      double* rpk)
+{
+  DBUG_ENTER("NdbIndexStat::get_rpk");
+  const NdbIndexStatImpl::Stat& stat =
+    *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
+  if (unlikely(stat.m_value.m_empty))
+  {
+    // Should preferabley test get_empty() (or get_numrows()) first.
+    *rpk = -1.0; // returns 'unknown'
+  }
+  else
+  {
+    double x = stat.m_value.m_rir / stat.m_value.m_unq[k];
+    if (stat.m_value.m_rir <= stat.m_value.m_unq[k])
+      x = 1.0;
+    *rpk = x;
+    require(stat.m_value.m_unq_factor[k] > 0);
+  }
+#ifndef DBUG_OFF
+  char buf[100];
+  sprintf(buf, "%.2f", *rpk);
+#endif
+  DBUG_PRINT("index_stat", ("rir: %.2f, m_unq: %.2f, rpk[%u]: %s",
+              stat.m_value.m_rir,
+              stat.m_value.m_unq[k],
+              k,
+              buf));
   DBUG_VOID_RETURN;
 }
 
