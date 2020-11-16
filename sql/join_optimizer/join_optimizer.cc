@@ -617,10 +617,10 @@ bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx, KEY *key,
 
 bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx,
                                        bool is_recursive_reference) {
-  AccessPath table_path;
+  AccessPath path;
   if (is_recursive_reference) {
-    table_path.type = AccessPath::FOLLOW_TAIL;
-    table_path.follow_tail().table = table;
+    path.type = AccessPath::FOLLOW_TAIL;
+    path.follow_tail().table = table;
     assert(forced_leftmost_table == 0);  // There can only be one, naturally.
     forced_leftmost_table = NodeMap{1} << node_idx;
 
@@ -631,10 +631,10 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx,
     table->file->stats.records =
         std::max<ha_rows>(table->file->stats.records, 1000);
   } else {
-    table_path.type = AccessPath::TABLE_SCAN;
-    table_path.table_scan().table = table;
+    path.type = AccessPath::TABLE_SCAN;
+    path.table_scan().table = table;
   }
-  table_path.count_examined_rows = true;
+  path.count_examined_rows = true;
 
   // Doing at least one table scan (this one), so mark the query as such.
   // TODO(sgunders): Move out when we get more types and this access path could
@@ -644,18 +644,18 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx,
   double num_output_rows = table->file->stats.records;
   double cost = table->file->table_scan_cost().total_cost();
 
-  table_path.num_output_rows_before_filter = num_output_rows;
-  table_path.init_cost = 0.0;
-  table_path.cost_before_filter = cost;
+  path.num_output_rows_before_filter = num_output_rows;
+  path.init_cost = 0.0;
+  path.cost_before_filter = cost;
 
   ApplyPredicatesForBaseTable(node_idx, /*applied_predicates=*/0,
-                              /*subsumed_predicates=*/0, &table_path);
+                              /*subsumed_predicates=*/0, &path);
 
   if (m_trace != nullptr) {
     *m_trace += StringPrintf("\nFound node %s [rows=%.0f]\n",
                              m_graph.nodes[node_idx].table->alias,
-                             table_path.num_output_rows);
-    for (int pred_idx : BitsSetIn(table_path.filter_predicates)) {
+                             path.num_output_rows);
+    for (int pred_idx : BitsSetIn(path.filter_predicates)) {
       *m_trace += StringPrintf(
           " - applied predicate %s\n",
           ItemToString(m_graph.predicates[pred_idx].condition).c_str());
@@ -668,49 +668,45 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx,
   if (tl->schema_table != nullptr && tl->schema_table->fill_table) {
     // TODO(sgunders): We don't need to allocate materialize_path on the
     // MEM_ROOT.
-    AccessPath *new_table_path = new (m_thd->mem_root) AccessPath(table_path);
+    AccessPath *new_path = new (m_thd->mem_root) AccessPath(path);
     AccessPath *materialize_path =
-        NewMaterializeInformationSchemaTableAccessPath(m_thd, new_table_path,
-                                                       tl,
+        NewMaterializeInformationSchemaTableAccessPath(m_thd, new_path, tl,
                                                        /*condition=*/nullptr);
 
-    materialize_path->num_output_rows = table_path.num_output_rows;
+    materialize_path->num_output_rows = path.num_output_rows;
     materialize_path->num_output_rows_before_filter =
-        table_path.num_output_rows_before_filter;
-    materialize_path->init_cost = table_path.cost;  // Rudimentary.
-    materialize_path->cost_before_filter = table_path.cost;
-    materialize_path->cost = table_path.cost;
-    materialize_path->filter_predicates = table_path.filter_predicates;
-    materialize_path->delayed_predicates = table_path.delayed_predicates;
-    new_table_path->filter_predicates = new_table_path->delayed_predicates = 0;
+        path.num_output_rows_before_filter;
+    materialize_path->init_cost = path.cost;  // Rudimentary.
+    materialize_path->cost_before_filter = path.cost;
+    materialize_path->cost = path.cost;
+    materialize_path->filter_predicates = path.filter_predicates;
+    materialize_path->delayed_predicates = path.delayed_predicates;
+    new_path->filter_predicates = new_path->delayed_predicates = 0;
 
     // Some information schema tables have zero as estimate, which can lead
     // to completely wild plans. Add a placeholder to make sure we have
     // _something_ to work with.
     if (materialize_path->num_output_rows_before_filter == 0) {
-      new_table_path->num_output_rows = 1000;
-      new_table_path->num_output_rows_before_filter = 1000;
+      new_path->num_output_rows = 1000;
+      new_path->num_output_rows_before_filter = 1000;
       materialize_path->num_output_rows = 1000;
       materialize_path->num_output_rows_before_filter = 1000;
     }
 
     assert(!tl->uses_materialization());
-    ProposeAccessPathForNodes(TableBitmap(node_idx), materialize_path, "");
-    return false;
-  }
-
-  if (tl->uses_materialization()) {
-    // TODO(sgunders): When we get multiple candidates for each table, don't
-    // move table_path to MEM_ROOT storage unless ProposeAccessPath() keeps it.
-    AccessPath *path = new (m_thd->mem_root) AccessPath(table_path);
+    path = *materialize_path;
+    assert(path.cost >= 0.0);
+  } else if (tl->uses_materialization()) {
+    // Move the path to stable storage, since we'll be referring to it.
+    AccessPath *stable_path = new (m_thd->mem_root) AccessPath(path);
 
     // TODO(sgunders): We don't need to allocate materialize_path on the
     // MEM_ROOT.
     AccessPath *materialize_path;
     if (tl->is_table_function()) {
       materialize_path = NewMaterializedTableFunctionAccessPath(
-          m_thd, table, tl->table_function, path);
-      CopyCosts(table_path, materialize_path);
+          m_thd, table, tl->table_function, stable_path);
+      CopyCosts(*stable_path, materialize_path);
       materialize_path->cost_before_filter = materialize_path->init_cost =
           materialize_path->cost;
       materialize_path->num_output_rows_before_filter =
@@ -732,7 +728,7 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx,
       }
       materialize_path = GetAccessPathForDerivedTable(
           m_thd, tl, table, rematerialize,
-          /*invalidators=*/nullptr, m_need_rowid, path);
+          /*invalidators=*/nullptr, m_need_rowid, stable_path);
       // Handle LATERAL.
       materialize_path->parameter_tables =
           GetNodeMapFromTableMap(tl->derived_query_expression()->m_lateral_deps,
@@ -741,15 +737,16 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx,
 
     // TODO(sgunders): Take rematerialization cost into account,
     // or maybe, more lack of it.
-    materialize_path->filter_predicates = table_path.filter_predicates;
-    materialize_path->delayed_predicates = table_path.delayed_predicates;
-    path->filter_predicates = path->delayed_predicates = 0;
+    materialize_path->filter_predicates = path.filter_predicates;
+    materialize_path->delayed_predicates = path.delayed_predicates;
+    stable_path->filter_predicates = stable_path->delayed_predicates = 0;
 
-    ProposeAccessPathForNodes(TableBitmap(node_idx), materialize_path, "");
-    return false;
+    path = *materialize_path;
+    assert(path.cost >= 0.0);
   }
+  assert(path.cost >= 0.0);
 
-  ProposeAccessPathForNodes(TableBitmap(node_idx), &table_path, "");
+  ProposeAccessPathForNodes(TableBitmap(node_idx), &path, "");
   return false;
 }
 
