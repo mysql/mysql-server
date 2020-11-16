@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -219,7 +219,7 @@ CHARSET_INFO *Mysql_connection_options::get_current_charset() const {
 }
 
 void Mysql_connection_options::set_current_charset(CHARSET_INFO *charset) {
-  m_default_charset = string(charset->csname);
+  m_default_charset = string(replace_utf8_utf8mb3(charset->csname));
 }
 
 const char *Mysql_connection_options::get_null_or_string(

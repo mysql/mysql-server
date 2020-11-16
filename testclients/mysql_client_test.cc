@@ -13298,7 +13298,7 @@ static void test_client_character_set() {
   DIE_UNLESS(rc == 0);
 
   mysql_get_character_set_info(mysql, &cs);
-  DIE_UNLESS(!strcmp(cs.csname, "utf8"));
+  DIE_UNLESS(!strcmp(cs.csname, "utf8mb3"));
   DIE_UNLESS(!strcmp(cs.name, "utf8_general_ci"));
   /* Restore the default character set */
   rc = mysql_set_character_set(mysql, csdefault);
@@ -15988,7 +15988,7 @@ static void test_bug30472() {
       2) new character set is different from the original one.
   */
 
-  DIE_UNLESS(strcmp(character_set_name_2, "utf8") == 0);
+  DIE_UNLESS(strcmp(character_set_name_2, "utf8mb3") == 0);
   DIE_UNLESS(strcmp(character_set_client_2, "utf8mb3") == 0);
   DIE_UNLESS(strcmp(character_set_client_2, "utf8mb3") == 0);
   DIE_UNLESS(strcmp(collation_connnection_2, "utf8_general_ci") == 0);
@@ -16036,7 +16036,7 @@ static void test_bug30472() {
 
   /* Check that we have UTF8 on the server and on the client. */
 
-  DIE_UNLESS(strcmp(character_set_name_4, "utf8") == 0);
+  DIE_UNLESS(strcmp(character_set_name_4, "utf8mb3") == 0);
   DIE_UNLESS(strcmp(character_set_client_4, "utf8mb3") == 0);
   DIE_UNLESS(strcmp(character_set_results_4, "utf8mb3") == 0);
   DIE_UNLESS(strcmp(collation_connnection_4, "utf8_general_ci") == 0);

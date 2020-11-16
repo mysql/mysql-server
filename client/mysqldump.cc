@@ -1043,7 +1043,8 @@ static int get_options(int *argc, char ***argv) {
             my_progname);
     return (EX_USAGE);
   }
-  if (strcmp(default_charset, charset_info->csname) &&
+  if (strcmp(replace_utf8_utf8mb3(default_charset),
+             replace_utf8_utf8mb3(charset_info->csname)) &&
       !(charset_info =
             get_charset_by_csname(default_charset, MY_CS_PRIMARY, MYF(MY_WME))))
     exit(1);
@@ -1221,7 +1222,7 @@ static int switch_db_collation(FILE *sql_file, const char *db_name,
     if (!db_cl) return 1;
 
     fprintf(sql_file, "ALTER DATABASE %s CHARACTER SET %s COLLATE %s %s\n",
-            (const char *)quoted_db_name, (const char *)db_cl->csname,
+            (const char *)quoted_db_name, replace_utf8_utf8mb3(db_cl->csname),
             (const char *)db_cl->name, (const char *)delimiter);
 
     *db_cl_altered = 1;
@@ -1244,7 +1245,7 @@ static int restore_db_collation(FILE *sql_file, const char *db_name,
   if (!db_cl) return 1;
 
   fprintf(sql_file, "ALTER DATABASE %s CHARACTER SET %s COLLATE %s %s\n",
-          (const char *)quoted_db_name, (const char *)db_cl->csname,
+          (const char *)quoted_db_name, replace_utf8_utf8mb3(db_cl->csname),
           (const char *)db_cl->name, (const char *)delimiter);
 
   return 0;

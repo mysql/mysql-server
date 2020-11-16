@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -307,7 +307,7 @@ void Sql_formatter::format_dump_start(
            "SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS;\n"
            "SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION;\n"
            "SET NAMES "
-        << this->get_charset()->csname << ";\n";
+        << replace_utf8_utf8mb3(this->get_charset()->csname) << ";\n";
 
   if (m_options->m_innodb_stats_tables_included)
     out << "SET @OLD_INNODB_STATS_AUTO_RECALC="

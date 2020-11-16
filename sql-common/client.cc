@@ -6613,7 +6613,8 @@ bool mysql_reconnect(MYSQL *mysql) {
     my_stpcpy(mysql->net.sqlstate, tmp_mysql.net.sqlstate);
     return true;
   }
-  if (mysql_set_character_set(&tmp_mysql, mysql->charset->csname)) {
+  if (mysql_set_character_set(&tmp_mysql,
+                              replace_utf8_utf8mb3(mysql->charset->csname))) {
     DBUG_PRINT("error", ("mysql_set_character_set() failed"));
 #ifdef MYSQL_SERVER
     MYSQL_EXTENSION_PTR(mysql)->server_extn = server_extn;

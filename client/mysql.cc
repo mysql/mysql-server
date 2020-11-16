@@ -3270,8 +3270,8 @@ static int com_charset(String *buffer MY_ATTRIBUTE((unused)), char *line) {
   new_cs = get_charset_by_csname(param, MY_CS_PRIMARY, MYF(MY_WME));
   if (new_cs) {
     charset_info = new_cs;
-    mysql_set_character_set(&mysql, charset_info->csname);
-    default_charset = charset_info->csname;
+    mysql_set_character_set(&mysql, replace_utf8_utf8mb3(charset_info->csname));
+    default_charset = replace_utf8_utf8mb3(charset_info->csname);
     put_info("Charset changed", INFO_INFO);
   } else
     put_info("Charset is not found", INFO_INFO);
@@ -4790,8 +4790,10 @@ static int com_status(String *buffer MY_ATTRIBUTE((unused)),
     mysql_free_result(result);
   } else {
     /* Probably pre-4.1 server */
-    tee_fprintf(stdout, "Client characterset:\t%s\n", charset_info->csname);
-    tee_fprintf(stdout, "Server characterset:\t%s\n", mysql.charset->csname);
+    tee_fprintf(stdout, "Client characterset:\t%s\n",
+                replace_utf8_utf8mb3(charset_info->csname));
+    tee_fprintf(stdout, "Server characterset:\t%s\n",
+                replace_utf8_utf8mb3(mysql.charset->csname));
   }
 
   if (strstr(mysql_get_host_info(&mysql), "TCP/IP") || !mysql.unix_socket)
