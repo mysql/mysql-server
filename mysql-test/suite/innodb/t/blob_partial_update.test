@@ -196,7 +196,7 @@ EXPLAIN FORMAT=JSON UPDATE view_tab SET j1 = JSON_REPLACE(j1, '$[0]', 'Repview')
 
 UPDATE view_tab SET j1 = JSON_REPLACE(j1, '$[0]', 'Repview');
 
---echo # Show Reviewp
+--echo # Show Repview
 SELECT json_extract(j1, '$[0]') FROM view_tab;
 
 ANALYZE TABLE tab;
