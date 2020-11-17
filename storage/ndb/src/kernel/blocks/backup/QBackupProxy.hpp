@@ -31,7 +31,7 @@ class QBackupProxy : public LocalProxy
 {
 public:
   QBackupProxy(Block_context& ctx);
-  virtual ~QBackupProxy();
+  ~QBackupProxy() override;
   BLOCK_DEFINES(QBackupProxy);
 
 protected:

@@ -31,7 +31,7 @@ class DbqtuxProxy : public LocalProxy
 {
 public:
   DbqtuxProxy(Block_context& ctx);
-  virtual ~DbqtuxProxy();
+  ~DbqtuxProxy() override;
   BLOCK_DEFINES(DbqtuxProxy);
 
 protected:

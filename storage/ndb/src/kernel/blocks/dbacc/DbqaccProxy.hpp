@@ -31,7 +31,7 @@ class DbqaccProxy : public LocalProxy
 {
 public:
   DbqaccProxy(Block_context& ctx);
-  virtual ~DbqaccProxy();
+  ~DbqaccProxy() override;
   BLOCK_DEFINES(DbqaccProxy);
 
 protected:
