@@ -37,6 +37,8 @@ SET DEFAULT ROLE administrator, qa to userX, userY;
 # Default roles must be added for both users
 SELECT * FROM mysql.default_roles;
 HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
+%	userX	%	administrator
+%	userX	%	qa
 %	userY	%	administrator
 %	userY	%	qa
 
@@ -55,6 +57,8 @@ ERROR HY000: Unknown authorization ID `invalidUser`@`%`
 # No default roles must be added for valid users i.e. userY, userZ
 SELECT * FROM mysql.default_roles;
 HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
+%	userX	%	administrator
+%	userX	%	qa
 %	userY	%	administrator
 %	userY	%	qa
 

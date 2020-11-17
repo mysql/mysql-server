@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -388,6 +388,9 @@
  * handling so as to give priority to API failure handling over normal start
  * and stop subscriptions if they both are competing. */
 #define NDB_MAX_SUMA_DROP_TRIG_REQ_APIFAIL 3 * 3
+
+// Max. 256 bytes for encryption password given via mgmapi
+#define MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH 256
 
 #ifdef NDB_STATIC_ASSERT
 

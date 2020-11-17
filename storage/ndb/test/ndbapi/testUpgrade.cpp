@@ -36,6 +36,7 @@
 #include <NdbEnv.h>
 #include <signaldata/DumpStateOrd.hpp>
 #include <string>
+#include <NdbInfo.hpp>
 
 static Vector<BaseString> table_list;
 
@@ -433,6 +434,67 @@ uint getNodeCount(NodeSet set, uint numNodes)
   }
 }
 
+static bool check_arbitration_setup(Ndb_cluster_connection* connection) {
+  NdbInfo ndbinfo(connection, "ndbinfo/");
+  if (!ndbinfo.init()) {
+    g_err << "ndbinfo.init failed" << endl;
+    return false;
+  }
+
+  const NdbInfo::Table* table;
+  if (ndbinfo.openTable("ndbinfo/membership", &table) != 0) {
+    g_err << "Failed to openTable(membership)" << endl;
+    return false;
+  }
+
+  NdbInfoScanOperation* scanOp = nullptr;
+  if (ndbinfo.createScanOperation(table, &scanOp)) {
+    g_err << "No NdbInfoScanOperation" << endl;
+    ndbinfo.closeTable(table);
+    return false;
+  }
+
+  if (scanOp->readTuples() != 0) {
+    g_err << "scanOp->readTuples failed" << endl;
+    ndbinfo.releaseScanOperation(scanOp);
+    ndbinfo.closeTable(table);
+    return false;
+  }
+
+  const NdbInfoRecAttr* arbitrator_nodeid_colval =
+      scanOp->getValue("arbitrator");
+  const NdbInfoRecAttr* arbitration_connection_status_colval =
+      scanOp->getValue("arb_connected");
+
+  if (scanOp->execute() != 0) {
+    g_err << "scanOp->execute failed" << endl;
+    ndbinfo.releaseScanOperation(scanOp);
+    ndbinfo.closeTable(table);
+    return false;
+  }
+
+  bool arbitration_still_complete = true;
+  int ret;
+  while (arbitration_still_complete && (ret = scanOp->nextResult()) == 1) {
+    bool known_arbitrator = (arbitrator_nodeid_colval->u_32_value() != 0);
+    bool connected =
+        static_cast<bool>(arbitration_connection_status_colval->u_32_value());
+
+    arbitration_still_complete = known_arbitrator && connected;
+  }
+  ndbinfo.releaseScanOperation(scanOp);
+  ndbinfo.closeTable(table);
+
+  if (ret == -1) {
+    g_err << "Failure to process ndbinfo records" << endl;
+    return false;
+  }
+  if (!arbitration_still_complete) {
+    ndbout << "Waiting for arbitration to be setup" << endl;
+  }
+
+  return arbitration_still_complete;
+}
 
 /**
  * Perform up/downgrade of MGMDs
@@ -507,6 +569,22 @@ int runChangeMgmds(NDBT_Context* ctx,
       if(restarter.waitConnected())
         return NDBT_FAILED;
     }
+  }
+
+  bool arbitration_complete = false;
+  const int attempts = 10;
+  const int wait_time_ms = 500;
+  for (int a = 0; !arbitration_complete && a < attempts; a++) {
+    arbitration_complete = check_arbitration_setup(&ctx->m_cluster_connection);
+    if (!arbitration_complete) {
+      NdbSleep_MilliSleep(wait_time_ms);
+    }
+  }
+
+  if (!arbitration_complete) {
+    ndberr << "Failed to complete arbitration after "
+           << (attempts * wait_time_ms) / 1000 << " seconds" << endl;
+    return NDBT_FAILED;
   }
 
   return NDBT_OK;
@@ -650,8 +728,6 @@ runUpgrade_Half(NDBT_Context* ctx, NDBT_Step* step)
     {
       return NDBT_FAILED;
     }
-
-    NdbSleep_SecSleep(5); // TODO, handle arbitration
 
     // Restart one ndbd in each node group
     SqlResultSet ndbds;
@@ -1750,8 +1826,6 @@ runUpgrade_SR(NDBT_Context* ctx, NDBT_Step* step)
       {
         return NDBT_FAILED;
       }
-
-      NdbSleep_SecSleep(5); // TODO, handle arbitration
     }
     else
     {

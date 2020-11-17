@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,14 +53,14 @@ public:
 class BufferedOutputStream : public OutputStream {
 public:
   BufferedOutputStream(class LogBuffer* plogBuf);
-  virtual ~BufferedOutputStream() {}
+  ~BufferedOutputStream() override {}
 
-  int print(const char * fmt, ...)
+  int print(const char * fmt, ...) override
     ATTRIBUTE_FORMAT(printf, 2, 3);
-  int println(const char * fmt, ...)
+  int println(const char * fmt, ...) override
     ATTRIBUTE_FORMAT(printf, 2, 3);
-  int write(const void * buf, size_t len);
-  void flush() {}
+  int write(const void * buf, size_t len) override;
+  void flush() override {}
 
 private:
   class LogBuffer* logBuf;
@@ -70,15 +70,15 @@ class FileOutputStream : public OutputStream {
   FILE * f;
 public:
   FileOutputStream(FILE * file = stdout);
-  virtual ~FileOutputStream() {}
+  ~FileOutputStream() override {}
   FILE *getFile() { return f; }
 
-  int print(const char * fmt, ...)
+  int print(const char * fmt, ...) override
     ATTRIBUTE_FORMAT(printf, 2, 3);
-  int println(const char * fmt, ...)
+  int println(const char * fmt, ...) override
     ATTRIBUTE_FORMAT(printf, 2, 3);
-  int write(const void * buf, size_t len);
-  void flush() { fflush(f); }
+  int write(const void * buf, size_t len) override;
+  void flush() override { fflush(f); }
 };
 
 class SocketOutputStream : public OutputStream {
@@ -89,15 +89,15 @@ protected:
   unsigned m_timeout_remain;
 public:
   SocketOutputStream(NDB_SOCKET_TYPE socket, unsigned write_timeout_ms = 1000);
-  virtual ~SocketOutputStream() {}
+  ~SocketOutputStream() override {}
   bool timedout() { return m_timedout; }
-  void reset_timeout() { m_timedout= false; m_timeout_remain= m_timeout_ms;}
+  void reset_timeout() override { m_timedout= false; m_timeout_remain= m_timeout_ms;}
 
-  int print(const char * fmt, ...)
+  int print(const char * fmt, ...) override
     ATTRIBUTE_FORMAT(printf, 2, 3);
-  int println(const char * fmt, ...)
+  int println(const char * fmt, ...) override
     ATTRIBUTE_FORMAT(printf, 2, 3);
-  int write(const void * buf, size_t len);
+  int write(const void * buf, size_t len) override;
 };
 
 
@@ -106,25 +106,25 @@ class BufferedSockOutputStream : public SocketOutputStream {
 public:
   BufferedSockOutputStream(NDB_SOCKET_TYPE socket,
                            unsigned write_timeout_ms = 1000);
-  virtual ~BufferedSockOutputStream();
+  ~BufferedSockOutputStream() override;
 
-  int print(const char * fmt, ...)
+  int print(const char * fmt, ...) override
     ATTRIBUTE_FORMAT(printf, 2, 3);
-  int println(const char * fmt, ...)
+  int println(const char * fmt, ...) override
     ATTRIBUTE_FORMAT(printf, 2, 3);
 
-  int write(const void * buf, size_t len);
-  void flush();
+  int write(const void * buf, size_t len) override;
+  void flush() override;
 };
 
 
 class NullOutputStream : public OutputStream {
 public:
   NullOutputStream() {}
-  virtual ~NullOutputStream() {}
-  int print(const char * /* unused */, ...) { return 1;}
-  int println(const char * /* unused */, ...) { return 1;}
-  int write(const void * buf, size_t len) { return 1;}
+  ~NullOutputStream() override {}
+  int print(const char * /* unused */, ...) override { return 1;}
+  int println(const char * /* unused */, ...) override { return 1;}
+  int write(const void * buf, size_t len) override { return 1;}
 };
 
 #endif

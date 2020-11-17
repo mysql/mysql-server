@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ class Ndb_index_stat_thread : public Ndb_component {
 
  public:
   Ndb_index_stat_thread();
-  virtual ~Ndb_index_stat_thread();
+  ~Ndb_index_stat_thread() override;
 
   /*
     protect stats entry lists where needed
@@ -58,11 +58,11 @@ class Ndb_index_stat_thread : public Ndb_component {
   bool is_setup_complete();
 
  private:
-  virtual int do_init();
-  virtual void do_run();
-  virtual int do_deinit();
+  int do_init() override;
+  void do_run() override;
+  int do_deinit() override;
   // Wakeup for stop
-  virtual void do_wakeup();
+  void do_wakeup() override;
 
   int check_or_create_systables(struct Ndb_index_stat_proc &pr);
   int check_or_create_sysevents(struct Ndb_index_stat_proc &pr);
@@ -74,7 +74,7 @@ class Ndb_index_stat_thread : public Ndb_component {
 };
 
 /* free entries from share or at end */
-void ndb_index_stat_free(NDB_SHARE *, int iudex_id, int index_version);
+void ndb_index_stat_free(NDB_SHARE *, int index_id, int index_version);
 void ndb_index_stat_free(NDB_SHARE *);
 void ndb_index_stat_end();
 

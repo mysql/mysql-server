@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -99,7 +99,7 @@ class Audit_error_handler : public Internal_error_handler {
   /**
     @brief Destruction.
   */
-  virtual ~Audit_error_handler() {
+  ~Audit_error_handler() override {
     if (m_active) {
       /* Deactivate this handler. */
       m_thd->pop_internal_handler();
@@ -120,9 +120,9 @@ class Audit_error_handler : public Internal_error_handler {
 
     @returns True on error rejection, otherwise false.
   */
-  virtual bool handle_condition(THD *, uint sql_errno, const char *sqlstate,
-                                Sql_condition::enum_severity_level *,
-                                const char *msg) {
+  bool handle_condition(THD *, uint sql_errno, const char *sqlstate,
+                        Sql_condition::enum_severity_level *,
+                        const char *msg) override {
     if (m_active && handle()) {
       /* Error has been rejected. Write warning message. */
       print_warning(m_warning_message, sql_errno, sqlstate, msg);
@@ -334,7 +334,7 @@ class Ignore_event_error_handler : public Audit_error_handler {
 
     @retval True on error rejection, otherwise false.
   */
-  virtual bool handle() { return true; }
+  bool handle() override { return true; }
 
   /**
     @brief Custom warning print routine.
@@ -346,9 +346,9 @@ class Ignore_event_error_handler : public Audit_error_handler {
     @param sqlstate  The SQL state of the underlying error. NULL if none
     @param msg       The text of the underlying error. NULL if none
   */
-  virtual void print_warning(const char *warn_msg MY_ATTRIBUTE((unused)),
-                             uint sql_errno, const char *sqlstate,
-                             const char *msg) {
+  void print_warning(const char *warn_msg MY_ATTRIBUTE((unused)),
+                     uint sql_errno, const char *sqlstate,
+                     const char *msg) override {
     LogErr(WARNING_LEVEL, ER_AUDIT_CANT_ABORT_EVENT, m_event_name, sql_errno,
            sqlstate ? sqlstate : "<NO_STATE>", msg ? msg : "<NO_MESSAGE>");
   }
@@ -503,7 +503,8 @@ inline bool generate_table_access_event(TABLE_LIST *table) {
 
   /* Generate event for SYSTEM and USER tables, which are not temp tables. */
   if ((table->table->s->table_category == TABLE_CATEGORY_SYSTEM ||
-       table->table->s->table_category == TABLE_CATEGORY_USER) &&
+       table->table->s->table_category == TABLE_CATEGORY_USER ||
+       table->table->s->table_category == TABLE_CATEGORY_ACL_TABLE) &&
       table->table->s->tmp_table == NO_TMP_TABLE)
     return true;
 
@@ -798,7 +799,7 @@ class Ignore_command_start_error_handler : public Audit_error_handler {
 
     @retval True on error rejection, otherwise false.
   */
-  virtual bool handle() { return ignore_command(m_command); }
+  bool handle() override { return ignore_command(m_command); }
 
   /**
     @brief Custom warning print routine.
@@ -810,9 +811,9 @@ class Ignore_command_start_error_handler : public Audit_error_handler {
     @param sqlstate  The SQL state of the underlying error. NULL if none
     @param msg       The text of the underlying error. NULL if none
   */
-  virtual void print_warning(const char *warn_msg MY_ATTRIBUTE((unused)),
-                             uint sql_errno, const char *sqlstate,
-                             const char *msg) {
+  void print_warning(const char *warn_msg MY_ATTRIBUTE((unused)),
+                     uint sql_errno, const char *sqlstate,
+                     const char *msg) override {
     LogErr(WARNING_LEVEL, ER_AUDIT_CANT_ABORT_COMMAND, m_command_text,
            sql_errno, sqlstate ? sqlstate : "<NO_STATE>",
            msg ? msg : "<NO_MESSAGE>");

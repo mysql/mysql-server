@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -162,7 +162,7 @@ class Rewriter_user : public I_rewriter {
     Rewrites some of the user specific properties which are common to
     concrete classes.
   */
-  virtual bool rewrite(String &rlb) const;
+  bool rewrite(String &rlb) const override;
   /*
     Abstract method to be implemented by the concrete classes.
     The implementation methos should add the user authID, plugin info and
@@ -242,7 +242,7 @@ class Rewriter_show_create_user final : public Rewriter_user {
 
  protected:
   /* Append the password hash to the output string */
-  virtual void append_auth_str(LEX_USER *lex, String *str) const override;
+  void append_auth_str(LEX_USER *lex, String *str) const override;
 
  private:
   void append_user_auth_info(LEX_USER *user, bool comma,

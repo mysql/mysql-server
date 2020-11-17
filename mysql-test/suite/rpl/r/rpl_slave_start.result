@@ -21,6 +21,8 @@ DROP TABLE t1;
 # Block SQL thread immediately after it starts.
 SET DEBUG_SYNC='after_start_slave WAIT_FOR signal.continue';
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_start.inc
 # Check Slave_SQL_Error, there should not be an error.
 include/check_slave_no_error.inc

@@ -137,6 +137,8 @@ should not exceed FTS_DOC_ID_MAX_STEP */
 #define FTS_INDEX_DOC_COUNT_LEN 4
 /* BLOB COLUMN, 0 means VARIABLE SIZE */
 #define FTS_INDEX_ILIST_LEN 0
+/* Maximum nested expression in fulltext binary search string */
+#define FTS_MAX_NESTED_EXP 31
 
 extern const char *FTS_PREFIX;
 extern const char *FTS_SUFFIX_BEING_DELETED;
@@ -465,15 +467,13 @@ void fts_update_next_doc_id(
     const char *table_name,    /*!< in: table name, or NULL */
     doc_id_t doc_id);          /*!< in: DOC ID to set */
 
-/** Create a new document id .
- @return DB_SUCCESS if all went well else error */
-dberr_t fts_create_doc_id(dict_table_t *table, /*!< in: row is of this
-                                               table. */
-                          dtuple_t *row,       /*!< in/out: add doc id
-                                               value to this row. This is the
-                                               current row that is being
-                                               inserted. */
-                          mem_heap_t *heap);   /*!< in: heap */
+/** Create a new document id.
+@param[in]      table  Row is of this table.
+@param[in,out]  row    Add doc id value to this row. This is the current row
+that is being inserted.
+@param[in]      heap
+@return DB_SUCCESS if all went well else error */
+dberr_t fts_create_doc_id(dict_table_t *table, dtuple_t *row, mem_heap_t *heap);
 
 /** Create a new fts_doc_ids_t.
  @return new fts_doc_ids_t. */
@@ -482,13 +482,14 @@ fts_doc_ids_t *fts_doc_ids_create(void);
 /** Free a fts_doc_ids_t. */
 void fts_doc_ids_free(fts_doc_ids_t *doc_ids); /*!< in: doc_ids to free */
 
-/** Notify the FTS system about an operation on an FTS-indexed table. */
-void fts_trx_add_op(trx_t *trx,                /*!< in: InnoDB transaction */
-                    dict_table_t *table,       /*!< in: table */
-                    doc_id_t doc_id,           /*!< in: doc id */
-                    fts_row_state state,       /*!< in: state of the row */
-                    ib_vector_t *fts_indexes); /*!< in: FTS indexes affected
-                                               (NULL=all) */
+/** Notify the FTS system about an operation on an FTS-indexed table.
+@param[in] trx Innodb transaction
+@param[in] table Table
+@param[in] doc_id Doc id
+@param[in] state State of the row
+@param[in] fts_indexes Fts indexes affected (null=all) */
+void fts_trx_add_op(trx_t *trx, dict_table_t *table, doc_id_t doc_id,
+                    fts_row_state state, ib_vector_t *fts_indexes);
 
 /** Free an FTS trx. */
 void fts_trx_free(fts_trx_t *fts_trx); /*!< in, own: FTS trx */
@@ -549,10 +550,10 @@ dberr_t fts_create_index_tables_low(trx_t *trx, dict_index_t *index,
                                     const char *table_name, table_id_t table_id)
     MY_ATTRIBUTE((warn_unused_result));
 
-/** Add the FTS document id hidden column. */
-void fts_add_doc_id_column(
-    dict_table_t *table, /*!< in/out: Table with FTS index */
-    mem_heap_t *heap);   /*!< in: temporary memory heap, or NULL */
+/** Add the FTS document id hidden column.
+@param[in,out] table Table with FTS index
+@param[in] heap Temporary memory heap, or NULL */
+void fts_add_doc_id_column(dict_table_t *table, mem_heap_t *heap);
 
 /** Drops the ancillary tables needed for supporting an FTS index on a
 given table. row_mysql_lock_data_dictionary must have been called before
@@ -687,7 +688,7 @@ void fts_optimize_init(void);
 all the split tables.
 @param[in]	trx		transaction
 @param[in]	index		fts index
-@param[out]	aux_vec		dropped table name vector
+@param[out]	aux_vec		dropped table names vector
 @return DB_SUCCESS or error code */
 dberr_t fts_drop_index_tables(trx_t *trx, dict_index_t *index,
                               aux_name_vec_t *aux_vec);
@@ -709,10 +710,11 @@ void fts_optimize_shutdown();
 @param[in]	table	table to sync */
 void fts_optimize_request_sync_table(dict_table_t *table);
 
-/** Take a FTS savepoint. */
-void fts_savepoint_take(trx_t *trx,         /*!< in: transaction */
-                        fts_trx_t *fts_trx, /*!< in: fts transaction */
-                        const char *name);  /*!< in: savepoint name */
+/** Take a FTS savepoint.
+@param[in] trx Transaction
+@param[in] fts_trx Fts transaction
+@param[in] name Savepoint name */
+void fts_savepoint_take(trx_t *trx, fts_trx_t *fts_trx, const char *name);
 
 /** Refresh last statement savepoint. */
 void fts_savepoint_laststmt_refresh(trx_t *trx); /*!< in: transaction */
@@ -759,26 +761,29 @@ CHARSET_INFO *fts_index_get_charset(dict_index_t *index); /*!< in: FTS index */
  @return initial Doc ID */
 doc_id_t fts_init_doc_id(const dict_table_t *table); /*!< in: table */
 
-/** compare two character string according to their charset. */
-extern int innobase_fts_text_cmp(const void *cs,  /*!< in: Character set */
-                                 const void *p1,  /*!< in: key */
-                                 const void *p2); /*!< in: node */
+/** Compare two character string according to their charset.
+@param[in] cs Character set
+@param[in] p1 Key
+@param[in] p2 Node */
+extern int innobase_fts_text_cmp(const void *cs, const void *p1,
+                                 const void *p2);
 
-/** Makes all characters in a string lower case. */
-extern size_t innobase_fts_casedn_str(
-    CHARSET_INFO *cs, /*!< in: Character set */
-    char *src,        /*!< in: string to put in
-                      lower case */
-    size_t src_len,   /*!< in: input string length */
-    char *dst,        /*!< in: buffer for result
-                      string */
-    size_t dst_len);  /*!< in: buffer size */
+/** Makes all characters in a string lower case.
+@param[in] cs Character set
+@param[in] src String to put in lower case
+@param[in] src_len Input string length
+@param[in] dst Buffer for result string
+@param[in] dst_len Buffer size */
+extern size_t innobase_fts_casedn_str(CHARSET_INFO *cs, char *src,
+                                      size_t src_len, char *dst,
+                                      size_t dst_len);
 
-/** compare two character string according to their charset. */
-extern int innobase_fts_text_cmp_prefix(
-    const void *cs,  /*!< in: Character set */
-    const void *p1,  /*!< in: key */
-    const void *p2); /*!< in: node */
+/** Compare two character string according to their charset.
+@param[in] cs Character set
+@param[in] p1 Key
+@param[in] p2 Node */
+extern int innobase_fts_text_cmp_prefix(const void *cs, const void *p1,
+                                        const void *p2);
 
 /** Get the next token from the given string and store it in *token. */
 extern ulint innobase_mysql_fts_get_token(
@@ -958,4 +963,4 @@ This will be done on upgrade failure
 @return DB_SUCCESS on success, DB_ERROR on error */
 dberr_t fts_upgrade_rename(const dict_table_t *table, bool rollback);
 
-#endif /*!< fts0fts.h */
+#endif

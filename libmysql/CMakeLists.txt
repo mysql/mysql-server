@@ -139,7 +139,7 @@ SET(CLIENT_API_FUNCTIONS
   mysql_thread_safe
   mysql_use_result
   mysql_warning_count
-
+  mysql_real_connect_dns_srv
   CACHE INTERNAL "Functions exported by client API"
 )
 
@@ -177,6 +177,7 @@ SET(CLIENT_API_NONBLOCKING_FUNCTIONS
 SET(CLIENT_SOURCES
   libmysql.cc
   errmsg.cc
+  dns_srv.cc
   ../sql-common/client.cc
   ../sql-common/client_plugin.cc
   ../sql-common/client_authentication.cc
@@ -232,6 +233,31 @@ ENDIF()
 
 LIST(APPEND LIBS_TO_LINK ${SSL_LIBRARIES})
 
+UNSET(HAVE_WIN32_DNS_SRV)
+UNSET(HAVE_UNIX_DNS_SRV)
+SET(HAVE_DNS_SRV 0)
+IF(WIN32)
+  LIST(APPEND LIBS_TO_LINK dnsapi)
+  SET(HAVE_WIN32_DNS_SRV 1 PARENT_SCOPE)
+  SET(HAVE_DNS_SRV 1)
+  MESSAGE(STATUS "Found Win32 DNS SRV APIs")
+ELSEIF(FREEBSD)
+  SET(HAVE_DNS_SRV 1)
+  SET(HAVE_UNIX_DNS_SRV 1 PARENT_SCOPE)
+  MESSAGE(STATUS "BSD built in DNS SRV APIs")
+ELSE()
+  FIND_LIBRARY(RESOLV_LIBRARY NAMES resolv)
+  IF (RESOLV_LIBRARY)
+    LIST(APPEND LIBS_TO_LINK ${RESOLV_LIBRARY})
+    SET(HAVE_UNIX_DNS_SRV 1 PARENT_SCOPE)
+    SET(HAVE_DNS_SRV 1)
+    MESSAGE(STATUS "Found Unix DNS SRV APIs")
+  ENDIF()
+ENDIF()
+
+IF(HAVE_DNS_SRV EQUAL 0)
+  MESSAGE(FATAL_ERROR "Can't find neither Win32 nor Unix DNS SRV APIs")
+ENDIF()
 #
 # On Windows platform client library includes the client-side 
 # Windows Native Authentication plugin.
@@ -327,14 +353,13 @@ IF(UNIX)
 
   ADD_INSTALL_RPATH_FOR_OPENSSL(libmysql)
 
-  GET_TARGET_PROPERTY(libmysql_link_flags libmysql LINK_FLAGS)
-  IF(LINK_FLAG_NO_UNDEFINED)
-    STRING_APPEND(libmysql_link_flags
-      " ${LINK_FLAG_NO_UNDEFINED}")
-    STRING_APPEND(libmysql_link_flags
-      " -Wl,--version-script=${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver")
-    SET_TARGET_PROPERTIES(libmysql
-      PROPERTIES LINK_FLAGS "${libmysql_link_flags}")
+  IF(LINK_FLAG_Z_DEFS)
+    MY_TARGET_LINK_OPTIONS(libmysql "LINKER:${LINK_FLAG_Z_DEFS}")
+  ENDIF()
+
+  IF(LINUX)
+    MY_TARGET_LINK_OPTIONS(libmysql
+      "LINKER:--version-script=${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver")
   ENDIF() 
   # clean direct output needs to be set several targets have the same name
   #(mysqlclient in this case)

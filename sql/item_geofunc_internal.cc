@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,11 @@
 
 #include "sql/item_geofunc_internal.h"
 
-#include <string.h>
 #include <algorithm>
+#include <cstring>
+#include <iterator>
+#include <memory>
+
 #include <boost/concept/usage.hpp>
 #include <boost/geometry/algorithms/centroid.hpp>
 #include <boost/geometry/algorithms/is_valid.hpp>
@@ -33,8 +36,6 @@
 #include <boost/geometry/index/predicates.hpp>
 #include <boost/geometry/strategies/strategies.hpp>
 #include <boost/iterator/iterator_facade.hpp>
-#include <iterator>
-#include <memory>
 
 #include "m_ctype.h"
 #include "m_string.h"
@@ -45,8 +46,8 @@
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/item_func.h"
 #include "sql/mdl.h"
-#include "sql/parse_tree_node_base.h"
-#include "sql/sql_class.h"  // THD
+#include "sql/parse_location.h"  // POS
+#include "sql/sql_class.h"       // THD
 #include "sql/srs_fetcher.h"
 #include "sql/system_variables.h"
 #include "sql_string.h"
@@ -554,15 +555,15 @@ class Is_empty_geometry : public WKB_scanner_event_handler {
 
   Is_empty_geometry() : is_empty(true) {}
 
-  virtual void on_wkb_start(Geometry::wkbByteOrder, Geometry::wkbType geotype,
-                            const void *, uint32, bool) {
+  void on_wkb_start(Geometry::wkbByteOrder, Geometry::wkbType geotype,
+                    const void *, uint32, bool) override {
     if (is_empty && geotype != Geometry::wkb_geometrycollection)
       is_empty = false;
   }
 
-  virtual void on_wkb_end(const void *) {}
+  void on_wkb_end(const void *) override {}
 
-  virtual bool continue_scan() const { return is_empty; }
+  bool continue_scan() const override { return is_empty; }
 };
 
 bool is_empty_geocollection(const Geometry *g) {

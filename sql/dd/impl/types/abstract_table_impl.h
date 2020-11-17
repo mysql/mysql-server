@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,21 +56,21 @@ class Weak_object;
 class Abstract_table_impl : public Entity_object_impl,
                             virtual public Abstract_table {
  public:
-  virtual const Object_table &object_table() const;
+  const Object_table &object_table() const override;
 
   static void register_tables(Open_dictionary_tables_ctx *otx);
 
-  virtual bool validate() const;
+  bool validate() const override;
 
-  virtual bool restore_children(Open_dictionary_tables_ctx *otx);
+  bool restore_children(Open_dictionary_tables_ctx *otx) override;
 
-  virtual bool store_children(Open_dictionary_tables_ctx *otx);
+  bool store_children(Open_dictionary_tables_ctx *otx) override;
 
-  virtual bool drop_children(Open_dictionary_tables_ctx *otx) const;
+  bool drop_children(Open_dictionary_tables_ctx *otx) const override;
 
-  virtual bool restore_attributes(const Raw_record &r);
+  bool restore_attributes(const Raw_record &r) override;
 
-  virtual bool store_attributes(Raw_record *r);
+  bool store_attributes(Raw_record *r) override;
 
  protected:
   void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const;
@@ -78,16 +78,16 @@ class Abstract_table_impl : public Entity_object_impl,
   bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
 
  public:
-  virtual void debug_print(String_type &outb) const;
+  void debug_print(String_type &outb) const override;
 
  public:
   /////////////////////////////////////////////////////////////////////////
   // schema.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Object_id schema_id() const { return m_schema_id; }
+  Object_id schema_id() const override { return m_schema_id; }
 
-  virtual void set_schema_id(Object_id schema_id) { m_schema_id = schema_id; }
+  void set_schema_id(Object_id schema_id) override { m_schema_id = schema_id; }
 
   /////////////////////////////////////////////////////////////////////////
   // mysql_version_id.
@@ -96,7 +96,7 @@ class Abstract_table_impl : public Entity_object_impl,
   // mechanisms should be preferred.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint mysql_version_id() const { return m_mysql_version_id; }
+  uint mysql_version_id() const override { return m_mysql_version_id; }
 
   // TODO: Commented out as it is not needed as we either use the value
   // assigned by the constructor, or restore a value from the TABLES
@@ -108,15 +108,15 @@ class Abstract_table_impl : public Entity_object_impl,
   // options.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Properties &options() const { return m_options; }
+  const Properties &options() const override { return m_options; }
 
-  virtual Properties &options() { return m_options; }
+  Properties &options() override { return m_options; }
 
-  virtual bool set_options(const Properties &options) {
+  bool set_options(const Properties &options) override {
     return m_options.insert_values(options);
   }
 
-  virtual bool set_options(const String_type &options_raw) {
+  bool set_options(const String_type &options_raw) override {
     return m_options.insert_values(options_raw);
   }
 
@@ -124,22 +124,22 @@ class Abstract_table_impl : public Entity_object_impl,
   // created.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong created(bool convert_time) const {
+  ulonglong created(bool convert_time) const override {
     return convert_time ? gmt_time_to_local_time(m_created) : m_created;
   }
 
-  virtual void set_created(ulonglong created) { m_created = created; }
+  void set_created(ulonglong created) override { m_created = created; }
 
   /////////////////////////////////////////////////////////////////////////
   // last altered.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong last_altered(bool convert_time) const {
+  ulonglong last_altered(bool convert_time) const override {
     return convert_time ? gmt_time_to_local_time(m_last_altered)
                         : m_last_altered;
   }
 
-  virtual void set_last_altered(ulonglong last_altered) {
+  void set_last_altered(ulonglong last_altered) override {
     m_last_altered = last_altered;
   }
 
@@ -147,46 +147,48 @@ class Abstract_table_impl : public Entity_object_impl,
   // hidden.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual enum_hidden_type hidden() const { return m_hidden; }
+  enum_hidden_type hidden() const override { return m_hidden; }
 
-  virtual void set_hidden(enum_hidden_type hidden) { m_hidden = hidden; }
+  void set_hidden(enum_hidden_type hidden) override { m_hidden = hidden; }
 
   /////////////////////////////////////////////////////////////////////////
   // Column collection.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Column *add_column();
+  Column *add_column() override;
 
-  virtual const Column_collection &columns() const { return m_columns; }
+  const Column_collection &columns() const override { return m_columns; }
 
-  virtual Column_collection *columns() { return &m_columns; }
+  Column_collection *columns() override { return &m_columns; }
 
   const Column *get_column(Object_id column_id) const;
 
   Column *get_column(Object_id column_id);
 
-  const Column *get_column(const String_type &name) const;
+  const Column *get_column(const String_type &name) const override;
 
   Column *get_column(const String_type &name);
 
   // Fix "inherits ... via dominance" warnings
-  virtual Entity_object_impl *impl() { return Entity_object_impl::impl(); }
-  virtual const Entity_object_impl *impl() const {
+  Entity_object_impl *impl() override { return Entity_object_impl::impl(); }
+  const Entity_object_impl *impl() const override {
     return Entity_object_impl::impl();
   }
-  virtual Object_id id() const { return Entity_object_impl::id(); }
-  virtual bool is_persistent() const {
+  Object_id id() const override { return Entity_object_impl::id(); }
+  bool is_persistent() const override {
     return Entity_object_impl::is_persistent();
   }
-  virtual const String_type &name() const { return Entity_object_impl::name(); }
-  virtual void set_name(const String_type &name) {
+  const String_type &name() const override {
+    return Entity_object_impl::name();
+  }
+  void set_name(const String_type &name) override {
     Entity_object_impl::set_name(name);
   }
 
  protected:
   Abstract_table_impl();
 
-  virtual ~Abstract_table_impl() {}
+  ~Abstract_table_impl() override {}
 
  private:
   // Fields.

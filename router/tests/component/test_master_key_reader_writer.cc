@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2018, 2019, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -171,6 +171,13 @@ class MasterKeyReaderWriterTest : public RouterComponentTest {
     default_section["master_key_writer"] = script_generator.get_writer_script();
 
     return default_section;
+  }
+
+  auto &launch_router(const std::vector<std::string> &params,
+                      int expected_exit_code = EXIT_SUCCESS) {
+    return ProcessManager::launch_router(
+        params, expected_exit_code, /*catch_stderr=*/true, /*with_sudo=*/false,
+        /*wait_for_notify_ready=*/-1s);
   }
 
   TcpPortPool port_pool_;
@@ -554,15 +561,14 @@ TEST_F(MasterKeyReaderWriterTest, ConnectToMetadataServerPass) {
   init_keyring();
 
   // launch server
-  auto &server = launch_mysql_server_mock(
+  /*auto &server =*/launch_mysql_server_mock(
       get_data_dir().join("metadata_dynamic_nodes.js").str(), server_port,
       false);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(server, server_port));
 
   auto default_section_map = get_default_section_map();
   // launch the router with metadata-cache configuration
   TempDirectory conf_dir("conf");
-  auto &router = ProcessManager::launch_router({
+  auto &router = launch_router({
       "-c",
       create_config_file(conf_dir.name(),
                          metadata_cache_section + routing_section,
@@ -607,7 +613,7 @@ TEST_F(MasterKeyReaderWriterTest,
   auto default_section_map = get_default_section_map();
   // launch the router with metadata-cache configuration
   TempDirectory conf_dir("conf");
-  auto &router = ProcessManager::launch_router(
+  auto &router = launch_router(
       {"-c", create_config_file(conf_dir.name(),
                                 metadata_cache_section + routing_section,
                                 &default_section_map)});
@@ -648,7 +654,7 @@ TEST_F(MasterKeyReaderWriterTest, CannotLaunchRouterWhenNoMasterKeyReader) {
   auto default_section_map = get_default_section_map(true, true);
   // launch the router with metadata-cache configuration
   TempDirectory conf_dir("conf");
-  auto &router = ProcessManager::launch_router(
+  auto &router = launch_router(
       {
           "-c",
           create_config_file(conf_dir.name(),
@@ -684,7 +690,7 @@ TEST_F(MasterKeyReaderWriterTest, CannotLaunchRouterWhenMasterKeyIncorrect) {
       get_incorrect_master_key_default_section_map();
   // launch the router with metadata-cache configuration
   TempDirectory conf_dir("conf");
-  auto &router = ProcessManager::launch_router(
+  auto &router = launch_router(
       {"-c", create_config_file(conf_dir.name(),
                                 metadata_cache_section + routing_section,
                                 &incorrect_master_key_default_section_map)},
@@ -700,7 +706,8 @@ TEST_F(MasterKeyReaderWriterTest, CannotLaunchRouterWhenMasterKeyIncorrect) {
 Path g_origin_path;
 #ifndef SKIP_BOOTSTRAP_SYSTEM_DEPLOYMENT_TESTS
 
-class MasterKeyReaderWriterSystemDeploymentTest : public RouterComponentTest {
+class MasterKeyReaderWriterSystemDeploymentTest
+    : public MasterKeyReaderWriterTest {
  protected:
   void SetUp() override {
     // this test modifies the origin path so we need to restore it
@@ -770,9 +777,6 @@ class MasterKeyReaderWriterSystemDeploymentTest : public RouterComponentTest {
     return server_mock;
   }
 
-  TcpPortPool port_pool_;
-
-  TempDirectory tmp_dir_;
   std::string exec_file_;
   std::string config_file_;
 #ifdef __APPLE__

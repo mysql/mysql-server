@@ -200,7 +200,8 @@ EOF
   print "# Supressing output for initialize:\n";
   while(<MYSQLD_OUT>)
   {
-    if (!(/initializing of server has completed/)) {
+    if (!(/initializing of server has completed/) &&
+        !(/Invalid systemd notify socket, cannot send:/)) {
       print;
     }
   }

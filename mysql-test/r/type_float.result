@@ -85,16 +85,14 @@ select c1 + c1 * (c2 / 100) as col from t1;
 col
 140.36
 create table t2 select c1 + c1 * (c2 / 100) as col1, round(c1, 5) as col2, round(c1, 35) as col3, sqrt(c1*1e-15) col4 from t1;
-Warnings:
-Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 select * from t2;
 col1	col2	col3	col4
-140.36	121.00000	121	0.00000034785054261852176
+140.36	121	121	0.00000034785054261852176
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `col1` double DEFAULT NULL,
-  `col2` double(22,5) DEFAULT NULL,
+  `col2` double DEFAULT NULL,
   `col3` double DEFAULT NULL,
   `col4` double DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

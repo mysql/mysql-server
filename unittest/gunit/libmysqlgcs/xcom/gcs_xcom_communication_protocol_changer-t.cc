@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,10 +74,10 @@ class Set_protocol_notification : public Parameterized_notification<false> {
       Gcs_protocol_version version)
       : m_functor(functor), m_changer(protocol_changer), m_version(version) {}
 
-  ~Set_protocol_notification() {}
+  ~Set_protocol_notification() override {}
 
  private:
-  void do_execute() { (*m_functor)(m_changer, m_version); }
+  void do_execute() override { (*m_functor)(m_changer, m_version); }
 
   xcom_set_protocol_functor *m_functor;
   Gcs_xcom_communication_protocol_changer *m_changer;

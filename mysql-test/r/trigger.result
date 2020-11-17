@@ -567,6 +567,8 @@ insert into t1 values (0);
 ERROR 0A000: RESET is not allowed in stored function or trigger
 drop procedure p1;
 create procedure p1() reset slave;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 insert into t1 values (0);
 ERROR 0A000: RESET is not allowed in stored function or trigger
 drop procedure p1;
@@ -2465,6 +2467,8 @@ SELECT DEFINER FROM information_schema.triggers WHERE TRIGGER_NAME='silly_trigge
 DEFINER
 user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
 DROP USER user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+Warnings:
+Warning	4005	User 'user_name_robert_golebiowski'@'oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char' is referenced as a definer account in a trigger.
 DROP TRIGGER test.silly_trigger;
 DROP TABLE test.silly_one;
 #
@@ -2907,6 +2911,8 @@ SELECT @mysqltest_var;
 @mysqltest_var
 Hello, world!
 DROP USER mysqltest_u1@localhost;
+Warnings:
+Warning	4005	User 'mysqltest_u1'@'localhost' is referenced as a definer account in a trigger.
 DROP DATABASE mysqltest_db1;
 DELETE FROM mysql.user WHERE User LIKE 'mysqltest_%';
 DELETE FROM mysql.db WHERE User LIKE 'mysqltest_%';

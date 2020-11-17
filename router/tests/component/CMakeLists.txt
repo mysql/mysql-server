@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@ ADD_DEFINITIONS(-DSSL_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/mysql-test/std_data/")
 FOREACH(test_file
     test_async_replicaset.cc
     test_bootstrap.cc
+    test_bootstrap_account.cc
     test_bootstrap_system_deployment.cc
     test_component_test_framework.cc
     test_config.cc
@@ -42,6 +43,7 @@ FOREACH(test_file
     test_mock_server.cc
     test_pidfile.cc
     test_rest_api.cc
+    test_rest_api_enable.cc
     test_rest_metadata_cache.cc
     test_rest_mock_server.cc
     test_rest_router.cc
@@ -50,6 +52,7 @@ FOREACH(test_file
     test_routing.cc
     test_routing_connection.cc
     test_routing_strategy.cc
+    test_sd_notify.cc
     test_shutdown.cc
     test_state_file.cc
     test_user_option.cc

@@ -1,13 +1,13 @@
 {
 	"name": "dojox",
-	"version": "1.15.3",
+	"version": "1.15.4",
 	"directories": {
 		"lib": "."
 	},
 	"main": "main",
 	"dependencies": {
-		"dojo": "1.15.3",
-		"dijit": "1.15.3"
+		"dojo": "1.15.4",
+		"dijit": "1.15.4"
 	},
 	"description": "Dojo eXtensions, a rollup of many useful sub-projects and varying states of maturity – from very stable and robust, to alpha and experimental. See individual projects contain README files for details.",
 	"license" : "BSD-3-Clause OR AFL-2.1",

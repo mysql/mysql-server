@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -313,9 +313,10 @@ database_name.table_name.
 @return pointer to 'formatted' */
 char *ut_format_name(const char *name, char *formatted, ulint formatted_size);
 
-/** Catenate files. */
-void ut_copy_file(FILE *dest, /*!< in: output file */
-                  FILE *src); /*!< in: input file to be appended to output */
+/** Catenate files.
+@param[in] dest Output file
+@param[in] src Input file to be appended to output */
+void ut_copy_file(FILE *dest, FILE *src);
 
 /** Convert byte value to string with unit
 @param[in]      data_bytes      byte value
@@ -647,7 +648,7 @@ class info : public logger {
       : logger(INFORMATION_LEVEL, err, std::forward<Args>(args)...) {}
 #else
   /** Destructor */
-  ~info();
+  ~info() override;
 #endif /* !UNIV_NO_ERR_MSGS */
 };
 
@@ -668,7 +669,7 @@ class warn : public logger {
 
 #else
   /** Destructor */
-  ~warn();
+  ~warn() override;
 #endif /* !UNIV_NO_ERR_MSGS */
 };
 
@@ -689,7 +690,7 @@ class error : public logger {
 
 #else
   /** Destructor */
-  ~error();
+  ~error() override;
 #endif /* !UNIV_NO_ERR_MSGS */
 };
 
@@ -710,10 +711,10 @@ class fatal : public logger {
       : logger(ERROR_LEVEL, err, std::forward<Args>(args)...) {}
 
   /** Destructor. */
-  virtual ~fatal();
+  ~fatal() override;
 #else
   /** Destructor. */
-  ~fatal();
+  ~fatal() override;
 #endif /* !UNIV_NO_ERR_MSGS */
 };
 
@@ -757,7 +758,7 @@ class fatal_or_error : public logger {
       : logger(ERROR_LEVEL, err, std::forward<Args>(args)...), m_fatal(fatal) {}
 
   /** Destructor */
-  virtual ~fatal_or_error();
+  ~fatal_or_error() override;
 #else
   /** Constructor */
   fatal_or_error(bool fatal) : m_fatal(fatal) {}

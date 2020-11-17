@@ -25,6 +25,8 @@ INSERT INTO t4 VALUES(1);
 DROP TABLE t4;
 [connection server_2]
 START SLAVE FOR CHANNEL 'channel_4';
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 Wait until channel_4 be synchronized with master
 [connection server_3]
 CREATE TABLE t2 (a int);
@@ -41,6 +43,6 @@ include/start_slave.inc [FOR CHANNEL 'channel_3']
 DROP TABLE t2;
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 include/rpl_end.inc
-RESET SLAVE ALL FOR CHANNEL 'channel_1';
-RESET SLAVE ALL FOR CHANNEL 'channel_3';
-RESET SLAVE ALL FOR CHANNEL 'channel_4';
+RESET REPLICA ALL FOR CHANNEL 'channel_1';
+RESET REPLICA ALL FOR CHANNEL 'channel_3';
+RESET REPLICA ALL FOR CHANNEL 'channel_4';

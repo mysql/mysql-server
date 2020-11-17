@@ -319,6 +319,7 @@ insert into t2 (b) values (10),(11),(12),(13);
 analyze table t1;
 
 explain (select * from t1 where a=1) union (select * from t2 where a=1);
+--skip_if_hypergraph  # No support for const tables.
 explain format=tree (select * from t1 where a=5) union (select * from t2 where a=1);  # Tests printing of ZeroRowsIterator.
 (select * from t1 where a=5) union (select * from t2 where a=1);
 (select * from t1 where a=5 and a=6) union (select * from t2 where a=1);
@@ -336,6 +337,7 @@ insert into `groups` (user_name) values ('Tester');
 insert into users (group_name) values ('Group A');
 insert into users (group_name) values ('Group B');
 insert into t3 (user_id, group_id) values (1,1);
+--sorted_result
 select 1 'is_in_group', a.user_name, c.group_name, b.id from `groups` a, t3 b, users c where a.id = b.user_id and b.group_id = c.id UNION  select 0 'is_in_group', a.user_name, c.group_name, null from `groups` a, users c;
 drop table t3, users, `groups`;
 
@@ -483,18 +485,24 @@ insert t1 select a+1, a+b from t1;
 insert t1 select a+1, a+b from t1;
 insert t1 select a+1, a+b from t1;
 FLUSH STATUS;
+--skip_if_hypergraph  # Depends on the query plan; all queries use table scans.
 show status like 'Slow_queries';
 select count(*) from t1 where a=7;
+--skip_if_hypergraph  # Depends on the query plan; all queries use table scans.
 show status like 'Slow_queries';
 select count(*) from t1 where b=13;
+--skip_if_hypergraph  # Depends on the query plan; all queries use table scans.
 show status like 'Slow_queries';
 select count(*) from t1 where b=13 union select count(*) from t1 where a=7;
+--skip_if_hypergraph  # Depends on the query plan; all queries use table scans.
 show status like 'Slow_queries';
 select count(*) from t1 where a=7 union select count(*) from t1 where b=13;
+--skip_if_hypergraph  # Depends on the query plan; all queries use table scans.
 show status like 'Slow_queries';
 # additional test for examined rows
 flush status;
 select a from t1 where b not in (1,2,3) union select a from t1 where b not in (4,5,6); 
+--skip_if_hypergraph  # Depends on the query plan; all queries use table scans.
 show status like 'Slow_queries';
 drop table t1;
 
@@ -1312,6 +1320,7 @@ CREATE TABLE t2 (a INT PRIMARY KEY);
 INSERT INTO t2 VALUES (1);
 
 --source include/turn_off_only_full_group_by.inc
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=tree SELECT a, SUM(a) FROM t2 UNION ALL SELECT a, MIN(a) FROM t1 ;  # Tests printing of ZeroRowsAggregatedIterator.
 SELECT a, SUM(a) FROM t2 UNION ALL SELECT a, MIN(a) FROM t1 ;
 
@@ -2195,20 +2204,25 @@ INSERT INTO t1 SELECT a+1 FROM t1;
 SELECT COUNT(*) FROM t1;
 FLUSH STATUS;
 SELECT * FROM t1 LIMIT 1;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE "HANDLER_READ%";
 FLUSH STATUS;
 SELECT * FROM t1 UNION ALL SELECT * FROM t1 LIMIT 1;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE "HANDLER_READ%";
 FLUSH STATUS;
 SELECT * FROM t1 UNION DISTINCT SELECT * FROM t1 LIMIT 1;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE "HANDLER_READ%";
 
 let $query=
 ( SELECT *, 'a' FROM t1 LIMIT 10 )
  UNION ALL ( SELECT *, 'b' FROM t1 LIMIT 10 ) LIMIT 3;
+--replace_regex /  \(cost.*//
 eval EXPLAIN FORMAT=TREE $query;
 FLUSH STATUS;
 eval $query;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE "HANDLER_READ%";
 
 DROP TABLE t1;
@@ -2227,6 +2241,7 @@ INSERT INTO t1 VALUES (1,'');
 
 let $query =
   SELECT * FROM ( SELECT * FROM t1 WHERE pk=1 UNION SELECT * FROM t1 WHERE FALSE ) d1;
+--skip_if_hypergraph   # No support for const tables.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 

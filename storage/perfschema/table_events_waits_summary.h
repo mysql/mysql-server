@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -71,13 +71,13 @@ class PFS_index_events_waits_summary_by_instance : public PFS_index_all_instr {
   PFS_index_events_waits_summary_by_instance()
       : PFS_index_all_instr(&m_key), m_key("OBJECT_INSTANCE_BEGIN") {}
 
-  ~PFS_index_events_waits_summary_by_instance() {}
+  ~PFS_index_events_waits_summary_by_instance() override {}
 
-  virtual bool match(PFS_mutex *pfs);
-  virtual bool match(PFS_rwlock *pfs);
-  virtual bool match(PFS_cond *pfs);
-  virtual bool match(PFS_file *pfs);
-  virtual bool match(PFS_socket *pfs);
+  bool match(PFS_mutex *pfs) override;
+  bool match(PFS_rwlock *pfs) override;
+  bool match(PFS_cond *pfs) override;
+  bool match(PFS_file *pfs) override;
+  bool match(PFS_socket *pfs) override;
 
  private:
   PFS_key_object_instance m_key;
@@ -89,14 +89,14 @@ class PFS_index_events_waits_summary_by_event_name
   PFS_index_events_waits_summary_by_event_name()
       : PFS_index_all_instr(&m_key), m_key("EVENT_NAME") {}
 
-  ~PFS_index_events_waits_summary_by_event_name() {}
+  ~PFS_index_events_waits_summary_by_event_name() override {}
 
-  virtual bool match(PFS_mutex *pfs);
-  virtual bool match(PFS_rwlock *pfs);
-  virtual bool match(PFS_cond *pfs);
-  virtual bool match(PFS_file *pfs);
-  virtual bool match(PFS_socket *pfs);
-  virtual bool match_view(uint view);
+  bool match(PFS_mutex *pfs) override;
+  bool match(PFS_rwlock *pfs) override;
+  bool match(PFS_cond *pfs) override;
+  bool match(PFS_file *pfs) override;
+  bool match(PFS_socket *pfs) override;
+  bool match_view(uint view) override;
 
  private:
   PFS_key_event_name m_key;
@@ -109,25 +109,25 @@ class table_events_waits_summary_by_instance : public table_all_instr {
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
   static int delete_all_rows();
-  int index_init(uint idx, bool sorted);
+  int index_init(uint idx, bool sorted) override;
 
  protected:
   int make_instr_row(PFS_instr *pfs, PFS_instr_class *klass,
                      const void *object_instance_begin,
                      PFS_single_stat *pfs_stat);
-  virtual int make_mutex_row(PFS_mutex *pfs);
-  virtual int make_rwlock_row(PFS_rwlock *pfs);
-  virtual int make_cond_row(PFS_cond *pfs);
-  virtual int make_file_row(PFS_file *pfs);
-  virtual int make_socket_row(PFS_socket *pfs);
+  int make_mutex_row(PFS_mutex *pfs) override;
+  int make_rwlock_row(PFS_rwlock *pfs) override;
+  int make_cond_row(PFS_cond *pfs) override;
+  int make_file_row(PFS_file *pfs) override;
+  int make_socket_row(PFS_socket *pfs) override;
 
-  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all);
+  int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                      bool read_all) override;
 
   table_events_waits_summary_by_instance();
 
  public:
-  ~table_events_waits_summary_by_instance() {}
+  ~table_events_waits_summary_by_instance() override {}
 
  private:
   /** Table share lock. */

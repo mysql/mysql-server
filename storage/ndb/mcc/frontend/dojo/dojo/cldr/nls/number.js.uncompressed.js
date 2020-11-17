@@ -22,6 +22,8 @@ define("dojo/cldr/nls/number", { root:
 	"percentFormat": "#,##0%",
 	"decimalFormat-long": "000T",
 	"decimalFormat": "#,##0.###",
+	"currencyFormat-short": "¤ 000T",
+	"timeSeparator": ":",
 	"decimal": ".",
 	"currencySpacing-beforeCurrency-insertBetween": " ",
 	"exponential": "E"

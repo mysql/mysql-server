@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -85,9 +85,9 @@ public:
     ErrorHandlerImpl(CallBack* f, ArrayPool<T>& p) :
       func(f), pool(p)
     {}
-    virtual ~ErrorHandlerImpl() {}
+    ~ErrorHandlerImpl() override {}
 
-    virtual void failure() const {
+    void failure() const override {
       if (func != nullptr) {
         (*func)(pool);
       }
@@ -1240,9 +1240,9 @@ public:
     ErrorHandlerImpl(CallBack* f, CachedArrayPool<T>& p) :
       func(f), pool(p)
     {}
-    virtual ~ErrorHandlerImpl() {}
+    ~ErrorHandlerImpl() override {}
 
-    virtual void failure() const {
+    void failure() const override {
       if (func != nullptr) {
         (*func)(pool);
       }

@@ -693,7 +693,6 @@ const XConnection::State &Connection_impl::state() {
 
 void Connection_impl::close() {
   if (m_vio) {
-    ::closesocket(vio_fd(m_vio));
     vio_delete(m_vio);
     m_connected = false;
     m_ssl_active = false;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,11 +44,11 @@ class TransactionPayloadCompressionTest : public ::testing::Test {
  protected:
   TransactionPayloadCompressionTest() {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     for (auto size : buffer_sizes) m_payloads.push_back(size);
   }
 
-  virtual void TearDown() { m_payloads.clear(); }
+  void TearDown() override { m_payloads.clear(); }
 
   static void compression_idempotency_test(
       binary_log::transaction::compression::Compressor &c,

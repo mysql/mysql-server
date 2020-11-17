@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,10 @@
 
 #include <signaldata/ApiVersion.hpp>
 #include <RefConvert.hpp>
+#include <NdbTCP.h>
+#ifdef _WIN32
+#include <ws2tcpip.h>
+#endif
 
 bool
 printAPI_VERSION_REQ(FILE * output,
@@ -48,6 +52,8 @@ printAPI_VERSION_CONF(FILE * output,
 
   ApiVersionConf * sig = (ApiVersionConf *)&theData[0];
 
+  if (len <= ApiVersionConf::SignalLengthIPv4)
+  {
   fprintf(output,
           " senderRef: (node: %d, block: %d), nodeId: %d\n" \
           " version: %d, mysql_version: %d, inet_addr: %d\n" \
@@ -55,5 +61,23 @@ printAPI_VERSION_CONF(FILE * output,
 	  refToNode(sig->senderRef), refToBlock(sig->senderRef),
           sig->nodeId, sig->version, sig->mysql_version, sig->m_inet_addr,
           sig->isSingleUser);
+  }
+  else
+  {
+    struct in6_addr in;
+    char addr_buf[INET6_ADDRSTRLEN];
+    memcpy(in.s6_addr, sig->m_inet6_addr, sizeof(in.s6_addr));
+    char* address= Ndb_inet_ntop(AF_INET6,
+                            static_cast<void*>(&in),
+                            addr_buf,
+                            INET6_ADDRSTRLEN);
+    fprintf(output,
+            " senderRef: (node: %d, block: %d), nodeId: %d\n" \
+            " version: %d, mysql_version: %d, inet6_addr: %s\n" \
+            " isSingleUser: %d",
+      refToNode(sig->senderRef), refToBlock(sig->senderRef),
+            sig->nodeId, sig->version, sig->mysql_version, address,
+            sig->isSingleUser);
+  }
   return true;
 }

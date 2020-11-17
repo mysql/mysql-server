@@ -103,31 +103,42 @@ set @save_opt_sw= @@optimizer_switch;
 # Innodb has some issues with ICP & GC stuff
 set @@optimizer_switch="index_condition_pushdown=off";
 
+--sorted_result
 select f1 from t1 where gc = "asd";
 explain select f1 from t1 where gc = "asd";
+--sorted_result
 select f1 from t1 where json_extract(f1,"$") = "asd";
 explain select f1 from t1 where json_extract(f1,"$") = "asd";
 
+--sorted_result
 select f1 from t1 where "asd" = json_extract(f1,"$");
 explain select f1 from t1 where "asd" = json_extract(f1,"$");
 
+--sorted_result
 select f1 from t1 where gc > "z";
 explain select f1 from t1 where gc > "z";
+--sorted_result
 select f1 from t1 where json_extract(f1,"$") > "z";
 explain select f1 from t1 where json_extract(f1,"$") > "z";
 
+--sorted_result
 select f1 from t1 where gc > "v" and gc < "z";
 explain select f1 from t1 where gc > "v" and gc < "z";
+--sorted_result
 select f1 from t1 where json_extract(f1,"$") > "v" and json_extract(f1,"$") < "z";
 explain select f1 from t1 where json_extract(f1,"$") > "v" and json_extract(f1,"$") < "z";
 
+--sorted_result
 select f1 from t1 where gc between "v" and "z";
 explain select f1 from t1 where gc between "v" and "z";
+--sorted_result
 select f1 from t1 where json_extract(f1,"$") between "v" and "z";
 explain select f1 from t1 where json_extract(f1,"$") between "v" and "z";
 
+--sorted_result
 select f1 from t1 where gc in ("asd","asasas","asdf");
 explain select f1 from t1 where gc in ("asd","asasas","asdf");
+--sorted_result
 select f1 from t1 where json_extract(f1,"$") in ("asd","asasas","asdf");
 explain select f1 from t1 where json_extract(f1,"$") in ("asd","asasas","asdf");
 

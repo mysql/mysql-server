@@ -254,14 +254,13 @@ static void page_zip_compress_write_log(
 #endif /* !UNIV_HOTBACKUP */
 
 /** Determine how many externally stored columns are contained
- in existing records with smaller heap_no than rec. */
-static ulint page_zip_get_n_prev_extern(
-    const page_zip_des_t *page_zip, /*!< in: dense page directory on
-                                   compressed page */
-    const rec_t *rec,               /*!< in: compact physical record
-                                    on a B-tree leaf page */
-    const dict_index_t *index)      /*!< in: record descriptor */
-{
+ in existing records with smaller heap_no than rec.
+@param[in] page_zip Dense page directory on compressed page
+@param[in] rec Compact physical record on a b-tree leaf page
+@param[in] index Record descriptor */
+static ulint page_zip_get_n_prev_extern(const page_zip_des_t *page_zip,
+                                        const rec_t *rec,
+                                        const dict_index_t *index) {
   const page_t *page = page_align(rec);
   ulint n_ext = 0;
   ulint i;
@@ -2031,14 +2030,14 @@ byte *page_zip_parse_write_node_ptr(
   return (ptr + (2 + 2 + REC_NODE_PTR_SIZE));
 }
 
-/** Write the node pointer of a record on a non-leaf compressed page. */
-void page_zip_write_node_ptr(
-    page_zip_des_t *page_zip, /*!< in/out: compressed page */
-    byte *rec,                /*!< in/out: record */
-    ulint size,               /*!< in: data size of rec */
-    ulint ptr,                /*!< in: node pointer */
-    mtr_t *mtr)               /*!< in: mini-transaction, or NULL */
-{
+/** Write the node pointer of a record on a non-leaf compressed page.
+@param[in,out] page_zip Compressed page
+@param[in,out] rec Record
+@param[in] size Data size of rec
+@param[in] ptr Node pointer
+@param[in] mtr Mini-transaction, or null */
+void page_zip_write_node_ptr(page_zip_des_t *page_zip, byte *rec, ulint size,
+                             ulint ptr, mtr_t *mtr) {
   byte *field;
   byte *storage;
 #ifdef UNIV_DEBUG
@@ -2094,15 +2093,16 @@ void page_zip_write_node_ptr(
 #endif /* !UNIV_HOTBACKUP */
 }
 
-/** Write the trx_id and roll_ptr of a record on a B-tree leaf node page. */
-void page_zip_write_trx_id_and_roll_ptr(
-    page_zip_des_t *page_zip, /*!< in/out: compressed page */
-    byte *rec,                /*!< in/out: record */
-    const ulint *offsets,     /*!< in: rec_get_offsets(rec, index) */
-    ulint trx_id_col,         /*!< in: column number of TRX_ID in rec */
-    trx_id_t trx_id,          /*!< in: transaction identifier */
-    roll_ptr_t roll_ptr)      /*!< in: roll_ptr */
-{
+/** Write the trx_id and roll_ptr of a record on a B-tree leaf node page.
+@param[in,out] page_zip Compressed page
+@param[in,out] rec Record
+@param[in] offsets Rec_get_offsets(rec, index)
+@param[in] trx_id_col Column number of trx_id in rec
+@param[in] trx_id Transaction identifier
+@param[in] roll_ptr Roll_ptr */
+void page_zip_write_trx_id_and_roll_ptr(page_zip_des_t *page_zip, byte *rec,
+                                        const ulint *offsets, ulint trx_id_col,
+                                        trx_id_t trx_id, roll_ptr_t roll_ptr) {
   byte *field;
   byte *storage;
 #ifdef UNIV_DEBUG
@@ -2244,13 +2244,13 @@ void page_zip_rec_set_deleted(
 #endif /* UNIV_ZIP_DEBUG */
 }
 
-/** Write the "owned" flag of a record on a compressed page.  The n_owned field
- must already have been written on the uncompressed page. */
-void page_zip_rec_set_owned(
-    page_zip_des_t *page_zip, /*!< in/out: compressed page */
-    const byte *rec,          /*!< in: record on the uncompressed page */
-    ulint flag)               /*!< in: the owned flag (nonzero=TRUE) */
-{
+/** Write the "owned" flag of a record on a compressed page. The n_owned field
+must already have been written on the uncompressed page.
+@param[in,out]  page_zip  Compressed page
+@param[in]      rec       Record on the uncompressed page
+@param[in]      flag      The owned flag (nonzero=true) */
+void page_zip_rec_set_owned(page_zip_des_t *page_zip, const byte *rec,
+                            ulint flag) {
   byte *slot = page_zip_dir_find(page_zip, page_offset(rec));
   ut_a(slot);
   UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
@@ -2261,14 +2261,13 @@ void page_zip_rec_set_owned(
   }
 }
 
-/** Insert a record to the dense page directory. */
-void page_zip_dir_insert(
-    page_zip_des_t *page_zip, /*!< in/out: compressed page */
-    const byte *prev_rec,     /*!< in: record after which to insert */
-    const byte *free_rec,     /*!< in: record from which rec was
-                             allocated, or NULL */
-    byte *rec)                /*!< in: record to insert */
-{
+/** Insert a record to the dense page directory.
+@param[in,out] page_zip Compressed page
+@param[in] prev_rec Record after which to insert
+@param[in] free_rec Record from which rec was allocated, or null
+@param[in] rec Record to insert */
+void page_zip_dir_insert(page_zip_des_t *page_zip, const byte *prev_rec,
+                         const byte *free_rec, byte *rec) {
   ulint n_dense;
   byte *slot_rec;
   byte *slot_free;
@@ -2330,7 +2329,8 @@ void page_zip_dir_insert(
   mach_write_to_2(slot_rec - PAGE_ZIP_DIR_SLOT_SIZE, page_offset(rec));
 }
 
-/** Shift the dense page directory when a record is deleted.
+/** Shift the dense page directory and the array of BLOB pointers when a record
+is deleted.
 @param[in,out]	page_zip	compressed page
 @param[in]	rec		deleted record
 @param[in]	index		index of rec
@@ -2418,12 +2418,10 @@ skip_blobs:
   page_zip_clear_rec(page_zip, rec, index, offsets);
 }
 
-/** Add a slot to the dense page directory. */
-void page_zip_dir_add_slot(
-    page_zip_des_t *page_zip, /*!< in/out: compressed page */
-    bool is_clustered)        /*!< in: nonzero for clustered index,
-                              zero for others */
-{
+/** Add a slot to the dense page directory.
+@param[in,out]  page_zip      Compressed page
+@param[in]      is_clustered  Nonzero for clustered index, zero for others */
+void page_zip_dir_add_slot(page_zip_des_t *page_zip, bool is_clustered) {
   ulint n_dense;
   byte *dir;
   byte *stored;

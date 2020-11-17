@@ -327,7 +327,7 @@ EXPLAIN SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null)) AS RESULT FROM t5	{
                 "table": "`t6`",
                 "field": "d",
                 "equals": "ifnull(NULL,NULL)",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },
@@ -504,7 +504,7 @@ SELECT /* should be last */ (SELECT 1 FROM t6 WHERE d = ifnull(c,null)) AS RESUL
                 "table": "`t6`",
                 "field": "d",
                 "equals": "ifnull(NULL,NULL)",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },
@@ -730,7 +730,7 @@ SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d
                 "table": "`t6`",
                 "field": "d",
                 "equals": "ifnull(NULL,NULL)",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },
@@ -822,7 +822,7 @@ SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d
                 "table": "`t6`",
                 "field": "d",
                 "equals": "ifnull(NULL,NULL)",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },
@@ -876,7 +876,7 @@ SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d
           {
             "table_dependencies": [
               {
-                "table": "``.``",
+                "table": "``",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -887,7 +887,7 @@ SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d
           {
             "rows_estimation": [
               {
-                "table": "``.``",
+                "table": "``",
                 "table_scan": {
                   "rows": 0,
                   "cost": 2.5
@@ -900,7 +900,7 @@ SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d
               {
                 "plan_prefix": [
                 ] /* plan_prefix */,
-                "table": "``.``",
+                "table": "``",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -926,7 +926,7 @@ SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
-                  "table": "``.``",
+                  "table": "``",
                   "attached": null
                 }
               ] /* attached_conditions_summary */
@@ -939,7 +939,7 @@ SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d
           {
             "refine_plan": [
               {
-                "table": "``.``"
+                "table": "``"
               }
             ] /* refine_plan */
           }
@@ -1193,7 +1193,7 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
                       {
                         "table_dependencies": [
                           {
-                            "table": "``.``",
+                            "table": "``",
                             "row_may_be_null": false,
                             "map_bit": 0,
                             "depends_on_map_bits": [
@@ -1204,7 +1204,7 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
                       {
                         "rows_estimation": [
                           {
-                            "table": "``.``",
+                            "table": "``",
                             "table_scan": {
                               "rows": 0,
                               "cost": 2.5
@@ -1217,7 +1217,7 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
                           {
                             "plan_prefix": [
                             ] /* plan_prefix */,
-                            "table": "``.``",
+                            "table": "``",
                             "best_access_path": {
                               "considered_access_paths": [
                                 {
@@ -1243,7 +1243,7 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
                           ] /* attached_conditions_computation */,
                           "attached_conditions_summary": [
                             {
-                              "table": "``.``",
+                              "table": "``",
                               "attached": null
                             }
                           ] /* attached_conditions_summary */
@@ -1256,7 +1256,7 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
                       {
                         "refine_plan": [
                           {
-                            "table": "``.``"
+                            "table": "``"
                           }
                         ] /* refine_plan */
                       }
@@ -1313,7 +1313,7 @@ Warning	1287	Setting user variables within expressions is deprecated and will be
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select length(@trace);
 length(@trace)
-12997
+12982
 set @max_mem_size=13307;
 set optimizer_trace_max_mem_size=@max_mem_size;
 select length(@query)+length(@trace) > @@optimizer_trace_max_mem_size;
@@ -1336,12 +1336,12 @@ select length(@trace2),
 (length(@trace2) + @missing_bytes) = length(@trace),
 @query2 = @query;
 length(@trace2)	(length(@trace2) + @missing_bytes) = length(@trace)	@query2 = @query
-12997	1	1
+12982	1	1
 select length(@query2) + length(@trace2)
 between (@@optimizer_trace_max_mem_size-200) and (@@optimizer_trace_max_mem_size+200);
 length(@query2) + length(@trace2)
 between (@@optimizer_trace_max_mem_size-200) and (@@optimizer_trace_max_mem_size+200)
-1
+0
 select instr(@trace, @trace2) = 1;
 instr(@trace, @trace2) = 1
 1
@@ -4038,7 +4038,7 @@ SELECT * FROM t1 WHERE c1=5 UNION SELECT * FROM t2 WHERE c2=5	{
           {
             "table_dependencies": [
               {
-                "table": "``.``",
+                "table": "``",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -4049,7 +4049,7 @@ SELECT * FROM t1 WHERE c1=5 UNION SELECT * FROM t2 WHERE c2=5	{
           {
             "rows_estimation": [
               {
-                "table": "``.``",
+                "table": "``",
                 "table_scan": {
                   "rows": 0,
                   "cost": 2.5
@@ -4062,7 +4062,7 @@ SELECT * FROM t1 WHERE c1=5 UNION SELECT * FROM t2 WHERE c2=5	{
               {
                 "plan_prefix": [
                 ] /* plan_prefix */,
-                "table": "``.``",
+                "table": "``",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -4088,7 +4088,7 @@ SELECT * FROM t1 WHERE c1=5 UNION SELECT * FROM t2 WHERE c2=5	{
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
-                  "table": "``.``",
+                  "table": "``",
                   "attached": null
                 }
               ] /* attached_conditions_summary */
@@ -4101,7 +4101,7 @@ SELECT * FROM t1 WHERE c1=5 UNION SELECT * FROM t2 WHERE c2=5	{
           {
             "refine_plan": [
               {
-                "table": "``.``"
+                "table": "``"
               }
             ] /* refine_plan */
           }
@@ -4706,26 +4706,6 @@ trace
 {
   "steps": [
     {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "join_preparation": {
-              "select#": 2,
-              "steps": [
-                {
-                  "expanded_query": "/* select#2 */ select `t1`.`a`,`t2`.`a`,`t4`.`a` from `t1` join `t2` join `t4` where ((<cache>(`t3`.`a`) = `t1`.`a`) and (<cache>(`t3`.`a`) = `t2`.`a`) and (<cache>(`t3`.`b`) = `t4`.`a`))"
-                }
-              ] /* steps */
-            } /* join_preparation */
-          },
-          {
-            "expanded_query": "/* select#1 */ select `t3`.`a` AS `a`,`t3`.`b` AS `b` from `t3` where <in_optimizer>((`t3`.`a`,`t3`.`a`,`t3`.`b`),<exists>(/* select#2 */ select `t1`.`a`,`t2`.`a`,`t4`.`a` from `t1` join `t2` join `t4` where ((<cache>(`t3`.`a`) = `t1`.`a`) and (<cache>(`t3`.`a`) = `t2`.`a`) and (<cache>(`t3`.`b`) = `t4`.`a`))))"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
-    {
       "join_optimization": {
         "select#": 1,
         "steps": [
@@ -4806,26 +4786,6 @@ select trace from information_schema.OPTIMIZER_TRACE;
 trace
 {
   "steps": [
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "join_preparation": {
-              "select#": 2,
-              "steps": [
-                {
-                  "expanded_query": "/* select#2 */ select `t1`.`a`,`t2`.`a`,`t4`.`a` from `t1` join `t2` join `t4` where ((<cache>(`t3`.`a`) = `t1`.`a`) and (<cache>(`t3`.`a`) = `t2`.`a`) and (<cache>(`t3`.`b`) = `t4`.`a`))"
-                }
-              ] /* steps */
-            } /* join_preparation */
-          },
-          {
-            "expanded_query": "/* select#1 */ select `t3`.`a` AS `a`,`t3`.`b` AS `b` from `t3` where <in_optimizer>((`t3`.`a`,`t3`.`a`,`t3`.`b`),<exists>(/* select#2 */ select `t1`.`a`,`t2`.`a`,`t4`.`a` from `t1` join `t2` join `t4` where ((<cache>(`t3`.`a`) = `t1`.`a`) and (<cache>(`t3`.`a`) = `t2`.`a`) and (<cache>(`t3`.`b`) = `t4`.`a`))))"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
     {
       "join_optimization": {
         "select#": 1,
@@ -6412,6 +6372,15 @@ update t5, t6 set t6.d=t6.d+t5.c+4-t5.c-4 where d>7000	{
             } /* attaching_conditions_to_tables */
           },
           {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t6`",
+                "original_table_condition": "(`t6`.`d` > 7000)",
+                "final_table_condition   ": "(`t6`.`d` > 7000)"
+              }
+            ] /* finalizing_table_conditions */
+          },
+          {
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
@@ -6424,15 +6393,6 @@ update t5, t6 set t6.d=t6.d+t5.c+4-t5.c-4 where d>7000	{
                 "location": "TempTable"
               } /* tmp_table_info */
             } /* creating_tmp_table */
-          },
-          {
-            "finalizing_table_conditions": [
-              {
-                "table": "`t6`",
-                "original_table_condition": "(`t6`.`d` > 7000)",
-                "final_table_condition   ": "(`t6`.`d` > 7000)"
-              }
-            ] /* finalizing_table_conditions */
           },
           {
             "refine_plan": [
@@ -7240,14 +7200,6 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
-      "delete_preparation": {
-        "select#": 1,
-        "steps": [
-          "delete from `t1` where (`t1`.`id` = 'z')"
-        ] /* steps */
-      } /* delete_preparation */
-    },
-    {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
     },
@@ -7284,16 +7236,6 @@ delete from t1 where id="z"	{
 }	0	0
 select sum(data) into ret from t1	{
   "steps": [
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "expanded_query": "/* select#1 */ select sum(`t1`.`data`) AS `sum(data)` from `t1`"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
     {
       "join_optimization": {
         "select#": 1,
@@ -7403,14 +7345,6 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
-      "delete_preparation": {
-        "select#": 1,
-        "steps": [
-          "delete from `t1` where (`t1`.`id` = 'z')"
-        ] /* steps */
-      } /* delete_preparation */
-    },
-    {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
     },
@@ -7447,16 +7381,6 @@ delete from t1 where id="z"	{
 }	0	0
 select sum(data) into ret from t1	{
   "steps": [
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "expanded_query": "/* select#1 */ select sum(`t1`.`data`) AS `sum(data)` from `t1`"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
     {
       "join_optimization": {
         "select#": 1,
@@ -7566,14 +7490,6 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
-      "delete_preparation": {
-        "select#": 1,
-        "steps": [
-          "delete from `t1` where (`t1`.`id` = 'z')"
-        ] /* steps */
-      } /* delete_preparation */
-    },
-    {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
     },
@@ -7610,16 +7526,6 @@ delete from t1 where id="z"	{
 }	0	0
 select sum(data) into ret from t1	{
   "steps": [
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "expanded_query": "/* select#1 */ select sum(`t1`.`data`) AS `sum(data)` from `t1`"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
     {
       "join_optimization": {
         "select#": 1,
@@ -7729,14 +7635,6 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
-      "delete_preparation": {
-        "select#": 1,
-        "steps": [
-          "delete from `t1` where (`t1`.`id` = 'z')"
-        ] /* steps */
-      } /* delete_preparation */
-    },
-    {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
     },
@@ -7773,16 +7671,6 @@ delete from t1 where id="z"	{
 }	0	0
 select sum(data) into ret from t1	{
   "steps": [
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "expanded_query": "/* select#1 */ select sum(`t1`.`data`) AS `sum(data)` from `t1`"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
     {
       "join_optimization": {
         "select#": 1,
@@ -7891,14 +7779,6 @@ select * from information_schema.OPTIMIZER_TRACE|
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 delete from t1 where id="z"	{
   "steps": [
-    {
-      "delete_preparation": {
-        "select#": 1,
-        "steps": [
-          "delete from `t1` where (`t1`.`id` = 'z')"
-        ] /* steps */
-      } /* delete_preparation */
-    },
     {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
@@ -8485,14 +8365,6 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
-      "delete_preparation": {
-        "select#": 1,
-        "steps": [
-          "delete from `t1` where (`t1`.`id` = 'z')"
-        ] /* steps */
-      } /* delete_preparation */
-    },
-    {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
     },
@@ -8529,16 +8401,6 @@ delete from t1 where id="z"	{
 }	0	0
 select sum(data) into ret from t1	{
   "steps": [
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "expanded_query": "/* select#1 */ select sum(`t1`.`data`) AS `sum(data)` from `t1`"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
     {
       "join_optimization": {
         "select#": 1,
@@ -8648,14 +8510,6 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
-      "delete_preparation": {
-        "select#": 1,
-        "steps": [
-          "delete from `t1` where (`t1`.`id` = 'z')"
-        ] /* steps */
-      } /* delete_preparation */
-    },
-    {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
     },
@@ -8692,16 +8546,6 @@ delete from t1 where id="z"	{
 }	0	0
 select sum(data) into ret from t1	{
   "steps": [
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "expanded_query": "/* select#1 */ select sum(`t1`.`data`) AS `sum(data)` from `t1`"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
     {
       "join_optimization": {
         "select#": 1,
@@ -8811,14 +8655,6 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
-      "delete_preparation": {
-        "select#": 1,
-        "steps": [
-          "delete from `t1` where (`t1`.`id` = 'z')"
-        ] /* steps */
-      } /* delete_preparation */
-    },
-    {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
     },
@@ -8855,16 +8691,6 @@ delete from t1 where id="z"	{
 }	0	0
 select sum(data) into ret from t1	{
   "steps": [
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "expanded_query": "/* select#1 */ select sum(`t1`.`data`) AS `sum(data)` from `t1`"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
     {
       "join_optimization": {
         "select#": 1,
@@ -9020,7 +8846,7 @@ select d+1 into res from t6 where d=res+1	{
                 "table": "`t6`",
                 "field": "d",
                 "equals": "(res@1 + 1)",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },
@@ -9452,14 +9278,6 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
-      "delete_preparation": {
-        "select#": 1,
-        "steps": [
-          "delete from `t1` where (`t1`.`id` = 'z')"
-        ] /* steps */
-      } /* delete_preparation */
-    },
-    {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
     },
@@ -9496,16 +9314,6 @@ delete from t1 where id="z"	{
 }	0	0
 select sum(data) into ret from t1	{
   "steps": [
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "expanded_query": "/* select#1 */ select sum(`t1`.`data`) AS `sum(data)` from `t1`"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
     {
       "join_optimization": {
         "select#": 1,
@@ -9619,14 +9427,6 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
-      "delete_preparation": {
-        "select#": 1,
-        "steps": [
-          "delete from `t1` where (`t1`.`id` = 'z')"
-        ] /* steps */
-      } /* delete_preparation */
-    },
-    {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
     },
@@ -9663,16 +9463,6 @@ delete from t1 where id="z"	{
 }	0	0
 select sum(data) into ret from t1	{
   "steps": [
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "expanded_query": "/* select#1 */ select sum(`t1`.`data`) AS `sum(data)` from `t1`"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
     {
       "join_optimization": {
         "select#": 1,
@@ -9786,14 +9576,6 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
-      "delete_preparation": {
-        "select#": 1,
-        "steps": [
-          "delete from `t1` where (`t1`.`id` = 'z')"
-        ] /* steps */
-      } /* delete_preparation */
-    },
-    {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
     },
@@ -9830,16 +9612,6 @@ delete from t1 where id="z"	{
 }	0	0
 select sum(data) into ret from t1	{
   "steps": [
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "expanded_query": "/* select#1 */ select sum(`t1`.`data`) AS `sum(data)` from `t1`"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
     {
       "join_optimization": {
         "select#": 1,
@@ -9955,7 +9727,9 @@ execute stmt using @param;
 count(*)
 0
 Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect INTEGER value: 'c'
+Warning	1292	Truncated incorrect INTEGER value: 'c'
+Warning	1292	Truncated incorrect INTEGER value: 'c'
 select count(*) from information_schema.OPTIMIZER_TRACE;
 count(*)
 1
@@ -9965,14 +9739,9 @@ select @trace;
 {
   "steps": [
     {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "expanded_query": "/* select#1 */ select count(0) AS `count(*)` from `t1` where (`t1`.`data` = 'c')"
-          }
-        ] /* steps */
-      } /* join_preparation */
+      "statement_parameters": [
+        "LONGLONG"
+      ] /* statement_parameters */
     },
     {
       "join_optimization": {
@@ -9985,15 +9754,15 @@ select @trace;
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(`t1`.`data` = 'c')"
+                  "resulting_condition": "multiple equal('c', `t1`.`data`)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(`t1`.`data` = 'c')"
+                  "resulting_condition": "multiple equal('c', `t1`.`data`)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`t1`.`data` = 0)"
+                  "resulting_condition": "multiple equal('c', `t1`.`data`)"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -10054,13 +9823,13 @@ select @trace;
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(`t1`.`data` = 0)",
+              "original_condition": "(`t1`.`data` = 'c')",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
                   "table": "`t1`",
-                  "attached": "(`t1`.`data` = 0)"
+                  "attached": "(`t1`.`data` = 'c')"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -10073,8 +9842,8 @@ select @trace;
             "finalizing_table_conditions": [
               {
                 "table": "`t1`",
-                "original_table_condition": "(`t1`.`data` = 0)",
-                "final_table_condition   ": "(`t1`.`data` = 0)"
+                "original_table_condition": "(`t1`.`data` = 'c')",
+                "final_table_condition   ": "(`t1`.`data` = <cache>('c'))"
               }
             ] /* finalizing_table_conditions */
           },
@@ -10106,7 +9875,9 @@ execute stmt using @param;
 count(*)
 0
 Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect INTEGER value: 'c'
+Warning	1292	Truncated incorrect INTEGER value: 'c'
+Warning	1292	Truncated incorrect INTEGER value: 'c'
 select count(*) from information_schema.OPTIMIZER_TRACE;
 count(*)
 1
@@ -10660,14 +10431,6 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
-      "delete_preparation": {
-        "select#": 1,
-        "steps": [
-          "delete from `t1` where (`t1`.`id` = 'z')"
-        ] /* steps */
-      } /* delete_preparation */
-    },
-    {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
     },
@@ -10704,16 +10467,6 @@ delete from t1 where id="z"	{
 }	0	0
 select sum(data) into ret from t1	{
   "steps": [
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "expanded_query": "/* select#1 */ select sum(`t1`.`data`) AS `sum(data)` from `t1`"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
     {
       "join_optimization": {
         "select#": 1,
@@ -10823,14 +10576,6 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
-      "delete_preparation": {
-        "select#": 1,
-        "steps": [
-          "delete from `t1` where (`t1`.`id` = 'z')"
-        ] /* steps */
-      } /* delete_preparation */
-    },
-    {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
     },
@@ -10867,16 +10612,6 @@ delete from t1 where id="z"	{
 }	0	0
 select sum(data) into ret from t1	{
   "steps": [
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "expanded_query": "/* select#1 */ select sum(`t1`.`data`) AS `sum(data)` from `t1`"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
     {
       "join_optimization": {
         "select#": 1,
@@ -10986,14 +10721,6 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
-      "delete_preparation": {
-        "select#": 1,
-        "steps": [
-          "delete from `t1` where (`t1`.`id` = 'z')"
-        ] /* steps */
-      } /* delete_preparation */
-    },
-    {
       "substitute_generated_columns": {
       } /* substitute_generated_columns */
     },
@@ -11030,16 +10757,6 @@ delete from t1 where id="z"	{
 }	0	0
 select sum(data) into ret from t1	{
   "steps": [
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "expanded_query": "/* select#1 */ select sum(`t1`.`data`) AS `sum(data)` from `t1`"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
     {
       "join_optimization": {
         "select#": 1,
@@ -11419,7 +11136,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	64	const	1	100.00	Using where
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `v1`.`id` AS `id`,`v1`.`data` AS `data` from `test`.`v1` where (`v1`.`id` = 'b')
+Note	1003	/* select#1 */ select `test`.`v1`.`id` AS `id`,`test`.`v1`.`data` AS `data` from `test`.`v1` where (`test`.`v1`.`id` = 'b')
 select * from information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 explain select * from v1 where id="b"	{
@@ -11609,7 +11326,7 @@ explain select * from v1 where id="b"	{
                 "table": "`v1`",
                 "field": "id",
                 "equals": "'b'",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },
@@ -11773,7 +11490,7 @@ select TRACE into dumpfile 'MYSQLTEST_VARDIR/tmp/optimizer_trace.txt' from infor
           {
             "table_dependencies": [
               {
-                "table": "``.``",
+                "table": "``",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -11784,7 +11501,7 @@ select TRACE into dumpfile 'MYSQLTEST_VARDIR/tmp/optimizer_trace.txt' from infor
           {
             "rows_estimation": [
               {
-                "table": "``.``",
+                "table": "``",
                 "table_scan": {
                   "rows": 0,
                   "cost": 2.5
@@ -11797,7 +11514,7 @@ select TRACE into dumpfile 'MYSQLTEST_VARDIR/tmp/optimizer_trace.txt' from infor
               {
                 "plan_prefix": [
                 ],
-                "table": "``.``",
+                "table": "``",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -11823,7 +11540,7 @@ select TRACE into dumpfile 'MYSQLTEST_VARDIR/tmp/optimizer_trace.txt' from infor
               ],
               "attached_conditions_summary": [
                 {
-                  "table": "``.``",
+                  "table": "``",
                   "attached": null
                 }
               ]
@@ -11836,7 +11553,7 @@ select TRACE into dumpfile 'MYSQLTEST_VARDIR/tmp/optimizer_trace.txt' from infor
           {
             "refine_plan": [
               {
-                "table": "``.``"
+                "table": "``"
               }
             ]
           }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
+
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -84,8 +85,8 @@ partition_info *partition_info::get_clone(THD *thd, bool reset /* = false */) {
   new (&(clone->read_partitions)) MY_BITMAP;
   new (&(clone->lock_partitions)) MY_BITMAP;
   clone->bitmaps_are_initialized = false;
-  clone->partitions.empty();
-  clone->temp_partitions.empty();
+  clone->partitions.clear();
+  clone->temp_partitions.clear();
 
   while ((part = (part_it++))) {
     List_iterator<partition_element> subpart_it(part->subpartitions);
@@ -119,7 +120,7 @@ partition_info *partition_info::get_clone(THD *thd, bool reset /* = false */) {
       }
     }
 
-    part_clone->subpartitions.empty();
+    part_clone->subpartitions.clear();
     while ((subpart = (subpart_it++))) {
       partition_element *subpart_clone =
           new (thd->mem_root) partition_element(*subpart);
@@ -306,13 +307,12 @@ bool partition_info::set_partition_bitmaps(TABLE_LIST *table_list) {
     @retval true   Failure
 */
 
-bool partition_info::can_prune_insert(THD *thd, enum_duplicates duplic,
-                                      COPY_INFO &update,
-                                      List<Item> &update_fields,
-                                      List<Item> &fields, bool empty_values,
-                                      enum_can_prune *can_prune_partitions,
-                                      bool *prune_needs_default_values,
-                                      MY_BITMAP *used_partitions) {
+bool partition_info::can_prune_insert(
+    THD *thd, enum_duplicates duplic, COPY_INFO &update,
+    const mem_root_deque<Item *> &update_fields,
+    const mem_root_deque<Item *> &fields, bool empty_values,
+    enum_can_prune *can_prune_partitions, bool *prune_needs_default_values,
+    MY_BITMAP *used_partitions) {
   *can_prune_partitions = PRUNE_NO;
   DBUG_ASSERT(bitmaps_are_initialized);
   DBUG_TRACE;
@@ -419,11 +419,11 @@ bool partition_info::can_prune_insert(THD *thd, enum_duplicates duplic,
       2) only copy those fields from the default record.
   */
   *prune_needs_default_values = false;
-  if (fields.elements) {
+  if (empty_values) {
+    *prune_needs_default_values = true;  // like 'INSERT INTO t () VALUES ()'
+  } else if (!fields.empty()) {
     if (!is_full_part_expr_in_fields(fields))
       *prune_needs_default_values = true;
-  } else if (empty_values) {
-    *prune_needs_default_values = true;  // like 'INSERT INTO t () VALUES ()'
   } else {
     /*
       In case of INSERT INTO t VALUES (...) we must get values for
@@ -441,7 +441,7 @@ bool partition_info::can_prune_insert(THD *thd, enum_duplicates duplic,
   /*
     If no partitioning field in set (e.g. defaults) check pruning only once.
   */
-  if (fields.elements && !is_fields_in_part_expr(fields))
+  if (!fields.empty() && !is_fields_in_part_expr(fields))
     *can_prune_partitions = PRUNE_DEFAULTS;
   else
     *can_prune_partitions = PRUNE_YES;
@@ -465,7 +465,8 @@ bool partition_info::can_prune_insert(THD *thd, enum_duplicates duplic,
   so caller must check thd->is_error().
 */
 
-bool partition_info::set_used_partition(List<Item> &fields, List<Item> &values,
+bool partition_info::set_used_partition(const mem_root_deque<Item *> &fields,
+                                        const mem_root_deque<Item *> &values,
                                         COPY_INFO &info,
                                         bool copy_default_values,
                                         MY_BITMAP *used_partitions) {
@@ -476,16 +477,13 @@ bool partition_info::set_used_partition(List<Item> &fields, List<Item> &values,
   DBUG_ASSERT(thd);
 
   /* Only allow checking of constant values */
-  List_iterator_fast<Item> v(values);
-  Item *item;
-
-  while ((item = v++)) {
+  for (Item *item : values) {
     if (!item->const_item()) return true;
   }
 
   if (copy_default_values) restore_record(table, s->default_values);
 
-  if (fields.elements || !values.elements) {
+  if (!fields.empty() || values.empty()) {
     if (fill_record(thd, table, fields, values, &full_part_field_set, nullptr,
                     false))
       return true;
@@ -1905,13 +1903,11 @@ void partition_info::report_part_expr_error(bool use_subpart_expr) {
     @retval false No field is within any partitioning expression.
 */
 
-bool partition_info::is_fields_in_part_expr(List<Item> &fields) {
-  List_iterator<Item> it(fields);
-  Item *item;
-  Item_field *field;
+bool partition_info::is_fields_in_part_expr(
+    const mem_root_deque<Item *> &fields) {
   DBUG_TRACE;
-  while ((item = it++)) {
-    field = item->field_for_view_update();
+  for (Item *item : fields) {
+    Item_field *field = item->field_for_view_update();
     DBUG_ASSERT(field->field->table == table);
     if (bitmap_is_set(&full_part_field_set, field->field->field_index()))
       return true;
@@ -1923,7 +1919,8 @@ bool partition_info::is_fields_in_part_expr(List<Item> &fields) {
   Check if all partitioning fields are included.
 */
 
-bool partition_info::is_full_part_expr_in_fields(List<Item> &fields) {
+bool partition_info::is_full_part_expr_in_fields(
+    const mem_root_deque<Item *> &fields) {
   Field **part_field = full_part_field_array;
   DBUG_ASSERT(*part_field);
   DBUG_TRACE;
@@ -1933,13 +1930,10 @@ bool partition_info::is_full_part_expr_in_fields(List<Item> &fields) {
     to compare with.
   */
   do {
-    List_iterator<Item> it(fields);
-    Item *item;
-    Item_field *field;
     bool found = false;
 
-    while ((item = it++)) {
-      field = item->field_for_view_update();
+    for (Item *item : fields) {
+      Item_field *field = item->field_for_view_update();
       DBUG_ASSERT(field->field->table == table);
       if (*part_field == field->field) {
         found = true;

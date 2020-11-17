@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #include <signaldata/TcKeyReq.hpp>
 #include <NdbEnv.h>
 #include <ndb_version.h>
+#include <m_ctype.h>
 
 /*
  * Reading index table directly (as a table) is faster but there are
@@ -357,6 +358,22 @@ NdbBlob::init()
   theLength = 0;
   thePos = 0;
   theNext = NULL;
+  m_keyHashSet = false;
+  m_keyHash = 0;
+  m_keyHashNext = NULL;
+
+  m_blobOp.m_state = BlobTask::BTS_INIT;
+  m_blobOp.m_readBuffer = 0;
+  m_blobOp.m_readBufferLen = 0;
+  m_blobOp.m_lastPartLen = 0;
+  m_blobOp.m_writeBuffer = 0;
+  m_blobOp.m_writeBufferLen = 0;
+  m_blobOp.m_oldLen = 0;
+  m_blobOp.m_position = 0;
+  m_blobOp.m_lastDeleteOp = NULL;
+#ifndef BUG_31546136_FIXED
+  m_blobOp.m_delayedWriteHead = false;
+#endif
 }
 
 void
@@ -881,6 +898,156 @@ NdbBlob::getTableKeyValue(NdbOperation* anOp)
   DBUG_RETURN(0);
 }
 
+/**
+ * getBlobKeyHash
+ *
+ * Calculates and caches a 32-bit hash value for this Blob based
+ * on the key it has
+ * For UI access, the UI key is used, for Table access the table
+ * key is used.
+ * As these separate keys are not comparable, only one type of
+ * key per table should be stored in the hash at one time.
+ */
+Uint32
+NdbBlob::getBlobKeyHash()
+{
+  DBUG_ENTER("NdbBlob::getBlobKeyHash");
+  if (!m_keyHashSet)
+  {
+    DBUG_PRINT("info", ("Need to calculate keyhash"));
+
+    /* Can hash key from secondary UI or PK */
+    const bool accessKey = (theAccessTable != theTable);
+    const Buf& keyBuf = (accessKey? theAccessKeyBuf : theKeyBuf);
+    const NdbTableImpl* cmpTab = (accessKey?theAccessTable : theTable);
+
+    const Uint32 numKeyCols = cmpTab->m_noOfKeys;
+    uint64 nr1 = 0;
+    uint64 nr2 = 0;
+    const uchar* dataPtr = (const uchar*) keyBuf.data;
+
+    Uint32 n = 0;
+    for (unsigned i=0; n < numKeyCols; i++)
+    {
+      const NdbColumnImpl* colImpl = cmpTab->m_columns[i];
+      if (colImpl->m_pk)
+      {
+        unsigned maxLen = colImpl->m_attrSize * colImpl->m_arraySize;
+        Uint32 lb, len;
+        const bool ok = NdbSqlUtil::get_var_length(colImpl->m_type,
+                                                   dataPtr,
+                                                   maxLen,
+                                                   lb,
+                                                   len);
+        assert(ok);
+        (void) ok;
+
+        CHARSET_INFO* cs = colImpl->m_cs ? colImpl->m_cs : &my_charset_bin;
+
+        (*cs->coll->hash_sort)(cs, dataPtr + lb, len, &nr1, &nr2);
+        dataPtr += (4 * ((maxLen + 3)/4));
+        n++;
+      }
+    }
+
+    /* nr1 is key hash, mix with tableId */
+    const Uint64 lnr1 = (Uint64) nr1;
+    m_keyHash = theTable->m_id ^ lnr1 ^ (lnr1 >> 32);
+    m_keyHashSet = true;
+    DBUG_PRINT("info", ("table id %u, nr1 %lu", theTable->m_id, nr1));
+  }
+
+  DBUG_PRINT("info", ("key hash is %u", m_keyHash));
+  DBUG_RETURN(m_keyHash);
+}
+
+int
+NdbBlob::getBlobKeysEqual(NdbBlob* other)
+{
+  DBUG_ENTER("NdbBlob::getBlobKeysEqual");
+  /* Compare tableids and key columns */
+
+  if (theTable->m_id != other->theTable->m_id)
+  {
+    DBUG_PRINT("info", ("Different tables, unequal"));
+    DBUG_RETURN(1);
+  }
+
+  if (theAccessTable->m_id != other->theAccessTable->m_id)
+  {
+    DBUG_PRINT("info", ("Different access tables, unequal"));
+    DBUG_RETURN(1);
+  }
+
+  /* Same table, and access key, check key column values */
+  const bool accessKey = (theAccessTable != theTable);
+  const Buf& bufA = accessKey? theAccessKeyBuf : theKeyBuf;
+  const Buf& bufB = accessKey? other->theAccessKeyBuf : other->theKeyBuf;
+  const NdbTableImpl* cmpTab = (accessKey?theAccessTable : theTable);
+  const Uint32 numKeyCols = cmpTab->m_noOfKeys;
+
+  const uchar* dataPtrA = (const uchar*) bufA.data;
+  const uchar* dataPtrB = (const uchar*) bufB.data;
+
+  bool equal = true;
+
+  Uint32 n = 0;
+  for (unsigned i=0; n < numKeyCols; i++)
+  {
+    const NdbColumnImpl* colImpl = cmpTab->m_columns[i];
+    if (colImpl->m_pk)
+    {
+      unsigned maxLen = colImpl->m_attrSize * colImpl->m_arraySize;
+      Uint32 lbA, lenA;
+      bool ok;
+      ok = NdbSqlUtil::get_var_length(colImpl->m_type,
+                                      dataPtrA,
+                                      maxLen,
+                                      lbA,
+                                      lenA);
+      assert(ok);
+      Uint32 lbB, lenB;
+      ok = NdbSqlUtil::get_var_length(colImpl->m_type,
+                                      dataPtrB,
+                                      maxLen,
+                                      lbB,
+                                      lenB);
+      assert(ok);
+      assert(lbA == lbB);
+
+      CHARSET_INFO* cs = colImpl->m_cs ? colImpl->m_cs : &my_charset_bin;
+      int res = (cs->coll->strnncollsp)(cs,
+                                        dataPtrA + lbA,
+                                        lenA,
+                                        dataPtrB + lbB,
+                                        lenB);
+      if (res != 0)
+      {
+        DBUG_PRINT("info", ("Keys differ on column %u", i));
+        equal = false;
+        break;
+      }
+      dataPtrA += ((maxLen + 3) / 4) * 4;
+      dataPtrB += ((maxLen + 3) / 4) * 4;
+      n++;
+    }
+  }
+
+  DBUG_RETURN(equal? 0 : 1);
+}
+
+void
+NdbBlob::setBlobHashNext(NdbBlob* next)
+{
+  m_keyHashNext = next;
+}
+
+NdbBlob*
+NdbBlob::getBlobHashNext() const
+{
+  return m_keyHashNext;
+}
+
 // in V2 operation can also be on blob part
 int
 NdbBlob::setTableKeyValue(NdbOperation* anOp)
@@ -1199,8 +1366,10 @@ NdbBlob::setValue(const void* data, Uint32 bytes)
   theSetFlag = true;
   theSetBuf = static_cast<const char*>(data);
   theGetSetBytes = bytes;
-  if (isInsertOp()) {
+  if (isInsertOp() || isWriteOp()) {
     // write inline part now
+    // as we don't want to have problems with
+    // non-nullable columns
     if (theSetBuf != NULL) {
       Uint32 n = theGetSetBytes;
       if (n > theInlineSize)
@@ -1208,6 +1377,7 @@ NdbBlob::setValue(const void* data, Uint32 bytes)
       assert(thePos == 0);
       if (writeDataPrivate(theSetBuf, n) == -1)
         DBUG_RETURN(-1);
+      theLength = theGetSetBytes; // Set now for inline head update
     } else {
       theNullFlag = true;
       theLength = 0;
@@ -1215,8 +1385,8 @@ NdbBlob::setValue(const void* data, Uint32 bytes)
     /*
      * In NdbRecAttr case, we set the value of the blob head here with
      * an extra setValue()
-     * In NdbRecord case, this is done by adding a separate operation in 
-     * preExecute() as we cannot modify the head-table NdbOperation.
+     * In NdbRecord case, this is done by adding a separate operation 
+     * later as we cannot modify the head-table NdbOperation.
      */
     if (!theNdbRecordFlag)
     {
@@ -1456,6 +1626,14 @@ NdbBlob::readDataPrivate(char* buf, Uint32& bytes)
     DBUG_RETURN(-1);
   }
   if (len > 0) {
+    // execute any previously defined ops before starting blob part reads
+    // so that we can localise error handling
+    if(theNdbCon && theNdbCon->theFirstOpInList &&
+       theNdbCon->executeNoBlobs(NdbTransaction::NoCommit) == -1)
+    {
+      DBUG_RETURN(-1);
+    }
+
     assert(pos >= theInlineSize);
     Uint32 off = (pos - theInlineSize) % thePartSize;
     // partial first block
@@ -1465,9 +1643,12 @@ NdbBlob::readDataPrivate(char* buf, Uint32& bytes)
       Uint16 sz = 0;
       if (readPart(thePartBuf.data, part, sz) == -1)
         DBUG_RETURN(-1);
-      // need result now
       if (executePendingBlobReads() == -1)
+      {
+        if (theNdbCon->getNdbError().code == 626)
+          theNdbCon->theError.code = NdbBlobImpl::ErrCorrupt;
         DBUG_RETURN(-1);
+      }
       assert(sz >= off);
       Uint32 n = sz - off;
       if (n > len)
@@ -1507,11 +1688,18 @@ NdbBlob::readDataPrivate(char* buf, Uint32& bytes)
         len -= n;
         part += partsThisTrip;
         count -= partsThisTrip;
-        if (count != 0)
+        // skip last op batch execute if partial last block remains
+        if (!(count == 0 && len > 0))
         {
           /* Execute this batch before defining next */
           if (executePendingBlobReads() == -1)
+          {
+            /* If any part read failed with "Not found" error, blob is
+             * corrupted.*/
+            if (theNdbCon->getNdbError().code == 626)
+              theNdbCon->theError.code = NdbBlobImpl::ErrCorrupt;
             DBUG_RETURN(-1);
+          }
         }
       } while (count != 0);
     }
@@ -1526,7 +1714,11 @@ NdbBlob::readDataPrivate(char* buf, Uint32& bytes)
       DBUG_RETURN(-1);
     // need result now
     if (executePendingBlobReads() == -1)
+    {
+      if (theNdbCon->getNdbError().code == 626)
+        theNdbCon->theError.code = NdbBlobImpl::ErrCorrupt;
       DBUG_RETURN(-1);
+    }
     assert(len <= sz);
     memcpy(buf, thePartBuf.data, len);
     Uint32 n = len;
@@ -1775,6 +1967,7 @@ NdbBlob::readTablePart(char* buf, Uint32 part, Uint16& len)
   }
 
   tOp->m_abortOption = NdbOperation::AbortOnError;
+  tOp->m_flags |= NdbOperation::OF_BLOB_PART_READ;
   thePendingBlobOps |= (1 << NdbOperation::ReadRequest);
   theNdbCon->thePendingBlobOps |= (1 << NdbOperation::ReadRequest);
   theNdbCon->pendingBlobReadBytes += len;
@@ -2001,6 +2194,28 @@ NdbBlob::deletePartsUnknown(Uint32 part)
     if (bat > maxbat)
       bat = maxbat;
   }
+}
+
+int
+NdbBlob::writePart(const char* buf, Uint32 part, const Uint16& len)
+{
+  DBUG_ENTER("NdbBlob::writePart");
+  DBUG_PRINT("info", ("part=%u len=%u", part, (Uint32)len));
+  NdbOperation* tOp = theNdbCon->getNdbOperation(theBlobTable);
+  if (tOp == NULL ||
+      tOp->writeTuple() == -1 ||
+      setPartKeyValue(tOp, part) == -1 ||
+      setPartPkidValue(tOp, theHead.pkid) == -1 ||
+      setPartDataValue(tOp, buf, len) == -1) {
+    setErrorCode(tOp);
+    DBUG_RETURN(-1);
+  }
+
+  tOp->m_abortOption = NdbOperation::AbortOnError;
+  thePendingBlobOps |= (1 << NdbOperation::WriteRequest);
+  theNdbCon->thePendingBlobOps |= (1 << NdbOperation::WriteRequest);
+  theNdbCon->pendingBlobWriteBytes += len;
+  DBUG_RETURN(0);
 }
 
 // pending ops
@@ -2572,20 +2787,15 @@ NdbBlob::prepareColumn()
  * Generally, operations are performed in preExecute() if possible,
  * and postExecute if not.
  *
- * If this method sets the batch parameter to true, then 
- *  - any remaining Blobs in the current user defined operation
- *    will have their preExecute() method called.
- *  - all operations up to the last one added will be executed with
- *    NoCommit BEFORE the next user-defined operation is executed.
- *  - NdbBlob::postExecute() will be called for all Blobs in the
- *    executed batch.
- *  - Processing will continue with the next user-defined operation
- *    (if any)
+ * The method returns :
+ *   BA_EXEC  if further postExecute processing is required
+ *   BA_DONE  if all/any required operations are defined
+ *   BA_ERROR in error situations
+ *
  * This control flow can be seen in NdbTransaction::execute().
  */
-int
-NdbBlob::preExecute(NdbTransaction::ExecType anExecType, 
-                    bool& batch)
+NdbBlob::BlobAction
+NdbBlob::preExecute(NdbTransaction::ExecType anExecType)
 {
   DBUG_ENTER("NdbBlob::preExecute");
   DBUG_PRINT("info", ("this=%p op=%p con=%p", this, theNdbOp, theNdbCon));
@@ -2594,10 +2804,11 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType,
                       theGetSetBytes,
                       theSetFlag));
   if (theState == Invalid)
-    DBUG_RETURN(-1);
+    DBUG_RETURN(BA_ERROR);
   assert(theState == Prepared);
   // handle different operation types
   assert(isKeyOp());
+  BlobAction rc = BA_DONE;
 
   /* Check that a non-nullable blob handle has had a value set 
    * before proceeding 
@@ -2608,7 +2819,7 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType,
   {
     /* Illegal null attribute */
     setErrorCode(839);
-    DBUG_RETURN(-1);
+    DBUG_RETURN(BA_ERROR);
   }
 
   if (isReadOp()) {
@@ -2617,10 +2828,11 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType,
        * Not safe to do a speculative read of parts, as we do not
        * yet hold a lock on the blob head+inline
        */
-      batch = true;
+      rc = BA_EXEC;
     }
   }
-  if (isInsertOp() && theSetFlag) {
+  if (isInsertOp() && theSetFlag)
+  {
     /* If the main operation uses AbortOnError then
      * we can add operations to insert parts and update
      * the Blob head+inline here.
@@ -2646,65 +2858,38 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType,
           MIN(theNdbCon->maxPendingBlobWriteBytes,
               theNdbCon->pendingBlobWriteBytes))  //   bytes_written)
          )));
+    DBUG_PRINT("info", ("theSetValueInPreExecFlag %u : (Ao %u theGetSetBytes %u "
+                        "theInlineSize %u maxPending %u pending %u",
+                        theSetValueInPreExecFlag,
+                        theNdbOp->m_abortOption,
+                        theGetSetBytes,
+                        theInlineSize,
+                        theNdbCon->maxPendingBlobWriteBytes,
+                        theNdbCon->pendingBlobWriteBytes));
 
     if (theSetValueInPreExecFlag)
     {
       DBUG_PRINT("info", 
                  ("Insert extra ops added in preExecute"));
-      /* Add operations to insert parts and update the
-       * Blob head+inline in the main tables
-       */
-      if (theGetSetBytes > theInlineSize) {
-        // add ops to write rest of a setValue
-        assert(theSetBuf != NULL);
-        const char* buf = theSetBuf + theInlineSize;
-        Uint32 bytes = theGetSetBytes - theInlineSize;
-        assert(thePos == theInlineSize);
-#ifndef NDEBUG
-        Uint32 savePendingBlobWriteBytes = theNdbCon->pendingBlobWriteBytes;
-#endif
-        if (writeDataPrivate(buf, bytes) == -1)
-          DBUG_RETURN(-1);
-        /* Assert that we didn't execute inline there */
-        assert(theNdbCon->pendingBlobWriteBytes > savePendingBlobWriteBytes);
-      }
-      
-      if (theHeadInlineUpdateFlag)
-      {
-        NdbOperation* tOp = theNdbCon->getNdbOperation(theTable);
-        if (tOp == NULL ||
-            tOp->updateTuple() == -1 ||
-            setTableKeyValue(tOp) == -1 ||
-            setHeadInlineValue(tOp) == -1) {
-          setErrorCode(NdbBlobImpl::ErrAbort);
-          DBUG_RETURN(-1);
-        }
-        setHeadPartitionId(tOp);
+      rc = handleBlobTask(anExecType);
 
-        DBUG_PRINT("info", ("Insert : added op to update head+inline in preExecute"));
+      DBUG_PRINT("info",
+                 ("handleBlobTask returned %u", rc));
+      if (rc == BA_ERROR)
+      {
+        DBUG_RETURN(BA_ERROR);
       }
     }
     else
     {
       DBUG_PRINT("info", 
                  ("Insert waiting for Blob head insert"));
+      /* Require that this insert op is completed
+       * before beginning more user ops - avoid interleave
+       * with delete etc.
+       */
+      rc = BA_EXEC;
     }
-
-    /**
-     * In both Insert cases (Parts Insert prepared before or after exec)
-     * we need to force execution now.
-     * This is to avoid potential adverse interactions with other
-     * operations on the same blob row in the same batch observing
-     * partially updated blob states.
-     *
-     * This defeats batching in many cases.
-     *
-     * A future optimisation would be to identify cases where the same
-     * key is operated upon multiple times in a single batch and serialise
-     * those specifically, allowing more batching in the more normal
-     * case of disjoint keys.
-     */
-    batch= true;
   }
 
   if (isTableOp()) {
@@ -2730,7 +2915,7 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType,
           setTableKeyValue(tOp) == -1 ||
           getHeadInlineValue(tOp) == -1) {
         setErrorCode(tOp);
-        DBUG_RETURN(-1);
+        DBUG_RETURN(BA_ERROR);
       }
       setHeadPartitionId(tOp);
 
@@ -2745,15 +2930,7 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType,
       //        Add their getHeadInlineValue() calls to this, rather
       //        than having separate ops?  (Similar to Index read below)
       // execute immediately
-      // TODO : Why can't we continue with pre-execute of other user ops?
-      //        Rationales that occur:
-      //          - We're trying to keep user's op order consistent - 
-      //            1 op completes before another starts.  
-      //            - They probably shouldn't rely on this
-      //            - Maybe it makes failure more atomic w.r.t. separate
-      //              operations on Blobs
-      //          - Or perhaps error handling is easier?
-      batch = true;
+      rc = BA_EXEC;
       DBUG_PRINT("info", ("added op before to read head+inline"));
     }
   }
@@ -2775,7 +2952,7 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType,
             setAccessKeyValue(tOp) == -1 ||
             tOp->getValue(pkAttrId, thePackKeyBuf.data) == NULL) {
           setErrorCode(tOp);
-          DBUG_RETURN(-1);
+          DBUG_RETURN(BA_ERROR);
         }
       } else {
         NdbIndexOperation* tOp = theNdbCon->getNdbIndexOperation(theAccessTable->m_index, theTable, theNdbOp);
@@ -2784,7 +2961,7 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType,
             setAccessKeyValue(tOp) == -1 ||
             getTableKeyValue(tOp) == -1) {
           setErrorCode(tOp);
-          DBUG_RETURN(-1);
+          DBUG_RETURN(BA_ERROR);
         }
         if (userDefinedPartitioning && isWriteOp())
         {
@@ -2797,7 +2974,7 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType,
           
           if (thePartitionIdRecAttr == NULL) {
             setErrorCode(tOp);
-            DBUG_RETURN(-1);
+            DBUG_RETURN(BA_ERROR);
           }
         }
         if (isReadOp() && theNdbOp->getReadCommittedBase())
@@ -2816,81 +2993,725 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType,
           setAccessKeyValue(tOp) == -1 ||
           getHeadInlineValue(tOp) == -1) {
         setErrorCode(tOp);
-        DBUG_RETURN(-1);
+        DBUG_RETURN(BA_ERROR);
       }
       theHeadInlineReadOp = tOp;
       // execute immediately
       // TODO : Why execute immediately?  We could continue with other blobs
       // etc. here
-      batch = true;
+      rc = BA_EXEC;
       DBUG_PRINT("info", ("added index op before to read head+inline"));
     }
     if (isWriteOp()) {
       // XXX until IgnoreError fixed for index op
-      batch = true;
+      rc = BA_EXEC;
     }
   }
-  if (isWriteOp()) {
-    if (theSetFlag) {
-      // write head+inline now
-      theNullFlag = true;
-      theLength = 0;
-      /* Copy data into the headinline buffer */
-      if (theSetBuf != NULL) {
-        Uint32 n = theGetSetBytes;
-        if (n > theInlineSize)
-          n = theInlineSize;
-        assert(thePos == 0);
-        if (writeDataPrivate(theSetBuf, n) == -1)
-          DBUG_RETURN(-1);
-      }
-      /*
-       * We set the value of the blob head and inline data here if possible.
-       * Note that the length is being set to max theInlineSize.  This will
-       * be written with the correct length later if necessary.
-       */
-      if (!theNdbRecordFlag)
+
+  if (theActiveHook != NULL) {
+    // need blob head for callback
+    rc = BA_EXEC;
+  }
+  DBUG_PRINT("info", ("result=%u", rc));
+  DBUG_RETURN(rc);
+}
+
+/**
+ * BlobTask
+ * 
+ * The BlobTask structure is used to manage the task of applying
+ * some logical operation (read, insert, update, write, delete) to
+ * a Blob column, as part of a main table operation.
+ *
+ * The BlobTask has a state, and can issue operations to complete
+ * its task, and indicate whether it needs its issued operations
+ * to be executed before being invoked again, or whether it 
+ * has defined all required operations and does not need invoked
+ * again.
+ *
+ * A BlobTask may define operations on the Blob head or parts.
+ *
+ * BlobTasks may request execution due to e.g.:
+ *   Batch size limits
+ *   Data dependencies
+ * 
+ * The purpose of the BlobTask is to allow multiple Blob columns
+ * in the same or different operations in a batch to be applied
+ * concurrently with as few execution round trips as possible.
+ */
+
+
+/**
+ * initBlobTask
+ *
+ * Initialise BlobTask structure based on request parameters
+ *
+ */
+int
+NdbBlob::initBlobTask(NdbTransaction::ExecType anExecType)
+{
+  DBUG_ENTER("NdbBlob::initBlobTask");
+
+  if (isReadOp())
+  {
+    DBUG_PRINT("info", ("Read op"));
+    getHeadFromRecAttr();
+
+    if (theGetFlag)
+    {
+      assert(theGetSetBytes == 0 || theGetBuf != 0);
+      assert(theGetSetBytes <= theInlineSize ||
+             anExecType == NdbTransaction::NoCommit);
+      
+      if (theLength > 0)
       {
-        if (setHeadInlineValue(theNdbOp) == -1)
-          DBUG_RETURN(-1);
+        m_blobOp.m_state = BlobTask::BTS_READ_HEAD; // Head is read already
+        m_blobOp.m_readBuffer = theGetBuf;
+        m_blobOp.m_readBufferLen = MIN(theGetSetBytes, theLength);
+        m_blobOp.m_oldLen = 0;
+        m_blobOp.m_position = 0;
+      }      
+    }
+  }
+  else if (isInsertOp())
+  {
+    DBUG_PRINT("info", ("Insert op"));
+
+    /* Define Set op */
+    if (theNdbRecordFlag)
+    {
+      m_blobOp.m_state = BlobTask::BTS_WRITE_HEAD;
+      m_blobOp.m_writeBuffer = theSetBuf;
+      m_blobOp.m_writeBufferLen = theGetSetBytes;
+      m_blobOp.m_oldLen = 0;
+      m_blobOp.m_position = 0;
+    }
+    else
+    {
+      /* NdbRecAttr has already written the Blob head */
+      m_blobOp.m_state = BlobTask::BTS_WRITE_PARTS;
+      m_blobOp.m_writeBuffer = theSetBuf;
+      m_blobOp.m_writeBufferLen = theGetSetBytes;
+      m_blobOp.m_oldLen = 0;
+      m_blobOp.m_position = theInlineSize;
+    }
+  }
+  else if (isUpdateOp())
+  {
+    DBUG_PRINT("info", ("Update op"));
+    assert(anExecType == NdbTransaction::NoCommit);
+    getHeadFromRecAttr();
+
+    if (theSetFlag)
+    {
+      m_blobOp.m_state = BlobTask::BTS_WRITE_HEAD;  // Need to do write head
+      m_blobOp.m_writeBuffer = theSetBuf;
+      m_blobOp.m_writeBufferLen = theGetSetBytes;
+      m_blobOp.m_oldLen = theLength;
+      m_blobOp.m_position = 0;
+    }
+  }
+  else if (isWriteOp())
+  {
+    DBUG_PRINT("info", ("Write op, read result = %u",
+                        (theHeadInlineReadOp?
+                         theHeadInlineReadOp->theError.code:
+                         999)));
+    assert(anExecType == NdbTransaction::NoCommit);
+
+    bool unknownSizeExisting = false;
+
+    if (isIndexOp())
+    {
+      /* Size always unknown for index op write */
+      unknownSizeExisting = true;
+
+      /* Read partition id if needed */
+      if (userDefinedPartitioning)
+      {
+        if (thePartitionIdRecAttr != NULL)
+        {
+          assert( this == theNdbOp->theBlobList );
+          Uint32 id= thePartitionIdRecAttr->u_32_value();
+          assert( id != noPartitionId() );
+          DBUG_PRINT("info", ("Index write, setting partition id to %d", id));
+          thePartitionId= id;
+        }
+        else
+        {
+          /* First Blob (not us) in this op got the partition Id */
+          assert( theNdbOp->theBlobList );
+          assert( this != theNdbOp->theBlobList );
+
+          thePartitionId= theNdbOp->theBlobList->thePartitionId;
+
+          assert(thePartitionId != noPartitionId());
+        }
+      }
+    }
+    else
+    {
+      /* Table op - did pre-read find something? */
+      if (theHeadInlineReadOp->theError.code == 626)
+      {
+        unknownSizeExisting = true;
+      }
+      else if (theHeadInlineReadOp->theError.code != 0)
+      {
+        /* Error other than 'no such row' */
+        setErrorCode(theHeadInlineReadOp);
+        DBUG_RETURN(-1);
+      }
+    }
+
+    if (!unknownSizeExisting)
+    {
+      getHeadFromRecAttr();
+      DBUG_PRINT("info", ("old length = %llu", theLength));
+
+      /* Row exists and is locked write is an update */
+      m_blobOp.m_state = BlobTask::BTS_WRITE_HEAD;
+      m_blobOp.m_writeBuffer = theSetBuf;
+      m_blobOp.m_writeBufferLen = theGetSetBytes;
+      m_blobOp.m_oldLen = theLength;
+      m_blobOp.m_position = 0;
+    }
+    else
+    {
+      DBUG_PRINT("info", ("Delete unknown size previous"));
+      /**
+       * Row did not exist, looks like insert, but must
+       * take care to avoid a race
+       */
+      m_blobOp.m_state = BlobTask::BTS_WRITE_HEAD;
+      m_blobOp.m_writeBuffer = theSetBuf;
+      m_blobOp.m_writeBufferLen = theGetSetBytes;
+      m_blobOp.m_oldLen = ~Uint64(0);
+      m_blobOp.m_position = 0;
+    }
+  }
+  else if (isDeleteOp())
+  {
+    getHeadFromRecAttr();
+    DBUG_PRINT("info", ("Delete op oldlen = %llu", theLength));
+
+    m_blobOp.m_state = BlobTask::BTS_WRITE_PARTS;  // No need to write head
+    m_blobOp.m_writeBuffer = NULL;
+    m_blobOp.m_writeBufferLen = 0;
+    m_blobOp.m_oldLen = theLength;
+    m_blobOp.m_position = theInlineSize;
+  }
+
+  if (m_blobOp.m_state == BlobTask::BTS_INIT)
+  {
+    /* Nothing to do */
+    m_blobOp.m_state = BlobTask::BTS_DONE;
+  }
+
+  DBUG_RETURN(0);
+}
+
+/**
+ * handleBlobTask
+ *
+ * Perform next set of BlobTask operations, based on current state.
+ *
+ */
+NdbBlob::BlobAction
+NdbBlob::handleBlobTask(NdbTransaction::ExecType anExecType)
+{
+  DBUG_ENTER("NdbBlob::handleBlobTask");
+
+  theHeadInlineUpdateFlag = false;
+  assert(theNdbOp->theError.code == 0);
+
+  /**
+   * BlobTask state handling loop
+   *
+   * Handle the BlobTask's current state until either the
+   * task is done, or we need to execute the defined operations
+   * before further processing.
+   *
+   * State transitions generally follow :
+   *
+   * Reads (GetValue)
+   * 
+   *   --->   BTS_INIT
+   *             |
+   *             |
+   *             V
+   *        BTS_READ_HEAD ---->  BTS_READ_PARTS
+   *             |                     |
+   *             |    -------<---------
+   *             V   V
+   *          BTS_DONE
+   *
+   * Writes (SetValue)
+   *
+   *   --->   BTS_INIT
+   *             |
+   *             |
+   *             V
+   *        BTS_WRITE_HEAD ---->  BTS_WRITE_PARTS
+   *             |                     |
+   *             |    -------<---------
+   *             V   V
+   *          BTS_DONE
+   *
+   * 
+   * Execution is required before a task is complete
+   * due to e.g.: 
+   *   - Read needing to read last-part data before partially 
+   *     copying into a user buffer
+   *   - Write needing to determine whether any parts existed
+   *     previously through probing deletes.
+   *   - Batch size limits being reached
+   *
+   * The state handling loop defines a read or write of one
+   * part at a time, allowing regular checking for batch
+   * size limits.
+   *
+   * Each BlobTask can issue multiple reads or writes for its
+   * Blob operation, and multiple BlobTasks can issue reads
+   * or writes which are batch-executed together, giving
+   * amortised execution costs for the transaction, and 
+   * increased execution parallelism in the data nodes.
+   */
+  bool done = false;
+  bool executeDefinedOpsNow = false;
+  while (!done &&
+         !executeDefinedOpsNow)
+  {
+    DBUG_PRINT("info", ("Blob op state : %u rbuff %p rbufflen %llu wbuff %p "
+                        "wbufflen %llu  oldLen %llu position %llu",
+                        m_blobOp.m_state,
+                        m_blobOp.m_readBuffer,
+                        m_blobOp.m_readBufferLen,                        
+                        m_blobOp.m_writeBuffer,
+                        m_blobOp.m_writeBufferLen,
+                        m_blobOp.m_oldLen,
+                        m_blobOp.m_position));
+
+    switch(m_blobOp.m_state)
+    {
+    case BlobTask::BTS_INIT:
+    {
+      DBUG_PRINT("info", ("BTS_INIT"));
+      if (initBlobTask(anExecType) == -1)
+      {
+        DBUG_RETURN(BA_ERROR);
+      }
+      break;
+    }
+
+    case BlobTask::BTS_READ_HEAD:
+    {
+      /* Copy requested bytes from inline head, then
+       * move on to reading parts if required
+       */
+      DBUG_PRINT("info", ("State BTS_READ_HEAD"));
+      assert(theLength > 0);
+      assert(m_blobOp.m_readBufferLen <= theLength);
+      const Uint32 inlineBytesToRead = MIN(theInlineSize, 
+                                           m_blobOp.m_readBufferLen);
+      DBUG_PRINT("info", ("Copying %u bytes from inline header", 
+                          inlineBytesToRead));
+      memcpy(m_blobOp.m_readBuffer, theInlineData, inlineBytesToRead);
+      m_blobOp.m_position = inlineBytesToRead;
+      
+      if (inlineBytesToRead == m_blobOp.m_readBufferLen)
+      {
+        DBUG_PRINT("info", ("Read completed"));
+        m_blobOp.m_state = BlobTask::BTS_DONE;
       }
       else
       {
-        /* For table based NdbRecord writes we can set the head+inline 
-         * bytes here.  For index based writes, we need to wait until 
-         * after the execute for the table key data to be available.
-         * TODO : Is it worth doing this at all?
-         */
-        if (isTableOp())
-        {
-          /* NdbRecord - add an update operation after the main op */
-          NdbOperation* tOp = 
-            theNdbCon->getNdbOperation(theTable);
-          if (tOp == NULL ||
-              tOp->updateTuple() == -1 ||
-              setTableKeyValue(tOp) == -1 ||
-              setHeadInlineValue(tOp) == -1) {
-            setErrorCode(NdbBlobImpl::ErrAbort);
-            DBUG_RETURN(-1);
-          }
-          setHeadPartitionId(tOp);
+        DBUG_PRINT("info", ("Now read parts"));
+        m_blobOp.m_state = BlobTask::BTS_READ_PARTS;
+      }
+      break;
+    }
 
-          DBUG_PRINT("info", ("NdbRecord table write : added op to update head+inline"));
+    case BlobTask::BTS_READ_PARTS:
+    {
+      DBUG_PRINT("info", ("State BTS_READ_PARTS"));
+      assert(m_blobOp.m_position >= theInlineSize);
+      const Uint64 partOffset = (m_blobOp.m_position - theInlineSize);
+      const Uint64 partIdx = partOffset / thePartSize;
+      assert(partOffset == (partIdx * thePartSize));
+      
+      assert(m_blobOp.m_readBufferLen > m_blobOp.m_position);
+      const Uint64 nextPartStart = m_blobOp.m_position + thePartSize;
+      const bool lastPart = (m_blobOp.m_readBufferLen <=
+                             nextPartStart);
+      const bool partialReadLast = (m_blobOp.m_readBufferLen 
+                                    < nextPartStart);
+      /* We don't check the actual length of the last part read */
+      m_blobOp.m_lastPartLen = thePartSize;
+      if (partialReadLast)
+      {
+        DBUG_PRINT("info", ("Partial read last part %llu to partBuf",
+                            partIdx));
+        if (readPart(thePartBuf.data,
+                     partIdx,
+                     m_blobOp.m_lastPartLen) == -1)
+        {
+          DBUG_RETURN(BA_ERROR);
         }
       }
-      /* Save the contents of the head inline buf for postExecute
-       * It may get overwritten by the read operation injected
-       * above
-       */
-      theHeadInlineCopyBuf.copyfrom(theHeadInlineBuf);
+      else
+      {
+        DBUG_PRINT("info", ("Non partial read part %llu to offset %llu",
+                            partIdx,
+                            m_blobOp.m_position));
+        if (readPart(m_blobOp.m_readBuffer + 
+                     m_blobOp.m_position,
+                     partIdx,
+                     m_blobOp.m_lastPartLen) == -1)
+        {
+          DBUG_RETURN(BA_ERROR);
+        }
+      }
+
+      m_blobOp.m_position += thePartSize;
+
+      if (lastPart)
+      {
+        DBUG_PRINT("info", ("Last part read"));
+
+        assert(m_blobOp.m_position >= 
+               m_blobOp.m_readBufferLen);
+
+        if (partialReadLast)
+        {
+          /**
+           * Need to copy out subset of bytes that are 
+           * relevant at end
+           */
+          m_blobOp.m_state = BlobTask::BTS_READ_LAST_PART;
+          executeDefinedOpsNow = true;
+        }
+        else
+        {
+          m_blobOp.m_state = BlobTask::BTS_DONE;
+        }
+      }
+
+      if (theNdbCon->pendingBlobReadBytes >=
+          theNdbCon->maxPendingBlobReadBytes)
+      {
+        DBUG_PRINT("info", ("Pending Blob Read bytes %u > "
+                            "Max Pending Blob read bytes %u. "
+                            "Taking a break.",
+                            theNdbCon->pendingBlobReadBytes,
+                            theNdbCon->maxPendingBlobReadBytes));
+        executeDefinedOpsNow = true;
+      }
+
+      break;
     }
+
+    case BlobTask::BTS_READ_LAST_PART:
+    {
+      DBUG_PRINT("info", ("State BTS_READ_LAST_PART"));
+      /* Copy bytes from thePartBuf into user buffer */
+      const Uint32 lastPartBytes = 
+        (m_blobOp.m_readBufferLen - theInlineSize) %
+        thePartSize;
+      const Uint32 lastPartBuffOffset = 
+        m_blobOp.m_position - thePartSize;
+      DBUG_PRINT("info", ("Copying out %u bytes to offset %u", 
+                          lastPartBytes,
+                          lastPartBuffOffset));
+      
+      memcpy(m_blobOp.m_readBuffer +
+             lastPartBuffOffset,
+             thePartBuf.data,
+             lastPartBytes);
+      
+      m_blobOp.m_state = BlobTask::BTS_DONE;
+      break;
+    }
+
+    case BlobTask::BTS_WRITE_HEAD:
+    {
+      DBUG_PRINT("info", ("State BTS_WRITE_HEAD"));
+      /* U/W */
+      const bool setNull = (m_blobOp.m_writeBuffer == NULL &&
+                            !isDeleteOp());
+      const bool oldLenUnknown = (m_blobOp.m_oldLen == ~Uint64(0));
+
+      bool updateHead = false;
+      if (setNull)
+      {
+        if (!theNullFlag || oldLenUnknown)
+        {
+          DBUG_PRINT("info", ("Setting head to NULL"));
+          theNullFlag = true;
+          updateHead = true;
+        }
+        else
+        {
+          DBUG_PRINT("info", ("Head already NULL"));
+        }
+        m_blobOp.m_position+= theInlineSize;
+      }
+      else
+      {
+        theNullFlag = false;
+        Uint32 n = MIN(theInlineSize, m_blobOp.m_writeBufferLen);
+        memcpy(theInlineData, m_blobOp.m_writeBuffer, n);
+        updateHead = true;
+        DBUG_PRINT("info", ("Wrote %u of %u bytes to header",
+                            n, theInlineSize));
+
+        m_blobOp.m_position+= theInlineSize;;
+      }
+
+      theLength = m_blobOp.m_writeBufferLen;
+
+#ifndef BUG_31546136_FIXED
+      if (updateHead)
+      {
+        DBUG_PRINT("info", ("Deferring head update until parts written"));
+        /**
+         * For reasons described in the bug, we must delay
+         * writing the blob head until after the parts
+         * are written
+         */
+        assert(!m_blobOp.m_delayedWriteHead);
+        m_blobOp.m_delayedWriteHead = true;
+      }
+#else
+      if (updateHead)
+      {
+        DBUG_PRINT("info", ("Adding op to update header"));
+        NdbOperation* tOp = theNdbCon->getNdbOperation(theTable);
+        if (tOp == NULL ||
+            tOp->updateTuple() == -1 ||
+            setTableKeyValue(tOp) == -1 ||
+            setHeadInlineValue(tOp) == -1) {
+          setErrorCode(NdbBlobImpl::ErrAbort);
+          DBUG_RETURN(BA_ERROR);
+        }
+        setHeadPartitionId(tOp);
+      }
+#endif
+
+      m_blobOp.m_state = BlobTask::BTS_WRITE_PARTS;
+      break;
+    }
+
+    case BlobTask::BTS_WRITE_PARTS:
+    {
+      DBUG_PRINT("info", ("State BTS_WRITE_PARTS"));
+      if (thePartSize == 0)
+      {
+        /* TINYBLOB/TEXT */
+        m_blobOp.m_state = BlobTask::BTS_DONE;
+        break;
+      }
+      bool oldLenUnknown = (m_blobOp.m_oldLen == ~Uint64(0));
+      assert(m_blobOp.m_position >= theInlineSize);
+      const Uint64 partOffset = (m_blobOp.m_position - theInlineSize);
+      const Uint64 partIdx = partOffset / thePartSize;
+      assert(partOffset == (partIdx * thePartSize));
+
+      /* Calculate number of old parts */
+      Uint64 numOldParts = 0;
+      if (m_blobOp.m_oldLen > theInlineSize)
+      {
+        numOldParts = ((m_blobOp.m_oldLen - theInlineSize)+thePartSize-1)
+          / thePartSize;
+        if (oldLenUnknown)
+        {
+          numOldParts = ~Uint64(0);
+        }
+      }
+      /* Calculate number of new parts */
+      Uint64 numNewParts = 0;
+      Uint32 lastPartLen = 0;
+      if (theGetSetBytes > theInlineSize)
+      {
+        numNewParts = ((theGetSetBytes - theInlineSize) + thePartSize - 1) / thePartSize;
+        lastPartLen = (theGetSetBytes - theInlineSize) - ((numNewParts-1) * thePartSize);
+      }
+      /* Are we done? */
+      if (partIdx >= numOldParts &&
+          partIdx >= numNewParts)
+      {
+        /* DONE */
+        m_blobOp.m_state = BlobTask::BTS_DONE;
+        break;
+      }
+
+      /* Overwrite or delete existing parts */
+      if (partIdx < numNewParts)
+      {
+        /* Overwrite */
+        const char* src = m_blobOp.m_writeBuffer +
+          theInlineSize + (partIdx * thePartSize);
+        Uint32 partLen = thePartSize;
+
+        /* Handle last new part specially */
+        if (partIdx == (numNewParts - 1))
+        {
+          if (!theFixedDataFlag)
+          {
+            partLen = lastPartLen;
+          }
+          else
+          {
+            /* Need to write fixed-size with fill chr */
+            memcpy(thePartBuf.data, src, lastPartLen);
+            memset(thePartBuf.data + lastPartLen,
+                   theFillChar,
+                   thePartSize - lastPartLen);
+            src = thePartBuf.data;
+          }
+        }
+
+        if (writePart(src,
+                      partIdx,
+                      partLen) != 0)
+        {
+          DBUG_RETURN(BA_ERROR);
+        }
+      }
+      else
+      {
+        /* Delete extra old parts */
+        if (!oldLenUnknown)
+        {
+          if (deleteParts(partIdx, 1) != 0)
+          {
+            DBUG_RETURN(BA_ERROR);
+          }
+        }
+        else
+        {
+          /* Issue delete + check for success of preceding delete(s) */
+          const Uint32 numPartsDeleted = partIdx - numNewParts;
+
+          if (numPartsDeleted != 0)
+          {
+            /* Check last op outcome */
+            assert(m_blobOp.m_lastDeleteOp != NULL);
+
+            const Uint32 rc = m_blobOp.m_lastDeleteOp->getNdbError().code;
+
+            DBUG_PRINT("info", ("partIdx = %llu, oldLenUnknown, last delete op result %u",
+                                partIdx,
+                                rc));
+            if (rc != 0)
+            {
+              if (rc == 626)
+              {
+                /* Probing delete failed, no need to continue */
+                DBUG_PRINT("info", ("Found gap at or before %llu", partIdx));
+                m_blobOp.m_oldLen = (theInlineSize + ((partIdx-1) * thePartSize));
+                oldLenUnknown = false;
+              }
+              else
+              {
+                setErrorCode(m_blobOp.m_lastDeleteOp);
+                DBUG_RETURN(BA_ERROR);
+              }
+            }
+            /* Fall through */
+          }
+
+          if (oldLenUnknown)
+          {
+            /* Issue another delete */
+            DBUG_PRINT("info", ("Issue blind delete for part partIdx %llu", partIdx));
+            NdbOperation* tOp = theNdbCon->getNdbOperation(theBlobTable);
+            if (tOp == NULL ||
+                tOp->deleteTuple() == -1 ||
+                setPartKeyValue(tOp, partIdx) == -1) {
+              setErrorCode(tOp);
+              DBUG_RETURN(BA_ERROR);
+            }
+            tOp->m_abortOption= NdbOperation::AO_IgnoreError;
+            tOp->m_noErrorPropagation = true;
+            theNdbCon->pendingBlobWriteBytes += thePartSize;
+
+            /**
+             * Last delete issued will be referenced here, can check its
+             * outcome next time
+             */
+            m_blobOp.m_lastDeleteOp = tOp;
+
+            /* Old code scaled up 'delete window' by 4x to a max of 256 */
+            if (numPartsDeleted == 0 ||
+                numPartsDeleted == 5 ||
+                numPartsDeleted == 21 ||
+                numPartsDeleted == 85 ||
+                numPartsDeleted == 256)
+            {
+              DBUG_PRINT("info", ("Taking a break as numPartsDeleted = %u "
+                                  "partIdx %llu numNewParts %llu",
+                                  numPartsDeleted, partIdx, numNewParts));
+              executeDefinedOpsNow = true;
+            }
+          }
+        }
+      }
+
+      m_blobOp.m_position += thePartSize;
+
+      DBUG_PRINT("info", ("Position moves to %llu",
+                          m_blobOp.m_position));
+
+      if (theNdbCon->pendingBlobWriteBytes >=
+          theNdbCon->maxPendingBlobWriteBytes)
+      {
+        DBUG_PRINT("info", ("Pending Blob Write bytes %u > "
+                            "Max Pending Blob write bytes %u. "
+                            "Taking a break.",
+                            theNdbCon->pendingBlobWriteBytes,
+                            theNdbCon->maxPendingBlobWriteBytes));
+        executeDefinedOpsNow = true;
+      }
+
+      break;
+    }
+    case BlobTask::BTS_DONE:
+    {
+      DBUG_PRINT("info", ("BTS_DONE"));
+
+#ifndef BUG_31546136_FIXED
+      if (m_blobOp.m_delayedWriteHead)
+      {
+        m_blobOp.m_delayedWriteHead = false;
+        DBUG_PRINT("info", ("BTS_DONE : Adding op to update header"));
+        NdbOperation* tOp = theNdbCon->getNdbOperation(theTable);
+        if (tOp == NULL ||
+            tOp->updateTuple() == -1 ||
+            setTableKeyValue(tOp) == -1 ||
+            setHeadInlineValue(tOp) == -1) {
+          setErrorCode(NdbBlobImpl::ErrAbort);
+          DBUG_RETURN(BA_ERROR);
+        }
+        setHeadPartitionId(tOp);
+      }
+#endif
+
+      done = true;
+      break;
+    }
+    default:
+      abort();
+    }
+  } // while (!done && !executeDefinedOpsNow)
+
+  if (!done)
+  {
+    DBUG_PRINT("info", ("Not done yet, request exec"));
+    DBUG_RETURN(BA_EXEC);
   }
-  if (theActiveHook != NULL) {
-    // need blob head for callback
-    batch = true;
-  }
-  DBUG_PRINT("info", ("batch=%u", batch));
-  DBUG_RETURN(0);
+
+  DBUG_RETURN(BA_DONE);
 }
 
 /*
@@ -2923,222 +3744,53 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType,
  *  - Add an operation to update the Blob's head+inline bytes if
  *    necesary 
  */
-int
+NdbBlob::BlobAction
 NdbBlob::postExecute(NdbTransaction::ExecType anExecType)
 {
   DBUG_ENTER("NdbBlob::postExecute");
   DBUG_PRINT("info", ("this=%p op=%p con=%p anExecType=%u", this, theNdbOp, theNdbCon, anExecType));
   if (theState == Closed)
-    DBUG_RETURN(0); // Nothing to do here 
+    DBUG_RETURN(BA_DONE); // Nothing to do here
   if (theState == Invalid)
-    DBUG_RETURN(-1);
+    DBUG_RETURN(BA_ERROR);
   if (theState == Active) {
     setState(anExecType == NdbTransaction::NoCommit ? Active : Closed);
     DBUG_PRINT("info", ("skip active"));
-    DBUG_RETURN(0);
+    DBUG_RETURN(BA_DONE);
   }
   assert(theState == Prepared);
-  setState(anExecType == NdbTransaction::NoCommit ? Active : Closed);
+  const bool firstInvocation = (m_blobOp.m_state == BlobTask::BTS_INIT);
+
   assert(isKeyOp());
-  if (isIndexOp()) {
-    NdbBlob* tFirstBlob = theNdbOp->theBlobList;
-    if (this == tFirstBlob) {
-      packKeyValue(theTable, theKeyBuf);
-    } else {
-      // copy key from first blob
-      theKeyBuf.copyfrom(tFirstBlob->theKeyBuf);
-      thePackKeyBuf.copyfrom(tFirstBlob->thePackKeyBuf);
-      thePackKeyBuf.zerorest();
-    }
-  }
-  if (isReadOp()) {
-    /*
-      We injected a read of blob head into the operation, and need to
-      set theLength and theNullFlag from it.
-    */
-    getHeadFromRecAttr();
-
-    if (setPos(0) == -1)
-      DBUG_RETURN(-1);
-    if (theGetFlag) {
-      assert(theGetSetBytes == 0 || theGetBuf != 0);
-      assert(theGetSetBytes <= theInlineSize ||
-	     anExecType == NdbTransaction::NoCommit);
-      Uint32 bytes = theGetSetBytes;
-      if (readDataPrivate(theGetBuf, bytes) == -1)
-        DBUG_RETURN(-1);
-    }
-  }
-  if (isInsertOp() && theSetFlag) {
-    /* For Inserts where the main table operation is IgnoreError, 
-     * we perform extra operations on the head and inline parts
-     * now, as we know that the main table row was inserted 
-     * successfully.
-     *
-     * Additionally, if the insert was large, we deferred writing
-     * until now to better control the flow of part operations.
-     * See preExecute()
-     */
-    if (! theSetValueInPreExecFlag)
-    {
-      DBUG_PRINT("info", ("Insert adding extra ops"));
-      /* Check the main table op for an error (don't proceed if 
-       * it failed) 
-       */
-      if (theNdbOp->theError.code == 0)
-      {
-        /* Add operations to insert parts and update the
-         * Blob head+inline in the main table
-         */
-        if (theGetSetBytes > theInlineSize) {
-          // add ops to write rest of a setValue
-          assert(theSetBuf != NULL);
-          const char* buf = theSetBuf + theInlineSize;
-          Uint32 bytes = theGetSetBytes - theInlineSize;
-          assert(thePos == theInlineSize);
-          if (writeDataPrivate(buf, bytes) == -1)
-            DBUG_RETURN(-1);
-        }
-        
-        if (theHeadInlineUpdateFlag)
-        {
-          NdbOperation* tOp = theNdbCon->getNdbOperation(theTable);
-          if (tOp == NULL ||
-              tOp->updateTuple() == -1 ||
-              setTableKeyValue(tOp) == -1 ||
-              setHeadInlineValue(tOp) == -1) {
-            setErrorCode(NdbBlobImpl::ErrAbort);
-            DBUG_RETURN(-1);
-          }
-          setHeadPartitionId(tOp);
-
-          DBUG_PRINT("info", ("Insert : added op to update head+inline"));
-
-          /**
-           * Force write back to ensure blob state stable for any subsequent
-           * batched operation on the same key
-           */
-          thePendingBlobOps |= (1 << NdbOperation::WriteRequest);
-          theNdbCon->thePendingBlobOps |= (1 << NdbOperation::WriteRequest);
-          if (executePendingBlobWrites() != 0)
-          {
-            DBUG_PRINT("info", ("Failed flushing pending operations"));
-            DBUG_RETURN(-1);
-          }
-        }
-      }
-      // NOTE : Could map IgnoreError insert error onto Blob here
-    }
-  }
-
-  if (isUpdateOp()) {
-    assert(anExecType == NdbTransaction::NoCommit);
-    getHeadFromRecAttr();
-    if (theSetFlag) {
-      // setValue overwrites everything
-      if (theSetBuf != NULL) {
-        if (truncate(0) == -1)
-          DBUG_RETURN(-1);
-        assert(thePos == 0);
-        if (writeDataPrivate(theSetBuf, theGetSetBytes) == -1)
-          DBUG_RETURN(-1);
+  if (firstInvocation)
+  {
+    if (isIndexOp()) {
+      NdbBlob* tFirstBlob = theNdbOp->theBlobList;
+      if (this == tFirstBlob) {
+        packKeyValue(theTable, theKeyBuf);
       } else {
-        if (setNull() == -1)
-          DBUG_RETURN(-1);
+        // copy key from first blob
+        theKeyBuf.copyfrom(tFirstBlob->theKeyBuf);
+        thePackKeyBuf.copyfrom(tFirstBlob->thePackKeyBuf);
+        thePackKeyBuf.zerorest();
       }
     }
   }
-  if (isWriteOp() && isTableOp()) {
-    assert(anExecType == NdbTransaction::NoCommit);
-    if (theHeadInlineReadOp->theError.code == 0) {
-      int tNullFlag = theNullFlag;
-      Uint64 tLength = theLength;
-      Uint64 tPos = thePos;
-      getHeadFromRecAttr();
-      DBUG_PRINT("info", ("tuple found"));
-      if (truncate(0) == -1)
-        DBUG_RETURN(-1);
-      // restore previous head+inline
-      theHeadInlineBuf.copyfrom(theHeadInlineCopyBuf);
-      theNullFlag = tNullFlag;
-      theLength = tLength;
-      thePos = tPos;
-    } else {
-      if (theHeadInlineReadOp->theError.code != 626) {
-        setErrorCode(theHeadInlineReadOp);
-        DBUG_RETURN(-1);
-      }
-      DBUG_PRINT("info", ("tuple not found"));
-      /*
-       * Read found no tuple but it is possible that a tuple was
-       * created after the read by another transaction.  Delete all
-       * blob parts which may exist.
-       */
-      if (deletePartsUnknown(0) == -1)
-        DBUG_RETURN(-1);
-    }
-    if (theSetFlag && theGetSetBytes > theInlineSize) {
-      assert(theSetBuf != NULL);
-      const char* buf = theSetBuf + theInlineSize;
-      Uint32 bytes = theGetSetBytes - theInlineSize;
-      assert(thePos == theInlineSize);
-      if (writeDataPrivate(buf, bytes) == -1)
-          DBUG_RETURN(-1);
-    }
-  }
-  if (isWriteOp() && isIndexOp()) {
-    // XXX until IgnoreError fixed for index op
-    if (userDefinedPartitioning)
-    {
-      /* For Index Write with UserDefined partitioning, we get the
-       * partition id from the main table key read created in 
-       * preExecute().
-       * Extra complexity as only the first Blob does the read, other
-       * Blobs grab result from first.
-       */
-      if (thePartitionIdRecAttr != NULL)
-      {
-        assert( this == theNdbOp->theBlobList );
-        Uint32 id= thePartitionIdRecAttr->u_32_value();
-        assert( id != noPartitionId() );
-        DBUG_PRINT("info", ("Index write, setting partition id to %d", id));
-        thePartitionId= id;
-      }
-      else
-      {
-        /* First Blob (not us) in this op got the partition Id */
-        assert( theNdbOp->theBlobList );
-        assert( this != theNdbOp->theBlobList );
 
-        thePartitionId= theNdbOp->theBlobList->thePartitionId;
+  /* Perform actions based on Blob state */
+  BlobAction ba = handleBlobTask(anExecType);
+  if (ba != BA_DONE)
+  {
+    DBUG_RETURN(ba);
+  }
 
-        assert(thePartitionId != noPartitionId());
-      }
-    }
-    if (deletePartsUnknown(0) == -1)
-      DBUG_RETURN(-1);
-    if (theSetFlag && theGetSetBytes > theInlineSize) {
-      assert(theSetBuf != NULL);
-      const char* buf = theSetBuf + theInlineSize;
-      Uint32 bytes = theGetSetBytes - theInlineSize;
-      assert(thePos == theInlineSize);
-      if (writeDataPrivate(buf, bytes) == -1)
-          DBUG_RETURN(-1);
-    }
-  }
-  if (isDeleteOp()) {
-    assert(anExecType == NdbTransaction::NoCommit);
-    getHeadFromRecAttr();
-    if (deletePartsThrottled(0, getPartCount()) == -1)
-      DBUG_RETURN(-1);
-  }
   setState(anExecType == NdbTransaction::NoCommit ? Active : Closed);
   // activation callback
   if (theActiveHook != NULL) {
     if (invokeActiveHook() == -1)
-      DBUG_RETURN(-1);
+      DBUG_RETURN(BA_ERROR);
   }
-  /* Cope with any changes to the head */
+  /* Cope with any changes to the head from the ActiveHook */
   if (anExecType == NdbTransaction::NoCommit && theHeadInlineUpdateFlag) {
     NdbOperation* tOp = theNdbCon->getNdbOperation(theTable);
     if (tOp == NULL ||
@@ -3146,26 +3798,14 @@ NdbBlob::postExecute(NdbTransaction::ExecType anExecType)
        setTableKeyValue(tOp) == -1 ||
        setHeadInlineValue(tOp) == -1) {
       setErrorCode(NdbBlobImpl::ErrAbort);
-      DBUG_RETURN(-1);
+      DBUG_RETURN(BA_ERROR);
     }
     setHeadPartitionId(tOp);
 
     tOp->m_abortOption = NdbOperation::AbortOnError;
     DBUG_PRINT("info", ("added op to update head+inline"));
-
-    /**
-     * Force write back to ensure blob state stable for any subsequent
-     * batched operation on the same key
-     */
-    thePendingBlobOps |= (1 << NdbOperation::WriteRequest);
-    theNdbCon->thePendingBlobOps |= (1 << NdbOperation::WriteRequest);
-    if (executePendingBlobWrites() != 0)
-    {
-      DBUG_PRINT("info", ("Failed flushing pending operations"));
-      DBUG_RETURN(-1);
-    }
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(BA_DONE);
 }
 
 /*
@@ -3491,4 +4131,78 @@ NdbBlob::close(bool execPendingBlobOps)
    */
   
   DBUG_RETURN(0);
+}
+
+Uint32
+NdbBlob::getOpType()
+{
+  if (isReadOp())
+  {
+    return OT_READ;
+  }
+  if (isInsertOp())
+  {
+    return OT_INSERT;
+  }
+  if (isUpdateOp())
+  {
+    return OT_UPDATE;
+  }
+  if (isWriteOp())
+  {
+    return OT_WRITE;
+  }
+  if (isDeleteOp())
+  {
+    return OT_DELETE;
+  }
+
+  abort();
+}
+
+bool
+NdbBlob::isOpTypeSafeWithBatch(const Uint32 batchOpTypes,
+                               const Uint32 newOpType)
+{
+  DBUG_ENTER("NdbBlob::isOpTypeSafeWithBatch");
+  if (batchOpTypes != 0)
+  {
+    /**
+     * UPDATE and WRITE operations are not
+     * batchable with themselves unless the
+     * tables or keys are different.
+     */
+    const Uint32 notSafeOpTypes = OT_UPDATE | OT_WRITE;
+    if ((newOpType & notSafeOpTypes) != 0)
+    {
+      DBUG_PRINT("info",
+                 ("Not safe op type batchopTypes %x "
+                  "newOpType %x",
+                  batchOpTypes, newOpType));
+      DBUG_RETURN(false);
+    }
+
+    /**
+     * Batches containing only READ, only INSERT or
+     * only DELETE are safe even with common keys.
+     * For INSERT and DELETE, the main table op will
+     * fail cleanly if there are duplicate operations
+     * of the same type on the same key.
+     */
+    if (newOpType != batchOpTypes)
+    {
+      DBUG_PRINT("info",
+                 ("Not safe different op type "
+                  "batchOpTypess %x newOpType %x",
+                  batchOpTypes, newOpType));
+      DBUG_RETURN(false);
+    }
+  }
+
+  DBUG_PRINT("info",
+             ("Safe batchopTypes %x newOpType %x",
+              batchOpTypes,
+              newOpType));
+
+  DBUG_RETURN(true);
 }

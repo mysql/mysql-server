@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@ class Sql_service_context : public Sql_service_context_base {
     if (rset != nullptr) resultset->clear();
   }
 
-  ~Sql_service_context() {}
+  ~Sql_service_context() override {}
 
   /** Getting metadata **/
   /**
@@ -48,7 +48,7 @@ class Sql_service_context : public Sql_service_context_base {
     @retval 0  OK
   */
   int start_result_metadata(uint num_cols, uint flags,
-                            const CHARSET_INFO *resultcs);
+                            const CHARSET_INFO *resultcs) override;
 
   /**
     Field metadata is provided via this callback
@@ -59,7 +59,8 @@ class Sql_service_context : public Sql_service_context_base {
     @retval 1  Error
     @retval 0  OK
   */
-  int field_metadata(struct st_send_field *field, const CHARSET_INFO *charset);
+  int field_metadata(struct st_send_field *field,
+                     const CHARSET_INFO *charset) override;
 
   /**
     Indicates end of metadata for the result set
@@ -70,7 +71,7 @@ class Sql_service_context : public Sql_service_context_base {
     @retval 1  Error
     @retval 0  OK
   */
-  int end_result_metadata(uint server_status, uint warn_count);
+  int end_result_metadata(uint server_status, uint warn_count) override;
 
   /**
     Indicates the beginning of a new row in the result set/metadata
@@ -78,7 +79,7 @@ class Sql_service_context : public Sql_service_context_base {
     @retval 1  Error
     @retval 0  OK
   */
-  int start_row();
+  int start_row() override;
 
   /**
     Indicates end of the row in the result set/metadata
@@ -86,7 +87,7 @@ class Sql_service_context : public Sql_service_context_base {
     @retval 1  Error
     @retval 0  OK
   */
-  int end_row();
+  int end_row() override;
 
   /**
     An error occurred during execution
@@ -95,14 +96,14 @@ class Sql_service_context : public Sql_service_context_base {
     execution and the partial row should be dropped. Server will raise error
     and return.
   */
-  void abort_row();
+  void abort_row() override;
 
   /**
     Return client's capabilities (see mysql_com.h, CLIENT_*)
 
     @return Bitmap of client's capabilities
   */
-  ulong get_client_capabilities();
+  ulong get_client_capabilities() override;
 
   /** Getting data **/
   /**
@@ -112,7 +113,7 @@ class Sql_service_context : public Sql_service_context_base {
       @retval 1  Error
       @retval 0  OK
   */
-  int get_null();
+  int get_null() override;
 
   /**
     Get TINY/SHORT/LONG value from server
@@ -126,7 +127,7 @@ class Sql_service_context : public Sql_service_context_base {
       @retval 1  Error
       @retval 0  OK
   */
-  int get_integer(longlong value);
+  int get_integer(longlong value) override;
 
   /**
     Get LONGLONG value from server
@@ -138,7 +139,7 @@ class Sql_service_context : public Sql_service_context_base {
       @retval 1  Error
       @retval 0  OK
   */
-  int get_longlong(longlong value, uint is_unsigned);
+  int get_longlong(longlong value, uint is_unsigned) override;
 
   /**
     Receive DECIMAL value from server
@@ -149,7 +150,7 @@ class Sql_service_context : public Sql_service_context_base {
       @retval 1  Error
       @retval 0  OK
    */
-  int get_decimal(const decimal_t *value);
+  int get_decimal(const decimal_t *value) override;
 
   /**
     Receive DOUBLE value from server
@@ -158,7 +159,7 @@ class Sql_service_context : public Sql_service_context_base {
       @retval 1  Error
       @retval 0  OK
   */
-  int get_double(double value, uint32 decimals);
+  int get_double(double value, uint32 decimals) override;
 
   /**
     Get DATE value from server
@@ -169,7 +170,7 @@ class Sql_service_context : public Sql_service_context_base {
       @retval 1  Error
       @retval 0  OK
   */
-  int get_date(const MYSQL_TIME *value);
+  int get_date(const MYSQL_TIME *value) override;
 
   /**
     Get TIME value from server
@@ -181,7 +182,7 @@ class Sql_service_context : public Sql_service_context_base {
       @retval 1  Error
       @retval 0  OK
   */
-  int get_time(const MYSQL_TIME *value, uint decimals);
+  int get_time(const MYSQL_TIME *value, uint decimals) override;
 
   /**
     Get DATETIME value from server
@@ -193,7 +194,7 @@ class Sql_service_context : public Sql_service_context_base {
       @retval 1  Error
       @retval 0  OK
   */
-  int get_datetime(const MYSQL_TIME *value, uint decimals);
+  int get_datetime(const MYSQL_TIME *value, uint decimals) override;
 
   /**
     Get STRING value from server
@@ -207,7 +208,7 @@ class Sql_service_context : public Sql_service_context_base {
       @retval 0  OK
   */
   int get_string(const char *const value, size_t length,
-                 const CHARSET_INFO *const valuecs);
+                 const CHARSET_INFO *const valuecs) override;
 
   /** Getting execution status **/
   /**
@@ -222,7 +223,7 @@ class Sql_service_context : public Sql_service_context_base {
   */
   void handle_ok(uint server_status, uint statement_warn_count,
                  ulonglong affected_rows, ulonglong last_insert_id,
-                 const char *const message);
+                 const char *const message) override;
 
   /**
     Command ended with ERROR
@@ -232,12 +233,12 @@ class Sql_service_context : public Sql_service_context_base {
     @param sqlstate  SQL state correspongin to the error code
   */
   void handle_error(uint sql_errno, const char *const err_msg,
-                    const char *const sqlstate);
+                    const char *const sqlstate) override;
 
   /**
     Session was shutdown while command was running
   */
-  void shutdown(int flag);
+  void shutdown(int flag) override;
 
  private:
   /* executed command result store */

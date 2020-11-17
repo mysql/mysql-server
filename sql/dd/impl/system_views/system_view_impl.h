@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,11 +31,11 @@ namespace system_views {
 template <typename T>
 class System_view_impl : virtual public System_view {
  public:
-  virtual const System_view_definition *view_definition() const {
+  const System_view_definition *view_definition() const override {
     return &m_target_def;
   }
 
-  virtual bool hidden() const { return false; }
+  bool hidden() const override { return false; }
 
  protected:
   T m_target_def;

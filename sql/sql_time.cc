@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -184,9 +184,8 @@ bool str_to_datetime_with_warn(String *str, MYSQL_TIME *l_time,
       return true;
   }
 
-  adjust_time_zone_displacement(thd->time_zone(), l_time);
-
-  return ret_val;
+  if (ret_val) return true;
+  return convert_time_zone_displacement(thd->time_zone(), l_time);
 }
 
 /**
@@ -410,61 +409,33 @@ bool my_longlong_to_time_with_warn(longlong nr, MYSQL_TIME *ltime) {
 }
 
 /**
-  Convert a datetime from broken-down MYSQL_TIME representation
-  to corresponding TIMESTAMP value.
+  Converts a datetime in MYSQL_TIME representation to corresponding `struct
+  timeval` value.
 
-  @param  thd             - current thread
-  @param  t               - datetime in broken-down representation,
-  @param  in_dst_time_gap - pointer to bool which is set to true if t represents
-                            value which doesn't exists (falls into the spring
-                            time-gap) or to false otherwise.
-
-  @retval  Number seconds in UTC since start of Unix Epoch corresponding to t.
-  @retval  0 - t contains datetime value which is out of TIMESTAMP range.
-*/
-my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t,
-                            bool *in_dst_time_gap) {
-  my_time_t timestamp;
-
-  *in_dst_time_gap = false;
-
-  timestamp = thd->time_zone()->TIME_to_gmt_sec(t, in_dst_time_gap);
-  if (timestamp) {
-    return timestamp;
-  }
-
-  /* If we are here we have range error. */
-  return (0);
-}
-
-/**
-  Convert a datetime MYSQL_TIME representation
-  to corresponding "struct timeval" value.
-
-  ltime must previously be checked for TIME_NO_ZERO_IN_DATE.
+  `ltime` must be previously checked for `TIME_NO_ZERO_IN_DATE`.
   Things like '0000-01-01', '2000-00-01', '2000-01-00' are not allowed
   and asserted.
 
   Things like '0000-00-00 10:30:30' or '0000-00-00 00:00:00.123456'
   (i.e. empty date with non-empty time) return error.
 
-  Zero datetime '0000-00-00 00:00:00.000000'
-  is allowed and is mapper to {tv_sec=0, tv_usec=0}.
+  Zero datetime '0000-00-00 00:00:00.000000' is allowed and is mapped to
+  {tv_sec=0, tv_usec=0}.
 
-  Note: In case of error, tm value is not initialized.
+  @note In case of error, tm value is not initialized.
 
-  Note: "warnings" is not initialized to zero,
-  so new warnings are added to the old ones.
-  Caller must make sure to initialize "warnings".
+  @note `warnings` is not initialized to zero, so new warnings are added to the
+  old ones. The caller must make sure to initialize `warnings`.
 
-  @param[in]  thd       current thd
-  @param[in]  ltime     datetime value
-  @param[out] tm        timeval value
-  @param[out] warnings  pointer to warnings vector
+  @param[in]  ltime    Datetime value
+  @param[in]  tz       Time zone to convert to.
+  @param[out] tm       Timeval value
+  @param[out] warnings Pointer to warnings.
 
   @return False on success, true on error.
 */
-bool datetime_with_no_zero_in_date_to_timeval(THD *thd, const MYSQL_TIME *ltime,
+bool datetime_with_no_zero_in_date_to_timeval(const MYSQL_TIME *ltime,
+                                              const Time_zone &tz,
                                               struct timeval *tm,
                                               int *warnings) {
   if (!ltime->month) /* Zero date */
@@ -482,15 +453,15 @@ bool datetime_with_no_zero_in_date_to_timeval(THD *thd, const MYSQL_TIME *ltime,
     return false;
   }
 
-  bool in_dst_time_gap;
-  if (!(tm->tv_sec = TIME_to_timestamp(thd, ltime, &in_dst_time_gap))) {
+  bool is_in_dst_time_gap = false;
+  if (!(tm->tv_sec = tz.TIME_to_gmt_sec(ltime, &is_in_dst_time_gap))) {
     /*
       Date was outside of the supported timestamp range.
       For example: '3001-01-01 00:00:00' or '1000-01-01 00:00:00'
     */
     *warnings |= MYSQL_TIME_WARN_OUT_OF_RANGE;
     return true;
-  } else if (in_dst_time_gap) {
+  } else if (is_in_dst_time_gap) {
     /*
       Set MYSQL_TIME_WARN_INVALID_TIMESTAMP warning to indicate
       that date was fine but pointed to winter/summer time switch gap.
@@ -522,18 +493,18 @@ bool datetime_with_no_zero_in_date_to_timeval(THD *thd, const MYSQL_TIME *ltime,
   so new warnings are added to the old ones.
   Caller must make sure to initialize "warnings".
 
-  @param[in]  thd       current thd
   @param[in]  ltime     datetime value
+  @param[in]  tz       The time zone.
   @param[out] tm        timeval value
   @param[out] warnings  pointer to warnings vector
 
   @return False on success, true on error.
 */
-bool datetime_to_timeval(THD *thd, const MYSQL_TIME *ltime, struct timeval *tm,
-                         int *warnings) {
+bool datetime_to_timeval(const MYSQL_TIME *ltime, const Time_zone &tz,
+                         struct timeval *tm, int *warnings) {
   return check_date(*ltime, non_zero_date(*ltime), TIME_NO_ZERO_IN_DATE,
                     warnings) ||
-         datetime_with_no_zero_in_date_to_timeval(thd, ltime, tm, warnings);
+         datetime_with_no_zero_in_date_to_timeval(ltime, tz, tm, warnings);
 }
 
 /**
@@ -560,7 +531,8 @@ bool str_to_time_with_warn(String *str, MYSQL_TIME *l_time) {
       return true;
   }
 
-  if (!ret_val) adjust_time_zone_displacement(thd->time_zone(), l_time);
+  if (!ret_val)
+    if (convert_time_zone_displacement(thd->time_zone(), l_time)) return true;
 
   return ret_val;
 }

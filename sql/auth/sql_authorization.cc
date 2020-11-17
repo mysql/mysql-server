@@ -1786,7 +1786,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
   want_priv =
       (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)
           ? CREATE_TMP_ACL
-          : (CREATE_ACL | (select_lex->fields_list.elements ? INSERT_ACL : 0));
+          : (CREATE_ACL | (select_lex->field_list_is_empty() ? 0 : INSERT_ACL));
 
   if (check_access(thd, want_priv, create_table->db,
                    &create_table->grant.privilege,
@@ -1840,7 +1840,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
       check_grant(thd, want_priv, create_table, false, 1, false))
     goto err;
 
-  if (select_lex->fields_list.elements) {
+  if (!select_lex->fields.empty()) {
     /* Check permissions for used tables in CREATE TABLE ... SELECT */
     if (tables &&
         check_table_access(thd, SELECT_ACL, tables, false, UINT_MAX, false))
@@ -1987,14 +1987,7 @@ bool check_single_table_access(THD *thd, ulong privilege,
   if (all_tables->security_ctx)
     thd->set_security_context(all_tables->security_ctx);
 
-  const char *db_name;
-  if ((all_tables->is_view() || all_tables->field_translation) &&
-      !all_tables->schema_table)
-    db_name = all_tables->view_db.str;
-  else
-    db_name = all_tables->db;
-
-  if (check_access(thd, privilege, db_name, &all_tables->grant.privilege,
+  if (check_access(thd, privilege, all_tables->db, &all_tables->grant.privilege,
                    &all_tables->grant.m_internal, false, no_errors))
     goto deny;
 
@@ -2252,9 +2245,7 @@ bool check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
       if (db &&
           (!thd->db().str || db_is_pattern || strcmp(db, thd->db().str))) {
         if (sctx->get_active_roles()->size() > 0) {
-          bool use_patterns =
-              ((want_access & GRANT_ACL) ? true : !dont_check_global_grants);
-          db_access = sctx->db_acl({db, strlen(db)}, use_patterns);
+          db_access = sctx->db_acl({db, strlen(db)}, db_is_pattern);
         } else {
           db_access = acl_get(thd, sctx->host().str, sctx->ip().str,
                               sctx->priv_user().str, db, db_is_pattern);
@@ -2300,9 +2291,7 @@ bool check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 
   if (db && (!thd->db().str || db_is_pattern || strcmp(db, thd->db().str))) {
     if (sctx->get_active_roles()->size() > 0) {
-      bool flags =
-          ((want_access & GRANT_ACL) ? true : !dont_check_global_grants);
-      db_access = sctx->db_acl({db, strlen(db)}, flags);
+      db_access = sctx->db_acl({db, strlen(db)}, db_is_pattern);
       DBUG_PRINT("info", ("check_access using db-level privilege for %s. "
                           "ACL: %lu",
                           db, db_access));
@@ -2419,10 +2408,11 @@ bool check_table_access(THD *thd, ulong requirements, TABLE_LIST *tables,
     /*
       We should not encounter table list elements for reformed SHOW
       statements unless this is first table list element in the main
-      select.
+      query block.
       Such table list elements require additional privilege check
-      (see check_show_access()). This check is carried out by caller,
-      but only for the first table list element from the main select.
+      (see Sql_cmd_show_xxx::check_privileges()).
+      This check is carried out by caller, but only for the first table list
+      element from the main query block.
     */
     DBUG_ASSERT(!table_ref->schema_table_reformed ||
                 table_ref == thd->lex->select_lex->table_list.first);
@@ -2663,7 +2653,9 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
       if (open_tables_for_query(thd, table_list, 0)) return true;
 
-      if (table_list->is_view()) {
+      if (table_list->is_view() && !table_list->derived_unit()->is_prepared()) {
+        Prepared_stmt_arena_holder ps_arena_holder(thd);
+
         if (table_list->resolve_derived(thd, false))
           return true; /* purecov: inspected */
 
@@ -2672,7 +2664,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
           return true; /* purecov: inspected */
       }
       while ((column = column_iter++)) {
-        uint unused_field_idx = NO_CACHED_FIELD_INDEX;
+        uint unused_field_idx = NO_FIELD_INDEX;
         TABLE_LIST *dummy;
         Field *f = find_field_in_table_ref(
             thd, table_list, column->column.ptr(), column->column.length(),
@@ -3131,6 +3123,7 @@ bool mysql_revoke_role(THD *thd, const List<LEX_USER> *users,
         std::string out;
         authid.auth_str(&out);
         my_error(ER_MANDATORY_ROLE, MYF(0), out.c_str());
+        commit_and_close_mysql_tables(thd);
         return true;
       }
     }
@@ -3268,7 +3261,8 @@ bool mysql_grant_role(THD *thd, const List<LEX_USER> *users,
       } else if (lex_user->user.length == 0 || *(lex_user->user.str) == '\0') {
         /* Granting roles to an anonymous user isn't allowed */
         my_error(ER_CANNOT_GRANT_ROLES_TO_ANONYMOUS_USER, MYF(0));
-        return true;
+        errors = true;
+        break;
       }
 
       ACL_USER *acl_user;
@@ -3276,7 +3270,8 @@ bool mysql_grant_role(THD *thd, const List<LEX_USER> *users,
                                     true)) == nullptr) {
         my_error(ER_UNKNOWN_AUTHID, MYF(0), lex_user->user.str,
                  lex_user->host.str);
-        return true;
+        errors = true;
+        break;
       }
       while ((role = roles_it++) && !errors) {
         ACL_USER *acl_role;
@@ -3733,7 +3728,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
         privileges on any column combination on the table.
       */
       if (any_combination_will_do) continue;
-      t_ref->grant.privilege = aggr.table_access;
+      t_ref->grant.privilege |= aggr.table_access;
       if (!(~t_ref->grant.privilege & want_access)) {
         DBUG_PRINT("info",
                    ("Access not denied because of column acls for %s.%s."
@@ -3936,7 +3931,8 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST *table_ref,
 
   DBUG_ASSERT(want_privilege);
 
-  if (is_temporary_table(table_ref) || table_ref->is_internal()) {
+  if (is_temporary_table(table_ref) || table_ref->is_internal() ||
+      table_ref->schema_table) {
     // Temporary table or optimizer internal table: no need to evaluate
     // privileges
     return false;
@@ -3944,8 +3940,8 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST *table_ref,
     /* View or derived information schema table. */
     ulong view_privs;
     grant = &(table_ref->grant);
-    db_name = table_ref->view_db.str;
-    table_name = table_ref->view_name.str;
+    db_name = table_ref->db;
+    table_name = table_ref->table_name;
     if (table_ref->belong_to_view &&
         thd->lex->sql_command == SQLCOM_SHOW_FIELDS) {
       if (sctx->get_active_roles()->size() > 0) {
@@ -4721,13 +4717,13 @@ bool mysql_show_grants(THD *thd, LEX_USER *lex_user,
   }
 
   Item_string *field = new Item_string("", 0, &my_charset_latin1);
-  List<Item> field_list;
   field->max_length = 1024;
   strxmov(buff, "Grants for ", lex_user->user.str, "@", lex_user->host.str,
           NullS);
   field->item_name.set(buff);
+  mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(field);
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)) {
     return true;
   }
@@ -5135,9 +5131,9 @@ class Silence_routine_definer_errors : public Internal_error_handler {
  public:
   Silence_routine_definer_errors() : is_grave(false) {}
 
-  virtual bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *level,
-                                const char *) {
+  bool handle_condition(THD *, uint sql_errno, const char *,
+                        Sql_condition::enum_severity_level *level,
+                        const char *) override {
     if (*level == Sql_condition::SL_ERROR) {
       if (sql_errno == ER_NONEXISTING_PROC_GRANT) {
         /* Convert the error into a warning. */
@@ -5287,7 +5283,7 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
   acl_cache_lock.unlock();
 
   new (&tables[0]) TABLE_LIST();
-  user_list.empty();
+  user_list.clear();
 
   tables->db = sp_db;
   tables->table_name = tables->alias = sp_name;
@@ -5753,106 +5749,6 @@ bool is_privileged_user_for_credential_change(THD *thd) {
 }
 
 /**
-  Check if user has enough privileges for execution of SHOW statement,
-  which was converted to query to one of I_S tables.
-
-  @param thd    Thread context.
-  @param table  Table list element for I_S table to be queried..
-
-  @retval false - Success.
-  @retval true  - Failure.
-*/
-
-bool check_show_access(THD *thd, TABLE_LIST *table) {
-  // perform privilege checking for show statements on new dd tables
-  switch (thd->lex->sql_command) {
-    case SQLCOM_SHOW_DATABASES: {
-      return (specialflag & SPECIAL_SKIP_SHOW_DB) &&
-             check_global_access(thd, SHOW_DB_ACL);
-    }
-    case SQLCOM_SHOW_EVENTS: {
-      const char *db = thd->lex->select_lex->db;
-      DBUG_ASSERT(db != nullptr);
-      /*
-        Nobody has EVENT_ACL for I_S and P_S,
-        even with a GRANT ALL to *.*,
-        because these schemas have additional ACL restrictions:
-        see ACL_internal_schema_registry.
-
-        Yet there are no events in I_S and P_S to hide either,
-        so this check voluntarily does not enforce ACL for
-        SHOW EVENTS in I_S or P_S,
-        to return an empty list instead of an access denied error.
-
-        This is more user friendly, in particular for tools.
-
-        EVENT_ACL is not fine grained enough to differentiate:
-        - creating / updating / deleting events
-        - viewing existing events
-      */
-      if (!is_infoschema_db(db) && !is_perfschema_db(db) &&
-          check_access(thd, EVENT_ACL, db, nullptr, nullptr, false, false))
-        return true;
-    }
-    // Fall through
-    case SQLCOM_SHOW_TABLES:
-    case SQLCOM_SHOW_TABLE_STATUS:
-    case SQLCOM_SHOW_TRIGGERS: {
-      const char *dst_db_name = thd->lex->select_lex->db;
-      DBUG_ASSERT(dst_db_name != nullptr);
-      if (!dst_db_name) break;
-
-      // Check if the user has global access
-      if (check_access(thd, SELECT_ACL, dst_db_name, &thd->col_access, nullptr,
-                       false, false))
-        return true;
-
-      // Now check, if user has access to any of database/table/column/routine
-      if (!(thd->col_access & DB_OP_ACLS) && check_grant_db(thd, dst_db_name)) {
-        my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
-                 thd->security_context()->priv_user().str,
-                 thd->security_context()->priv_host().str, dst_db_name);
-        return true;
-      }
-      return false;
-    }
-    case SQLCOM_SHOW_FIELDS:
-    case SQLCOM_SHOW_KEYS: {
-      TABLE_LIST *dst_table;
-      dst_table = table->schema_select_lex->table_list.first;
-
-      DBUG_ASSERT(dst_table);
-      /*
-        Open temporary tables to be able to detect them during privilege check.
-      */
-      if (open_temporary_tables(thd, dst_table)) return true;
-
-      if (check_access(thd, SELECT_ACL, dst_table->db,
-                       &dst_table->grant.privilege,
-                       &dst_table->grant.m_internal, false, false))
-        return true; /* Access denied */
-
-      /*
-        Check_grant will grant access if there is any column privileges on
-        all of the tables thanks to the fourth parameter (bool show_table).
-      */
-      if (check_grant(thd, SELECT_ACL, dst_table, true, UINT_MAX, false))
-        return true; /* Access denied */
-
-      close_thread_tables(thd);
-      dst_table->table = nullptr;
-
-      /* Access granted */
-      return false;
-    }
-    default:
-      break;
-  }
-
-  return false;
-}
-
-/**
   check for global access and give descriptive error message if it fails.
 
   @param thd			Thread handler
@@ -5939,6 +5835,102 @@ bool check_fk_parent_table_access(THD *thd, HA_CREATE_INFO *create_info,
   }
 
   return false;
+}
+
+/**
+  For LOCK TABLES on a view checks if user in which context view is executed
+  or user that has initiated this operation has SELECT and LOCK TABLES
+  privileges on one of its underlying tables.
+
+  @param [in]   thd                   Thread context.
+  @param [in]   tbl                   Table list element for underlying table
+                                      on which we check privilege.
+  @param [out]  fake_lock_tables_acl  Set to true if table in question is one
+                                      of special I_S or P_S tables on which
+                                      nobody can get LOCK TABLES privilege.
+                                      So to preserve compatibility with dump
+                                      tools we need to fake this privilege.
+                                      Set to false otherwise.
+
+  @retval false   Success.
+  @retval true    Access denied. Error has been reported.
+*/
+bool check_lock_view_underlying_table_access(THD *thd, TABLE_LIST *tbl,
+                                             bool *fake_lock_tables_acl) {
+  ulong want_access = SELECT_ACL | LOCK_TABLES_ACL;
+  *fake_lock_tables_acl = false;
+
+  /*
+    I_S and P_S tables require special handling of LOCK TABLES privilege
+    in this case.
+    On the one hand we don't grant this privileges on I_S and read-only/
+    truncatable-only P_S tables to anyone. So normally you can't lock
+    them directly using LOCK TABLES.
+    On the other hand we allow creation of views which reference these
+    tables. And mysqldump/pump tools routinely lock views using LOCK
+    TABLES just to dump their definition in default mode. So refusing
+    locking of such views will break mysqldump/pump. It will also break
+    user scenarios in when views on top of I_S/P_S tables are locked along
+    with other tables by LOCK TABLES, so they are accessible under LOCK
+    TABLES mode. So we simply skip LOCK TABLES privilege check for I_S and
+    read-only/ truncatable-only P_S tables. However, we report the fact to
+    the caller, so it won't acquire strong metadata locks in this case,
+    which can be considered privilege escalation.
+  */
+  const ACL_internal_schema_access *schema_access =
+      get_cached_schema_access(&tbl->grant.m_internal, tbl->db);
+  if (schema_access) {
+    ulong dummy = 0;
+    switch (schema_access->check(LOCK_TABLES_ACL, &dummy)) {
+      case ACL_INTERNAL_ACCESS_DENIED:
+        *fake_lock_tables_acl = true;
+        // Fall through.
+      case ACL_INTERNAL_ACCESS_GRANTED:
+        want_access &= ~LOCK_TABLES_ACL;
+        break;
+      case ACL_INTERNAL_ACCESS_CHECK_GRANT:
+        const ACL_internal_table_access *table_access = get_cached_table_access(
+            &tbl->grant.m_internal, tbl->db, tbl->table_name);
+        if (table_access) {
+          switch (table_access->check(LOCK_TABLES_ACL, &dummy)) {
+            case ACL_INTERNAL_ACCESS_DENIED:
+              *fake_lock_tables_acl = true;
+              // Fall through.
+            case ACL_INTERNAL_ACCESS_GRANTED:
+              want_access &= ~LOCK_TABLES_ACL;
+              break;
+            case ACL_INTERNAL_ACCESS_CHECK_GRANT:
+              break;
+          }
+        }
+        break;
+    }
+  }
+
+  if (!check_single_table_access(thd, want_access, tbl, true)) return false;
+
+  /*
+    As it was mentioned earlier mysqldump/pump tools routinely lock
+    views just to dump their definition. This is supposed to work even
+    for views with (temporarily) invalid definer. To avoid breaking
+    this scenario we allow locking of view not only when user which
+    security context will be used for its execution has LOCK TABLES
+    and SELECT privileges on its underlying tbales, but also when
+    the user which originally requested LOCK TABLES has the similar
+    privileges on its underlying tables (which is likely to be the
+    case for users invoking mysqldump/pump).
+  */
+  Security_context *save_security_ctx = tbl->security_ctx;
+  tbl->security_ctx = nullptr;
+  bool top_user_has_privs =
+      !check_single_table_access(thd, want_access, tbl, true);
+  tbl->security_ctx = save_security_ctx;
+
+  if (top_user_has_privs) return false;
+
+  my_error(ER_VIEW_INVALID, MYF(0), tbl->belong_to_view->get_db_name(),
+           tbl->belong_to_view->get_table_name());
+  return true;
 }
 
 /**
@@ -6312,6 +6304,7 @@ bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
 
   if (!table) {
     my_error(ER_OPEN_ROLE_TABLES, MYF(MY_WME));
+    commit_and_close_mysql_tables(thd);
     return true;
   }
 
@@ -6342,7 +6335,8 @@ bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
           my_error(ER_ACCESS_DENIED_ERROR, MYF(0), user->user.str,
                    user->host.str,
                    (thd->password ? ER_THD(thd, ER_YES) : ER_THD(thd, ER_NO)));
-          return true;
+          ret = true;
+          break;
         }
         if (roles != nullptr) {
           roles_it = *tmp_roles;
@@ -6351,7 +6345,8 @@ bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
                                  role->host)) {
               my_error(ER_ROLE_NOT_GRANTED, MYF(0), role->user.str,
                        role->host.str, user->user.str, user->host.str);
-              return true;
+              ret = true;
+              break;
             }
             authid = std::make_pair(role->user, role->host);
             authids.push_back(authid);
@@ -6369,7 +6364,8 @@ bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
               my_error(ER_ROLE_NOT_GRANTED, MYF(0), role->user.str,
                        role->host.str, thd->security_context()->priv_user().str,
                        thd->security_context()->priv_host().str);
-              return true;
+              ret = true;
+              break;
             }
             authid = std::make_pair(role->user, role->host);
             authids.push_back(authid);
@@ -6377,22 +6373,23 @@ bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
         }
       }
 
-      if (role_type == role_enum::ROLE_NONE) {
-        authid = create_authid_from(user);
-        ret = clear_default_roles(thd, table, authid, nullptr);
-      } else if (role_type == role_enum::ROLE_ALL) {
-        ret = alter_user_set_default_roles_all(thd, table, user);
-      } else if (role_type == role_enum::ROLE_NAME) {
-        ret = alter_user_set_default_roles(thd, table, user, authids);
-      }
+      if (!ret) {
+        if (role_type == role_enum::ROLE_NONE) {
+          authid = create_authid_from(user);
+          ret = clear_default_roles(thd, table, authid, nullptr);
+        } else if (role_type == role_enum::ROLE_ALL) {
+          ret = alter_user_set_default_roles_all(thd, table, user);
+        } else if (role_type == role_enum::ROLE_NAME) {
+          ret = alter_user_set_default_roles(thd, table, user, authids);
+        }
 
-      if (ret) {
-        my_error(ER_FAILED_DEFAULT_ROLES, MYF(0));
+        if (ret) {
+          my_error(ER_FAILED_DEFAULT_ROLES, MYF(0));
+        }
       }
     }
 
-    ret = log_and_commit_acl_ddl(thd, transactional_tables, nullptr, nullptr,
-                                 ret);
+    ret = log_and_commit_acl_ddl(thd, transactional_tables);
     get_global_acl_cache()->increase_version();
   } /* Critical section */
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -248,9 +248,9 @@ static void read_server_cost_constants(THD *thd, TABLE *table,
   */
 
   // Prepare to read from the table
-  unique_ptr_destroy_only<RowIterator> iterator =
-      init_table_iterator(thd, table, nullptr, false,
-                          /*ignore_not_found_rows=*/false);
+  unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
+      thd, table, nullptr,
+      /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
   if (iterator != nullptr) {
     table->use_all_columns();
 
@@ -313,9 +313,9 @@ static void read_engine_cost_constants(THD *thd, TABLE *table,
   */
 
   // Prepare to read from the table
-  unique_ptr_destroy_only<RowIterator> iterator =
-      init_table_iterator(thd, table, nullptr, false,
-                          /*ignore_not_found_rows=*/false);
+  unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
+      thd, table, nullptr,
+      /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
   if (iterator != nullptr) {
     table->use_all_columns();
 

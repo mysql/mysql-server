@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,9 @@
 Topics in this section:
 
 - @ref authentication_PLAIN
-- @ref authentication_EXTERNAL
 - @ref authentication_MYSQL41
+- @ref authentication_SHA256_MEMORY
+
 
 Authentication is implemented according to RFC;
 [RFC 4422](https://tools.ietf.org/html/rfc4422.html) (SASL):
@@ -39,16 +40,16 @@ Authentication is implemented according to RFC;
     http://www.iana.org/assignments/gssapi-service-names/gssapi-service-names.xhtml)
 
 @par mechanism-negotiation
-    @ref Mysqlx_Connection_CapabilitiesGet "@c CapabilitiesGet "
+    @ref Mysqlx::Connection::CapabilitiesGet
 
 @par messages
-    1. @ref Mysqlx_Session_AuthenticateStart "@c AuthenticateStart "
+    1. @ref Mysqlx::Session::AuthenticateStart
 
-    2. @ref Mysqlx_Session_AuthenticateContinue "@c AuthenticateContinue "
+    2. @ref Mysqlx::Session::AuthenticateContinue
 
-    3. @ref Mysqlx_Error "@c Error "
+    3. @ref Mysqlx::Error
 
-    4. @ref Mysqlx_Session_AuthenticateOk "@c AuthenticateOk "
+    4. @ref Mysqlx::Session::AuthenticateOk
 
 
 
@@ -63,16 +64,9 @@ Client -> Server: AuthenticateStart(mech="PLAIN", auth_data="\0foo\0bar")
 Server --> Client: AuthenticateOk
 @enduml
 
-EXTERNAL Authentication {#authentication_EXTERNAL}
-=======================
-
-@startuml "EXTERNAL Authentication"
-== Authentication ==
-
-Client -> Server: AuthenticateStart(mech="EXTERNAL", initial_response="")
-Server --> Client: AuthenticateOk
-@enduml
-
+@note
+  This authentication method ia avaiable only at secure-channels,
+  like after enabling TLS
 
 MYSQL41 Authentication {#authentication_MYSQL41}
 ======================
@@ -83,11 +77,11 @@ MYSQL41 authentication is:
 
 -  a challenge/response protocol using SHA1
 
--  similar to CRAM-MD5 
+-  similar to CRAM-MD5
    (RFC; [RFC 2195](https://tools.ietf.org/html/rfc2195.html))
 
 @code{unparsed}
-    1. C:
+    1. C: AuthenticateStart
     2. S: challenge
     3. C: [ authzid ] \0 authcid \0 response \0
     4. S: AuthenticateOk
@@ -111,6 +105,49 @@ MYSQL41 authentication is:
 Client -> Server: AuthenticateStart(mech="MYSQL41")
 Server --> Client: AuthenticateContinue(auth_data="98765432100123456789")
 Client --> Server: AuthenticateContinue(auth_data="\0myuser\09876543210987654321098765432109876543210\0")
+Server --> Client: AuthenticateOk
+@enduml
+
+
+SHA256_MEMORY Authentication {#authentication_SHA256_MEMORY}
+============================
+
+SHA256_MEMORY authentication is:
+
+-  a mechanism that reaches to user that already authenticated using PLAIN method
+
+-  a challenge/response protocol using SHA256
+
+-  similar to MYSQL41, instead using SHA1, it uses SHA256
+
+-  similar to CRAM-MD5
+   (RFC; [RFC 2195](https://tools.ietf.org/html/rfc2195.html))
+
+@code{unparsed}
+    1. C: AuthenticateStart
+    2. S: challenge
+    3. C: [ authzid ] \0 authcid \0 response \0
+    4. S: AuthenticateOk
+@endcode
+
+@par authzid
+    empty
+
+@par authcid
+    user name
+
+@par challenge
+    server side, one time random challenge
+
+@par response
+    ``HEX(SHA256(password) ^ SHA256(challenge + SHA256(SHA256(password))))``
+
+@startuml "SHA256_MEMORY Authentication"
+== Authentication ==
+
+Client -> Server: AuthenticateStart(mech="SHA256_MEMORY")
+Server --> Client: AuthenticateContinue(auth_data="98765432100123456789")
+Client --> Server: AuthenticateContinue(auth_data="\0myuser\0DCF9AF7246E9B5F45D8C7B6FA760C72874F296A7EFA97A537CA88716C93D7887")
 Server --> Client: AuthenticateOk
 @enduml
 

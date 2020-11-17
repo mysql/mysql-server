@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -32,10 +32,11 @@ Created 04/12/2011 Jimmy Yang
 *******************************************************/
 
 #include "memcached_mysql.h"
-#include <stdlib.h>
 #include <ctype.h>
 #include <mysql_version.h>
+#include <stdlib.h>
 #include "plugin.h"
+#include "sql/sql_error.h"
 #include "sql/sql_plugin.h"
 
 /** Configuration info passed to memcached, including
@@ -96,6 +97,13 @@ static SYS_VAR *daemon_memcached_sys_var[] = {
 	0
 };
 
+THD *thd_get_current_thd();  // from sql_class.cc
+
+static void emit_deprecation_message() {
+	push_deprecated_warn_no_replacement(thd_get_current_thd(),
+		"InnoDB Memcached Plugin");
+}
+
 static int daemon_memcached_plugin_deinit(void *p)
 {
 	struct st_plugin_int*		plugin = (struct st_plugin_int *)p;
@@ -150,6 +158,8 @@ static int daemon_memcached_plugin_init(void *p)
 	struct mysql_memcached_context*	con;
 	pthread_attr_t			attr;
 	struct st_plugin_int*		plugin = (struct st_plugin_int *)p;
+
+	emit_deprecation_message();
 
 	con = (mysql_memcached_context*) my_malloc(PSI_INSTRUMENT_ME,
                                                    sizeof(*con), MYF(0));

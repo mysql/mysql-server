@@ -857,7 +857,7 @@ ST_BUFFER_STRATEGY('join_miter', 10) + 3
 3
 SELECT ST_BUFFER_STRATEGY('join_miter', 10) / 3;
 ST_BUFFER_STRATEGY('join_miter', 10) / 3
-0.0000
+0
 SELECT ST_BUFFER_STRATEGY('join_miter', 10) * 3;
 ST_BUFFER_STRATEGY('join_miter', 10) * 3
 0

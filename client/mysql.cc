@@ -179,6 +179,7 @@ static int connect_flag = CLIENT_INTERACTIVE;
 static bool opt_binary_mode = false;
 static bool opt_connect_expired_password = false;
 static char *current_host;
+static char *dns_srv_name;
 static char *current_db;
 static char *current_user = nullptr;
 static char *opt_password = nullptr;
@@ -1479,6 +1480,7 @@ void mysql_end(int sig) {
   my_free(opt_mysql_unix_port);
   my_free(current_db);
   my_free(current_host);
+  my_free(dns_srv_name);
   my_free(current_user);
   my_free(full_username);
   my_free(part_username);
@@ -1567,8 +1569,15 @@ static void kill_query(const char *reason) {
   }
 #endif
 
-  if (!mysql_real_connect(kill_mysql, current_host, current_user, opt_password,
-                          "", opt_mysql_port, opt_mysql_unix_port, 0)) {
+  MYSQL *ret;
+  if (dns_srv_name)
+    ret = mysql_real_connect_dns_srv(kill_mysql, dns_srv_name, current_user,
+                                     opt_password, "", 0);
+  else
+    ret =
+        mysql_real_connect(kill_mysql, current_host, current_user, opt_password,
+                           "", opt_mysql_port, opt_mysql_unix_port, 0);
+  if (!ret) {
 #ifdef HAVE_SETNS
     if (opt_network_namespace) (void)restore_original_network_namespace();
 #endif
@@ -1732,6 +1741,9 @@ static struct my_option my_long_options[] = {
      nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"host", 'h', "Connect to host.", &current_host, &current_host, nullptr,
      GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"dns-srv-name", 0, "Connect to a DNS SRV resource", &dns_srv_name,
+     &dns_srv_name, nullptr, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"html", 'H', "Produce HTML output.", &opt_html, &opt_html, nullptr,
      GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"xml", 'X', "Produce XML output.", &opt_xml, &opt_xml, nullptr, GET_BOOL,
@@ -3431,66 +3443,7 @@ static int com_ego(String *buffer, char *line) {
   return result;
 }
 
-static const char *fieldtype2str(enum enum_field_types type) {
-  switch (type) {
-    case MYSQL_TYPE_BIT:
-      return "BIT";
-    case MYSQL_TYPE_BLOB:
-      return "BLOB";
-    case MYSQL_TYPE_DATE:
-      return "DATE";
-    case MYSQL_TYPE_DATETIME:
-      return "DATETIME";
-    case MYSQL_TYPE_NEWDECIMAL:
-      return "NEWDECIMAL";
-    case MYSQL_TYPE_DECIMAL:
-      return "DECIMAL";
-    case MYSQL_TYPE_DOUBLE:
-      return "DOUBLE";
-    case MYSQL_TYPE_ENUM:
-      return "ENUM";
-    case MYSQL_TYPE_FLOAT:
-      return "FLOAT";
-    case MYSQL_TYPE_GEOMETRY:
-      return "GEOMETRY";
-    case MYSQL_TYPE_INT24:
-      return "INT24";
-    case MYSQL_TYPE_JSON:
-      return "JSON";
-    case MYSQL_TYPE_LONG:
-      return "LONG";
-    case MYSQL_TYPE_LONGLONG:
-      return "LONGLONG";
-    case MYSQL_TYPE_LONG_BLOB:
-      return "LONG_BLOB";
-    case MYSQL_TYPE_MEDIUM_BLOB:
-      return "MEDIUM_BLOB";
-    case MYSQL_TYPE_NEWDATE:
-      return "NEWDATE";
-    case MYSQL_TYPE_NULL:
-      return "NULL";
-    case MYSQL_TYPE_SET:
-      return "SET";
-    case MYSQL_TYPE_SHORT:
-      return "SHORT";
-    case MYSQL_TYPE_STRING:
-      return "STRING";
-    case MYSQL_TYPE_TIME:
-      return "TIME";
-    case MYSQL_TYPE_TIMESTAMP:
-      return "TIMESTAMP";
-    case MYSQL_TYPE_TINY:
-      return "TINY";
-    case MYSQL_TYPE_TINY_BLOB:
-      return "TINY_BLOB";
-    case MYSQL_TYPE_VAR_STRING:
-      return "VAR_STRING";
-    case MYSQL_TYPE_YEAR:
-      return "YEAR";
-    default:
-      return "?-unknown-?";
-  }
-}
+const char *fieldtype2str(enum enum_field_types type);
 
 static char *fieldflags2str(uint f) {
   static char buf[1024];
@@ -4172,6 +4125,8 @@ static int com_connect(String *buffer, char *line) {
       if (tmp) {
         my_free(current_host);
         current_host = my_strdup(PSI_NOT_INSTRUMENTED, tmp, MYF(MY_WME));
+        my_free(dns_srv_name);
+        dns_srv_name = nullptr;
       }
     } else {
       /* Quick re-connect */
@@ -4515,10 +4470,16 @@ static int sql_real_connect(char *host, char *database, char *user,
     return ignore_errors ? -1 : 1;  // Abort
   }
 #endif
-
-  if (!mysql_real_connect(&mysql, host, user, password, database,
-                          opt_mysql_port, opt_mysql_unix_port,
-                          connect_flag | CLIENT_MULTI_STATEMENTS)) {
+  MYSQL *ret;
+  if (dns_srv_name)
+    ret = mysql_real_connect_dns_srv(&mysql, dns_srv_name, user, password,
+                                     database,
+                                     connect_flag | CLIENT_MULTI_STATEMENTS);
+  else
+    ret = mysql_real_connect(&mysql, host, user, password, database,
+                             opt_mysql_port, opt_mysql_unix_port,
+                             connect_flag | CLIENT_MULTI_STATEMENTS);
+  if (!ret) {
 #ifdef HAVE_SETNS
     if (opt_network_namespace) (void)restore_original_network_namespace();
 #endif

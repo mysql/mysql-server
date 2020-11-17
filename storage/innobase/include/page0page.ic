@@ -108,11 +108,11 @@ node_seq_t page_get_ssn_id(const page_t *page) {
 }
 
 /** Sets the RTREE SPLIT SEQUENCE NUMBER field value
-@param[in,out]	block		page
-@param[in,out]	page_zip	compressed page whose uncompressed part will
+@param[in,out]	block		Page
+@param[in,out]	page_zip	Compressed page whose uncompressed part will
                                 be updated, or NULL
-@param[in]	ssn_id		transaction id
-@param[in,out]	mtr		mini-transaction */
+@param[in]	ssn_id		Transaction id
+@param[in,out]	mtr		Mini-transaction */
 UNIV_INLINE
 void page_set_ssn_id(buf_block_t *block, page_zip_des_t *page_zip,
                      node_seq_t ssn_id, mtr_t *mtr) {

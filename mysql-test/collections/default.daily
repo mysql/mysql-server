@@ -19,8 +19,7 @@
 # rpl and binlog suites run with all 3
 # binlog-formats  row, stmt and mixed
 # Run with --big-test option so that longer tests are also run
-# Run with --non-parallel-test option so that non parallel tests are also run
-perl mysql-test-run.pl --force --timer --big-test --non-parallel-test --testcase-timeout=90  --comment=all-default-big --vardir=var-all-default-big --report-features --unit-tests-report --no-skip
+perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=90  --comment=all-default-big --vardir=var-all-default-big --report-features --unit-tests-report --no-skip
 
 # Run default suites with ps protocol
 perl mysql-test-run.pl --force --timer  --comment=ps --vardir=var-ps --ps-protocol

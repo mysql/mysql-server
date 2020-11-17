@@ -266,12 +266,12 @@ void page_zip_write_header_log(
     ulint length,     /*!< in: length of the data */
     mtr_t *mtr);      /*!< in: mini-transaction */
 
-/** Write data to the uncompressed header portion of a page.  The data must
+/** Write data to the uncompressed header portion of a page. The data must
 already have been written to the uncompressed page.
-@param[in,out]	page_zip	compressed page
-@param[in]	str		address on the uncompressed page
-@param[in]	length		length of the data
-@param[in]	mtr		mini-transaction, or NULL */
+@param[in,out]	page_zip	Compressed page
+@param[in]	str		Address on the uncompressed page
+@param[in]	length		Length of the data
+@param[in]	mtr		Mini-transaction, or NULL */
 UNIV_INLINE
 void page_zip_write_header(page_zip_des_t *page_zip, const byte *str,
                            ulint length, mtr_t *mtr) {

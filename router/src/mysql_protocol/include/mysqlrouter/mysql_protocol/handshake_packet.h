@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -74,7 +74,7 @@ static constexpr Capabilities::Flags kDefaultClientCapabilities =
  * the MySQL client after receiving the server's handshake packet.
  *
  */
-class MYSQL_PROTOCOL_API HandshakeResponsePacket final : public Packet {
+class MYSQL_PROTOCOL_EXPORT HandshakeResponsePacket final : public Packet {
  public:
   /** @brief Constructor
    *
@@ -105,7 +105,7 @@ class MYSQL_PROTOCOL_API HandshakeResponsePacket final : public Packet {
    * @throws std::runtime_error on unrecognised or invalid packet, when parsing
    */
   HandshakeResponsePacket(
-      const std::vector<uint8_t> &buffer, bool auto_parse_payload = false,
+      std::vector<uint8_t> buffer, bool auto_parse_payload = false,
       Capabilities::Flags server_capabilities = Capabilities::ALL_ZEROS)
       : Packet(buffer) {
     if (auto_parse_payload) parse_payload(server_capabilities);
@@ -124,11 +124,11 @@ class MYSQL_PROTOCOL_API HandshakeResponsePacket final : public Packet {
    * @param auth_plugin MySQL authentication plugin name (default
    * 'mysql_native_password')
    */
-  HandshakeResponsePacket(
-      uint8_t sequence_id, const std::vector<unsigned char> &auth_response,
-      const std::string &username, const std::string &password,
-      const std::string &database = "", unsigned char char_set = 8,
-      const std::string &auth_plugin = "mysql_native_password");
+  HandshakeResponsePacket(uint8_t sequence_id,
+                          std::vector<unsigned char> auth_response,
+                          std::string username, std::string password,
+                          std::string database = "", unsigned char char_set = 8,
+                          std::string auth_plugin = "mysql_native_password");
 
   /** @brief Parses packet payload, results written to object's field
    *
@@ -227,7 +227,7 @@ class MYSQL_PROTOCOL_API HandshakeResponsePacket final : public Packet {
   /** @brief Parser used to parse this packet */
   std::unique_ptr<Parser> parser_;
 
-  class MYSQL_PROTOCOL_API Parser {
+  class MYSQL_PROTOCOL_EXPORT Parser {
    public:
     Parser() = default;
     // disable copy as it isn't needed right now. Feel free to enable
@@ -244,7 +244,7 @@ class MYSQL_PROTOCOL_API HandshakeResponsePacket final : public Packet {
     virtual void debug_dump() const = 0;
   };
 
-  class MYSQL_PROTOCOL_API Parser41 : public Parser {
+  class MYSQL_PROTOCOL_EXPORT Parser41 : public Parser {
    public:
     Parser41(HandshakeResponsePacket &packet) : packet_(packet) {}
 
@@ -306,7 +306,7 @@ class MYSQL_PROTOCOL_API HandshakeResponsePacket final : public Packet {
 #endif
   };
 
-  class MYSQL_PROTOCOL_API Parser320 : public Parser {
+  class MYSQL_PROTOCOL_EXPORT Parser320 : public Parser {
    public:
     Parser320(HandshakeResponsePacket &packet) : packet_(packet) {}
 

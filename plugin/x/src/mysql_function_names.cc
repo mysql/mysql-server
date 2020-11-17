@@ -25,6 +25,7 @@
 #include "plugin/x/src/mysql_function_names.h"
 
 #include <algorithm>
+#include <iterator>
 #include <vector>
 
 #include "plugin/x/src/helper/string_case.h"

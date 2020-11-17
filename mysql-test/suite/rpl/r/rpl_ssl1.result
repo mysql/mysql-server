@@ -10,16 +10,22 @@ SET SQL_LOG_BIN= 1;
 create table t1 (t int);
 include/sync_slave_sql_with_master.inc
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_to_stop.inc
 change master to master_user='replssl',master_password='';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=1045]
 include/stop_slave_sql.inc
 change master to master_ssl=1 , master_ssl_ca ='MYSQL_TEST_DIR/std_data/cacert.pem', master_ssl_cert='MYSQL_TEST_DIR/std_data/client-cert.pem', master_ssl_key='MYSQL_TEST_DIR/std_data/client-key.pem', master_tls_version='TLSv1.2';
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 insert into t1 values (1);
 include/sync_slave_sql_with_master.inc
@@ -34,12 +40,16 @@ Master_SSL_Key = 'MYSQL_TEST_DIR/std_data/client-key.pem'
 Master_TLS_Version = 'TLSv1.2'
 include/check_slave_is_running.inc
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_to_stop.inc
 change master to master_user='root',master_password='', master_ssl=0;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 SET SQL_LOG_BIN= 0;
 drop user replssl@localhost;
@@ -54,6 +64,8 @@ Master_SSL_Key = 'MYSQL_TEST_DIR/std_data/client-key.pem'
 Master_TLS_Version = 'TLSv1.2'
 include/check_slave_is_running.inc
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_to_stop.inc
 change master to
 master_host="localhost",
@@ -63,6 +75,8 @@ master_ssl_cert='MYSQL_TEST_DIR/std_data/client-cert.pem',
 master_ssl_key='MYSQL_TEST_DIR/std_data/client-key.pem',
 master_ssl_verify_server_cert=1;
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 create table t1 (t int);
 insert into t1 values (1);
@@ -83,6 +97,8 @@ include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 include/assert.inc [Master_SSL_Verify_Server_Cert should NOT change on STOP SLAVE.]
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/assert.inc [Master_SSL_Verify_Server_Cert should NOT change on RESET SLAVE.]
 CHANGE MASTER TO MASTER_PORT= MASTER_MYPORT;
 include/assert.inc [Master_SSL_Verify_Server_Cert should NOT change on CHANGE MASTER.]

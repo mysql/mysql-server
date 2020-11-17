@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,27 +30,29 @@ class Item;
 class THD;
 class sp_name;
 template <class T>
-class List;
+class mem_root_deque;
 
 class Sql_cmd_call : public Sql_cmd_dml {
  public:
-  explicit Sql_cmd_call(sp_name *proc_name_arg, List<Item> *prog_args_arg)
+  explicit Sql_cmd_call(sp_name *proc_name_arg,
+                        mem_root_deque<Item *> *prog_args_arg)
       : Sql_cmd_dml(), proc_name(proc_name_arg), proc_args(prog_args_arg) {}
 
-  virtual enum_sql_command sql_command_code() const { return SQLCOM_CALL; }
+  enum_sql_command sql_command_code() const override { return SQLCOM_CALL; }
 
-  virtual bool is_data_change_stmt() const { return false; }
+  bool is_data_change_stmt() const override { return false; }
 
  protected:
-  virtual bool precheck(THD *thd);
+  bool precheck(THD *thd) override;
+  bool check_privileges(THD *thd) override;
 
-  virtual bool prepare_inner(THD *thd);
+  bool prepare_inner(THD *thd) override;
 
-  virtual bool execute_inner(THD *thd);
+  bool execute_inner(THD *thd) override;
 
  private:
   sp_name *proc_name;
-  List<Item> *proc_args;
+  mem_root_deque<Item *> *proc_args;
 };
 
 #endif /* SQL_CALL_INCLUDED */

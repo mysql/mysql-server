@@ -1,9 +1,14 @@
 define(
 "dojo/cldr/nls/en-au/currency", //begin v1.x content
 {
-	"EUR_displayName": "Euro",
+	"USD_symbol": "USD",
+	"CAD_symbol": "CAD",
+	"GBP_symbol": "GBP",
+	"HKD_symbol": "HKD",
+	"JPY_symbol": "JPY",
 	"AUD_symbol": "$",
-	"USD_symbol": "US$"
+	"CNY_symbol": "CNY",
+	"EUR_symbol": "EUR"
 }
 //end v1.x content
 );

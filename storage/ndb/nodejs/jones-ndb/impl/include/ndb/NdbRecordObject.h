@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@ public:
   ~NdbRecordObject();
   
   Local<Value> getField(int);
-  void setField(int nField, Handle<Value> value);
+  void setField(int nField, Local<Value> value);
   Local<Value> prepare();
   void resetMask();
 
@@ -40,13 +40,13 @@ public:
   char * getBuffer() const;
   uint32_t getMaskValue() const;
   unsigned short getWriteCount() const;
-  int createBlobWriteHandles(KeyOperation &);
+  int createBlobWriteHandles(v8::Isolate *, KeyOperation &);
 
 private:
   const Record * record;
   char * buffer;
   ColumnHandlerSet * handlers;
-  Persistent<Value> persistentBufferHandle;
+  Persistent<Object> persistentBufferHandle;
   const unsigned int ncol;
   ColumnProxy * const proxy;
   union {
@@ -73,7 +73,7 @@ inline bool NdbRecordObject::isMaskedIn(unsigned int nField) {
 }
 
 
-inline void NdbRecordObject::setField(int nField, Handle<Value> value) {
+inline void NdbRecordObject::setField(int nField, Local<Value> value) {
   nWrites++;
   maskIn(nField);
   proxy[nField].set(isolate, value);

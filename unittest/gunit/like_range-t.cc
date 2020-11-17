@@ -79,7 +79,7 @@ static const char *charset_list[] = {
 
 class LikeRangeTest : public ::testing::TestWithParam<const char *> {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     MY_CHARSET_LOADER loader;
     my_charset_loader_init_mysys(&loader);
     m_charset = my_collation_get_by_name(&loader, GetParam(), MYF(0));

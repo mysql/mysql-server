@@ -42,6 +42,42 @@ t8	CREATE TABLE `t8` (
 == verify_mysql_dd.inc ==
 Number of tables with temp name in NDB
 0
+# Bug#31546868 NDB : HA_NDBCLUSTER NOT ROLLING BACK TRANSACTION BEFORE ROLLING BACK DDL
+USE ndb_ddl_test;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  PRIMARY KEY (`a`,`b`),
+  KEY `b` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	1
+2	2
+3	3
+4	4
+5	5
+# Following alter should fail with ER_CHECK_CONSTRAINT_VIOLATED
+# as a row violates the check constraint it is trying to enforce
+ALTER TABLE t1
+ADD CONSTRAINT t1_c1 CHECK(a < 5),
+ALGORITHM = COPY;
+ERROR HY000: Check constraint 't1_c1' is violated.
+# Verify that the table is intact locally and across all servers.
+# Also verify that there are no tables with temp names left behind.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  PRIMARY KEY (`a`,`b`),
+  KEY `b` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+== verify_mysql_dd.inc ==
+Number of tables with temp name in NDB
+0
 #
 # Failure during the first rename
 #

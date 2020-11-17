@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -136,16 +136,6 @@ NdbIndexStatImpl::make_headtable(NdbDictionary::Table& tab)
 {
   tab.setName(g_headtable_name);
   tab.setLogging(true);
-  int ret;
-  // Creating a table in NDB using a compiled in frm blob
-  // which is already compressed and has got proper version 1 header
-  ret = tab.setFrm(g_ndb_index_stat_head_frm_data,
-                   g_ndb_index_stat_head_frm_len);
-  if (ret != 0)
-  {
-    setError(ret, __LINE__);
-    return -1;
-  }
   // key must be first
   {
     NdbDictionary::Column col("index_id");
@@ -216,16 +206,6 @@ NdbIndexStatImpl::make_sampletable(NdbDictionary::Table& tab)
 {
   tab.setName(g_sampletable_name);
   tab.setLogging(true);
-  int ret;
-  // Creating a table in NDB using a compiled in frm blob
-  // which is already compressed and has got proper version 1 header
-  ret = tab.setFrm(g_ndb_index_stat_sample_frm_data,
-                   g_ndb_index_stat_sample_frm_len);
-  if (ret != 0)
-  {
-    setError(ret, __LINE__);
-    return -1;
-  }
   // key must be first
   {
     NdbDictionary::Column col("index_id");

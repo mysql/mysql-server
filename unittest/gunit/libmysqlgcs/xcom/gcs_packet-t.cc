@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,9 +36,9 @@ class GcsPacketTest : public GcsBaseTest {
  protected:
   GcsPacketTest() {}
 
-  virtual void SetUp() { lz4_stage = new Gcs_message_stage_lz4(true, 1024); }
+  void SetUp() override { lz4_stage = new Gcs_message_stage_lz4(true, 1024); }
 
-  virtual void TearDown() { delete lz4_stage; }
+  void TearDown() override { delete lz4_stage; }
 
   Gcs_message_stage_lz4 *lz4_stage;
 

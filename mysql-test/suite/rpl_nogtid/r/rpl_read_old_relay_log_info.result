@@ -10,8 +10,12 @@ include/sync_slave_sql_with_master.inc
 ==== Check that we still understand the old format of relay-log.info ====
 include/stop_slave.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 # Read relay-log.info
 START SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_start.inc
 # Check that relay log coordinates are equal to those we saved in old-format_relay-log.info
 = , 0, slave-relay-bin.000001, 4

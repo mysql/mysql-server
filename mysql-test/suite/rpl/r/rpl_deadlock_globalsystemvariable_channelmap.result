@@ -19,6 +19,8 @@ SET DEBUG_SYNC='now SIGNAL cont_set_binlog_enc';
 SET DEBUG_SYNC='now SIGNAL cont_start_slave';
 [connection server_2_1]
 [connection server_2_2]
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 [connection slave]
 SET GLOBAL binlog_encryption=ON;
 include/rpl_end.inc

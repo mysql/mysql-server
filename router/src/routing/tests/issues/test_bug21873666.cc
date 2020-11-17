@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,41 +27,28 @@
  *
  */
 
-#include "mysqlrouter/routing.h"
-#include "plugin_config.h"
-
 #include <fstream>
 #include <memory>
 #include <string>
 
-// ignore GMock warnings
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wconversion"
-#endif
-
 #include <gmock/gmock.h>
 
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
-
 #include "mysql/harness/config_parser.h"
-
+#include "mysql/harness/net_ts/io_context.h"
 #include "mysql_routing.h"
+#include "mysqlrouter/routing.h"
+#include "plugin_config.h"
 
 using mysqlrouter::to_string;
 using ::testing::HasSubstr;
 
 class Bug21771595 : public ::testing::Test {
  protected:
-  virtual void SetUp() {}
-
-  virtual void TearDown() {}
+  net::io_context io_ctx_;
 };
 
 TEST_F(Bug21771595, ConstructorDefaults) {
-  MySQLRouting r(routing::RoutingStrategy::kRoundRobin, 7001,
+  MySQLRouting r(io_ctx_, routing::RoutingStrategy::kRoundRobin, 7001,
                  Protocol::Type::kClassicProtocol,
                  routing::AccessMode::kReadWrite, "127.0.0.1",
                  mysql_harness::Path(), "test");
@@ -75,7 +62,7 @@ TEST_F(Bug21771595, Constructor) {
   auto expect_connect_timeout =
       routing::kDefaultDestinationConnectionTimeout + std::chrono::seconds(10);
 
-  MySQLRouting r(routing::RoutingStrategy::kRoundRobin, 7001,
+  MySQLRouting r(io_ctx_, routing::RoutingStrategy::kRoundRobin, 7001,
                  Protocol::Type::kClassicProtocol,
                  routing::AccessMode::kReadWrite, "127.0.0.1",
                  mysql_harness::Path(), "test", expect_max_connections,
@@ -85,7 +72,7 @@ TEST_F(Bug21771595, Constructor) {
 }
 
 TEST_F(Bug21771595, GetterSetterMaxConnections) {
-  MySQLRouting r(routing::RoutingStrategy::kRoundRobin, 7001,
+  MySQLRouting r(io_ctx_, routing::RoutingStrategy::kRoundRobin, 7001,
                  Protocol::Type::kClassicProtocol,
                  routing::AccessMode::kReadWrite, "127.0.0.1",
                  mysql_harness::Path(), "test");
@@ -96,7 +83,7 @@ TEST_F(Bug21771595, GetterSetterMaxConnections) {
 }
 
 TEST_F(Bug21771595, InvalidDestinationConnectTimeout) {
-  MySQLRouting r(routing::RoutingStrategy::kRoundRobin, 7001,
+  MySQLRouting r(io_ctx_, routing::RoutingStrategy::kRoundRobin, 7001,
                  Protocol::Type::kClassicProtocol,
                  routing::AccessMode::kReadWrite, "127.0.0.1",
                  mysql_harness::Path(), "test");
@@ -112,7 +99,7 @@ TEST_F(Bug21771595, InvalidDestinationConnectTimeout) {
                           "invalid value, was 0 ms"));
   }
   ASSERT_THROW(
-      MySQLRouting(routing::RoutingStrategy::kRoundRobin, 7001,
+      MySQLRouting(io_ctx_, routing::RoutingStrategy::kRoundRobin, 7001,
                    Protocol::Type::kClassicProtocol,
                    routing::AccessMode::kReadWrite, "127.0.0.1",
                    mysql_harness::Path(), "test", 1, std::chrono::seconds(-1)),
@@ -120,7 +107,7 @@ TEST_F(Bug21771595, InvalidDestinationConnectTimeout) {
 }
 
 TEST_F(Bug21771595, InvalidMaxConnections) {
-  MySQLRouting r(routing::RoutingStrategy::kRoundRobin, 7001,
+  MySQLRouting r(io_ctx_, routing::RoutingStrategy::kRoundRobin, 7001,
                  Protocol::Type::kClassicProtocol,
                  routing::AccessMode::kReadWrite, "127.0.0.1",
                  mysql_harness::Path(), "test");
@@ -134,7 +121,7 @@ TEST_F(Bug21771595, InvalidMaxConnections) {
         HasSubstr("tried to set max_connections using invalid value, was '0'"));
   }
   ASSERT_THROW(
-      MySQLRouting(routing::RoutingStrategy::kRoundRobin, 7001,
+      MySQLRouting(io_ctx_, routing::RoutingStrategy::kRoundRobin, 7001,
                    Protocol::Type::kClassicProtocol,
                    routing::AccessMode::kReadWrite, "127.0.0.1",
                    mysql_harness::Path(), "test", 0, std::chrono::seconds(1)),
@@ -142,13 +129,13 @@ TEST_F(Bug21771595, InvalidMaxConnections) {
 }
 
 TEST_F(Bug21771595, InvalidPort) {
-  ASSERT_THROW(MySQLRouting(routing::RoutingStrategy::kRoundRobin, 0,
+  ASSERT_THROW(MySQLRouting(io_ctx_, routing::RoutingStrategy::kRoundRobin, 0,
                             Protocol::Type::kClassicProtocol,
                             routing::AccessMode::kReadWrite, "127.0.0.1",
                             mysql_harness::Path(), "test"),
                std::invalid_argument);
   try {
-    MySQLRouting r(routing::RoutingStrategy::kRoundRobin, (uint16_t)-1,
+    MySQLRouting r(io_ctx_, routing::RoutingStrategy::kRoundRobin, (uint16_t)-1,
                    Protocol::Type::kClassicProtocol,
                    routing::AccessMode::kReadWrite, "127.0.0.1",
                    mysql_harness::Path(), "test");

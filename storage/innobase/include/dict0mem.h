@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -81,7 +81,7 @@ struct ib_rbt_t;
 
 /** Type flags of an index: OR'ing of the flags is allowed to define a
 combination of types */
-/* @{ */
+/** @{ */
 #define DICT_CLUSTERED                                     \
   1                   /*!< clustered index; for other than \
                       auto-generated clustered indexes,    \
@@ -107,7 +107,7 @@ combination of types */
 #define DICT_IT_BITS              \
   10 /*!< number of bits used for \
      SYS_INDEXES.TYPE */
-/* @} */
+/** @} */
 
 #if 0                         /* not implemented, retained for history */
 /** Types for a table object */
@@ -137,7 +137,7 @@ The following types and constants describe the flags found in dict_table_t
 and SYS_TABLES.TYPE.  Similar flags found in fil_space_t and FSP_SPACE_FLAGS
 are described in fsp0fsp.h. */
 
-/* @{ */
+/** @{ */
 /** dict_table_t::flags bit 0 is equal to 0 if the row format = Redundant */
 #define DICT_TF_REDUNDANT 0 /*!< Redundant row format. */
 /** dict_table_t::flags bit 0 is equal to 1 if the row format = Compact */
@@ -233,7 +233,7 @@ to open the table and allows InnoDB to quickly find the tablespace. */
   ((flags & DICT_TF_MASK_SHARED_SPACE) >> DICT_TF_POS_SHARED_SPACE)
 /** Return the contents of the UNUSED bits */
 #define DICT_TF_GET_UNUSED(flags) (flags >> DICT_TF_POS_UNUSED)
-/* @} */
+/** @} */
 
 /** @brief Table Flags set number 2.
 
@@ -242,7 +242,7 @@ will be written as 0.  The column may contain garbage for tables
 created with old versions of InnoDB that only implemented
 ROW_FORMAT=REDUNDANT.  InnoDB engines do not check these flags
 for unknown bits in order to protect backward incompatibility. */
-/* @{ */
+/** @{ */
 /** Total number of bits in table->flags2. */
 #define DICT_TF2_BITS 11
 #define DICT_TF2_UNUSED_BIT_MASK (~0U << DICT_TF2_BITS)
@@ -282,7 +282,7 @@ it is not created by user and so not visible to end-user. */
 
 /** Table is opened by resurrected trx during crash recovery. */
 #define DICT_TF2_RESURRECT_PREPARED 1024
-/* @} */
+/** @} */
 
 #define DICT_TF2_FLAG_SET(table, flag) (table->flags2 |= (flag))
 
@@ -331,13 +331,15 @@ dict_v_col_t *dict_mem_table_add_v_col(dict_table_t *table, mem_heap_t *heap,
 @param[in]	num_base	number of base columns. */
 void dict_mem_table_add_s_col(dict_table_t *table, ulint num_base);
 
-/** Renames a column of a table in the data dictionary cache. */
-void dict_mem_table_col_rename(dict_table_t *table, /*!< in/out: table */
-                               ulint nth_col,       /*!< in: column index */
-                               const char *from,    /*!< in: old column name */
-                               const char *to,      /*!< in: new column name */
+/** Renames a column of a table in the data dictionary cache.
+@param[in,out] table Table
+@param[in] nth_col Column index
+@param[in] from Old column name
+@param[in] to New column name
+@param[in] is_virtual If this is a virtual column */
+void dict_mem_table_col_rename(dict_table_t *table, ulint nth_col,
+                               const char *from, const char *to,
                                bool is_virtual);
-/*!< in: if this is a virtual column */
 
 /** This function poplulates a dict_index_t index memory structure with
 supplied information.
@@ -346,14 +348,15 @@ supplied information.
 @param[in]	table_name	table name
 @param[in]	index_name	index name
 @param[in]	space		space where the index tree is placed, the
-                                clustered type ignored if the index is of the
-                                clustered type
+                                clustered type ignored if the index is of
+the clustered type
 @param[in]	type		DICT_UNIQUE, DICT_CLUSTERED, ... ORed
 @param[in]	n_fields	number of fields */
-UNIV_INLINE
-void dict_mem_fill_index_struct(dict_index_t *index, mem_heap_t *heap,
-                                const char *table_name, const char *index_name,
-                                ulint space, ulint type, ulint n_fields);
+UNIV_INLINE void dict_mem_fill_index_struct(dict_index_t *index,
+                                            mem_heap_t *heap,
+                                            const char *table_name,
+                                            const char *index_name, ulint space,
+                                            ulint type, ulint n_fields);
 
 /** Frees an index memory object. */
 void dict_mem_index_free(dict_index_t *index); /*!< in: index */
@@ -463,7 +466,7 @@ struct dict_col_t {
   /*----------------------*/
   /** The following are copied from dtype_t,
   so that all bit-fields can be packed tightly. */
-  /* @{ */
+  /** @{ */
 
   /** Default value when this column was added instantly.
   If this is not a instantly added column then this is nullptr. */
@@ -496,7 +499,7 @@ struct dict_col_t {
                             mbmaxlen=DATA_MBMINLEN(mbminmaxlen) */
   /*----------------------*/
   /* End of definitions copied from dtype_t */
-  /* @} */
+  /** @} */
 
   unsigned ind : 10;        /*!< table column position
                             (starting from 0) */
@@ -982,7 +985,7 @@ struct dict_index_t {
   ONLINE_INDEX_CREATION */
   /*----------------------*/
   /** Statistics for query optimization */
-  /* @{ */
+  /** @{ */
   ib_uint64_t *stat_n_diff_key_vals;
   /*!< approximate number of different
   key values for this index, for each
@@ -1010,7 +1013,7 @@ struct dict_index_t {
   ulint stat_n_leaf_pages;
   /*!< approximate number of leaf pages in the
   index tree */
-  /* @} */
+  /** @} */
   last_ops_cur_t *last_ins_cur;
   /*!< cache the last insert position.
   Currently limited to auto-generated
@@ -1112,6 +1115,11 @@ struct dict_index_t {
   /** Check whether index has any instantly added columns
   @return true if this is instant affected, otherwise false */
   bool has_instant_cols() const { return (instant_cols); }
+
+  /** Check if tuple is having instant format.
+  @param[in]	n_fields_in_tuple	number of fields in tuple
+  @return true if yes, false otherwise. */
+  bool is_tuple_instant_format(const uint16_t n_fields_in_tuple) const;
 
   /** Returns the number of nullable fields before specified
   nth field
@@ -1424,14 +1432,14 @@ struct dict_foreign_set_free {
 
 /** The flags for ON_UPDATE and ON_DELETE can be ORed; the default is that
 a foreign key constraint is enforced, therefore RESTRICT just means no flag */
-/* @{ */
+/** @{ */
 #define DICT_FOREIGN_ON_DELETE_CASCADE 1    /*!< ON DELETE CASCADE */
 #define DICT_FOREIGN_ON_DELETE_SET_NULL 2   /*!< ON DELETE SET NULL */
 #define DICT_FOREIGN_ON_UPDATE_CASCADE 4    /*!< ON UPDATE CASCADE */
 #define DICT_FOREIGN_ON_UPDATE_SET_NULL 8   /*!< ON UPDATE SET NULL */
 #define DICT_FOREIGN_ON_DELETE_NO_ACTION 16 /*!< ON DELETE NO ACTION */
 #define DICT_FOREIGN_ON_UPDATE_NO_ACTION 32 /*!< ON UPDATE NO ACTION */
-/* @} */
+/** @} */
 
 /** Display an identifier.
 @param[in,out]	s	output stream
@@ -1879,7 +1887,7 @@ detect this and will eventually quit sooner. */
   Writes are covered by dict_sys->mutex. Dirty reads are possible. */
   byte stats_bg_flag;
 
-  /* @} */
+  /** @} */
 #endif /* !UNIV_HOTBACKUP */
 
   /** AUTOINC related members. @{ */
@@ -1945,7 +1953,7 @@ detect this and will eventually quit sooner. */
   which can not happen concurrently to thread executing the trx. */
   std::atomic<const trx_t *> autoinc_trx;
 
-  /* @} */
+  /** @} */
 
 #ifndef UNIV_HOTBACKUP
   /** FTS specific state variables. */
@@ -2347,9 +2355,9 @@ class Persister {
 
   /** Write MLOG_TABLE_DYNAMIC_META for persistent dynamic
   metadata of table
-  @param[in]	id		table id
-  @param[in]	metadata	metadata used to write the log
-  @param[in,out]	mtr		mini-transaction */
+  @param[in]	id		Table id
+  @param[in]	metadata	Metadata used to write the log
+  @param[in,out]	mtr		Mini-transaction */
   void write_log(table_id_t id, const PersistentTableMetadata &metadata,
                  mtr_t *mtr) const;
 };
@@ -2357,20 +2365,20 @@ class Persister {
 /** Persister used for corrupted indexes */
 class CorruptedIndexPersister : public Persister {
  public:
-  /** Write the corrupted indexes of a table, we can pre-calculate
-  the size by calling get_write_size()
-  @param[in]	metadata	persistent metadata
+  /** Write the corrupted indexes of a table, we can pre-calculate the size
+  by calling get_write_size()
+  @param[in]	metadata	persistent data
   @param[out]	buffer		write buffer
-  @param[in]	size		size of write buffer, should be
-                                  at least get_write_size()
+  @param[in]	size		size of write buffer, should be at least
+                                  get_write_size()
   @return the length of bytes written */
   ulint write(const PersistentTableMetadata &metadata, byte *buffer,
-              ulint size) const;
+              ulint size) const override;
 
   /** Pre-calculate the size of metadata to be written
   @param[in]	metadata	metadata to be written
   @return the size of metadata */
-  ulint get_write_size(const PersistentTableMetadata &metadata) const;
+  ulint get_write_size(const PersistentTableMetadata &metadata) const override;
 
   /** Read the corrupted indexes from buffer, and store them to
   metadata object
@@ -2381,9 +2389,9 @@ class CorruptedIndexPersister : public Persister {
                                   the buffer except incomplete buffer,
                                   otherwise false
   @return the bytes we read from the buffer if the buffer data
-  is complete and we get everything, 0 if the buffer is incomplete */
+  is complete and we get everything, 0 if the buffer is incompleted */
   ulint read(PersistentTableMetadata &metadata, const byte *buffer, ulint size,
-             bool *corrupt) const;
+             bool *corrupt) const override;
 
  private:
   /** The length of index_id_t we will write */
@@ -2401,12 +2409,13 @@ class AutoIncPersister : public Persister {
                                   at least get_write_size()
   @return the length of bytes written */
   ulint write(const PersistentTableMetadata &metadata, byte *buffer,
-              ulint size) const;
+              ulint size) const override;
 
   /** Pre-calculate the size of metadata to be written
   @param[in]	metadata	metadata to be written
   @return the size of metadata */
-  inline ulint get_write_size(const PersistentTableMetadata &metadata) const {
+  inline ulint get_write_size(
+      const PersistentTableMetadata &metadata) const override {
     /* We just return the max possible size that would be used
     if the counter exists, so we don't calculate every time.
     Here we need 1 byte for dynamic metadata type and 11 bytes
@@ -2425,7 +2434,7 @@ class AutoIncPersister : public Persister {
   @return the bytes we read from the buffer if the buffer data
   is complete and we get everything, 0 if the buffer is incomplete */
   ulint read(PersistentTableMetadata &metadata, const byte *buffer, ulint size,
-             bool *corrupt) const;
+             bool *corrupt) const override;
 };
 
 /** Container of persisters used in the system. Currently we don't need
@@ -2472,9 +2481,10 @@ class Persisters {
 };
 
 #ifndef UNIV_HOTBACKUP
-/** Initialise the table lock list. */
-void lock_table_lock_list_init(
-    table_lock_list_t *locks); /*!< List to initialise */
+
+/** Initialise the table lock list.
+@param[out] lock_list List to initialise */
+void lock_table_lock_list_init(table_lock_list_t *lock_list);
 
 /** A function object to add the foreign key constraint to the referenced set
 of the referenced table, if it exists in the dictionary cache. */

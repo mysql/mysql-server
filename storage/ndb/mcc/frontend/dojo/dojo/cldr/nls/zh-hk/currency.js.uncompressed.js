@@ -5,7 +5,6 @@ define(
 	"JPY_symbol": "¥",
 	"CAD_displayName": "加幣",
 	"CNY_displayName": "人民幣",
-	"USD_symbol": "$",
 	"AUD_displayName": "澳幣",
 	"JPY_displayName": "日圓",
 	"$locale": "zh-hant-hk",

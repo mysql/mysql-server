@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -105,31 +105,9 @@ uint16_t MySQLRoutingAPI::get_bind_port() const {
 }
 
 std::vector<std::string> MySQLRoutingAPI::get_blocked_client_hosts() const {
-  std::vector<std::string> res;
-
-  for (const auto &el : r_->get_context().get_blocked_client_hosts()) {
-    char str[INET6_ADDRSTRLEN];
-
-    // ClientAddrArray should be replaced by something that
-    //
-    // - does not overlap IPv4 and IPv6
-    // - does not overlap IPv6 addresses from different scopes (sin6_scope_id)
-    int family = AF_INET6;
-
-    std::array<uint8_t, 16 - 4> trailer{{0}};
-    if (::memcmp(el.data() + 4, trailer.data(), el.size() - 4) == 0) {
-      family = AF_INET;
-    }
-
-    if (nullptr != inet_ntop(family, el.data(), str, sizeof(str))) {
-      res.emplace_back(str);
-    } else {
-      // std::cout << __LINE__ << strerror(errno) << std::endl;
-    }
-  }
-
-  return res;
+  return r_->get_context().get_blocked_client_hosts();
 }
+
 std::chrono::milliseconds MySQLRoutingAPI::get_client_connect_timeout() const {
   return r_->get_context().get_client_connect_timeout();
 }

@@ -8,6 +8,8 @@ Variable_name	Value
 ndb_slave_conflict_role	NONE
 Slave_SQL_Running = 'Yes'
 stop slave sql_thread;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 Slave_SQL_Running = 'No'
 Show set-to-same state is ok
 set global ndb_slave_conflict_role = NONE;
@@ -61,6 +63,8 @@ set global ndb_slave_conflict_role = "NONE";
 Now test transitions not possible due to 
 Slave SQL thread running
 start slave sql_thread;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 Slave_SQL_Running = 'Yes'
 From NONE
 set global ndb_slave_conflict_role = "NONE";
@@ -80,9 +84,13 @@ show global variables like 'ndb_slave_conflict_role';
 Variable_name	Value
 ndb_slave_conflict_role	NONE
 stop slave sql_thread;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 From PRIMARY
 set global ndb_slave_conflict_role = "PRIMARY";
 start slave sql_thread;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 set global ndb_slave_conflict_role = "PRIMARY";
 set global ndb_slave_conflict_role = "SECONDARY";
 ERROR HY000: Error when executing command SET GLOBAL ndb_slave_conflict_role: Role change from PRIMARY to SECONDARY failed : Cannot change role while Slave SQL thread is running.  Use STOP SLAVE first.
@@ -100,9 +108,13 @@ show global variables like 'ndb_slave_conflict_role';
 Variable_name	Value
 ndb_slave_conflict_role	PRIMARY
 stop slave sql_thread;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 From SECONDARY
 set global ndb_slave_conflict_role = "SECONDARY";
 start slave sql_thread;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 set global ndb_slave_conflict_role = "SECONDARY";
 set global ndb_slave_conflict_role = "PRIMARY";
 ERROR HY000: Error when executing command SET GLOBAL ndb_slave_conflict_role: Role change from SECONDARY to PRIMARY failed : Cannot change role while Slave SQL thread is running.  Use STOP SLAVE first.
@@ -120,10 +132,14 @@ show global variables like 'ndb_slave_conflict_role';
 Variable_name	Value
 ndb_slave_conflict_role	SECONDARY
 stop slave sql_thread;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 From PASS
 set global ndb_slave_conflict_role = "NONE";
 set global ndb_slave_conflict_role = "PASS";
 start slave sql_thread;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 set global ndb_slave_conflict_role = "PASS";
 set global ndb_slave_conflict_role = "PRIMARY";
 ERROR HY000: Error when executing command SET GLOBAL ndb_slave_conflict_role: Role change from PASS to PRIMARY failed : Invalid role change.
@@ -141,6 +157,8 @@ show global variables like 'ndb_slave_conflict_role';
 Variable_name	Value
 ndb_slave_conflict_role	PASS
 stop slave sql_thread;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 set global ndb_slave_conflict_role = "NONE";
 Test some aliases for role names
 set global ndb_slave_conflict_role = PR;
@@ -181,4 +199,6 @@ Variable_name	Value
 ndb_slave_conflict_role	PASS
 set global ndb_slave_conflict_role = NON;
 start slave sql_thread;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_end.inc

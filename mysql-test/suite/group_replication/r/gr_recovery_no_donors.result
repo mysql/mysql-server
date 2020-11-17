@@ -77,6 +77,8 @@ SET SESSION sql_log_bin= 1;
 #    them joined.
 [connection server1]
 STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 
 ############################################################
 # 4. Stop and start members 2 and 3 without waiting for

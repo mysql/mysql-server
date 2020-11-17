@@ -1,0 +1,699 @@
+--echo #
+--echo # WL#14087 Avoid locking reads from ACL tables
+--echo #
+--echo # Test scenarios that involve reading ACL tables and updating
+--echo # ACL tables concurrently. This tests are related to WL#14087.
+--echo #
+--echo # Following ACL tables are considered for testing:
+--echo #   mysql.user
+--echo #   mysql.db
+--echo #   mysql.tables_priv
+--echo #   mysql.columns_priv
+--echo #   mysql.procs_priv
+--echo #   mysql.proxies_priv
+--echo #   mysql.role_edges
+--echo #   mysql.default_roles
+--echo #   mysql.global_grants
+--echo #   mysql.password_history
+
+--source include/have_debug_sync.inc
+--source include/big_test.inc
+
+--echo #
+--echo # Setup schema for the test
+--echo # We create new users so that we can populate rows in all acl tables.
+--echo # We avoid using 'root' user here, because that might affect execution
+--echo # of other tests. Also, we would need more than one users for below
+--echo # test cases.
+--echo #
+CREATE TABLE t1 (f1 INT);
+DELIMITER //;
+CREATE PROCEDURE proc1() BEGIN SELECT * FROM t1; END //
+DELIMITER ;//
+--echo # User accounts used for testing.
+CREATE USER u1;
+GRANT SELECT ON mysql.* TO u1;
+GRANT SELECT ON performance_schema.* TO u1;
+GRANT LOCK TABLES  ON *.* TO u1;
+GRANT RELOAD ON *.* TO u1;
+
+CREATE USER writer1;
+GRANT SELECT, INSERT, UPDATE, DELETE ON mysql.* TO writer1;
+GRANT SELECT ON performance_schema.* TO writer1;
+GRANT CREATE, DROP ON *.* TO writer1;
+GRANT CREATE USER ON *.* TO writer1;
+
+CREATE USER writer2;
+GRANT SELECT, INSERT, UPDATE, DELETE ON mysql.* TO writer2;
+GRANT SELECT ON performance_schema.* TO writer2;
+GRANT CREATE, DROP ON *.* TO writer2;
+GRANT CREATE USER ON *.* TO writer2;
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO writer2;
+GRANT REFERENCES ON mysql.user TO writer2;
+
+--echo # Populate all ACL tables with some rows for u2.
+--echo # This user is used for checking purpose.
+CREATE USER u2 PASSWORD HISTORY 3;
+GRANT SELECT ON test.* TO u2;
+GRANT SELECT ON test.t1 TO u2;
+GRANT SELECT (f1) ON test.t1 TO u2;
+GRANT EXECUTE ON PROCEDURE test.proc1 TO u2;
+GRANT PROXY ON writer1 TO u2;
+GRANT BACKUP_ADMIN ON *.* to u2;
+GRANT writer1 TO u2;
+SET DEFAULT ROLE writer1 TO u2;
+ALTER USER u2 IDENTIFIED BY 'newpass1';
+
+--echo # Verify that all ACL tables has some rows for u2.
+SELECT User FROM mysql.user WHERE User='u2';
+SELECT User FROM mysql.db WHERE User='u2';
+SELECT User FROM mysql.tables_priv WHERE User='u2';
+SELECT User FROM mysql.columns_priv WHERE User='u2';
+SELECT User FROM mysql.procs_priv WHERE User='u2';
+SELECT User FROM mysql.proxies_priv WHERE User='u2';
+SELECT User FROM mysql.global_grants WHERE User='u2';
+SELECT User FROM mysql.password_history WHERE User='u2';
+SELECT User FROM mysql.default_roles WHERE User='u2';
+SELECT To_user FROM mysql.role_edges WHERE To_user='u2';
+
+--echo # Backup user 'u2' and rename it as 'u2x'. This row
+--echo # is used to test DML on mysql.user.
+CREATE TABLE user_bk AS SELECT * FROM mysql.user WHERE User='u2';
+UPDATE user_bk SET user='u2x' WHERE user LIKE 'u2';
+CREATE TABLE user_copy AS SELECT * FROM mysql.user LIMIT 0;
+
+let query_row_locks= SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+  tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+  FROM performance_schema.data_locks
+  WHERE LOCK_TYPE='RECORD' AND
+  (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+
+# Variables to loop through isolation levels.
+let $c=1;
+let $isolation_levels=
+  "SERIALIZABLE,REPEATABLE READ,READ COMMITTED,READ UNCOMMITTED";
+let get_next_isolation=
+  SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($isolation_levels,',',\$c),',',-1);
+
+delimiter |;
+CREATE PROCEDURE proc2 ()
+BEGIN
+  UPDATE mysql.user SET user='u2x' WHERE User='u2';
+END|
+CREATE FUNCTION func1 () RETURNS INTEGER
+BEGIN
+  UPDATE user_copy SET User='u2x'
+    WHERE User IN (SELECT User FROM mysql.user WHERE User='u2');
+  RETURN 0;
+END|
+delimiter ;|
+GRANT EXECUTE ON PROCEDURE test.proc2 TO writer2;
+GRANT EXECUTE ON FUNCTION test.func1 TO writer2;
+
+# The optimizer flag skip_scan=on affects the way InnoDB
+# acquires row locks. Optimize may or may not use skip_scan
+# based on its statistics study. This would cause in-stability
+# when checking kind of locks acquired using
+# 'performance_schema.data_locks.lock_data'. Hence we disable it.
+let original_optimizer_switch=`SELECT @@optimizer_switch`;
+SET GLOBAL optimizer_switch = "skip_scan=off";
+
+--echo # Connections used for testing.
+connect(read_con,localhost,u1,,);
+connect(update_con1,localhost,writer1,,);
+connect(update_con2,localhost,writer2,,);
+
+--echo # Case 1:
+--echo # Execute SELECT FOR UPDATE on ACL table after a concurrent
+--echo # connection has started reading ACL table.
+--echo #
+--echo # SQL commands using ACL tables for read operation would skip
+--echo # acquiring row lock. This will enable execution of
+--echo # 'SELECT ... FOR UPDATE' statement without blocking.
+--echo # connection which is reading a ACL table. We test all the ACL tables.
+--echo #
+--let column_name=User
+--let acl_table=mysql.user
+--source ../include/acl_tables_row_locking.inc
+--let acl_table=mysql.db
+--source ../include/acl_tables_row_locking.inc
+--let acl_table=mysql.tables_priv
+--source ../include/acl_tables_row_locking.inc
+--let acl_table=mysql.columns_priv
+--source ../include/acl_tables_row_locking.inc
+--let acl_table=mysql.procs_priv
+--source ../include/acl_tables_row_locking.inc
+--let acl_table=mysql.proxies_priv
+--source ../include/acl_tables_row_locking.inc
+--let acl_table=mysql.global_grants
+--source ../include/acl_tables_row_locking.inc
+--let acl_table=mysql.password_history
+--source ../include/acl_tables_row_locking.inc
+--let acl_table=mysql.default_roles
+--source ../include/acl_tables_row_locking.inc
+
+--let acl_table=mysql.role_edges
+--let column_name=To_user
+--source ../include/acl_tables_row_locking.inc
+
+
+let $c=1;
+while($c <= 4)
+{
+  let isolation_level = `$get_next_isolation`;
+
+  --echo # Case 2 (with $isolation_level isolation level):
+  --echo # Using a separate transaction (With START TRANSACTION)
+  --echo # Read ACL table in SELECT in all isolation mode
+  --echo # and run DDL/DML on ACL tables in concurrent.
+  connection read_con;
+  SELECT User FROM mysql.user WHERE User='u2';
+  eval SET SESSION TRANSACTION ISOLATION LEVEL $isolation_level;
+  START TRANSACTION;
+  eval SELECT User FROM mysql.user WHERE User='u2';
+
+  connection update_con1;
+  --source ../include/acl_table_read_test_dml_ddl.inc
+
+  connection read_con;
+  COMMIT;
+  connection default;
+
+  --echo # Case 2.1 (with $isolation_level isolation level):
+  --echo # Using a separate transaction (With START TRANSACTION)
+  --echo # Read ACL table in SELECT .. HIGH PRIORITY in all isolation mode
+  --echo # and run DDL/DML on ACL tables in concurrent.
+  connection read_con;
+  SELECT User FROM mysql.user WHERE User='u2';
+  eval SET SESSION TRANSACTION ISOLATION LEVEL $isolation_level;
+  START TRANSACTION;
+  eval SELECT HIGH_PRIORITY User FROM mysql.user WHERE User='u2';
+
+  connection update_con1;
+  --source ../include/acl_table_read_test_dml_ddl.inc
+
+  connection read_con;
+  COMMIT;
+
+  connection default;
+
+  --echo # Case 3 (with $isolation_level isolation level):
+  --echo # Using a separate transaction (With START TRANSACTION)
+  --echo # Read ACL table in SELECT in all isolation mode
+  --echo # and run DDL/DML on ACL tables in concurrent.
+  connection read_con;
+  SELECT User FROM mysql.user WHERE User='u2';
+  eval SET SESSION TRANSACTION ISOLATION LEVEL $isolation_level;
+  set autocommit=0;
+  eval SELECT User FROM mysql.user WHERE User='u2';
+
+  connection update_con1;
+  --source ../include/acl_table_read_test_dml_ddl.inc
+
+  connection read_con;
+  COMMIT;
+  set autocommit=default;
+
+  --echo # Case 4 (with $isolation_level isolation level):
+  --echo # Read ACL table in DO command in different isolation mode
+  --echo # and run DDL/DML on ACL tables in concurrent.
+  connection read_con;
+  SELECT User FROM mysql.user WHERE User='u2';
+  eval SET SESSION TRANSACTION ISOLATION LEVEL $isolation_level;
+  START TRANSACTION;
+  eval DO (SELECT User FROM mysql.user WHERE User='u2');
+ 
+  connection update_con1;
+  --source ../include/acl_table_read_test_dml_ddl.inc
+ 
+  connection read_con;
+  COMMIT;
+ 
+  --echo # Case 5 (with $isolation_level isolation level):
+  --echo # Read ACL table in SET command in different isolation mode
+  --echo # and run DDL/DML on ACL tables in concurrent.
+  connection read_con;
+  SELECT User FROM mysql.user WHERE User='u2';
+  eval SET SESSION TRANSACTION ISOLATION LEVEL $isolation_level;
+  START TRANSACTION;
+  SET @u2_host = (SELECT Host FROM mysql.user WHERE User='u2');
+ 
+  connection update_con1;
+  --source ../include/acl_table_read_test_dml_ddl.inc
+ 
+  connection read_con;
+  COMMIT;
+
+  --echo # Case 6:
+  --echo # Read ACL table in INSERT ... SELECT command in different
+  --echo # isolation mode and run DDL/DML on ACL tables in concurrent.
+  connection update_con2;
+  SELECT User FROM mysql.user WHERE User='u2';
+  eval SET SESSION TRANSACTION ISOLATION LEVEL $isolation_level;
+  START TRANSACTION;
+  INSERT INTO user_copy SELECT * FROM mysql.user WHERE User='u2';
+
+  connection update_con1;
+  --source ../include/acl_table_read_test_dml_ddl.inc
+
+  connection update_con2;
+  COMMIT;
+
+
+  --echo # Case 7:
+  --echo # Read ACL table in UPDATE ... WHERE SELECT in different
+  --echo # isolation mode and run DDL/DML on ACL tables in concurrent.
+  connection read_con;
+  SELECT User FROM mysql.user WHERE User='u2';
+  eval SET SESSION TRANSACTION ISOLATION LEVEL $isolation_level;
+  START TRANSACTION;
+  UPDATE user_copy SET User='u2x'
+    WHERE User IN (SELECT User FROM mysql.user WHERE User='u2');
+
+  connection update_con1;
+  --source ../include/acl_table_read_test_dml_ddl.inc
+
+  connection read_con;
+  COMMIT;
+
+
+  --echo # Case 8:
+  --echo # Read ACL table in Multi-table UPDATE ... SELECT in different
+  --echo # isolation mode and run DDL/DML on ACL tables in concurrent.
+  connection read_con;
+  SELECT User FROM mysql.user WHERE User='u2';
+  eval SET SESSION TRANSACTION ISOLATION LEVEL $isolation_level;
+  START TRANSACTION;
+  UPDATE t1, user_copy SET user_copy.Host='instance1'
+    WHERE EXISTS (SELECT User FROM mysql.user WHERE User='u2');
+
+  connection update_con1;
+  --source ../include/acl_table_read_test_dml_ddl.inc
+
+  connection read_con;
+  COMMIT;
+
+
+  --echo # Case 9:
+  --echo # Read ACL table in DELETE ... WHERE SELECT in different
+  --echo # isolation mode and run DDL/DML on ACL tables in concurrent.
+  connection read_con;
+  SELECT User FROM mysql.user WHERE User='u2';
+  eval SET SESSION TRANSACTION ISOLATION LEVEL $isolation_level;
+  START TRANSACTION;
+  DELETE FROM user_copy
+    WHERE EXISTS (SELECT User FROM mysql.user WHERE User='u2');
+
+  connection update_con1;
+  --source ../include/acl_table_read_test_dml_ddl.inc
+
+  connection read_con;
+  COMMIT;
+
+
+  --echo # Case 10:
+  --echo # Read ACL table in Multi-table DELETE ... WHERE SELECT in different
+  --echo # isolation mode and run DDL/DML on ACL tables in concurrent.
+  connection update_con1;
+  INSERT INTO user_copy SELECT * FROM mysql.user WHERE User='u2';
+
+  connection read_con;
+  SELECT User FROM mysql.user WHERE User='u2';
+  eval SET SESSION TRANSACTION ISOLATION LEVEL $isolation_level;
+  START TRANSACTION;
+  DELETE user_copy FROM user_copy JOIN (SELECT * FROM user_copy) tuser_copy
+    WHERE EXISTS (SELECT User FROM mysql.user WHERE User='u2');
+
+  connection update_con1;
+  --source ../include/acl_table_read_test_dml_ddl.inc
+
+  connection read_con;
+  COMMIT;
+
+
+  --echo # Case 11:
+  --echo # Read ACL table in CREATE TABLE ... SELECT in different
+  --echo # isolation mode and run DDL/DML on ACL tables in concurrent.
+  connection update_con2;
+  SELECT User FROM mysql.user WHERE User='u2';
+  eval SET SESSION TRANSACTION ISOLATION LEVEL $isolation_level;
+  # Stop execution after inserting the row and do not commit the transaction.
+  SET SESSION DEBUG_SYNC='create_select_after_write_rows_event SIGNAL parked WAIT_FOR go';
+  --send CREATE TABLE tmp AS SELECT * FROM mysql.user WHERE User='u2'
+  connection default;
+  SET DEBUG_SYNC= 'now WAIT_FOR parked';
+
+  connection update_con1;
+  --source ../include/acl_table_read_test_dml_ddl.inc
+
+  connection default;
+  SET DEBUG_SYNC= 'now SIGNAL go';
+  connection update_con2;
+  --reap
+  SET SESSION DEBUG_SYNC=RESET;
+  COMMIT;
+
+  connection default;
+  SET SESSION DEBUG_SYNC=RESET;
+  DROP TABLE tmp;
+
+
+  --echo # Case 12:
+  --echo # Read ACL table in LOCK TABLE for READ mode and
+  --echo # Make sure a concurrent ACL DML on same table is blocked.
+  connection default;
+  connection read_con;
+  SELECT User FROM mysql.user WHERE User='u2';
+  LOCK TABLE mysql.user READ;
+
+  connection update_con1;
+  SET SESSION lock_wait_timeout=1;
+  SET SESSION innodb_lock_wait_timeout=1;
+  --echo # Make sure that we do not allow updating ACL table.
+  --error ER_LOCK_WAIT_TIMEOUT
+  INSERT INTO mysql.user SELECT * FROM user_bk;
+  --error ER_LOCK_WAIT_TIMEOUT
+  REPLACE INTO mysql.user SELECT * FROM user_bk;
+  --error ER_LOCK_WAIT_TIMEOUT
+  UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+  --error ER_LOCK_WAIT_TIMEOUT
+  DELETE FROM mysql.user WHERE User='u2';
+
+  connection read_con;
+  UNLOCK TABLES;
+
+
+  --echo # Case 13:
+  --echo # Run FTWRL READ mode and
+  --echo # make sure a concurrent ACL DML on same table is blocked.
+  connection read_con;
+  SELECT User FROM mysql.user WHERE User='u2';
+  FLUSH TABLES WITH READ LOCK;
+
+  connection update_con1;
+  --error ER_LOCK_WAIT_TIMEOUT
+  INSERT INTO mysql.user SELECT * FROM user_bk;
+  --error ER_LOCK_WAIT_TIMEOUT
+  REPLACE INTO mysql.user SELECT * FROM user_bk;
+  --error ER_LOCK_WAIT_TIMEOUT
+  UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+  --error ER_LOCK_WAIT_TIMEOUT
+  DELETE FROM mysql.user WHERE User='u2';
+
+  connection read_con;
+  UNLOCK TABLES;
+
+  # Explicilty purge the delete records. Not doing so affects the way
+  # InnoDB acquires the row locks. E.g.,
+  # 'performance_schema.data_locks.LOCK_DATA may show (sporadically) that
+  # there is S lock held on a row marked as deleted.
+  connection default;
+  --source include/wait_innodb_all_purged.inc
+  connection update_con2;
+
+  --echo # Case 14:
+  --echo # Update ACL table in a DML inside a SP in different isolation mode.
+  --echo # Make sure a concurrent ACL DML on same table is blocked.
+  connection default;
+  INSERT INTO user_copy SELECT * FROM mysql.user WHERE User='u2';
+
+  connection update_con2;
+  # Case 14.1: Procedure updating ACL table.
+  SELECT User FROM mysql.user WHERE User='u2';
+  eval SET SESSION TRANSACTION ISOLATION LEVEL $isolation_level;
+  START TRANSACTION;
+  CALL proc2();
+
+  --echo # Make sure X record locks are held on ACL table.
+  eval $query_row_locks;
+
+  connection update_con1;
+  --echo # Make sure that we do not allow updating ACL table.
+  --error ER_LOCK_WAIT_TIMEOUT
+  INSERT INTO mysql.user SELECT * FROM user_bk;
+  --error ER_LOCK_WAIT_TIMEOUT
+  REPLACE INTO mysql.user SELECT * FROM user_bk;
+  --error ER_LOCK_WAIT_TIMEOUT
+  UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+  --error ER_LOCK_WAIT_TIMEOUT
+  DELETE FROM mysql.user WHERE User='u2';
+
+  connection update_con2;
+  ROLLBACK;
+
+  connection default;
+  --source include/wait_innodb_all_purged.inc
+  connection update_con2;
+
+  # Case 14.2: Function reading ACL table.
+  connection update_con2;
+  SELECT User FROM mysql.user WHERE User='u2';
+  eval SET SESSION TRANSACTION ISOLATION LEVEL $isolation_level;
+  START TRANSACTION;
+  SELECT func1();
+
+  connection update_con1;
+  --source ../include/acl_table_read_test_dml_ddl.inc
+
+  connection update_con2;
+  ROLLBACK;
+
+
+  --echo # Case 15:
+  --echo # Reference ACL table in a foreign key. Reading ACL table while
+  --echo # updating the table in different isolation mode.
+  --echo # Make sure a concurrent ACL DML on ACL table is blocked.
+  connection update_con2;
+
+  CREATE TABLE fk_to_acl_table
+    (Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL,
+     User char(32) COLLATE utf8_bin DEFAULT '' NOT NULL,
+     address CHAR(255),
+     FOREIGN KEY (Host, User) REFERENCES mysql.user(Host,User));
+  UPDATE user_bk SET user='u2' WHERE user LIKE 'u2x';
+
+  ALTER TABLE fk_to_acl_table MODIFY COLUMN address char(200),
+        ALGORITHM=COPY;
+
+  SELECT User FROM mysql.user WHERE User='u2';
+  eval SET SESSION TRANSACTION ISOLATION LEVEL $isolation_level;
+  START TRANSACTION;
+  INSERT INTO fk_to_acl_table VALUES ('%', 'u2', '2nd cross, 1st main, downtown');
+  --echo # Make sure S record locks are held on ACL table.
+  eval $query_row_locks;
+
+  connection update_con1;
+  --echo # Make sure that we do not allow updating ACL tables.
+  --error ER_LOCK_WAIT_TIMEOUT
+  REPLACE INTO mysql.user SELECT * FROM user_bk;
+  --error ER_LOCK_WAIT_TIMEOUT
+  UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+  --error ER_LOCK_WAIT_TIMEOUT
+  DELETE FROM mysql.user WHERE User='u2';
+
+  connection update_con2;
+  ROLLBACK;
+  --echo # Cleanup
+  connection default;
+  UPDATE user_bk SET user='u2x' WHERE user LIKE 'u2';
+  DROP TABLE fk_to_acl_table;
+
+  connection default;
+  --source include/wait_innodb_all_purged.inc
+  connection update_con2;
+
+  --echo # Case 16:
+  --echo # Case 16.1 Update ACL table in a multi-table UPDATE command in
+  --echo # different isolation level. Make sure a concurrent DML on ACL table
+  --echo # is blocked.
+  connection update_con2;
+  UPDATE user_bk SET user='u2' WHERE user LIKE 'u2x';
+  SELECT User FROM mysql.user WHERE User='u2';
+  eval SET SESSION TRANSACTION ISOLATION LEVEL $isolation_level;
+  START TRANSACTION;
+  UPDATE mysql.user u, user_copy SET u.User='u2x' WHERE u.User LIKE 'u2';
+
+  --echo # Make sure X record locks are held on ACL table.
+  eval $query_row_locks;
+
+  connection update_con1;
+  --echo # Make sure that we do not allow updating ACL tables.
+  --error ER_LOCK_WAIT_TIMEOUT
+  REPLACE INTO mysql.user SELECT * FROM user_bk;
+  --error ER_LOCK_WAIT_TIMEOUT
+  UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+  --error ER_LOCK_WAIT_TIMEOUT
+  DELETE FROM mysql.user WHERE User='u2';
+
+  connection update_con2;
+  ROLLBACK;
+
+  connection default;
+  --source include/wait_innodb_all_purged.inc
+  connection update_con2;
+
+  --echo # Case 16.2 Read ACL table in a multi-table UPDATE command in
+  --echo # different isolation level. Ideally concurrent DML on ACL table
+  --echo # should have been blocked. Due to Bug#31731752 we acquire
+  --echo # stronger lock on the table and hence acquire X clock on the
+  --echo # ACL table being read.
+  connection update_con2;
+  SELECT User FROM mysql.user WHERE User='u2';
+  eval SET SESSION TRANSACTION ISOLATION LEVEL $isolation_level;
+  START TRANSACTION;
+  UPDATE mysql.user u1, user_copy u2 SET u2.User='u2x' WHERE u2.User LIKE 'u2';
+
+  --echo # Check that X record locks is held on ACL table.
+  eval $query_row_locks;
+
+  connection update_con1;
+  --echo # Make sure that we do not allow updating ACL tables.
+  --error ER_LOCK_WAIT_TIMEOUT
+  REPLACE INTO mysql.user SELECT * FROM user_bk;
+  --error ER_LOCK_WAIT_TIMEOUT
+  UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+  --error ER_LOCK_WAIT_TIMEOUT
+  DELETE FROM mysql.user WHERE User='u2';
+
+  connection update_con2;
+  ROLLBACK;
+
+
+  --echo # Case 17:
+  --echo # Case 17.1: Delete row in ACL table in a multi-table DELETE in
+  --echo # different isolation level. Make sure a concurrent DML on ACL
+  --echo # table is blocked.
+  connection update_con2;
+  UPDATE user_bk SET user='u2' WHERE user LIKE 'u2x';
+  SELECT User FROM mysql.user WHERE User='u2';
+  SELECT User FROM user_copy;
+  eval SET SESSION TRANSACTION ISOLATION LEVEL $isolation_level;
+  START TRANSACTION;
+  DELETE u, cu FROM mysql.user u JOIN user_copy cu WHERE u.User LIKE 'u2';
+
+  --echo # Make sure X record locks are held on ACL table.
+  eval $query_row_locks;
+
+  connection update_con1;
+  --echo # Make sure that we do not allow updating ACL table.
+  --error ER_LOCK_WAIT_TIMEOUT
+  REPLACE INTO mysql.user SELECT * FROM user_bk;
+  --error ER_LOCK_WAIT_TIMEOUT
+  UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+  --error ER_LOCK_WAIT_TIMEOUT
+  DELETE FROM mysql.user WHERE User='u2';
+
+  connection update_con2;
+  ROLLBACK;
+  UPDATE user_bk SET user='u2x' WHERE user LIKE 'u2';
+
+  --echo # Case 17.2 Read ACL table in a multi-table DELETE command in
+  --echo # different isolation level. Make sure a concurrent DML on ACL table
+  --echo # is not blocked.
+  connection update_con2;
+  SELECT User FROM mysql.user WHERE User='u2';
+  eval SET SESSION TRANSACTION ISOLATION LEVEL $isolation_level;
+  START TRANSACTION;
+  DELETE u1 FROM user_copy u1 JOIN mysql.user u2 ON u2.User = u1.User;
+
+  eval $query_row_locks;
+
+  --echo # Make sure no record locks are held on ACL table.
+  connection update_con1;
+  --source ../include/acl_table_read_test_dml_ddl.inc
+
+  connection update_con2;
+  ROLLBACK;
+
+  --echo # Case 18:
+  --echo # Read ACL table in a DML inside a trigger in different isolation
+  --echo # mode. Make sure a concurrent ACL DML on same table is blocked.
+  connection update_con2;
+  INSERT INTO user_copy SELECT * FROM mysql.user WHERE User='u2';
+
+  CREATE TABLE tmp1 (f1 INT);
+  DELIMITER |;
+  CREATE TRIGGER read_trig1 BEFORE INSERT ON tmp1 FOR EACH ROW
+  BEGIN
+    UPDATE user_copy SET User='u2x'
+      WHERE User IN (SELECT User FROM mysql.user WHERE User='u2');
+  END|
+  CREATE TRIGGER update_trig1 BEFORE UPDATE ON tmp1 FOR EACH ROW
+  BEGIN
+    UPDATE mysql.user SET user='u2x' WHERE User='u2';
+  END|
+  DELIMITER ;|
+
+  connection default;
+  --source include/wait_innodb_all_purged.inc
+  connection update_con2;
+
+  # Case 18.1: Read ACL table in a trigger.
+  connection update_con2;
+  SELECT User FROM mysql.user WHERE User='u2';
+  eval SET SESSION TRANSACTION ISOLATION LEVEL $isolation_level;
+  START TRANSACTION;
+  INSERT INTO tmp1 VALUES (20);
+
+  --echo # Make sure no record locks are held on ACL table.
+  connection update_con1;
+  --source ../include/acl_table_read_test_dml_ddl.inc
+
+  connection update_con2;
+  COMMIT;
+
+  connection default;
+  --source include/wait_innodb_all_purged.inc
+  connection update_con2;
+
+  # Case 18.2: Update ACL table in a trigger.
+  eval SET SESSION TRANSACTION ISOLATION LEVEL $isolation_level;
+  START TRANSACTION;
+  UPDATE tmp1 SET f1=30;
+
+  --echo # Make sure X record locks are held on ACL table.
+  eval $query_row_locks;
+
+  connection update_con1;
+  --echo # Make sure that we do not allow updating ACL table.
+  --error ER_LOCK_WAIT_TIMEOUT
+  INSERT INTO mysql.user SELECT * FROM user_bk;
+  --error ER_LOCK_WAIT_TIMEOUT
+  REPLACE INTO mysql.user SELECT * FROM user_bk;
+  --error ER_LOCK_WAIT_TIMEOUT
+  UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+  --error ER_LOCK_WAIT_TIMEOUT
+  DELETE FROM mysql.user WHERE User='u2';
+
+  SET SESSION lock_wait_timeout=default;
+  SET SESSION innodb_lock_wait_timeout=default;
+
+  connection update_con2;
+  ROLLBACK;
+  DROP TABLE tmp1;
+  DELETE FROM user_copy;
+
+  inc $c;
+}
+
+
+--echo Cleanup
+connection default;
+disconnect read_con;
+disconnect update_con1;
+disconnect update_con2;
+DROP PROCEDURE proc1;
+DROP PROCEDURE proc2;
+DROP FUNCTION func1;
+DROP USER u1;
+DROP USER u2;
+DROP USER writer1;
+DROP USER writer2;
+DROP TABLE t1;
+DROP TABLE user_copy;
+
+DROP TABLE user_bk;
+
+--disable_query_log
+eval SET GLOBAL optimizer_switch = "$original_optimizer_switch";
+--enable_query_log

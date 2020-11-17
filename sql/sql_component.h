@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@ class Sql_cmd_install_component : public Sql_cmd {
   Sql_cmd_install_component(const Mem_root_array_YY<LEX_STRING> &urns)
       : m_urns(urns) {}
 
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_INSTALL_COMPONENT;
   }
 
@@ -50,7 +50,7 @@ class Sql_cmd_install_component : public Sql_cmd {
 
     @returns false if success, true otherwise
   */
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
  private:
   const Mem_root_array_YY<LEX_STRING> m_urns;
@@ -65,7 +65,7 @@ class Sql_cmd_uninstall_component : public Sql_cmd {
   Sql_cmd_uninstall_component(const Mem_root_array_YY<LEX_STRING> &urns)
       : m_urns(urns) {}
 
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_UNINSTALL_COMPONENT;
   }
 
@@ -76,7 +76,7 @@ class Sql_cmd_uninstall_component : public Sql_cmd {
 
     @returns false if success, true otherwise
   */
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
  private:
   const Mem_root_array_YY<LEX_STRING> m_urns;

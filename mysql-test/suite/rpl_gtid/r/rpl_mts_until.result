@@ -51,11 +51,15 @@ BEGIN;
 INSERT INTO db1.t1 VALUES(4, "block a worker");
 [connection slave]
 START SLAVE SQL_THREAD UNTIL MASTER_LOG_FILE="MASTER_LOG_FILE", MASTER_LOG_POS=MASTER_LOG_POS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 [connection server_2]
 ROLLBACK;
 include/wait_for_slave_sql_to_stop.inc
 include/diff_tables.inc [master:db1.v1, slave:db1.t1, slave:db2.t1, slave:db3.t1]
 START SLAVE SQL_THREAD UNTIL SAME_UNTIO_OPTION;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 include/diff_tables.inc [master:db1.v1, slave:db1.t1, slave:db2.t1, slave:db3.t1]
 include/start_slave_sql.inc
@@ -96,11 +100,15 @@ BEGIN;
 INSERT INTO db1.t1 VALUES(4, "block a worker");
 [connection slave]
 START SLAVE SQL_THREAD UNTIL RELAY_LOG_FILE="RELAY_LOG_FILE", RELAY_LOG_POS=RELAY_LOG_POS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 [connection server_2]
 ROLLBACK;
 include/wait_for_slave_sql_to_stop.inc
 include/diff_tables.inc [master:db1.v1, slave:db1.t1, slave:db2.t1, slave:db3.t1]
 START SLAVE SQL_THREAD UNTIL SAME_UNTIO_OPTION;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 include/diff_tables.inc [master:db1.v1, slave:db1.t1, slave:db2.t1, slave:db3.t1]
 include/start_slave_sql.inc
@@ -139,11 +147,15 @@ BEGIN;
 INSERT INTO db1.t1 VALUES(4, "block a worker");
 [connection slave]
 START SLAVE SQL_THREAD UNTIL SQL_BEFORE_GTIDS="GTIDS";
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 [connection server_2]
 ROLLBACK;
 include/wait_for_slave_sql_to_stop.inc
 include/diff_tables.inc [master:db1.v1, slave:db1.t1, slave:db2.t1, slave:db3.t1]
 START SLAVE SQL_THREAD UNTIL SAME_UNTIO_OPTION;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 include/diff_tables.inc [master:db1.v1, slave:db1.t1, slave:db2.t1, slave:db3.t1]
 include/start_slave_sql.inc
@@ -188,11 +200,15 @@ BEGIN;
 INSERT INTO db1.t1 VALUES(4, "block a worker");
 [connection slave]
 START SLAVE SQL_THREAD UNTIL MASTER_LOG_FILE="MASTER_LOG_FILE", MASTER_LOG_POS=MASTER_LOG_POS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 [connection server_2]
 ROLLBACK;
 include/wait_for_slave_sql_to_stop.inc
 include/diff_tables.inc [master:db1.v1, slave:db1.t1, slave:db2.t1, slave:db3.t1]
 START SLAVE SQL_THREAD UNTIL SAME_UNTIO_OPTION;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 include/diff_tables.inc [master:db1.v1, slave:db1.t1, slave:db2.t1, slave:db3.t1]
 include/start_slave_sql.inc
@@ -233,11 +249,15 @@ BEGIN;
 INSERT INTO db1.t1 VALUES(4, "block a worker");
 [connection slave]
 START SLAVE SQL_THREAD UNTIL RELAY_LOG_FILE="RELAY_LOG_FILE", RELAY_LOG_POS=RELAY_LOG_POS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 [connection server_2]
 ROLLBACK;
 include/wait_for_slave_sql_to_stop.inc
 include/diff_tables.inc [master:db1.v1, slave:db1.t1, slave:db2.t1, slave:db3.t1]
 START SLAVE SQL_THREAD UNTIL SAME_UNTIO_OPTION;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 include/diff_tables.inc [master:db1.v1, slave:db1.t1, slave:db2.t1, slave:db3.t1]
 include/start_slave_sql.inc
@@ -276,11 +296,15 @@ BEGIN;
 INSERT INTO db1.t1 VALUES(4, "block a worker");
 [connection slave]
 START SLAVE SQL_THREAD UNTIL SQL_BEFORE_GTIDS="GTIDS";
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 [connection server_2]
 ROLLBACK;
 include/wait_for_slave_sql_to_stop.inc
 include/diff_tables.inc [master:db1.v1, slave:db1.t1, slave:db2.t1, slave:db3.t1]
 START SLAVE SQL_THREAD UNTIL SAME_UNTIO_OPTION;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 include/diff_tables.inc [master:db1.v1, slave:db1.t1, slave:db2.t1, slave:db3.t1]
 include/start_slave_sql.inc

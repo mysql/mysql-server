@@ -439,7 +439,7 @@ error:
 
 class BitMapTest : public ::testing::TestWithParam<uint> {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     bitsize = GetParam();
     ASSERT_FALSE(bitmap_init(&map, buf, bitsize));
     bitmap_clear_all(&map);

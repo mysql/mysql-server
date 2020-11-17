@@ -46,9 +46,9 @@ using my_testing::Server_initializer;
 
 class ItemTimeFuncTest : public ::testing::Test {
  protected:
-  virtual void SetUp() { initializer.SetUp(); }
+  void SetUp() override { initializer.SetUp(); }
 
-  virtual void TearDown() { initializer.TearDown(); }
+  void TearDown() override { initializer.TearDown(); }
 
   THD *thd() { return initializer.thd(); }
 
@@ -82,12 +82,12 @@ struct test_data {
 
 class ItemTimeFuncTestP : public ::testing::TestWithParam<test_data> {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     initializer.SetUp();
     m_t = GetParam();
   }
 
-  virtual void TearDown() { initializer.TearDown(); }
+  void TearDown() override { initializer.TearDown(); }
 
   THD *thd() { return initializer.thd(); }
 
@@ -183,14 +183,14 @@ TEST_P(ItemTimeFuncTestP, secToTime) {
 // Test for MODE_TIME_TRUNCATE_FRACTIONAL.
 class ItemTimeFuncTruncFracTestP : public ::testing::TestWithParam<test_data> {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     initializer.SetUp();
     m_t = GetParam();
     save_mode = thd()->variables.sql_mode;
     thd()->variables.sql_mode |= MODE_TIME_TRUNCATE_FRACTIONAL;
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     thd()->variables.sql_mode = save_mode;
     initializer.TearDown();
   }

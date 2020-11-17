@@ -121,16 +121,20 @@ DEFINE_METHOD(int, mysql_clone_validate_charsets,
   if (thd == nullptr) {
     return (0);
   }
+
+  int last_error = 0;
+
   for (auto &char_set : char_sets) {
     auto charset_obj = get_charset_by_name(char_set.c_str(), MYF(0));
 
     /* Check if character set collation is available. */
     if (charset_obj == nullptr) {
       my_error(ER_CLONE_CHARSET, MYF(0), char_set.c_str());
-      return (ER_CLONE_CHARSET);
+      /* Continue and check for all other errors. */
+      last_error = ER_CLONE_CHARSET;
     }
   }
-  return (0);
+  return last_error;
 }
 
 /**
@@ -196,14 +200,16 @@ DEFINE_METHOD(int, mysql_clone_get_configs,
 
 DEFINE_METHOD(int, mysql_clone_validate_configs,
               (THD * thd, Mysql_Clone_Key_Values &configs)) {
-  int err = 0;
+  int last_error = 0;
 
   for (auto &key_val : configs) {
     String utf8_str;
     auto &config_name = key_val.first;
-    err = get_utf8_config(thd, config_name, utf8_str);
-    if (err != 0) {
-      break;
+    auto config_err = get_utf8_config(thd, config_name, utf8_str);
+    if (config_err != 0) {
+      last_error = config_err;
+      /* Continue and check for all other errors. */
+      continue;
     }
 
     auto &donor_val = key_val.second;
@@ -215,25 +221,31 @@ DEFINE_METHOD(int, mysql_clone_validate_configs,
       continue;
     }
 
-    /* Throw specific error for some configurations. */
+    int critical_error = 0;
+
+    /* Throw specific error for some configurations. These errors are critical
+    because user can no way clone from the current donor. */
     if (config_name.compare("version_compile_os") == 0) {
-      err = ER_CLONE_OS;
+      critical_error = ER_CLONE_OS;
     } else if (config_name.compare("version") == 0) {
-      err = ER_CLONE_DONOR_VERSION;
+      critical_error = ER_CLONE_DONOR_VERSION;
     } else if (config_name.compare("version_compile_machine") == 0) {
-      err = ER_CLONE_PLATFORM;
+      critical_error = ER_CLONE_PLATFORM;
     }
 
-    if (err != 0) {
-      my_error(err, MYF(0), donor_val.c_str(), config_val.c_str());
-    } else {
-      err = ER_CLONE_CONFIG;
-      my_error(ER_CLONE_CONFIG, MYF(0), config_name.c_str(), donor_val.c_str(),
-               config_val.c_str());
+    /* For critical errors, exit immediately. */
+    if (critical_error != 0) {
+      last_error = critical_error;
+      my_error(last_error, MYF(0), donor_val.c_str(), config_val.c_str());
+      break;
     }
-    break;
+
+    last_error = ER_CLONE_CONFIG;
+    my_error(ER_CLONE_CONFIG, MYF(0), config_name.c_str(), donor_val.c_str(),
+             config_val.c_str());
+    /* Continue and check for all other configuration mismatch. */
   }
-  return (err);
+  return last_error;
 }
 
 DEFINE_METHOD(MYSQL *, mysql_clone_connect,
@@ -488,17 +500,6 @@ DEFINE_METHOD(int, mysql_clone_kill,
 DEFINE_METHOD(void, mysql_clone_disconnect,
               (THD * thd, MYSQL *mysql, bool is_fatal, bool clear_error)) {
   DBUG_TRACE;
-
-  if (thd != nullptr) {
-    thd->clear_clone_vio();
-
-    /* clear any session error, if requested */
-    if (clear_error) {
-      thd->clear_error();
-      thd->get_stmt_da()->reset_condition_info(thd);
-    }
-  }
-
   /* Make sure that the other end has switched back from clone protocol. */
   if (!is_fatal) {
     is_fatal = simple_command(mysql, COM_RESET_CONNECTION, nullptr, 0, 0);
@@ -510,6 +511,18 @@ DEFINE_METHOD(void, mysql_clone_disconnect,
 
   /* Disconnect */
   mysql_close(mysql);
+
+  /* There could be some n/w error during disconnect and we need to clear
+  them if requested. */
+  if (thd != nullptr) {
+    thd->clear_clone_vio();
+
+    /* clear any session error, if requested */
+    if (clear_error) {
+      thd->clear_error();
+      thd->get_stmt_da()->reset_condition_info(thd);
+    }
+  }
 }
 
 DEFINE_METHOD(void, mysql_clone_get_error,

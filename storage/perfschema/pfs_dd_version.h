@@ -150,8 +150,16 @@
 
   performance_schema tables changed in MySQL 8.0.21
   - tls_channel_status (created)
+  - replication_connection_configuration, added column
+  SOURCE_CONNECTION_AUTO_FAILOVER
+
+  80022:
+
+  performance_schema tables changed in MySQL 8.0.22
+  - WL#9090 created processlist
+  - WL#13681 created error_log
 */
 
-static const uint PFS_DD_VERSION = 80021;
+static const uint PFS_DD_VERSION = 80022;
 
 #endif /* PFS_DD_VERSION_H */

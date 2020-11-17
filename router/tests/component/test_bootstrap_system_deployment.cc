@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,8 @@
 
 Path g_origin_path;
 
+using namespace std::chrono_literals;
+
 /*
  * These tests are executed only for STANDALONE layout and are not executed for
  * Windows. Bootstrap for layouts different than STANDALONE use directories to
@@ -72,6 +74,14 @@ class RouterBootstrapSystemDeploymentTest : public RouterComponentTest,
     return server_mock;
   }
 
+  ProcessWrapper &launch_router_for_bootstrap(
+      const std::vector<std::string> &params,
+      int expected_exit_code = EXIT_SUCCESS) {
+    return ProcessManager::launch_router(
+        params, expected_exit_code, /*catch_stderr=*/true, /*with_sudo=*/false,
+        /*wait_for_notify_ready=*/-1s);
+  }
+
   TcpPortPool port_pool_;
   uint16_t server_port_;
 };
@@ -82,11 +92,10 @@ class RouterBootstrapSystemDeploymentTest : public RouterComponentTest,
  * have access (see install_layout.cmake).
  */
 TEST_F(RouterBootstrapSystemDeploymentTest, BootstrapPass) {
-  auto &server_mock = run_server_mock();
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port_));
+  run_server_mock();
 
   // launch the router in bootstrap mode
-  auto &router = launch_router({
+  auto &router = launch_router_for_bootstrap({
       "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
       "--connect-timeout=1",
       "--report-host",
@@ -117,11 +126,10 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
    * bootstrap to fail.
    */
   mysql_harness::mkdir(config_file_, 0700);
-  auto &server_mock = run_server_mock();
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port_));
+  run_server_mock();
 
   // launch the router in bootstrap mode
-  auto &router = launch_router(
+  auto &router = launch_router_for_bootstrap(
       {
           "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
           "--connect-timeout=1",
@@ -156,11 +164,10 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
    * bootstrap to fail.
    */
   mysql_harness::mkdir(config_file_, 0700);
-  auto &server_mock = run_server_mock();
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port_));
+  run_server_mock();
 
   // launch the router in bootstrap mode
-  auto &router = launch_router(
+  auto &router = launch_router_for_bootstrap(
       {
           "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
           "--connect-timeout=1",
@@ -207,11 +214,10 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
    * bootstrap to fail.
    */
   mysql_harness::mkdir(config_file_, 0700);
-  auto &server_mock = run_server_mock();
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port_));
+  run_server_mock();
 
   // launch the router in bootstrap mode
-  auto &router = launch_router(
+  auto &router = launch_router_for_bootstrap(
       {
           "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
           "--connect-timeout=1",
@@ -253,11 +259,10 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
    * bootstrap to fail.
    */
   mysql_harness::mkdir(config_file_, 0700);
-  auto &server_mock = run_server_mock();
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port_));
+  run_server_mock();
 
   // launch the router in bootstrap mode
-  auto &router = launch_router(
+  auto &router = launch_router_for_bootstrap(
       {
           "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
           "--connect-timeout=1",

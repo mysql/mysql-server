@@ -280,6 +280,7 @@ ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_integer,
                                      stored_generated
                  WITH 100 BUCKETS;
 
+--sorted_result
 SELECT schema_name, table_name, column_name,
        JSON_REMOVE(histogram, '$."last-updated"')
 FROM information_schema.COLUMN_STATISTICS;
@@ -288,6 +289,7 @@ ALTER TABLE t1 DROP COLUMN virtual_generated, DROP COLUMN stored_generated;
 
 --echo # The histogram for 'virtual_generated' and 'stored_generated' should now
 --echo # be gone
+--sorted_result
 SELECT schema_name, table_name, column_name
 FROM information_schema.COLUMN_STATISTICS;
 DELETE FROM t1;
@@ -301,12 +303,14 @@ INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
 
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_integer WITH 10 BUCKETS;
 
+--sorted_result
 SELECT schema_name, table_name, column_name,
        JSON_EXTRACT(histogram, '$."histogram-type"') AS should_be_singleton
 FROM information_schema.COLUMN_STATISTICS;
 
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_integer WITH 9 BUCKETS;
 
+--sorted_result
 SELECT schema_name, table_name, column_name,
        JSON_EXTRACT(histogram, '$."histogram-type"') AS should_be_equiheight
 FROM information_schema.COLUMN_STATISTICS;
@@ -356,6 +360,7 @@ CREATE TABLE t1 (col1 INT PRIMARY KEY,
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2, col3 WITH 100 BUCKETS;
 
 --echo # We should end up with histogram statistics for 'col3'
+--sorted_result
 SELECT schema_name, table_name, column_name
 FROM information_schema.COLUMN_STATISTICS;
 
@@ -364,6 +369,7 @@ FROM information_schema.COLUMN_STATISTICS;
 ALTER TABLE t1 ALTER INDEX index_1 INVISIBLE;
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON col2 WITH 100 BUCKETS;
 
+--sorted_result
 SELECT schema_name, table_name, column_name
 FROM information_schema.COLUMN_STATISTICS;
 DROP TABLE t1;

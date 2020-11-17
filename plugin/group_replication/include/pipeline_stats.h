@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -141,7 +141,7 @@ class Pipeline_stats_member_message : public Plugin_gcs_message {
   /**
     Message destructor
    */
-  virtual ~Pipeline_stats_member_message();
+  ~Pipeline_stats_member_message() override;
 
   /**
     Get transactions waiting certification counter value.
@@ -234,7 +234,7 @@ class Pipeline_stats_member_message : public Plugin_gcs_message {
 
     @param[out] buffer   the message buffer to be written
   */
-  void encode_payload(std::vector<unsigned char> *buffer) const;
+  void encode_payload(std::vector<unsigned char> *buffer) const override;
 
   /**
     Message decoding method
@@ -242,7 +242,8 @@ class Pipeline_stats_member_message : public Plugin_gcs_message {
     @param[in] buffer the received data
     @param[in] end    the end of the buffer
   */
-  void decode_payload(const unsigned char *buffer, const unsigned char *end);
+  void decode_payload(const unsigned char *buffer,
+                      const unsigned char *end) override;
 
  private:
   int32 m_transactions_waiting_certification;

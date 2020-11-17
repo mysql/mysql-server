@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,15 +46,15 @@ public:
     m_dataCount = 0;  
   }
   
-  virtual bool table(const TableS &);
+  bool table(const TableS &) override;
 #ifdef USE_MYSQL
   virtual bool table(const TableS &, MYSQL* mysqlp);
 #endif
-  virtual void tuple(const TupleS &, Uint32 fragId);
-  virtual void logEntry(const LogEntry &);
-  virtual void endOfTuples() {}
-  virtual void endOfLogEntrys();
-  virtual bool update_apply_status(const RestoreMetaData &metaData, bool snapshotstart);
+  bool tuple(const TupleS &, Uint32 fragId) override;
+  bool logEntry(const LogEntry &) override;
+  void endOfTuples() override {}
+  void endOfLogEntrys() override;
+  bool update_apply_status(const RestoreMetaData &metaData, bool snapshotstart) override;
   bool m_print;
   bool m_print_log;
   bool m_print_sql_log;

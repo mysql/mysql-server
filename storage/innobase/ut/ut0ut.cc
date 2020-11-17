@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -254,10 +254,10 @@ char *ut_format_name(const char *name, char *formatted, ulint formatted_size) {
   return (formatted);
 }
 
-/** Catenate files. */
-void ut_copy_file(FILE *dest, /*!< in: output file */
-                  FILE *src)  /*!< in: input file to be appended to output */
-{
+/** Catenate files.
+@param[in] dest Output file
+@param[in] src Input file to be appended to output */
+void ut_copy_file(FILE *dest, FILE *src) {
   long len = ftell(src);
   char buf[4096];
 
@@ -519,7 +519,8 @@ const char *ut_strerr(dberr_t num) {
       return ("Sample reader has been requested to stop sampling");
     case DB_OUT_OF_RESOURCES:
       return ("System has run out of resources");
-
+    case DB_FTS_TOO_MANY_NESTED_EXP:
+      return ("Too many nested sub-expressions in a full-text search");
     case DB_ERROR_UNSET:;
       /* Fall through. */
 

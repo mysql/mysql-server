@@ -89,7 +89,7 @@ dberr_t dict_build_table_def(dict_table_t *table, trx_t *trx) {
   return (err);
 }
 
-/** Build a tablespace to store various objects.
+/** Builds a tablespace to store various objects.
 @param[in,out]	trx		DD transaction
 @param[in,out]	tablespace	Tablespace object describing what to build.
 @return DB_SUCCESS or error code. */

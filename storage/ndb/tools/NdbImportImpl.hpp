@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -432,18 +432,18 @@ public:
 
   struct RandomInputTeam : Team {
     RandomInputTeam(Job& job, uint workercnt);
-    virtual ~RandomInputTeam();
-    virtual Worker* create_worker(uint n);
-    virtual void do_init();
-    virtual void do_end();
+    ~RandomInputTeam() override;
+    Worker* create_worker(uint n) override;
+    void do_init() override;
+    void do_end() override;
   };
 
   struct RandomInputWorker : Worker {
     RandomInputWorker(Team& team, uint n);
-    virtual ~RandomInputWorker();
-    virtual void do_init();
-    virtual void do_run();
-    virtual void do_end();
+    ~RandomInputWorker() override;
+    void do_init() override;
+    void do_run() override;
+    void do_end() override;
     Row* create_row(uint64 rowid, const Table& t);
   };
 
@@ -476,10 +476,10 @@ public:
 
   struct CsvInputTeam : Team {
     CsvInputTeam(Job& job, uint workercnt);
-    virtual ~CsvInputTeam();
-    virtual Worker* create_worker(uint n);
-    virtual void do_init();
-    virtual void do_end();
+    ~CsvInputTeam() override;
+    Worker* create_worker(uint n) override;
+    void do_init() override;
+    void do_end() override;
     CsvSpec m_csvspec;
     WorkerFile m_file;
     // stats
@@ -490,10 +490,10 @@ public:
 
   struct CsvInputWorker : Worker {
     CsvInputWorker(Team& team, uint n);
-    virtual ~CsvInputWorker();
-    virtual void do_init();
-    virtual void do_run();
-    virtual void do_end();
+    ~CsvInputWorker() override;
+    void do_init() override;
+    void do_run() override;
+    void do_end() override;
     void state_lock();
     void state_read();
     void state_waittail();
@@ -501,7 +501,7 @@ public:
     void state_movetail();
     void state_eval();
     void state_send();
-    virtual void str_state(char* str) const;
+    void str_state(char* str) const override;
     InputState::State m_inputstate;
     Buf m_buf;
     CsvInput* m_csvinput;
@@ -513,25 +513,25 @@ public:
 
   struct NullOutputTeam : Team {
     NullOutputTeam(Job& job, uint workercnt);
-    virtual ~NullOutputTeam();
-    virtual Worker* create_worker(uint n);
-    virtual void do_init();
-    virtual void do_end();
+    ~NullOutputTeam() override;
+    Worker* create_worker(uint n) override;
+    void do_init() override;
+    void do_end() override;
   };
 
   struct NullOutputWorker : Worker {
     NullOutputWorker(Team& team, uint n);
-    virtual ~NullOutputWorker();
-    virtual void do_init();
-    virtual void do_run();
-    virtual void do_end();
+    ~NullOutputWorker() override;
+    void do_init() override;
+    void do_run() override;
+    void do_end() override;
   };
 
   // op
 
   struct Op : ListEnt {
     Op();
-    ~Op();
+    ~Op() override;
     Op* next() {
       return static_cast<Op*>(m_next);
     }
@@ -543,7 +543,7 @@ public:
 
   struct OpList : private List {
     OpList();
-    ~OpList();
+    ~OpList() override;
     void set_stats(Stats& stats, const char* name) {
       List::set_stats(stats, name);
     }
@@ -570,7 +570,7 @@ public:
 
   struct Tx : ListEnt {
     Tx(DbWorker* worker);
-    virtual ~Tx();
+    ~Tx() override;
     DbWorker* const m_worker;
     NdbTransaction* m_trans;
     OpList m_ops;
@@ -581,7 +581,7 @@ public:
 
   struct TxList : private List {
     TxList();
-    ~TxList();
+    ~TxList() override;
     void set_stats(Stats& stats, const char* name) {
       List::set_stats(stats, name);
     }
@@ -606,12 +606,12 @@ public:
 
   struct DbTeam : Team {
     DbTeam(Job& job, const char* name, uint workercnt);
-    virtual ~DbTeam() = 0;
+    ~DbTeam() override = 0;
   };
 
   struct DbWorker : Worker {
     DbWorker(Team& team, uint n);
-    virtual ~DbWorker() = 0;
+    ~DbWorker() override = 0;
     int create_ndb(uint transcnt);
     Op* alloc_op();
     void free_op(Op* op);
@@ -656,22 +656,22 @@ public:
 
   struct RelayOpTeam : DbTeam {
     RelayOpTeam(Job& job, uint workercnt);
-    virtual ~RelayOpTeam();
-    virtual Worker* create_worker(uint n);
-    virtual void do_init();
-    virtual void do_end();
+    ~RelayOpTeam() override;
+    Worker* create_worker(uint n) override;
+    void do_init() override;
+    void do_end() override;
   };
 
   struct RelayOpWorker : DbWorker {
     RelayOpWorker(Team& team, uint n);
-    virtual ~RelayOpWorker();
-    virtual void do_init();
-    virtual void do_run();
-    virtual void do_end();
+    ~RelayOpWorker() override;
+    void do_init() override;
+    void do_run() override;
+    void do_end() override;
     void state_receive();
     void state_define();
     void state_send();
-    virtual void str_state(char* str) const;
+    void str_state(char* str) const override;
     RelayState::State m_relaystate;
     uchar* m_xfrmalloc;
     uchar* m_xfrmbuf;
@@ -717,24 +717,24 @@ public:
 
   struct ExecOpTeam : DbTeam {
     ExecOpTeam(Job& job, uint workercnt);
-    virtual ~ExecOpTeam();
-    virtual Worker* create_worker(uint n);
-    virtual void do_init();
-    virtual void do_end();
+    ~ExecOpTeam() override;
+    Worker* create_worker(uint n) override;
+    void do_init() override;
+    void do_end() override;
   };
 
   struct ExecOpWorker : DbWorker {
     ExecOpWorker(Team& team, uint n);
-    virtual ~ExecOpWorker() = 0;
-    virtual void do_init();
-    virtual void do_run();
-    virtual void do_end() = 0;
+    ~ExecOpWorker() override = 0;
+    void do_init() override;
+    void do_run() override;
+    void do_end() override = 0;
     void state_receive();       // common to synch/asynch
     virtual void state_define() = 0;
     virtual void state_prepare() = 0;
     virtual void state_send() = 0;
     virtual void state_poll() = 0;
-    virtual void str_state(char* str) const;
+    void str_state(char* str) const override;
     void reject_row(Row* row, const Error& error);
     virtual void handle_error(Op *op); // Release ops, reject rows at error
     ExecState::State m_execstate;
@@ -750,22 +750,22 @@ public:
 
   struct ExecOpWorkerSynch : ExecOpWorker {
     ExecOpWorkerSynch(Team& team, uint n);
-    virtual ~ExecOpWorkerSynch();
-    virtual void do_end();
-    virtual void state_define();
-    virtual void state_prepare();
-    virtual void state_send();
-    virtual void state_poll();
+    ~ExecOpWorkerSynch() override;
+    void do_end() override;
+    void state_define() override;
+    void state_prepare() override;
+    void state_send() override;
+    void state_poll() override;
   };
 
   struct ExecOpWorkerAsynch : ExecOpWorker {
     ExecOpWorkerAsynch(Team& team, uint n);
-    virtual ~ExecOpWorkerAsynch();
-    virtual void do_end();
-    virtual void state_define();
-    virtual void state_prepare();
-    virtual void state_send();
-    virtual void state_poll();
+    ~ExecOpWorkerAsynch() override;
+    void do_end() override;
+    void state_define() override;
+    void state_prepare() override;
+    void state_send() override;
+    void state_poll() override;
     void asynch_callback(Tx* tx);
   };
 
@@ -773,16 +773,16 @@ public:
 
   struct DiagTeam : Team {
     DiagTeam(Job& job, uint workercnt);
-    virtual ~DiagTeam();
-    virtual Worker* create_worker(uint n);
-    virtual void do_init();
+    ~DiagTeam() override;
+    Worker* create_worker(uint n) override;
+    void do_init() override;
     void read_old_diags(const char* name,
                         const char* path,
                         const Table& table,
                         RowList& rows_out);
     void read_old_diags();
     void open_new_diags();
-    virtual void do_end();
+    void do_end() override;
     CsvSpec m_csvspec;
     WorkerFile m_result_file;
     WorkerFile m_reject_file;
@@ -793,10 +793,10 @@ public:
 
   struct DiagWorker : Worker {
     DiagWorker(Team& team, uint n);
-    virtual ~DiagWorker();
-    virtual void do_init();
-    virtual void do_run();
-    virtual void do_end();
+    ~DiagWorker() override;
+    void do_init() override;
+    void do_run() override;
+    void do_end() override;
     void write_result();
     void write_reject();
     void write_rowmap();

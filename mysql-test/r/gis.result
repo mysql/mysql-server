@@ -681,7 +681,7 @@ def	test	t1	t1	g	g	255	4294967295	0	Y	144	0	63
 g
 select ST_asbinary(g) from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					ST_asbinary(g)	252	4294967295	0	Y	128	31	63
+def					ST_asbinary(g)	251	4294967295	0	Y	128	31	63
 ST_asbinary(g)
 drop table t1;
 create table t1 (a TEXT, b GEOMETRY NOT NULL SRID 0, SPATIAL KEY(b));

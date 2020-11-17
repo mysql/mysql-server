@@ -33,23 +33,27 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #define ERROR_STR_LENGTH 1024
 
-/** Copies an InnoDB record to table->record[0]. */
-void innobase_rec_to_mysql(struct TABLE *table, /*!< in/out: MySQL table */
-                           const rec_t *rec,    /*!< in: record */
-                           const dict_index_t *index, /*!< in: index */
-                           const ulint *offsets);     /*!< in: rec_get_offsets(
-                                                     rec, index, ...) */
+/** Copies an InnoDB record to table->record[0].
+@param[in,out] table Mysql table
+@param[in] rec Record
+@param[in] index Index
+@param[in] offsets rec_get_offsets( rec, index, ...) */
+void innobase_rec_to_mysql(struct TABLE *table, const rec_t *rec,
+                           const dict_index_t *index, const ulint *offsets);
 
-/** Copies an InnoDB index entry to table->record[0]. */
-void innobase_fields_to_mysql(
-    struct TABLE *table,       /*!< in/out: MySQL table */
-    const dict_index_t *index, /*!< in: InnoDB index */
-    const dfield_t *fields);   /*!< in: InnoDB index fields */
+/** Copies an InnoDB index entry to table->record[0].
+@param[in,out] table Mysql table
+@param[in] index Innodb index
+@param[in] fields Innodb index fields */
+void innobase_fields_to_mysql(struct TABLE *table, const dict_index_t *index,
+                              const dfield_t *fields);
 
-/** Copies an InnoDB row to table->record[0]. */
-void innobase_row_to_mysql(struct TABLE *table,      /*!< in/out: MySQL table */
-                           const dict_table_t *itab, /*!< in: InnoDB table */
-                           const dtuple_t *row);     /*!< in: InnoDB row */
+/** Copies an InnoDB row to table->record[0].
+@param[in,out] table Mysql table
+@param[in] itab Innodb table
+@param[in] row Innodb row */
+void innobase_row_to_mysql(struct TABLE *table, const dict_table_t *itab,
+                           const dtuple_t *row);
 
 /** Resets table->record[0]. */
 void innobase_rec_reset(struct TABLE *table); /*!< in/out: MySQL table */

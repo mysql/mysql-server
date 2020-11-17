@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ class PFS_index_ees_by_user_by_error : public PFS_engine_index {
         m_key_1("USER"),
         m_key_2("ERROR_NUMBER") {}
 
-  ~PFS_index_ees_by_user_by_error() {}
+  ~PFS_index_ees_by_user_by_error() override {}
 
   virtual bool match(PFS_user *pfs);
   virtual bool match_error_index(uint error_index);
@@ -109,23 +109,23 @@ class table_ees_by_user_by_error : public PFS_engine_table {
   static int delete_all_rows();
   static ha_rows get_row_count();
 
-  virtual void reset_position(void);
+  void reset_position(void) override;
 
-  virtual int rnd_init(bool scan);
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
+  int rnd_init(bool scan) override;
+  int rnd_next() override;
+  int rnd_pos(const void *pos) override;
 
-  virtual int index_init(uint idx, bool sorted);
-  virtual int index_next();
+  int index_init(uint idx, bool sorted) override;
+  int index_next() override;
 
  protected:
-  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all);
+  int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                      bool read_all) override;
 
   table_ees_by_user_by_error();
 
  public:
-  ~table_ees_by_user_by_error() {}
+  ~table_ees_by_user_by_error() override {}
 
  protected:
   int make_row(PFS_user *user, int error_index);

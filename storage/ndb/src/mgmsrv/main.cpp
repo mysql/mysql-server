@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -278,7 +278,7 @@ static void mgmd_run()
     int port= mgm->getPort();
     BaseString con_str;
     if(opts.bind_address)
-      con_str.appfmt("host=%s:%d", opts.bind_address, port);
+      con_str.appfmt("host=%s %d", opts.bind_address, port);
     else
       con_str.appfmt("localhost:%d", port);
     Ndb_mgmclient com(con_str.c_str(), "ndb_mgm> ", 1, 5);
@@ -376,6 +376,20 @@ static int mgmd_main(int argc, char** argv)
       fprintf(stderr, "ERROR: Unable to parse nowait-nodes argument: '%s'\n",
               opt_nowait_nodes);
       mgmd_exit(1);
+    }
+  }
+
+  if (opts.bind_address)
+  {
+    int len = strlen(opts.bind_address);
+    if ((opts.bind_address[0] == '[') &&
+        (opts.bind_address[len - 1] == ']'))
+    {
+      opts.bind_address = strdup(opts.bind_address + 1);
+    }
+    else
+    {
+      opts.bind_address = strdup(opts.bind_address);
     }
   }
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -134,6 +134,7 @@ InnoDB:
 #include <limits>
 #include <map>
 #include <type_traits> /* std::is_trivially_default_constructible */
+#include <unordered_set>
 
 #include "my_basename.h"
 #include "mysql/psi/mysql_memory.h"
@@ -702,9 +703,7 @@ class ut_allocator {
 
 #ifdef UNIV_PFS_MEMORY
     ut_new_pfx_t *pfx = static_cast<ut_new_pfx_t *>(ptr);
-
     allocate_trace(total_bytes, key, pfx);
-
     return (reinterpret_cast<pointer>(pfx + 1));
 #else
     return (reinterpret_cast<pointer>(ptr));
@@ -1233,7 +1232,7 @@ class aligned_memory {
 template <typename T_Type, size_t T_Align_to = ut::INNODB_CACHE_LINE_SIZE>
 class aligned_pointer : public aligned_memory<T_Type, T_Align_to> {
  public:
-  ~aligned_pointer() {
+  ~aligned_pointer() override {
     if (!this->is_object_empty()) {
       this->destroy();
     }
@@ -1247,7 +1246,7 @@ class aligned_pointer : public aligned_memory<T_Type, T_Align_to> {
   }
 
   /** Destroys the managed object and releases its memory. */
-  void destroy() {
+  void destroy() override {
     (*this)->~T_Type();
     this->free_memory();
   }
@@ -1274,7 +1273,7 @@ class aligned_array_pointer : public aligned_memory<T_Type, T_Align_to> {
   }
 
   /** Deallocates memory of array created earlier. */
-  void destroy() {
+  void destroy() override {
     static_assert(std::is_trivially_destructible<T_Type>::value,
                   "Aligned array element type must be "
                   "trivially destructible");
@@ -1305,6 +1304,10 @@ using ostringstream =
 /** Specialization of vector which uses ut_allocator. */
 template <typename T>
 using vector = std::vector<T, ut_allocator<T>>;
+
+template <typename Key>
+using unordered_set = std::unordered_set<Key, std::hash<Key>,
+                                         std::equal_to<Key>, ut_allocator<Key>>;
 
 }  // namespace ut
 #endif /* ut0new_h */

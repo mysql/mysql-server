@@ -1490,6 +1490,7 @@ select fld3,period from t2,t1 where companynr*10 = 37*10;
 
 analyze table t2, t3;
 
+--skip_if_hypergraph  # Depends on query plan.
 EXPLAIN FORMAT=tree select fld3,period,price,price2 from t2,t3 where t2.fld1=t3.t2nr and period >= 1001 and period <= 1002 and t2.companynr = 37 order by fld3,period, price;  # Tests how to print out BKA iterators.
 
 select fld3,period,price,price2 from t2,t3 where t2.fld1=t3.t2nr and period >= 1001 and period <= 1002 and t2.companynr = 37 order by fld3,period, price;
@@ -1537,6 +1538,7 @@ INSERT INTO t4 (companynr, companyname) VALUES (00,'Unknown');
 --sorted_result
 select STRAIGHT_JOIN t2.companynr,companyname from t4,t2 where t2.companynr=t4.companynr group by t2.companynr;
 
+--sorted_result
 select SQL_SMALL_RESULT t2.companynr,companyname from t4,t2 where t2.companynr=t4.companynr group by t2.companynr;
 
 #
@@ -1615,6 +1617,7 @@ select fld1 from t2 where fld1 in (250502,98005,98006,250503,250605,250606) and 
 
 select fld1 from t2 where fld1 between 250502 and 250504;
 
+--sorted_result
 select fld3 from t2 where (((fld3 like "_%L%" ) or (fld3 like "%ok%")) and ( fld3 like "L%" or fld3 like "G%")) and fld3 like "L%" ;
 
 #
@@ -1623,6 +1626,7 @@ select fld3 from t2 where (((fld3 like "_%L%" ) or (fld3 like "%ok%")) and ( fld
 #
 
 select count(*) from t1;
+--sorted_result
 select companynr,count(*),sum(fld1) from t2 group by companynr;
 select companynr,count(*) from t2 group by companynr order by companynr desc limit 5;
 select count(*),min(fld4),max(fld4),sum(fld1),avg(fld1),std(fld1),variance(fld1) from t2 where companynr = 34 and fld4<>"";
@@ -1634,15 +1638,24 @@ t3 where companynr = 37 group by companynr,t2nr order by companynr, t2nr limit 1
 select /*! SQL_SMALL_RESULT */
 companynr,t2nr,count(price),sum(price),min(price),max(price),avg(price) from
 t3 where companynr = 37 group by companynr,t2nr order by companynr, t2nr limit 10;
+--sorted_result
 select companynr,count(price),sum(price),min(price),max(price),avg(price) from t3 group by companynr ;
+--sorted_result
 select distinct mod(companynr,10) from t4 group by companynr;
+--sorted_result
 select distinct 1 from t4 group by companynr;
 select count(distinct fld1) from t2;
+--sorted_result
 select companynr,count(distinct fld1) from t2 group by companynr;
+--sorted_result
 select companynr,count(*) from t2 group by companynr;
+--sorted_result
 select companynr,count(distinct concat(fld1,repeat(65,1000))) from t2 group by companynr;
+--sorted_result
 select companynr,count(distinct concat(fld1,repeat(65,200))) from t2 group by companynr;
+--sorted_result
 select companynr,count(distinct floor(fld1/100)) from t2 group by companynr;
+--sorted_result
 select companynr,count(distinct concat(repeat(65,1000),floor(fld1/100))) from t2 group by companynr;
 
 #
@@ -1665,6 +1678,7 @@ select t2.fld3,count(*) from t2,t3 where t2.fld1=158402 and t3.name=t2.fld3 grou
 #
 
 --source include/turn_off_only_full_group_by.inc
+--sorted_result
 select companynr|0,companyname from t4 group by 1;
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
@@ -1677,6 +1691,7 @@ select t2.fld1,count(*) from t2,t3 where t2.fld1=158402 and t3.name=t2.fld3 grou
 #
 
 select sum(Period)/count(*) from t1;
+--sorted_result
 select companynr,count(price) as "count",sum(price) as "sum" ,abs(sum(price)/count(price)-avg(price)) as "diff",(0+count(price))*companynr as func from t3 group by companynr;
 select companynr,sum(price)/count(price) as avg from t3 group by companynr having avg > 70000000 order by avg;
 
@@ -1688,6 +1703,7 @@ select companynr,sum(price)/count(price) as avg from t3 group by companynr havin
 
 select companynr,count(*) from t2 group by companynr order by 2 desc;
 select companynr,count(*) from t2 where companynr > 40 group by companynr order by 2 desc;
+--sorted_result
 select t2.fld4,t2.fld1,count(price),sum(price),min(price),max(price),avg(price) from t3,t2 where t3.companynr = 37 and t2.fld1 = t3.t2nr group by fld1,t2.fld4;
 
 #
@@ -1698,7 +1714,9 @@ select t2.fld4,t2.fld1,count(price),sum(price),min(price),max(price),avg(price) 
 #	    send rows
 #
 
+--sorted_result
 select t3.companynr,fld3,sum(price) from t3,t2 where t2.fld1 = t3.t2nr and t3.companynr = 512 group by companynr,fld3;
+--sorted_result
 select t2.companynr,count(*),min(fld3),max(fld3),sum(price),avg(price) from t2,t3 where t3.companynr >= 30 and t3.companynr <= 58 and t3.t2nr = t2.fld1 and 1+1=2 group by t2.companynr;
 
 #
@@ -1735,11 +1753,16 @@ explain select fld3 from t2 where fld1=fld1;
 # HAVING
 #
 
+--sorted_result
 select companynr,fld1 from t2 HAVING fld1=250501 or fld1=250502; 
+--sorted_result
 select companynr,fld1 from t2 WHERE fld1>=250501 HAVING fld1<=250502;
+--sorted_result
 select companynr,count(*) as count,sum(fld1) as sum from t2 group by companynr having count > 40 and sum/count >= 120000;
+--sorted_result
 select companynr from t2 group by companynr having count(*) > 40 and sum(fld1)/count(*) >= 120000 ;
 
+--sorted_result
 select t2.companynr,companyname,count(*) from t2,t4 where t2.companynr=t4.companynr group by companyname having t2.companynr >= 40;
 
 #
@@ -1756,7 +1779,9 @@ select max(fld1) from t2 where fld1>= 098024;
 select count(*) from t3 where price2=76234234;
 select count(*) from t3 where companynr=512 and price2=76234234;
 explain select min(fld1),max(fld1),count(*) from t2;
+--skip_if_hypergraph  # Depends on query plan.
 explain format=tree select min(fld1),max(fld1),count(*) from t2;  # Should be computed at optimize time.
+--skip_if_hypergraph  # Depends on query plan.
 explain format=tree select min(fld1),max(fld1),count(*) from t2 where rand() > 0.5;  # Should _not_ be computed at optimize time.
 # PS does correct pre-zero here. MySQL can't do it as it returns a number.
 --disable_ps_protocol
@@ -1889,30 +1914,43 @@ select * from (t1 as t2 left join t1 as t3 using (a)) inner join t1 on t1.a>1;
 --sorted_result
 select * from t1 inner join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
 # inner join using
+--sorted_result
 select * from (t1 as t2 left join t1 as t3 using (a)) inner join t1 using ( a );
+--sorted_result
 select * from t1 inner join (t1 as t2 left join t1 as t3 using (a)) using ( a );
 # left [outer] join on
 --sorted_result
 select * from (t1 as t2 left join t1 as t3 using (a)) left outer join t1 on t1.a>1;
+--sorted_result
 select * from t1 left outer join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
 # left join using
+--sorted_result
 select * from (t1 as t2 left join t1 as t3 using (a)) left join t1 using ( a );
+--sorted_result
 select * from t1 left join (t1 as t2 left join t1 as t3 using (a)) using ( a );
 # natural left join
 select * from (t1 as t2 left join t1 as t3 using (a)) natural left join t1;
+--sorted_result
 select * from t1 natural left join (t1 as t2 left join t1 as t3 using (a));
 # right join on
+--sorted_result
 select * from (t1 as t2 left join t1 as t3 using (a)) right join t1 on t1.a>1;
 --sorted_result
 select * from t1 right join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
 # right [outer] joing using
+--sorted_result
 select * from (t1 as t2 left join t1 as t3 using (a)) right outer join t1 using ( a );
+--sorted_result
 select * from t1 right outer join (t1 as t2 left join t1 as t3 using (a)) using ( a );
 # natural right join
+--sorted_result
 select * from (t1 as t2 left join t1 as t3 using (a)) natural right join t1;
+--sorted_result
 select * from t1 natural right join (t1 as t2 left join t1 as t3 using (a));
 # natural join
+--sorted_result
 select * from t1 natural join (t1 as t2 left join t1 as t3 using (a));
+--sorted_result
 select * from (t1 as t2 left join t1 as t3 using (a)) natural join t1;
 drop table t1;
 
@@ -2268,14 +2306,18 @@ CREATE TABLE t1 ( a INT NOT NULL, b INT NOT NULL, UNIQUE idx (a,b) );
 INSERT INTO t1 VALUES (1,1),(1,2),(1,3),(1,4);
 CREATE TABLE t2 ( a INT NOT NULL, b INT NOT NULL, e INT );
 INSERT INTO t2 VALUES ( 1,10,1), (1,10,2), (1,11,1), (1,11,2), (1,2,1), (1,2,2),(1,2,3);
+--sorted_result
 SELECT t2.a, t2.b, IF(t1.b IS NULL,'',e) AS c, COUNT(*) AS d FROM t2 LEFT JOIN
 t1 ON t2.a = t1.a AND t2.b = t1.b GROUP BY a, b, c;
 --source include/turn_off_only_full_group_by.inc
+--sorted_result
 SELECT t2.a, t2.b, IF(t1.b IS NULL,'',e) AS c, COUNT(*) AS d FROM t2 LEFT JOIN
 t1 ON t2.a = t1.a AND t2.b = t1.b GROUP BY t1.a, t1.b, c;
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
+--sorted_result
 SELECT t2.a, t2.b, IF(t1.b IS NULL,'',e) AS c, COUNT(*) AS d FROM t2 LEFT JOIN
 t1 ON t2.a = t1.a AND t2.b = t1.b GROUP BY t2.a, t2.b, c;
+--sorted_result
 SELECT t2.a, t2.b, IF(t1.b IS NULL,'',e) AS c, COUNT(*) AS d FROM t2,t1
 WHERE t2.a = t1.a AND t2.b = t1.b GROUP BY a, b, c;
 DROP TABLE IF EXISTS t1, t2;
@@ -2533,6 +2575,7 @@ create table t1 (f1 varchar(6) default NULL, f2 int(6) primary key not null);
 create table t2 (f3 varchar(5) not null, f4 varchar(5) not null, UNIQUE KEY UKEY (f3,f4));
 insert into t1 values (" 2", 2);
 insert into t2 values (" 2", " one "),(" 2", " two ");
+--sorted_result
 select * from t1 left join t2 on f1 = f3;
 drop table t1,t2;
 
@@ -2545,6 +2588,7 @@ create table t2 (empnum int, name char(5));
 insert into t1 values(1,1);
 insert into t2 values(1,'bob');
 create view v1 as select * from t2 inner join t1 using (empnum);
+--sorted_result
 select * from v1;
 drop table t1,t2;
 drop view v1;
@@ -2556,6 +2600,7 @@ drop view v1;
 
 create table t1 (pk int primary key, b int);
 create table t2 (pk int primary key, c int);
+--sorted_result
 select pk from t1 inner join t2 using (pk);
 drop table t1,t2;
 
@@ -2742,6 +2787,7 @@ create table t3(x int, primary key(x));
 insert into t1 values (1, 1), (2, 1), (3, 1), (4, 3), (5, 6), (6, 6);
 insert into t2 values (1, 1), (2, 1), (3, 3), (4, 6), (5, 6);
 insert into t3 values (1), (2), (3), (4), (5);
+--sorted_result
 select t1.x, t3.x from t1, t2, t3  where t1.x = t2.x and t3.x >= t1.y and t3.x <= t2.y;
 drop table t1,t2,t3;
 
@@ -2957,6 +3003,7 @@ INSERT INTO t2 VALUES
   (10, 10, 'aaa'), (20, 10, 'bbb'), (30, 10, 'ccc'), (40, 20, 'ddd'),
   (50, 10, 'eee'), (60, 20, 'fff'), (70, 20, 'ggg'), (80, 30, 'hhh');
 
+--sorted_result
 SELECT t2.sku, t2.sppr, t2.name, t1.sku, t1.pr
   FROM t2, t1 WHERE t2.sku=20 AND (t2.sku=t1.sku OR t2.sppr=t1.sku);
 EXPLAIN
@@ -3100,6 +3147,7 @@ INSERT INTO t3 VALUES (2,10), (2,20), (1,30), (2,40), (2,50);
 EXPLAIN
 SELECT * FROM t1 LEFT JOIN t2 ON t2.b=t1.a INNER JOIN t3 ON t3.d=t1.id
   WHERE t1.id=2;
+--sorted_result
 SELECT * FROM t1 LEFT JOIN t2 ON t2.b=t1.a INNER JOIN t3 ON t3.d=t1.id
   WHERE t1.id=2;
 
@@ -3780,6 +3828,7 @@ INSERT INTO t2 VALUES (1, 1), (1, 2), (1, 3), (1, 4), (1, 5),
 
 FLUSH STATUS;
 SELECT DISTINCT b FROM t1 LEFT JOIN t2 USING(a) WHERE c <= 3;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 DROP TABLE t1, t2;
 
@@ -4461,6 +4510,7 @@ let $query =
     FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON alias1.f1 = alias2.f2
     WHERE alias2.f1 NOT BETWEEN 4 AND 12;
 
+--skip_if_hypergraph  # Depends on query plan.
 eval EXPLAIN FORMAT=tree $query;  # Verify that we get BKA, and no NULL rejection in WHERE on alias1.
 eval $query;
 

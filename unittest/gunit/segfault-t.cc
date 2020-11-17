@@ -37,11 +37,11 @@ using my_testing::Server_initializer;
 
 class FatalSignalDeathTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     ::testing::FLAGS_gtest_death_test_style = "threadsafe";
     initializer.SetUp();
   }
-  virtual void TearDown() { initializer.TearDown(); }
+  void TearDown() override { initializer.TearDown(); }
 
   Server_initializer initializer;
 };

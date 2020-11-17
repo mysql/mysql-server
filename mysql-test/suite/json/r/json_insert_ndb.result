@@ -138,7 +138,6 @@ execute ps1 using @c;
 execute ps1 using @d;
 execute ps1 using @e;
 execute ps1 using @f;
-ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document root must not be followed by other values." at position 4.
 execute ps1 using @g;
 execute ps2 using @a;
 ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 'pt2.j'.
@@ -159,11 +158,44 @@ DOUBLE	31.4
 INTEGER	123
 INTEGER	123
 STRING	"123"
+STRING	"2010-12-01 18:44:25"
 select json_type(j), j from pt2 order by j;
 json_type(j)	j
 NULL	NULL
 INTEGER	123
 STRING	"123"
+delete from pt1;
+delete from pt2;
+set @string_utf8=CONVERT(x'616263C3A6C3B8C3A578797A' USING utf8mb4);
+set @json_utf8=CONCAT('{"label" : "', @string_utf8, '"}');
+set @json_latin1=CONVERT(@json_utf8 USING LATIN1);
+select @string_utf8, @json_utf8, @json_latin1;
+@string_utf8	@json_utf8	@json_latin1
+abcæøåxyz	{"label" : "abcæøåxyz"}	{"label" : "abcæøåxyz"}
+execute ps1 using @json_utf8;
+execute ps1 using @json_latin1;
+execute ps2 using @json_utf8;
+execute ps2 using @json_latin1;
+set @string_ucs2=_ucs2 0x0627064A0631062706460650;
+select HEX(CONVERT(@string_ucs2 USING utf8mb4));
+HEX(CONVERT(@string_ucs2 USING utf8mb4))
+D8A7D98AD8B1D8A7D986D990
+set @json_ucs2=CONCAT('{"label" : "', @string_ucs2, '"}');
+select collation(@json_ucs2);
+collation(@json_ucs2)
+ucs2_general_ci
+execute ps1 using @json_ucs2;
+execute ps2 using @json_ucs2;
+select hex(j->>"$.label") from pt1 order by (j->>"$.label");
+hex(j->>"$.label")
+616263C3A6C3B8C3A578797A
+616263C3A6C3B8C3A578797A
+D8A7D98AD8B1D8A7D986D990
+select hex(j->>"$.label") from pt2 order by (j->>"$.label");
+hex(j->>"$.label")
+616263C3A6C3B8C3A578797A
+616263C3A6C3B8C3A578797A
+D8A7D98AD8B1D8A7D986D990
 drop prepare ps1;
 drop prepare ps2;
 drop table pt1;

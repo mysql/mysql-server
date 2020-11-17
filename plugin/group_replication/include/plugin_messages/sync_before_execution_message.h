@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,7 @@ class Sync_before_execution_message : public Plugin_gcs_message {
    @param[in]  len              message buffer length
   */
   Sync_before_execution_message(const unsigned char *buf, size_t len);
-  virtual ~Sync_before_execution_message();
+  ~Sync_before_execution_message() override;
 
   my_thread_id get_thread_id();
 
@@ -67,8 +67,9 @@ class Sync_before_execution_message : public Plugin_gcs_message {
   /*
    Implementation of the template methods
   */
-  void encode_payload(std::vector<unsigned char> *buffer) const;
-  void decode_payload(const unsigned char *buffer, const unsigned char *end);
+  void encode_payload(std::vector<unsigned char> *buffer) const override;
+  void decode_payload(const unsigned char *buffer,
+                      const unsigned char *end) override;
 
  private:
   my_thread_id m_thread_id;

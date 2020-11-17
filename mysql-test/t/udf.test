@@ -63,6 +63,11 @@ select lookup("localhost");
 --error ER_CANT_INITIALIZE_UDF
 select reverse_lookup();
 
+prepare s from "select myfunc_double(?)";
+set @one = 1;
+execute s using @one;
+deallocate prepare s;
+
 # These two function calls should return "localhost", but it's
 # depending on configuration, so just call them and don't log the result
 --disable_result_log
@@ -432,7 +437,9 @@ CREATE TABLE t2 (a INT PRIMARY KEY);
 INSERT INTO t1 VALUES (4),(3),(2),(1);
 INSERT INTO t2 SELECT * FROM t1;
 
+--skip_if_hypergraph  # Does not make any guarantees not to re-evaluate items.
 SELECT sequence() AS seq, a FROM t1 ORDER BY seq ASC;
+--skip_if_hypergraph  # Does not make any guarantees not to re-evaluate items.
 SELECT sequence() AS seq, a FROM t1 ORDER BY seq DESC;
 
 SELECT * FROM t1 WHERE a = sequence();
@@ -805,5 +812,25 @@ let $query =
 
 DROP TABLE t1;
 DROP FUNCTION avgcost;
+
+--echo #
+--echo # WL#8084: Condition pushdown to materialized derived table
+--echo #
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE AGGREGATE FUNCTION my_median RETURNS INTEGER
+     SONAME "$UDF_EXAMPLE_LIB";
+CREATE TABLE t1(f1 INTEGER, f2 INTEGER);
+INSERT INTO t1 VALUES (1,100),(1,2),(2,100),(2,3);
+let $query =
+  SELECT * FROM (SELECT f1, my_median(f2) as median
+                 FROM t1 GROUP BY f1) as dt
+  WHERE median != 1;
+
+--replace_regex /cost=\d+.\d+/cost=***/  /rows=\d+/rows=***/
+--eval EXPLAIN FORMAT=tree $query
+--eval $query
+
+DROP TABLE t1;
+DROP FUNCTION my_median;
 
 --echo # End of the 8.0 tests

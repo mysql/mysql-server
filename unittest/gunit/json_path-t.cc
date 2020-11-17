@@ -45,8 +45,8 @@ namespace json_path_unittest {
 
 class JsonPathTest : public ::testing::Test {
  protected:
-  virtual void SetUp() { initializer.SetUp(); }
-  virtual void TearDown() { initializer.TearDown(); }
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
   THD *thd() const { return initializer.thd(); }
   my_testing::Server_initializer initializer;
   void vet_wrapper_seek(Json_wrapper *wrapper, const Json_path &path,
@@ -121,8 +121,8 @@ class JsonGoodLocationTestP : public ::testing::TestWithParam<Location_tuple> {
   arg of Json_wrapper.seek().
 */
 class JsonGoodOnoTestP : public ::testing::TestWithParam<Ono_tuple> {
-  virtual void SetUp() { initializer.SetUp(); }
-  virtual void TearDown() { initializer.TearDown(); }
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
   my_testing::Server_initializer initializer;
 
  protected:
@@ -133,8 +133,8 @@ class JsonGoodOnoTestP : public ::testing::TestWithParam<Ono_tuple> {
   Class that contains parameterized test cases for cloning tests.
 */
 class JsonGoodCloneTestP : public ::testing::TestWithParam<Clone_tuple> {
-  virtual void SetUp() { initializer.SetUp(); }
-  virtual void TearDown() { initializer.TearDown(); }
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
   my_testing::Server_initializer initializer;
 };
 

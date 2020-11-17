@@ -29,7 +29,6 @@
 
 #include "sql/sql_class.h" /* Query_arena */
 
-class JOIN;
 class Query_result;
 struct MEM_ROOT;
 
@@ -49,23 +48,31 @@ struct MEM_ROOT;
 */
 
 class Server_side_cursor {
+ public:
+  /**
+    For allocation of Handler objects for the temporary table. The prepared
+    statement's mem_root cannot be used, since the handler may be created and
+    deleted several times. The execution mem_root cannot be used since
+    creation of and retrieval from a cursor are in different executions.
+  */
+  MEM_ROOT mem_root;
+
  protected:
   Query_arena m_arena;
   /** Row destination used for fetch */
   Query_result *result;
 
  public:
-  Server_side_cursor(MEM_ROOT *mem_root_arg, Query_result *result_arg)
-      : m_arena(mem_root_arg, Query_arena::STMT_INITIALIZED),
-        result(result_arg) {}
-
+  Server_side_cursor(Query_result *result_arg)
+      : m_arena(&mem_root, Query_arena::STMT_INITIALIZED), result(result_arg) {
+    init_sql_alloc(key_memory_TABLE, &mem_root, 1024, 1024);
+  }
   virtual bool is_open() const = 0;
 
-  virtual int open(THD *thd, JOIN *top_level_join) = 0;
+  virtual bool open(THD *thd) = 0;
   virtual bool fetch(ulong num_rows) = 0;
   virtual void close() = 0;
-  virtual ~Server_side_cursor();
-
+  virtual ~Server_side_cursor() { free_root(&mem_root, MYF(0)); }
   static void operator delete(void *ptr, size_t size);
   static void operator delete(
       void *, MEM_ROOT *, const std::nothrow_t &) noexcept { /* never called */

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -618,9 +618,8 @@ class Geometry_well_formed_checker : public WKB_scanner_event_handler {
     this->type.push_back(type);
   }
 
-  virtual void on_wkb_start(Geometry::wkbByteOrder bo,
-                            Geometry::wkbType geotype, const void *, uint32,
-                            bool has_hdr) {
+  void on_wkb_start(Geometry::wkbByteOrder bo, Geometry::wkbType geotype,
+                    const void *, uint32, bool has_hdr) override {
     if (!is_ok) return;
 
     // The byte order must be the specified one (R1).
@@ -688,7 +687,7 @@ class Geometry_well_formed_checker : public WKB_scanner_event_handler {
     }
   }
 
-  virtual void on_wkb_end(const void *wkb) {
+  void on_wkb_end(const void *wkb) override {
     if (!is_ok) return;
 
     Geometry::wkbType current_type = type[type.size() - 1];
@@ -728,7 +727,7 @@ class Geometry_well_formed_checker : public WKB_scanner_event_handler {
     previous_type = current_type;
   }
 
-  virtual bool continue_scan() const { return is_ok; }
+  bool continue_scan() const override { return is_ok; }
 
   /**
     Check if the parsed WKB was well-formed, as far as this handler
@@ -989,12 +988,12 @@ class GeomColl_component_counter : public WKB_scanner_event_handler {
 
   GeomColl_component_counter() : num(0) {}
 
-  virtual void on_wkb_start(Geometry::wkbByteOrder, Geometry::wkbType geotype,
-                            const void *, uint32, bool) {
+  void on_wkb_start(Geometry::wkbByteOrder, Geometry::wkbType geotype,
+                    const void *, uint32, bool) override {
     if (geotype != Geometry::wkb_geometrycollection) num++;
   }
 
-  virtual void on_wkb_end(const void *) {}
+  void on_wkb_end(const void *) override {}
 };
 
 bool Geometry::envelope(String *result) const {

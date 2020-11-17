@@ -1564,11 +1564,9 @@ DELIMITER ;|
 INSERT INTO t1(val) VALUES ('test1'),('test2');
 SELECT * FROM t1;
 SELECT * FROM t2;
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES (2,'test2') ON DUPLICATE KEY UPDATE val=VALUES(val);
 INSERT INTO t1 VALUES (2,'test3') ON DUPLICATE KEY UPDATE val=VALUES(val);
 INSERT INTO t1 VALUES (3,'test4') ON DUPLICATE KEY UPDATE val=VALUES(val);
---enable_ps_protocol
 SELECT * FROM t1;
 SELECT * FROM t2;
 DROP TRIGGER trg27006_a_insert;

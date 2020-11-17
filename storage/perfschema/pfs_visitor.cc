@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -89,7 +89,7 @@ class All_THD_visitor_adapter : public Do_THD_Impl {
   All_THD_visitor_adapter(PFS_connection_visitor *visitor)
       : m_visitor(visitor) {}
 
-  virtual void operator()(THD *thd) { m_visitor->visit_THD(thd); }
+  void operator()(THD *thd) override { m_visitor->visit_THD(thd); }
 
  private:
   PFS_connection_visitor *m_visitor;
@@ -156,7 +156,7 @@ class All_host_THD_visitor_adapter : public Do_THD_Impl {
   All_host_THD_visitor_adapter(PFS_connection_visitor *visitor, PFS_host *host)
       : m_visitor(visitor), m_host(host) {}
 
-  virtual void operator()(THD *thd) {
+  void operator()(THD *thd) override {
     PFS_thread *pfs = get_pfs_from_THD(thd);
     pfs = sanitize_thread(pfs);
     if (pfs != nullptr) {
@@ -228,7 +228,7 @@ class All_user_THD_visitor_adapter : public Do_THD_Impl {
   All_user_THD_visitor_adapter(PFS_connection_visitor *visitor, PFS_user *user)
       : m_visitor(visitor), m_user(user) {}
 
-  virtual void operator()(THD *thd) {
+  void operator()(THD *thd) override {
     PFS_thread *pfs = get_pfs_from_THD(thd);
     pfs = sanitize_thread(pfs);
     if (pfs != nullptr) {
@@ -301,7 +301,7 @@ class All_account_THD_visitor_adapter : public Do_THD_Impl {
                                   PFS_account *account)
       : m_visitor(visitor), m_account(account) {}
 
-  virtual void operator()(THD *thd) {
+  void operator()(THD *thd) override {
     PFS_thread *pfs = get_pfs_from_THD(thd);
     pfs = sanitize_thread(pfs);
     if (pfs != nullptr) {
@@ -662,7 +662,7 @@ class Proc_all_table_shares : public PFS_buffer_processor<PFS_table_share> {
  public:
   Proc_all_table_shares(PFS_object_visitor *visitor) : m_visitor(visitor) {}
 
-  virtual void operator()(PFS_table_share *pfs) {
+  void operator()(PFS_table_share *pfs) override {
     m_visitor->visit_table_share(pfs);
   }
 
@@ -674,7 +674,7 @@ class Proc_all_table_handles : public PFS_buffer_processor<PFS_table> {
  public:
   Proc_all_table_handles(PFS_object_visitor *visitor) : m_visitor(visitor) {}
 
-  virtual void operator()(PFS_table *pfs) {
+  void operator()(PFS_table *pfs) override {
     PFS_table_share *safe_share = sanitize_table_share(pfs->m_share);
     if (safe_share != nullptr) {
       m_visitor->visit_table(pfs);
@@ -705,7 +705,7 @@ class Proc_one_table_share_handles : public PFS_buffer_processor<PFS_table> {
                                PFS_table_share *share)
       : m_visitor(visitor), m_share(share) {}
 
-  virtual void operator()(PFS_table *pfs) {
+  void operator()(PFS_table *pfs) override {
     if (pfs->m_share == m_share) {
       m_visitor->visit_table(pfs);
     }
@@ -739,7 +739,7 @@ class Proc_one_table_share_indexes : public PFS_buffer_processor<PFS_table> {
                                PFS_table_share *share, uint index)
       : m_visitor(visitor), m_share(share), m_index(index) {}
 
-  virtual void operator()(PFS_table *pfs) {
+  void operator()(PFS_table *pfs) override {
     if (pfs->m_share == m_share) {
       m_visitor->visit_table_index(pfs, m_index);
     }

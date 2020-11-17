@@ -32,6 +32,8 @@ Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 START SLAVE FOR CHANNEL 'ch3_1';
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13117 FOR CHANNEL 'ch3_1']
 include/wait_for_slave_sql_error.inc [errno=13117 FOR CHANNEL 'ch3_1']
 
@@ -49,6 +51,8 @@ Mode switched to single-primary successfully.
 # 7. Clean up
 [connection server1]
 RESET SLAVE ALL FOR CHANNEL 'ch3_1';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 [connection server2]
 SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action';
 include/group_replication_end.inc

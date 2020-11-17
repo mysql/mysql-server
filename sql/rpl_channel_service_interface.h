@@ -105,6 +105,8 @@ struct Channel_creation_info {
                              // available
   char *compression_algorithm;
   unsigned int zstd_compression_level;
+  /* to enable async connection failover */
+  int m_source_connection_auto_failover{0};
 };
 
 void initialize_channel_creation_info(Channel_creation_info *channel_info);

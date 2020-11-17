@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -72,7 +72,7 @@ class PFS_index_session_connect : public PFS_engine_index {
         m_key_1("PROCESSLIST_ID"),
         m_key_2("ATTR_NAME") {}
 
-  ~PFS_index_session_connect() {}
+  ~PFS_index_session_connect() override {}
 
   virtual bool match(PFS_thread *pfs);
   virtual bool match(row_session_connect_attrs *row);
@@ -88,16 +88,16 @@ class table_session_connect : public cursor_by_thread_connect_attr {
   table_session_connect(const PFS_engine_table_share *share);
 
  public:
-  ~table_session_connect();
+  ~table_session_connect() override;
 
  protected:
-  virtual int index_init(uint idx, bool sorted);
-  virtual int index_next();
+  int index_init(uint idx, bool sorted) override;
+  int index_next() override;
 
-  virtual int make_row(PFS_thread *pfs, uint ordinal);
+  int make_row(PFS_thread *pfs, uint ordinal) override;
   virtual bool thread_fits(PFS_thread *thread);
-  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all);
+  int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                      bool read_all) override;
 
  protected:
   /** Current row. */

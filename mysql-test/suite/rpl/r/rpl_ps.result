@@ -27,6 +27,8 @@ from-var-from-master-3
 drop table t1;
 include/sync_slave_sql_with_master.inc
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_to_stop.inc
 
 ########################################################################
@@ -37,6 +39,8 @@ include/wait_for_slave_to_stop.inc
 ########################################################################
 # Connection: slave
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 # Connection: master
 CREATE DATABASE mysqltest1;
 CREATE TABLE t1(db_name CHAR(32), db_col_name CHAR(32));

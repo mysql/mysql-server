@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -571,7 +571,7 @@ public:
                            Uint32      internalOpNo,
                            int& error);
 
-  virtual bool isScanOperation() const
+  bool isScanOperation() const override
   { return true; }
 
 protected:
@@ -594,36 +594,36 @@ class NdbQueryIndexScanOperationDefImpl : public NdbQueryScanOperationDefImpl
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 
 public:
-  virtual const NdbIndexImpl* getIndex() const
+  const NdbIndexImpl* getIndex() const override
   { return &m_index; }
 
-  virtual int serializeOperation(const Ndb *ndb,
-                                 Uint32Buffer& serializedDef);
+  int serializeOperation(const Ndb *ndb,
+                                 Uint32Buffer& serializedDef) override;
 
-  virtual const NdbQueryIndexScanOperationDef& getInterface() const
+  const NdbQueryIndexScanOperationDef& getInterface() const override
   { return m_interface; }
 
-  virtual NdbQueryOperationDef::Type getType() const
+  NdbQueryOperationDef::Type getType() const override
   { return NdbQueryOperationDef::OrderedIndexScan; }
 
-  virtual int checkPrunable(const Uint32Buffer& keyInfo,
+  int checkPrunable(const Uint32Buffer& keyInfo,
                             Uint32  shortestBound,
                             bool&   isPruned,
-                            Uint32& hashValue) const;
+                            Uint32& hashValue) const override;
 
-  virtual const IndexBound* getBounds() const
+  const IndexBound* getBounds() const override
   { return &m_bound; } 
 
-  bool hasParamInPruneKey() const
+  bool hasParamInPruneKey() const override
   {
     return m_paramInPruneKey;
   }
 
 protected:
   // Append pattern for creating complete range bounds to serialized code 
-  virtual Uint32 appendBoundPattern(Uint32Buffer& serializedDef) const;
+  Uint32 appendBoundPattern(Uint32Buffer& serializedDef) const override;
 
-  virtual Uint32 appendPrunePattern(Uint32Buffer& serializedDef);
+  Uint32 appendPrunePattern(Uint32Buffer& serializedDef) override;
 
 private:
 
@@ -837,11 +837,11 @@ public:
   const NdbColumnImpl& getParentColumn() const
   { return *m_parentOperation.getSPJProjection()[m_parentColumnIx]; }
 
-  virtual NdbQueryOperand& getInterface()
+  NdbQueryOperand& getInterface() override
   { return m_interface; }
 
-  virtual int bindOperand(const NdbColumnImpl& column,
-                          NdbQueryOperationDefImpl& operation);
+  int bindOperand(const NdbColumnImpl& column,
+                  NdbQueryOperationDefImpl& operation) override;
 
 private:
   NdbLinkedOperandImpl (NdbQueryOperationDefImpl& parent, 
@@ -869,11 +869,11 @@ public:
   Uint32 getParamIx() const
   { return m_paramIx; }
 
-  virtual NdbQueryOperand& getInterface()
+  NdbQueryOperand& getInterface() override
   { return m_interface; }
 
-  virtual int bindOperand(const NdbColumnImpl& column,
-                          NdbQueryOperationDefImpl& operation);
+  int bindOperand(const NdbColumnImpl& column,
+                  NdbQueryOperationDefImpl& operation) override;
 
 private:
   NdbParamOperandImpl (const char* name, Uint32 paramIx)
@@ -898,11 +898,11 @@ public:
   const void* getAddr() const
   { return likely(m_converted.buffer==NULL) ? &m_converted.val : m_converted.buffer; }
 
-  virtual NdbQueryOperand& getInterface()
+  NdbQueryOperand& getInterface() override
   { return m_interface; }
 
-  virtual int bindOperand(const NdbColumnImpl& column,
-                          NdbQueryOperationDefImpl& operation);
+  int bindOperand(const NdbColumnImpl& column,
+                  NdbQueryOperationDefImpl& operation) override;
 
 protected:
   NdbConstOperandImpl ()

@@ -1,0 +1,61 @@
+
+
+-->macro Add_debug_point	%DBUG_TYPE%	%DBUG_POINT%
+quiet;
+noquery_result;
+-->stmtsql SET @previous_debug = @@%DBUG_TYPE%.debug;
+-->recvresult
+SET @before_debug_point='';
+SET @after_debug_point='';
+
+set @previous_debug=IF(@previous_debug = '','d,',@previous_debug);
+set @previous_debug=IF(@previous_debug = 'd','d,',@previous_debug);
+
+SET @divide=INSTR(@previous_debug,'d:') = 1;
+SET @before_debug_point=IF(@divide,'d,', @before_debug_point);
+SET @after_debug_point=IF(@divide,RIGHT(@previous_debug, LENGTH(@previous_debug) - 1), @after_debug_point);
+
+
+# check if debug starts with 'd,' and has no ':'
+SET @comma=INSTR(@previous_debug,'d,') = 1 AND INSTR(@previous_debug,':') = 0;
+SET @before_debug_point=IF(@comma, CONCAT(@previous_debug, ','), @before_debug_point);
+
+# check if debug starts with 'd,' and has ':'
+SET @div=INSTR(@previous_debug,'d,') = 1 AND INSTR(@previous_debug,':') > 0;
+SET @before_debug_point=IF(@div,LEFT(@previous_debug, INSTR(@previous_debug,':') - 1),@before_debug_point);
+SET @after_debug_point=IF(@div,RIGHT(@previous_debug, LENGTH(@previous_debug) - INSTR(@previous_debug,':') + 1),@after_debug_point);
+
+-->echo Adding debug point '%DBUG_POINT%' to @@%DBUG_TYPE%.debug
+
+-->stmtsql SET @@%DBUG_TYPE%.debug=CONCAT(@before_debug_point, '%DBUG_POINT%', @after_debug_point)
+-->recvresult
+noquiet;
+query_result;
+-->endmacro
+
+
+-->macro Remove_debug_point	%DBUG_TYPE%	%DBUG_POINT%
+quiet;
+noquery_result;
+
+-->stmtsql SET @previous_debug=@@%DBUG_TYPE%.debug
+-->recvresult
+-->stmtsql SET @new_debug=@@%DBUG_TYPE%.debug
+-->recvresult
+
+-->stmtsql SET @replace=LOCATE('%DBUG_POINT%', @previous_debug) > 0;
+-->recvresult
+
+-->stmtsql SET @new_debug=IF(@replace, REPLACE(@previous_debug, ',%DBUG_POINT%', ''), @new_debug);
+-->recvresult
+
+SET @new_debug=IF(@new_debug="d", "", @new_debug);
+
+-->echo Removing debug point '%DBUG_POINT%' from @@%DBUG_TYPE%.debug
+
+-->stmtsql SET @@%DBUG_TYPE%.debug=@new_debug
+-->recvresult
+
+noquiet;
+query_result;
+-->endmacro

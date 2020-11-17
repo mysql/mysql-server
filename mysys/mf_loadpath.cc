@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,7 @@
   @param path Pointer to buffer containing the supplied path.
   @param own_path_prefix  Prefix to be appended to path.
 
-  @retval to  Pointer to the supplied destination buffer
+  @returns to Pointer to the supplied destination buffer
               that will hold the full load-path.
 */
 

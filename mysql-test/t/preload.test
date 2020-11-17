@@ -64,8 +64,10 @@ flush tables; flush status;
 show status like "key_read%";
 
 select count(*) from t1 where b = 'test1';
+--skip_if_hypergraph  # Depends on the query plan.
 show status like "key_read%";
 select count(*) from t1 where b = 'test1';
+--skip_if_hypergraph  # Depends on the query plan.
 show status like "key_read%";
 
 flush tables; flush status;
@@ -73,6 +75,7 @@ select @@preload_buffer_size;
 load index into cache t1;
 show status like "key_read%";
 select count(*) from t1 where b = 'test1';
+--skip_if_hypergraph  # Depends on the query plan.
 show status like "key_read%";
 
 flush tables; flush status;
@@ -82,6 +85,7 @@ select @@preload_buffer_size;
 load index into cache t1 ignore leaves;
 show status like "key_read%";
 select count(*) from t1 where b = 'test1';
+--skip_if_hypergraph  # Depends on the query plan.
 show status like "key_read%";
 
 flush tables; flush status; 
@@ -92,6 +96,7 @@ load index into cache t1, t2 key (primary,b) ignore leaves;
 show status like "key_read%";
 select count(*) from t1 where b = 'test1';
 select count(*) from t2 where b = 'test1';
+--skip_if_hypergraph  # Depends on the query plan.
 show status like "key_read%";
 
 flush tables; flush status;

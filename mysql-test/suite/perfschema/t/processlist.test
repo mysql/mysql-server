@@ -1,0 +1,198 @@
+--echo ##
+--echo ## Test the Performance Schema-based implementation of SHOW PROCESSLIST.
+--echo ##
+--echo ## Test cases:
+--echo ##   1. Execute the new SHOW [FULL] PROCESSLIST and SELECT on performance_schema.processlist
+--echo ##   2. Execute the legacy SHOW [FULL] PROCESSLIST and SELECT on information_schema.processlist
+--echo ##   3. Verify that performance_schema_show_processlist = ON executes the new implementation
+--echo ##   4. Verify that performance_schema_show_processlist = OFF executes the legacy code path
+--echo ##
+--echo ## Results must be manually verified.
+
+--source include/no_protocol.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--echo
+--echo ### Setup ###
+--echo
+select @@global.performance_schema_show_processlist into @save_processlist;
+
+--echo
+create user user1@localhost, user2@localhost,
+            user3@localhost, user4@localhost;
+--echo
+grant ALL on *.* to user1@localhost;
+grant ALL on *.* to user2@localhost;
+grant ALL on *.* to user3@localhost;
+grant ALL on *.* to user4@localhost;
+--echo
+flush privileges;
+
+--echo
+use test;
+create table test.t1 (s1 int, s2 int, s3 int, s4 int);
+
+--echo
+--echo # Switch to (con0, localhost, root, , )
+connect (con0, localhost, root, , );
+--echo
+insert into test.t1 values(1, 1, 1, 1);
+insert into test.t1 values(2, 2, 2, 2);
+insert into test.t1 values(3, 3, 3, 3);
+insert into test.t1 values(4, 4, 4, 4);
+
+--echo
+--echo # Lock test.t1, insert/update/deletes will block
+lock tables t1 read;
+
+--echo
+--echo # Connect (con1, localhost, user1, , )
+connect (con1, localhost, user1, , );
+--send insert into test.t1 values (0, 0, 0, 0)
+
+--echo
+--echo # Connect (con2, localhost, user2, , )
+connect (con2, localhost, user2, , );
+# Create a query > 100 characters
+--send update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999;
+--echo
+--echo # Connect (con3, localhost, user3, , )
+connect (con3, localhost, user3, , );
+--send delete from test.t1 where s1 = 3
+
+--echo
+--echo # Connect (con4, localhost, user4, , )
+connect (con4, localhost, user4, , );
+--send insert into test.t1 values (4, 4, 4, 4)
+
+--echo
+--echo # Connection default
+--connection default
+
+--echo
+--echo # Wait for queries to appear in the processlist table
+let $wait_condition = select count(*) >= 4 from information_schema.processlist
+                      where state like '%metadata%';
+--source include/wait_condition.inc
+
+--echo
+--echo
+--echo ### Execute new SHOW [FULL] PROCESSLIST and SELECT on performance_schema.processlist
+--echo
+let $pfs_spl = on;
+--source ../include/processlist_set.inc
+--source ../include/processlist_load.inc
+
+--echo
+--echo
+--echo ### Execute legacy SHOW [FULL] PROCESSLIST and SELECT on information_schema.processlist
+--echo
+let $pfs_spl = off;
+--source ../include/processlist_set.inc
+--source ../include/processlist_load.inc
+
+--echo
+--echo
+--echo ### Verify feature code path
+--echo
+--echo # Enable SHOW PROCESSLIST via the Performance Schema
+let $pfs_spl = on;
+--source ../include/processlist_set.inc
+
+--echo
+--echo # Connection default, send SHOW PROCESSLIST
+--connection default
+SET DEBUG_SYNC='pfs_show_processlist_performance_schema SIGNAL pfs_processlist_pfs WAIT_FOR continue';
+--send SHOW FULL PROCESSLIST
+
+--echo
+--echo # Connection con0
+--connection con0
+SET DEBUG_SYNC='now WAIT_FOR pfs_processlist_pfs';
+SET DEBUG_SYNC='now SIGNAL continue';
+
+--echo
+--echo # Connection default, reap
+--connection default
+--replace_column 1 <Id> 3 <Host> 5 <Command> 6 <Time> 7 <State> 8 <Info>
+--replace_regex /Waiting on empty queue/WAITING/ /Waiting for next activation/WAITING/ /Daemon/<Command>/ /Connect/<Command>/
+--sorted_result
+--reap
+
+--echo
+--echo
+--echo ### Verify legacy code path
+--echo
+--echo # Enable the legacy SHOW PROCESSLIST
+let $pfs_spl = off;
+--source ../include/processlist_set.inc
+
+--echo
+--echo # Connection default, send SHOW PROCESSLIST
+--connection default
+SET DEBUG_SYNC='RESET';
+SET DEBUG_SYNC='pfs_show_processlist_legacy SIGNAL pfs_processlist_legacy WAIT_FOR continue';
+--send SHOW FULL PROCESSLIST
+
+--echo
+--echo # Connection con0
+--connection con0
+SET DEBUG_SYNC='now WAIT_FOR pfs_processlist_legacy';
+SET DEBUG_SYNC='now SIGNAL continue';
+
+--echo
+--echo # Connection default, reap
+--connection default
+--replace_column 1 <Id> 3 <Host> 5 <Command> 6 <Time> 7 <State> 8 <Info>
+--replace_regex /Waiting on empty queue/WAITING/ /Waiting for next activation/WAITING/ /Daemon/<Command>/ /Connect/<Command>/
+--sorted_result
+--reap
+
+--echo
+--echo
+--echo ### Clean up ###
+--echo
+
+--echo # Connection con0, unlock test.t1, disconnect
+--connection con0
+unlock tables;
+--disconnect con0
+
+--disable_query_log
+--disable_result_log
+--echo
+--echo # Connection con1, reap, disconnect
+--connection con1
+--reap
+--disconnect con1
+
+--echo # Connection con2, reap, disconnect
+--connection con2
+--reap
+--disconnect con2
+
+--echo # Connection con3, reap, disconnect
+--connection con3
+--reap
+--disconnect con3
+
+--echo # Connection con4, reap, disconnect
+--connection con4
+--reap
+--disconnect con4
+--enable_result_log
+--enable_query_log
+
+--echo
+--echo # Connection default
+--connection default
+
+--echo
+drop table test.t1;
+drop user user1@localhost;
+drop user user2@localhost;
+drop user user3@localhost;
+drop user user4@localhost;
+--echo
+set @@global.performance_schema_show_processlist = @save_processlist;

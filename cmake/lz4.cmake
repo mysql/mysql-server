@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -24,30 +24,35 @@
 # bundled is the default
 
 MACRO (FIND_SYSTEM_LZ4)
-  FIND_PATH(PATH_TO_LZ4 NAMES lz4frame.h)
-  FIND_LIBRARY(LZ4_SYSTEM_LIBRARY NAMES lz4)
-  IF (PATH_TO_LZ4 AND LZ4_SYSTEM_LIBRARY)
+  FIND_PATH(LZ4_INCLUDE_DIR
+    NAMES lz4frame.h)
+  FIND_LIBRARY(LZ4_SYSTEM_LIBRARY
+    NAMES lz4)
+  IF (LZ4_INCLUDE_DIR AND LZ4_SYSTEM_LIBRARY)
     SET(SYSTEM_LZ4_FOUND 1)
-    INCLUDE_DIRECTORIES(SYSTEM ${PATH_TO_LZ4})
     SET(LZ4_LIBRARY ${LZ4_SYSTEM_LIBRARY})
-    MESSAGE(STATUS "PATH_TO_LZ4 ${PATH_TO_LZ4}")
-    MESSAGE(STATUS "LZ4_LIBRARY ${LZ4_LIBRARY}")
   ENDIF()
 ENDMACRO()
 
 MACRO (MYSQL_USE_BUNDLED_LZ4)
-  SET(WITH_LZ4 "bundled" CACHE STRING "By default use bundled lz4 library")
+  SET(WITH_LZ4 "bundled" CACHE STRING "Bundled lz4 library")
   SET(BUILD_BUNDLED_LZ4 1)
   INCLUDE_DIRECTORIES(BEFORE SYSTEM ${CMAKE_SOURCE_DIR}/extra/lz4)
   SET(LZ4_LIBRARY lz4_lib)
+  ADD_LIBRARY(lz4_lib STATIC
+    ${CMAKE_SOURCE_DIR}/extra/lz4/lz4.c
+    ${CMAKE_SOURCE_DIR}/extra/lz4/lz4frame.c
+    ${CMAKE_SOURCE_DIR}/extra/lz4/lz4hc.c
+    ${CMAKE_SOURCE_DIR}/extra/lz4/xxhash.c
+    )
 ENDMACRO()
 
-IF (NOT WITH_LZ4)
-  SET(WITH_LZ4 "bundled" CACHE STRING "By default use bundled lz4 library")
-ENDIF()
-
 MACRO (MYSQL_CHECK_LZ4)
-  IF (WITH_LZ4 STREQUAL "bundled")
+  IF(NOT WITH_LZ4)
+    SET(WITH_LZ4 "bundled" CACHE STRING "By default use bundled lz4 library")
+  ENDIF()
+
+  IF(WITH_LZ4 STREQUAL "bundled")
     MYSQL_USE_BUNDLED_LZ4()
   ELSEIF(WITH_LZ4 STREQUAL "system")
     FIND_SYSTEM_LZ4()

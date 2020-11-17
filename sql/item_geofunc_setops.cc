@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2548,8 +2548,8 @@ class Singleton_extractor : public WKB_scanner_event_handler {
     return nsubtrees == 1 ? bg_type : gtype;
   }
 
-  virtual void on_wkb_start(Geometry::wkbByteOrder, Geometry::wkbType geotype,
-                            const void *wkb, uint32 len, bool) {
+  void on_wkb_start(Geometry::wkbByteOrder, Geometry::wkbType geotype,
+                    const void *wkb, uint32 len, bool) override {
     if (geotype != Geometry::wkb_geometrycollection) {
       if (gc_depth == 0) {
         gc_depth = depth;
@@ -2572,7 +2572,7 @@ class Singleton_extractor : public WKB_scanner_event_handler {
     depth++;
   }
 
-  virtual void on_wkb_end(const void *wkb) {
+  void on_wkb_end(const void *wkb) override {
     depth--;
     DBUG_ASSERT(depth >= 0);
 

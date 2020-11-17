@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -356,6 +356,22 @@ int channel_create(const char *channel, Channel_creation_info *channel_info) {
     lex_mi->zstd_compression_level = channel_info->zstd_compression_level;
   }
 
+  if (channel_info->m_source_connection_auto_failover) {
+    lex_mi->m_source_connection_auto_failover = LEX_MASTER_INFO::LEX_MI_ENABLE;
+    if (mi && mi->is_source_connection_auto_failover()) {
+      // No change
+      lex_mi->m_source_connection_auto_failover =
+          LEX_MASTER_INFO::LEX_MI_UNCHANGED;
+    }
+  } else {
+    lex_mi->m_source_connection_auto_failover = LEX_MASTER_INFO::LEX_MI_DISABLE;
+    if (mi && !mi->is_source_connection_auto_failover()) {
+      // No change
+      lex_mi->m_source_connection_auto_failover =
+          LEX_MASTER_INFO::LEX_MI_UNCHANGED;
+    }
+  }
+
   if (channel_info->ssl_info != nullptr) {
     set_mi_ssl_options(lex_mi, channel_info->ssl_info);
   }
@@ -618,7 +634,7 @@ class Kill_binlog_dump : public Do_THD_Impl {
  public:
   Kill_binlog_dump() {}
 
-  virtual void operator()(THD *thd_to_kill) {
+  void operator()(THD *thd_to_kill) override {
     if (thd_to_kill->get_command() == COM_BINLOG_DUMP ||
         thd_to_kill->get_command() == COM_BINLOG_DUMP_GTID) {
       DBUG_ASSERT(thd_to_kill != current_thd);

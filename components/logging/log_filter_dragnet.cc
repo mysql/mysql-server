@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1561,18 +1561,18 @@ DEFINE_METHOD(int, log_service_imp::run,
                      the server/logging framework. It must be released
                      on close.
 
-  @retval  <0        a new instance could not be created
-  @retval  =0        success, returned hande is valid
+  @retval  LOG_SERVICE_SUCCESS        success, returned hande is valid
+  @retval  otherwise                  a new instance could not be created
 */
-DEFINE_METHOD(int, log_service_imp::open,
+DEFINE_METHOD(log_service_error, log_service_imp::open,
               (log_line * ll MY_ATTRIBUTE((unused)), void **instance)) {
-  if (instance == nullptr) return -1;
+  if (instance == nullptr) return LOG_SERVICE_INVALID_ARGUMENT;
 
   *instance = nullptr;
 
   opened++;
 
-  return 0;
+  return LOG_SERVICE_SUCCESS;
 }
 
 /**
@@ -1583,17 +1583,17 @@ DEFINE_METHOD(int, log_service_imp::open,
                      it should be released, and the pointer
                      set to nullptr.
 
-  @retval  <0        an error occurred
-  @retval  =0        success
+  @retval  LOG_SERVICE_SUCCESS        success
+  @retval  otherwise                  an error occurred
 */
-DEFINE_METHOD(int, log_service_imp::close, (void **instance)) {
-  if (instance == nullptr) return -1;
+DEFINE_METHOD(log_service_error, log_service_imp::close, (void **instance)) {
+  if (instance == nullptr) return LOG_SERVICE_INVALID_ARGUMENT;
 
   *instance = nullptr;
 
   opened--;
 
-  return 0;
+  return LOG_SERVICE_SUCCESS;
 }
 
 /**
@@ -1607,13 +1607,11 @@ DEFINE_METHOD(int, log_service_imp::close, (void **instance)) {
   @param   instance  State-pointer that was returned on open.
                      Value may be changed in flush.
 
-  @retval  <0        an error occurred
-  @retval  =0        no work was done
-  @retval  >0        flush completed without incident
+  @retval  LOG_SERVICE_NOTHING_DONE       no work was done
 */
-DEFINE_METHOD(int, log_service_imp::flush,
+DEFINE_METHOD(log_service_error, log_service_imp::flush,
               (void **instance MY_ATTRIBUTE((unused)))) {
-  return 0;
+  return LOG_SERVICE_NOTHING_DONE;
 }
 
 /**
@@ -1746,7 +1744,8 @@ success:
 /* implementing a service: log_filter */
 BEGIN_SERVICE_IMPLEMENTATION(log_filter_dragnet, log_service)
 log_service_imp::run, log_service_imp::flush, nullptr, nullptr,
-    log_service_imp::characteristics END_SERVICE_IMPLEMENTATION();
+    log_service_imp::characteristics, nullptr,
+    nullptr END_SERVICE_IMPLEMENTATION();
 
 /* component provides: just the log_filter service, for now */
 BEGIN_COMPONENT_PROVIDES(log_filter_dragnet)

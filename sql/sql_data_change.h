@@ -1,6 +1,6 @@
 #ifndef SQL_DATA_CHANGE_INCLUDED
 #define SQL_DATA_CHANGE_INCLUDED
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,6 +41,8 @@ class Item;
 struct TABLE;
 template <class T>
 class List;
+template <class T>
+class mem_root_deque;
 
 enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_UPDATE };
 
@@ -102,13 +104,13 @@ class COPY_INFO {
      fill; and thus we must not set a function default for them.
      NULL means "empty list".
   */
-  List<Item> *m_changed_columns;
+  mem_root_deque<Item *> *m_changed_columns;
 
   /**
      A second list of columns like m_changed_columns. See the constructor
      specific of LOAD DATA INFILE, below.
   */
-  List<Item> *m_changed_columns2;
+  mem_root_deque<Item *> *m_changed_columns2;
 
   /** Whether this object must manage function defaults */
   const bool m_manage_defaults;
@@ -150,7 +152,7 @@ class COPY_INFO {
   Statistics stats;
   int escape_char, last_errno;
   /** Values for UPDATE; needed by write_record() if INSERT with DUP_UPDATE */
-  List<Item> *update_values;
+  mem_root_deque<Item *> *update_values;
 
   /**
      Initializes this data change operation as an SQL @c INSERT (with all
@@ -166,7 +168,7 @@ class COPY_INFO {
      @param duplicate_handling The policy for handling duplicates.
 
   */
-  COPY_INFO(operation_type optype, List<Item> *inserted_columns,
+  COPY_INFO(operation_type optype, mem_root_deque<Item *> *inserted_columns,
             bool manage_defaults, enum_duplicates duplicate_handling)
       : m_optype(optype),
         m_changed_columns(inserted_columns),
@@ -203,8 +205,8 @@ class COPY_INFO {
      @param duplicates_handling How to handle duplicates.
      @param escape_character    The escape character.
   */
-  COPY_INFO(operation_type optype, List<Item> *inserted_columns,
-            List<Item> *inserted_columns2, bool manage_defaults,
+  COPY_INFO(operation_type optype, mem_root_deque<Item *> *inserted_columns,
+            mem_root_deque<Item *> *inserted_columns2, bool manage_defaults,
             enum_duplicates duplicates_handling, int escape_character)
       : m_optype(optype),
         m_changed_columns(inserted_columns),
@@ -229,7 +231,8 @@ class COPY_INFO {
      @note that UPDATE always lists columns, so non-listed columns may need a
      default thus m_manage_defaults is always true.
   */
-  COPY_INFO(operation_type optype, List<Item> *fields, List<Item> *values)
+  COPY_INFO(operation_type optype, mem_root_deque<Item *> *fields,
+            mem_root_deque<Item *> *values)
       : m_optype(optype),
         m_changed_columns(fields),
         m_changed_columns2(nullptr),
@@ -245,9 +248,13 @@ class COPY_INFO {
 
   operation_type get_operation_type() const { return m_optype; }
 
-  List<Item> *get_changed_columns() const { return m_changed_columns; }
+  mem_root_deque<Item *> *get_changed_columns() const {
+    return m_changed_columns;
+  }
 
-  const List<Item> *get_changed_columns2() const { return m_changed_columns2; }
+  const mem_root_deque<Item *> *get_changed_columns2() const {
+    return m_changed_columns2;
+  }
 
   bool get_manage_defaults() const { return m_manage_defaults; }
 
@@ -309,6 +316,19 @@ class COPY_INFO {
     DBUG_ASSERT(m_function_default_columns != nullptr);
     return bitmap_is_overlapping(m_function_default_columns, map);
   }
+
+  /// Reset counters before the next execution
+  void reset_counters() {
+    stats.records = 0;
+    stats.deleted = 0;
+    stats.updated = 0;
+    stats.copied = 0;
+    stats.error_count = 0;
+    stats.touched = 0;
+  }
+
+  /// Cleanup memory allocated by this object.
+  void cleanup() { m_function_default_columns = nullptr; }
 
   /**
      Tells the object to not manage function defaults for the last 'count'

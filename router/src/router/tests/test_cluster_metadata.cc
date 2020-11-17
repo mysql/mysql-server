@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -75,6 +75,8 @@ class MockSocketOperations : public mysql_harness::SocketOperationsBase {
                result<void>(mysql_harness::socket_t, bool));
   MOCK_METHOD1(connect_non_blocking_status,
                result<void>(mysql_harness::socket_t sock));
+  MOCK_METHOD2(has_data, result<bool>(mysql_harness::socket_t,
+                                      std::chrono::milliseconds));
 };
 
 class ClusterMetadataTest : public ::testing::Test {

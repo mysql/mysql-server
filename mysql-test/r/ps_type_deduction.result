@@ -1,0 +1,3265 @@
+set optimizer_trace_max_mem_size=10000000,@@session.optimizer_trace="enabled=on";
+create table t1(a int);
+insert into t1 values(1),(2);
+create table t2(a int);
+prepare s from "select ?+11.1";
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["NEWDECIMAL decimals=30"]]
+prepare s from "select ?+11";
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+prepare s from "select ?+?";
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "DOUBLE"]]
+execute s using @a,@a;
+?+?
+NULL
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "DOUBLE"]]
+set @a=1e0;
+flush status;
+execute s using @a,@a;
+?+?
+2
+show status like 'com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	0
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "DOUBLE"]]
+prepare s from "select ?+?";
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "DOUBLE"]]
+set @a=11;
+flush status;
+execute s using @a,@a;
+?+?
+22
+show status like 'com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	0
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "DOUBLE"]]
+prepare s from "select ?+?";
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "DOUBLE"]]
+set @a=11.1;
+execute s using @a,@a;
+?+?
+22.2
+show status like 'com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	0
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "DOUBLE"]]
+prepare s from "select ?+?";
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "DOUBLE"]]
+set @a=11e0;
+execute s using @a,@a;
+?+?
+22
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "DOUBLE"]]
+prepare s from "select ?+?";
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "DOUBLE"]]
+set @a='11.1';
+execute s using @a,@a;
+?+?
+22.2
+show status like 'com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	0
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "DOUBLE"]]
+set @a=11;
+execute s using @a,@a;
+?+?
+22
+show status like 'com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	0
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "DOUBLE"]]
+set @a='11.1';
+execute s using @a,@a;
+?+?
+22.2
+show status like 'com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	0
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "DOUBLE"]]
+set @a='11.1garbage';
+prepare s from "select 1.0+?";
+execute s using @a;
+1.0+?
+12.100000000000000000000000000000
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '11.1garbage'
+show status like 'com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	0
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["NEWDECIMAL decimals=30"]]
+prepare s from "select 1e0+?";
+execute s using @a;
+1e0+?
+12.1
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '11.1garbage'
+show status like 'com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	0
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from "select date(?)";
+execute s using @a;
+date(?)
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '11.1garbage'
+show status like 'com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	0
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATE"]]
+prepare s from "select 11.1*(?+?)";
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["NEWDECIMAL decimals=30", "NEWDECIMAL decimals=30"]]
+prepare s from 'select -(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+set @a='1.1';
+execute s using @a;
+-(?)
+-1.1
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+set @a=2.2;
+execute s using @a;
+-(?)
+-2.2
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from 'select cast(? as time), ?+1';
+set @a="14:15:16",@b=3;
+execute s using @a,@b;
+cast(? as time)	?+1
+14:15:16	4
+set @a="14:15:16",@b=3.1;
+execute s using @a,@b;
+cast(? as time)	?+1
+14:15:16	4.100000000000000000000000000000
+prepare s from 'select ABS(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+set @a='-5.2';
+execute s using @a;
+ABS(?)
+5.2
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from 'select ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select sum(1) over (order by ?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select sum(1) over (order by ? range 2 preceding)';
+ERROR HY000: Window '<unnamed window>' with RANGE N PRECEDING/FOLLOWING frame requires exactly one ORDER BY expression, of numeric or temporal type
+prepare s from 'select sum(1) over (order by 1.1 range ? preceding)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["NEWDECIMAL decimals=30"]]
+prepare s from 'select 1 where ? group by ? having ? order by ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "VARCHAR", "LONGLONG", "VARCHAR"]]
+prepare s from 'select 1 from t1 left join t2 on ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+prepare s from 'select ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+set @a="ab";
+execute s using @a;
+?
+ab
+show status like 'com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	1
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+set @a=1;
+execute s using @a;
+?
+1
+show status like 'com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	2
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+set @a="ab";
+execute s using @a;
+?
+0
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'ab'
+show status like 'com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	2
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+prepare s from 'select 1 where ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+set @a="ab";
+execute s using @a;
+1
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'ab'
+show status like 'com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	2
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+prepare s from 'select cast(? as unsigned)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+set @a=3.5;
+execute s using @a;
+cast(? as unsigned)
+4
+show status like 'com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	2
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+prepare s from 'select cast(? as char(10))';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select cast(? as binary(10))';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select cast(? as date)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATE"]]
+prepare s from 'select cast(? as time)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
+prepare s from 'select cast(? as decimal(10))';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["NEWDECIMAL decimals=30"]]
+prepare s from 'select cast(? as json)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON"]]
+prepare s from 'select convert(?, decimal(10))';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["NEWDECIMAL decimals=30"]]
+prepare s from 'select 1 where ? and ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "LONGLONG"]]
+set @a="ab";
+execute s using @a,@a;
+1
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'ab'
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "LONGLONG"]]
+prepare s from 'select ?=12, ?=?,
+  1 BETWEEN ? AND 4.3, ? BETWEEN 1 AND 4.3, ? BETWEEN ? AND ?,
+  ? >= 3, ? >= ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "VARCHAR", "VARCHAR", "LONGLONG", "LONGLONG", "VARCHAR", "VARCHAR", "VARCHAR", "LONGLONG", "VARCHAR", "VARCHAR"]]
+prepare s from 'select ifnull(?,?),ifnull(?,cast("2000" as date))';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "DATE"]]
+prepare s from 'select if(?,?,?),if(?,cast("2000" as date),?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "VARCHAR", "VARCHAR", "LONGLONG", "DATE"]]
+prepare s from 'select coalesce(?,?,?),coalesce(?,cast("2000" as date),?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR", "DATE", "DATE"]]
+prepare s from 'select ? in (?,?), ? in (2,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR", "LONGLONG", "LONGLONG"]]
+prepare s from 'select ? not in (?,?), ? not in (2,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR", "LONGLONG", "LONGLONG"]]
+prepare s from '
+select case ? when 3 then 1e0 else 2e0 end,
+case 3 when ? then 6 else 12 end,
+case ? when ? then 6 else 12 end';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "LONGLONG", "VARCHAR", "VARCHAR"]]
+prepare s from '
+select case 3 when 3 then ? else 2e0 end,
+case 3 when 3 then 1e0 else ? end,
+case 3 when 3 then ? else ? end,
+case ? when ? then ? else ? end';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "DOUBLE", "VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from '
+select case ? when ? then ? else ? end';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from '
+select case when 3=2 then ? else 2e0 end,
+case when ? then 6 else 12 end,
+case when ? then ? else ? end';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from '
+select ? in (select a from t1),
+       3 in (select ? from t1)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from '
+select ? >= ALL(select a from t1),
+       ? = ALL (select a from t1),
+       ? >= ANY (select a from t1),
+       ? NOT IN (select a from t1)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR"]]
+create table t3 (a mediumblob);
+set @a=repeat("x",1000000);
+set @b=repeat("y",1000000);
+select length(@a),md5(@a);
+length(@a)	md5(@a)
+1000000	ec78dbd963d2fc01e51176ed4dec299e
+flush status;
+prepare s from 'select length(?), md5(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+execute s using @a,@a;
+length(?)	md5(?)
+1000000	ec78dbd963d2fc01e51176ed4dec299e
+prepare s from 'insert into t3 values(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONG_BLOB"]]
+execute s using @a;
+select length(a), a=@a from t3;
+length(a)	a=@a
+1000000	1
+prepare s from 'update t3 set a=?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONG_BLOB"]]
+execute s using @b;
+select length(a), a=@b from t3;
+length(a)	a=@b
+1000000	1
+prepare s from 'delete from t3 where a=?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONG_BLOB"]]
+execute s using @b;
+select length(a), a from t3;
+length(a)	a
+prepare s from 'insert into t3 select ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONG_BLOB"]]
+execute s using @a;
+select length(a), a=@a from t3;
+length(a)	a=@a
+1000000	1
+prepare s from 'insert into t3 select ? union select ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONG_BLOB", "LONG_BLOB"]]
+execute s using @a, @b;
+select length(a), a=@a, a=@b from t3;
+length(a)	a=@a	a=@b
+1000000	1	0
+1000000	1	0
+1000000	0	1
+prepare s from 'insert into t3 select ? union all select ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONG_BLOB", "LONG_BLOB"]]
+execute s using @a, @b;
+select length(a), a=@a, a=@b from t3;
+length(a)	a=@a	a=@b
+1000000	1	0
+1000000	1	0
+1000000	0	1
+1000000	1	0
+1000000	0	1
+prepare s from 'create table t4 as select ? as a from t3 limit 1';
+execute s using @b;
+ERROR 22001: Data too long for column 'a' at row 1
+prepare s from
+'create table t4 as select cast(? as binary(1000000)) as a from t3
+  limit 1';
+execute s using @b;
+desc t4;
+Field	Type	Null	Key	Default	Extra
+a	longblob	YES		NULL	
+select length(a), a=@b from t4;
+length(a)	a=@b
+1000000	1
+drop table t3,t4;
+show status like "Com_stmt_reprepare";
+Variable_name	Value
+Com_stmt_reprepare	0
+prepare s from 'select ~ ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select ? IS TRUE';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+prepare s from 'select ? IS FALSE';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+prepare s from 'select ? IS NOT TRUE';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+prepare s from 'select ? IS NOT FALSE';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+prepare s from 'select ? IS NULL';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select ? IS NOT NULL';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select - ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from 'select ? - ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "DOUBLE"]]
+prepare s from 'select ! ?';
+Warnings:
+Warning	1287	'!' is deprecated and will be removed in a future release. Please use NOT instead
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+prepare s from 'select NOT ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+prepare s from 'select NOT(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+prepare s from 'select ? DIV ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "LONGLONG"]]
+prepare s from 'select ? AND ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "LONGLONG"]]
+prepare s from 'select ? OR ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "LONGLONG"]]
+prepare s from 'select ? XOR ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "LONGLONG"]]
+prepare s from 'select ? % ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "DOUBLE"]]
+prepare s from 'select ? MOD ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "DOUBLE"]]
+prepare s from 'select + ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select ? + ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "DOUBLE"]]
+prepare s from 'select - ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from 'select ? - ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "DOUBLE"]]
+prepare s from 'select ? * ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "DOUBLE"]]
+prepare s from 'select ? / ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "DOUBLE"]]
+prepare s from 'select ? = ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select hex(? & ?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+set @a=0x1234;
+flush status;
+execute s using @a,@a;
+hex(? & ?)
+1234
+show status like "Com_stmt_reprepare";
+Variable_name	Value
+Com_stmt_reprepare	0
+prepare s from 'select ? & 2';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+set @a='6';
+flush status;
+execute s using @a;
+? & 2
+2
+show status like "Com_stmt_reprepare";
+Variable_name	Value
+Com_stmt_reprepare	0
+prepare s from 'select ? | ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+select '18446744073709551615' | 0;
+'18446744073709551615' | 0
+18446744073709551615
+prepare s from 'select ? ^ ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select ? / ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "DOUBLE"]]
+prepare s from 'select ? = ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select ? <=> ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select ? > ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select ? >= ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select ? < ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select ? <= ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select ? <> ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select ? != ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select ? << ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select ? >> ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select ? LIKE ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select ? NOT LIKE ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select ? REGEXP ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select ? RLIKE ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select ? NOT REGEXP ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+CREATE TABLE articles (
+title VARCHAR(200),
+body TEXT,
+FULLTEXT (title,body)
+);
+prepare s from 'select 1 from articles where MATCH (title,body) AGAINST (?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+DROP TABLE articles;
+prepare s from 'select ? SOUNDS LIKE ?';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select ABS(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from 'select ACOS(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from 'select ADDDATE(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6", "LONGLONG"]]
+prepare s from 'select ADDDATE(?, INTERVAL ? MONTH)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6", "LONGLONG"]]
+prepare s from 'select ADDDATE(?, INTERVAL ? SECOND)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6", "NEWDECIMAL decimals=30"]]
+prepare s from "SELECT ADDDATE('2008-01-02', interval ? second)";
+set @a=1.1;
+flush status;
+execute s using @a;
+ADDDATE('2008-01-02', interval ? second)
+2008-01-02 00:00:01.100000
+show status like "Com_stmt_reprepare";
+Variable_name	Value
+Com_stmt_reprepare	0
+prepare s from 'select ADDDATE(?, INTERVAL ? DAY_SECOND)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6", "VARCHAR"]]
+prepare s from 'select ADDTIME(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6", "TIME decimals=6"]]
+prepare s from 'select AES_DECRYPT(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select AES_DECRYPT(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select AES_ENCRYPT(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select AES_ENCRYPT(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select ANY_VALUE(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select ASCII(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select ASIN(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from 'select ATAN(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from 'select ATAN(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "DOUBLE"]]
+prepare s from 'select ATAN2(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from 'select ATAN2(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "DOUBLE"]]
+prepare s from 'select AVG(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from 'select BENCHMARK(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "VARCHAR"]]
+prepare s from 'select BIN(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+prepare s from 'select BIN_TO_UUID(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select BIN_TO_UUID(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select BINARY(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select BIT_AND(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select BIT_COUNT(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select bit_count(?),bit_count(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+set
+@a=0b1111111111111111111111111111111111111111111111111111111111111111111111,
+@b=0b1111111111111111111111111111111111111111111111111111111111111111111111;
+execute s using @a,@b;
+bit_count(?)	bit_count(?)
+70	70
+set
+@a=0b1111111111111111111111111111111111111111111111111111111111111111111111,
+@b=31;
+execute s using @a,@b;
+bit_count(?)	bit_count(?)
+70	5
+set
+@a=31,
+@b=31;
+execute s using @a,@b;
+bit_count(?)	bit_count(?)
+5	5
+set
+@a=0b1111111111111111111111111111111111111111111111111111111111111111111111,
+@b=0b1111111111111111111111111111111111111111111111111111111111111111111111;
+execute s using @a,@b;
+bit_count(?)	bit_count(?)
+0	0
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '?\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF'
+Warning	1292	Truncated incorrect INTEGER value: '?\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF'
+prepare s from 'select BIT_LENGTH(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select BIT_OR(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select BIT_XOR(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select CEIL(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from 'select CEILING(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from 'select CHAR(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+prepare s from 'select CHAR(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "LONGLONG"]]
+prepare s from 'select CHAR(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "LONGLONG", "LONGLONG"]]
+prepare s from 'select CHAR(?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "LONGLONG", "LONGLONG", "LONGLONG"]]
+prepare s from 'select CHAR(?,?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "LONGLONG", "LONGLONG", "LONGLONG", "LONGLONG"]]
+prepare s from 'select CHAR_LENGTH(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select CHARACTER_LENGTH(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select CHARSET(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select COALESCE(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select COALESCE(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select COALESCE(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select COALESCE(?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select COALESCE(?,?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select COERCIBILITY(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select COLLATION(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select COMPRESS(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select CONCAT(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select CONCAT(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select CONCAT(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select CONCAT(?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select CONCAT(?,?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select CONCAT_WS(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select CONCAT_WS(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select CONCAT_WS(?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select CONCAT_WS(?,?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select CONNECTION_ID()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select CONV(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "LONGLONG", "LONGLONG"]]
+prepare s from 'select CONVERT_TZ(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6", "VARCHAR", "VARCHAR"]]
+prepare s from 'select COS(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from 'select COT(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from 'select COUNT(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select COUNT(DISTINCT ?,?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select CRC32(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select CURDATE()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select CURRENT_DATE()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select CURRENT_ROLE()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select CURRENT_TIME()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select CURRENT_TIMESTAMP()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select CURRENT_USER()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select CURTIME()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select DATABASE()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select DATE(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATE"]]
+set @a= timestamp "2001-01-02 10:11:12.345";
+flush status;
+execute s using @a;
+DATE(?)
+2001-01-02
+show status like "Com_stmt_reprepare";
+Variable_name	Value
+Com_stmt_reprepare	0
+set @a=date "2001-01-02";
+flush status;
+execute s using @a;
+DATE(?)
+2001-01-02
+show status like "Com_stmt_reprepare";
+Variable_name	Value
+Com_stmt_reprepare	0
+prepare s from 'select DATE_FORMAT(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6", "VARCHAR"]]
+prepare s from 'select DATEDIFF(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6", "DATETIME decimals=6"]]
+prepare s from 'select DAY(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
+prepare s from 'select DAYNAME(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
+prepare s from 'select DAYOFMONTH(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
+prepare s from 'select DAYOFWEEK(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
+prepare s from 'select DAYOFYEAR(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
+prepare s from 'select DEGREES(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from 'select ELT(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "VARCHAR"]]
+prepare s from 'select ELT(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "VARCHAR", "VARCHAR"]]
+prepare s from 'select ELT(?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select ELT(?,?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select EXP(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from 'select EXPORT_SET(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "VARCHAR", "VARCHAR"]]
+prepare s from 'select EXPORT_SET(?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select EXPORT_SET(?,?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "VARCHAR", "VARCHAR", "VARCHAR", "LONGLONG"]]
+prepare s from 'select EXTRACT(YEAR FROM ?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
+prepare s from 'select ExtractValue(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select FIELD(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select FIELD(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select FIELD(?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select FIELD(?,?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select FIND_IN_SET(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select FIRST_VALUE(?) over () from t1';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select FLOOR(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from 'select FORMAT(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["NEWDECIMAL decimals=30", "LONGLONG"]]
+prepare s from 'select FORMAT(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["NEWDECIMAL decimals=30", "LONGLONG", "VARCHAR"]]
+prepare s from 'select FOUND_ROWS()';
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select FROM_BASE64(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select FROM_DAYS(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+prepare s from 'select FROM_UNIXTIME(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["NEWDECIMAL decimals=30"]]
+prepare s from 'select FROM_UNIXTIME(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["NEWDECIMAL decimals=30", "VARCHAR"]]
+prepare s from 'select GeomCollection(?, ?, ?, ?, ?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY", "GEOMETRY", "GEOMETRY", "GEOMETRY"]]
+prepare s from 'select GET_LOCK(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select GREATEST(?,?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select GROUP_CONCAT(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select GROUP_CONCAT(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select GROUP_CONCAT(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select GROUP_CONCAT(?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select GROUP_CONCAT(?,?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select GROUP_CONCAT(DISTINCT ?,? ORDER BY ? SEPARATOR ?)';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '?)' at line 1
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select GROUP_CONCAT(DISTINCT ?,? ORDER BY ? SEPARATOR ",")';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select GTID_SUBSET(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select GTID_SUBTRACT(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select HEX(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select HOUR(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
+set @a= time "10:11:12.345";
+flush status;
+execute s using @a;
+HOUR(?)
+10
+show status like "Com_stmt_reprepare";
+Variable_name	Value
+Com_stmt_reprepare	0
+set @a= timestamp "2001-01-02 10:11:12.345";
+flush status;
+execute s using @a;
+HOUR(?)
+10
+show status like "Com_stmt_reprepare";
+Variable_name	Value
+Com_stmt_reprepare	0
+prepare s from 'select ICU_VERSION()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select IF(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "VARCHAR", "VARCHAR"]]
+prepare s from 'select IFNULL(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select INET_ATON(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select INET_NTOA(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+prepare s from 'select INET6_ATON(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select INET6_NTOA(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+set @a= _binary 0xFDFE0000000000005A55CAFFFEFA9089;
+flush status;
+execute s using @a;
+INET6_NTOA(?)
+fdfe::5a55:caff:fefa:9089
+show status like "Com_stmt_reprepare";
+Variable_name	Value
+Com_stmt_reprepare	0
+set @a= 0xFDFE0000000000005A55CAFFFEFA9089;
+flush status;
+execute s using @a;
+INET6_NTOA(?)
+fdfe::5a55:caff:fefa:9089
+show status like "Com_stmt_reprepare";
+Variable_name	Value
+Com_stmt_reprepare	0
+prepare s from 'select INSERT(?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG", "LONGLONG", "VARCHAR"]]
+prepare s from 'select INSTR(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select INTERVAL(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "LONGLONG"]]
+prepare s from 'select INTERVAL(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "LONGLONG", "LONGLONG"]]
+prepare s from 'select INTERVAL(?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "LONGLONG", "LONGLONG", "LONGLONG"]]
+prepare s from 'select INTERVAL(?,?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "LONGLONG", "LONGLONG", "LONGLONG", "LONGLONG"]]
+prepare s from 'select IS_FREE_LOCK(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select IS_IPV4(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select IS_IPV4_COMPAT(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select IS_IPV4_MAPPED(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select IS_IPV6(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select IS_USED_LOCK(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select IS_UUID(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select ISNULL(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select JSON_ARRAY()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select JSON_ARRAY(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select JSON_ARRAY(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select JSON_ARRAY(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select JSON_ARRAY(?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select JSON_ARRAY(?,?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select JSON_ARRAY_APPEND(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "VARCHAR", "JSON"]]
+prepare s from 'select JSON_ARRAY_APPEND(?,?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "VARCHAR", "JSON", "VARCHAR", "JSON"]]
+prepare s from 'select JSON_ARRAY_INSERT(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "VARCHAR", "JSON"]]
+prepare s from 'select JSON_ARRAY_INSERT(?,?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "VARCHAR", "JSON", "VARCHAR", "JSON"]]
+prepare s from 'select JSON_ARRAYAGG(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select JSON_CONTAINS(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "VARCHAR"]]
+prepare s from 'select JSON_CONTAINS(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "VARCHAR", "VARCHAR"]]
+prepare s from 'select JSON_CONTAINS_PATH(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "VARCHAR", "VARCHAR"]]
+prepare s from 'select JSON_CONTAINS_PATH(?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select JSON_CONTAINS_PATH(?,?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select JSON_DEPTH(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON"]]
+prepare s from 'select JSON_EXTRACT(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "VARCHAR"]]
+prepare s from 'select JSON_EXTRACT(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "VARCHAR", "VARCHAR"]]
+prepare s from 'select JSON_EXTRACT(?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select JSON_EXTRACT(?,?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select JSON_INSERT(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "VARCHAR", "JSON"]]
+prepare s from 'select JSON_INSERT(?,?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "VARCHAR", "JSON", "VARCHAR", "JSON"]]
+prepare s from 'select JSON_KEYS(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON"]]
+prepare s from 'select JSON_KEYS(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "VARCHAR"]]
+prepare s from 'select JSON_LENGTH(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON"]]
+prepare s from 'select JSON_LENGTH(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "VARCHAR"]]
+prepare s from 'select JSON_MERGE_PATCH(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "JSON"]]
+prepare s from 'select JSON_MERGE_PATCH(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "JSON", "JSON"]]
+prepare s from 'select JSON_MERGE_PATCH(?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "JSON", "JSON", "JSON"]]
+prepare s from 'select JSON_MERGE_PATCH(?,?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "JSON", "JSON", "JSON", "JSON"]]
+prepare s from 'select JSON_MERGE_PRESERVE(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "JSON"]]
+prepare s from 'select JSON_MERGE_PRESERVE(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "JSON", "JSON"]]
+prepare s from 'select JSON_MERGE_PRESERVE(?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "JSON", "JSON", "JSON"]]
+prepare s from 'select JSON_MERGE_PRESERVE(?,?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "JSON", "JSON", "JSON", "JSON"]]
+prepare s from 'select JSON_OBJECT()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select JSON_OBJECT(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select JSON_OBJECT(?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select JSON_OBJECTAGG(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select JSON_PRETTY(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON"]]
+prepare s from 'select JSON_QUOTE(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select JSON_REMOVE(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "VARCHAR"]]
+prepare s from 'select JSON_REMOVE(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "VARCHAR", "VARCHAR"]]
+prepare s from 'select JSON_REMOVE(?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select JSON_REMOVE(?,?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select JSON_REPLACE(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "VARCHAR", "JSON"]]
+prepare s from 'select JSON_REPLACE(?,?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "VARCHAR", "JSON", "VARCHAR", "JSON"]]
+prepare s from 'select JSON_SEARCH(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "VARCHAR", "VARCHAR"]]
+prepare s from 'select JSON_SEARCH(?,?,?,?)';
+ERROR HY000: Incorrect arguments to ESCAPE
+prepare s from 'select JSON_SEARCH(?,?,?,"x",?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select JSON_SET(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "VARCHAR", "JSON"]]
+prepare s from 'select JSON_SET(?,?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "VARCHAR", "JSON", "VARCHAR", "JSON"]]
+prepare s from 'select JSON_STORAGE_FREE(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON"]]
+prepare s from 'select JSON_STORAGE_SIZE(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON"]]
+prepare s from
+'SELECT *
+     FROM
+       JSON_TABLE(
+         ?,
+         "$[*]"
+         COLUMNS(
+           rowid FOR ORDINALITY,
+           ac VARCHAR(100) PATH "$.a" DEFAULT ''111'' ON EMPTY DEFAULT ''999'' ON ERROR,
+           aj JSON PATH "$.a" DEFAULT ''{"x": 333}'' ON EMPTY,
+           bx INT EXISTS PATH "$.b"
+         )
+       ) AS tt';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+set @a=
+'[{"a":"3"},{"a":2},{"b":1},{"a":0},{"a":[1,2]}]';
+flush status;
+execute s using @a;
+rowid	ac	aj	bx
+1	3	"3"	0
+2	2	2	0
+3	111	{"x": 333}	1
+4	0	0	0
+5	999	[1, 2]	0
+show status like "Com_stmt_reprepare";
+Variable_name	Value
+Com_stmt_reprepare	0
+set @a=
+cast('[{"a":"3"},{"a":2},{"b":1},{"a":0},{"a":[1,2]}]' as json);
+flush status;
+execute s using @a;
+rowid	ac	aj	bx
+1	3	"3"	0
+2	2	2	0
+3	111	{"x": 333}	1
+4	0	0	0
+5	999	[1, 2]	0
+show status like "Com_stmt_reprepare";
+Variable_name	Value
+Com_stmt_reprepare	0
+prepare s from
+'SELECT *
+     FROM
+       JSON_TABLE(
+         ?,
+         ?
+         COLUMNS(
+           rowid FOR ORDINALITY,
+           ac VARCHAR(100) PATH "$.a" DEFAULT ''999'' ON ERROR DEFAULT ''111'' ON EMPTY,
+           aj JSON PATH "$.a" DEFAULT ''{"x": 333}'' ON EMPTY,
+           bx INT EXISTS PATH "$.b"
+         )
+       ) AS tt';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '?
+         COLUMNS(
+           rowid FOR ORDINALITY,
+           ac VARCHAR(100) ' at line 5
+prepare s from 'select JSON_TYPE(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON"]]
+prepare s from 'select JSON_UNQUOTE(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select JSON_VALID(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON"]]
+prepare s from 'select LAG(?,?,?) over () from t1';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG", "VARCHAR"]]
+prepare s from 'select LAG(?,?,2.1) over () from t1';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["NEWDECIMAL decimals=30", "LONGLONG"]]
+prepare s from 'select LAST_DAY(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
+prepare s from 'select LAST_INSERT_ID()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select LAST_INSERT_ID(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+prepare s from 'select LAST_VALUE(?) over () from t1';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select LCASE(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select LEAD(?,?,?) over () from t1';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG", "VARCHAR"]]
+prepare s from 'select LEAD(?,?,2.1) over () from t1';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["NEWDECIMAL decimals=30", "LONGLONG"]]
+prepare s from 'select LEAST(?,?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select LEFT(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select LENGTH(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select LineString(?, ?, ?, ?, ?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY", "GEOMETRY", "GEOMETRY", "GEOMETRY"]]
+prepare s from 'select LN(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from 'select LOAD_FILE(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select LOCALTIME()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select LOCALTIMESTAMP()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select LOCATE(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select LOCATE(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "LONGLONG"]]
+prepare s from 'select LOG(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from 'select LOG(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "DOUBLE"]]
+prepare s from 'select LOG10(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from 'select LOG2(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from 'select LOWER(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select LPAD(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG", "VARCHAR"]]
+prepare s from 'select LTRIM(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select MAKE_SET(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "VARCHAR"]]
+prepare s from 'select MAKE_SET(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "VARCHAR", "VARCHAR"]]
+prepare s from 'select MAKE_SET(?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select MAKE_SET(?,?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "VARCHAR", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select MAKEDATE(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "LONGLONG"]]
+prepare s from 'select MAKETIME(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "LONGLONG", "NEWDECIMAL decimals=30"]]
+prepare s from 'select MASTER_POS_WAIT(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select MASTER_POS_WAIT(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG", "LONGLONG"]]
+prepare s from 'select MASTER_POS_WAIT(?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG", "LONGLONG", "VARCHAR"]]
+prepare s from 'select MAX(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select MBRContains(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY"]]
+prepare s from 'select MBRCoveredBy(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY"]]
+prepare s from 'select MBRCovers(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY"]]
+prepare s from 'select MBRDisjoint(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY"]]
+prepare s from 'select MBREquals(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY"]]
+prepare s from 'select MBRIntersects(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY"]]
+prepare s from 'select MBROverlaps(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY"]]
+prepare s from 'select MBRTouches(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY"]]
+prepare s from 'select MBRWithin(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY"]]
+prepare s from 'select MD5(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select MICROSECOND(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
+prepare s from 'select MID(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select MID(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG", "LONGLONG"]]
+prepare s from 'select MIN(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select MINUTE(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
+prepare s from 'select MOD(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "DOUBLE"]]
+prepare s from 'select MONTH(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
+prepare s from 'select MONTHNAME(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
+prepare s from 'select MultiLineString(?, ?, ?, ?, ?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY", "GEOMETRY", "GEOMETRY", "GEOMETRY"]]
+prepare s from 'select MultiPoint(?, ?, ?, ?, ?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY", "GEOMETRY", "GEOMETRY", "GEOMETRY"]]
+prepare s from 'select MultiPolygon(?, ?, ?, ?, ?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY", "GEOMETRY", "GEOMETRY", "GEOMETRY"]]
+prepare s from 'select NOW()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select NTH_VALUE(?,?) over () from t1';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select NTILE(?) over () from t1';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+prepare s from 'select NULLIF(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select OCT(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+prepare s from 'select OCTET_LENGTH(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select ORD(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select PERIOD_ADD(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "LONGLONG"]]
+prepare s from 'select PERIOD_DIFF(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "LONGLONG"]]
+prepare s from 'select PI()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select Point(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "DOUBLE"]]
+prepare s from 'select Polygon(?, ?, ?, ?, ?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY", "GEOMETRY", "GEOMETRY", "GEOMETRY"]]
+prepare s from 'select POW(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "DOUBLE"]]
+prepare s from 'select POWER(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE", "DOUBLE"]]
+prepare s from 'select QUARTER(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
+prepare s from 'select QUOTE(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select RADIANS(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from 'select RAND()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select RAND(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from 'select RANDOM_BYTES(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+prepare s from 'select REGEXP_INSTR(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select REGEXP_INSTR(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "LONGLONG"]]
+prepare s from 'select REGEXP_INSTR(?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "LONGLONG", "LONGLONG"]]
+prepare s from 'select REGEXP_INSTR(?,?,?,?,?)';
+ERROR HY000: Invalid use of parameters in '?'
+prepare s from 'select REGEXP_LIKE(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select REGEXP_LIKE(?,?,?)';
+ERROR HY000: Invalid use of parameters in '?'
+prepare s from 'select REGEXP_REPLACE(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select REGEXP_REPLACE(?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR", "LONGLONG"]]
+prepare s from 'select REGEXP_REPLACE(?,?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR", "LONGLONG", "LONGLONG"]]
+prepare s from 'select REGEXP_SUBSTR(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select REGEXP_SUBSTR(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "LONGLONG"]]
+prepare s from 'select REGEXP_SUBSTR(?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "LONGLONG", "LONGLONG"]]
+prepare s from 'select REGEXP_SUBSTR(?,?,?,?,?)';
+ERROR HY000: Invalid use of parameters in '?'
+prepare s from 'select RELEASE_ALL_LOCKS()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select RELEASE_LOCK(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select REPEAT(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select REPLACE(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select REVERSE(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select RIGHT(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select ROLES_GRAPHML()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select ROUND(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["NEWDECIMAL decimals=30"]]
+prepare s from 'select ROUND(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["NEWDECIMAL decimals=30", "LONGLONG"]]
+prepare s from 'select ROW_COUNT()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select RPAD(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG", "VARCHAR"]]
+prepare s from 'select RTRIM(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select SCHEMA()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select SEC_TO_TIME(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["NEWDECIMAL decimals=30"]]
+prepare s from 'select SECOND(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
+prepare s from 'select SESSION_USER()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select SHA1(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select SHA2(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select SIGN(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from 'select SIN(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from 'select SLEEP(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from 'select SOUNDEX(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select SPACE(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+prepare s from 'select SQRT(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from 'select ST_Area(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY"]]
+prepare s from 'select ST_AsBinary(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY"]]
+prepare s from 'select ST_AsBinary(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "VARCHAR"]]
+prepare s from 'select ST_AsGeoJSON(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY"]]
+prepare s from 'select ST_AsGeoJSON(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "LONGLONG"]]
+prepare s from 'select ST_AsGeoJSON(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "LONGLONG", "LONGLONG"]]
+prepare s from 'select ST_AsText(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY"]]
+prepare s from 'select ST_AsText(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "VARCHAR"]]
+prepare s from 'select ST_Buffer(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "DOUBLE"]]
+prepare s from 'select ST_Buffer(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "DOUBLE", "VARCHAR"]]
+prepare s from 'select ST_Buffer(?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "DOUBLE", "VARCHAR", "VARCHAR"]]
+prepare s from 'select ST_Buffer(?,?,?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "DOUBLE", "VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select ST_Buffer_Strategy(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select ST_Buffer_Strategy(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "DOUBLE"]]
+prepare s from 'select ST_Centroid(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY"]]
+prepare s from 'select ST_Contains(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY"]]
+prepare s from 'select ST_ConvexHull(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY"]]
+prepare s from 'select ST_Crosses(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY"]]
+prepare s from 'select ST_Difference(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY"]]
+prepare s from 'select ST_Dimension(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY"]]
+prepare s from 'select ST_Disjoint(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY"]]
+prepare s from 'select ST_Distance(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY"]]
+prepare s from 'select ST_Distance_Sphere(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY"]]
+prepare s from 'select ST_Distance_Sphere(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY", "DOUBLE"]]
+prepare s from 'select ST_EndPoint(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY"]]
+prepare s from 'select ST_Envelope(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY"]]
+prepare s from 'select ST_Equals(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY"]]
+prepare s from 'select ST_ExteriorRing(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY"]]
+prepare s from 'select ST_GeoHash(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "LONGLONG"]]
+prepare s from 'select ST_GeoHash(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "LONGLONG", "LONGLONG"]]
+prepare s from 'select ST_GeomCollFromText(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select ST_GeomCollFromText(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select ST_GeomCollFromText(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG", "VARCHAR"]]
+prepare s from 'select ST_GeomCollFromWKB(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select ST_GeomCollFromWKB(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select ST_GeomCollFromWKB(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG", "VARCHAR"]]
+prepare s from 'select ST_GeometryN(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "LONGLONG"]]
+prepare s from 'select ST_GeometryType(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY"]]
+prepare s from 'select ST_GeomFromGeoJSON(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON"]]
+prepare s from 'select ST_GeomFromGeoJSON(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "LONGLONG"]]
+prepare s from 'select ST_GeomFromGeoJSON(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["JSON", "LONGLONG", "LONGLONG"]]
+prepare s from 'select ST_GeomFromText(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select ST_GeomFromText(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select ST_GeomFromText(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG", "VARCHAR"]]
+prepare s from 'select ST_GeomFromWKB(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select ST_GeomFromWKB(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select ST_GeomFromWKB(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG", "VARCHAR"]]
+prepare s from 'select ST_InteriorRingN(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "LONGLONG"]]
+prepare s from 'select ST_Intersection(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY"]]
+prepare s from 'select ST_Intersects(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY"]]
+prepare s from 'select ST_IsClosed(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY"]]
+prepare s from 'select ST_IsEmpty(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY"]]
+prepare s from 'select ST_IsSimple(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY"]]
+prepare s from 'select ST_IsValid(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY"]]
+prepare s from 'select ST_LatFromGeoHash(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select ST_Latitude(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY"]]
+prepare s from 'select ST_Latitude(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "DOUBLE"]]
+prepare s from 'select ST_Length(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY"]]
+prepare s from 'select ST_LineFromText(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select ST_LineFromText(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select ST_LineFromText(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG", "VARCHAR"]]
+prepare s from 'select ST_LineFromWKB(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select ST_LineFromWKB(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select ST_LineFromWKB(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG", "VARCHAR"]]
+prepare s from 'select ST_LongFromGeoHash(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select ST_Longitude(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY"]]
+prepare s from 'select ST_Longitude(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "DOUBLE"]]
+prepare s from 'select ST_MakeEnvelope(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY"]]
+prepare s from 'select ST_MLineFromText(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select ST_MLineFromText(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select ST_MLineFromText(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG", "VARCHAR"]]
+prepare s from 'select ST_MLineFromWKB(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select ST_MLineFromWKB(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select ST_MLineFromWKB(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG", "VARCHAR"]]
+prepare s from 'select ST_MPointFromText(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select ST_MPointFromText(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select ST_MPointFromText(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG", "VARCHAR"]]
+prepare s from 'select ST_MPointFromWKB(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select ST_MPointFromWKB(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select ST_MPointFromWKB(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG", "VARCHAR"]]
+prepare s from 'select ST_MPolyFromText(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select ST_MPolyFromText(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select ST_MPolyFromText(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG", "VARCHAR"]]
+prepare s from 'select ST_MPolyFromWKB(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select ST_MPolyFromWKB(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select ST_MPolyFromWKB(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG", "VARCHAR"]]
+prepare s from 'select ST_NumGeometries(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY"]]
+prepare s from 'select ST_NumInteriorRing(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY"]]
+prepare s from 'select ST_NumPoints(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY"]]
+prepare s from 'select ST_Overlaps(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY"]]
+prepare s from 'select ST_PointFromGeoHash(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select ST_PointFromText(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select ST_PointFromText(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select ST_PointFromText(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG", "VARCHAR"]]
+prepare s from 'select ST_PointFromWKB(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select ST_PointFromWKB(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select ST_PointFromWKB(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG", "VARCHAR"]]
+prepare s from 'select ST_PointN(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "LONGLONG"]]
+prepare s from 'select ST_PolyFromText(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select ST_PolyFromText(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select ST_PolyFromText(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG", "VARCHAR"]]
+prepare s from 'select ST_PolyFromWKB(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select ST_PolyFromWKB(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select ST_PolyFromWKB(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG", "VARCHAR"]]
+prepare s from 'select ST_Simplify(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "DOUBLE"]]
+prepare s from 'select ST_SRID(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY"]]
+prepare s from 'select ST_SRID(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "LONGLONG"]]
+prepare s from 'select ST_StartPoint(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY"]]
+prepare s from 'select ST_SwapXY(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY"]]
+prepare s from 'select ST_SymDifference(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY"]]
+prepare s from 'select ST_Touches(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY"]]
+prepare s from 'select ST_Union(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY"]]
+prepare s from 'select ST_Validate(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY"]]
+prepare s from 'select ST_Within(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "GEOMETRY"]]
+prepare s from 'select ST_X(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY"]]
+prepare s from 'select ST_X(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "DOUBLE"]]
+prepare s from 'select ST_Y(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY"]]
+prepare s from 'select ST_Y(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["GEOMETRY", "DOUBLE"]]
+prepare s from 'select STATEMENT_DIGEST(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select STATEMENT_DIGEST_TEXT(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select STD(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["NEWDECIMAL decimals=30"]]
+prepare s from 'select STDDEV(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["NEWDECIMAL decimals=30"]]
+prepare s from 'select STDDEV_POP(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["NEWDECIMAL decimals=30"]]
+prepare s from 'select STDDEV_SAMP(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["NEWDECIMAL decimals=30"]]
+prepare s from 'select STR_TO_DATE(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select STRCMP(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select SUBDATE(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6", "LONGLONG"]]
+prepare s from 'select SUBSTR(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select SUBSTR(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG", "LONGLONG"]]
+prepare s from 'select SUBSTRING(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select SUBSTRING(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG", "LONGLONG"]]
+prepare s from 'select SUBSTRING_INDEX(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "LONGLONG"]]
+prepare s from 'select SUBTIME(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6", "TIME decimals=6"]]
+prepare s from 'select SUM(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from 'select SYSDATE()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select SYSTEM_USER()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select TAN(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+prepare s from 'select TIME(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
+prepare s from 'select TIME_FORMAT(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6", "VARCHAR"]]
+prepare s from 'select TIME_TO_SEC(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["TIME decimals=6"]]
+prepare s from 'select TIMEDIFF(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR"]]
+prepare s from 'select TIMEDIFF(?,"01:02:03")';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+set @a= time "01:02:00";
+flush status;
+execute s using @a;
+TIMEDIFF(?,"01:02:03")
+-00:00:03.000000
+show status like "Com_stmt_reprepare";
+Variable_name	Value
+Com_stmt_reprepare	0
+prepare s from 'select TIMEDIFF(?,"2001-01-01 01:02:03")';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+set @a= timestamp "2001-01-02 01:02:00";
+flush status;
+execute s using @a;
+TIMEDIFF(?,"2001-01-01 01:02:03")
+23:59:57.000000
+show status like "Com_stmt_reprepare";
+Variable_name	Value
+Com_stmt_reprepare	0
+prepare s from 'select TIMESTAMP(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
+prepare s from 'select TIMESTAMP(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6", "TIME decimals=6"]]
+prepare s from 'select TIMESTAMPADD(HOUR,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "DATETIME decimals=6"]]
+prepare s from 'select TIMESTAMPDIFF(HOUR,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6", "DATETIME decimals=6"]]
+prepare s from 'select TO_BASE64(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select TO_DAYS(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
+set @a= date "2001-01-02";
+flush status;
+execute s using @a;
+TO_DAYS(?)
+730852
+show status like "Com_stmt_reprepare";
+Variable_name	Value
+Com_stmt_reprepare	0
+set @a= timestamp "2001-01-02 10:11:12.345";
+flush status;
+execute s using @a;
+TO_DAYS(?)
+730852
+show status like "Com_stmt_reprepare";
+Variable_name	Value
+Com_stmt_reprepare	0
+prepare s from 'select TO_SECONDS(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
+prepare s from 'select TRIM(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select TRUNCATE(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["NEWDECIMAL decimals=30", "LONGLONG"]]
+prepare s from 'select UCASE(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select UNCOMPRESS(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select UNCOMPRESSED_LENGTH(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select UNHEX(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select UNIX_TIMESTAMP()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select UNIX_TIMESTAMP(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
+prepare s from 'select UpdateXML(?,?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "VARCHAR", "VARCHAR"]]
+prepare s from 'select UPPER(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select USER()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select UTC_DATE()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select UTC_TIME()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select UTC_TIMESTAMP()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select UUID()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select UUID_SHORT()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select UUID_TO_BIN(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select UUID_TO_BIN(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "LONGLONG"]]
+prepare s from 'select VALIDATE_PASSWORD_STRENGTH(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+CREATE TABLE t3(a INT, b INT);
+prepare s from 'INSERT INTO t3 VALUES(?,2.0+?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "NEWDECIMAL decimals=30"]]
+DROP TABLE t3;
+prepare s from 'select VAR_POP(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["NEWDECIMAL decimals=30"]]
+prepare s from 'select VAR_SAMP(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["NEWDECIMAL decimals=30"]]
+prepare s from 'select VARIANCE(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["NEWDECIMAL decimals=30"]]
+prepare s from 'select VERSION()';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+NULL
+prepare s from 'select WAIT_FOR_EXECUTED_GTID_SET(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select WAIT_FOR_EXECUTED_GTID_SET(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "DOUBLE"]]
+prepare s from 'select WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS(?)';
+Warnings:
+Warning	1287	'WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS' is deprecated and will be removed in a future release. Please use WAIT_FOR_EXECUTED_GTID_SET instead
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS(?,?)';
+Warnings:
+Warning	1287	'WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS' is deprecated and will be removed in a future release. Please use WAIT_FOR_EXECUTED_GTID_SET instead
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "DOUBLE"]]
+prepare s from 'select WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS(?,?,?)';
+Warnings:
+Warning	1287	'WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS' is deprecated and will be removed in a future release. Please use WAIT_FOR_EXECUTED_GTID_SET instead
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR", "DOUBLE", "VARCHAR"]]
+prepare s from 'select WEEK(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
+prepare s from 'select WEEK(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6", "LONGLONG"]]
+prepare s from 'select WEEKDAY(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
+prepare s from 'select WEEKOFYEAR(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
+prepare s from 'select WEIGHT_STRING(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select YEAR(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
+prepare s from 'select YEARWEEK(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
+prepare s from 'select YEARWEEK(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6", "LONGLONG"]]
+DROP TABLE t1,t2;
+CREATE TABLE t1
+(i1 TINYINT,
+i2 SMALLINT,
+i3 MEDIUMINT,
+i4 INTEGER,
+i8 BIGINT,
+dc1 DECIMAL(6,0),
+dc2 DECIMAL(16,10)
+);
+INSERT INTO t1 VALUES(1, 1, 1, 1, 1, 1, 1.1111111111);
+PREPARE s1 FROM "SELECT i1+? FROM t1";
+PREPARE s2 FROM "SELECT i2+? FROM t1";
+PREPARE s3 FROM "SELECT i3+? FROM t1";
+PREPARE s4 FROM "SELECT i4+? FROM t1";
+PREPARE s5 FROM "SELECT i8+? FROM t1";
+PREPARE s6 FROM "SELECT dc1+? FROM t1";
+PREPARE s7 FROM "SELECT dc2+? FROM t1";
+SET @i1_max=127;
+SET @i2_max=32767;
+SET @i3_max=8388607;
+SET @i4_max=2147483647;
+SET @i8_max=9223372036854775807;
+SET @dc1_max=999999;
+SET @dc2_max=999999.9999999999;
+SET @dc1_ext=1.1234;
+SET @dc2_ext=1.12345678901234;
+EXECUTE s1 USING @i1_max;
+i1+?
+128
+EXECUTE s2 USING @i2_max;
+i2+?
+32768
+EXECUTE s3 USING @i3_max;
+i3+?
+8388608
+EXECUTE s4 USING @i4_max;
+i4+?
+2147483648
+EXECUTE s5 USING @i8_max;
+ERROR 22003: BIGINT value is out of range in '(`test`.`t1`.`i8` + ?)'
+EXECUTE s6 USING @dc1_max;
+dc1+?
+1000000.000000000000000000000000000000
+EXECUTE s7 USING @dc2_max;
+dc2+?
+1000001.111111111000000000000000000000
+EXECUTE s6 USING @dc1_ext;
+dc1+?
+2.123400000000000000000000000000
+EXECUTE s7 USING @dc2_ext;
+dc2+?
+2.234567900112340000000000000000
+DEALLOCATE PREPARE s1;
+DEALLOCATE PREPARE s2;
+DEALLOCATE PREPARE s3;
+DEALLOCATE PREPARE s4;
+DEALLOCATE PREPARE s5;
+DEALLOCATE PREPARE s6;
+DEALLOCATE PREPARE s7;
+DROP TABLE t1;
+CREATE TABLE t1
+(pk INTEGER,
+i1 TINYINT,
+i2 SMALLINT,
+i3 MEDIUMINT,
+i4 INTEGER,
+i8 BIGINT,
+i1u TINYINT UNSIGNED,
+i2u SMALLINT UNSIGNED,
+i3u MEDIUMINT UNSIGNED,
+i4u INTEGER UNSIGNED,
+i8u BIGINT UNSIGNED,
+dc DECIMAL(16,10),
+f4 FLOAT,
+f8 DOUBLE,
+vc VARCHAR(10),
+fc CHAR(10),
+vb VARBINARY(10),
+fb BINARY(10),
+d DATE,
+t TIME(6),
+dt DATETIME(6),
+ts TIMESTAMP(6)
+);
+PREPARE si FROM
+"INSERT INTO t1 VALUES(1,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+PREPARE su FROM
+"UPDATE t1
+ SET i1=?, i2=?, i3=?, i4=?, i8=?, i1u=?, i2u=?, i3u=?, i4u=?, i8u=?,
+     dc=?, f4=?, f8=?, vc=?, fc=?, vb=?, fb=?, d=?, t=?, dt=?, ts=?
+ WHERE pk=1";
+PREPARE siu FROM
+"INSERT INTO t1 VALUES(1,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+ ON DUPLICATE KEY
+ UPDATE i1=?, i2=?, i3=?, i4=?, i8=?, i1u=?, i2u=?, i3u=?, i4u=?, i8u=?,
+     dc=?, f4=?, f8=?, vc=?, fc=?, vb=?, fb=?, d=?, t=?, dt=?, ts=?";
+SET @i8=1;
+SET @i8u=CAST(1 AS UNSIGNED);
+SET @dc=3.14159;
+SET @f8=3.14159E2;
+SET @vc='abcxyz';
+SET @vb=CONVERT(@vc USING BINARY);
+SET @d='2018-01-01';
+SET @t='01:01:01.999999';
+SET @dt='2018-01-01 01:01:01.999999';
+FLUSH STATUS;
+EXECUTE si USING @i8, @i8, @i8, @i8, @i8, @i8u, @i8u, @i8u, @i8u, @i8u,
+@dc, @f8, @f8, @vc, @vc, @vb, @vb, @d, @t, @dt, @dt;
+EXECUTE su USING @i8, @i8, @i8, @i8, @i8, @i8u, @i8u, @i8u, @i8u, @i8u,
+@dc, @f8, @f8, @vc, @vc, @vb, @vb, @d, @t, @dt, @dt;
+EXECUTE siu USING @i8, @i8, @i8, @i8, @i8, @i8u, @i8u, @i8u, @i8u, @i8u,
+@dc, @f8, @f8, @vc, @vc, @vb, @vb, @d, @t, @dt, @dt,
+@i8, @i8, @i8, @i8, @i8, @i8u, @i8u, @i8u, @i8u, @i8u,
+@dc, @f8, @f8, @vc, @vc, @vb, @vb, @d, @t, @dt, @dt;
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	0
+DEALLOCATE PREPARE si;
+DEALLOCATE PREPARE su;
+DEALLOCATE PREPARE siu;
+DROP TABLE t1;
+SET @i8=555;
+SET @dc=3.14159;
+SET @r8=2.71828e0;
+SET @vc1='abc';
+SET @vc2='xyz';
+FLUSH STATUS;
+PREPARE s1 FROM "SELECT ? + ?";
+EXECUTE s1 USING @r8, @r8;
+? + ?
+5.43656
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	0
+EXECUTE s1 USING @i8, @i8;
+? + ?
+1110
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	0
+DEALLOCATE PREPARE s1;
+FLUSH STATUS;
+PREPARE s1 FROM "SELECT 666 + (? + ?)";
+EXECUTE s1 USING @i8, @i8;
+666 + (? + ?)
+1776
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	0
+EXECUTE s1 USING @r8, @r8;
+666 + (? + ?)
+671.43656
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	1
+DEALLOCATE PREPARE s1;
+FLUSH STATUS;
+PREPARE s1 FROM "SELECT -(?)";
+EXECUTE s1 USING @r8;
+-(?)
+-2.71828
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	0
+EXECUTE s1 USING @i8;
+-(?)
+-555
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	0
+DEALLOCATE PREPARE s1;
+FLUSH STATUS;
+PREPARE s1 FROM "SELECT 666 + -(?)";
+EXECUTE s1 USING @i8;
+666 + -(?)
+111
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	0
+EXECUTE s1 USING @r8;
+666 + -(?)
+663.28172
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	1
+DEALLOCATE PREPARE s1;
+FLUSH STATUS;
+PREPARE s1 FROM "SELECT GREATEST(?, ?), LEAST(?, ?)";
+EXECUTE s1 USING @vc1, @vc2, @vc1, @vc2;
+GREATEST(?, ?)	LEAST(?, ?)
+xyz	abc
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	0
+FLUSH STATUS;
+EXECUTE s1 USING @i8, @i8, @r8, @r8;
+GREATEST(?, ?)	LEAST(?, ?)
+555	2.71828
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	1
+FLUSH STATUS;
+DEALLOCATE PREPARE s1;
+PREPARE s1 FROM "SELECT 666 + GREATEST(?, ?), 3.14e0 + LEAST(?, ?)";
+EXECUTE s1 USING @i8, @i8, @r8, @r8;
+666 + GREATEST(?, ?)	3.14e0 + LEAST(?, ?)
+1221	5.858280000000001
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	0
+FLUSH STATUS;
+EXECUTE s1 USING @r8, @r8, @i8, @i8;
+666 + GREATEST(?, ?)	3.14e0 + LEAST(?, ?)
+668.71828	558.14
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	1
+FLUSH STATUS;
+DEALLOCATE PREPARE s1;
+PREPARE s1 FROM "SELECT COALESCE(?, ?)";
+EXECUTE s1 USING @vc1, @vc2;
+COALESCE(?, ?)
+abc
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	0
+FLUSH STATUS;
+EXECUTE s1 USING @i8, @i8;
+COALESCE(?, ?)
+555
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	1
+FLUSH STATUS;
+DEALLOCATE PREPARE s1;
+PREPARE s1 FROM "SELECT 666 + COALESCE(?, ?)";
+EXECUTE s1 USING @i8, @i8;
+666 + COALESCE(?, ?)
+1221
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	0
+FLUSH STATUS;
+EXECUTE s1 USING @r8, @r8;
+666 + COALESCE(?, ?)
+668.71828
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	1
+FLUSH STATUS;
+DEALLOCATE PREPARE s1;
+PREPARE s1 FROM "SELECT CASE ? WHEN 1 THEN ? ELSE ? END";
+EXECUTE s1 USING @i8, @vc1, @vc2;
+CASE ? WHEN 1 THEN ? ELSE ? END
+xyz
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	0
+FLUSH STATUS;
+EXECUTE s1 USING @i8, @r8, @r8;
+CASE ? WHEN 1 THEN ? ELSE ? END
+2.71828
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	1
+FLUSH STATUS;
+DEALLOCATE PREPARE s1;
+PREPARE s1 FROM "SELECT 666 + CASE ? WHEN 1 THEN ? ELSE ? END";
+EXECUTE s1 USING @i8, @i8, @i8;
+666 + CASE ? WHEN 1 THEN ? ELSE ? END
+1221
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	0
+FLUSH STATUS;
+EXECUTE s1 USING @i8, @r8, @r8;
+666 + CASE ? WHEN 1 THEN ? ELSE ? END
+668.71828
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	1
+FLUSH STATUS;
+DEALLOCATE PREPARE s1;
+PREPARE s1 FROM "SELECT IFNULL(?, ?)";
+EXECUTE s1 USING @vc1, @vc2;
+IFNULL(?, ?)
+abc
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	0
+FLUSH STATUS;
+EXECUTE s1 USING @i8, @i8;
+IFNULL(?, ?)
+555
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	1
+FLUSH STATUS;
+DEALLOCATE PREPARE s1;
+PREPARE s1 FROM "SELECT 666 + IFNULL(?, ?)";
+EXECUTE s1 USING @i8, @i8;
+666 + IFNULL(?, ?)
+1221
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	0
+FLUSH STATUS;
+EXECUTE s1 USING @r8, @r8;
+666 + IFNULL(?, ?)
+668.71828
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	1
+FLUSH STATUS;
+DEALLOCATE PREPARE s1;
+PREPARE s1 FROM "SELECT NULLIF(?, ?)";
+EXECUTE s1 USING @vc1, @vc2;
+NULLIF(?, ?)
+abc
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	0
+FLUSH STATUS;
+EXECUTE s1 USING @i8, @i8;
+NULLIF(?, ?)
+NULL
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	1
+FLUSH STATUS;
+DEALLOCATE PREPARE s1;
+PREPARE s1 FROM "SELECT 666 + NULLIF(?, ?)";
+EXECUTE s1 USING @i8, @i8;
+666 + NULLIF(?, ?)
+NULL
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	0
+FLUSH STATUS;
+EXECUTE s1 USING @r8, @r8;
+666 + NULLIF(?, ?)
+NULL
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	1
+FLUSH STATUS;
+DEALLOCATE PREPARE s1;
+PREPARE s1 FROM "SELECT IF(?, ?, ?)";
+EXECUTE s1 USING @i8, @vc1, @vc2;
+IF(?, ?, ?)
+abc
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	0
+FLUSH STATUS;
+EXECUTE s1 USING @i8, @i8, @i8;
+IF(?, ?, ?)
+555
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	1
+FLUSH STATUS;
+DEALLOCATE PREPARE s1;
+PREPARE s1 FROM "SELECT 666 + IF(?, ?, ?)";
+EXECUTE s1 USING @i8, @i8, @i8;
+666 + IF(?, ?, ?)
+1221
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	0
+FLUSH STATUS;
+EXECUTE s1 USING @i8, @r8, @r8;
+666 + IF(?, ?, ?)
+668.71828
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+Variable_name	Value
+Com_stmt_reprepare	1
+FLUSH STATUS;
+DEALLOCATE PREPARE s1;
+# Bug#28915257: Assertion 'data_type() != MYSQL_TYPE_INVALID'
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int);
+SET @var1 = 'a';
+SET @var2 = 'b';
+PREPARE s FROM "DELETE FROM t1 WHERE (?, ?) NOT IN (SELECT 'a', 'b' FROM t2)";
+EXECUTE s USING @var1, @var2;
+DEALLOCATE PREPARE s;
+PREPARE s FROM "SELECT * FROM t1 WHERE (?, ?) NOT IN (SELECT 'a', 'b' FROM t2)";
+EXECUTE s USING @var1, @var2;
+a
+DEALLOCATE PREPARE s;
+DROP TABLE t1, t2;
+# Bug#28934127: Assertion 'false' at Item_param::propagate_type()
+PREPARE s FROM "SELECT NULL";
+EXECUTE s;
+NULL
+NULL
+PREPARE s FROM "SELECT NULL + ? ";
+set @iv=5;
+EXECUTE s USING @iv;
+NULL + ?
+NULL
+set @ic='55';
+EXECUTE s USING @ic;
+NULL + ?
+NULL
+DEALLOCATE PREPARE s;
+# Bug#31360283: Assertion `data_type() != MYSQL_TYPE_INVALID' failed.
+#               in item_func::propagate_type
+PREPARE s FROM 'DO ST_ENVELOPE(CEILING(?))';
+ERROR HY000: Incorrect arguments to ceiling

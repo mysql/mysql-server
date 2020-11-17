@@ -14,14 +14,22 @@ ENGINE=INNODB;
 CREATE TABLE errors (msg TEXT);
 Checksum master
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 Checksum slave
 SELECT * FROM errors;
 msg
 DROP TABLE t1;
 DROP TABLE errors;
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/stop_slave.inc
 include/start_slave.inc
 include/stop_slave.inc

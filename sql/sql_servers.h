@@ -1,7 +1,7 @@
 #ifndef SQL_SERVERS_INCLUDED
 #define SQL_SERVERS_INCLUDED
 
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -150,7 +150,7 @@ class Sql_cmd_common_server : public Sql_cmd {
 
   Sql_cmd_common_server() : table(nullptr) {}
 
-  virtual ~Sql_cmd_common_server() {}
+  ~Sql_cmd_common_server() override {}
 
   /**
      Check permissions and open the mysql.servers table.
@@ -179,7 +179,9 @@ class Sql_cmd_create_server : public Sql_cmd_common_server {
   Sql_cmd_create_server(Server_options *server_options)
       : Sql_cmd_common_server(), m_server_options(server_options) {}
 
-  enum_sql_command sql_command_code() const { return SQLCOM_CREATE_SERVER; }
+  enum_sql_command sql_command_code() const override {
+    return SQLCOM_CREATE_SERVER;
+  }
 
   /**
      Create a new server by inserting a row into the
@@ -189,7 +191,7 @@ class Sql_cmd_create_server : public Sql_cmd_common_server {
 
      @returns false if success, true otherwise
   */
-  bool execute(THD *thd);
+  bool execute(THD *thd) override;
 };
 
 /**
@@ -209,7 +211,9 @@ class Sql_cmd_alter_server : public Sql_cmd_common_server {
   Sql_cmd_alter_server(Server_options *server_options)
       : Sql_cmd_common_server(), m_server_options(server_options) {}
 
-  enum_sql_command sql_command_code() const { return SQLCOM_ALTER_SERVER; }
+  enum_sql_command sql_command_code() const override {
+    return SQLCOM_ALTER_SERVER;
+  }
 
   /**
      Alter an existing server by updating the matching row in the
@@ -219,7 +223,7 @@ class Sql_cmd_alter_server : public Sql_cmd_common_server {
 
      @returns false if success, true otherwise
   */
-  bool execute(THD *thd);
+  bool execute(THD *thd) override;
 };
 
 /**
@@ -239,7 +243,9 @@ class Sql_cmd_drop_server : public Sql_cmd_common_server {
         m_server_name(server_name),
         m_if_exists(if_exists) {}
 
-  enum_sql_command sql_command_code() const { return SQLCOM_DROP_SERVER; }
+  enum_sql_command sql_command_code() const override {
+    return SQLCOM_DROP_SERVER;
+  }
 
   /**
      Drop an existing server by deleting the matching row from the
@@ -249,7 +255,7 @@ class Sql_cmd_drop_server : public Sql_cmd_common_server {
 
      @returns false if success, true otherwise
   */
-  bool execute(THD *thd);
+  bool execute(THD *thd) override;
 };
 
 #endif /* SQL_SERVERS_INCLUDED */

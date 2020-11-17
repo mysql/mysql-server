@@ -1,0 +1,68 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# 1. Add six rows in
+#    performance_schema.replication_asynchronous_connection_failover
+#    table.
+#
+SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', 3101, 'net1');
+asynchronous_connection_failover_add_source('ch1', '127.0.0.1', 3101, 'net1')
+The UDF asynchronous_connection_failover_add_source() executed successfully.
+SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', 3102, 'net2');
+asynchronous_connection_failover_add_source('ch1', '127.0.0.1', 3102, 'net2')
+The UDF asynchronous_connection_failover_add_source() executed successfully.
+SELECT asynchronous_connection_failover_add_source('ch1', '192.168.0.1', 3101, 'net2', 40);
+asynchronous_connection_failover_add_source('ch1', '192.168.0.1', 3101, 'net2', 40)
+The UDF asynchronous_connection_failover_add_source() executed successfully.
+SELECT asynchronous_connection_failover_add_source('ch2', '127.0.0.1', 3102);
+asynchronous_connection_failover_add_source('ch2', '127.0.0.1', 3102)
+The UDF asynchronous_connection_failover_add_source() executed successfully.
+SELECT asynchronous_connection_failover_add_source('ch2', '127.0.0.1', 3103);
+asynchronous_connection_failover_add_source('ch2', '127.0.0.1', 3103)
+The UDF asynchronous_connection_failover_add_source() executed successfully.
+SELECT asynchronous_connection_failover_add_source('ch2', '192.168.0.1', 3101, 'net1', 40);
+asynchronous_connection_failover_add_source('ch2', '192.168.0.1', 3101, 'net1', 40)
+The UDF asynchronous_connection_failover_add_source() executed successfully.
+#
+# 2. Checks for
+#    performance_schema.replication_asynchronous_connection_failover
+#    table.
+#
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table has no rows with channel_name="ch3"']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table has six rows']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table has three rows with channel_name="ch1"']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table has two rows with channel_name="ch1" and host="127.0.0.1"']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table has one row with channel_name="ch1" and host="127.0.0.1" and port=3101']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table has no rows with channel_name="ch1" and host="127.0.0.1" and port=3101 and network_namespace="net0"']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table has one row with channel_name="ch1" and host="192.168.0.1" and port=3101 and network_namespace="net2" and weight=40']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table has two rows with channel_name="ch1" and port=3101']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table has two rows with host="192.168.0.1" and port=3101']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table has two rows with host="192.168.0.1"']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table has three rows with port=3101']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table has two rows with network_namespace="net2"']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table has two rows with weight=40']
+#
+# 3. Cleanup
+#
+SELECT asynchronous_connection_failover_delete_source('ch1', '127.0.0.1', 3101, 'net1');
+asynchronous_connection_failover_delete_source('ch1', '127.0.0.1', 3101, 'net1')
+The UDF asynchronous_connection_failover_delete_source() executed successfully.
+SELECT asynchronous_connection_failover_delete_source('ch1', '127.0.0.1', 3102, 'net2');
+asynchronous_connection_failover_delete_source('ch1', '127.0.0.1', 3102, 'net2')
+The UDF asynchronous_connection_failover_delete_source() executed successfully.
+SELECT asynchronous_connection_failover_delete_source('ch1', '192.168.0.1', 3101, 'net2');
+asynchronous_connection_failover_delete_source('ch1', '192.168.0.1', 3101, 'net2')
+The UDF asynchronous_connection_failover_delete_source() executed successfully.
+SELECT asynchronous_connection_failover_delete_source('ch2', '127.0.0.1', 3102);
+asynchronous_connection_failover_delete_source('ch2', '127.0.0.1', 3102)
+The UDF asynchronous_connection_failover_delete_source() executed successfully.
+SELECT asynchronous_connection_failover_delete_source('ch2', '127.0.0.1', 3103);
+asynchronous_connection_failover_delete_source('ch2', '127.0.0.1', 3103)
+The UDF asynchronous_connection_failover_delete_source() executed successfully.
+SELECT asynchronous_connection_failover_delete_source('ch2', '192.168.0.1', 3101, 'net1');
+asynchronous_connection_failover_delete_source('ch2', '192.168.0.1', 3101, 'net1')
+The UDF asynchronous_connection_failover_delete_source() executed successfully.
+include/rpl_end.inc

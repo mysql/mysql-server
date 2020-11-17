@@ -1192,12 +1192,6 @@ int decimal2longlong(const decimal_t *from, longlong *to) {
 #define LLDIV_MIN -1000000000000000000LL
 #define LLDIV_MAX 1000000000000000000LL
 
-/**
-  Convert decimal value to lldiv_t value.
-  @param      from  The decimal value to convert from.
-  @param [out]  to    The lldiv_t variable to convert to.
-  @return           0 on success, error code on error.
-*/
 int decimal2lldiv_t(const decimal_t *from, lldiv_t *to) {
   int int_part = ROUND_UP(from->intg);
   int frac_part = ROUND_UP(from->frac);
@@ -1220,17 +1214,6 @@ int decimal2lldiv_t(const decimal_t *from, lldiv_t *to) {
   return 0;
 }
 
-/**
-  Convert double value to lldiv_t valie.
-  @param     nr The double value to convert from.
-  @param [out] lld   The lldit_t variable to convert to.
-  @return         0 on success, error code on error.
-
-  Integer part goes into lld.quot.
-  Fractional part multiplied to 1000000000 (10^9) goes to lld.rem.
-  Typically used in datetime calculations to split seconds
-  and nanoseconds.
-*/
 int double2lldiv_t(double nr, lldiv_t *lld) {
   if (nr > LLDIV_MAX) {
     lld->quot = LLDIV_MAX;

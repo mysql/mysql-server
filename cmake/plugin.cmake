@@ -26,6 +26,7 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
   SET(PLUGIN_OPTIONS
     CLIENT_ONLY
     DEFAULT         # builtin as static by default
+    DEFAULT_LEGACY_ENGINE
     MANDATORY       # not actually a plugin, always builtin
     MODULE_ONLY     # build only as shared library
     SKIP_INSTALL
@@ -67,6 +68,22 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
     ENDIF()
   ENDIF()
   
+  # Set it ON by default.
+  # Can be disabled with -DWITHOUT_${plugin}_STORAGE_ENGINE
+  IF(ARG_DEFAULT_LEGACY_ENGINE)
+    SET(WITH_${plugin}_STORAGE_ENGINE ON)
+    IF(WITHOUT_${plugin}_STORAGE_ENGINE)
+      SET(WITH_${plugin}_STORAGE_ENGINE OFF)
+      SET(WITH_${plugin}_STORAGE_ENGINE OFF CACHE BOOL "")
+    ELSEIF(NOT WITH_${plugin}_STORAGE_ENGINE)
+      SET(WITHOUT_${plugin}_STORAGE_ENGINE ON CACHE BOOL "")
+      MARK_AS_ADVANCED(WITHOUT_${plugin}_STORAGE_ENGINE)
+      SET(WITH_${plugin}_STORAGE_ENGINE OFF CACHE BOOL "")
+    ELSE()
+      SET(WITH_${plugin}_STORAGE_ENGINE ON CACHE BOOL "")
+    ENDIF()
+  ENDIF()
+
   IF(WITH_${plugin}_STORAGE_ENGINE 
     OR WITH_{$plugin}
     AND NOT WITHOUT_${plugin}_STORAGE_ENGINE
@@ -124,6 +141,10 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
       PROPERTIES COMPILE_DEFINITIONS "MYSQL_SERVER")
 
     ADD_DEPENDENCIES(${target} GenError ${ARG_DEPENDENCIES})
+    IF(COMPRESS_DEBUG_SECTIONS)
+      MY_TARGET_LINK_OPTIONS(${target}
+        "LINKER:--compress-debug-sections=zlib")
+    ENDIF()
     
     # Update mysqld dependencies
     SET (MYSQLD_STATIC_PLUGIN_LIBS ${MYSQLD_STATIC_PLUGIN_LIBS} 
@@ -162,6 +183,10 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
 
     ADD_VERSION_INFO(${target} MODULE SOURCES)
     ADD_LIBRARY(${target} MODULE ${SOURCES}) 
+    IF(COMPRESS_DEBUG_SECTIONS)
+      MY_TARGET_LINK_OPTIONS(${target}
+        "LINKER:--compress-debug-sections=zlib")
+    ENDIF()
     SET_TARGET_PROPERTIES (${target} PROPERTIES PREFIX ""
       COMPILE_DEFINITIONS "MYSQL_DYNAMIC_PLUGIN")
     IF(WIN32_CLANG AND WITH_ASAN)
@@ -200,18 +225,8 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
       LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugin_output_directory
       )
 
-    IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
-      ADD_CUSTOM_COMMAND(TARGET ${target} POST_BUILD
-        COMMAND install_name_tool -change
-                "${CRYPTO_VERSION}" "@loader_path/${CRYPTO_VERSION}"
-                 $<TARGET_FILE_NAME:${target}>
-        COMMAND install_name_tool -change
-                "${OPENSSL_VERSION}" "@loader_path/${OPENSSL_VERSION}"
-                 $<TARGET_FILE_NAME:${target}>
-        WORKING_DIRECTORY
-        ${CMAKE_BINARY_DIR}/plugin_output_directory/${CMAKE_CFG_INTDIR}
-        )
-    ENDIF()
+    # For APPLE: adjust path dependecy for SSL shared libraries.
+    SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(${target})
 
     # Install dynamic library
     IF(NOT ARG_SKIP_INSTALL)
@@ -248,6 +263,10 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
        FORCE)
     ENDIF()
     SET(BUILD_PLUGIN 0)
+  ENDIF()
+
+  IF(NOT BUILD_PLUGIN)
+    MESSAGE(STATUS "Skipping the ${plugin} plugin.")
   ENDIF()
 
   IF(BUILD_PLUGIN AND ARG_LINK_LIBRARIES)

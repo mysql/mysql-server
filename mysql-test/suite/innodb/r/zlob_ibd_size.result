@@ -1,3 +1,6 @@
+# Ensure that there is not already lot of data to be purged.
+# If timeout happens here, then check the chain of previously
+# executed test cases.
 SET GLOBAL innodb_compression_level = 0;
 CREATE TABLE `t`
 (`id` INT NOT NULL AUTO_INCREMENT,

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020 Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -623,6 +623,7 @@ int ThreadContext::drop_users(ChangeNotice *notice,
 */
 void ThreadContext::create_user(std::string &name, std::string &statement) {
   const std::string create_user("CREATE USER IF NOT EXISTS ");
+  const std::string random_pass(" IDENTIFIED BY RANDOM PASSWORD");
   const std::string alter_user("ALTER USER ");
   const std::string revoke_all("REVOKE ALL ON *.* FROM ");
   const std::string set_resource_defaults(
@@ -633,7 +634,7 @@ void ThreadContext::create_user(std::string &name, std::string &statement) {
   if (!get_local_user(name)) {
     ndb_log_info("From stored snapshot, adding NDB stored user: %s",
                  name.c_str());
-    run_acl_statement(create_user + name);
+    run_acl_statement(create_user + name + random_pass);
   }
 
   /* Revoke any privileges the user may have had prior to this snapshot. */

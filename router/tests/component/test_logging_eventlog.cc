@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -45,6 +45,7 @@
  */
 
 using testing::HasSubstr;
+using namespace std::chrono_literals;
 Path g_origin_path;
 
 class RouterEventlogTest : public RouterComponentTest {};
@@ -519,7 +520,7 @@ TEST_F(RouterEventlogTest, wrapper_running_as_unknown) {
   });
 
   // run the router and wait for it to exit
-  auto &router = launch_router({"--service"}, EXIT_FAILURE);
+  auto &router = launch_router({"--service"}, EXIT_FAILURE, true, false, -1s);
   check_exit_code(router, EXIT_FAILURE);
 
   // verify the message WAS written to STDERR
@@ -592,8 +593,8 @@ TEST_F(RouterEventlogTest, wrapper_running_as_process) {
   });
 
   // run the router and wait for it to exit
-  auto &router = launch_router({"--install-service"},
-                               EXIT_FAILURE);  // missing -c <config>
+  auto &router = launch_router({"--install-service"}, EXIT_FAILURE, true, false,
+                               -1s);  // missing -c <config>
   check_exit_code(router, EXIT_FAILURE);
 
   // mark the end of log
@@ -664,7 +665,8 @@ TEST_F(RouterEventlogTest, application_running_as_process_preconfig) {
   });
 
   // run the router and wait for it to exit
-  auto &router = launch_router({"-c", "bogus.conf"}, EXIT_FAILURE);
+  auto &router =
+      launch_router({"-c", "bogus.conf"}, EXIT_FAILURE, true, false, -1s);
   check_exit_code(router, EXIT_FAILURE);
 
   // mark the end of log
@@ -725,7 +727,8 @@ TEST_F(RouterEventlogTest, application_running_as_process_postconfig) {
   });
 
   // run the router and wait for it to exit
-  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
+  auto &router =
+      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
   check_exit_code(router, EXIT_FAILURE);
 
   // mark the end of log

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1914,7 +1914,7 @@ public:
 
 public:
   Dbtc(Block_context&, Uint32 instanceNumber = 0);
-  virtual ~Dbtc();
+  ~Dbtc() override;
 
 private:
   BLOCK_DEFINES(Dbtc);
@@ -2505,7 +2505,7 @@ private:
      ApiConnectRecord * const regApiPtr);
    Uint32 check_own_location_domain(Uint16*, Uint32);
 protected:
-  virtual bool getParam(const char* name, Uint32* count);
+  bool getParam(const char* name, Uint32* count) override;
   
 private:
   Uint32 c_time_track_histogram_boundary[TIME_TRACK_HISTOGRAM_RANGES];

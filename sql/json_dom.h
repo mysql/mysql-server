@@ -687,10 +687,10 @@ class Json_array final : public Json_container {
 class Json_scalar : public Json_dom {
  public:
 #ifdef MYSQL_SERVER
-  uint32 depth() const final override { return 1; }
+  uint32 depth() const final { return 1; }
 #endif
 
-  bool is_scalar() const final override { return true; }
+  bool is_scalar() const final { return true; }
 };
 
 /**
@@ -733,7 +733,7 @@ class Json_string final : public Json_scalar {
 */
 class Json_number : public Json_scalar {
  public:
-  bool is_number() const final override { return true; }
+  bool is_number() const final { return true; }
 };
 
 /**
@@ -1068,14 +1068,37 @@ class Json_boolean final : public Json_scalar {
 };
 
 /**
-  Function for double-quoting a string and escaping characters
-  to make up a valid EMCA Json text.
+  Perform quoting on a JSON string to make an external representation
+  of it. It wraps double quotes (text quotes) around the string (cptr)
+  and also performs escaping according to the following table:
+  <pre>
+  @verbatim
+  Common name     C-style  Original unescaped     Transformed to
+                  escape   UTF-8 bytes            escape sequence
+                  notation                        in UTF-8 bytes
+  ---------------------------------------------------------------
+  quote           \"       %x22                    %x5C %x22
+  backslash       \\       %x5C                    %x5C %x5C
+  backspace       \b       %x08                    %x5C %x62
+  formfeed        \f       %x0C                    %x5C %x66
+  linefeed        \n       %x0A                    %x5C %x6E
+  carriage-return \r       %x0D                    %x5C %x72
+  tab             \t       %x09                    %x5C %x74
+  unicode         \uXXXX  A hex number in the      %x5C %x75
+                          range of 00-1F,          followed by
+                          except for the ones      4 hex digits
+                          handled above (backspace,
+                          formfeed, linefeed,
+                          carriage-return,
+                          and tab).
+  ---------------------------------------------------------------
+  @endverbatim
+  </pre>
 
-  @param[in]     cptr    the unquoted character string
-  @param[in]     length  its length
-  @param[in,out] buf     the destination buffer
-
-  @return false on success, true on error
+  @param[in] cptr pointer to string data
+  @param[in] length the length of the string
+  @param[in,out] buf the destination buffer
+  @retval true on error
 */
 bool double_quote(const char *cptr, size_t length, String *buf);
 

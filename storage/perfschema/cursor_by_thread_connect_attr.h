@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -61,19 +61,19 @@ class cursor_by_thread_connect_attr : public PFS_engine_table {
  public:
   static ha_rows get_row_count();
 
-  virtual void reset_position(void);
+  void reset_position(void) override;
 
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
+  int rnd_next() override;
+  int rnd_pos(const void *pos) override;
 
-  virtual int index_init(uint, bool) { return 1; }
-  virtual int index_next() { return 1; }
+  int index_init(uint, bool) override { return 1; }
+  int index_next() override { return 1; }
 
  protected:
   cursor_by_thread_connect_attr(const PFS_engine_table_share *share);
 
  public:
-  ~cursor_by_thread_connect_attr() {}
+  ~cursor_by_thread_connect_attr() override {}
 
  protected:
   virtual int make_row(PFS_thread *thread, uint ordinal) = 0;

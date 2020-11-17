@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -73,9 +73,9 @@ class GcsXComXComCache : public GcsBaseTest {
         m_sd(nullptr),
         m_thread(nullptr),
         m_run(false) {}
-  ~GcsXComXComCache() {}
+  ~GcsXComXComCache() override {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     m_synode = {1, 1, 0};
     m_addr = new std::string("127.0.0.1:12345");
     char *names[] = {const_cast<char *>(m_addr->c_str())};
@@ -88,7 +88,7 @@ class GcsXComXComCache : public GcsBaseTest {
     init_cfg_app_xcom();
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     m_run = false;
     if (m_thread) {
       m_thread->join(nullptr);

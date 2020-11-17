@@ -31,6 +31,7 @@
 #include <util/Vector.hpp>
 #include <kernel/BlockNumbers.h>
 #include <kernel/signaldata/DumpStateOrd.hpp>
+#include <NdbTCP.h>
 
 /**
  *  @class CommandInterpreter
@@ -239,9 +240,7 @@ static const char* helpText =
 "SHOW                                   Print information about cluster\n"
 "CREATE NODEGROUP <id>,<id>...          Add a Nodegroup containing nodes\n"
 "DROP NODEGROUP <NG>                    Drop nodegroup with id NG\n"
-"START BACKUP [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
-"START BACKUP [<backup id>] [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
-"START BACKUP [<backup id>] [SNAPSHOTSTART | SNAPSHOTEND] [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
+"START BACKUP [<backup id>] [ENCRYPT PASSWORD='<password>'] [SNAPSHOTSTART | SNAPSHOTEND] [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
 "                                       Start backup (default WAIT COMPLETED,SNAPSHOTEND)\n"
 "ABORT BACKUP <backup id>               Abort backup\n"
 "SHUTDOWN                               Shutdown all processes in cluster\n"
@@ -306,7 +305,8 @@ static const char* helpTextStartBackup =
 " NDB Cluster -- Management Client -- Help for START BACKUP command\n"
 "---------------------------------------------------------------------------\n"
 "START BACKUP  Start a cluster backup\n\n"
-"START BACKUP [<backup id>] [SNAPSHOTSTART | SNAPSHOTEND] [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
+"START BACKUP [<backup id>] [ENCRYPT PASSWORD='<password>']\n"
+"    [SNAPSHOTSTART | SNAPSHOTEND] [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
 "                   Start a backup for the cluster.\n"
 "                   Each backup gets an ID number that is reported to the\n"
 "                   user. This ID number can help you find the backup on the\n"
@@ -315,6 +315,13 @@ static const char* helpTextStartBackup =
 "                   You can also start specified backup using START BACKUP <backup id> \n\n"
 "                   <backup id> \n"
 "                     Start a specified backup using <backup id> as bakcup ID number.\n" 
+"                   <password> \n"
+"                      Password for encrypting the backup files.\n"
+"                      Should be enclosed in double/single quotes, \n"
+"                      should be less than 256 characters in length and\n"
+"                      be at least one character long.\n"
+"                      Allowed characters: 0-9, A-Z, a-z, space( ), comma(,), \n"
+"                      #&()*+-./:;<=>?@[]_{|}~.\n"
 "                   SNAPSHOTSTART \n"
 "                     Backup snapshot is taken around the time the backup is started.\n" 
 "                   SNAPSHOTEND \n"
@@ -1013,7 +1020,7 @@ CommandInterpreter::connect(bool interactive)
   unsigned port= ndb_mgm_get_connected_port(m_mgmsrv);
   if (interactive) {
     BaseString constr;
-    constr.assfmt("%s:%d",host,port);
+    constr.assfmt("%s %d",host,port);
     if(!ndb_mgm_set_connectstring(m_mgmsrv2, constr.c_str()) &&
        !ndb_mgm_connect(m_mgmsrv2, m_try_reconnect-1, m_connect_retry_delay, 1))
     {
@@ -1071,11 +1078,16 @@ CommandInterpreter::connect(bool interactive)
     }
   }
   m_connected= true;
-  DBUG_PRINT("info",("Connected to Management Server at: %s:%d", host, port));
+
+  char buf[512];
+  const char *sockaddr_string = Ndb_combine_address_port(buf, sizeof(buf),
+                                                   host, port);
+
+    DBUG_PRINT("info",("Connected to Management Server at: %s", sockaddr_string));
+
   if (m_verbose)
   {
-    printf("Connected to Management Server at: %s:%d\n",
-           host, port);
+      printf("Connected to Management Server at: %s\n", sockaddr_string);
   }
 
   DBUG_RETURN(m_connected);
@@ -1209,6 +1221,22 @@ split_args(const char* line, Vector<BaseString>& args)
       args.erase(i--);
 }
 
+static void
+split_args_with_quotes(const char* line, Vector<BaseString>& args)
+{
+  // Split the command line on space
+  BaseString tmp(line);
+  tmp.splitWithQuotedStrings(args);
+
+  // Remove any empty args which come from double
+  // spaces in the command line
+  // ie. "hello<space><space>world" becomes ("hello, "", "world")
+  //
+  for (unsigned i= 0; i < args.size(); i++)
+    if (args[i].length() == 0)
+      args.erase(i--);
+}
+
 
 bool
 CommandInterpreter::execute_impl(const char *_line, bool interactive)
@@ -1308,6 +1336,8 @@ CommandInterpreter::execute_impl(const char *_line, bool interactive)
   else if(native_strcasecmp(firstToken, "START") == 0 &&
 	  allAfterFirstToken != NULL &&
 	  native_strncasecmp(allAfterFirstToken, "BACKUP", sizeof("BACKUP") - 1) == 0){
+    // password length should be less than sizeof(line_buffer)
+    STATIC_ASSERT(MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH < 512)
     m_error= executeStartBackup(allAfterFirstToken, interactive);
     DBUG_RETURN(true);
   }
@@ -1777,7 +1807,7 @@ const char *status_string(ndb_mgm_node_status status)
 }
 
 static void
-print_nodes(ndb_mgm_cluster_state *state, ndb_mgm_configuration_iterator *it,
+print_nodes(ndb_mgm_cluster_state2 *state, ndb_mgm_configuration_iterator *it,
 	    const char *proc_name, int no_proc, ndb_mgm_node_type type,
 	    int master_id)
 { 
@@ -1785,8 +1815,8 @@ print_nodes(ndb_mgm_cluster_state *state, ndb_mgm_configuration_iterator *it,
   ndbout << "[" << proc_name
 	 << "(" << ndb_mgm_get_node_type_string(type) << ")]\t"
 	 << no_proc << " node(s)" << endl;
-  for(i=0; i < state->no_of_nodes; i++) {
-    struct ndb_mgm_node_state *node_state= &(state->node_states[i]);
+  for(i=0; i < ndb_mgm_get_status_node_count(state); i++) {
+    struct ndb_mgm_node_state2 *node_state = ndb_mgm_get_node_status(state, i);
     if(node_state->node_type == type) {
       int node_id= node_state->node_id;
       ndbout << "id=" << node_id;
@@ -1794,10 +1824,13 @@ print_nodes(ndb_mgm_cluster_state *state, ndb_mgm_configuration_iterator *it,
 	const char *hostname= node_state->connect_address;
 	if (hostname == 0
 	    || strlen(hostname) == 0
-	    || native_strcasecmp(hostname,"0.0.0.0") == 0)
+	    || native_strcasecmp(hostname,"0.0.0.0") == 0
+	    || native_strcasecmp(hostname,"::") == 0)
 	  ndbout << " ";
 	else
+	{
 	  ndbout << "\t@" << hostname;
+	}
 
 	char tmp[100];
 	ndbout << "  (" << ndbGetVersionString(node_state->version,
@@ -1899,7 +1932,7 @@ CommandInterpreter::executeShow(char* parameters)
 { 
   int i;
   if (emptyString(parameters)) {
-    ndb_mgm_cluster_state *state = ndb_mgm_get_status(m_mgmsrv);
+    ndb_mgm_cluster_state2 *state = ndb_mgm_get_status3(m_mgmsrv, nullptr);
     if(state == NULL) {
       ndbout_c("Could not get status");
       printError();
@@ -1930,23 +1963,25 @@ CommandInterpreter::executeShow(char* parameters)
       api_nodes= 0,
       mgm_nodes= 0;
 
-    for(i=0; i < state->no_of_nodes; i++) {
-      if(state->node_states[i].node_type == NDB_MGM_NODE_TYPE_NDB &&
-	 state->node_states[i].version != 0){
-	master_id= state->node_states[i].dynamic_id;
+    for(i=0; i < ndb_mgm_get_status_node_count(state); i++) {
+      ndb_mgm_node_state2 * ns = ndb_mgm_get_node_status(state, i);
+      if(ns->node_type == NDB_MGM_NODE_TYPE_NDB &&
+	 ns->version != 0){
+	master_id= ns->dynamic_id;
 	break;
       }
     }
     
-    for(i=0; i < state->no_of_nodes; i++) {
-      switch(state->node_states[i].node_type) {
+    for(i=0; i < ndb_mgm_get_status_node_count(state); i++) {
+      ndb_mgm_node_state2 * ns = ndb_mgm_get_node_status(state, i);
+      switch(ns->node_type) {
       case NDB_MGM_NODE_TYPE_API:
 	api_nodes++;
 	break;
       case NDB_MGM_NODE_TYPE_NDB:
-	if (state->node_states[i].dynamic_id &&
-	    state->node_states[i].dynamic_id < master_id)
-	  master_id= state->node_states[i].dynamic_id;
+	if (ns->dynamic_id &&
+	    ns->dynamic_id < master_id)
+	  master_id= ns->dynamic_id;
 	ndb_nodes++;
 	break;
       case NDB_MGM_NODE_TYPE_MGM:
@@ -3104,18 +3139,35 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
   unsigned long long int tmp_backupId = 0;
 
   Vector<BaseString> args;
+  Vector<BaseString> args1;
   if (parameters)
-    split_args(parameters, args);
-
+  {
+    split_args_with_quotes(parameters, args);
+  }
+  // Retain case of password, convert the rest to uppercase
   for (unsigned i= 0; i < args.size(); i++)
-    args[i].ndb_toupper();
-
+  {
+    BaseString arg_copy = args[i];
+    arg_copy.ndb_toupper();
+    if (arg_copy.starts_with("PASSWORD="))
+    {
+      args[i] = BaseString("PASSWORD=").append(
+      args[i].substr(strlen("PASSWORD="), args[i].length()));
+    }
+    else
+    {
+      args[i].ndb_toupper();
+    }
+  }
   int sz= args.size();
 
   int result;
   int flags = 2;
   //1,snapshot at start time. 0 snapshot at end time
   unsigned int backuppoint = 0;
+  BaseString encryption_password = "";
+  bool encryption_password_set = false;
+
   bool b_log = false;
   bool b_nowait = false;
   bool b_wait_completed = false;
@@ -3200,6 +3252,57 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
       }
       continue;
     }
+    if (args[i] == "ENCRYPT")
+    {
+      if (encryption_password.length() != 0)
+      {
+        // password already set
+        invalid_command(parameters);
+        return -1;
+      }
+
+      if ((i + 1) < sz)
+      {
+        BaseString key, value;
+        if ((args[i + 1].splitKeyValue(key, value)) &&
+            (key == "PASSWORD"))
+        {
+          char out[1024];
+          encryption_password = value;
+          Uint32 len = encryption_password.length();
+          const char* passwd = encryption_password.c_str();
+
+          if ((len >= 2) &&
+              (strchr("\"'", passwd[0])) &&
+              (passwd[0] == passwd[len - 1]))
+          {
+            encryption_password = encryption_password.substr(1, len - 1);
+          }
+          else
+          {
+            BaseString::snprintf(out,
+                                 sizeof(out),
+                                 "Encryption password should be within"
+                                 " quotes");
+            invalid_command(parameters, out);
+            return -1;
+          }
+          encryption_password_set = true;
+          i++;
+        }
+        else
+        {
+          invalid_command(parameters);
+          return -1;
+        }
+      }
+      else
+      {
+        invalid_command(parameters);
+        return -1;
+      }
+      continue;
+    }
     invalid_command(parameters);
     return -1;
   }
@@ -3224,12 +3327,18 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
     }
   }
 
-  //start backup N | start backup snapshotstart/snapshotend
-  if (input_backupId > 0 || b_log == true)
-    result = ndb_mgm_start_backup3(m_mgmsrv, flags, &backupId, &reply, input_backupId, backuppoint);
-  //start backup
-  else
-    result = ndb_mgm_start_backup(m_mgmsrv, flags, &backupId, &reply);
+  /**
+   * start backup N | start backup snapshotstart/snapshotend |
+   * start backup encrypt password=X
+   */
+  result = ndb_mgm_start_backup4(m_mgmsrv, flags, &backupId, &reply,
+                                 input_backupId, backuppoint,
+                                 encryption_password_set
+                                   ? encryption_password.c_str()
+                                   : nullptr,
+                                 encryption_password_set
+                                   ? encryption_password.length()
+                                   : 0);
 
   if (result != 0) {
     ndbout << "Backup failed" << endl;

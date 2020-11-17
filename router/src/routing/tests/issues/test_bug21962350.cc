@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,23 +27,22 @@
  *
  */
 
+#include <array>
 #include <fstream>
 #include <string>
 #include <thread>
 #include <vector>
-#include "mysql/harness/stdx/expected.h"
 
-// ignore GMock warnings
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wsign-conversion"
+#ifndef _WIN32
+#include <arpa/inet.h>  // inet_pton
+#include <netdb.h>
+#include <netinet/in.h>
+#else
+#include <windows.h>
+#include <winsock2.h>
 #endif
 
 #include <gmock/gmock.h>
-
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
 
 #include "dest_round_robin.h"
 #include "destination.h"
@@ -51,31 +50,33 @@
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
+#include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/stdx/type_traits.h"
 #include "mysqlrouter/routing.h"
-#include "mysqlrouter/utils.h"
+#include "protocol/protocol.h"
+#include "router/src/routing/tests/routing_mocks.h"
+#include "socket_operations.h"
+#include "tcp_address.h"
 #include "test/helpers.h"
 
-using mysql_harness::TCPAddress;
-using mysqlrouter::to_string;
 using ::testing::_;
-using ::testing::Eq;
+using ::testing::ByMove;
 using ::testing::HasSubstr;
 using ::testing::Return;
 
 class MockRouteDestination : public DestRoundRobin {
  public:
-  using result = stdx::expected<mysql_harness::socket_t, std::error_code>;
+  using DestRoundRobin::DestRoundRobin;
 
-  void add_to_quarantine(const size_t index) noexcept {
+  // make protected function public
+  void add_to_quarantine(const size_t index) noexcept override {
     DestRoundRobin::add_to_quarantine(index);
   }
 
-  void cleanup_quarantine() noexcept { DestRoundRobin::cleanup_quarantine(); }
-
-  MOCK_METHOD3(get_mysql_socket,
-               result(const TCPAddress &addr,
-                      std::chrono::milliseconds connect_timeout,
-                      bool log_errors));
+  // make protected function public
+  void cleanup_quarantine() noexcept override {
+    DestRoundRobin::cleanup_quarantine();
+  }
 };
 
 class Bug21962350 : public ::testing::Test {
@@ -96,7 +97,11 @@ class Bug21962350 : public ::testing::Test {
     }
   }
 
-  static const std::vector<TCPAddress> servers;
+  std::array<mysql_harness::TCPAddress, 3> servers = {{
+      {"127.0.0.1", 3306},
+      {"127.0.0.2", 3306},
+      {"127.0.0.3", 3306},
+  }};
 
   std::stringstream sslog;
 
@@ -104,60 +109,106 @@ class Bug21962350 : public ::testing::Test {
   std::streambuf *orig_log_stream_;
 };
 
-// NOTE: this test must run as first, it doesn't really test anything, just
-// inits logger.
-TEST_F(Bug21962350, InitLogger) { init_test_logger(); }
-
 TEST_F(Bug21962350, AddToQuarantine) {
-  size_t exp;
   MockRouteDestination d;
   d.add(servers[0]);
   d.add(servers[1]);
   d.add(servers[2]);
 
-  d.add_to_quarantine(static_cast<size_t>(0));
-  ASSERT_THAT(sslog.str(),
-              HasSubstr("Quarantine destination server s1.example.com:3306"));
-  d.add_to_quarantine(static_cast<size_t>(1));
-  exp = 2;
-  ASSERT_EQ(exp, d.size_quarantine());
-  ASSERT_THAT(sslog.str(), HasSubstr("s2.example.com:3306"));
-  d.add_to_quarantine(static_cast<size_t>(2));
-  ASSERT_THAT(sslog.str(), HasSubstr("s3.example.com:3306"));
-  exp = 3;
-  ASSERT_EQ(exp, d.size_quarantine());
+  EXPECT_EQ(0, d.size_quarantine());
+
+  d.add_to_quarantine(0);
+  ASSERT_THAT(sslog.str(), HasSubstr("Quarantine destination server " +
+                                     servers.at(0).str()));
+  EXPECT_EQ(1, d.size_quarantine());
+
+  d.add_to_quarantine(1);
+  EXPECT_THAT(sslog.str(), HasSubstr(servers.at(1).str()));
+  EXPECT_EQ(2, d.size_quarantine());
+
+  d.add_to_quarantine(2);
+  EXPECT_THAT(sslog.str(), HasSubstr(servers.at(2).str()));
+  EXPECT_EQ(3, d.size_quarantine());
 }
 
 TEST_F(Bug21962350, CleanupQuarantine) {
-  size_t exp;
-  ::testing::NiceMock<MockRouteDestination> d;
+  MockSocketOperations sock_ops;
+  ::testing::NiceMock<MockRouteDestination> d(Protocol::get_default(),
+                                              &sock_ops);
+  // add 3 servers to the Route
   d.add(servers[0]);
   d.add(servers[1]);
   d.add(servers[2]);
 
-  d.add_to_quarantine(static_cast<size_t>(0));
-  d.add_to_quarantine(static_cast<size_t>(1));
-  d.add_to_quarantine(static_cast<size_t>(2));
-  exp = 3;
-  ASSERT_EQ(exp, d.size_quarantine());
+  // add all 3 ndxes to the quarantine
+  d.add_to_quarantine(0);
+  d.add_to_quarantine(1);
+  d.add_to_quarantine(2);
+  ASSERT_EQ(3, d.size_quarantine());
 
-  EXPECT_CALL(d, get_mysql_socket(_, _, _))
+  auto mock_addrinfo = [](const mysql_harness::TCPAddress addr)
+      -> mysql_harness::SocketOperations::addrinfo_result {
+    auto mock_free_addrinfo = [](addrinfo *ai) {
+      while (ai) {
+        delete ai->ai_addr;
+
+        auto *next = ai->ai_next;
+        delete ai;
+
+        ai = next;
+      }
+
+      return;
+    };
+    auto *ai = new addrinfo{};
+    auto *addr_in = new sockaddr_in;
+    addr_in->sin_family = AF_INET;
+    addr_in->sin_port = htons(addr.port);
+    ::inet_pton(addr_in->sin_family, addr.addr.c_str(), &addr_in->sin_addr);
+
+    ai->ai_socktype = SOCK_STREAM;
+    ai->ai_family = addr_in->sin_family;
+    ai->ai_next = nullptr;
+    ai->ai_addr = reinterpret_cast<sockaddr *>(addr_in);
+    ai->ai_addrlen = sizeof(sockaddr_in);
+
+    return {stdx::in_place, ai, mock_free_addrinfo};
+  };
+
+  EXPECT_CALL(sock_ops, getaddrinfo(_, _, _))
       .Times(4)
-      .WillOnce(Return(100))
+      .WillOnce(Return(ByMove(mock_addrinfo(servers[0]))))
+      .WillOnce(Return(ByMove(mock_addrinfo(servers[1]))))
+      .WillOnce(Return(ByMove(mock_addrinfo(servers[2]))))
+      .WillOnce(Return(ByMove(mock_addrinfo(servers[1]))));
+
+  EXPECT_CALL(sock_ops, socket(_, _, _)).Times(4);
+  EXPECT_CALL(sock_ops, set_socket_blocking(_, _)).Times(4);
+  // try to connect() 4 times, but at one of them fail
+  EXPECT_CALL(sock_ops, connect(_, _, _))
+      .Times(4)
+      .WillOnce(Return(stdx::expected<void, std::error_code>()))
       .WillOnce(Return(stdx::make_unexpected(
-          make_error_code(std::errc::connection_aborted))))
-      .WillOnce(Return(300))
-      .WillOnce(Return(200));
+          make_error_code(std::errc::connection_refused))))
+      .WillOnce(Return(stdx::expected<void, std::error_code>()))
+      .WillOnce(Return(stdx::expected<void, std::error_code>()));
+  EXPECT_CALL(sock_ops, close(_)).Times(4);
+
+  // 1st round: 3 connect().
+  //
+  // - success
+  // - fail
+  // - success
   d.cleanup_quarantine();
-  // Second is still failing
-  exp = 1;
-  ASSERT_EQ(exp, d.size_quarantine());
-  // Next clean up should remove s2.example.com
+  EXPECT_EQ(1, d.size_quarantine());
+
+  // 2nd round
+  // - success
   d.cleanup_quarantine();
-  exp = 0;
-  ASSERT_EQ(exp, d.size_quarantine());
-  ASSERT_THAT(sslog.str(),
-              HasSubstr("Unquarantine destination server s2.example.com:3306"));
+  EXPECT_EQ(0, d.size_quarantine());
+
+  EXPECT_THAT(sslog.str(),
+              HasSubstr("Unquarantine destination server " + servers[1].str()));
 }
 
 TEST_F(Bug21962350, QuarantineServerMultipleTimes) {
@@ -207,13 +258,8 @@ TEST_F(Bug21962350, AlreadyQuarantinedServer) {
   ASSERT_EQ(exp, d.size_quarantine());
 }
 
-std::vector<TCPAddress> const Bug21962350::servers{
-    TCPAddress("s1.example.com", 3306),
-    TCPAddress("s2.example.com", 3306),
-    TCPAddress("s3.example.com", 3306),
-};
-
 int main(int argc, char **argv) {
+  init_test_logger();
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

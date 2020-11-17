@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,6 +41,7 @@
 #include "sql/debug_sync.h"
 #include "sql/handler.h"
 #include "sql/item.h"
+#include "sql/join_optimizer/access_path.h"
 #include "sql/key.h"
 #include "sql/opt_explain.h"
 #include "sql/opt_range.h"  // QUICK_SELECT_I
@@ -55,43 +56,6 @@
 
 using std::string;
 using std::vector;
-
-/**
-  Initialize a row iterator to perform full index scan in desired
-  direction using the RowIterator interface
-
-  This function has been added at late stage and is used only by
-  UPDATE/DELETE. Other statements perform index scans using IndexScanIterator.
-
-  @param thd          Thread handle
-  @param table        Table to be accessed
-  @param idx          index to scan
-  @param reverse      Scan in the reverse direction
-  @param qep_tab      If not NULL, used for record buffer and pushed condition
-
-  @retval true   error
-  @retval false  success
-*/
-
-unique_ptr_destroy_only<RowIterator> create_table_iterator_idx(
-    THD *thd, TABLE *table, uint idx, bool reverse, QEP_TAB *qep_tab) {
-  empty_record(table);
-
-  ha_rows *examined_rows = nullptr;
-  if (qep_tab != nullptr && qep_tab->join() != nullptr) {
-    examined_rows = &qep_tab->join()->examined_rows;
-  }
-
-  if (reverse) {
-    return NewIterator<IndexScanIterator<true>>(thd, table, idx,
-                                                /*use_order=*/true, qep_tab,
-                                                examined_rows);
-  } else {
-    return NewIterator<IndexScanIterator<false>>(thd, table, idx,
-                                                 /*use_order=*/true, qep_tab,
-                                                 examined_rows);
-  }
-}
 
 template <bool Reverse>
 IndexScanIterator<Reverse>::IndexScanIterator(THD *thd, TABLE *table, int idx,
@@ -168,79 +132,69 @@ int IndexScanIterator<true>::Read() {  // Backward read.
 }
 //! @endcond
 
-template <bool Reverse>
-vector<string> IndexScanIterator<Reverse>::DebugString() const {
-  DBUG_ASSERT(table()->file->pushed_idx_cond == nullptr);
-
-  const KEY *key = &table()->key_info[m_idx];
-  string str =
-      string("Index scan on ") + table()->alias + " using " + key->name;
-  if (Reverse) {
-    str += " (reverse)";
-  }
-  str += table()->file->explain_extra();
-  return {str};
-}
-
 template class IndexScanIterator<true>;
 template class IndexScanIterator<false>;
 
 /**
-  setup_read_record is used to scan by using a number of different methods.
-  Which method to use is set-up in this call so that you can fetch rows
-  through the resulting row iterator afterwards.
+  create_table_access_path is used to scan by using a number of different
+  methods. Which method to use is set-up in this call so that you can
+  create an iterator from the returned access path and fetch rows through
+  said iterator afterwards.
 
   @param thd      Thread handle
-  @param table    Table the data [originally] comes from; if NULL,
-    'table' is inferred from 'qep_tab'; if non-NULL, 'qep_tab' must be NULL.
+  @param table    Table the data [originally] comes from; if nullptr,
+    `table` is inferred from `qep_tab`; if non-nullptr, `qep_tab` must
+   have the same table.
   @param qep_tab  QEP_TAB for 'table', if there is one; we may use
     qep_tab->quick() as data source
-  @param disable_rr_cache
-    Don't use caching in SortBufferIndirectIterator (used by sort-union
-    index-merge which produces rowid sequences that are already ordered)
-  @param ignore_not_found_rows
-    Ignore any rows not found in reference tables, as they may already have
-    been deleted by foreign key handling. Only relevant for methods that need
-    to look up rows in tables (those marked “Indirect”).
-  @param examined_rows
-    If non-nullptr, the iterator will increase this variable by the number of
-    examined rows. If nullptr, will use qep_tab->join()->examined_rows
-    if possible.
-  @param using_table_scan
-    If non-nullptr, will be whether a TableScanIterator was chosen.
+  @param count_examined_rows
+    See AccessPath::count_examined_rows.
  */
-unique_ptr_destroy_only<RowIterator> create_table_iterator(
-    THD *thd, TABLE *table, QEP_TAB *qep_tab, bool disable_rr_cache,
-    bool ignore_not_found_rows, ha_rows *examined_rows,
-    bool *using_table_scan) {
+AccessPath *create_table_access_path(THD *thd, TABLE *table, QEP_TAB *qep_tab,
+                                     bool count_examined_rows) {
   // If only 'table' is given, assume no quick, no condition.
+  if (table != nullptr && qep_tab != nullptr) {
+    DBUG_ASSERT(table == qep_tab->table());
+  } else if (table == nullptr) {
+    table = qep_tab->table();
+  }
+  empty_record(table);
+
+  AccessPath *path;
+  if (qep_tab != nullptr && qep_tab->quick() != nullptr) {
+    path = NewIndexRangeScanAccessPath(thd, table, qep_tab->quick(), qep_tab,
+                                       count_examined_rows);
+  } else if (qep_tab != nullptr && qep_tab->table_ref != nullptr &&
+             qep_tab->table_ref->is_recursive_reference()) {
+    path = NewFollowTailAccessPath(thd, table, qep_tab, count_examined_rows);
+  } else {
+    path = NewTableScanAccessPath(thd, table, qep_tab, count_examined_rows);
+  }
+  if (qep_tab != nullptr && qep_tab->position() != nullptr) {
+    SetCostOnTableAccessPath(*thd->cost_model(), qep_tab->position(),
+                             /*is_after_filter=*/false, path);
+  }
+  return path;
+}
+
+unique_ptr_destroy_only<RowIterator> init_table_iterator(
+    THD *thd, TABLE *table, QEP_TAB *qep_tab, bool ignore_not_found_rows,
+    bool count_examined_rows) {
+  unique_ptr_destroy_only<RowIterator> iterator;
+
   DBUG_ASSERT(!(table && qep_tab));
   if (!table) table = qep_tab->table();
   empty_record(table);
-  if (using_table_scan != nullptr) {
-    *using_table_scan = false;
-  }
 
-  if (examined_rows == nullptr && qep_tab != nullptr &&
-      qep_tab->join() != nullptr) {
-    examined_rows = &qep_tab->join()->examined_rows;
-  }
-
-  QUICK_SELECT_I *quick = qep_tab ? qep_tab->quick() : nullptr;
   if (table->unique_result.io_cache &&
       my_b_inited(table->unique_result.io_cache)) {
     DBUG_PRINT("info", ("using SortFileIndirectIterator"));
-    unique_ptr_destroy_only<RowIterator> iterator =
-        NewIterator<SortFileIndirectIterator>(
-            thd, table, table->unique_result.io_cache, !disable_rr_cache,
-            ignore_not_found_rows, examined_rows);
+    iterator = NewIterator<SortFileIndirectIterator>(
+        thd, Prealloced_array<TABLE *, 4>{table}, table->unique_result.io_cache,
+        ignore_not_found_rows, /*has_null_flags=*/false,
+        /*examined_rows=*/nullptr);
     table->unique_result.io_cache =
         nullptr;  // Now owned by SortFileIndirectIterator.
-    return iterator;
-  } else if (quick) {
-    DBUG_PRINT("info", ("using IndexRangeScanIterator"));
-    return NewIterator<IndexRangeScanIterator>(thd, table, quick, qep_tab,
-                                               examined_rows);
   } else if (table->unique_result.has_result_in_memory()) {
     /*
       The Unique class never puts its results into table->sort's
@@ -248,31 +202,17 @@ unique_ptr_destroy_only<RowIterator> create_table_iterator(
     */
     DBUG_ASSERT(!table->unique_result.sorted_result_in_fsbuf);
     DBUG_PRINT("info", ("using SortBufferIndirectIterator (unique)"));
-    return NewIterator<SortBufferIndirectIterator>(
-        thd, table, &table->unique_result, ignore_not_found_rows,
-        examined_rows);
-  } else if (qep_tab != nullptr && qep_tab->table_ref != nullptr &&
-             qep_tab->table_ref->is_recursive_reference()) {
-    unique_ptr_destroy_only<RowIterator> iterator =
-        NewIterator<FollowTailIterator>(thd, table, qep_tab, examined_rows);
-    qep_tab->recursive_iterator =
-        down_cast<FollowTailIterator *>(iterator->real_iterator());
-    return iterator;
+    iterator = NewIterator<SortBufferIndirectIterator>(
+        thd, Prealloced_array<TABLE *, 4>{table}, &table->unique_result,
+        ignore_not_found_rows, /*has_null_flags=*/false,
+        /*examined_rows=*/nullptr);
   } else {
-    DBUG_PRINT("info", ("using TableScanIterator"));
-    if (using_table_scan != nullptr) {
-      *using_table_scan = true;
-    }
-    return NewIterator<TableScanIterator>(thd, table, qep_tab, examined_rows);
+    AccessPath *path =
+        create_table_access_path(thd, table, qep_tab, count_examined_rows);
+    iterator = CreateIteratorFromAccessPath(thd, path,
+                                            qep_tab ? qep_tab->join() : nullptr,
+                                            /*eligible_for_batch_mode=*/false);
   }
-}
-
-unique_ptr_destroy_only<RowIterator> init_table_iterator(
-    THD *thd, TABLE *table, QEP_TAB *qep_tab, bool disable_rr_cache,
-    bool ignore_not_found_rows) {
-  unique_ptr_destroy_only<RowIterator> iterator = create_table_iterator(
-      thd, table, qep_tab, disable_rr_cache, ignore_not_found_rows,
-      /*examined_rows=*/nullptr, /*using_table_scan=*/nullptr);
   if (iterator->Init()) {
     return nullptr;
   }
@@ -318,42 +258,6 @@ void TableRowIterator::StartPSIBatchMode() {
 
 void TableRowIterator::EndPSIBatchModeIfStarted() {
   m_table->file->end_psi_batch_mode_if_started();
-}
-
-std::vector<RowIterator::Child> TableRowIterator::children() const {
-  /*
-    A TableRowIterator is normally a leaf node in the set of Iterators.
-    The exception is if a subquery was included as part of an
-    'engine_condition_pushdown'. In such cases the subquery has
-    been evaluated prior to acessing this table, and the result(s)
-    from the subquery materialized into the pushed condition.
-    Report such subqueries as children of this table.
-  */
-  Item *pushed_cond = const_cast<Item *>(table()->file->pushed_cond);
-  vector<Child> ret;
-
-  if (pushed_cond != nullptr) {
-    ForEachSubselect(
-        pushed_cond, [&ret](int select_number, bool is_dependent,
-                            bool is_cacheable, RowIterator *iterator) {
-          char description[256];
-          if (is_dependent) {
-            snprintf(description, sizeof(description),
-                     "Select #%d (subquery in pushed condition; dependent)",
-                     select_number);
-          } else if (!is_cacheable) {
-            snprintf(description, sizeof(description),
-                     "Select #%d (subquery in pushed condition; uncacheable)",
-                     select_number);
-          } else {
-            snprintf(description, sizeof(description),
-                     "Select #%d (subquery in pushed condition; run only once)",
-                     select_number);
-          }
-          ret.push_back(Child{iterator, description});
-        });
-  }
-  return ret;
 }
 
 IndexRangeScanIterator::IndexRangeScanIterator(THD *thd, TABLE *table,
@@ -408,21 +312,6 @@ int IndexRangeScanIterator::Read() {
   return 0;
 }
 
-vector<string> IndexRangeScanIterator::DebugString() const {
-  // TODO: Convert QUICK_SELECT_I to RowIterator so that we can get
-  // better outputs here (similar to dbug_dump()).
-  String str;
-  m_quick->add_info_string(&str);
-  string ret = string("Index range scan on ") + table()->alias + " using " +
-               to_string(str);
-  if (table()->file->pushed_idx_cond != nullptr) {
-    ret += ", with index condition: " +
-           ItemToString(table()->file->pushed_idx_cond);
-  }
-  ret += table()->file->explain_extra();
-  return {ret};
-}
-
 TableScanIterator::TableScanIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
                                      ha_rows *examined_rows)
     : TableRowIterator(thd, table),
@@ -469,12 +358,6 @@ int TableScanIterator::Read() {
     ++*m_examined_rows;
   }
   return 0;
-}
-
-vector<string> TableScanIterator::DebugString() const {
-  DBUG_ASSERT(table()->file->pushed_idx_cond == nullptr);
-  return {string("Table scan on ") + table()->alias +
-          table()->file->explain_extra()};
 }
 
 FollowTailIterator::FollowTailIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
@@ -607,11 +490,6 @@ int FollowTailIterator::Read() {
     ++*m_examined_rows;
   }
   return 0;
-}
-
-vector<string> FollowTailIterator::DebugString() const {
-  DBUG_ASSERT(table()->file->pushed_idx_cond == nullptr);
-  return {string("Scan new records on ") + table()->alias};
 }
 
 bool FollowTailIterator::RepositionCursorAfterSpillToDisk() {

@@ -9,7 +9,7 @@
 #
 #   let $fake_relay_log= /path/to/fake-relay-log-file.000001
 #   source include/setup_fake_relay_log.inc;
-#   START SLAVE SQL_THREAD; # setup_fake_relay_log doesn't start slave
+#   START REPLICA SQL_THREAD; # setup_fake_relay_log doesn't start slave
 #   ...
 #   source include/cleanup_fake_relay_log.inc
 #
@@ -73,7 +73,7 @@ let $_fake_relay_index= $_fake_datadir/$_fake_filename.index;
 # CHANGE MASTER modifies it (see the manual for CHANGE MASTER).
 let $_fake_relay_log_purge= `SELECT @@global.relay_log_purge`;
 
-RESET SLAVE;
+RESET REPLICA;
 let $_orphan_relay_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
 
 # Create relay log file.

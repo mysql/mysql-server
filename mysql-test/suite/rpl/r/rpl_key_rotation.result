@@ -89,6 +89,8 @@ CREATE TABLE t4(c1 INT PRIMARY KEY, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 INSERT INTO t4 VALUES(1, "rpltest");
 [On Slave]
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_error.inc [errno=3185]
 INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
 SET @@global.keyring_file_data='MYSQL_TMP_DIR/keyring_slave/keyring_slave';

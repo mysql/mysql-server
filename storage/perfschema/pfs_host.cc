@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -336,7 +336,7 @@ class Proc_purge_host : public PFS_buffer_processor<PFS_host> {
  public:
   Proc_purge_host(PFS_thread *thread) : m_thread(thread) {}
 
-  virtual void operator()(PFS_host *pfs) {
+  void operator()(PFS_host *pfs) override {
     pfs->aggregate(true);
     if (pfs->get_refcount() == 0) {
       purge_host(m_thread, pfs);

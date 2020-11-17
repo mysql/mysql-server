@@ -33,8 +33,10 @@ SELECT id, sex, NTH_VALUE(id, 1.2) OVER () FROM t1;
 SELECT id, sex, NTH_VALUE(id, 'a') OVER () FROM t1;
 --error ER_WRONG_ARGUMENTS
 SELECT id, sex, NTH_VALUE(id, -3) OVER () le1 FROM t1;
---echo NULL argument is OK
+--echo NULL literal is not OK (but NULL value is)
+--error ER_WRONG_ARGUMENTS
 SELECT id, sex, NTH_VALUE(id, NULL) OVER () FROM t1;
+SELECT id, sex, NTH_VALUE(id, @oijlkjlkjxozijqlj) OVER () FROM t1;
 
 PREPARE p FROM "SELECT id, sex, NTH_VALUE(id, ?) OVER () FROM t1";
 

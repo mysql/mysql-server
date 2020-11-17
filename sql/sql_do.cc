@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,17 +30,17 @@
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_list.h"
+#include "sql/visible_fields.h"
 #include "sql_string.h"
 
-bool Query_result_do::send_data(THD *thd, List<Item> &items) {
+bool Query_result_do::send_data(THD *thd, const mem_root_deque<Item *> &items) {
   DBUG_TRACE;
 
   char buffer[MAX_FIELD_WIDTH];
   String str_buffer(buffer, sizeof(buffer), &my_charset_bin);
-  List_iterator_fast<Item> it(items);
 
   // Evaluate all fields, but do not send them
-  for (Item *item = it++; item; item = it++) {
+  for (Item *item : VisibleFields(items)) {
     if (item->evaluate(thd, &str_buffer)) return true;
   }
 

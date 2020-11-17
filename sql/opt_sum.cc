@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -223,7 +223,7 @@ static int get_index_max_value(TABLE *table, TABLE_REF *ref, uint range_fl) {
 
   @param[in]  thd               thread handler
   @param[in]  select            query block
-  @param[in]  all_fields        All fields to be returned
+  @param[in]  fields            All fields to be returned
   @param[in]  conds             WHERE clause
   @param[out] decision          outcome for successful execution
                = AGGR_REGULAR   regular execution required
@@ -272,8 +272,8 @@ static int get_index_max_value(TABLE *table, TABLE_REF *ref, uint range_fl) {
 */
 
 bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
-                               List<Item> &all_fields, Item *conds,
-                               aggregate_evaluated *decision) {
+                               const mem_root_deque<Item *> &fields,
+                               Item *conds, aggregate_evaluated *decision) {
   DBUG_TRACE;
 
   // True means at least one aggregate must be calculated by regular execution
@@ -376,9 +376,7 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
     COUNT(), MIN() and MAX() with constants (if possible).
   */
 
-  List_iterator_fast<Item> it(all_fields);
-  Item *item;
-  while ((item = it++)) {
+  for (Item *item : fields) {
     if (item->type() == Item::SUM_FUNC_ITEM && !item->m_is_window_function) {
       if (item->used_tables() & OUTER_REF_TABLE_BIT) {
         aggr_impossible = true;
@@ -471,7 +469,8 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
 
             ref.key_buff = key_buff;
             Item_field *item_field = down_cast<Item_field *>(expr);
-            TABLE *table = item_field->field->table;
+            TABLE_LIST *tr = item_field->table_ref;
+            TABLE *table = tr->table;
 
             /*
               We must not have accessed this table instance yet, because
@@ -493,7 +492,7 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
               Type of range for the key part for this field will be
               returned in range_fl.
             */
-            if ((inner_tables & item_field->table_ref->map()) ||
+            if ((inner_tables & tr->map()) ||
                 !find_key_for_maxmin(is_max, &ref, item_field, conds, &range_fl,
                                      &prefix_len)) {
               aggr_impossible = true;
@@ -549,7 +548,7 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
               table->file->print_error(error, MYF(0));
               return true;
             }
-            removed_tables |= item_field->table_ref->map();
+            removed_tables |= tr->map();
           } else if (!expr->const_item() || conds || !have_exact_count) {
             /*
               We get here if the aggregate function is not based on a field.

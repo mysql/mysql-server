@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -222,6 +222,7 @@ void pre_init_event_thread(THD *thd) {
   thd->get_protocol_classic()->set_client_capabilities(CLIENT_MULTI_RESULTS);
 
   thd->set_new_thread_id();
+
   /*
     Guarantees that we will see the thread in SHOW PROCESSLIST though its
     vio is NULL.
@@ -256,12 +257,22 @@ static void *event_scheduler_thread(void *arg) {
 
   mysql_thread_set_psi_id(thd->thread_id());
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  /* Update the thread instrumentation. */
+  PSI_THREAD_CALL(set_thread_account)
+  (thd->security_context()->user().str, thd->security_context()->user().length,
+   thd->security_context()->host_or_ip().str,
+   thd->security_context()->host_or_ip().length);
+  PSI_THREAD_CALL(set_thread_command)(thd->get_command());
+  PSI_THREAD_CALL(set_thread_start_time)(thd->query_start_in_secs());
+#endif /* HAVE_PSI_THREAD_INTERFACE */
+
   res = post_init_event_thread(thd);
 
   {
     DBUG_TRACE;
-    my_claim(arg);
-    thd->claim_memory_ownership();
+    my_claim(arg, true);
+    thd->claim_memory_ownership(true);
     my_free(arg);
     if (!res)
       scheduler->run(thd);
@@ -292,13 +303,23 @@ static void *event_worker_thread(void *arg) {
   THD *thd;
   Event_queue_element_for_exec *event = (Event_queue_element_for_exec *)arg;
 
-  event->claim_memory_ownership();
+  event->claim_memory_ownership(true);
 
   thd = event->thd;
 
-  thd->claim_memory_ownership();
+  thd->claim_memory_ownership(true);
 
   mysql_thread_set_psi_id(thd->thread_id());
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  /* Update the thread instrumentation. */
+  PSI_THREAD_CALL(set_thread_account)
+  (thd->security_context()->user().str, thd->security_context()->user().length,
+   thd->security_context()->host_or_ip().str,
+   thd->security_context()->host_or_ip().length);
+  PSI_THREAD_CALL(set_thread_command)(thd->get_command());
+  PSI_THREAD_CALL(set_thread_start_time)(thd->query_start_in_secs());
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
   Event_worker_thread worker_thread;
   worker_thread.run(thd, event);
@@ -491,6 +512,13 @@ bool Event_scheduler::start(int *err_no) {
   DBUG_PRINT("info", ("Setting state go RUNNING"));
   state = RUNNING;
   DBUG_PRINT("info", ("Forking new thread for scheduler. THD: %p", new_thd));
+
+  /*
+    Transfer memory ownership to the child scheduler thread.
+  */
+  my_claim(scheduler_param_value, false);
+  new_thd->claim_memory_ownership(false);
+
   if ((*err_no = mysql_thread_create(key_thread_event_scheduler, &th,
                                      &connection_attrib, event_scheduler_thread,
                                      (void *)scheduler_param_value))) {
@@ -542,6 +570,26 @@ bool Event_scheduler::run(THD *thd) {
 
     /* Gets a minimized version */
     if (queue->get_top_for_execution_if_time(thd, &event_name)) {
+      /* Report scheduling errors to the error log. */
+      if (thd->get_stmt_da()->cond_count() > 0) {
+        Diagnostics_area::Sql_condition_iterator it =
+            thd->get_stmt_da()->sql_conditions();
+        const Sql_condition *err;
+        while ((err = it++)) {
+          if (err->severity() == Sql_condition::SL_ERROR) {
+            char msg_buf[10 * STRING_BUFFER_USUAL_SIZE];
+            String err_msg(msg_buf, sizeof(msg_buf), system_charset_info);
+            err_msg.length(0);
+            err_msg.append("Event Scheduler: Unable to schedule event: ");
+            err_msg.append(err->message_text(), err->message_octet_length(),
+                           system_charset_info);
+
+            LogErr(ERROR_LEVEL, ER_EVENT_MESSAGE_STACK,
+                   static_cast<int>(err_msg.length()), err_msg.c_ptr());
+          }
+        }
+      }
+
       LogErr(INFORMATION_LEVEL, ER_SCHEDULER_STOPPING_FAILED_TO_GET_EVENT);
       if (event_name != nullptr) delete event_name;
       break;
@@ -595,6 +643,12 @@ bool Event_scheduler::execute_top(Event_queue_element_for_exec *event_name) {
   event_name->thd = new_thd;
   DBUG_PRINT("info", ("Event %s@%s ready for start", event_name->dbname.str,
                       event_name->name.str));
+
+  /*
+    Transfer memory ownership to the child worker thread.
+  */
+  event_name->claim_memory_ownership(false);
+  new_thd->claim_memory_ownership(false);
 
   /*
     TODO: should use thread pool here, preferably with an upper limit
@@ -727,7 +781,7 @@ end:
 class Is_worker : public Do_THD_Impl {
  public:
   Is_worker() : m_count(0) {}
-  virtual void operator()(THD *thd) {
+  void operator()(THD *thd) override {
     if (thd->system_thread == SYSTEM_THREAD_EVENT_WORKER) m_count++;
     return;
   }

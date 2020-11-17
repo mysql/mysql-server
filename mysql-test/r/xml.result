@@ -957,20 +957,20 @@ SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b["1 and string"]');
 ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b["1 and string"]')
 b1
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '1 and string"]'
-Warning	1292	Truncated incorrect INTEGER value: '1 and string"]'
+Warning	1292	Truncated incorrect INTEGER value: '1 and string'
+Warning	1292	Truncated incorrect INTEGER value: '1 and string'
 SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b["string and 1"]');
 ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b["string and 1"]')
 
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'string and 1"]'
-Warning	1292	Truncated incorrect INTEGER value: 'string and 1"]'
+Warning	1292	Truncated incorrect INTEGER value: 'string and 1'
+Warning	1292	Truncated incorrect INTEGER value: 'string and 1'
 SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b["string"]');
 ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b["string"]')
 
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'string"]'
-Warning	1292	Truncated incorrect INTEGER value: 'string"]'
+Warning	1292	Truncated incorrect INTEGER value: 'string'
+Warning	1292	Truncated incorrect INTEGER value: 'string'
 String-to-number conversion from a user variable
 SET @i='1';
 SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[$@i]');

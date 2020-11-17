@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -438,7 +438,7 @@ class alignas(NDB_CL) SimulatedBlock :
   friend class DynArr256Pool; // for cerrorInsert
 public:
   friend class BlockComponent;
-  virtual ~SimulatedBlock();
+  ~SimulatedBlock() override;
 
   static void * operator new (size_t sz)
   {
@@ -1657,11 +1657,11 @@ protected:
   /**
    * SegmentUtils methods
    */
-  virtual SectionSegment* getSegmentPtr(Uint32 iVal);
-  virtual bool seizeSegment(Ptr<SectionSegment>& p);
-  virtual void releaseSegment(Uint32 iVal);
+  SectionSegment* getSegmentPtr(Uint32 iVal) override;
+  bool seizeSegment(Ptr<SectionSegment>& p) override;
+  void releaseSegment(Uint32 iVal) override;
 
-  virtual void releaseSegmentList(Uint32 firstSegmentIVal);
+  void releaseSegmentList(Uint32 firstSegmentIVal) override;
 
   /** End of SegmentUtils methods */
 };

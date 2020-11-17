@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,14 +46,14 @@ public:
   /**
    * Destructor.
    */
-  virtual ~BufferedLogHandler();
+  ~BufferedLogHandler() override;
 
-  virtual bool open();
-  virtual bool close();
+  bool open() override;
+  bool close() override;
 
-  virtual bool is_open();
+  bool is_open() override;
 
-  virtual bool setParam(const BaseString &param, const BaseString &value);
+  bool setParam(const BaseString &param, const BaseString &value) override;
   /**
    * Check if logging needs to be stopped.
    * @return true if logging has to be stopped, false otherwise.
@@ -71,10 +71,10 @@ public:
   STATIC_CONST( MAX_VARPART_SIZE = MAX_HEADER_LENGTH + MAX_LOG_MESSAGE_SIZE );
 
 protected:
-  virtual void writeHeader(const char* pCategory, Logger::LoggerLevel level,
-                           time_t now);
-  virtual void writeMessage(const char* pMsg);
-  virtual void writeFooter();
+  void writeHeader(const char* pCategory, Logger::LoggerLevel level,
+                   time_t now) override;
+  void writeMessage(const char* pMsg) override;
+  void writeFooter() override;
 
 private:
   /** Prohibit*/
@@ -119,12 +119,12 @@ public:
   {
   }
   /* Return size in bytes which must be appended to describe the lost messages */
-  size_t getSizeOfLostMsg(size_t lost_bytes, size_t lost_msgs);
+  size_t getSizeOfLostMsg(size_t lost_bytes, size_t lost_msgs) override;
 
   /* Write lost message summary into the buffer for the lost message summary */
-  bool writeLostMsg(char* buf, size_t buf_size, size_t lost_bytes, size_t lost_msgs);
+  bool writeLostMsg(char* buf, size_t buf_size, size_t lost_bytes, size_t lost_msgs) override;
 
-  ~MessageStreamLostMsgHandler() {}
+  ~MessageStreamLostMsgHandler() override {}
 };
 
 #endif /* STORAGE_NDB_INCLUDE_LOGGER_BUFFEREDLOGHANDLER_HPP_ */

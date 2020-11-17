@@ -313,6 +313,7 @@ SELECT STRAIGHT_JOIN *
  FROM t1 JOIN t1 AS t2
     ON t1.col_int_unique = t2.col_int_unique
  WHERE t1.pk = 2;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'handler_read_key';
 
 drop table t1;

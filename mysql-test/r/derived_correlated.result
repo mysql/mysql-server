@@ -266,14 +266,14 @@ explain format=tree select (with dt as (select t1.a as a from t2 limit 1) select
 EXPLAIN
 -> Table scan on t1  (cost=0.45 rows=2)
 -> Select #2 (subquery in projection; dependent)
-    -> Filter: (dt1.a = (select #4))
+    -> Filter: (dt1.a = (select #4))  (cost=0.70 rows=2)
         -> Index lookup on dt1 using <auto_key0> (a=(select #4))
-            -> Materialize CTE dt if needed
-                -> Limit: 1 row(s)
+            -> Materialize CTE dt if needed  (cost=0.45 rows=1)
+                -> Limit: 1 row(s)  (cost=0.45 rows=1)
                     -> Table scan on t2  (cost=0.45 rows=2)
         -> Select #4 (subquery in condition; dependent)
-            -> Table scan on dt2
-                -> Materialize CTE dt if needed (query plan printed elsewhere)
+            -> Table scan on dt2  (cost=2.73 rows=2)
+                -> Materialize CTE dt if needed (query plan printed elsewhere)  (cost=0.45 rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
@@ -383,7 +383,7 @@ Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join `test`.`t2`
 # no right join
 explain select dt.a from t1 right join lateral (select t1.a from t2) dt on 1;
-ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'dt'
+ERROR 42S22: Unknown column 't1.a' in 'field list'
 # no bad left join either
 explain select dt.a from lateral (select t1.a from t2) dt left join t1 on 1;
 ERROR 42S22: Unknown column 't1.a' in 'field list'
@@ -393,7 +393,7 @@ LEFT JOIN
 lateral (select t1.a) as dt ON t1.a=dt.a
 RIGHT JOIN
 lateral (select dt.a) as dt1 ON dt.a=dt1.a;
-ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'dt1'
+ERROR 42S22: Unknown column 'dt.a' in 'field list'
 # LATERAL DT depending on LATERAL DT
 explain SELECT * FROM t1
 JOIN
@@ -524,12 +524,12 @@ drop table t3;
 # DT containing a correlated DT which must become LATERAL
 explain format=tree select * from t1, lateral (select * from (select * from (select t1.a from t2) as dt limit 1) dt2) dt3;
 EXPLAIN
--> Nested loop inner join
+-> Nested loop inner join  (cost=6.35 rows=2)
     -> Invalidate materialized tables (row from t1)  (cost=0.45 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
-    -> Table scan on dt2
-        -> Materialize (invalidate on row from t1)
-            -> Limit: 1 row(s)
+    -> Table scan on dt2  (cost=2.95 rows=2)
+        -> Materialize (invalidate on row from t1)  (cost=0.45 rows=1)
+            -> Limit: 1 row(s)  (cost=0.45 rows=1)
                 -> Table scan on t2  (cost=0.45 rows=2)
 
 Warnings:
@@ -800,7 +800,7 @@ trace
           },
           {
             "derived": {
-              "table": "``.`` `dt`",
+              "table": "`` `dt`",
               "select#": 2,
               "merged": true
             }
@@ -1773,14 +1773,14 @@ explain format=tree select (with dt as (select t1.a as a from t2 limit 1) select
 EXPLAIN
 -> Table scan on t1  (cost=0.45 rows=2)
 -> Select #2 (subquery in projection; dependent)
-    -> Filter: (dt1.a = (select #4))
+    -> Filter: (dt1.a = (select #4))  (cost=0.70 rows=2)
         -> Index lookup on dt1 using <auto_key0> (a=(select #4))
-            -> Materialize CTE dt if needed
-                -> Limit: 1 row(s)
+            -> Materialize CTE dt if needed  (cost=0.45 rows=1)
+                -> Limit: 1 row(s)  (cost=0.45 rows=1)
                     -> Table scan on t2  (cost=0.45 rows=2)
         -> Select #4 (subquery in condition; dependent)
-            -> Table scan on dt2
-                -> Materialize CTE dt if needed (query plan printed elsewhere)
+            -> Table scan on dt2  (cost=2.73 rows=2)
+                -> Materialize CTE dt if needed (query plan printed elsewhere)  (cost=0.45 rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
@@ -1893,7 +1893,7 @@ Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `dt`.`a` AS `a` from `test`.`t1` join lateral (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t2`) `dt`
 # no right join
 explain select dt.a from t1 right join lateral (select t1.a from t2) dt on 1;
-ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'dt'
+ERROR 42S22: Unknown column 't1.a' in 'field list'
 # no bad left join either
 explain select dt.a from lateral (select t1.a from t2) dt left join t1 on 1;
 ERROR 42S22: Unknown column 't1.a' in 'field list'
@@ -1903,7 +1903,7 @@ LEFT JOIN
 lateral (select t1.a) as dt ON t1.a=dt.a
 RIGHT JOIN
 lateral (select dt.a) as dt1 ON dt.a=dt1.a;
-ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'dt1'
+ERROR 42S22: Unknown column 'dt.a' in 'field list'
 # LATERAL DT depending on LATERAL DT
 explain SELECT * FROM t1
 JOIN
@@ -2034,16 +2034,16 @@ drop table t3;
 # DT containing a correlated DT which must become LATERAL
 explain format=tree select * from t1, lateral (select * from (select * from (select t1.a from t2) as dt limit 1) dt2) dt3;
 EXPLAIN
--> Nested loop inner join
+-> Nested loop inner join  (cost=8.62 rows=2)
     -> Invalidate materialized tables (row from t1)  (cost=0.45 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
-    -> Table scan on dt3
-        -> Materialize (invalidate on row from t1)
-            -> Table scan on dt2
-                -> Materialize
-                    -> Limit: 1 row(s)
-                        -> Table scan on dt
-                            -> Materialize
+    -> Table scan on dt3  (cost=4.09 rows=2)
+        -> Materialize (invalidate on row from t1)  (cost=0.45 rows=1)
+            -> Table scan on dt2  (cost=2.73 rows=2)
+                -> Materialize  (cost=0.45 rows=1)
+                    -> Limit: 1 row(s)  (cost=0.45 rows=1)
+                        -> Table scan on dt  (cost=2.73 rows=2)
+                            -> Materialize  (cost=0.45 rows=2)
                                 -> Table scan on t2  (cost=0.45 rows=2)
 
 Warnings:
@@ -3332,11 +3332,11 @@ CREATE ALGORITHM=TEMPTABLE VIEW v2 AS SELECT ( SELECT f2 FROM v1 WHERE v1.f1 = t
 EXPLAIN FORMAT=TREE SELECT * FROM v2 WHERE f3 = 3;
 EXPLAIN
 -> Index lookup on v2 using <auto_key0> (f3=3)
-    -> Materialize
+    -> Materialize  (cost=0.35 rows=1)
         -> Table scan on t2  (cost=0.35 rows=1)
         -> Select #3 (subquery in projection; dependent)
             -> Index lookup on v1 using <auto_key0> (f1=t2.f1)
-                -> Materialize
+                -> Materialize  (cost=0.35 rows=1)
                     -> Table scan on t1  (cost=0.35 rows=1)
 
 Warnings:
@@ -3381,3 +3381,17 @@ a	b	c	d	a+t1.a
 1	2	3	40	NULL
 1	2	3	40	2
 DROP TABLE t1, t2;
+#
+# Bug#30887665 ASSERT: `SELECT_LEX->IS_RECURSIVE()' IN JOIN::MAKE_JOIN_PLAN()
+#
+CREATE TABLE t1 (c1 VARCHAR(1));
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT 1 FROM
+v1 AS table1 RIGHT OUTER JOIN LATERAL
+(SELECT 1 FROM v1 AS table2 RIGHT OUTER JOIN LATERAL
+( SELECT 1 FROM v1 AS table3 ) AS table4
+ON table1.c1 = 1) AS table5
+ON 1;
+ERROR 42S22: Unknown column 'table1.c1' in 'on clause'
+DROP VIEW v1;
+DROP TABLE t1;

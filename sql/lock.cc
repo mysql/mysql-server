@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -106,6 +106,7 @@
 #include "sql/sql_base.h"  // MYSQL_LOCK_LOG_TABLE
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
+#include "sql/sql_db.h"  // check_schema_readonly
 #include "sql/sql_lex.h"
 #include "sql/sql_parse.h"  // is_log_table_write_query
 #include "sql/system_variables.h"
@@ -209,8 +210,10 @@ static int lock_tables_check(THD *thd, TABLE **tables, size_t count,
     if (!(flags & MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY) && !t->s->tmp_table &&
         !is_perfschema_db(t->s->db.str, t->s->db.length)) {
       if (t->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE &&
-          check_readonly(thd, true))
+          (check_readonly(thd, true) ||
+           check_schema_readonly(thd, t->s->db.str, t->s))) {
         return 1;
+      }
     }
   }
 
@@ -762,6 +765,13 @@ bool lock_schema_name(THD *thd, const char *db) {
   */
   if (check_readonly(thd, true)) return true;
 
+  /*
+    We have an IX lock on the schema name, so we can check the read
+    only option of the schema without worrying about a concurrent
+    ALTER SCHEMA.
+  */
+  if (check_schema_readonly(thd, db)) return true;
+
   DEBUG_SYNC(thd, "after_wait_locked_schema_name");
   return false;
 }
@@ -888,6 +898,13 @@ bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
     option we can safely re-check its value.
   */
   if (check_readonly(thd, true)) return true;
+
+  /*
+    We have an IX lock on the schema name, so we can check the read
+    only option of the schema without worrying about a concurrent
+    ALTER SCHEMA.
+  */
+  if (check_schema_readonly(thd, db)) return true;
 
   DEBUG_SYNC(thd, "after_wait_locked_pname");
   return false;

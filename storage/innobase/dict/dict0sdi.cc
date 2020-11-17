@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -221,14 +221,16 @@ bool dict_sdi_get_keys(const dd::Tablespace &tablespace, sdi_vector_t &vector) {
   return (false);
 }
 
-/** Retrieve SDI from tablespace
+/** Retrieve SDI from tablespace.
 @param[in]	tablespace	tablespace object
 @param[in]	sdi_key		SDI key
 @param[in,out]	sdi		SDI retrieved from tablespace
 @param[in,out]	sdi_len		in:  size of memory allocated
                                 out: actual length of SDI
 @retval		false		success
-@retval		true		failure */
+@retval		true		in case of failures like record not found,
+                                sdi_len is UINT64MAX_T, else sdi_len is
+                                actual length of SDI */
 bool dict_sdi_get(const dd::Tablespace &tablespace, const sdi_key_t *sdi_key,
                   void *sdi, uint64 *sdi_len) {
 #if 0 /* TODO: Enable in WL#9761 */

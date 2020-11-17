@@ -51,7 +51,7 @@ SET_TARGET_PROPERTIES(http_common PROPERTIES
 
 ## the rpath for the bundled openssl
 ADD_INSTALL_RPATH_FOR_OPENSSL(http_common)
-SET_PATH_TO_SSL(http_common ${CMAKE_BINARY_DIR}/library_output_directory)
+SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(http_common)
 
 INSTALL(TARGETS http_common
   RUNTIME DESTINATION ${ROUTER_INSTALL_BINDIR} COMPONENT Router
@@ -91,7 +91,7 @@ TARGET_INCLUDE_DIRECTORIES(http_auth_backend_lib PUBLIC
   ${CMAKE_CURRENT_BINARY_DIR}/../include/)
 ## the rpath for the bundled openssl
 ADD_INSTALL_RPATH_FOR_OPENSSL(http_auth_backend_lib)
-SET_PATH_TO_SSL(http_auth_backend_lib ${CMAKE_BINARY_DIR}/library_output_directory)
+SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(http_auth_backend_lib)
 
 
 ## the plugin
@@ -140,7 +140,7 @@ INSTALL(TARGETS http_auth_realm_lib
   )
 ## the rpath for the bundled openssl
 ADD_INSTALL_RPATH_FOR_OPENSSL(http_auth_realm_lib)
-SET_PATH_TO_SSL(http_auth_realm_lib ${CMAKE_BINARY_DIR}/library_output_directory)
+SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(http_auth_realm_lib)
 
 
 ADD_HARNESS_PLUGIN(http_auth_realm
@@ -170,7 +170,7 @@ ADD_HARNESS_PLUGIN(http_server
   tls_server_context.cc
   REQUIRES router_lib;http_common;http_auth_realm;
     ${LIBRT};
-    harness_stdx_io;harness_stdx_filesystem
+    harness_stdx
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
   )
 TARGET_INCLUDE_DIRECTORIES(http_server PRIVATE
@@ -197,7 +197,7 @@ TARGET_INCLUDE_DIRECTORIES(http_client PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/../include/)
 
 ## the rpath for the bundled openssl
-SET_PATH_TO_SSL(http_client ${CMAKE_BINARY_DIR}/library_output_directory)
+SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(http_client)
 
 # INSTALL(TARGETS http_client
 #   RUNTIME DESTINATION ${ROUTER_INSTALL_BINDIR}

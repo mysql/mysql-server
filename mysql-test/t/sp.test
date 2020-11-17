@@ -714,6 +714,7 @@ begin
 end|
 
 call create_select("cs", 90)|
+--sorted_result
 select * from t1, t3|
 drop table t3|
 delete from t1|
@@ -893,6 +894,7 @@ begin
 end|
 
 call hndlr4()|
+--sorted_result
 select * from t3|
 drop table t3|
 drop procedure hndlr4|
@@ -1380,6 +1382,7 @@ begin
 end|
 
 call ifac(20)|
+--sorted_result
 select * from t3|
 drop table t3|
 --replace_column 4 'root@localhost' 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
@@ -8198,7 +8201,7 @@ delimiter |;
 CREATE PROCEDURE p1(a CHAR)
 BEGIN
   SELECT 1;
-  SELECT CAST('10 ' as UNSIGNED INTEGER);
+  SELECT CAST('10x' as UNSIGNED INTEGER);
 END|
 delimiter ;|
 
@@ -8227,7 +8230,7 @@ CREATE PROCEDURE p3()
 CREATE PROCEDURE p4()
 BEGIN
   SELECT 1;
-  SELECT CAST('10 ' as UNSIGNED INTEGER);
+  SELECT CAST('10x' as UNSIGNED INTEGER);
 END|
 delimiter ;|
 
@@ -8408,17 +8411,17 @@ create procedure p1(p1 integer, p2 integer)
 --echo #
 --echo # Try to use data types not allowed in LIMIT 
 --echo #
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create procedure p1(p1 date, p2 date) select * from t1 limit p1, p2;
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create procedure p1(p1 integer, p2 float) select * from t1 limit p1, p2;
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create procedure p1(p1 integer, p2 char(1)) select * from t1 limit p1, p2;
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create procedure p1(p1 varchar(5), p2 char(1)) select * from t1 limit p1, p2;
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create procedure p1(p1 decimal, p2 decimal) select * from t1 limit p1, p2;
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create procedure p1(p1 double, p2 double) select * from t1 limit p1, p2;
 
 --echo #
@@ -8467,7 +8470,7 @@ delimiter |;
 --echo #
 --echo # Try to use data types not allowed in LIMIT 
 --echo #
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create function f1(p1 date, p2 date)
   returns int
 begin
@@ -8476,7 +8479,7 @@ begin
   return a;
 end|
 
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create function f1(p1 integer, p2 float)
   returns int
 begin
@@ -8485,7 +8488,7 @@ begin
   return a;
 end|
 
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create function f1(p1 integer, p2 char(1))
   returns int
 begin
@@ -8494,7 +8497,7 @@ begin
   return a;
 end|
 
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create function f1(p1 varchar(5), p2 char(1))
   returns int
 begin
@@ -8503,7 +8506,7 @@ begin
   return a;
 end|
 
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create function f1(p1 decimal, p2 decimal)
   returns int
 begin
@@ -8512,7 +8515,7 @@ begin
   return a;
 end|
 
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create function f1(p1 double, p2 double)
   returns int
 begin
@@ -9781,6 +9784,67 @@ CALL v1(3,2);
 DROP PROCEDURE v1;
 DROP TABLE t1;
 
+--echo # Cursor over union of two tables
+
+CREATE TABLE t1(a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES(1, 10);
+
+CREATE TABLE t2(c INTEGER, d INTEGER);
+INSERT INTO t2 VALUES(2, 20);
+
+DELIMITER //;
+CREATE PROCEDURE cursor_over_union(OUT sum_a INTEGER, OUT sum_b INTEGER)
+BEGIN
+  DECLARE a INTEGER;
+  DECLARE b INTEGER;
+  DECLARE done INTEGER DEFAULT 0;
+  DECLARE c1 CURSOR FOR
+      SELECT t1.a, t1.b FROM t1
+      UNION DISTINCT
+      SELECT t2.c, t2.d FROM t2;
+  DECLARE c2 CURSOR FOR
+      SELECT t1.a, t1.b FROM t1
+      UNION ALL
+      SELECT t2.c, t2.d FROM t2;
+  DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done = 1;
+
+  SET sum_a = 0;
+  SET sum_b = 0;
+
+  OPEN c1;
+  REPEAT
+    FETCH c1 INTO a, b;
+    if NOT done THEN
+       SET sum_a = sum_a + a;
+       SET sum_b = sum_b + b;
+    END IF;
+  UNTIL done END REPEAT;
+  CLOSE c1;
+
+  SET done = 0;
+
+  OPEN c2;
+  REPEAT
+    FETCH c2 INTO a, b;
+    if NOT done THEN
+       SET sum_a = sum_a + a;
+       SET sum_b = sum_b + b;
+    END IF;
+  UNTIL done END REPEAT;
+  CLOSE c2;
+
+end //
+
+DELIMITER ;//
+
+SET @sa = 0;
+SET @sb = 0;
+
+CALL cursor_over_union(@sa, @sb);
+SELECT @sa, @sb;
+DROP PROCEDURE cursor_over_union;
+DROP TABLE t1, t2;
+
 --echo #
 --echo # Bug#30520714 - MYSQL SERVER RETURNS UNEXPECTED ROWS WHEN USING STORED
 --echo #                FUNCTIONS IN WHERE CLAUSE
@@ -9805,3 +9869,83 @@ SELECT IF (COUNT(*) > 0, 'affected', 'not affected') FROM t1
 
 DROP FUNCTION ReturnFalse;
 DROP TABLE t1;
+
+--echo # Bug#31691060: Assertion `!is_open()' in Materialized_cursor::~Materialized_cursor
+
+CREATE TABLE t1(a INTEGER);
+CREATE TABLE t2(a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES(0), (1), (2);
+INSERT INTO t2 VALUES(1, 10), (2, 20), (2, 21);
+DELIMITER //;
+CREATE PROCEDURE pc(val INTEGER)
+BEGIN
+  DECLARE finished, col_a, col_b INTEGER DEFAULT 0;
+  DECLARE c CURSOR FOR
+      SELECT a, (SELECT b FROM t2 WHERE t1.a=t2.a) FROM t1 WHERE a = val;
+  DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
+  SET finished = 0;
+  OPEN c;
+  loop1: LOOP
+    FETCH c INTO col_a, col_b;
+    IF finished = 1 THEN
+      LEAVE loop1;
+    END IF;
+  END LOOP loop1;
+  CLOSE c;
+END //
+CREATE PROCEDURE pc_with_flush()
+BEGIN
+  DECLARE finished, col_a, col_b INTEGER DEFAULT 0;
+  DECLARE val INTEGER DEFAULT 0;
+  DECLARE c CURSOR FOR
+      SELECT a, (SELECT b FROM t2 WHERE t1.a=t2.a) FROM t1 WHERE a = val;
+  DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
+  SET finished = 0;
+  OPEN c;
+  loop1: LOOP
+    FETCH c INTO col_a, col_b;
+    IF finished = 1 THEN
+      LEAVE loop1;
+    END IF;
+  END LOOP loop1;
+  CLOSE c;
+  FLUSH TABLES;
+  SET finished = 0;
+  SET val = 1;
+  OPEN c;
+  loop2: LOOP
+    FETCH c INTO col_a, col_b;
+    IF finished = 1 THEN
+      LEAVE loop2;
+    END IF;
+  END LOOP loop2;
+  CLOSE c;
+  FLUSH TABLES;
+  SET val = 2;
+  SET finished = 0;
+  OPEN c;
+  loop3: LOOP
+    FETCH c INTO col_a, col_b;
+    IF finished = 1 THEN
+      LEAVE loop3;
+    END IF;
+  END LOOP loop3;
+  CLOSE c;
+END //
+DELIMITER ;//
+CALL pc(1);
+--error ER_SUBQUERY_NO_1_ROW
+CALL pc(2);
+FLUSH TABLES;
+CALL pc(1);
+--error ER_SUBQUERY_NO_1_ROW
+CALL pc(2);
+FLUSH TABLES;
+--error ER_SUBQUERY_NO_1_ROW
+CALL pc(2);
+CALL pc(1);
+--error ER_SUBQUERY_NO_1_ROW
+CALL pc_with_flush();
+DROP PROCEDURE pc;
+DROP PROCEDURE pc_with_flush;
+DROP TABLE t1, t2;

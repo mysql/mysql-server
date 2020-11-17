@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -19,6 +19,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+# Enable various apparmor systems for Ubuntu
+IF(DEB_ID STREQUAL "ubuntu")
+  SET (DEB_RULES_INSTALL_APPARMOR_ROUTER "install -g root -o root -m 0644 -D debian/extra/apparmor-profile-router debian/tmp/etc/apparmor.d/usr.bin.mysqlrouter")
+  SET (DEB_RULES_APPARMOR_LOAD_ROUTER "dh_apparmor -pmysql-router-${DEB_PRODUCTNAME} --profile-name=usr.bin.mysqlrouter")
+  SET (DEB_INSTALL_ROUTER_APPARMOR "etc/apparmor.d/usr.bin.mysqlrouter")
+ENDIF()
+SET (DEB_RULES_INSTALLINIT_ROUTER "dh_installinit --name=mysqlrouter -- defaults 19 21")
+SET (DEB_RULES_INSTALL_ROUTER_SYSTEMD
+  "install -m 0755 debian/extra/mysqlrouter-systemd-start debian/tmp/usr/share/mysqlrouter/"
+  )
+
 
 SET(DEB_CONTROL_ROUTER
 "

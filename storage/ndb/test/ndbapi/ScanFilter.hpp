@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,27 +56,27 @@ private:
 class LessThanFilter : public ScanFilter {
 public:
   LessThanFilter(int records){ compare_value = records / 100; }
-  virtual ~LessThanFilter(){}
+  ~LessThanFilter() override {}
 private:
   Uint32 compare_value;
-  int filterOp(NdbOperation* pOp);
-  int verifyRecord(NDBT_ResultRow&);
+  int filterOp(NdbOperation* pOp) override;
+  int verifyRecord(NDBT_ResultRow&) override;
 };
 
 class EqualFilter : public ScanFilter {
 public:
-  virtual ~EqualFilter(){}
+  ~EqualFilter() override {}
 
   static const Uint32 compare_value = 100;
-  int filterOp(NdbOperation* pOp);
-  int verifyRecord(NDBT_ResultRow&);
+  int filterOp(NdbOperation* pOp) override;
+  int verifyRecord(NDBT_ResultRow&) override;
 };
 
 class NoFilter : public ScanFilter {
 public:
-  virtual ~NoFilter(){}
-  int filterOp(NdbOperation* pOp);
-  int verifyRecord(NDBT_ResultRow&);
+  ~NoFilter() override {}
+  int filterOp(NdbOperation* pOp) override;
+  int verifyRecord(NDBT_ResultRow&) override;
 };
 
 

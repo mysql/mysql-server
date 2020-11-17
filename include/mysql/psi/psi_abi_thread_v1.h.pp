@@ -81,6 +81,8 @@ typedef int (*set_thread_resource_group_by_id_v1_t)(
     PSI_thread *thread, unsigned long long thread_id, const char *group_name,
     int group_name_len, void *user_data);
 typedef void (*set_thread_v1_t)(struct PSI_thread *thread);
+typedef void (*set_thread_peer_port_v4_t)(PSI_thread *thread,
+                                          unsigned int port);
 typedef void (*aggregate_thread_status_v2_t)(struct PSI_thread *thread);
 typedef void (*delete_current_thread_v1_t)(void);
 typedef void (*delete_thread_v1_t)(struct PSI_thread *thread);
@@ -134,7 +136,7 @@ struct PSI_thread_bootstrap {
   void *(*get_interface)(int version);
 };
 typedef struct PSI_thread_bootstrap PSI_thread_bootstrap;
-struct PSI_thread_service_v3 {
+struct PSI_thread_service_v4 {
   register_thread_v1_t register_thread;
   spawn_thread_v1_t spawn_thread;
   new_thread_v1_t new_thread;
@@ -155,6 +157,7 @@ struct PSI_thread_service_v3 {
   set_thread_resource_group_v1_t set_thread_resource_group;
   set_thread_resource_group_by_id_v1_t set_thread_resource_group_by_id;
   set_thread_v1_t set_thread;
+  set_thread_peer_port_v4_t set_thread_peer_port;
   aggregate_thread_status_v2_t aggregate_thread_status;
   delete_current_thread_v1_t delete_current_thread;
   delete_thread_v1_t delete_thread;
@@ -169,5 +172,5 @@ struct PSI_thread_service_v3 {
   notify_session_disconnect_v1_t notify_session_disconnect;
   notify_session_change_user_v1_t notify_session_change_user;
 };
-typedef struct PSI_thread_service_v3 PSI_thread_service_t;
+typedef struct PSI_thread_service_v4 PSI_thread_service_t;
 extern PSI_thread_service_t *psi_thread_service;

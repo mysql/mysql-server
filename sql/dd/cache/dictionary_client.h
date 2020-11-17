@@ -35,6 +35,7 @@
 #include "sql/dd/string_type.h"
 
 class THD;
+struct LEX_USER;
 
 namespace dd {
 class Schema;
@@ -964,6 +965,21 @@ class Dictionary_client {
 
   template <typename T>
   bool fetch_global_components(Const_ptr_vec<T> *coll)
+      MY_ATTRIBUTE((warn_unused_result));
+
+  /**
+     Check if a user is referenced as definer by some object of the given type.
+
+     @tparam        T              Type of dictionary objects to check.
+     @param         user           User name, including @ and host.
+     @param   [out] is_definer     True if the user is referenced as definer
+                                   by some object.
+
+     @return      true   Failure (error is reported, is_definer is undefined).
+     @return      false  Success.
+   */
+  template <typename T>
+  bool is_user_definer(const LEX_USER &user, bool *is_definer) const
       MY_ATTRIBUTE((warn_unused_result));
 
   /**

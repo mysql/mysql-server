@@ -23,7 +23,7 @@ include/start_group_replication.inc
 # 2. Stop the applier sql thread in server2
 [connection server2]
 include/gr_stop_applier_sql_thread.inc
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 
 # 3. Change to multi primary mode
 [connection server1]

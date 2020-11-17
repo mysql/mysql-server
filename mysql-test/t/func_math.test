@@ -1151,3 +1151,27 @@ CALL test_round_unsigned(18446744073709551614);
 
 DROP PROCEDURE test_round;
 DROP PROCEDURE test_round_unsigned;
+
+--echo # Bug#31128028 ROUND and TRUNCATE sometimes produce wrong result types
+
+CREATE TABLE t1(a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES(11, -1);
+CREATE TABLE t2 AS SELECT a, ROUND(a, b) AS c FROM t1;
+DESCRIBE t2;
+DROP TABLE t1, t2;
+
+--echo # Bug#29602947: The behavior between INSERT stmt and "PREPARE stmt and
+--echo #               EXECUTE stmt" different
+
+CREATE TABLE t (a INTEGER);
+--error ER_TRUNCATED_WRONG_VALUE
+INSERT INTO t VALUES (1.0E+01+'a');
+
+PREPARE st1 FROM "INSERT INTO t VALUES (? + ?)";
+SET @a=1.0E+01;
+SET @b='a';
+--error ER_TRUNCATED_WRONG_VALUE
+EXECUTE st1 USING @a,@b;
+
+DROP TABLE t;
+

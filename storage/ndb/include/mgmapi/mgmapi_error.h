@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,12 +54,17 @@ extern "C" {
     NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET = 1011,
     /** Could not bind local address */
     NDB_MGM_BIND_ADDRESS = 1012,
+    /** Supplied bind-address is illegal */
+    NDB_MGM_ILLEGAL_BIND_ADDRESS = 1013,
     
     /* Alloc node id failures */
     /** Generic error, retry may succeed */
     NDB_MGM_ALLOCID_ERROR = 1101,
     /** Non retriable error */
     NDB_MGM_ALLOCID_CONFIG_MISMATCH = 1102,
+    /** Mgmd failed to match hostname, but AllowUnresolvedHostnames=true.
+        Connecting node should retry. */
+    NDB_MGM_ALLOCID_CONFIG_RETRY = 1103,
 
     /* Service errors - Start/Stop Node or System */
     /** Start failed */

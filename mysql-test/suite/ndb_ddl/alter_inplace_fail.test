@@ -25,5 +25,21 @@ SHOW CREATE TABLE t8;
 --let $ndb_desc_opts= -i -d ndb_ddl_test t8
 --source suite/ndb/include/ndb_desc_print.inc
 
+--echo #
+--echo # Bug#31419144 FIX MEMORY LEAK OF NDB_ALTER_DATA IN PREPARE_INPLACE_ALTER_TABLE
+--echo #
+
+# Simulate failure during Ndb_schema_dist_client's prepare phase and verify the following :
+# a) A proper error is returned to the user
+# b) The internal structures are properly freed - this is verified when the subsequent
+#    shutdown of the mysql server completes without any issues. If it faces an issues,
+#    like a DBUG_ASSERT() failure for example, the shutdown_report will fail.
+
+set @save_debug = @@global.debug;
+set global debug='+d,ndb_schema_dist_not_ready_early';
+--error ER_GET_ERRMSG
+ALTER TABLE t1 ADD INDEX idx(a), ALGORITHM = INPLACE;
+set global debug=@save_debug;
+
 --source cleanup.inc
 

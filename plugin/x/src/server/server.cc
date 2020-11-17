@@ -36,6 +36,8 @@
 #include "plugin/x/ngs/include/ngs/server_client_timeout.h"
 #include "plugin/x/ngs/include/ngs/socket_acceptors_task.h"
 #include "plugin/x/ngs/include/ngs/vio_wrapper.h"
+#include "plugin/x/src/helper/multithread/initializer.h"
+#include "plugin/x/src/helper/multithread/xsync_point.h"
 #include "plugin/x/src/interface/client.h"
 #include "plugin/x/src/interface/connection_acceptor.h"
 #include "plugin/x/src/interface/protocol_monitor.h"
@@ -50,8 +52,7 @@
 #include "plugin/x/src/xpl_log.h"
 #include "plugin/x/src/xpl_performance_schema.h"
 
-#include "my_systime.h"   // my_sleep() NOLINT(build/include_subdir)
-#include "scope_guard.h"  // NOLINT(build/include_subdir)
+#include "my_systime.h"  // my_sleep() NOLINT(build/include_subdir)
 
 namespace ngs {
 
@@ -106,21 +107,13 @@ bool Server::is_terminating() {
 
 void Server::delayed_start_tasks() {
   m_accept_scheduler->post([this]() {
-    srv_session_init_thread(xpl::plugin_handle);
-    auto guard_of_server_start = create_scope_guard([]() {
-      srv_session_deinit_thread();
-      ssl_wrapper_thread_cleanup();
-    });
+    xpl::Server_thread_initializer thread_initializer;
 
     /* Wait until SQL api is ready,
        server shouldn't handle any client before that. */
     if (xpl::Sql_data_context::wait_api_ready(
             [this]() { return is_terminating(); })) {
-#ifndef DBUG_OFF
-      while (DBUG_EVALUATE_IF("xplugin_init_wait", true, false)) {
-        my_sleep(100000);
-      }
-#endif  // DBUG_OFF
+      SYNC_POINT_CHECK("xplugin_init_wait");
 
       xpl::Sql_data_context sql_context;
       const bool admin_session = true;
@@ -184,7 +177,7 @@ bool Server::prepare() {
 }
 
 /** Stop the network acceptor loop */
-void Server::stop(const bool is_called_from_timeout_handler) {
+void Server::stop() {
   m_stop_called = true;
   if (m_state.exchange(State::State_initializing, State_failure)) {
     start_failed();
@@ -197,12 +190,8 @@ void Server::stop(const bool is_called_from_timeout_handler) {
   if (State_terminating == m_state.set_and_return_old(State_terminating))
     return;
 
-  const Stop_cause cause = is_called_from_timeout_handler
-                               ? Stop_cause::k_server_task_triggered_event
-                               : Stop_cause::k_normal_shutdown;
-
   for (auto &task : m_tasks) {
-    task->stop(cause);
+    task->stop(Stop_cause::k_normal_shutdown);
   }
 
   close_all_clients();
@@ -213,7 +202,7 @@ void Server::stop(const bool is_called_from_timeout_handler) {
     m_worker_scheduler.reset();
   }
 
-  if (m_accept_scheduler && !is_called_from_timeout_handler) {
+  if (m_accept_scheduler) {
     m_accept_scheduler->stop();
     m_accept_scheduler.reset();
   }

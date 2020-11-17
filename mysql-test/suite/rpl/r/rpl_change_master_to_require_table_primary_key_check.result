@@ -20,6 +20,8 @@ include/assert.inc [require_table_primary_key_check in performance_schema.replic
 CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
 include/assert.inc [require_table_primary_key_check in performance_schema.replication_applier_configuration is set to OFF]
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 #
 # 3. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` for a replication setup
 #    Check the values are the ones expected
@@ -41,7 +43,11 @@ include/assert.inc [require_table_primary_key_check in performance_schema.replic
 CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
 ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/assert.inc [require_table_primary_key_check in performance_schema.replication_applier_configuration is set to OFF]
 include/rpl_end.inc

@@ -51,7 +51,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "my_compiler.h"
 #include "os0event.h"
 #include "os0file.h"
-#include "sync0sharded_rw.h"
+#include "sync0rw.h"
 #include "univ.i"
 #include "ut0link_buf.h"
 #include "ut0mutex.h"
@@ -122,11 +122,7 @@ enum class log_state_t {
 /** The recovery implementation. */
 struct redo_recover_t;
 
-typedef size_t log_lock_no_t;
-
 struct Log_handle {
-  log_lock_no_t lock_no;
-
   lsn_t start_lsn;
 
   lsn_t end_lsn;
@@ -144,22 +140,37 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   /** @{ */
 
 #ifndef UNIV_HOTBACKUP
-  /** Sharded rw-lock which can be used to freeze redo log lsn.
-  When user thread reserves space in log, s-lock is acquired.
-  Log archiver (Clone plugin) acquires x-lock. */
-  mutable Sharded_rw_lock sn_lock;
+  /** Event used for locking sn */
+  os_event_t sn_lock_event;
+
+#ifdef UNIV_PFS_RWLOCK
+  /** The instrumentation hook */
+  struct PSI_rwlock *pfs_psi;
+#endif /* UNIV_PFS_RWLOCK */
+#ifdef UNIV_DEBUG
+  /** The rw_lock instance only for the debug info list */
+  /* NOTE: Just "rw_lock_t sn_lock_inst;" and direct minimum initialization
+  seem to hit the bug of Sun Studio of Solaris. */
+  rw_lock_t *sn_lock_inst;
+#endif /* UNIV_DEBUG */
 
   /** Current sn value. Used to reserve space in the redo log,
   and used to acquire an exclusive access to the log buffer.
   Represents number of data bytes that have ever been reserved.
   Bytes of headers and footers of log blocks are not included.
-  Protected by: sn_lock. */
+  Its highest bit is used for locking the access to the log buffer. */
   MY_COMPILER_DIAGNOSTIC_PUSH()
   MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
   /**
   @see @ref subsect_redo_log_sn */
   MY_COMPILER_DIAGNOSTIC_PUSH()
   alignas(ut::INNODB_CACHE_LINE_SIZE) atomic_sn_t sn;
+
+  /** Intended sn value while x-locked. */
+  atomic_sn_t sn_locked;
+
+  /** Mutex which can be used for x-lock sn value */
+  mutable ib_mutex_t sn_x_lock_mutex;
 
   /** Padding after the _sn to avoid false sharing issues for
   constants below (due to changes of sn). */
@@ -169,7 +180,7 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
       The alignment is to ensure that buffer parts specified for file IO write
       operations will be aligned to sector size, which is required e.g. on
       Windows when doing unbuffered file access.
-      Protected by: sn_lock. */
+      Protected by: locking sn not to add. */
       aligned_array_pointer<byte, OS_FILE_LOG_BLOCK_SIZE> buf;
 
   /** Size of the log buffer expressed in number of data bytes,
@@ -183,13 +194,23 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   alignas(ut::INNODB_CACHE_LINE_SIZE)
 
       /** The recent written buffer.
-      Protected by: sn_lock or writer_mutex. */
+      Protected by: locking sn not to add. */
       Link_buf<lsn_t> recent_written;
+
+  /** Used for pausing the log writer threads.
+  When paused, each user thread should write log as in the former version. */
+  std::atomic_bool writer_threads_paused;
+
+  /** Some threads waiting for the ready for write lsn by closer_event. */
+  lsn_t current_ready_waiting_lsn;
+
+  /** current_ready_waiting_lsn is waited using this sig_count. */
+  int64_t current_ready_waiting_sig_count;
 
   alignas(ut::INNODB_CACHE_LINE_SIZE)
 
       /** The recent closed buffer.
-      Protected by: sn_lock or closer_mutex. */
+      Protected by: locking sn not to add. */
       Link_buf<lsn_t> recent_closed;
 
   alignas(ut::INNODB_CACHE_LINE_SIZE)
@@ -271,6 +292,11 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
 
   /** Number of entries in the array with events. */
   size_t flush_events_size;
+
+  /** This event is in the reset state when a flush is running;
+  a thread should wait for this without owning any of redo mutexes,
+  but NOTE that to reset this event, the thread MUST own the writer_mutex */
+  os_event_t old_flush_event;
 
   /** Padding before the frequently updated flushed_to_disk_lsn. */
   alignas(ut::INNODB_CACHE_LINE_SIZE)
@@ -370,7 +396,7 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   lsn_t lsn_capacity_for_writer;
 
   /** When this margin is being used, the log writer decides to increase
-  the concurrency_margin to stop new incoming mini transactions earlier,
+  the concurrency_margin to stop new incoming mini-transactions earlier,
   on bigger margin. This is used to provide adaptive concurrency margin
   calculation, which we need because we might have unlimited thread
   concurrency setting or we could miss some log_free_check() calls.
@@ -436,6 +462,9 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
       advanced). */
       os_event_t flush_notifier_event;
 
+  /** The next flushed_to_disk_lsn can be waited using this sig_count. */
+  int64_t current_flush_sig_count;
+
   /** Mutex which can be used to pause log flush notifier thread. */
   mutable ib_mutex_t flush_notifier_mutex;
 
@@ -476,6 +505,15 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
 
       /** Used for stopping the log background threads. */
       std::atomic_bool should_stop_threads;
+
+  /** Event used for pausing the log writer threads. */
+  os_event_t writer_threads_resume_event;
+
+  /** Used for resuming write notifier thread */
+  atomic_lsn_t write_notifier_resume_lsn;
+
+  /** Used for resuming flush notifier thread */
+  atomic_lsn_t flush_notifier_resume_lsn;
 
   /** Number of total I/O operations performed when we printed
   the statistics last time. */
@@ -585,11 +623,11 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
 
   /** Maximum sn up to which there is free space in the redo log.
   Threads check this limit and compare to current log.sn, when they
-  are outside mini transactions and hold no latches. The formula used
+  are outside mini-transactions and hold no latches. The formula used
   to compute the limitation takes into account maximum size of mtr and
   thread concurrency to include proper margins and avoid issues with
   race condition (in which all threads check the limitation and then
-  all proceed with their mini transactions). Also extra margin is
+  all proceed with their mini-transactions). Also extra margin is
   there for dd table buffer cache (dict_persist_margin).
   Read by: user threads (log_free_check())
   Updated by: log_checkpointer (after update of checkpoint_lsn)

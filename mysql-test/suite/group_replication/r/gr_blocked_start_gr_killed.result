@@ -8,6 +8,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #    of the query which will be killed.
 
 [connection server1]
+RESET REPLICA FOR CHANNEL "group_replication_applier";
 SET sql_log_bin=0;
 CALL mtr.add_suppression("Error writing file.*(errno: 28 - No space left on device)");
 CALL mtr.add_suppression("Disk is full writing.*(OS errno 28 - No space left on device)");

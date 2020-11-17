@@ -1,0 +1,199 @@
+--echo ##
+--echo ## Test the Performance Schema-based implementation of SHOW PROCESSLIST.
+--echo ##
+--echo ## Verify handling of the SELECT and PROCESS privileges.
+--echo ##
+--echo ## Test cases:
+--echo ##   - Execute SHOW PROCESSLIST (new and legacy) with all privileges
+--echo ##   - Execute SELECT on the performance_schema.processlist and information_schema.processlist with all privileges
+--echo ##   - Execute SHOW PROCESSLIST (new and legacy) with no privileges
+--echo ##   - Execute SELECT on the performance_schema.processlist and information_schema.processlist with no privileges
+--echo ##
+--echo ## Results must be manually verified.
+--echo
+
+--source include/no_protocol.inc
+
+--echo ### Setup ###
+--echo
+select @@global.performance_schema_show_processlist into @save_processlist;
+
+--echo
+--echo # Control users
+create user user_00@localhost, user_01@localhost;
+grant ALL   on *.* to user_00@localhost;
+grant ALL   on *.* to user_01@localhost;
+
+--echo
+--echo # Test users
+create user user_all@localhost, user_none@localhost;
+grant ALL   on *.* to user_all@localhost;
+grant USAGE on *.* to user_none@localhost;
+--echo
+flush privileges;
+
+--echo
+show grants for user_all@localhost;
+--echo
+show grants for user_none@localhost;
+
+--echo
+use test;
+create table test.t1 (s1 int, s2 int, s3 int, s4 int);
+
+--echo
+--echo # Connect (con_00, localhost, user_00, , )
+connect (con_00, localhost, user_00, , );
+
+--echo # Connect (con_01, localhost, user_01, , )
+connect (con_01, localhost, user_01, , );
+--echo
+insert into test.t1 values(1, 1, 1, 1);
+insert into test.t1 values(2, 2, 2, 2);
+insert into test.t1 values(3, 3, 3, 3);
+insert into test.t1 values(4, 4, 4, 4);
+
+--echo
+--echo # Lock test.t1, insert/update/deletes will block
+lock tables t1 read;
+
+--echo
+--echo # Establish 2 connections for user_all
+--echo # Connect (con_all_1, localhost, user_all, , )
+connect (con_all_1, localhost, user_all, , );
+
+--echo # Connect (con_all_2, localhost, user_all, , )
+connect (con_all_2, localhost, user_all, , );
+--send insert into test.t1 values (0, 0, 0, 0)
+
+--echo
+--echo # Establish 4 connections for user_none 
+--echo # Connect (con_none_1, localhost, user_none, , )
+connect (con_none_1, localhost, user_none, , );
+
+--echo # Connect (con_none_2, localhost, user_none, , )
+connect (con_none_2, localhost, user_none, , );
+
+--echo # Connect (con_none_3, localhost, user_none, , )
+connect (con_none_3, localhost, user_none, , );
+
+--echo # Connect (con_none_4, localhost, user_none, , )
+connect (con_none_4, localhost, user_none, , );
+--send update test.t1 set s1 = s1 + 1, s2 = s2 + 2;
+
+--echo
+--echo # Connection con_00
+--connection con_00
+
+--echo
+--echo # Wait for queries to appear in the processlist table
+let $wait_condition = select count(*) >= 2 from information_schema.processlist
+                      where state like '%metadata%';
+--source include/wait_condition.inc
+
+--echo
+--echo # Connection con_all_1
+--connection con_all_1
+
+# Note: For consistent results on PB2, the setup and execution are conducted
+# from con_all_1 to overwrite Command and Info columns.
+
+--echo
+--echo ### Execute SHOW PROCESSLIST with all privileges
+--echo ### Expect all users
+--echo
+--echo # New SHOW PROCESSLIST
+let $pfs_spl = on;
+--source ../include/processlist_set.inc
+--source ../include/processlist_load.inc
+
+--echo
+--echo # Legacy SHOW PROCESSLIST
+let $pfs_spl = off;
+--source ../include/processlist_set.inc
+--source ../include/processlist_load.inc
+
+--echo
+--echo
+--echo ### Execute SHOW PROCESSLIST with no SELECT and no PROCESS privileges
+--echo ### Expect processes only from user_none
+--echo
+--echo # New SHOW PROCESSLIST
+--connection con_00
+let $pfs_spl = on;
+--source ../include/processlist_set.inc
+
+--echo
+--echo # Connection con_none_1
+--connection con_none_1
+--source ../include/processlist_load.inc
+
+--echo
+--echo # Confirm that only processes from user_none are visible
+--echo
+select count(*) as "Expect 0" from performance_schema.processlist
+  where user not in ('user_none');
+
+--echo
+--echo # Legacy SHOW PROCESSLIST
+--connection con_00
+let $pfs_spl = off;
+--source ../include/processlist_set.inc
+
+--echo
+--echo # Connection con_none_1
+--connection con_none_1
+--source ../include/processlist_load.inc
+
+--echo
+--echo
+--echo ### Clean up ###
+--echo
+
+--echo # Disconnect con_00
+--connection con_00
+--disconnect con_00
+
+--echo # Connection con_01, unlock test.t1, disconnect
+--connection con_01
+unlock tables;
+--disconnect con_01
+
+--echo # Disconnect con_all_1
+--connection con_all_1
+--disconnect con_all_1
+
+--echo # Reap con_all_2, disconnect
+--connection con_all_2
+--reap
+--disconnect con_all_2
+
+--echo # Disconnect con_none_1
+--connection con_none_1
+--disconnect con_none_1
+
+--echo # Disconnect con_none_2
+--connection con_none_2
+--disconnect con_none_2
+
+--echo # Disconnect con_none_3
+--connection con_none_3
+--disconnect con_none_3
+
+--echo # Reap con_none_4, disconnect
+--connection con_none_4
+--reap
+--disconnect con_none_4
+
+--echo
+--echo # Connection default
+--connection default
+
+--echo
+drop table test.t1;
+drop user user_00@localhost;
+drop user user_01@localhost;
+drop user user_all@localhost;
+drop user user_none@localhost;
+--echo
+set @@global.performance_schema_show_processlist = @save_processlist;

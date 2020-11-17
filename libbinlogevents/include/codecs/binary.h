@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,14 +43,14 @@ class Base_codec : public binary_log::codecs::Codec {
   inline Event_reader &reader() { return *m_reader; }
 
  public:
-  virtual std::pair<std::size_t, bool> decode(const unsigned char *from,
-                                              std::size_t size,
-                                              Binary_log_event &to) const = 0;
-  virtual std::pair<std::size_t, bool> encode(const Binary_log_event &from,
-                                              unsigned char *to,
-                                              std::size_t size) const = 0;
+  std::pair<std::size_t, bool> decode(const unsigned char *from,
+                                      std::size_t size,
+                                      Binary_log_event &to) const override = 0;
+  std::pair<std::size_t, bool> encode(const Binary_log_event &from,
+                                      unsigned char *to,
+                                      std::size_t size) const override = 0;
 
-  virtual ~Base_codec() {}
+  ~Base_codec() override {}
 };
 
 /**
@@ -71,9 +71,9 @@ class Transaction_payload : public Base_codec {
      @return a pair containing the amount of bytes decoded and whether there was
              an error or not. False if no error, true otherwise.
    */
-  virtual std::pair<std::size_t, bool> decode(const unsigned char *from,
-                                              std::size_t size,
-                                              Binary_log_event &to) const;
+  std::pair<std::size_t, bool> decode(const unsigned char *from,
+                                      std::size_t size,
+                                      Binary_log_event &to) const override;
 
   /**
      This member function shall encode the contents of the event referenced and
@@ -87,9 +87,9 @@ class Transaction_payload : public Base_codec {
      @return a pair containing the amount of bytes encoded and whether there was
              an error or not.
   */
-  virtual std::pair<std::size_t, bool> encode(const Binary_log_event &from,
-                                              unsigned char *to,
-                                              std::size_t size) const;
+  std::pair<std::size_t, bool> encode(const Binary_log_event &from,
+                                      unsigned char *to,
+                                      std::size_t size) const override;
 };
 
 }  // namespace binary

@@ -585,86 +585,86 @@ update t1 set id=1024 where id=1009;
 select * from t1;
 id	parent_id	level
 1001	100	0
+1002	101	1
 1003	101	1
 1004	101	1
+1005	101	1
+1006	101	1
+1007	101	1
 1008	102	2
-1024	102	2
+1015	102	2
+1016	103	2
 1017	103	2
+1018	103	2
+1019	103	2
+1020	103	2
+1021	104	2
 1022	104	2
+1024	102	2
 1024	104	2
+1025	105	2
+1026	105	2
+1027	105	2
 1028	105	2
 1029	105	2
 1030	105	2
 1031	106	2
 1032	106	2
 1033	106	2
-1203	107	2
-1202	107	2
-1020	103	2
-1157	100	0
-1193	105	2
-1040	107	2
-1002	101	1
-1015	102	2
-1006	101	1
 1034	106	2
 1035	106	2
-1016	103	2
-1007	101	1
 1036	107	2
-1018	103	2
-1026	105	2
-1027	105	2
-1183	104	2
-1038	107	2
-1025	105	2
 1037	107	2
-1021	104	2
-1019	103	2
-1005	101	1
+1038	107	2
+1040	107	2
+1157	100	0
 1179	105	2
+1183	104	2
+1193	105	2
+1202	107	2
+1203	107	2
 update ignore t1 set id=id+1;
 select * from t1;
 id	parent_id	level
 1002	100	0
+1003	101	1
 1004	101	1
 1005	101	1
+1006	101	1
+1007	101	1
+1008	101	1
 1009	102	2
-1025	102	2
+1016	102	2
+1017	103	2
 1018	103	2
+1019	103	2
+1020	103	2
+1021	103	2
+1022	104	2
 1023	104	2
+1025	102	2
 1025	104	2
+1026	105	2
+1027	105	2
+1028	105	2
 1029	105	2
 1030	105	2
 1031	105	2
 1032	106	2
 1033	106	2
 1034	106	2
-1204	107	2
-1203	107	2
-1021	103	2
-1158	100	0
-1194	105	2
-1041	107	2
-1003	101	1
-1016	102	2
-1007	101	1
 1035	106	2
 1036	106	2
-1017	103	2
-1008	101	1
 1037	107	2
-1019	103	2
-1027	105	2
-1028	105	2
-1184	104	2
-1039	107	2
-1026	105	2
 1038	107	2
-1022	104	2
-1020	103	2
-1006	101	1
+1039	107	2
+1041	107	2
+1158	100	0
 1180	105	2
+1184	104	2
+1194	105	2
+1203	107	2
+1204	107	2
 update ignore t1 set id=1023 where id=1010;
 select * from t1 where parent_id=102;
 id	parent_id	level
@@ -678,20 +678,20 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`level` AS `level` from `test`.`t1` where (`test`.`t1`.`level` = 1)
 select level,id from t1 where level=1;
 level	id
+1	1003
 1	1004
 1	1005
-1	1003
+1	1006
 1	1007
 1	1008
-1	1006
 select level,id,parent_id from t1 where level=1;
 level	id	parent_id
+1	1003	101
 1	1004	101
 1	1005	101
-1	1003	101
+1	1006	101
 1	1007	101
 1	1008	101
-1	1006	101
 select level,id from t1 where level=1 order by id;
 level	id
 1	1003
@@ -705,37 +705,37 @@ select * from t1;
 id	parent_id	level
 1002	100	0
 1009	102	2
-1025	102	2
+1016	102	2
+1017	103	2
 1018	103	2
+1019	103	2
+1020	103	2
+1021	103	2
+1022	104	2
 1023	104	2
+1025	102	2
 1025	104	2
+1026	105	2
+1027	105	2
+1028	105	2
 1029	105	2
 1030	105	2
 1031	105	2
 1032	106	2
 1033	106	2
 1034	106	2
-1204	107	2
-1203	107	2
-1021	103	2
-1158	100	0
-1194	105	2
-1041	107	2
-1016	102	2
 1035	106	2
 1036	106	2
-1017	103	2
 1037	107	2
-1019	103	2
-1027	105	2
-1028	105	2
-1184	104	2
-1039	107	2
-1026	105	2
 1038	107	2
-1022	104	2
-1020	103	2
+1039	107	2
+1041	107	2
+1158	100	0
 1180	105	2
+1184	104	2
+1194	105	2
+1203	107	2
+1204	107	2
 drop table t1;
 CREATE TABLE t1 (
 sca_code char(6) NOT NULL,
@@ -1077,18 +1077,18 @@ INSERT INTO t2 VALUES (650,'San Francisco',90,0,20020109113158,342,0000000000000
 INSERT INTO t2 VALUES (333,'tubs',99,2,20020109113453,501,20020109113453,500,3,10,0);
 select * from t1;
 number	cname	carrier_id	privacy	last_mod_date	last_mod_id	last_app_date	last_app_id	version	assigned_scps	status
-4077711111	SeanWheeler	90	2	2002-01-11 11:28:46	500	0000-00-00 00:00:00	-1	2	3	1
-9197722223	berry	90	3	2002-01-11 11:28:09	500	2002-01-02 11:45:32	501	4	10	0
-650	San Francisco	0	0	2001-12-27 11:13:36	342	0000-00-00 00:00:00	-1	1	24	1
 302467	Sue's Subshop	90	3	2002-01-09 11:32:41	500	2002-01-02 11:51:11	501	7	24	0
-6014911113	SudzCarwash	520	1	2002-01-02 11:52:34	500	2002-01-02 11:52:59	501	33	32768	0
 333	tubs	99	2	2002-01-09 11:34:40	501	2002-01-09 11:34:40	500	3	10	0
+4077711111	SeanWheeler	90	2	2002-01-11 11:28:46	500	0000-00-00 00:00:00	-1	2	3	1
+6014911113	SudzCarwash	520	1	2002-01-02 11:52:34	500	2002-01-02 11:52:59	501	33	32768	0
+650	San Francisco	0	0	2001-12-27 11:13:36	342	0000-00-00 00:00:00	-1	1	24	1
+9197722223	berry	90	3	2002-01-11 11:28:09	500	2002-01-02 11:45:32	501	4	10	0
 select * from t2;
 number	cname	carrier_id	privacy	last_mod_date	last_mod_id	last_app_date	last_app_id	version	assigned_scps	status
-4077711111	SeanWheeler	0	2	2002-01-11 11:28:53	500	0000-00-00 00:00:00	-1	2	3	1
-9197722223	berry	90	3	2002-01-11 11:28:18	500	2002-01-02 11:45:32	501	4	10	0
-650	San Francisco	90	0	2002-01-09 11:31:58	342	0000-00-00 00:00:00	-1	1	24	1
 333	tubs	99	2	2002-01-09 11:34:53	501	2002-01-09 11:34:53	500	3	10	0
+4077711111	SeanWheeler	0	2	2002-01-11 11:28:53	500	0000-00-00 00:00:00	-1	2	3	1
+650	San Francisco	90	0	2002-01-09 11:31:58	342	0000-00-00 00:00:00	-1	1	24	1
+9197722223	berry	90	3	2002-01-11 11:28:18	500	2002-01-02 11:45:32	501	4	10	0
 delete t1, t2 from t1 left join t2 on t1.number=t2.number where (t1.carrier_id=90 and t1.number=t2.number) or (t2.carrier_id=90 and t1.number=t2.number) or  (t1.carrier_id=90 and t2.number is null);
 select * from t1;
 number	cname	carrier_id	privacy	last_mod_date	last_mod_id	last_app_date	last_app_id	version	assigned_scps	status
@@ -1340,11 +1340,11 @@ insert into t1 (id) values (null),(null),(null),(null),(null);
 update t1 set fk=69 where fk is null order by id limit 1;
 SELECT * from t1;
 id	fk
+1	69
 2	NULL
 3	NULL
 4	NULL
 5	NULL
-1	69
 drop table t1;
 create table t1 (a int not null, b int not null, key (a));
 insert into t1 values (1,1),(1,2),(1,3),(3,1),(3,2),(3,3),(3,1),(3,2),(3,3),(2,1),(2,2),(2,3);
@@ -2587,8 +2587,8 @@ insert into t1 (b) values (1);
 replace into t1 (b) values (2), (1), (3);
 select * from t1;
 a	b
-3	1
 2	2
+3	1
 4	3
 truncate table t1;
 insert into t1 (b) values (1);
@@ -2597,8 +2597,8 @@ replace into t1 (b) values (1);
 replace into t1 (b) values (3);
 select * from t1;
 a	b
-3	1
 2	2
+3	1
 4	3
 drop table t1;
 create table t1 (rowid int not null auto_increment, val int not null,primary
@@ -3428,10 +3428,10 @@ c1
 SELECT * FROM t2;
 c1	c2
 4	1
-7	1
 5	2
-8	2
 6	3
+7	1
+8	2
 9	3
 DROP TABLE t1;
 DROP TABLE t2;

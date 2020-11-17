@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,10 +41,10 @@ public:
   virtual bool fk(Uint32 tableType, const void*) { return true;}
   virtual bool endOfTables() { return true; }
   virtual bool endOfTablesFK() { return true; }
-  virtual void tuple(const TupleS &, Uint32 fragId){}
+  virtual bool tuple(const TupleS &, Uint32 fragId) { return true; }
   virtual void tuple_free(){}
   virtual void endOfTuples(){}
-  virtual void logEntry(const LogEntry &){}
+  virtual bool logEntry(const LogEntry &) { return true; }
   virtual void endOfLogEntrys(){}
   virtual bool prepare_staging(const TableS &){return true;}
   virtual bool finalize_staging(const TableS &){return true;}
@@ -70,6 +70,9 @@ public:
   virtual bool table_equal(const TableS &) { return true; }
   virtual bool table_compatible_check(TableS &) {return true;}
   virtual bool check_blobs(TableS &) {return true;}
+#ifdef ERROR_INSERT
+  virtual void error_insert(unsigned int code) {}
+#endif
 };
 
 /*

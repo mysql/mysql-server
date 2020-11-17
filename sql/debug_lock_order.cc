@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2438,7 +2438,7 @@ class LO_rwlock_pr : public LO_rwlock {
   ~LO_rwlock_pr() {}
 
   virtual LO_rwlock_lock *build_lock(const char *src_file, int src_line,
-                                     LO_thread *thread);
+                                     LO_thread *thread) override;
 };
 
 class LO_rwlock_rw : public LO_rwlock {
@@ -2447,7 +2447,7 @@ class LO_rwlock_rw : public LO_rwlock {
   ~LO_rwlock_rw() {}
 
   virtual LO_rwlock_lock *build_lock(const char *src_file, int src_line,
-                                     LO_thread *thread);
+                                     LO_thread *thread) override;
 };
 
 class LO_rwlock_sx : public LO_rwlock {
@@ -2456,7 +2456,7 @@ class LO_rwlock_sx : public LO_rwlock {
   ~LO_rwlock_sx() {}
 
   virtual LO_rwlock_lock *build_lock(const char *src_file, int src_line,
-                                     LO_thread *thread);
+                                     LO_thread *thread) override;
 };
 
 class LO_rwlock_locker {
@@ -2525,16 +2525,16 @@ class LO_rwlock_lock_pr : public LO_rwlock_lock {
   ~LO_rwlock_lock_pr() {}
 
   virtual void set_locked(PSI_rwlock_operation op, const char *src_file,
-                          int src_line);
+                          int src_line) override;
 
   virtual void merge_lock(PSI_rwlock_operation op, const char *src_file,
-                          int src_line);
+                          int src_line) override;
 
-  virtual bool set_unlocked(PSI_rwlock_operation op);
+  virtual bool set_unlocked(PSI_rwlock_operation op) override;
 
-  virtual PSI_rwlock_operation get_state() const;
+  virtual PSI_rwlock_operation get_state() const override;
 
-  virtual const char *get_state_name() const;
+  virtual const char *get_state_name() const override;
 
  private:
   int m_read_count;
@@ -2552,16 +2552,16 @@ class LO_rwlock_lock_rw : public LO_rwlock_lock {
   ~LO_rwlock_lock_rw() {}
 
   virtual void set_locked(PSI_rwlock_operation op, const char *src_file,
-                          int src_line);
+                          int src_line) override;
 
   virtual void merge_lock(PSI_rwlock_operation op, const char *src_file,
-                          int src_line);
+                          int src_line) override;
 
-  virtual bool set_unlocked(PSI_rwlock_operation op);
+  virtual bool set_unlocked(PSI_rwlock_operation op) override;
 
-  virtual PSI_rwlock_operation get_state() const;
+  virtual PSI_rwlock_operation get_state() const override;
 
-  virtual const char *get_state_name() const;
+  virtual const char *get_state_name() const override;
 
  private:
   int m_read_count;
@@ -2579,16 +2579,16 @@ class LO_rwlock_lock_sx : public LO_rwlock_lock {
   ~LO_rwlock_lock_sx() {}
 
   virtual void set_locked(PSI_rwlock_operation op, const char *src_file,
-                          int src_line);
+                          int src_line) override;
 
   virtual void merge_lock(PSI_rwlock_operation op, const char *src_file,
-                          int src_line);
+                          int src_line) override;
 
-  virtual bool set_unlocked(PSI_rwlock_operation op);
+  virtual bool set_unlocked(PSI_rwlock_operation op) override;
 
-  virtual PSI_rwlock_operation get_state() const;
+  virtual PSI_rwlock_operation get_state() const override;
 
-  virtual const char *get_state_name() const;
+  virtual const char *get_state_name() const override;
 
  private:
   int m_s_count;
@@ -6597,6 +6597,17 @@ static int lo_set_thread_resource_group_by_id(PSI_thread *thread,
   return rc;
 }
 
+static void lo_set_thread_peer_port(PSI_thread *thread, uint port) {
+  LO_thread *lo = reinterpret_cast<LO_thread *>(thread);
+
+  if (lo != nullptr) {
+    if ((g_thread_chain != nullptr) && (lo->m_chain != nullptr)) {
+      g_thread_chain->set_thread_peer_port(lo->m_chain, port);
+    }
+  }
+  return;
+}
+
 static void lo_set_thread(PSI_thread *thread) {
   LO_thread *lo = reinterpret_cast<LO_thread *>(thread);
   set_THR_LO(lo);
@@ -7604,7 +7615,7 @@ static void lo_notify_session_change_user(PSI_thread *thread) {
   }
 }
 
-PSI_thread_service_v3 LO_thread_v3 = {lo_register_thread,
+PSI_thread_service_v4 LO_thread_v4 = {lo_register_thread,
                                       lo_spawn_thread,
                                       lo_new_thread,
                                       lo_set_thread_id,
@@ -7624,6 +7635,7 @@ PSI_thread_service_v3 LO_thread_v3 = {lo_register_thread,
                                       lo_set_thread_resource_group,
                                       lo_set_thread_resource_group_by_id,
                                       lo_set_thread,
+                                      lo_set_thread_peer_port,
                                       lo_aggregate_thread_status,
                                       lo_delete_current_thread,
                                       lo_delete_thread,
@@ -7645,7 +7657,9 @@ static void *lo_get_thread_interface(int version) {
     case PSI_THREAD_VERSION_2:
       return nullptr;
     case PSI_THREAD_VERSION_3:
-      return &LO_thread_v3;
+      return nullptr;
+    case PSI_THREAD_VERSION_4:
+      return &LO_thread_v4;
     default:
       return nullptr;
   }

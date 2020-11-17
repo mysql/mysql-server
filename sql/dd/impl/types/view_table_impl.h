@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,20 +52,20 @@ class View_table_impl : public Weak_object_impl, public View_table {
 
   View_table_impl(const View_table_impl &src, View_impl *parent);
 
-  virtual ~View_table_impl() {}
+  ~View_table_impl() override {}
 
  public:
   static void register_tables(Open_dictionary_tables_ctx *otx);
 
-  virtual const Object_table &object_table() const;
+  const Object_table &object_table() const override;
 
-  virtual bool validate() const;
+  bool validate() const override;
 
-  virtual bool store_attributes(Raw_record *r);
+  bool store_attributes(Raw_record *r) override;
 
-  virtual bool restore_attributes(const Raw_record &r);
+  bool restore_attributes(const Raw_record &r) override;
 
-  virtual void debug_print(String_type &outb) const;
+  void debug_print(String_type &outb) const override;
 
   void set_ordinal_position(uint) {}
 
@@ -76,9 +76,9 @@ class View_table_impl : public Weak_object_impl, public View_table {
   // table_catalog.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &table_catalog() const { return m_table_catalog; }
+  const String_type &table_catalog() const override { return m_table_catalog; }
 
-  virtual void set_table_catalog(const String_type &table_catalog) {
+  void set_table_catalog(const String_type &table_catalog) override {
     m_table_catalog = table_catalog;
   }
 
@@ -86,9 +86,9 @@ class View_table_impl : public Weak_object_impl, public View_table {
   // table_schema.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &table_schema() const { return m_table_schema; }
+  const String_type &table_schema() const override { return m_table_schema; }
 
-  virtual void set_table_schema(const String_type &table_schema) {
+  void set_table_schema(const String_type &table_schema) override {
     m_table_schema = table_schema;
   }
 
@@ -96,9 +96,9 @@ class View_table_impl : public Weak_object_impl, public View_table {
   // table_name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &table_name() const { return m_table_name; }
+  const String_type &table_name() const override { return m_table_name; }
 
-  virtual void set_table_name(const String_type &table_name) {
+  void set_table_name(const String_type &table_name) override {
     m_table_name = table_name;
   }
 
@@ -106,9 +106,9 @@ class View_table_impl : public Weak_object_impl, public View_table {
   // view.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const View &view() const;
+  const View &view() const override;
 
-  virtual View &view();
+  View &view() override;
 
  public:
   static View_table_impl *restore_item(View_impl *view) {
@@ -120,8 +120,8 @@ class View_table_impl : public Weak_object_impl, public View_table {
   }
 
  public:
-  virtual Object_key *create_primary_key() const;
-  virtual bool has_new_primary_key() const;
+  Object_key *create_primary_key() const override;
+  bool has_new_primary_key() const override;
 
  private:
   String_type m_table_catalog;

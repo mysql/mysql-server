@@ -470,14 +470,13 @@ a	b
 1	one
 3	three
 2	two
-prepare stmt1 from ' select a,b from t1
-order by ? ';
+prepare stmt1 from ' select a,b from t1 order by ? ';
 execute stmt1 using @arg00;
 a	b
-4	four
 1	one
-3	three
 2	two
+3	three
+4	four
 set @arg00=1 ;
 execute stmt1 using @arg00;
 a	b
@@ -487,7 +486,11 @@ a	b
 4	four
 set @arg00=0 ;
 execute stmt1 using @arg00;
-ERROR 42S22: Unknown column '?' in 'order clause'
+a	b
+1	one
+2	two
+3	three
+4	four
 set @arg00=1;
 prepare stmt1 from ' select a,b from t1 order by a
 limit 1 ';
@@ -1714,7 +1717,7 @@ t5	CREATE TABLE `t5` (
   `param08` longtext,
   `const09` datetime DEFAULT NULL,
   `param09` longtext CHARACTER SET latin1,
-  `const10` int NOT NULL DEFAULT '0',
+  `const10` bigint NOT NULL DEFAULT '0',
   `param10` bigint DEFAULT NULL,
   `const11` int DEFAULT NULL,
   `param11` bigint DEFAULT NULL,
@@ -1727,7 +1730,7 @@ t5	CREATE TABLE `t5` (
 select * from t5 ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	test	t5	t5	const01	const01	3	1	1	N	32769	0	63
-def	test	t5	t5	param01	param01	8	20	1	Y	32768	0	63
+def	test	t5	t5	param01	param01	8	21	1	Y	32768	0	63
 def	test	t5	t5	const02	const02	246	4	3	N	32769	1	63
 def	test	t5	t5	param02	param02	246	67	32	Y	32768	30	63
 def	test	t5	t5	const03	const03	5	17	1	N	32769	31	63
@@ -1744,12 +1747,12 @@ def	test	t5	t5	const08	const08	253	76	19	N	1	0	255
 def	test	t5	t5	param08	param08	252	4294967295	19	Y	16	0	255
 def	test	t5	t5	const09	const09	12	19	19	Y	128	0	63
 def	test	t5	t5	param09	param09	252	4294967295	19	Y	16	0	255
-def	test	t5	t5	const10	const10	3	11	9	N	32769	0	63
-def	test	t5	t5	param10	param10	8	20	9	Y	32768	0	63
+def	test	t5	t5	const10	const10	8	21	9	N	32769	0	63
+def	test	t5	t5	param10	param10	8	21	9	Y	32768	0	63
 def	test	t5	t5	const11	const11	3	5	4	Y	32768	0	63
-def	test	t5	t5	param11	param11	8	20	4	Y	32768	0	63
+def	test	t5	t5	param11	param11	8	21	4	Y	32768	0	63
 def	test	t5	t5	const12	const12	254	0	0	Y	128	0	63
-def	test	t5	t5	param12	param12	8	20	0	Y	32768	0	63
+def	test	t5	t5	param12	param12	8	21	0	Y	32768	0	63
 def	test	t5	t5	param13	param13	246	67	0	Y	32768	30	63
 def	test	t5	t5	param14	param14	252	4294967295	0	Y	16	0	255
 def	test	t5	t5	param15	param15	252	4294967295	0	Y	144	0	63
@@ -1817,14 +1820,49 @@ c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13	c14	c15	c16	c17	c18	c19	c20	c21	c22	c
 9	9	9	9	9	9	9	9	9	9	9.0000	9.0000	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	0	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	two	tuesday
 test_sequence
 ------ select @parameter:= column ------
-prepare full_info from "select @arg01, @arg02, @arg03, @arg04,
-       @arg05, @arg06, @arg07, @arg08,
-       @arg09, @arg10, @arg11, @arg12,
-       @arg13, @arg14, @arg15, @arg16,
-       @arg17, @arg18, @arg19, @arg20,
-       @arg21, @arg22, @arg23, @arg24,
-       @arg25, @arg26, @arg27, @arg28,
-       @arg29, @arg30, @arg31, @arg32" ;
+select @arg01, @arg02, @arg03, @arg04,
+@arg05, @arg06, @arg07, @arg08,
+@arg09, @arg10, @arg11, @arg12,
+@arg13, @arg14, @arg15, @arg16,
+@arg17, @arg18, @arg19, @arg20,
+@arg21, @arg22, @arg23, @arg24,
+@arg25, @arg26, @arg27, @arg28,
+@arg29, @arg30, @arg31, @arg32 ;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					@arg01	8	21	1	Y	32896	0	63
+def					@arg02	246	67	3	Y	32896	30	63
+def					@arg03	5	23	1	Y	32896	31	63
+def					@arg04	251	268435440	3	Y	0	31	255
+def					@arg05	250	16777215	3	Y	128	31	63
+def					@arg06	251	268435440	10	Y	0	31	255
+def					@arg07	250	67108860	10	Y	0	31	255
+def					@arg08	251	268435440	19	Y	0	31	255
+def					@arg09	250	67108860	19	Y	0	31	255
+def					@arg10	8	21	9	Y	32896	0	63
+def					@arg11	8	21	4	Y	32896	0	63
+def					@arg12	8	21	0	Y	32896	0	63
+def					@arg13	246	67	0	Y	32896	30	63
+def					@arg14	251	268435440	0	Y	0	31	255
+def					@arg15	250	16777215	0	Y	128	31	63
+def					@arg16	253	65532	0	Y	128	31	63
+def					@arg17	253	65532	0	Y	128	31	63
+def					@arg18	253	65532	0	Y	128	31	63
+def					@arg19	253	65532	0	Y	128	31	63
+def					@arg20	253	65532	0	Y	128	31	63
+def					@arg21	253	65532	0	Y	128	31	63
+def					@arg22	253	65532	0	Y	128	31	63
+def					@arg23	253	65532	0	Y	128	31	63
+def					@arg24	253	65532	0	Y	128	31	63
+def					@arg25	253	65532	0	Y	128	31	63
+def					@arg26	253	65532	0	Y	128	31	63
+def					@arg27	253	65532	0	Y	128	31	63
+def					@arg28	253	65532	0	Y	128	31	63
+def					@arg29	253	65532	0	Y	128	31	63
+def					@arg30	253	65532	0	Y	128	31	63
+def					@arg31	253	65532	0	Y	128	31	63
+def					@arg32	253	65532	0	Y	128	31	63
+@arg01	@arg02	@arg03	@arg04	@arg05	@arg06	@arg07	@arg08	@arg09	@arg10	@arg11	@arg12	@arg13	@arg14	@arg15	@arg16	@arg17	@arg18	@arg19	@arg20	@arg21	@arg22	@arg23	@arg24	@arg25	@arg26	@arg27	@arg28	@arg29	@arg30	@arg31	@arg32
+8	8.0	8	abc	abc	1991-08-05	1991-08-05	1991-08-05 01:01:01	1991-08-05 01:01:01	662680861	1991	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 select @arg01:=  c1, @arg02:=  c2, @arg03:=  c3, @arg04:=  c4,
 @arg05:=  c5, @arg06:=  c6, @arg07:=  c7, @arg08:=  c8,
 @arg09:=  c9, @arg10:= c10, @arg11:= c11, @arg12:= c12,
@@ -1869,27 +1907,34 @@ Warning	1287	Setting user variables within expressions is deprecated and will be
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-execute full_info ;
+select @arg01, @arg02, @arg03, @arg04,
+@arg05, @arg06, @arg07, @arg08,
+@arg09, @arg10, @arg11, @arg12,
+@arg13, @arg14, @arg15, @arg16,
+@arg17, @arg18, @arg19, @arg20,
+@arg21, @arg22, @arg23, @arg24,
+@arg25, @arg26, @arg27, @arg28,
+@arg29, @arg30, @arg31, @arg32 ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					@arg01	8	20	1	Y	32896	0	63
-def					@arg02	8	20	1	Y	32896	0	63
-def					@arg03	8	20	1	Y	32896	0	63
-def					@arg04	8	20	1	Y	32896	0	63
-def					@arg05	8	20	1	Y	32896	0	63
-def					@arg06	8	20	1	Y	32896	0	63
+def					@arg01	8	21	1	Y	32896	0	63
+def					@arg02	8	21	1	Y	32896	0	63
+def					@arg03	8	21	1	Y	32896	0	63
+def					@arg04	8	21	1	Y	32896	0	63
+def					@arg05	8	21	1	Y	32896	0	63
+def					@arg06	8	21	1	Y	32896	0	63
 def					@arg07	5	23	1	Y	32896	31	63
 def					@arg08	5	23	1	Y	32896	31	63
 def					@arg09	5	23	1	Y	32896	31	63
 def					@arg10	5	23	1	Y	32896	31	63
-def					@arg11	246	83	6	Y	32896	30	63
-def					@arg12	246	83	6	Y	32896	30	63
+def					@arg11	246	67	6	Y	32896	30	63
+def					@arg12	246	67	6	Y	32896	30	63
 def					@arg13	250	67108860	10	Y	0	31	255
 def					@arg14	250	67108860	19	Y	0	31	255
 def					@arg15	250	67108860	19	Y	0	31	255
 def					@arg16	250	67108860	8	Y	0	31	255
-def					@arg17	8	20	4	Y	32928	0	63
-def					@arg18	8	20	1	Y	32896	0	63
-def					@arg19	8	20	1	Y	32896	0	63
+def					@arg17	8	21	4	Y	32928	0	63
+def					@arg18	8	21	1	Y	32896	0	63
+def					@arg19	8	21	1	Y	32896	0	63
 def					@arg20	251	268435440	1	Y	0	31	255
 def					@arg21	251	268435440	10	Y	0	31	255
 def					@arg22	251	268435440	30	Y	0	31	255
@@ -1905,86 +1950,6 @@ def					@arg31	251	268435440	3	Y	0	31	255
 def					@arg32	251	268435440	6	Y	0	31	255
 @arg01	@arg02	@arg03	@arg04	@arg05	@arg06	@arg07	@arg08	@arg09	@arg10	@arg11	@arg12	@arg13	@arg14	@arg15	@arg16	@arg17	@arg18	@arg19	@arg20	@arg21	@arg22	@arg23	@arg24	@arg25	@arg26	@arg27	@arg28	@arg29	@arg30	@arg31	@arg32
 1	1	1	1	1	1	1	1	1	1	1.0000	1.0000	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	1	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	one	monday
-select @arg01:=  c1, @arg02:=  c2, @arg03:=  c3, @arg04:=  c4,
-@arg05:=  c5, @arg06:=  c6, @arg07:=  c7, @arg08:=  c8,
-@arg09:=  c9, @arg10:= c10, @arg11:= c11, @arg12:= c12,
-@arg13:= c13, @arg14:= c14, @arg15:= c15, @arg16:= c16,
-@arg17:= c17, @arg18:= c18, @arg19:= c19, @arg20:= c20,
-@arg21:= c21, @arg22:= c22, @arg23:= c23, @arg24:= c24,
-@arg25:= c25, @arg26:= c26, @arg27:= c27, @arg28:= c28,
-@arg29:= c29, @arg30:= c30, @arg31:= c31, @arg32:= c32
-from t9 where c1= 0 ;
-@arg01:=  c1	@arg02:=  c2	@arg03:=  c3	@arg04:=  c4	@arg05:=  c5	@arg06:=  c6	@arg07:=  c7	@arg08:=  c8	@arg09:=  c9	@arg10:= c10	@arg11:= c11	@arg12:= c12	@arg13:= c13	@arg14:= c14	@arg15:= c15	@arg16:= c16	@arg17:= c17	@arg18:= c18	@arg19:= c19	@arg20:= c20	@arg21:= c21	@arg22:= c22	@arg23:= c23	@arg24:= c24	@arg25:= c25	@arg26:= c26	@arg27:= c27	@arg28:= c28	@arg29:= c29	@arg30:= c30	@arg31:= c31	@arg32:= c32
-0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	1991-01-01 01:01:01	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-execute full_info ;
-Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					@arg01	8	20	1	Y	32896	0	63
-def					@arg02	8	20	0	Y	32896	0	63
-def					@arg03	8	20	0	Y	32896	0	63
-def					@arg04	8	20	0	Y	32896	0	63
-def					@arg05	8	20	0	Y	32896	0	63
-def					@arg06	8	20	0	Y	32896	0	63
-def					@arg07	5	23	0	Y	32896	31	63
-def					@arg08	5	23	0	Y	32896	31	63
-def					@arg09	5	23	0	Y	32896	31	63
-def					@arg10	5	23	0	Y	32896	31	63
-def					@arg11	246	83	0	Y	32896	30	63
-def					@arg12	246	83	0	Y	32896	30	63
-def					@arg13	250	67108860	0	Y	0	31	255
-def					@arg14	250	67108860	0	Y	0	31	255
-def					@arg15	250	67108860	19	Y	0	31	255
-def					@arg16	250	67108860	0	Y	0	31	255
-def					@arg17	8	20	0	Y	32928	0	63
-def					@arg18	8	20	0	Y	32896	0	63
-def					@arg19	8	20	0	Y	32896	0	63
-def					@arg20	251	268435440	0	Y	0	31	255
-def					@arg21	251	268435440	0	Y	0	31	255
-def					@arg22	251	268435440	0	Y	0	31	255
-def					@arg23	250	16777215	0	Y	128	31	63
-def					@arg24	251	268435440	0	Y	0	31	255
-def					@arg25	250	16777215	0	Y	128	31	63
-def					@arg26	251	268435440	0	Y	0	31	255
-def					@arg27	250	16777215	0	Y	128	31	63
-def					@arg28	251	268435440	0	Y	0	31	255
-def					@arg29	250	16777215	0	Y	128	31	63
-def					@arg30	251	268435440	0	Y	0	31	255
-def					@arg31	251	268435440	0	Y	0	31	255
-def					@arg32	251	268435440	0	Y	0	31	255
-@arg01	@arg02	@arg03	@arg04	@arg05	@arg06	@arg07	@arg08	@arg09	@arg10	@arg11	@arg12	@arg13	@arg14	@arg15	@arg16	@arg17	@arg18	@arg19	@arg20	@arg21	@arg22	@arg23	@arg24	@arg25	@arg26	@arg27	@arg28	@arg29	@arg30	@arg31	@arg32
-0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	1991-01-01 01:01:01	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 prepare stmt1 from "select 
        @arg01:=  c1, @arg02:=  c2, @arg03:=  c3, @arg04:=  c4,
        @arg05:=  c5, @arg06:=  c6, @arg07:=  c7, @arg08:=  c8,
@@ -2032,27 +1997,34 @@ set @my_key= 1 ;
 execute stmt1 using @my_key ;
 @arg01:=  c1	@arg02:=  c2	@arg03:=  c3	@arg04:=  c4	@arg05:=  c5	@arg06:=  c6	@arg07:=  c7	@arg08:=  c8	@arg09:=  c9	@arg10:= c10	@arg11:= c11	@arg12:= c12	@arg13:= c13	@arg14:= c14	@arg15:= c15	@arg16:= c16	@arg17:= c17	@arg18:= c18	@arg19:= c19	@arg20:= c20	@arg21:= c21	@arg22:= c22	@arg23:= c23	@arg24:= c24	@arg25:= c25	@arg26:= c26	@arg27:= c27	@arg28:= c28	@arg29:= c29	@arg30:= c30	@arg31:= c31	@arg32:= c32
 1	1	1	1	1	1	1	1	1	1	1.0000	1.0000	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	1	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	one	monday
-execute full_info ;
+select @arg01, @arg02, @arg03, @arg04,
+@arg05, @arg06, @arg07, @arg08,
+@arg09, @arg10, @arg11, @arg12,
+@arg13, @arg14, @arg15, @arg16,
+@arg17, @arg18, @arg19, @arg20,
+@arg21, @arg22, @arg23, @arg24,
+@arg25, @arg26, @arg27, @arg28,
+@arg29, @arg30, @arg31, @arg32 ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					@arg01	8	20	1	Y	32896	0	63
-def					@arg02	8	20	1	Y	32896	0	63
-def					@arg03	8	20	1	Y	32896	0	63
-def					@arg04	8	20	1	Y	32896	0	63
-def					@arg05	8	20	1	Y	32896	0	63
-def					@arg06	8	20	1	Y	32896	0	63
+def					@arg01	8	21	1	Y	32896	0	63
+def					@arg02	8	21	1	Y	32896	0	63
+def					@arg03	8	21	1	Y	32896	0	63
+def					@arg04	8	21	1	Y	32896	0	63
+def					@arg05	8	21	1	Y	32896	0	63
+def					@arg06	8	21	1	Y	32896	0	63
 def					@arg07	5	23	1	Y	32896	31	63
 def					@arg08	5	23	1	Y	32896	31	63
 def					@arg09	5	23	1	Y	32896	31	63
 def					@arg10	5	23	1	Y	32896	31	63
-def					@arg11	246	83	6	Y	32896	30	63
-def					@arg12	246	83	6	Y	32896	30	63
+def					@arg11	246	67	6	Y	32896	30	63
+def					@arg12	246	67	6	Y	32896	30	63
 def					@arg13	250	67108860	10	Y	0	31	255
 def					@arg14	250	67108860	19	Y	0	31	255
 def					@arg15	250	67108860	19	Y	0	31	255
 def					@arg16	250	67108860	8	Y	0	31	255
-def					@arg17	8	20	4	Y	32928	0	63
-def					@arg18	8	20	1	Y	32896	0	63
-def					@arg19	8	20	1	Y	32896	0	63
+def					@arg17	8	21	4	Y	32928	0	63
+def					@arg18	8	21	1	Y	32896	0	63
+def					@arg19	8	21	1	Y	32896	0	63
 def					@arg20	251	268435440	1	Y	0	31	255
 def					@arg21	251	268435440	10	Y	0	31	255
 def					@arg22	251	268435440	30	Y	0	31	255
@@ -2068,31 +2040,82 @@ def					@arg31	251	268435440	3	Y	0	31	255
 def					@arg32	251	268435440	6	Y	0	31	255
 @arg01	@arg02	@arg03	@arg04	@arg05	@arg06	@arg07	@arg08	@arg09	@arg10	@arg11	@arg12	@arg13	@arg14	@arg15	@arg16	@arg17	@arg18	@arg19	@arg20	@arg21	@arg22	@arg23	@arg24	@arg25	@arg26	@arg27	@arg28	@arg29	@arg30	@arg31	@arg32
 1	1	1	1	1	1	1	1	1	1	1.0000	1.0000	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	1	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	one	monday
+select @arg01:=  c1, @arg02:=  c2, @arg03:=  c3, @arg04:=  c4,
+@arg05:=  c5, @arg06:=  c6, @arg07:=  c7, @arg08:=  c8,
+@arg09:=  c9, @arg10:= c10, @arg11:= c11, @arg12:= c12,
+@arg13:= c13, @arg14:= c14, @arg15:= c15, @arg16:= c16,
+@arg17:= c17, @arg18:= c18, @arg19:= c19, @arg20:= c20,
+@arg21:= c21, @arg22:= c22, @arg23:= c23, @arg24:= c24,
+@arg25:= c25, @arg26:= c26, @arg27:= c27, @arg28:= c28,
+@arg29:= c29, @arg30:= c30, @arg31:= c31, @arg32:= c32
+from t9 where c1= 0 ;
+@arg01:=  c1	@arg02:=  c2	@arg03:=  c3	@arg04:=  c4	@arg05:=  c5	@arg06:=  c6	@arg07:=  c7	@arg08:=  c8	@arg09:=  c9	@arg10:= c10	@arg11:= c11	@arg12:= c12	@arg13:= c13	@arg14:= c14	@arg15:= c15	@arg16:= c16	@arg17:= c17	@arg18:= c18	@arg19:= c19	@arg20:= c20	@arg21:= c21	@arg22:= c22	@arg23:= c23	@arg24:= c24	@arg25:= c25	@arg26:= c26	@arg27:= c27	@arg28:= c28	@arg29:= c29	@arg30:= c30	@arg31:= c31	@arg32:= c32
+0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	1991-01-01 01:01:01	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 set @my_key= 0 ;
 execute stmt1 using @my_key ;
 @arg01:=  c1	@arg02:=  c2	@arg03:=  c3	@arg04:=  c4	@arg05:=  c5	@arg06:=  c6	@arg07:=  c7	@arg08:=  c8	@arg09:=  c9	@arg10:= c10	@arg11:= c11	@arg12:= c12	@arg13:= c13	@arg14:= c14	@arg15:= c15	@arg16:= c16	@arg17:= c17	@arg18:= c18	@arg19:= c19	@arg20:= c20	@arg21:= c21	@arg22:= c22	@arg23:= c23	@arg24:= c24	@arg25:= c25	@arg26:= c26	@arg27:= c27	@arg28:= c28	@arg29:= c29	@arg30:= c30	@arg31:= c31	@arg32:= c32
 0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	1991-01-01 01:01:01	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-execute full_info ;
+select @arg01, @arg02, @arg03, @arg04,
+@arg05, @arg06, @arg07, @arg08,
+@arg09, @arg10, @arg11, @arg12,
+@arg13, @arg14, @arg15, @arg16,
+@arg17, @arg18, @arg19, @arg20,
+@arg21, @arg22, @arg23, @arg24,
+@arg25, @arg26, @arg27, @arg28,
+@arg29, @arg30, @arg31, @arg32 ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					@arg01	8	20	1	Y	32896	0	63
-def					@arg02	8	20	0	Y	32896	0	63
-def					@arg03	8	20	0	Y	32896	0	63
-def					@arg04	8	20	0	Y	32896	0	63
-def					@arg05	8	20	0	Y	32896	0	63
-def					@arg06	8	20	0	Y	32896	0	63
+def					@arg01	8	21	1	Y	32896	0	63
+def					@arg02	8	21	0	Y	32896	0	63
+def					@arg03	8	21	0	Y	32896	0	63
+def					@arg04	8	21	0	Y	32896	0	63
+def					@arg05	8	21	0	Y	32896	0	63
+def					@arg06	8	21	0	Y	32896	0	63
 def					@arg07	5	23	0	Y	32896	31	63
 def					@arg08	5	23	0	Y	32896	31	63
 def					@arg09	5	23	0	Y	32896	31	63
 def					@arg10	5	23	0	Y	32896	31	63
-def					@arg11	246	83	0	Y	32896	30	63
-def					@arg12	246	83	0	Y	32896	30	63
+def					@arg11	246	67	0	Y	32896	30	63
+def					@arg12	246	67	0	Y	32896	30	63
 def					@arg13	250	67108860	0	Y	0	31	255
 def					@arg14	250	67108860	0	Y	0	31	255
 def					@arg15	250	67108860	19	Y	0	31	255
 def					@arg16	250	67108860	0	Y	0	31	255
-def					@arg17	8	20	0	Y	32928	0	63
-def					@arg18	8	20	0	Y	32896	0	63
-def					@arg19	8	20	0	Y	32896	0	63
+def					@arg17	8	21	0	Y	32928	0	63
+def					@arg18	8	21	0	Y	32896	0	63
+def					@arg19	8	21	0	Y	32896	0	63
 def					@arg20	251	268435440	0	Y	0	31	255
 def					@arg21	251	268435440	0	Y	0	31	255
 def					@arg22	251	268435440	0	Y	0	31	255
@@ -2120,27 +2143,34 @@ into @arg01, @arg02, @arg03, @arg04, @arg05, @arg06, @arg07, @arg08,
 @arg17, @arg18, @arg19, @arg20, @arg21, @arg22, @arg23, @arg24,
 @arg25, @arg26, @arg27, @arg28, @arg29, @arg30, @arg31, @arg32
 from t9 where c1= 1 ;
-execute full_info ;
+select @arg01, @arg02, @arg03, @arg04,
+@arg05, @arg06, @arg07, @arg08,
+@arg09, @arg10, @arg11, @arg12,
+@arg13, @arg14, @arg15, @arg16,
+@arg17, @arg18, @arg19, @arg20,
+@arg21, @arg22, @arg23, @arg24,
+@arg25, @arg26, @arg27, @arg28,
+@arg29, @arg30, @arg31, @arg32 ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					@arg01	8	20	1	Y	32896	0	63
-def					@arg02	8	20	1	Y	32896	0	63
-def					@arg03	8	20	1	Y	32896	0	63
-def					@arg04	8	20	1	Y	32896	0	63
-def					@arg05	8	20	1	Y	32896	0	63
-def					@arg06	8	20	1	Y	32896	0	63
+def					@arg01	8	21	1	Y	32896	0	63
+def					@arg02	8	21	1	Y	32896	0	63
+def					@arg03	8	21	1	Y	32896	0	63
+def					@arg04	8	21	1	Y	32896	0	63
+def					@arg05	8	21	1	Y	32896	0	63
+def					@arg06	8	21	1	Y	32896	0	63
 def					@arg07	5	23	1	Y	32896	31	63
 def					@arg08	5	23	1	Y	32896	31	63
 def					@arg09	5	23	1	Y	32896	31	63
 def					@arg10	5	23	1	Y	32896	31	63
-def					@arg11	246	83	6	Y	32896	30	63
-def					@arg12	246	83	6	Y	32896	30	63
+def					@arg11	246	67	6	Y	32896	30	63
+def					@arg12	246	67	6	Y	32896	30	63
 def					@arg13	250	67108860	10	Y	0	31	255
 def					@arg14	250	67108860	19	Y	0	31	255
 def					@arg15	250	67108860	19	Y	0	31	255
 def					@arg16	250	67108860	8	Y	0	31	255
-def					@arg17	8	20	4	Y	32928	0	63
-def					@arg18	8	20	1	Y	32896	0	63
-def					@arg19	8	20	1	Y	32896	0	63
+def					@arg17	8	21	4	Y	32928	0	63
+def					@arg18	8	21	1	Y	32896	0	63
+def					@arg19	8	21	1	Y	32896	0	63
 def					@arg20	251	268435440	1	Y	0	31	255
 def					@arg21	251	268435440	10	Y	0	31	255
 def					@arg22	251	268435440	30	Y	0	31	255
@@ -2164,27 +2194,34 @@ into @arg01, @arg02, @arg03, @arg04, @arg05, @arg06, @arg07, @arg08,
 @arg17, @arg18, @arg19, @arg20, @arg21, @arg22, @arg23, @arg24,
 @arg25, @arg26, @arg27, @arg28, @arg29, @arg30, @arg31, @arg32
 from t9 where c1= 0 ;
-execute full_info ;
+select @arg01, @arg02, @arg03, @arg04,
+@arg05, @arg06, @arg07, @arg08,
+@arg09, @arg10, @arg11, @arg12,
+@arg13, @arg14, @arg15, @arg16,
+@arg17, @arg18, @arg19, @arg20,
+@arg21, @arg22, @arg23, @arg24,
+@arg25, @arg26, @arg27, @arg28,
+@arg29, @arg30, @arg31, @arg32 ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					@arg01	8	20	1	Y	32896	0	63
-def					@arg02	8	20	0	Y	32896	0	63
-def					@arg03	8	20	0	Y	32896	0	63
-def					@arg04	8	20	0	Y	32896	0	63
-def					@arg05	8	20	0	Y	32896	0	63
-def					@arg06	8	20	0	Y	32896	0	63
+def					@arg01	8	21	1	Y	32896	0	63
+def					@arg02	8	21	0	Y	32896	0	63
+def					@arg03	8	21	0	Y	32896	0	63
+def					@arg04	8	21	0	Y	32896	0	63
+def					@arg05	8	21	0	Y	32896	0	63
+def					@arg06	8	21	0	Y	32896	0	63
 def					@arg07	5	23	0	Y	32896	31	63
 def					@arg08	5	23	0	Y	32896	31	63
 def					@arg09	5	23	0	Y	32896	31	63
 def					@arg10	5	23	0	Y	32896	31	63
-def					@arg11	246	83	0	Y	32896	30	63
-def					@arg12	246	83	0	Y	32896	30	63
+def					@arg11	246	67	0	Y	32896	30	63
+def					@arg12	246	67	0	Y	32896	30	63
 def					@arg13	250	67108860	0	Y	0	31	255
 def					@arg14	250	67108860	0	Y	0	31	255
 def					@arg15	250	67108860	19	Y	0	31	255
 def					@arg16	250	67108860	0	Y	0	31	255
-def					@arg17	8	20	0	Y	32928	0	63
-def					@arg18	8	20	0	Y	32896	0	63
-def					@arg19	8	20	0	Y	32896	0	63
+def					@arg17	8	21	0	Y	32928	0	63
+def					@arg18	8	21	0	Y	32896	0	63
+def					@arg19	8	21	0	Y	32896	0	63
 def					@arg20	251	268435440	0	Y	0	31	255
 def					@arg21	251	268435440	0	Y	0	31	255
 def					@arg22	251	268435440	0	Y	0	31	255
@@ -2210,27 +2247,34 @@ into @arg01, @arg02, @arg03, @arg04, @arg05, @arg06, @arg07, @arg08,
 from t9 where c1= ?" ;
 set @my_key= 1 ;
 execute stmt1 using @my_key ;
-execute full_info ;
+select @arg01, @arg02, @arg03, @arg04,
+@arg05, @arg06, @arg07, @arg08,
+@arg09, @arg10, @arg11, @arg12,
+@arg13, @arg14, @arg15, @arg16,
+@arg17, @arg18, @arg19, @arg20,
+@arg21, @arg22, @arg23, @arg24,
+@arg25, @arg26, @arg27, @arg28,
+@arg29, @arg30, @arg31, @arg32 ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					@arg01	8	20	1	Y	32896	0	63
-def					@arg02	8	20	1	Y	32896	0	63
-def					@arg03	8	20	1	Y	32896	0	63
-def					@arg04	8	20	1	Y	32896	0	63
-def					@arg05	8	20	1	Y	32896	0	63
-def					@arg06	8	20	1	Y	32896	0	63
+def					@arg01	8	21	1	Y	32896	0	63
+def					@arg02	8	21	1	Y	32896	0	63
+def					@arg03	8	21	1	Y	32896	0	63
+def					@arg04	8	21	1	Y	32896	0	63
+def					@arg05	8	21	1	Y	32896	0	63
+def					@arg06	8	21	1	Y	32896	0	63
 def					@arg07	5	23	1	Y	32896	31	63
 def					@arg08	5	23	1	Y	32896	31	63
 def					@arg09	5	23	1	Y	32896	31	63
 def					@arg10	5	23	1	Y	32896	31	63
-def					@arg11	246	83	6	Y	32896	30	63
-def					@arg12	246	83	6	Y	32896	30	63
+def					@arg11	246	67	6	Y	32896	30	63
+def					@arg12	246	67	6	Y	32896	30	63
 def					@arg13	250	67108860	10	Y	0	31	255
 def					@arg14	250	67108860	19	Y	0	31	255
 def					@arg15	250	67108860	19	Y	0	31	255
 def					@arg16	250	67108860	8	Y	0	31	255
-def					@arg17	8	20	4	Y	32928	0	63
-def					@arg18	8	20	1	Y	32896	0	63
-def					@arg19	8	20	1	Y	32896	0	63
+def					@arg17	8	21	4	Y	32928	0	63
+def					@arg18	8	21	1	Y	32896	0	63
+def					@arg19	8	21	1	Y	32896	0	63
 def					@arg20	251	268435440	1	Y	0	31	255
 def					@arg21	251	268435440	10	Y	0	31	255
 def					@arg22	251	268435440	30	Y	0	31	255
@@ -2248,27 +2292,34 @@ def					@arg32	251	268435440	6	Y	0	31	255
 1	1	1	1	1	1	1	1	1	1	1.0000	1.0000	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	1	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	one	monday
 set @my_key= 0 ;
 execute stmt1 using @my_key ;
-execute full_info ;
+select @arg01, @arg02, @arg03, @arg04,
+@arg05, @arg06, @arg07, @arg08,
+@arg09, @arg10, @arg11, @arg12,
+@arg13, @arg14, @arg15, @arg16,
+@arg17, @arg18, @arg19, @arg20,
+@arg21, @arg22, @arg23, @arg24,
+@arg25, @arg26, @arg27, @arg28,
+@arg29, @arg30, @arg31, @arg32 ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					@arg01	8	20	1	Y	32896	0	63
-def					@arg02	8	20	0	Y	32896	0	63
-def					@arg03	8	20	0	Y	32896	0	63
-def					@arg04	8	20	0	Y	32896	0	63
-def					@arg05	8	20	0	Y	32896	0	63
-def					@arg06	8	20	0	Y	32896	0	63
+def					@arg01	8	21	1	Y	32896	0	63
+def					@arg02	8	21	0	Y	32896	0	63
+def					@arg03	8	21	0	Y	32896	0	63
+def					@arg04	8	21	0	Y	32896	0	63
+def					@arg05	8	21	0	Y	32896	0	63
+def					@arg06	8	21	0	Y	32896	0	63
 def					@arg07	5	23	0	Y	32896	31	63
 def					@arg08	5	23	0	Y	32896	31	63
 def					@arg09	5	23	0	Y	32896	31	63
 def					@arg10	5	23	0	Y	32896	31	63
-def					@arg11	246	83	0	Y	32896	30	63
-def					@arg12	246	83	0	Y	32896	30	63
+def					@arg11	246	67	0	Y	32896	30	63
+def					@arg12	246	67	0	Y	32896	30	63
 def					@arg13	250	67108860	0	Y	0	31	255
 def					@arg14	250	67108860	0	Y	0	31	255
 def					@arg15	250	67108860	19	Y	0	31	255
 def					@arg16	250	67108860	0	Y	0	31	255
-def					@arg17	8	20	0	Y	32928	0	63
-def					@arg18	8	20	0	Y	32896	0	63
-def					@arg19	8	20	0	Y	32896	0	63
+def					@arg17	8	21	0	Y	32928	0	63
+def					@arg18	8	21	0	Y	32896	0	63
+def					@arg19	8	21	0	Y	32896	0	63
 def					@arg20	251	268435440	0	Y	0	31	255
 def					@arg21	251	268435440	0	Y	0	31	255
 def					@arg22	251	268435440	0	Y	0	31	255
@@ -3084,8 +3135,7 @@ c17= '1991-01-01 01:01:01' ;
 found
 true
 select 'true' as found from t9 
-where c1= 20 and c13= CAST(@arg00 AS DATE) and c14= @arg00 and c15= @arg00 and c16= @arg00
-and c17= @arg00 ;
+where c1= 20 and c13= CAST(@arg00 AS DATE) and c14= @arg00 and c15= @arg00 and c16= CAST(@arg00 AS TIME) and c17= @arg00 ;
 found
 true
 prepare stmt1 from "select 'true' as found from t9 
@@ -3100,6 +3150,10 @@ where c1= 20 and c13= CAST(? AS DATE) and c14= ? and c15= ? and c16= ? and c17= 
 execute stmt1 using @arg00, @arg00, @arg00, @arg00, @arg00 ;
 found
 true
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '1991-01-01 01:01:01'
+Warning	1292	Truncated incorrect INTEGER value: '1991-01-01 01:01:01'
+Warning	1292	Truncated incorrect INTEGER value: '1991-01-01 01:01:01'
 set @arg00= CAST('1991-01-01 01:01:01' as datetime) ;
 select 'true' as found from t9 
 where c1= 20 and c13= CAST('1991-01-01 00:00:00' as datetime) and
@@ -3110,8 +3164,7 @@ c17= CAST('1991-01-01 01:01:01' as datetime) ;
 found
 true
 select 'true' as found from t9 
-where c1= 20 and c13= CAST(@arg00 AS DATE) and c14= @arg00 and c15= @arg00 and c16= @arg00
-and c17= @arg00 ;
+where c1= 20 and c13= CAST(@arg00 AS DATE) and c14= @arg00 and c15= @arg00 and c16= CAST(@arg00 AS TIME) and c17= @arg00 ;
 found
 true
 prepare stmt1 from "select 'true' as found from t9 
@@ -3128,6 +3181,10 @@ where c1= 20 and c13= CAST(? AS DATE) and c14= ? and c15= ? and c16= ? and c17= 
 execute stmt1 using @arg00, @arg00, @arg00, @arg00, @arg00 ;
 found
 true
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '1991-01-01 01:01:01'
+Warning	1292	Truncated incorrect INTEGER value: '1991-01-01 01:01:01'
+Warning	1292	Truncated incorrect INTEGER value: '1991-01-01 01:01:01'
 set @arg00= 1991 ;
 select 'true' as found from t9 
 where c1= 20 and c17= 1991 ;
@@ -3595,14 +3652,13 @@ a	b
 1	one
 3	three
 2	two
-prepare stmt1 from ' select a,b from t1
-order by ? ';
+prepare stmt1 from ' select a,b from t1 order by ? ';
 execute stmt1 using @arg00;
 a	b
-4	four
 1	one
-3	three
 2	two
+3	three
+4	four
 set @arg00=1 ;
 execute stmt1 using @arg00;
 a	b
@@ -3612,7 +3668,11 @@ a	b
 4	four
 set @arg00=0 ;
 execute stmt1 using @arg00;
-ERROR 42S22: Unknown column '?' in 'order clause'
+a	b
+1	one
+2	two
+3	three
+4	four
 set @arg00=1;
 prepare stmt1 from ' select a,b from t1 order by a
 limit 1 ';
@@ -4839,7 +4899,7 @@ t5	CREATE TABLE `t5` (
   `param08` longtext,
   `const09` datetime DEFAULT NULL,
   `param09` longtext CHARACTER SET latin1,
-  `const10` int NOT NULL DEFAULT '0',
+  `const10` bigint NOT NULL DEFAULT '0',
   `param10` bigint DEFAULT NULL,
   `const11` int DEFAULT NULL,
   `param11` bigint DEFAULT NULL,
@@ -4852,7 +4912,7 @@ t5	CREATE TABLE `t5` (
 select * from t5 ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	test	t5	t5	const01	const01	3	1	1	N	32769	0	63
-def	test	t5	t5	param01	param01	8	20	1	Y	32768	0	63
+def	test	t5	t5	param01	param01	8	21	1	Y	32768	0	63
 def	test	t5	t5	const02	const02	246	4	3	N	32769	1	63
 def	test	t5	t5	param02	param02	246	67	32	Y	32768	30	63
 def	test	t5	t5	const03	const03	5	17	1	N	32769	31	63
@@ -4869,12 +4929,12 @@ def	test	t5	t5	const08	const08	253	76	19	N	1	0	255
 def	test	t5	t5	param08	param08	252	4294967295	19	Y	16	0	255
 def	test	t5	t5	const09	const09	12	19	19	Y	128	0	63
 def	test	t5	t5	param09	param09	252	4294967295	19	Y	16	0	255
-def	test	t5	t5	const10	const10	3	11	9	N	32769	0	63
-def	test	t5	t5	param10	param10	8	20	9	Y	32768	0	63
+def	test	t5	t5	const10	const10	8	21	9	N	32769	0	63
+def	test	t5	t5	param10	param10	8	21	9	Y	32768	0	63
 def	test	t5	t5	const11	const11	3	5	4	Y	32768	0	63
-def	test	t5	t5	param11	param11	8	20	4	Y	32768	0	63
+def	test	t5	t5	param11	param11	8	21	4	Y	32768	0	63
 def	test	t5	t5	const12	const12	254	0	0	Y	128	0	63
-def	test	t5	t5	param12	param12	8	20	0	Y	32768	0	63
+def	test	t5	t5	param12	param12	8	21	0	Y	32768	0	63
 def	test	t5	t5	param13	param13	246	67	0	Y	32768	30	63
 def	test	t5	t5	param14	param14	252	4294967295	0	Y	16	0	255
 def	test	t5	t5	param15	param15	252	4294967295	0	Y	144	0	63
@@ -4942,14 +5002,49 @@ c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13	c14	c15	c16	c17	c18	c19	c20	c21	c22	c
 9	9	9	9	9	9	9	9	9	9	9.0000	9.0000	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	0	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	two	tuesday
 test_sequence
 ------ select @parameter:= column ------
-prepare full_info from "select @arg01, @arg02, @arg03, @arg04,
-       @arg05, @arg06, @arg07, @arg08,
-       @arg09, @arg10, @arg11, @arg12,
-       @arg13, @arg14, @arg15, @arg16,
-       @arg17, @arg18, @arg19, @arg20,
-       @arg21, @arg22, @arg23, @arg24,
-       @arg25, @arg26, @arg27, @arg28,
-       @arg29, @arg30, @arg31, @arg32" ;
+select @arg01, @arg02, @arg03, @arg04,
+@arg05, @arg06, @arg07, @arg08,
+@arg09, @arg10, @arg11, @arg12,
+@arg13, @arg14, @arg15, @arg16,
+@arg17, @arg18, @arg19, @arg20,
+@arg21, @arg22, @arg23, @arg24,
+@arg25, @arg26, @arg27, @arg28,
+@arg29, @arg30, @arg31, @arg32 ;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					@arg01	8	21	1	Y	32896	0	63
+def					@arg02	246	67	3	Y	32896	30	63
+def					@arg03	5	23	1	Y	32896	31	63
+def					@arg04	251	268435440	3	Y	0	31	255
+def					@arg05	250	16777215	3	Y	128	31	63
+def					@arg06	251	268435440	10	Y	0	31	255
+def					@arg07	250	67108860	10	Y	0	31	255
+def					@arg08	251	268435440	19	Y	0	31	255
+def					@arg09	250	67108860	19	Y	0	31	255
+def					@arg10	8	21	9	Y	32896	0	63
+def					@arg11	8	21	4	Y	32896	0	63
+def					@arg12	8	21	0	Y	32896	0	63
+def					@arg13	246	67	0	Y	32896	30	63
+def					@arg14	251	268435440	0	Y	0	31	255
+def					@arg15	250	16777215	0	Y	128	31	63
+def					@arg16	250	67108860	0	Y	0	31	255
+def					@arg17	8	21	0	Y	32928	0	63
+def					@arg18	8	21	0	Y	32896	0	63
+def					@arg19	8	21	0	Y	32896	0	63
+def					@arg20	251	268435440	0	Y	0	31	255
+def					@arg21	251	268435440	0	Y	0	31	255
+def					@arg22	251	268435440	0	Y	0	31	255
+def					@arg23	250	16777215	0	Y	128	31	63
+def					@arg24	251	268435440	0	Y	0	31	255
+def					@arg25	250	16777215	0	Y	128	31	63
+def					@arg26	251	268435440	0	Y	0	31	255
+def					@arg27	250	16777215	0	Y	128	31	63
+def					@arg28	251	268435440	0	Y	0	31	255
+def					@arg29	250	16777215	0	Y	128	31	63
+def					@arg30	251	268435440	0	Y	0	31	255
+def					@arg31	251	268435440	0	Y	0	31	255
+def					@arg32	251	268435440	0	Y	0	31	255
+@arg01	@arg02	@arg03	@arg04	@arg05	@arg06	@arg07	@arg08	@arg09	@arg10	@arg11	@arg12	@arg13	@arg14	@arg15	@arg16	@arg17	@arg18	@arg19	@arg20	@arg21	@arg22	@arg23	@arg24	@arg25	@arg26	@arg27	@arg28	@arg29	@arg30	@arg31	@arg32
+8	8.0	8	abc	abc	1991-08-05	1991-08-05	1991-08-05 01:01:01	1991-08-05 01:01:01	662680861	1991	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 select @arg01:=  c1, @arg02:=  c2, @arg03:=  c3, @arg04:=  c4,
 @arg05:=  c5, @arg06:=  c6, @arg07:=  c7, @arg08:=  c8,
 @arg09:=  c9, @arg10:= c10, @arg11:= c11, @arg12:= c12,
@@ -4994,27 +5089,34 @@ Warning	1287	Setting user variables within expressions is deprecated and will be
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-execute full_info ;
+select @arg01, @arg02, @arg03, @arg04,
+@arg05, @arg06, @arg07, @arg08,
+@arg09, @arg10, @arg11, @arg12,
+@arg13, @arg14, @arg15, @arg16,
+@arg17, @arg18, @arg19, @arg20,
+@arg21, @arg22, @arg23, @arg24,
+@arg25, @arg26, @arg27, @arg28,
+@arg29, @arg30, @arg31, @arg32 ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					@arg01	8	20	1	Y	32896	0	63
-def					@arg02	8	20	1	Y	32896	0	63
-def					@arg03	8	20	1	Y	32896	0	63
-def					@arg04	8	20	1	Y	32896	0	63
-def					@arg05	8	20	1	Y	32896	0	63
-def					@arg06	8	20	1	Y	32896	0	63
+def					@arg01	8	21	1	Y	32896	0	63
+def					@arg02	8	21	1	Y	32896	0	63
+def					@arg03	8	21	1	Y	32896	0	63
+def					@arg04	8	21	1	Y	32896	0	63
+def					@arg05	8	21	1	Y	32896	0	63
+def					@arg06	8	21	1	Y	32896	0	63
 def					@arg07	5	23	1	Y	32896	31	63
 def					@arg08	5	23	1	Y	32896	31	63
 def					@arg09	5	23	1	Y	32896	31	63
 def					@arg10	5	23	1	Y	32896	31	63
-def					@arg11	246	83	6	Y	32896	30	63
-def					@arg12	246	83	6	Y	32896	30	63
+def					@arg11	246	67	6	Y	32896	30	63
+def					@arg12	246	67	6	Y	32896	30	63
 def					@arg13	250	67108860	10	Y	0	31	255
 def					@arg14	250	67108860	19	Y	0	31	255
 def					@arg15	250	67108860	19	Y	0	31	255
 def					@arg16	250	67108860	8	Y	0	31	255
-def					@arg17	8	20	4	Y	32928	0	63
-def					@arg18	8	20	1	Y	32896	0	63
-def					@arg19	8	20	1	Y	32896	0	63
+def					@arg17	8	21	4	Y	32928	0	63
+def					@arg18	8	21	1	Y	32896	0	63
+def					@arg19	8	21	1	Y	32896	0	63
 def					@arg20	251	268435440	1	Y	0	31	255
 def					@arg21	251	268435440	10	Y	0	31	255
 def					@arg22	251	268435440	30	Y	0	31	255
@@ -5030,86 +5132,6 @@ def					@arg31	251	268435440	3	Y	0	31	255
 def					@arg32	251	268435440	6	Y	0	31	255
 @arg01	@arg02	@arg03	@arg04	@arg05	@arg06	@arg07	@arg08	@arg09	@arg10	@arg11	@arg12	@arg13	@arg14	@arg15	@arg16	@arg17	@arg18	@arg19	@arg20	@arg21	@arg22	@arg23	@arg24	@arg25	@arg26	@arg27	@arg28	@arg29	@arg30	@arg31	@arg32
 1	1	1	1	1	1	1	1	1	1	1.0000	1.0000	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	1	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	one	monday
-select @arg01:=  c1, @arg02:=  c2, @arg03:=  c3, @arg04:=  c4,
-@arg05:=  c5, @arg06:=  c6, @arg07:=  c7, @arg08:=  c8,
-@arg09:=  c9, @arg10:= c10, @arg11:= c11, @arg12:= c12,
-@arg13:= c13, @arg14:= c14, @arg15:= c15, @arg16:= c16,
-@arg17:= c17, @arg18:= c18, @arg19:= c19, @arg20:= c20,
-@arg21:= c21, @arg22:= c22, @arg23:= c23, @arg24:= c24,
-@arg25:= c25, @arg26:= c26, @arg27:= c27, @arg28:= c28,
-@arg29:= c29, @arg30:= c30, @arg31:= c31, @arg32:= c32
-from t9 where c1= 0 ;
-@arg01:=  c1	@arg02:=  c2	@arg03:=  c3	@arg04:=  c4	@arg05:=  c5	@arg06:=  c6	@arg07:=  c7	@arg08:=  c8	@arg09:=  c9	@arg10:= c10	@arg11:= c11	@arg12:= c12	@arg13:= c13	@arg14:= c14	@arg15:= c15	@arg16:= c16	@arg17:= c17	@arg18:= c18	@arg19:= c19	@arg20:= c20	@arg21:= c21	@arg22:= c22	@arg23:= c23	@arg24:= c24	@arg25:= c25	@arg26:= c26	@arg27:= c27	@arg28:= c28	@arg29:= c29	@arg30:= c30	@arg31:= c31	@arg32:= c32
-0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	1991-01-01 01:01:01	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-execute full_info ;
-Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					@arg01	8	20	1	Y	32896	0	63
-def					@arg02	8	20	0	Y	32896	0	63
-def					@arg03	8	20	0	Y	32896	0	63
-def					@arg04	8	20	0	Y	32896	0	63
-def					@arg05	8	20	0	Y	32896	0	63
-def					@arg06	8	20	0	Y	32896	0	63
-def					@arg07	5	23	0	Y	32896	31	63
-def					@arg08	5	23	0	Y	32896	31	63
-def					@arg09	5	23	0	Y	32896	31	63
-def					@arg10	5	23	0	Y	32896	31	63
-def					@arg11	246	83	0	Y	32896	30	63
-def					@arg12	246	83	0	Y	32896	30	63
-def					@arg13	250	67108860	0	Y	0	31	255
-def					@arg14	250	67108860	0	Y	0	31	255
-def					@arg15	250	67108860	19	Y	0	31	255
-def					@arg16	250	67108860	0	Y	0	31	255
-def					@arg17	8	20	0	Y	32928	0	63
-def					@arg18	8	20	0	Y	32896	0	63
-def					@arg19	8	20	0	Y	32896	0	63
-def					@arg20	251	268435440	0	Y	0	31	255
-def					@arg21	251	268435440	0	Y	0	31	255
-def					@arg22	251	268435440	0	Y	0	31	255
-def					@arg23	250	16777215	0	Y	128	31	63
-def					@arg24	251	268435440	0	Y	0	31	255
-def					@arg25	250	16777215	0	Y	128	31	63
-def					@arg26	251	268435440	0	Y	0	31	255
-def					@arg27	250	16777215	0	Y	128	31	63
-def					@arg28	251	268435440	0	Y	0	31	255
-def					@arg29	250	16777215	0	Y	128	31	63
-def					@arg30	251	268435440	0	Y	0	31	255
-def					@arg31	251	268435440	0	Y	0	31	255
-def					@arg32	251	268435440	0	Y	0	31	255
-@arg01	@arg02	@arg03	@arg04	@arg05	@arg06	@arg07	@arg08	@arg09	@arg10	@arg11	@arg12	@arg13	@arg14	@arg15	@arg16	@arg17	@arg18	@arg19	@arg20	@arg21	@arg22	@arg23	@arg24	@arg25	@arg26	@arg27	@arg28	@arg29	@arg30	@arg31	@arg32
-0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	1991-01-01 01:01:01	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 prepare stmt1 from "select 
        @arg01:=  c1, @arg02:=  c2, @arg03:=  c3, @arg04:=  c4,
        @arg05:=  c5, @arg06:=  c6, @arg07:=  c7, @arg08:=  c8,
@@ -5157,27 +5179,34 @@ set @my_key= 1 ;
 execute stmt1 using @my_key ;
 @arg01:=  c1	@arg02:=  c2	@arg03:=  c3	@arg04:=  c4	@arg05:=  c5	@arg06:=  c6	@arg07:=  c7	@arg08:=  c8	@arg09:=  c9	@arg10:= c10	@arg11:= c11	@arg12:= c12	@arg13:= c13	@arg14:= c14	@arg15:= c15	@arg16:= c16	@arg17:= c17	@arg18:= c18	@arg19:= c19	@arg20:= c20	@arg21:= c21	@arg22:= c22	@arg23:= c23	@arg24:= c24	@arg25:= c25	@arg26:= c26	@arg27:= c27	@arg28:= c28	@arg29:= c29	@arg30:= c30	@arg31:= c31	@arg32:= c32
 1	1	1	1	1	1	1	1	1	1	1.0000	1.0000	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	1	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	one	monday
-execute full_info ;
+select @arg01, @arg02, @arg03, @arg04,
+@arg05, @arg06, @arg07, @arg08,
+@arg09, @arg10, @arg11, @arg12,
+@arg13, @arg14, @arg15, @arg16,
+@arg17, @arg18, @arg19, @arg20,
+@arg21, @arg22, @arg23, @arg24,
+@arg25, @arg26, @arg27, @arg28,
+@arg29, @arg30, @arg31, @arg32 ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					@arg01	8	20	1	Y	32896	0	63
-def					@arg02	8	20	1	Y	32896	0	63
-def					@arg03	8	20	1	Y	32896	0	63
-def					@arg04	8	20	1	Y	32896	0	63
-def					@arg05	8	20	1	Y	32896	0	63
-def					@arg06	8	20	1	Y	32896	0	63
+def					@arg01	8	21	1	Y	32896	0	63
+def					@arg02	8	21	1	Y	32896	0	63
+def					@arg03	8	21	1	Y	32896	0	63
+def					@arg04	8	21	1	Y	32896	0	63
+def					@arg05	8	21	1	Y	32896	0	63
+def					@arg06	8	21	1	Y	32896	0	63
 def					@arg07	5	23	1	Y	32896	31	63
 def					@arg08	5	23	1	Y	32896	31	63
 def					@arg09	5	23	1	Y	32896	31	63
 def					@arg10	5	23	1	Y	32896	31	63
-def					@arg11	246	83	6	Y	32896	30	63
-def					@arg12	246	83	6	Y	32896	30	63
+def					@arg11	246	67	6	Y	32896	30	63
+def					@arg12	246	67	6	Y	32896	30	63
 def					@arg13	250	67108860	10	Y	0	31	255
 def					@arg14	250	67108860	19	Y	0	31	255
 def					@arg15	250	67108860	19	Y	0	31	255
 def					@arg16	250	67108860	8	Y	0	31	255
-def					@arg17	8	20	4	Y	32928	0	63
-def					@arg18	8	20	1	Y	32896	0	63
-def					@arg19	8	20	1	Y	32896	0	63
+def					@arg17	8	21	4	Y	32928	0	63
+def					@arg18	8	21	1	Y	32896	0	63
+def					@arg19	8	21	1	Y	32896	0	63
 def					@arg20	251	268435440	1	Y	0	31	255
 def					@arg21	251	268435440	10	Y	0	31	255
 def					@arg22	251	268435440	30	Y	0	31	255
@@ -5193,31 +5222,82 @@ def					@arg31	251	268435440	3	Y	0	31	255
 def					@arg32	251	268435440	6	Y	0	31	255
 @arg01	@arg02	@arg03	@arg04	@arg05	@arg06	@arg07	@arg08	@arg09	@arg10	@arg11	@arg12	@arg13	@arg14	@arg15	@arg16	@arg17	@arg18	@arg19	@arg20	@arg21	@arg22	@arg23	@arg24	@arg25	@arg26	@arg27	@arg28	@arg29	@arg30	@arg31	@arg32
 1	1	1	1	1	1	1	1	1	1	1.0000	1.0000	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	1	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	one	monday
+select @arg01:=  c1, @arg02:=  c2, @arg03:=  c3, @arg04:=  c4,
+@arg05:=  c5, @arg06:=  c6, @arg07:=  c7, @arg08:=  c8,
+@arg09:=  c9, @arg10:= c10, @arg11:= c11, @arg12:= c12,
+@arg13:= c13, @arg14:= c14, @arg15:= c15, @arg16:= c16,
+@arg17:= c17, @arg18:= c18, @arg19:= c19, @arg20:= c20,
+@arg21:= c21, @arg22:= c22, @arg23:= c23, @arg24:= c24,
+@arg25:= c25, @arg26:= c26, @arg27:= c27, @arg28:= c28,
+@arg29:= c29, @arg30:= c30, @arg31:= c31, @arg32:= c32
+from t9 where c1= 0 ;
+@arg01:=  c1	@arg02:=  c2	@arg03:=  c3	@arg04:=  c4	@arg05:=  c5	@arg06:=  c6	@arg07:=  c7	@arg08:=  c8	@arg09:=  c9	@arg10:= c10	@arg11:= c11	@arg12:= c12	@arg13:= c13	@arg14:= c14	@arg15:= c15	@arg16:= c16	@arg17:= c17	@arg18:= c18	@arg19:= c19	@arg20:= c20	@arg21:= c21	@arg22:= c22	@arg23:= c23	@arg24:= c24	@arg25:= c25	@arg26:= c26	@arg27:= c27	@arg28:= c28	@arg29:= c29	@arg30:= c30	@arg31:= c31	@arg32:= c32
+0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	1991-01-01 01:01:01	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 set @my_key= 0 ;
 execute stmt1 using @my_key ;
 @arg01:=  c1	@arg02:=  c2	@arg03:=  c3	@arg04:=  c4	@arg05:=  c5	@arg06:=  c6	@arg07:=  c7	@arg08:=  c8	@arg09:=  c9	@arg10:= c10	@arg11:= c11	@arg12:= c12	@arg13:= c13	@arg14:= c14	@arg15:= c15	@arg16:= c16	@arg17:= c17	@arg18:= c18	@arg19:= c19	@arg20:= c20	@arg21:= c21	@arg22:= c22	@arg23:= c23	@arg24:= c24	@arg25:= c25	@arg26:= c26	@arg27:= c27	@arg28:= c28	@arg29:= c29	@arg30:= c30	@arg31:= c31	@arg32:= c32
 0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	1991-01-01 01:01:01	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-execute full_info ;
+select @arg01, @arg02, @arg03, @arg04,
+@arg05, @arg06, @arg07, @arg08,
+@arg09, @arg10, @arg11, @arg12,
+@arg13, @arg14, @arg15, @arg16,
+@arg17, @arg18, @arg19, @arg20,
+@arg21, @arg22, @arg23, @arg24,
+@arg25, @arg26, @arg27, @arg28,
+@arg29, @arg30, @arg31, @arg32 ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					@arg01	8	20	1	Y	32896	0	63
-def					@arg02	8	20	0	Y	32896	0	63
-def					@arg03	8	20	0	Y	32896	0	63
-def					@arg04	8	20	0	Y	32896	0	63
-def					@arg05	8	20	0	Y	32896	0	63
-def					@arg06	8	20	0	Y	32896	0	63
+def					@arg01	8	21	1	Y	32896	0	63
+def					@arg02	8	21	0	Y	32896	0	63
+def					@arg03	8	21	0	Y	32896	0	63
+def					@arg04	8	21	0	Y	32896	0	63
+def					@arg05	8	21	0	Y	32896	0	63
+def					@arg06	8	21	0	Y	32896	0	63
 def					@arg07	5	23	0	Y	32896	31	63
 def					@arg08	5	23	0	Y	32896	31	63
 def					@arg09	5	23	0	Y	32896	31	63
 def					@arg10	5	23	0	Y	32896	31	63
-def					@arg11	246	83	0	Y	32896	30	63
-def					@arg12	246	83	0	Y	32896	30	63
+def					@arg11	246	67	0	Y	32896	30	63
+def					@arg12	246	67	0	Y	32896	30	63
 def					@arg13	250	67108860	0	Y	0	31	255
 def					@arg14	250	67108860	0	Y	0	31	255
 def					@arg15	250	67108860	19	Y	0	31	255
 def					@arg16	250	67108860	0	Y	0	31	255
-def					@arg17	8	20	0	Y	32928	0	63
-def					@arg18	8	20	0	Y	32896	0	63
-def					@arg19	8	20	0	Y	32896	0	63
+def					@arg17	8	21	0	Y	32928	0	63
+def					@arg18	8	21	0	Y	32896	0	63
+def					@arg19	8	21	0	Y	32896	0	63
 def					@arg20	251	268435440	0	Y	0	31	255
 def					@arg21	251	268435440	0	Y	0	31	255
 def					@arg22	251	268435440	0	Y	0	31	255
@@ -5245,27 +5325,34 @@ into @arg01, @arg02, @arg03, @arg04, @arg05, @arg06, @arg07, @arg08,
 @arg17, @arg18, @arg19, @arg20, @arg21, @arg22, @arg23, @arg24,
 @arg25, @arg26, @arg27, @arg28, @arg29, @arg30, @arg31, @arg32
 from t9 where c1= 1 ;
-execute full_info ;
+select @arg01, @arg02, @arg03, @arg04,
+@arg05, @arg06, @arg07, @arg08,
+@arg09, @arg10, @arg11, @arg12,
+@arg13, @arg14, @arg15, @arg16,
+@arg17, @arg18, @arg19, @arg20,
+@arg21, @arg22, @arg23, @arg24,
+@arg25, @arg26, @arg27, @arg28,
+@arg29, @arg30, @arg31, @arg32 ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					@arg01	8	20	1	Y	32896	0	63
-def					@arg02	8	20	1	Y	32896	0	63
-def					@arg03	8	20	1	Y	32896	0	63
-def					@arg04	8	20	1	Y	32896	0	63
-def					@arg05	8	20	1	Y	32896	0	63
-def					@arg06	8	20	1	Y	32896	0	63
+def					@arg01	8	21	1	Y	32896	0	63
+def					@arg02	8	21	1	Y	32896	0	63
+def					@arg03	8	21	1	Y	32896	0	63
+def					@arg04	8	21	1	Y	32896	0	63
+def					@arg05	8	21	1	Y	32896	0	63
+def					@arg06	8	21	1	Y	32896	0	63
 def					@arg07	5	23	1	Y	32896	31	63
 def					@arg08	5	23	1	Y	32896	31	63
 def					@arg09	5	23	1	Y	32896	31	63
 def					@arg10	5	23	1	Y	32896	31	63
-def					@arg11	246	83	6	Y	32896	30	63
-def					@arg12	246	83	6	Y	32896	30	63
+def					@arg11	246	67	6	Y	32896	30	63
+def					@arg12	246	67	6	Y	32896	30	63
 def					@arg13	250	67108860	10	Y	0	31	255
 def					@arg14	250	67108860	19	Y	0	31	255
 def					@arg15	250	67108860	19	Y	0	31	255
 def					@arg16	250	67108860	8	Y	0	31	255
-def					@arg17	8	20	4	Y	32928	0	63
-def					@arg18	8	20	1	Y	32896	0	63
-def					@arg19	8	20	1	Y	32896	0	63
+def					@arg17	8	21	4	Y	32928	0	63
+def					@arg18	8	21	1	Y	32896	0	63
+def					@arg19	8	21	1	Y	32896	0	63
 def					@arg20	251	268435440	1	Y	0	31	255
 def					@arg21	251	268435440	10	Y	0	31	255
 def					@arg22	251	268435440	30	Y	0	31	255
@@ -5289,27 +5376,34 @@ into @arg01, @arg02, @arg03, @arg04, @arg05, @arg06, @arg07, @arg08,
 @arg17, @arg18, @arg19, @arg20, @arg21, @arg22, @arg23, @arg24,
 @arg25, @arg26, @arg27, @arg28, @arg29, @arg30, @arg31, @arg32
 from t9 where c1= 0 ;
-execute full_info ;
+select @arg01, @arg02, @arg03, @arg04,
+@arg05, @arg06, @arg07, @arg08,
+@arg09, @arg10, @arg11, @arg12,
+@arg13, @arg14, @arg15, @arg16,
+@arg17, @arg18, @arg19, @arg20,
+@arg21, @arg22, @arg23, @arg24,
+@arg25, @arg26, @arg27, @arg28,
+@arg29, @arg30, @arg31, @arg32 ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					@arg01	8	20	1	Y	32896	0	63
-def					@arg02	8	20	0	Y	32896	0	63
-def					@arg03	8	20	0	Y	32896	0	63
-def					@arg04	8	20	0	Y	32896	0	63
-def					@arg05	8	20	0	Y	32896	0	63
-def					@arg06	8	20	0	Y	32896	0	63
+def					@arg01	8	21	1	Y	32896	0	63
+def					@arg02	8	21	0	Y	32896	0	63
+def					@arg03	8	21	0	Y	32896	0	63
+def					@arg04	8	21	0	Y	32896	0	63
+def					@arg05	8	21	0	Y	32896	0	63
+def					@arg06	8	21	0	Y	32896	0	63
 def					@arg07	5	23	0	Y	32896	31	63
 def					@arg08	5	23	0	Y	32896	31	63
 def					@arg09	5	23	0	Y	32896	31	63
 def					@arg10	5	23	0	Y	32896	31	63
-def					@arg11	246	83	0	Y	32896	30	63
-def					@arg12	246	83	0	Y	32896	30	63
+def					@arg11	246	67	0	Y	32896	30	63
+def					@arg12	246	67	0	Y	32896	30	63
 def					@arg13	250	67108860	0	Y	0	31	255
 def					@arg14	250	67108860	0	Y	0	31	255
 def					@arg15	250	67108860	19	Y	0	31	255
 def					@arg16	250	67108860	0	Y	0	31	255
-def					@arg17	8	20	0	Y	32928	0	63
-def					@arg18	8	20	0	Y	32896	0	63
-def					@arg19	8	20	0	Y	32896	0	63
+def					@arg17	8	21	0	Y	32928	0	63
+def					@arg18	8	21	0	Y	32896	0	63
+def					@arg19	8	21	0	Y	32896	0	63
 def					@arg20	251	268435440	0	Y	0	31	255
 def					@arg21	251	268435440	0	Y	0	31	255
 def					@arg22	251	268435440	0	Y	0	31	255
@@ -5335,27 +5429,34 @@ into @arg01, @arg02, @arg03, @arg04, @arg05, @arg06, @arg07, @arg08,
 from t9 where c1= ?" ;
 set @my_key= 1 ;
 execute stmt1 using @my_key ;
-execute full_info ;
+select @arg01, @arg02, @arg03, @arg04,
+@arg05, @arg06, @arg07, @arg08,
+@arg09, @arg10, @arg11, @arg12,
+@arg13, @arg14, @arg15, @arg16,
+@arg17, @arg18, @arg19, @arg20,
+@arg21, @arg22, @arg23, @arg24,
+@arg25, @arg26, @arg27, @arg28,
+@arg29, @arg30, @arg31, @arg32 ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					@arg01	8	20	1	Y	32896	0	63
-def					@arg02	8	20	1	Y	32896	0	63
-def					@arg03	8	20	1	Y	32896	0	63
-def					@arg04	8	20	1	Y	32896	0	63
-def					@arg05	8	20	1	Y	32896	0	63
-def					@arg06	8	20	1	Y	32896	0	63
+def					@arg01	8	21	1	Y	32896	0	63
+def					@arg02	8	21	1	Y	32896	0	63
+def					@arg03	8	21	1	Y	32896	0	63
+def					@arg04	8	21	1	Y	32896	0	63
+def					@arg05	8	21	1	Y	32896	0	63
+def					@arg06	8	21	1	Y	32896	0	63
 def					@arg07	5	23	1	Y	32896	31	63
 def					@arg08	5	23	1	Y	32896	31	63
 def					@arg09	5	23	1	Y	32896	31	63
 def					@arg10	5	23	1	Y	32896	31	63
-def					@arg11	246	83	6	Y	32896	30	63
-def					@arg12	246	83	6	Y	32896	30	63
+def					@arg11	246	67	6	Y	32896	30	63
+def					@arg12	246	67	6	Y	32896	30	63
 def					@arg13	250	67108860	10	Y	0	31	255
 def					@arg14	250	67108860	19	Y	0	31	255
 def					@arg15	250	67108860	19	Y	0	31	255
 def					@arg16	250	67108860	8	Y	0	31	255
-def					@arg17	8	20	4	Y	32928	0	63
-def					@arg18	8	20	1	Y	32896	0	63
-def					@arg19	8	20	1	Y	32896	0	63
+def					@arg17	8	21	4	Y	32928	0	63
+def					@arg18	8	21	1	Y	32896	0	63
+def					@arg19	8	21	1	Y	32896	0	63
 def					@arg20	251	268435440	1	Y	0	31	255
 def					@arg21	251	268435440	10	Y	0	31	255
 def					@arg22	251	268435440	30	Y	0	31	255
@@ -5373,27 +5474,34 @@ def					@arg32	251	268435440	6	Y	0	31	255
 1	1	1	1	1	1	1	1	1	1	1.0000	1.0000	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	1	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	one	monday
 set @my_key= 0 ;
 execute stmt1 using @my_key ;
-execute full_info ;
+select @arg01, @arg02, @arg03, @arg04,
+@arg05, @arg06, @arg07, @arg08,
+@arg09, @arg10, @arg11, @arg12,
+@arg13, @arg14, @arg15, @arg16,
+@arg17, @arg18, @arg19, @arg20,
+@arg21, @arg22, @arg23, @arg24,
+@arg25, @arg26, @arg27, @arg28,
+@arg29, @arg30, @arg31, @arg32 ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					@arg01	8	20	1	Y	32896	0	63
-def					@arg02	8	20	0	Y	32896	0	63
-def					@arg03	8	20	0	Y	32896	0	63
-def					@arg04	8	20	0	Y	32896	0	63
-def					@arg05	8	20	0	Y	32896	0	63
-def					@arg06	8	20	0	Y	32896	0	63
+def					@arg01	8	21	1	Y	32896	0	63
+def					@arg02	8	21	0	Y	32896	0	63
+def					@arg03	8	21	0	Y	32896	0	63
+def					@arg04	8	21	0	Y	32896	0	63
+def					@arg05	8	21	0	Y	32896	0	63
+def					@arg06	8	21	0	Y	32896	0	63
 def					@arg07	5	23	0	Y	32896	31	63
 def					@arg08	5	23	0	Y	32896	31	63
 def					@arg09	5	23	0	Y	32896	31	63
 def					@arg10	5	23	0	Y	32896	31	63
-def					@arg11	246	83	0	Y	32896	30	63
-def					@arg12	246	83	0	Y	32896	30	63
+def					@arg11	246	67	0	Y	32896	30	63
+def					@arg12	246	67	0	Y	32896	30	63
 def					@arg13	250	67108860	0	Y	0	31	255
 def					@arg14	250	67108860	0	Y	0	31	255
 def					@arg15	250	67108860	19	Y	0	31	255
 def					@arg16	250	67108860	0	Y	0	31	255
-def					@arg17	8	20	0	Y	32928	0	63
-def					@arg18	8	20	0	Y	32896	0	63
-def					@arg19	8	20	0	Y	32896	0	63
+def					@arg17	8	21	0	Y	32928	0	63
+def					@arg18	8	21	0	Y	32896	0	63
+def					@arg19	8	21	0	Y	32896	0	63
 def					@arg20	251	268435440	0	Y	0	31	255
 def					@arg21	251	268435440	0	Y	0	31	255
 def					@arg22	251	268435440	0	Y	0	31	255
@@ -6209,8 +6317,7 @@ c17= '1991-01-01 01:01:01' ;
 found
 true
 select 'true' as found from t9 
-where c1= 20 and c13= CAST(@arg00 AS DATE) and c14= @arg00 and c15= @arg00 and c16= @arg00
-and c17= @arg00 ;
+where c1= 20 and c13= CAST(@arg00 AS DATE) and c14= @arg00 and c15= @arg00 and c16= CAST(@arg00 AS TIME) and c17= @arg00 ;
 found
 true
 prepare stmt1 from "select 'true' as found from t9 
@@ -6225,6 +6332,10 @@ where c1= 20 and c13= CAST(? AS DATE) and c14= ? and c15= ? and c16= ? and c17= 
 execute stmt1 using @arg00, @arg00, @arg00, @arg00, @arg00 ;
 found
 true
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '1991-01-01 01:01:01'
+Warning	1292	Truncated incorrect INTEGER value: '1991-01-01 01:01:01'
+Warning	1292	Truncated incorrect INTEGER value: '1991-01-01 01:01:01'
 set @arg00= CAST('1991-01-01 01:01:01' as datetime) ;
 select 'true' as found from t9 
 where c1= 20 and c13= CAST('1991-01-01 00:00:00' as datetime) and
@@ -6235,8 +6346,7 @@ c17= CAST('1991-01-01 01:01:01' as datetime) ;
 found
 true
 select 'true' as found from t9 
-where c1= 20 and c13= CAST(@arg00 AS DATE) and c14= @arg00 and c15= @arg00 and c16= @arg00
-and c17= @arg00 ;
+where c1= 20 and c13= CAST(@arg00 AS DATE) and c14= @arg00 and c15= @arg00 and c16= CAST(@arg00 AS TIME) and c17= @arg00 ;
 found
 true
 prepare stmt1 from "select 'true' as found from t9 
@@ -6253,6 +6363,10 @@ where c1= 20 and c13= CAST(? AS DATE) and c14= ? and c15= ? and c16= ? and c17= 
 execute stmt1 using @arg00, @arg00, @arg00, @arg00, @arg00 ;
 found
 true
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '1991-01-01 01:01:01'
+Warning	1292	Truncated incorrect INTEGER value: '1991-01-01 01:01:01'
+Warning	1292	Truncated incorrect INTEGER value: '1991-01-01 01:01:01'
 set @arg00= 1991 ;
 select 'true' as found from t9 
 where c1= 20 and c17= 1991 ;

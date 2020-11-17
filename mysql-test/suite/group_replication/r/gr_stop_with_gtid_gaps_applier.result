@@ -25,6 +25,8 @@ include/start_group_replication.inc
 #    remote transactions on member 1.
 [connection server1]
 STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 
 ############################################################
 # 3. Create a table on member 2 with a specified GTID.
@@ -45,6 +47,8 @@ include/stop_group_replication.inc
 include/stop_group_replication.inc
 DROP TABLE t1;
 RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 
 ############################################################

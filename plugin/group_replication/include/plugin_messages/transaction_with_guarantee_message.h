@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,7 @@ class Transaction_with_guarantee_message
    */
   Transaction_with_guarantee_message(
       enum_group_replication_consistency_level consistency_level);
-  virtual ~Transaction_with_guarantee_message();
+  ~Transaction_with_guarantee_message() override;
 
   /**
      Overrides Basic_ostream::write().
@@ -68,14 +68,14 @@ class Transaction_with_guarantee_message
 
      @return returns false if succeeds, otherwise true is returned.
   */
-  bool write(const unsigned char *buffer, my_off_t length);
+  bool write(const unsigned char *buffer, my_off_t length) override;
 
   /**
      Length of data in data vector
 
      @return data length
   */
-  my_off_t length();
+  my_off_t length() override;
 
   /**
     Decode transaction consistency without unmarshal transaction data.
@@ -89,8 +89,9 @@ class Transaction_with_guarantee_message
   /*
    Implementation of the template methods
    */
-  void encode_payload(std::vector<unsigned char> *buffer) const;
-  void decode_payload(const unsigned char *buffer, const unsigned char *);
+  void encode_payload(std::vector<unsigned char> *buffer) const override;
+  void decode_payload(const unsigned char *buffer,
+                      const unsigned char *) override;
 
  private:
   std::vector<uchar> m_data;

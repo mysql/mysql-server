@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,20 +39,20 @@ class Gcs_message_stage_lz4 : public Gcs_message_stage {
   /*
    Methods inherited from the Gcs_message_stage class.
    */
-  virtual Gcs_message_stage::stage_status skip_apply(
-      uint64_t const &original_payload_size) const;
+  Gcs_message_stage::stage_status skip_apply(
+      uint64_t const &original_payload_size) const override;
 
-  std::unique_ptr<Gcs_stage_metadata> get_stage_header();
+  std::unique_ptr<Gcs_stage_metadata> get_stage_header() override;
 
  protected:
   std::pair<bool, std::vector<Gcs_packet>> apply_transformation(
-      Gcs_packet &&packet);
+      Gcs_packet &&packet) override;
 
   std::pair<Gcs_pipeline_incoming_result, Gcs_packet> revert_transformation(
-      Gcs_packet &&packet);
+      Gcs_packet &&packet) override;
 
-  virtual Gcs_message_stage::stage_status skip_revert(
-      const Gcs_packet &packet) const;
+  Gcs_message_stage::stage_status skip_revert(
+      const Gcs_packet &packet) const override;
 
  public:
   /**
@@ -76,12 +76,12 @@ class Gcs_message_stage_lz4 : public Gcs_message_stage {
                                  unsigned long long compress_threshold)
       : Gcs_message_stage(enabled), m_threshold(compress_threshold) {}
 
-  virtual ~Gcs_message_stage_lz4() {}
+  ~Gcs_message_stage_lz4() override {}
 
   /*
    Return the stage code.
    */
-  virtual Stage_code get_stage_code() const { return Stage_code::ST_LZ4_V1; }
+  Stage_code get_stage_code() const override { return Stage_code::ST_LZ4_V1; }
 
   /**
     Sets the threshold in bytes after which compression kicks in.
@@ -130,11 +130,11 @@ class Gcs_message_stage_lz4_v2 : public Gcs_message_stage_lz4 {
                                     unsigned long long compress_threshold)
       : Gcs_message_stage_lz4(enabled, compress_threshold) {}
 
-  virtual ~Gcs_message_stage_lz4_v2() {}
+  ~Gcs_message_stage_lz4_v2() override {}
 
   /*
    Return the stage code.
    */
-  virtual Stage_code get_stage_code() const { return Stage_code::ST_LZ4_V2; }
+  Stage_code get_stage_code() const override { return Stage_code::ST_LZ4_V2; }
 };
 #endif /* GCS_MESSAGE_STAGE_LZ4_H */

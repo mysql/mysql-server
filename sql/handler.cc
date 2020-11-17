@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -694,6 +694,8 @@ int ha_init_errors(void) {
   SETMSG(HA_ERR_NO_SESSION_TEMP, ER_DEFAULT(ER_NO_SESSION_TEMP));
   SETMSG(HA_ERR_WRONG_TABLE_NAME, ER_DEFAULT(ER_WRONG_TABLE_NAME));
   SETMSG(HA_ERR_TOO_LONG_PATH, ER_DEFAULT(ER_TABLE_NAME_CAUSES_TOO_LONG_PATH));
+  SETMSG(HA_ERR_FTS_TOO_MANY_NESTED_EXP,
+         "Too many nested sub-expressions in a full-text search");
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsg, HA_ERR_FIRST, HA_ERR_LAST);
 }
@@ -2499,9 +2501,9 @@ const char *get_canonical_filename(handler *file, const char *path,
 
 class Ha_delete_table_error_handler : public Internal_error_handler {
  public:
-  virtual bool handle_condition(THD *, uint, const char *,
-                                Sql_condition::enum_severity_level *level,
-                                const char *) {
+  bool handle_condition(THD *, uint, const char *,
+                        Sql_condition::enum_severity_level *level,
+                        const char *) override {
     /* Downgrade errors to warnings. */
     if (*level == Sql_condition::SL_ERROR) *level = Sql_condition::SL_WARNING;
     return false;
@@ -3984,7 +3986,7 @@ void handler::ha_release_auto_increment() {
       this statement used forced auto_increment values if there were some,
       wipe them away for other statements.
     */
-    table->in_use->auto_inc_intervals_forced.empty();
+    table->in_use->auto_inc_intervals_forced.clear();
   }
 }
 
@@ -4548,21 +4550,6 @@ bool handler::get_foreign_dup_key(char *, uint, char *, uint) {
   return (false);
 }
 
-/**
-  Delete all files with extension from handlerton::file_extensions.
-
-  @param name		Base name of table
-
-  @note
-    We assume that the handler may return more extensions than
-    was actually used for the file.
-
-  @retval
-    0   If we successfully deleted at least one file from base_ext and
-    didn't get any other errors than ENOENT
-  @retval
-    !0  Error
-*/
 int handler::delete_table(const char *name, const dd::Table *) {
   int saved_error = 0;
   int error = 0;
@@ -5006,18 +4993,6 @@ int handler::ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info,
   mark_trx_read_write();
 
   return create(name, form, info, table_def);
-}
-
-/**
- * Prepares the secondary engine for table load.
- *
- * @param table The table to load into the secondary engine. Its read_set tells
- * which columns to load.
- *
- * @sa handler::prepare_load_table()
- */
-int handler::ha_prepare_load_table(const TABLE &table) {
-  return prepare_load_table(table);
 }
 
 /**
@@ -7569,17 +7544,16 @@ static bool showstat_handlerton(THD *thd, plugin_ref plugin, void *arg) {
 }
 
 bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat) {
-  List<Item> field_list;
-  bool result;
-
+  mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(new Item_empty_string("Type", 10));
   field_list.push_back(new Item_empty_string("Name", FN_REFLEN));
   field_list.push_back(new Item_empty_string("Status", 10));
 
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 
+  bool result;
   if (db_type == nullptr) {
     result = plugin_foreach(thd, showstat_handlerton,
                             MYSQL_STORAGE_ENGINE_PLUGIN, &stat);
@@ -7714,12 +7688,17 @@ int binlog_log_row(TABLE *table, const uchar *before_record,
 
   if (check_table_binlog_row_based(thd, table)) {
     if (thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF) {
-      if (before_record && after_record) {
-        /* capture both images pke */
-        add_pke(table, thd, table->record[0]);
-        add_pke(table, thd, table->record[1]);
-      } else {
-        add_pke(table, thd, table->record[0]);
+      try {
+        if (before_record && after_record) {
+          /* capture both images pke */
+          add_pke(table, thd, table->record[0]);
+          add_pke(table, thd, table->record[1]);
+        } else {
+          add_pke(table, thd, table->record[0]);
+        }
+      } catch (const std::bad_alloc &) {
+        my_error(ER_OUT_OF_RESOURCES, MYF(0));
+        return HA_ERR_RBR_LOGGING_FAILED;
       }
     }
     if (table->in_use->is_error()) return error ? HA_ERR_RBR_LOGGING_FAILED : 0;
@@ -8155,7 +8134,7 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
     that match key fields in the used secondary index. So we trust that the
     engine has filled all base columns necessary to requested computations,
     and we ignore read_set/write_set.
- */
+*/
 
   my_bitmap_map *old_maps[2];
   dbug_tmp_use_all_columns(table, old_maps, table->read_set, table->write_set);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@
 #include "sql/sql_const.h"
 #include "sql/sql_digest_stream.h"
 #include "sql/sql_parse.h"    // parse_sql
-#include "sql/sql_prepare.h"  // reinit_stmt_before_use
+#include "sql/sql_prepare.h"  // Reprepare_observer
 #include "sql/sql_profile.h"
 #include "sql/system_variables.h"
 #include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
@@ -282,16 +282,15 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_CSTRING query_str) {
 
 class SP_instr_error_handler : public Internal_error_handler {
  public:
-  virtual bool handle_condition(THD *thd, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *) {
+  bool handle_condition(THD *thd, uint sql_errno, const char *,
+                        Sql_condition::enum_severity_level *,
+                        const char *) override {
     /*
       Check if the "table exists" error or warning reported for the
       CREATE TABLE ... SELECT statement.
     */
     if (thd->lex && thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
-        thd->lex->select_lex &&
-        thd->lex->select_lex->fields_list.elements > 0 &&
+        thd->lex->select_lex && !thd->lex->select_lex->field_list_is_empty() &&
         sql_errno == ER_TABLE_EXISTS_ERROR)
       cts_table_exists_error = true;
 
@@ -328,6 +327,7 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd, uint *nextp,
 
   LEX *lex_saved = thd->lex;
   thd->lex = m_lex;
+  m_lex->thd = thd;
 
   /* Set new query id. */
 
@@ -350,7 +350,9 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd, uint *nextp,
     }
   }
 
-  bool error = reinit_stmt_before_use(thd, m_lex);
+  bool error = m_lex->check_preparation_invalid(thd);
+
+  m_lex->clear_execution();
 
   /*
     In case a session state exists do not cache the SELECT stmt. If we
@@ -399,6 +401,9 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd, uint *nextp,
       if (!error) error = open_and_lock_tables(thd, m_lex->query_tables, 0);
 
       if (!error) {
+        m_lex->restore_cmd_properties();
+        bind_fields(m_arena.item_list());
+
         error = exec_core(thd, nextp);
         DBUG_PRINT("info", ("exec_core returned: %d", error));
       }
@@ -408,7 +413,7 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd, uint *nextp,
         key read.
       */
 
-      m_lex->unit->cleanup(thd, true);
+      m_lex->cleanup(thd, true);
 
       /* Here we also commit or rollback the current statement. */
 
@@ -609,7 +614,12 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
   thd->m_statement_psi = parent_locker;
 
   if (!parsing_failed) {
+    adjust_sql_command(thd->lex);
     thd->lex->set_trg_event_type_for_tables();
+
+    // Mark statement as belonging to a stored procedure:
+    if (thd->lex->m_sql_cmd != nullptr)
+      thd->lex->m_sql_cmd->set_as_part_of_sp();
 
     // Call after-parsing callback.
     parsing_failed = on_after_expr_parsing(thd);
@@ -676,7 +686,8 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
 
   while (true) {
     DBUG_EXECUTE_IF("simulate_bug18831513", { invalidate(); });
-    if (is_invalid()) {
+    if (is_invalid() || (m_lex->has_udf() && !m_first_execution)) {
+      free_lex();
       LEX *lex = parse_expr(thd, thd->sp_runtime_ctx->sp);
 
       if (!lex) return true;
@@ -756,7 +767,6 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
     }
 
     thd->clear_error();
-    free_lex();
     invalidate();
   }
 }
@@ -777,6 +787,8 @@ void sp_lex_instr::free_lex() {
   /* Prevent endless recursion. */
   m_lex->sphead = nullptr;
   lex_end(m_lex);
+  destroy(m_lex->result);
+  m_lex->destroy();
   delete (st_lex_local *)m_lex;
 
   m_lex = nullptr;
@@ -794,7 +806,7 @@ void sp_lex_instr::cleanup_before_parsing(THD *thd) {
   // Remove previously stored trigger-field items.
   sp_head *sp = thd->sp_runtime_ctx->sp;
 
-  if (sp->m_type == enum_sp_type::TRIGGER) m_trig_field_list.empty();
+  if (sp->m_type == enum_sp_type::TRIGGER) m_trig_field_list.clear();
 }
 
 void sp_lex_instr::get_query(String *sql_query) const {
@@ -946,15 +958,18 @@ void sp_instr_stmt::print(const THD *, String *str) {
 }
 
 bool sp_instr_stmt::exec_core(THD *thd, uint *nextp) {
-  thd->lex->set_sp_current_parsing_ctx(get_parsing_ctx());
-  thd->lex->sphead = thd->sp_runtime_ctx->sp;
+  LEX *const lex = thd->lex;
+  lex->set_sp_current_parsing_ctx(get_parsing_ctx());
+  lex->sphead = thd->sp_runtime_ctx->sp;
 
   PSI_statement_locker *statement_psi_saved = thd->m_statement_psi;
 
+  DBUG_ASSERT(lex->m_sql_cmd == nullptr || lex->m_sql_cmd->is_part_of_sp());
+
   bool rc = mysql_execute_command(thd);
 
-  thd->lex->set_sp_current_parsing_ctx(nullptr);
-  thd->lex->sphead = nullptr;
+  lex->set_sp_current_parsing_ctx(nullptr);
+  lex->sphead = nullptr;
   thd->m_statement_psi = statement_psi_saved;
 
   *nextp = get_ip() + 1;
@@ -1040,9 +1055,8 @@ void sp_instr_set_trigger_field::print(const THD *thd, String *str) {
 }
 
 bool sp_instr_set_trigger_field::on_after_expr_parsing(THD *thd) {
-  DBUG_ASSERT(thd->lex->select_lex->fields_list.elements == 1);
-
-  m_value_item = thd->lex->select_lex->fields_list.head();
+  m_value_item = thd->lex->select_lex->single_visible_field();
+  DBUG_ASSERT(m_value_item != nullptr);
 
   DBUG_ASSERT(!m_trigger_field);
 
@@ -1252,9 +1266,8 @@ bool sp_instr_jump_case_when::on_after_expr_parsing(THD *thd) {
   //     item from its list.
 
   if (!m_expr_item) {
-    DBUG_ASSERT(thd->lex->select_lex->fields_list.elements == 1);
-
-    m_expr_item = thd->lex->select_lex->fields_list.head();
+    m_expr_item = thd->lex->select_lex->single_visible_field();
+    DBUG_ASSERT(m_expr_item != nullptr);
   }
 
   // Setup main expression item (m_expr_item).
@@ -1323,7 +1336,7 @@ sp_instr_hpush_jump::sp_instr_hpush_jump(uint ip, sp_pcontext *ctx,
 }
 
 sp_instr_hpush_jump::~sp_instr_hpush_jump() {
-  m_handler->condition_values.empty();
+  m_handler->condition_values.clear();
   m_handler = nullptr;
 }
 

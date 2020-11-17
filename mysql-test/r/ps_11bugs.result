@@ -218,4 +218,20 @@ EXECUTE stmt;
 ERROR 42000: Can't find any matching row in the user table
 DEALLOCATE PREPARE stmt;
 DROP USER test_user1@'localhost';
+#
+# Test that when Item_cache wraps a PS parameter, it is reset
+# between executions
+#
+create table t6(a decimal(3,2));
+prepare s from 'select a<cast(? as signed) from t6';
+insert into t6 values(6.2);
+set @a=8;
+execute s using @a;
+a<cast(? as signed)
+1
+set @a=5;
+execute s using @a;
+a<cast(? as signed)
+0
+drop table t6;
 End of 8.0 tests.

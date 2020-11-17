@@ -16,6 +16,11 @@ data_lock_waits	1	performance_schema	BLOCKING_THREAD_ID	HASH
 data_lock_waits	1	performance_schema	REQUESTING_ENGINE_LOCK_ID	HASH	
 data_lock_waits	1	performance_schema	REQUESTING_ENGINE_TRANSACTION_ID	HASH	
 data_lock_waits	1	performance_schema	REQUESTING_THREAD_ID	HASH	
+error_log	1	performance_schema	ERROR_CODE	HASH	
+error_log	0	performance_schema	PRIMARY	HASH	
+error_log	1	performance_schema	PRIO	HASH	
+error_log	1	performance_schema	SUBSYSTEM	HASH	
+error_log	1	performance_schema	THREAD_ID	HASH	
 events_errors_summary_by_account_by_error	0	performance_schema	ACCOUNT	HASH	
 events_errors_summary_by_host_by_error	0	performance_schema	HOST	HASH	
 events_errors_summary_by_thread_by_error	0	performance_schema	THREAD_ID	HASH	
@@ -84,12 +89,14 @@ prepared_statements_instances	0	performance_schema	OWNER_THREAD_ID	HASH
 prepared_statements_instances	0	performance_schema	PRIMARY	HASH	
 prepared_statements_instances	1	performance_schema	STATEMENT_ID	HASH	
 prepared_statements_instances	1	performance_schema	STATEMENT_NAME	HASH	
+processlist	0	performance_schema	PRIMARY	HASH	
 replication_applier_configuration	0	performance_schema	PRIMARY	HASH	
 replication_applier_status	0	performance_schema	PRIMARY	HASH	
 replication_applier_status_by_coordinator	0	performance_schema	PRIMARY	HASH	
 replication_applier_status_by_coordinator	1	performance_schema	THREAD_ID	HASH	
 replication_applier_status_by_worker	0	performance_schema	PRIMARY	HASH	
 replication_applier_status_by_worker	1	performance_schema	THREAD_ID	HASH	
+replication_asynchronous_connection_failover	0	performance_schema	PRIMARY	HASH	
 replication_connection_configuration	0	performance_schema	PRIMARY	HASH	
 replication_connection_status	0	performance_schema	PRIMARY	HASH	
 replication_connection_status	1	performance_schema	THREAD_ID	HASH	
@@ -165,6 +172,11 @@ data_lock_waits	1	performance_schema	REQUESTING_ENGINE_TRANSACTION_ID	1	REQUESTI
 data_lock_waits	1	performance_schema	REQUESTING_ENGINE_TRANSACTION_ID	2	ENGINE	NULL	
 data_lock_waits	1	performance_schema	REQUESTING_THREAD_ID	1	REQUESTING_THREAD_ID	NULL	YES
 data_lock_waits	1	performance_schema	REQUESTING_THREAD_ID	2	REQUESTING_EVENT_ID	NULL	YES
+error_log	1	performance_schema	ERROR_CODE	1	ERROR_CODE	NULL	YES
+error_log	0	performance_schema	PRIMARY	1	LOGGED	NULL	
+error_log	1	performance_schema	PRIO	1	PRIO	NULL	
+error_log	1	performance_schema	SUBSYSTEM	1	SUBSYSTEM	NULL	YES
+error_log	1	performance_schema	THREAD_ID	1	THREAD_ID	NULL	YES
 events_errors_summary_by_account_by_error	0	performance_schema	ACCOUNT	1	USER	NULL	YES
 events_errors_summary_by_account_by_error	0	performance_schema	ACCOUNT	2	HOST	NULL	YES
 events_errors_summary_by_account_by_error	0	performance_schema	ACCOUNT	3	ERROR_NUMBER	NULL	YES
@@ -285,6 +297,7 @@ prepared_statements_instances	0	performance_schema	OWNER_THREAD_ID	2	OWNER_EVENT
 prepared_statements_instances	0	performance_schema	PRIMARY	1	OBJECT_INSTANCE_BEGIN	NULL	
 prepared_statements_instances	1	performance_schema	STATEMENT_ID	1	STATEMENT_ID	NULL	
 prepared_statements_instances	1	performance_schema	STATEMENT_NAME	1	STATEMENT_NAME	NULL	YES
+processlist	0	performance_schema	PRIMARY	1	ID	NULL	
 replication_applier_configuration	0	performance_schema	PRIMARY	1	CHANNEL_NAME	NULL	
 replication_applier_status	0	performance_schema	PRIMARY	1	CHANNEL_NAME	NULL	
 replication_applier_status_by_coordinator	0	performance_schema	PRIMARY	1	CHANNEL_NAME	NULL	
@@ -292,6 +305,10 @@ replication_applier_status_by_coordinator	1	performance_schema	THREAD_ID	1	THREA
 replication_applier_status_by_worker	0	performance_schema	PRIMARY	1	CHANNEL_NAME	NULL	
 replication_applier_status_by_worker	0	performance_schema	PRIMARY	2	WORKER_ID	NULL	
 replication_applier_status_by_worker	1	performance_schema	THREAD_ID	1	THREAD_ID	NULL	YES
+replication_asynchronous_connection_failover	0	performance_schema	PRIMARY	1	CHANNEL_NAME	NULL	
+replication_asynchronous_connection_failover	0	performance_schema	PRIMARY	2	HOST	NULL	
+replication_asynchronous_connection_failover	0	performance_schema	PRIMARY	3	PORT	NULL	
+replication_asynchronous_connection_failover	0	performance_schema	PRIMARY	4	NETWORK_NAMESPACE	NULL	
 replication_connection_configuration	0	performance_schema	PRIMARY	1	CHANNEL_NAME	NULL	
 replication_connection_status	0	performance_schema	PRIMARY	1	CHANNEL_NAME	NULL	
 replication_connection_status	1	performance_schema	THREAD_ID	1	THREAD_ID	NULL	YES

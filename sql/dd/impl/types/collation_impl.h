@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,24 +51,24 @@ class Collation_impl : public Entity_object_impl, public Collation {
         m_charset_id(INVALID_OBJECT_ID) {}
 
  public:
-  virtual const Object_table &object_table() const;
+  const Object_table &object_table() const override;
 
   static void register_tables(Open_dictionary_tables_ctx *otx);
 
-  virtual bool validate() const;
+  bool validate() const override;
 
-  virtual bool restore_attributes(const Raw_record &r);
+  bool restore_attributes(const Raw_record &r) override;
 
-  virtual bool store_attributes(Raw_record *r);
+  bool store_attributes(Raw_record *r) override;
 
  public:
   /////////////////////////////////////////////////////////////////////////
   // Character set.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Object_id charset_id() const { return m_charset_id; }
+  Object_id charset_id() const override { return m_charset_id; }
 
-  virtual void set_charset_id(Object_id charset_id) {
+  void set_charset_id(Object_id charset_id) override {
     m_charset_id = charset_id;
   }
 
@@ -76,7 +76,7 @@ class Collation_impl : public Entity_object_impl, public Collation {
   // compiled
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool is_compiled() const { return m_is_compiled; }
+  bool is_compiled() const override { return m_is_compiled; }
 
   virtual void set_is_compiled(bool is_compiled) {
     m_is_compiled = is_compiled;
@@ -86,7 +86,7 @@ class Collation_impl : public Entity_object_impl, public Collation {
   // sort_length
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint sort_length() const { return m_sort_length; }
+  uint sort_length() const override { return m_sort_length; }
 
   virtual void set_sort_length(uint sort_length) {
     m_sort_length = sort_length;
@@ -102,21 +102,23 @@ class Collation_impl : public Entity_object_impl, public Collation {
   }
 
   // Fix "inherits ... via dominance" warnings
-  virtual Entity_object_impl *impl() { return Entity_object_impl::impl(); }
-  virtual const Entity_object_impl *impl() const {
+  Entity_object_impl *impl() override { return Entity_object_impl::impl(); }
+  const Entity_object_impl *impl() const override {
     return Entity_object_impl::impl();
   }
-  virtual Object_id id() const { return Entity_object_impl::id(); }
-  virtual bool is_persistent() const {
+  Object_id id() const override { return Entity_object_impl::id(); }
+  bool is_persistent() const override {
     return Entity_object_impl::is_persistent();
   }
-  virtual const String_type &name() const { return Entity_object_impl::name(); }
-  virtual void set_name(const String_type &name) {
+  const String_type &name() const override {
+    return Entity_object_impl::name();
+  }
+  void set_name(const String_type &name) override {
     Entity_object_impl::set_name(name);
   }
 
  public:
-  virtual void debug_print(String_type &outb) const {
+  void debug_print(String_type &outb) const override {
     char outbuf[1024];
     sprintf(outbuf,
             "COLLATION OBJECT: id= {OID: %lld}, name= %s,"
@@ -134,7 +136,7 @@ class Collation_impl : public Entity_object_impl, public Collation {
   // References to other objects
   Object_id m_charset_id;
 
-  Collation *clone() const { return new Collation_impl(*this); }
+  Collation *clone() const override { return new Collation_impl(*this); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

@@ -12,7 +12,7 @@
 --let $include_filename= gr_stop_applier_sql_thread.inc
 --source include/begin_include_file.inc
 
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 --let $wait_condition= SELECT service_state="OFF" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
 --source include/wait_condition.inc
 

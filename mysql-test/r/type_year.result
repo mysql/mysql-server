@@ -32,7 +32,7 @@ create table t1 (y year);
 insert into t1 values (now());
 select if(y = now(), 1, 0) from t1;
 if(y = now(), 1, 0)
-1
+0
 drop table t1;
 create table t1(a year);
 insert ignore into t1 values (2000.5), ('2000.5'), ('2001a'), ('2.001E3');

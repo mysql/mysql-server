@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 #include <NdbConfig.h>
 #include <NdbAutoPtr.hpp>
 #include <util/NdbOut.hpp>
+#include <NdbTCP.h>
 
 #define _STR_VALUE(x) #x
 #define STR_VALUE(x) _STR_VALUE(x)
@@ -136,11 +137,13 @@ const char *hostNameTokens[] = {
   "mgmd=%[^:]:%i",
   "%[^:^=^ ]:%i",
   "%s %i",
+  "[%[^]^=^ ]]:%i", // IPv6 address + port number
   0
 };
 
 const char *bindAddressTokens[] = {
   "bind-address=%[^:]:%i",
+  "bind-address=[%[^]^=^ ]]:%i", // IPv6 address + port number
   0
 };
 
@@ -180,9 +183,20 @@ LocalConfig::parseHostName(const char * buf){
     }
     if (buf == tempString2)
       break;
-    // try to add default port to see if it works
-    BaseString::snprintf(tempString2, sizeof(tempString2),
-                         "%s:%d", buf, NDB_PORT);
+
+    int len = strlen(buf);
+    if (buf[0] == '[' && buf[len - 1] == ']')
+    {
+      // try to add default port to see if it works
+      BaseString::snprintf(tempString2, sizeof(tempString2),
+                           "%s:%d", buf, NDB_PORT);
+    }
+    else
+    {
+      // try to add default port to see if it works
+      BaseString::snprintf(tempString2, sizeof(tempString2),
+                           "%s %d", buf, NDB_PORT);
+    }
     buf= tempString2;
   } while(1);
   return false;
@@ -216,8 +230,20 @@ LocalConfig::parseBindAddress(const char * buf)
     }
     if (buf == tempString2)
       break;
-    // try to add port 0 to see if it works
-    BaseString::snprintf(tempString2, sizeof(tempString2),"%s:0", buf);
+
+    int len = strlen(buf);
+    if (buf[0] == '[' && buf[len - 1] == ']')
+    {
+      // try to add default port to see if it works
+      BaseString::snprintf(tempString2, sizeof(tempString2),
+                           "%s:%d", buf, NDB_PORT);
+    }
+    else
+    {
+      // try to add default port to see if it works
+      BaseString::snprintf(tempString2, sizeof(tempString2),
+                           "%s %d", buf, NDB_PORT);
+    }
     buf= tempString2;
   } while(1);
   return false;
@@ -330,10 +356,17 @@ char *
 LocalConfig::makeConnectString(char *buf, int sz)
 {
   int p= BaseString::snprintf(buf,sz,"nodeid=%d", _ownNodeId);
+  char addrbuf[512];
+
   if (p < sz && bind_address.length())
   {
-    int new_p= p+BaseString::snprintf(buf+p,sz-p,",bind-address=%s:%d",
-                                      bind_address.c_str(), bind_address_port);
+    int new_p = 0;
+    char *sockaddr_string = Ndb_combine_address_port(addrbuf, sizeof(addrbuf),
+                                                     bind_address.c_str(),
+                                                     bind_address_port);
+    new_p = p + BaseString::snprintf(buf + p, sz - p, ",bind-address=%s",
+                                     sockaddr_string);
+
     if (new_p < sz)
       p= new_p;
     else 
@@ -344,8 +377,14 @@ LocalConfig::makeConnectString(char *buf, int sz)
     {
       if (ids[i].type != MgmId_TCP)
 	continue;
-      int new_p= p+BaseString::snprintf(buf+p,sz-p,",%s:%d",
-					ids[i].name.c_str(), ids[i].port);
+      int new_p = 0;
+      char *sockaddr_string = Ndb_combine_address_port(addrbuf,
+                                                       sizeof(addrbuf),
+                                                       ids[i].name.c_str(),
+                                                       ids[i].port);
+
+      new_p = p + BaseString::snprintf(buf + p, sz - p, ",%s",
+                                       sockaddr_string);
       if (new_p < sz)
 	p= new_p;
       else 
@@ -355,8 +394,14 @@ LocalConfig::makeConnectString(char *buf, int sz)
       }
       if (!bind_address.length() && ids[i].bind_address.length())
       {
-        new_p= p+BaseString::snprintf(buf+p,sz-p,",bind-address=%s:%d",
-                                      ids[i].bind_address.c_str(), ids[i].bind_address_port);
+        char *sockaddr_string =
+            Ndb_combine_address_port(addrbuf, sizeof(addrbuf),
+                                     ids[i].bind_address.c_str(),
+                                     ids[i].bind_address_port);
+
+        new_p = p + BaseString::snprintf(buf + p, sz - p, ",bind-address=%s",
+                                         sockaddr_string);
+
         if (new_p < sz)
           p= new_p;
         else 

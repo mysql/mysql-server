@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -64,10 +64,7 @@ TARGET_LINK_LIBRARIES(
 # It can be observed with gcc+gold and gcc+lld.
 #
 IF(MY_COMPILER_IS_GNU)
-  SET_TARGET_PROPERTIES(
-    xprotocol_plugin
-    PROPERTIES LINK_FLAGS
-    "-Wl,--no-as-needed -lpthread")
+  MY_TARGET_LINK_OPTIONS(xprotocol_plugin "-Wl,--no-as-needed -lpthread")
 ENDIF()
 
 SET(PROTOC_PLUGIN_GENERATED_HDR

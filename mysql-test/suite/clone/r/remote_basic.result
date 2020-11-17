@@ -42,7 +42,40 @@ col1	col2
 10	csv not cloned row 1
 20	csv not cloned row 2
 30	csv not cloned row 3
+CREATE SCHEMA schema_read_only;
+CREATE TABLE schema_read_only.t_myisam(col1 INT PRIMARY KEY, col2 char(64))
+ENGINE=MyISAM;
+INSERT INTO schema_read_only.t_myisam VALUES(10, 'myisam not cloned row 1');
+INSERT INTO schema_read_only.t_myisam VALUES(20, 'myisam not cloned row 2');
+INSERT INTO schema_read_only.t_myisam VALUES(30, 'myisam not cloned row 3');
+SELECT * from schema_read_only.t_myisam ORDER BY col1;
+col1	col2
+10	myisam not cloned row 1
+20	myisam not cloned row 2
+30	myisam not cloned row 3
+CREATE TABLE schema_read_only.t_csv(col1 INT NOT NULL, col2 char(64) NOT NULL)
+ENGINE=CSV;
+INSERT INTO schema_read_only.t_csv VALUES(10, 'csv not cloned row 1');
+INSERT INTO schema_read_only.t_csv VALUES(20, 'csv not cloned row 2');
+INSERT INTO schema_read_only.t_csv VALUES(30, 'csv not cloned row 3');
+SELECT * from schema_read_only.t_csv ORDER BY col1;
+col1	col2
+10	csv not cloned row 1
+20	csv not cloned row 2
+30	csv not cloned row 3
+CREATE TABLE schema_read_only.t_innodb(col1 INT PRIMARY KEY, col2 char(64))
+ENGINE=InnoDB;
+INSERT INTO schema_read_only.t_innodb VALUES(10, 'innodb cloned row 1');
+INSERT INTO schema_read_only.t_innodb VALUES(20, 'innodb cloned row 2');
+INSERT INTO schema_read_only.t_innodb VALUES(30, 'innodb cloned row 3');
+SELECT * from schema_read_only.t_innodb ORDER BY col1;
+col1	col2
+10	innodb cloned row 1
+20	innodb cloned row 2
+30	innodb cloned row 3
+ALTER SCHEMA schema_read_only READ ONLY=1;
 INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+INSTALL PLUGIN example SONAME 'EXAMPLE_PLUGIN';
 SELECT PLUGIN_NAME, PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS
 WHERE PLUGIN_NAME LIKE '%clone%';
 PLUGIN_NAME	PLUGIN_STATUS
@@ -92,6 +125,24 @@ INSERT INTO non_innodb.t_csv VALUES(40, 'csv not cloned row 4');
 SELECT * from non_innodb.t_csv ORDER BY col1;
 col1	col2
 40	csv not cloned row 4
+INSERT INTO schema_read_only.t_myisam VALUES(40, 'myisam not cloned row 4');
+ERROR HY000: Schema 'schema_read_only' is in read only mode.
+SELECT * from schema_read_only.t_myisam ORDER BY col1;
+col1	col2
+INSERT INTO schema_read_only.t_csv VALUES(40, 'csv not cloned row 4');
+ERROR HY000: Schema 'schema_read_only' is in read only mode.
+SELECT * from schema_read_only.t_csv ORDER BY col1;
+col1	col2
+INSERT INTO schema_read_only.t_innodb VALUES(40, 'innodb cloned row 4');
+ERROR HY000: Schema 'schema_read_only' is in read only mode.
+SELECT * from schema_read_only.t_innodb ORDER BY col1;
+col1	col2
+10	innodb cloned row 1
+20	innodb cloned row 2
+30	innodb cloned row 3
+SHOW CREATE SCHEMA schema_read_only;
+Database	Create Database
+schema_read_only	CREATE DATABASE `schema_read_only` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */ /* READ ONLY = 1 */
 SELECT count(*) FROM mysql.general_log;
 count(*)
 0
@@ -112,4 +163,7 @@ DROP TABLE t_csv;
 DROP TABLE non_innodb.t_myisam;
 DROP TABLE non_innodb.t_csv;
 DROP SCHEMA non_innodb;
+ALTER SCHEMA schema_read_only READ ONLY=0;
+DROP SCHEMA schema_read_only;
+UNINSTALL PLUGIN example;
 UNINSTALL PLUGIN clone;

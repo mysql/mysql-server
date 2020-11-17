@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,9 +37,9 @@ class GcsMpscQueueTest : public GcsBaseTest {
  protected:
   GcsMpscQueueTest() {}
 
-  virtual void SetUp() {}
+  void SetUp() override {}
 
-  virtual void TearDown() {}
+  void TearDown() override {}
 };
 
 static void producer_function(Gcs_mpsc_queue<int> &queue,

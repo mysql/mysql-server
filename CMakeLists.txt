@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -63,6 +63,14 @@ ELSEIF(APPLE)
   ELSE()
     CMAKE_MINIMUM_REQUIRED(VERSION 3.9.2)
   ENDIF()
+  # If this is macOS 11, we need cmake 3.18
+  # System libraries like
+  #    /usr/lib/libresolv.dylib
+  # are no longer present in the file system.
+  # cmake >= 3.18 will look for .tbd files in the SDK instead
+  # So we end up linking with:
+  #    /Applications/Xcode.app/.../usr/lib/libresolv.tbd
+  # We must postpone the version test until we have called 'uname -r' below.
 ELSEIF(UNIX)
   # This is currently minimum version on all supported platforms.
   IF(CMAKE_VERSION VERSION_LESS 3.5.1)
@@ -236,6 +244,13 @@ IF(UNIX)
   ENDIF()
 ENDIF()
 
+# See comments above, about CMAKE_MINIMUM_REQUIRED VERSION and macOS 11.
+IF(APPLE)
+  IF(MY_HOST_SYSTEM_VERSION VERSION_GREATER_EQUAL 20)
+    CMAKE_MINIMUM_REQUIRED(VERSION 3.18)
+  ENDIF()
+ENDIF()
+
 IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
     AND NOT CMAKE_C_COMPILER AND NOT CMAKE_CXX_COMPILER)
   # Cannot INCLUDE(CMakeDetermineSystem) prior to PROJECT initialization below.
@@ -392,6 +407,15 @@ IF(${REALPATH_CMAKE_SOURCE_DIR} STREQUAL ${REALPATH_CMAKE_BINARY_DIR})
   ENDIF()
 ENDIF()
 
+IF(WIN32)
+  STRING(LENGTH "${REALPATH_CMAKE_BINARY_DIR}" CMAKE_BINARY_DIR_LENGTH)
+  IF(CMAKE_BINARY_DIR_LENGTH LESS_EQUAL 3)
+    MESSAGE(FATAL_ERROR
+      "It seems your build directory ${CMAKE_BINARY_DIR} is a filesystem root, "
+      "this is not supported. Please build in a subdirectory.")
+  ENDIF()
+ENDIF()
+
 MACRO(REPORT_CXX_FLAGS)
   MESSAGE(STATUS "CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
   FOREACH(BUILD_TYPE "" _DEBUG _RELWITHDEBINFO _RELEASE _MINSIZEREL)
@@ -450,9 +474,6 @@ ENDIF()
 
 OPTION(WITH_DEFAULT_COMPILER_OPTIONS
   "Use flags from cmake/build_configurations/compiler_options.cmake"
-  ON)
-OPTION(WITH_DEFAULT_FEATURE_SET
-  "Use feature set in cmake/build_configurations/feature_set.cmake"
   ON)
 IF(BUILD_CONFIG)
   INCLUDE(
@@ -514,9 +535,6 @@ SET(CMAKE_SIZEOF_VOID_P ${SIZEOF_VOIDP})
 IF(WITH_DEFAULT_COMPILER_OPTIONS)
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/build_configurations/compiler_options.cmake)
 ENDIF()
-IF(WITH_DEFAULT_FEATURE_SET)
-  INCLUDE(${CMAKE_SOURCE_DIR}/cmake/build_configurations/feature_set.cmake)
-ENDIF()
 
 INCLUDE(CMakePushCheckState)
 
@@ -525,6 +543,8 @@ INCLUDE(pkg-config)
 INCLUDE(character_sets)
 INCLUDE(cmake_parse_arguments)
 INCLUDE(compile_flags)
+INCLUDE(link_options)
+INCLUDE(malloc_utils)
 INCLUDE(cpu_info)
 INCLUDE(fileutils)
 INCLUDE(zlib)
@@ -550,26 +570,36 @@ INCLUDE(curl)
 INCLUDE(rapidjson)
 INCLUDE(fprofile)
 
+
+IF(UNIX)
+  OPTION(WITH_VALGRIND "Valgrind instrumentation" OFF)
+ENDIF()
+
+OPTION(WITH_TCMALLOC "Use tcmalloc rather than builtin malloc/free etc." OFF)
+OPTION(WITH_TCMALLOC_DEBUG
+  "Use tcmalloc_debug rather than builtin malloc/free etc." OFF)
+IF(WITH_TCMALLOC OR WITH_TCMALLOC_DEBUG)
+  # Note that libtcmalloc.so reports lots of Mismatched free()/delete/delete[]
+  # So for valgrind builds, link with libtcmalloc_debug.so
+  IF(WITH_VALGRIND OR WITH_TCMALLOC_DEBUG)
+    FIND_MALLOC_LIBRARY(tcmalloc_debug)
+  ELSE()
+    FIND_MALLOC_LIBRARY(tcmalloc)
+  ENDIF()
+ENDIF()
+
 OPTION(WITH_JEMALLOC "Use jemalloc rather than builtin malloc/free etc." OFF)
 IF(WITH_JEMALLOC)
-  FIND_LIBRARY(JEMALLOC_LIBRARY NAMES jemalloc)
-  IF(NOT JEMALLOC_LIBRARY)
-    MESSAGE(FATAL_ERROR "Could not find jemalloc library")
-  ENDIF()
-  STRING_APPEND(CMAKE_EXE_LINKER_FLAGS " -ljemalloc")
-  STRING_APPEND(CMAKE_MODULE_LINKER_FLAGS " -ljemalloc")
-  STRING_APPEND(CMAKE_SHARED_LINKER_FLAGS " -ljemalloc")
-  STRING_APPEND(CMAKE_C_FLAGS " -fno-builtin-malloc -fno-builtin-calloc")
-  STRING_APPEND(CMAKE_C_FLAGS " -fno-builtin-realloc -fno-builtin-free")
-  STRING_APPEND(CMAKE_CXX_FLAGS " -fno-builtin-malloc -fno-builtin-calloc")
-  STRING_APPEND(CMAKE_CXX_FLAGS " -fno-builtin-realloc -fno-builtin-free")
+  FIND_MALLOC_LIBRARY(jemalloc)
+ENDIF()
+
+IF(WITH_JEMALLOC AND (WITH_TCMALLOC OR WITH_TCMALLOC_DEBUG))
+  MESSAGE(FATAL_ERROR "Specify only *one* of WITH_TCMALLOC and WITH_JEMALLOC")
 ENDIF()
 
 OPTION(ENABLED_PROFILING "Enable profiling" ON)
 OPTION(WITHOUT_SERVER OFF)
-IF(UNIX)
-  OPTION(WITH_VALGRIND "Valgrind instrumentation" OFF)
-ENDIF()
+
 IF(WIN32)
   OPTION(WITH_MSCRT_DEBUG "MS Visual Studio Debug CRT instrumentation" OFF)
 ENDIF()
@@ -619,6 +649,10 @@ OPTION(WITH_LTO
   "Enable the link-time optimizer. Currently works for gcc7/gcc8/gcc9/macos only."
   ${WITH_LTO_DEFAULT}
   )
+
+IF(CMAKE_C_FLAGS MATCHES " -flto" OR CMAKE_CXX_FLAGS MATCHES " -flto")
+  SET(CMAKE_COMPILER_FLAG_WITH_LTO 1)
+ENDIF()
 
 include(CheckCSourceCompiles)
 include(CheckCXXSourceCompiles)
@@ -829,7 +863,7 @@ ENDIF()
 # Use lld for Clang if available and not explicitly disabled.
 # Also works for gcc on Debian/Ubuntu. Do 'apt install lld'.
 # LTO build fails with lld, so turn it off by default.
-IF(LINUX AND NOT WITH_LTO)
+IF(LINUX AND NOT WITH_LTO AND NOT CMAKE_COMPILER_FLAG_WITH_LTO)
   OPTION(USE_LD_LLD "Use llvm lld linker" ON)
 ELSE()
   OPTION(USE_LD_LLD "Use llvm lld linker" OFF)
@@ -860,10 +894,35 @@ IF(USE_LD_LLD)
 ENDIF()
 
 # Use gold on x86 if available and not explicitly disabled.
-IF(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" AND NOT WIN32)
+# LTO build fails with gold, so turn it off by default.
+IF(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64"
+    AND NOT WIN32
+    AND NOT WITH_LTO
+    AND NOT CMAKE_COMPILER_FLAG_WITH_LTO)
   OPTION(USE_LD_GOLD "Use GNU gold linker" ON)
 ELSE()
   OPTION(USE_LD_GOLD "Use GNU gold linker" OFF)
+ENDIF()
+
+IF(LINUX_STANDALONE)
+  # ON by default in pushbuild, but only for standalone builds.
+  # The comression does not play well with some RPM/DEB packaging.
+  # Developers can set default in environment.
+  # Compressing debug sections will shink binaries significantly, esp
+  # for RelWithDebInfo builds, at the cost of some extra link time.
+  IF(DEFINED ENV{PB2WORKDIR} OR
+      (DEFINED ENV{COMPRESS_DEBUG_SECTIONS} AND "$ENV{COMPRESS_DEBUG_SECTIONS}"
+        AND NOT DEFINED(COMPRESS_DEBUG_SECTIONS)))
+    SET(COMPRESS_DEBUG_SECTIONS_DEFAULT ON)
+  ELSE()
+    SET(COMPRESS_DEBUG_SECTIONS_DEFAULT OFF)
+  ENDIF()
+
+  OPTION(COMPRESS_DEBUG_SECTIONS
+    "Compress debug sections of mysqld and test executables"
+    ${COMPRESS_DEBUG_SECTIONS_DEFAULT})
+ELSE()
+  SET(COMPRESS_DEBUG_SECTIONS OFF)
 ENDIF()
 
 IF(LINUX)
@@ -1088,12 +1147,18 @@ INCLUDE(cmake/boost.cmake)
 
 IF (LINUX)
   OPTION(WITH_SYSTEMD "Enable installation of systemd support files" OFF)
+  OPTION(WITH_SYSTEMD_DEBUG "Build in systemd debug trace" OFF)
   IF (WITH_SYSTEMD)
     INCLUDE(cmake/systemd.cmake)
+  ELSEIF (WITH_SYSTEMD_DEBUG)
+    MESSAGE(FATAL_ERROR "systemd-debugging requires systemd, and systemd requires linux")
   ENDIF()
 ELSE()
   IF (WITH_SYSTEMD)
     MESSAGE(FATAL_ERROR "Installation of systemd support files not supported")
+  ENDIF()
+  IF (WITH_SYSTEMD_DEBUG)
+    MESSAGE(FATAL_ERROR "systemd-debugging requires systemd, and systemd requires linux")
   ENDIF()
 ENDIF()
 
@@ -1246,19 +1311,10 @@ IF(WITH_SYSTEM_LIBS)
 ENDIF()
 
 # Add bundled or system zlib.
-MYSQL_CHECK_ZLIB_WITH_COMPRESS()
-IF(BUILD_BUNDLED_ZLIB)
-  INCLUDE_DIRECTORIES(BEFORE SYSTEM
-    ${CMAKE_CURRENT_SOURCE_DIR}/extra/zlib
-    ${CMAKE_CURRENT_BINARY_DIR}/extra/zlib)
-ENDIF()
+MYSQL_CHECK_ZLIB()
+
 # Add bundled or system zstd.
 MYSQL_CHECK_ZSTD()
-IF(BUILD_BUNDLED_ZSTD)
-  INCLUDE_DIRECTORIES(BEFORE SYSTEM
-    ${CMAKE_SOURCE_DIR}/extra/zstd/lib)
-  ADD_SUBDIRECTORY(extra/zstd)
-ENDIF()
 
 IF(LINUX)
   # Look up patchelf(1) here, before doing SSL/KERBEROS/SASL/LDAP config.
@@ -1372,6 +1428,7 @@ MYSQL_CHECK_ICU()
 # Add protoc and libprotobuf
 IF(NOT WITHOUT_SERVER)
   MYSQL_CHECK_PROTOBUF()
+  MYSQL_CHECK_PROTOBUF_DLLS()
 ENDIF()
 # Try and set CURL_LIBRARY
 MYSQL_CHECK_CURL()
@@ -1433,6 +1490,16 @@ IF(WITH_PROTOBUF STREQUAL "bundled")
   # INSTALL_RPATH must be set for all binaries linking with libprotobuf.
   SET(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR 1)
   ADD_SUBDIRECTORY(extra/protobuf)
+  IF(NOT APPLE AND NOT WIN32)
+    # Debug versions of plugins may be installed to <root>/lib/plugin/debug
+    FOREACH(LINK_FLAG
+        CMAKE_MODULE_LINKER_FLAGS_DEBUG
+        CMAKE_SHARED_LINKER_FLAGS_DEBUG
+        )
+      STRING_APPEND(${LINK_FLAG} " -Wl,-rpath,'\$ORIGIN/../../private'")
+      MESSAGE(STATUS "${LINK_FLAG} ${${LINK_FLAG}}")
+    ENDFOREACH()
+  ENDIF()
 ENDIF()
 
 #

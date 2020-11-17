@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,24 +61,24 @@ class Foreign_key_element_impl : public Weak_object_impl,
   Foreign_key_element_impl(const Foreign_key_element_impl &src,
                            Foreign_key_impl *parent, Column *column);
 
-  virtual ~Foreign_key_element_impl() {}
+  ~Foreign_key_element_impl() override {}
 
  public:
-  virtual const Object_table &object_table() const;
+  const Object_table &object_table() const override;
 
   static void register_tables(Open_dictionary_tables_ctx *otx);
 
-  virtual bool validate() const;
+  bool validate() const override;
 
-  virtual bool restore_attributes(const Raw_record &r);
+  bool restore_attributes(const Raw_record &r) override;
 
-  virtual bool store_attributes(Raw_record *r);
+  bool store_attributes(Raw_record *r) override;
 
-  void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const;
+  void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const override;
 
-  bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
+  bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val) override;
 
-  void debug_print(String_type &outb) const;
+  void debug_print(String_type &outb) const override;
 
   void set_ordinal_position(uint ordinal_position) {
     m_ordinal_position = ordinal_position;
@@ -89,25 +89,25 @@ class Foreign_key_element_impl : public Weak_object_impl,
   // Foreign key.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Foreign_key &foreign_key() const;
+  const Foreign_key &foreign_key() const override;
 
-  virtual Foreign_key &foreign_key();
+  Foreign_key &foreign_key() override;
 
   /////////////////////////////////////////////////////////////////////////
   // column.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Column &column() const { return *m_column; }
+  const Column &column() const override { return *m_column; }
 
-  virtual void set_column(const Column *column) { m_column = column; }
+  void set_column(const Column *column) override { m_column = column; }
 
   /////////////////////////////////////////////////////////////////////////
   // ordinal_position.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint ordinal_position() const { return m_ordinal_position; }
+  uint ordinal_position() const override { return m_ordinal_position; }
 
-  virtual void set_ordinal_position(int ordinal_position) {
+  void set_ordinal_position(int ordinal_position) override {
     m_ordinal_position = ordinal_position;
   }
 
@@ -115,11 +115,11 @@ class Foreign_key_element_impl : public Weak_object_impl,
   // referenced column name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &referenced_column_name() const {
+  const String_type &referenced_column_name() const override {
     return m_referenced_column_name;
   }
 
-  virtual void referenced_column_name(const String_type &name) {
+  void referenced_column_name(const String_type &name) override {
     m_referenced_column_name = name;
   }
 
@@ -132,8 +132,8 @@ class Foreign_key_element_impl : public Weak_object_impl,
                                          Foreign_key_impl *fk);
 
  public:
-  virtual Object_key *create_primary_key() const;
-  virtual bool has_new_primary_key() const;
+  Object_key *create_primary_key() const override;
+  bool has_new_primary_key() const override;
 
  private:
   Foreign_key_impl *m_foreign_key;

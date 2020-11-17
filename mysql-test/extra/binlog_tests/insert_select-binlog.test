@@ -18,6 +18,7 @@ insert into t1 select * from t2;
 # verify the binlog :
 let $VERSION=`select version()`;
 source include/show_binlog_events.inc;
+--sorted_result
 select * from t1;
 drop table t1, t2;
 

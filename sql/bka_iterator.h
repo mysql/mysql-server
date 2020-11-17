@@ -1,7 +1,7 @@
 #ifndef SQL_BKA_ITERATOR_H_
 #define SQL_BKA_ITERATOR_H_
 
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -93,17 +93,26 @@ class BKAIterator final : public RowIterator {
       statistically expect for each outer row. Used for dividing the buffer
       space between inner rows and MRR row buffer (if we expect many inner
       rows, we can't load as many outer rows).
+    @param store_rowids Whether we need to make sure all tables below us have
+      row IDs available, after Read() has been called. Used only if
+      we are below a weedout operation.
+    @param tables_to_get_rowid_for A map of which tables BKAIterator needs
+      to call position() for itself. tables that are in outer_input_tables
+      but not in this map, are expected to be handled by some other iterator.
+      tables that are in this map but not in outer_input_tables will be
+      ignored.
     @param mrr_iterator Pointer to the MRR iterator at the bottom of
       inner_input. Used to send row ranges and buffers.
     @param join_type What kind of join we are executing.
    */
   BKAIterator(THD *thd, JOIN *join,
               unique_ptr_destroy_only<RowIterator> outer_input,
-              qep_tab_map outer_input_tables,
+              table_map outer_input_tables,
               unique_ptr_destroy_only<RowIterator> inner_input,
               size_t max_memory_available,
               size_t mrr_bytes_needed_for_single_inner_row,
-              float expected_inner_rows_per_outer_row,
+              float expected_inner_rows_per_outer_row, bool store_rowids,
+              table_map tables_to_get_rowid_for,
               MultiRangeRowIterator *mrr_iterator, JoinType join_type);
 
   bool Init() override;
@@ -122,15 +131,6 @@ class BKAIterator final : public RowIterator {
     if (m_state == State::RETURNING_JOINED_ROWS) {
       m_inner_input->UnlockRow();
     }
-  }
-
-  std::vector<std::string> DebugString() const override;
-
-  std::vector<Child> children() const override {
-    return std::vector<Child>{
-        {m_outer_input.get(), "Batch input rows"},
-        {m_inner_input.get(), ""},
-    };
   }
 
   void EndPSIBatchModeIfStarted() override {
@@ -264,34 +264,26 @@ class MultiRangeRowIterator final : public TableRowIterator {
     @param thd Thread handle.
     @param cache_idx_cond See m_cache_idx_cond.
     @param table The inner table to scan.
-    @param keep_current_rowid If true, get the row ID on the inner table
-      for each row that we return. (Row IDs for outer tables will be
-      controlled by outer_input_tables.)
     @param ref The index condition we are looking up on.
     @param mrr_flags Flags passed on to MRR.
+    @param join_type
+      What kind of BKA join this MRR iterator is part of.
+    @param join Reference for outer_input_tables and tables_to_get_rowid_for.
+    @param outer_input_tables
+      Which tables are on the left side of the BKA join (the MRR iterator
+      is always alone on the right side). This is needed so that it can
+      unpack the rows into the right tables, with the right format.
+    @param store_rowids Whether we need to keep row IDs.
+    @param tables_to_get_rowid_for
+      Tables we need to call table->file->position() for; if a table
+      is present in outer_input_tables but not this, some other iterator
+      will make sure that table has the correct row ID already present
+      after Read().
    */
   MultiRangeRowIterator(THD *thd, Item *cache_idx_cond, TABLE *table,
-                        bool keep_current_rowid, TABLE_REF *ref, int mrr_flags);
-
-  /**
-    Tell the MRR iterator which tables are on the left side of the BKA join
-    (the MRR iterator is always alone on the right side). This is needed so
-    that it can unpack the rows into the right tables, with the right format.
-
-    Must be called exactly once, before first Init(). Set by BKAIterator's
-    constructor; it's not easily available at the point where we construct
-    MultiRangeRowIterator.
-   */
-  void set_outer_input_tables(JOIN *join, qep_tab_map outer_input_tables);
-
-  /**
-    Tell the MRR iterator what kind of BKA join it is part of.
-
-    Must be called exactly once, before first Init(). Set by BKAIterator's
-    constructor; it's not easily available at the point where we construct
-    MultiRangeRowIterator.
-   */
-  void set_join_type(JoinType join_type) { m_join_type = join_type; }
+                        TABLE_REF *ref, int mrr_flags, JoinType join_type,
+                        JOIN *join, table_map outer_input_tables,
+                        bool store_rowids, table_map tables_to_get_rowid_for);
 
   /**
     Specify which outer rows to read inner rows for.
@@ -361,8 +353,6 @@ class MultiRangeRowIterator final : public TableRowIterator {
    */
   int Read() override;
 
-  std::vector<std::string> DebugString() const override;
-
  private:
   // Thunks from function pointers to the actual callbacks.
   static range_seq_t MrrInitCallbackThunk(void *init_params, uint n_ranges,
@@ -420,12 +410,6 @@ class MultiRangeRowIterator final : public TableRowIterator {
    */
   Item *const m_cache_idx_cond;
 
-  /// See constructor.
-  const bool m_keep_current_rowid;
-
-  /// The table we are reading from.
-  TABLE *const m_table;
-
   /// Handler for the table we are reading from.
   handler *const m_file;
 
@@ -459,7 +443,7 @@ class MultiRangeRowIterator final : public TableRowIterator {
 
   /// The join type of the BKA join we are part of. Same as m_join_type in the
   /// corresponding BKAIterator.
-  JoinType m_join_type = JoinType::INNER;
+  const JoinType m_join_type;
 };
 
 #endif  // SQL_BKA_ITERATOR_H_

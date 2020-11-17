@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -84,6 +84,7 @@
 #include "sql/derror.h"          // ER_THD
 #include "sql/enum_query_type.h"
 #include "sql/error_handler.h"  // Internal_error_handler
+#include "sql/events.h"         // Events
 #include "sql/field.h"          // Field
 #include "sql/handler.h"
 #include "sql/item.h"  // Item_empty_string
@@ -98,7 +99,10 @@
 #include "sql/protocol.h"            // Protocol
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
+#include "sql/query_result.h"
+#include "sql/rpl_master.h"
 #include "sql/set_var.h"
+#include "sql/sp.h"        // sp_cache_routine
 #include "sql/sp_head.h"   // sp_head
 #include "sql/sql_base.h"  // close_thread_tables
 #include "sql/sql_bitmap.h"
@@ -124,6 +128,7 @@
 #include "sql/table.h"
 #include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
 #include "sql/temp_table_param.h"          // Temp_table_param
+#include "sql/thd_raii.h"                  // Prepared_stmt_arena_holder
 #include "sql/trigger.h"                   // Trigger
 #include "sql/tztime.h"                    // my_tz_SYSTEM
 #include "sql_string.h"
@@ -181,6 +186,574 @@ static void append_algorithm(TABLE_LIST *table, String *buff);
 
 static void view_store_create_info(const THD *thd, TABLE_LIST *table,
                                    String *buff);
+
+bool Sql_cmd_show::check_privileges(THD *thd) {
+  // If SHOW command is represented by a plan, ensure user has privileges:
+  if (lex->query_tables == nullptr) return false;
+  return check_table_access(thd, SELECT_ACL, lex->query_tables, false, UINT_MAX,
+                            false);
+}
+
+bool Sql_cmd_show::execute(THD *thd) {
+  lex = thd->lex;
+  if (check_parameters(thd)) {
+    return true;
+  }
+  return Sql_cmd_select::execute(thd);
+}
+
+bool Sql_cmd_show_schema_base::set_metadata_lock(THD *thd) {
+  LEX_STRING lex_str_db;
+  LEX *lex = thd->lex;
+  if (lex_string_strmake(thd->mem_root, &lex_str_db, lex->select_lex->db,
+                         strlen(lex->select_lex->db)))
+    return true;
+
+  // Acquire IX MDL lock on schema name.
+  MDL_request mdl_request;
+  MDL_REQUEST_INIT(&mdl_request, MDL_key::SCHEMA, lex_str_db.str, "",
+                   MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
+  if (thd->mdl_context.acquire_lock(&mdl_request,
+                                    thd->variables.lock_wait_timeout))
+    return true;
+  return false;
+}
+
+bool Sql_cmd_show_schema_base::check_privileges(THD *thd) {
+  TABLE_LIST *const tables = thd->lex->query_tables;
+
+  if (check_table_access(thd, SELECT_ACL, tables, false, UINT_MAX, false))
+    return true;
+
+  const char *dst_db_name = thd->lex->select_lex->db;
+  assert(dst_db_name != nullptr);
+
+  // Check if the user has global access
+  if (check_access(thd, SELECT_ACL, dst_db_name, &thd->col_access, nullptr,
+                   false, false))
+    return true;
+
+  // Now check, if user has access to any of database/table/column/routine
+  if (!(thd->col_access & DB_OP_ACLS) && check_grant_db(thd, dst_db_name)) {
+    my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
+             thd->security_context()->priv_user().str,
+             thd->security_context()->priv_host().str, dst_db_name);
+    return true;
+  }
+  if (set_metadata_lock(thd)) {
+    return true;
+  }
+  return false;
+}
+
+bool Sql_cmd_show_schema_base::check_parameters(THD *thd) {
+  // Check that given database exists.
+  LEX_STRING lex_str_db;
+  if (lex_string_strmake(thd->mem_root, &lex_str_db, lex->select_lex->db,
+                         strlen(lex->select_lex->db)))
+    return true;
+
+  bool exists = false;
+  if (dd::schema_exists(thd, lex_str_db.str, &exists)) return true;
+
+  if (!exists) {
+    my_error(ER_BAD_DB_ERROR, MYF(0), lex->select_lex->db);
+    return true;
+  }
+  return false;
+}
+
+bool Sql_cmd_show_table_base::check_privileges(THD *thd) {
+  TABLE_LIST *const table = thd->lex->query_tables;
+
+  if (check_table_access(thd, SELECT_ACL, table, false, UINT_MAX, false))
+    return true;
+
+  TABLE_LIST *dst_table = table->schema_select_lex->table_list.first;
+  assert(dst_table != nullptr);
+
+  if (m_temporary) return false;
+
+  if (check_access(thd, SELECT_ACL, dst_table->db, &dst_table->grant.privilege,
+                   &dst_table->grant.m_internal, false, false))
+    return true; /* Access denied */
+
+  /*
+    Check_grant will grant access if there is any column privileges on
+    all of the tables thanks to the fourth parameter (bool show_table).
+  */
+  if (check_grant(thd, SELECT_ACL, dst_table, true, UINT_MAX, false))
+    return true; /* Access denied */
+
+  return false;
+}
+
+bool Sql_cmd_show_binlog_events::check_privileges(THD *thd) {
+  return check_global_access(thd, REPL_SLAVE_ACL);
+}
+
+bool Sql_cmd_show_binlog_events::execute_inner(THD *thd) {
+  return mysql_show_binlog_events(thd);
+}
+
+bool Sql_cmd_show_binlogs::check_privileges(THD *thd) {
+  return check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL);
+}
+
+bool Sql_cmd_show_binlogs::execute_inner(THD *thd) { return show_binlogs(thd); }
+
+bool Sql_cmd_show_create_database::check_privileges(THD *) { return false; }
+
+bool Sql_cmd_show_create_database::execute_inner(THD *thd) {
+  DBUG_EXECUTE_IF("4x_server_emul", my_error(ER_UNKNOWN_ERROR, MYF(0));
+                  return true;);
+  if (check_and_convert_db_name(&lex->name, true) != Ident_name_check::OK)
+    return true;
+  return mysqld_show_create_db(thd, lex->name.str, lex->create_info);
+}
+
+bool Sql_cmd_show_create_event::check_privileges(THD *) { return false; }
+
+bool Sql_cmd_show_create_event::execute_inner(THD *thd) {
+  return Events::show_create_event(thd, lex->spname->m_db,
+                                   to_lex_cstring(lex->spname->m_name));
+}
+
+bool Sql_cmd_show_create_function::check_privileges(THD *) { return false; }
+
+bool Sql_cmd_show_create_function::execute_inner(THD *thd) {
+  return sp_show_create_routine(thd, enum_sp_type::FUNCTION, lex->spname);
+}
+
+bool Sql_cmd_show_create_procedure::check_privileges(THD *) { return false; }
+
+bool Sql_cmd_show_create_procedure::execute_inner(THD *thd) {
+  return sp_show_create_routine(thd, enum_sp_type::PROCEDURE, lex->spname);
+}
+
+bool Sql_cmd_show_create_table::check_privileges(THD *) {
+  // Privilege check for this command is placed in execute_inner() function
+  return false;
+}
+
+bool Sql_cmd_show_create_table::execute_inner(THD *thd) {
+  // Prepare a local LEX object for expansion of table/view
+  LEX *old_lex = thd->lex;
+  LEX local_lex;
+
+  Pushed_lex_guard lex_guard(thd, &local_lex);
+
+  LEX *lex = thd->lex;
+
+  lex->only_view = m_is_view;
+  lex->sql_command = old_lex->sql_command;
+
+  // Disable constant subquery evaluation as we won't be locking tables.
+  lex->context_analysis_only = CONTEXT_ANALYSIS_ONLY_VIEW;
+
+  if (lex->select_lex->add_table_to_list(thd, m_table_ident, nullptr, 0) ==
+      nullptr)
+    return true;
+  TABLE_LIST *tbl = lex->query_tables;
+
+  /*
+    Access check:
+    SHOW CREATE TABLE require any privileges on the table level (ie
+    effecting all columns in the table).
+    SHOW CREATE VIEW require the SHOW_VIEW and SELECT ACLs on the table level.
+    NOTE: SHOW_VIEW ACL is checked when the view is created.
+  */
+  DBUG_PRINT("debug", ("lex->only_view: %d, table: %s.%s", lex->only_view,
+                       tbl->db, tbl->table_name));
+  if (lex->only_view) {
+    if (check_table_access(thd, SELECT_ACL, tbl, false, 1, false)) {
+      DBUG_PRINT("debug", ("check_table_access failed"));
+      my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0), "SHOW",
+               thd->security_context()->priv_user().str,
+               thd->security_context()->host_or_ip().str, tbl->alias);
+      return true;
+    }
+    DBUG_PRINT("debug", ("check_table_access succeeded"));
+
+    // Ignore temporary tables if this is "SHOW CREATE VIEW"
+    tbl->open_type = OT_BASE_ONLY;
+  } else {
+    /*
+      Temporary tables should be opened for SHOW CREATE TABLE, but not
+      for SHOW CREATE VIEW.
+    */
+    if (open_temporary_tables(thd, tbl)) return true;
+
+    /*
+      The fact that check_some_access() returned false does not mean that
+      access is granted. We need to check if first_table->grant.privilege
+      contains any table-specific privilege.
+    */
+    DBUG_PRINT("debug", ("tbl->grant.privilege: %lx", tbl->grant.privilege));
+    if (check_some_access(thd, TABLE_OP_ACLS, tbl) ||
+        (tbl->grant.privilege & TABLE_OP_ACLS) == 0) {
+      my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0), "SHOW",
+               thd->security_context()->priv_user().str,
+               thd->security_context()->host_or_ip().str, tbl->alias);
+      return true;
+    }
+  }
+
+  if (mysqld_show_create(thd, tbl)) return true;
+
+  return false;
+}
+
+bool Sql_cmd_show_create_trigger::check_privileges(THD *) { return false; }
+
+bool Sql_cmd_show_create_trigger::execute_inner(THD *thd) {
+  if (lex->spname->m_name.length > NAME_LEN) {
+    my_error(ER_TOO_LONG_IDENT, MYF(0), lex->spname->m_name.str);
+    return true;
+  }
+
+  return show_create_trigger(thd, lex->spname);
+}
+
+bool Sql_cmd_show_create_user::check_privileges(THD *) { return false; }
+
+bool Sql_cmd_show_create_user::execute_inner(THD *thd) {
+  LEX_USER *show_user = get_current_user(thd, lex->grant_user);
+  Security_context *sctx = thd->security_context();
+  bool are_both_users_same =
+      !strcmp(sctx->priv_user().str, show_user->user.str) &&
+      !my_strcasecmp(system_charset_info, show_user->host.str,
+                     sctx->priv_host().str);
+  if (are_both_users_same ||
+      !check_access(thd, SELECT_ACL, "mysql", nullptr, nullptr, true, false))
+    return mysql_show_create_user(thd, show_user, are_both_users_same);
+  return false;
+}
+
+bool Sql_cmd_show_databases::check_privileges(THD *thd) {
+  TABLE_LIST *const table = thd->lex->query_tables;
+
+  if (check_table_access(thd, SELECT_ACL, table, false, UINT_MAX, false))
+    return true;
+
+  return (specialflag & SPECIAL_SKIP_SHOW_DB) &&
+         check_global_access(thd, SHOW_DB_ACL);
+}
+
+bool Sql_cmd_show_engine_logs::check_privileges(THD *thd) {
+  return check_access(thd, FILE_ACL, any_db, nullptr, nullptr, false, false);
+}
+
+bool Sql_cmd_show_engine_logs::execute_inner(THD *thd) {
+  return ha_show_status(thd, lex->create_info->db_type, HA_ENGINE_LOGS);
+}
+
+bool Sql_cmd_show_engine_mutex::check_privileges(THD *thd) {
+  return check_global_access(thd, PROCESS_ACL);
+}
+
+bool Sql_cmd_show_engine_mutex::execute_inner(THD *thd) {
+  return ha_show_status(thd, lex->create_info->db_type, HA_ENGINE_MUTEX);
+}
+
+bool Sql_cmd_show_engine_status::check_privileges(THD *thd) {
+  return check_global_access(thd, PROCESS_ACL);
+}
+
+bool Sql_cmd_show_engine_status::execute_inner(THD *thd) {
+  return ha_show_status(thd, lex->create_info->db_type, HA_ENGINE_STATUS);
+}
+
+bool Sql_cmd_show_events::check_privileges(THD *thd) {
+  const char *db = thd->lex->select_lex->db;
+  assert(db != nullptr);
+  /*
+    Nobody has EVENT_ACL for I_S and P_S,
+    even with a GRANT ALL to *.*,
+    because these schemas have additional ACL restrictions:
+    see ACL_internal_schema_registry.
+
+    Yet there are no events in I_S and P_S to hide either,
+    so this check voluntarily does not enforce ACL for
+    SHOW EVENTS in I_S or P_S,
+    to return an empty list instead of an access denied error.
+
+    This is more user friendly, in particular for tools.
+
+    EVENT_ACL is not fine grained enough to differentiate:
+    - creating / updating / deleting events
+    - viewing existing events
+  */
+  if (!is_infoschema_db(db) && !is_perfschema_db(db) &&
+      check_access(thd, EVENT_ACL, db, nullptr, nullptr, false, false))
+    return true;
+
+  return Sql_cmd_show_schema_base::check_privileges(thd);
+}
+
+bool Sql_cmd_show_grants::check_privileges(THD *) {
+  // Checked inside Sql_cmd_show_grants::execute_inner()
+  return false;
+}
+
+bool Sql_cmd_show_grants::execute_inner(THD *thd) {
+  DBUG_TRACE;
+  bool show_mandatory_roles = (for_user == nullptr);
+  bool have_using_clause =
+      (using_users != nullptr && using_users->elements > 0);
+
+  if (for_user == nullptr || for_user->user.str == nullptr) {
+    // SHOW PRIVILEGE FOR CURRENT_USER
+    LEX_USER current_user;
+    get_default_definer(thd, &current_user);
+    if (!have_using_clause) {
+      const List_of_auth_id_refs *active_list =
+          thd->security_context()->get_active_roles();
+      return mysql_show_grants(thd, &current_user, *active_list,
+                               show_mandatory_roles, have_using_clause);
+    }
+  } else if (strcmp(thd->security_context()->priv_user().str,
+                    for_user->user.str) != 0) {
+    TABLE_LIST table("mysql", "user", nullptr, TL_READ);
+    if (!is_granted_table_access(thd, SELECT_ACL, &table)) {
+      char command[128];
+      get_privilege_desc(command, sizeof(command), SELECT_ACL);
+      my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0), command,
+               thd->security_context()->priv_user().str,
+               thd->security_context()->host_or_ip().str, "user");
+      return false;
+    }
+  }
+  List_of_auth_id_refs authid_list;
+  if (have_using_clause) {
+    for (const LEX_USER &user : *using_users) {
+      authid_list.emplace_back(user.user, user.host);
+    }
+  }
+
+  LEX_USER *tmp_user = const_cast<LEX_USER *>(for_user);
+  tmp_user = get_current_user(thd, tmp_user);
+  return mysql_show_grants(thd, tmp_user, authid_list, show_mandatory_roles,
+                           have_using_clause);
+}
+
+bool Sql_cmd_show_master_status::check_privileges(THD *thd) {
+  return check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL);
+}
+
+bool Sql_cmd_show_master_status::execute_inner(THD *thd) {
+  return show_master_status(thd);
+}
+
+bool Sql_cmd_show_profiles::execute_inner(THD *thd) {
+#if defined(ENABLED_PROFILING)
+  thd->profiling->discard_current_query();
+  return thd->profiling->show_profiles();
+#else
+  my_error(ER_FEATURE_DISABLED, MYF(0), "SHOW PROFILES", "enable-profiling");
+  return true;
+#endif
+}
+
+bool Sql_cmd_show_privileges::execute_inner(THD *thd) {
+  return mysqld_show_privileges(thd);
+}
+
+bool Sql_cmd_show_processlist::check_privileges(THD *thd) {
+  if (!thd->security_context()->priv_user().str[0] &&
+      check_global_access(thd, PROCESS_ACL))
+    return true;
+  return Sql_cmd_show::check_privileges(thd);
+}
+
+bool Sql_cmd_show_processlist::execute_inner(THD *thd) {
+  /*
+    If the Performance Schema is configured to support SHOW PROCESSLIST,
+    then execute a query on performance_schema.processlist. Otherwise,
+    fall back to the legacy method.
+  */
+  if (use_pfs()) {
+    DEBUG_SYNC(thd, "pfs_show_processlist_performance_schema");
+    return Sql_cmd_show::execute_inner(thd);
+  } else {
+    DEBUG_SYNC(thd, "pfs_show_processlist_legacy");
+    mysqld_list_processes(thd,
+                          thd->security_context()->check_access(PROCESS_ACL)
+                              ? NullS
+                              : thd->security_context()->priv_user().str,
+                          m_verbose);
+    return false;
+  }
+}
+
+bool Sql_cmd_show_relaylog_events::check_privileges(THD *thd) {
+  return check_global_access(thd, REPL_SLAVE_ACL);
+}
+
+bool Sql_cmd_show_relaylog_events::execute_inner(THD *thd) {
+  return mysql_show_relaylog_events(thd);
+}
+bool Sql_cmd_show_routine_code::check_privileges(THD *) {
+  // Actual privilege check is within sp_head::show_routine_code
+  return false;
+}
+
+bool Sql_cmd_show_routine_code::execute_inner(THD *thd) {
+#ifndef DBUG_OFF
+  enum_sp_type sp_type = m_sql_command == SQLCOM_SHOW_PROC_CODE
+                             ? enum_sp_type::PROCEDURE
+                             : enum_sp_type::FUNCTION;
+  sp_head *sp;
+  if (sp_cache_routine(thd, sp_type, m_routine_name, false, &sp)) {
+    return true;
+  }
+  if (sp == nullptr || sp->show_routine_code(thd)) {
+    // Don't distinguish between errors for now */
+    my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
+             sp_type == enum_sp_type::PROCEDURE ? "PROCEDURE" : "FUNCTION",
+             m_routine_name->m_name.str);
+    return true;
+  }
+  return false;
+#else
+  if (thd == nullptr) return false;  // To guide an overly eager compiler
+  my_error(ER_FEATURE_DISABLED, MYF(0), "SHOW PROCEDURE|FUNCTION CODE",
+           "--with-debug");
+  return true;
+#endif  // ifndef DBUG_OFF
+}
+
+bool Sql_cmd_show_replicas::check_privileges(THD *thd) {
+  return check_global_access(thd, REPL_SLAVE_ACL);
+}
+
+bool Sql_cmd_show_replicas::execute_inner(THD *thd) {
+  return show_slave_hosts(thd);
+}
+
+bool Sql_cmd_show_replica_status::check_privileges(THD *thd) {
+  return check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL);
+}
+
+bool Sql_cmd_show_replica_status::execute_inner(THD *thd) {
+  return show_slave_status_cmd(thd);
+}
+
+/**
+  Try acquire high priority share metadata lock on a table (with
+  optional wait for conflicting locks to go away).
+
+  @param thd            Thread context.
+  @param table          Table list element for the table
+  @param can_deadlock   Indicates that deadlocks are possible due to
+                        metadata locks, so to avoid them we should not
+                        wait in case if conflicting lock is present.
+
+  @note This is an auxiliary function to be used in cases when we want to
+        access table's description by looking up info in TABLE_SHARE without
+        going through full-blown table open.
+  @note This function assumes that there are no other metadata lock requests
+        in the current metadata locking context.
+
+  @retval false  No error, if lock was obtained TABLE_LIST::mdl_request::ticket
+                 is set to non-NULL value.
+  @retval true   Some error occurred (probably thread was killed).
+*/
+
+static bool try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
+                                                  bool can_deadlock) {
+  bool error;
+  MDL_REQUEST_INIT(&table->mdl_request, MDL_key::TABLE, table->db,
+                   table->table_name, MDL_SHARED_HIGH_PRIO, MDL_TRANSACTION);
+
+  if (can_deadlock) {
+    /*
+      When .FRM is being open in order to get data for an I_S table,
+      we might have some tables not only open but also locked.
+      E.g. this happens when a SHOW or I_S statement is run
+      under LOCK TABLES or inside a stored function.
+      By waiting for the conflicting metadata lock to go away we
+      might create a deadlock which won't entirely belong to the
+      MDL subsystem and thus won't be detectable by this subsystem's
+      deadlock detector. To avoid such situation, when there are
+      other locked tables, we prefer not to wait on a conflicting lock.
+    */
+    error = thd->mdl_context.try_acquire_lock(&table->mdl_request);
+  } else {
+    error = thd->mdl_context.acquire_lock(&table->mdl_request,
+                                          thd->variables.lock_wait_timeout);
+  }
+  return error;
+}
+
+bool Sql_cmd_show_table_base::check_parameters(THD *thd) {
+  // No MDL lock required for temporary tables
+  if (m_temporary) return false;
+  bool can_deadlock = thd->mdl_context.has_locks();
+  TABLE_LIST *table = thd->lex->query_tables;
+  TABLE_LIST *dst_table = table->schema_select_lex->table_list.first;
+  if (try_acquire_high_prio_shared_mdl_lock(thd, dst_table, can_deadlock)) {
+    /*
+      Some error occurred (most probably we have been killed while
+      waiting for conflicting locks to go away), let the caller to
+      handle the situation.
+    */
+    return true;
+  }
+
+  if (dst_table->mdl_request.ticket == nullptr) {
+    /*
+      We are in situation when we have encountered conflicting metadata
+      lock and deadlocks can occur due to waiting for it to go away.
+      So instead of waiting skip this table with an appropriate warning.
+    */
+    DBUG_ASSERT(can_deadlock);
+    my_error(ER_WARN_I_S_SKIPPED_TABLE, MYF(0), dst_table->db,
+             dst_table->table_name);
+    return true;
+  }
+
+  // Stop if given database does not exist.
+  dd::Schema_MDL_locker mdl_handler(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Schema *schema = nullptr;
+  if (mdl_handler.ensure_locked(dst_table->db) ||
+      thd->dd_client()->acquire(dst_table->db, &schema))
+    return true;
+
+  if (schema == nullptr) {
+    my_error(ER_BAD_DB_ERROR, MYF(0), dst_table->db);
+    return true;
+  }
+
+  const dd::Abstract_table *at = nullptr;
+  if (thd->dd_client()->acquire(dst_table->db, dst_table->table_name, &at))
+    return true;
+  if (at == nullptr) {
+    my_error(ER_NO_SUCH_TABLE, MYF(0), dst_table->db, dst_table->table_name);
+    return true;
+  }
+  return false;
+}
+
+bool Sql_cmd_show_status::execute(THD *thd) {
+  System_status_var old_status_var = thd->status_var;
+  thd->initial_status_var = &old_status_var;
+
+  bool status = Sql_cmd_show::execute(thd);
+
+  // Don't log SHOW STATUS commands to slow query log
+  thd->server_status &=
+      ~(SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED);
+  // Restore status variables, as we don't want 'show status' to cause changes
+  mysql_mutex_lock(&LOCK_status);
+  add_diff_to_status(&global_status_var, &thd->status_var, &old_status_var);
+  thd->status_var = old_status_var;
+  thd->initial_status_var = nullptr;
+  mysql_mutex_unlock(&LOCK_status);
+
+  return status;
+}
 
 /***************************************************************************
 ** List all table types supported
@@ -361,15 +934,15 @@ static struct show_privileges_st sys_privileges[] = {
     {NullS, NullS, NullS}};
 
 bool mysqld_show_privileges(THD *thd) {
-  List<Item> field_list;
   Protocol *protocol = thd->get_protocol();
   DBUG_TRACE;
 
+  mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(new Item_empty_string("Privilege", 10));
   field_list.push_back(new Item_empty_string("Context", 15));
   field_list.push_back(new Item_empty_string("Comment", NAME_CHAR_LEN));
 
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 
@@ -462,9 +1035,9 @@ class Show_create_error_handler : public Internal_error_handler {
   }
 
  public:
-  virtual bool handle_condition(THD *thd, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *msg) {
+  bool handle_condition(THD *thd, uint sql_errno, const char *,
+                        Sql_condition::enum_severity_level *,
+                        const char *msg) override {
     /*
        The handler does not handle the errors raised by itself.
        At this point we know if top_view is really a view.
@@ -515,8 +1088,8 @@ class Show_create_error_handler : public Internal_error_handler {
 bool mysqld_show_create(THD *thd, TABLE_LIST *table_list) {
   Protocol *protocol = thd->get_protocol();
   char buff[2048];
+  mem_root_deque<Item *> field_list(thd->mem_root);
   String buffer(buff, sizeof(buff), system_charset_info);
-  List<Item> field_list;
   bool error = true;
   DBUG_TRACE;
   DBUG_PRINT("enter",
@@ -545,16 +1118,28 @@ bool mysqld_show_create(THD *thd, TABLE_LIST *table_list) {
     Show_create_error_handler view_error_suppressor(thd, table_list);
     thd->push_internal_handler(&view_error_suppressor);
 
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
     uint counter;
     bool open_error = open_tables(thd, &table_list, &counter,
                                   MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL);
-    if (!open_error && table_list->is_view_or_derived()) {
+    if (!open_error && table_list->is_view_or_derived() &&
+        !table_list->derived_unit()->is_prepared()) {
       /*
         Prepare result table for view so that we can read the column list.
         Notice that Show_create_error_handler remains active, so that any
         errors due to missing underlying objects are converted to warnings.
       */
       open_error = table_list->resolve_derived(thd, true);
+
+      /*
+        If a suppressed error occurred, the query expression may not be
+        marked as prepared. Mark it as prepared nevertheless, this is
+        good enough for the SHOW CREATE command, as we only need the
+        preparation for errors against referenced objects.
+      */
+      if (!table_list->derived_unit()->is_prepared()) {
+        table_list->derived_unit()->set_prepared();
+      }
     }
     thd->pop_internal_handler();
     if (open_error && (thd->killed || thd->is_error())) goto exit;
@@ -610,13 +1195,13 @@ bool mysqld_show_create(THD *thd, TABLE_LIST *table_list) {
         "Create Table", max<size_t>(buffer.length(), 1024U)));
   }
 
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     goto exit;
 
   protocol->start_row();
   if (table_list->is_view())
-    protocol->store(table_list->view_name.str, system_charset_info);
+    protocol->store(table_list->table_name, system_charset_info);
   else {
     if (table_list->schema_table)
       protocol->store(table_list->schema_table->table_name,
@@ -643,6 +1228,10 @@ bool mysqld_show_create(THD *thd, TABLE_LIST *table_list) {
   my_eof(thd);
 
 exit:
+  if (table_list->is_view()) {
+    table_list->view_query()->cleanup(thd, true);
+    table_list->view_query()->destroy();
+  }
   close_thread_tables(thd);
   /* Release any metadata locks taken during SHOW CREATE. */
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
@@ -656,6 +1245,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   Security_context *sctx = thd->security_context();
   uint db_access;
   HA_CREATE_INFO create;
+  bool schema_read_only{false};
   uint create_options = create_info ? create_info->options : 0;
   Protocol *protocol = thd->get_protocol();
   DBUG_TRACE;
@@ -705,16 +1295,18 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
       return true;
     }
 
+    schema_read_only = schema->read_only();
+
     if (create.default_table_charset == nullptr)
       create.default_table_charset = thd->collation();
 
     is_encrypted_schema = schema->default_encryption();
   }
-  List<Item> field_list;
+  mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(new Item_empty_string("Database", NAME_CHAR_LEN));
   field_list.push_back(new Item_empty_string("Create Database", 1024));
 
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 
@@ -745,6 +1337,12 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
     buffer.append(STRING_WITH_LEN("'N'"));
   buffer.append(STRING_WITH_LEN(" */"));
 
+  /*
+    The read only option is not supported by the CREATE SCHEMA syntax,
+    so we enclose the output in a separate comment without version tag.
+  */
+  if (schema_read_only) buffer.append(STRING_WITH_LEN(" /* READ ONLY = 1 */"));
+
   protocol->store_string(buffer.ptr(), buffer.length(), buffer.charset());
 
   if (protocol->end_row()) return true;
@@ -774,7 +1372,7 @@ void mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild) {
   }
   TABLE *table = table_list->table;
 
-  List<Item> field_list;
+  mem_root_deque<Item *> field_list(thd->mem_root);
 
   Field **ptr, *field;
   for (ptr = table->field; (field = *ptr); ptr++) {
@@ -782,8 +1380,8 @@ void mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild) {
         !wild_case_compare(system_charset_info, field->field_name, wild)) {
       Item *item;
       if (table_list->is_view()) {
-        item = new Item_ident_for_show(field, table_list->view_db.str,
-                                       table_list->view_name.str);
+        item = new Item_ident_for_show(field, table_list->db,
+                                       table_list->table_name);
         (void)item->fix_fields(thd, nullptr);
       } else {
         item = new Item_field(field);
@@ -793,7 +1391,12 @@ void mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild) {
   }
   restore_record(table, s->default_values);  // Get empty record
   table->use_all_columns();
-  if (thd->send_result_metadata(&field_list, Protocol::SEND_DEFAULTS)) return;
+  if (thd->send_result_metadata(field_list, Protocol::SEND_DEFAULTS)) return;
+  if (table_list->is_view_or_derived()) {
+    close_tmp_table(thd, table);
+    free_tmp_table(table);
+    table_list->table = nullptr;
+  }
   my_eof(thd);
 }
 
@@ -1589,7 +2192,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       Append START TRANSACTION for CREATE SELECT on SE supporting atomic DDL.
       This is done only while binlogging CREATE TABLE AS SELECT.
     */
-    if (thd->lex->select_lex->get_fields_list()->elements &&
+    if (!thd->lex->select_lex->field_list_is_empty() &&
         (create_info_arg->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL)) {
       packet->append(STRING_WITH_LEN(" START TRANSACTION"));
     }
@@ -1942,7 +2545,7 @@ static void view_store_create_info(const THD *thd, TABLE_LIST *table,
 
   // Print compact view name if the view belongs to the current database
   bool compact_view_name =
-      thd->db().str != nullptr && (!strcmp(thd->db().str, table->view_db.str));
+      thd->db().str != nullptr && (!strcmp(thd->db().str, table->db));
 
   buff->append(STRING_WITH_LEN("CREATE "));
   if (!foreign_db_mode) {
@@ -1950,10 +2553,10 @@ static void view_store_create_info(const THD *thd, TABLE_LIST *table,
   }
   buff->append(STRING_WITH_LEN("VIEW "));
   if (!compact_view_name) {
-    append_identifier(thd, buff, table->view_db.str, table->view_db.length);
+    append_identifier(thd, buff, table->db, table->db_length);
     buff->append('.');
   }
-  append_identifier(thd, buff, table->view_name.str, table->view_name.length);
+  append_identifier(thd, buff, table->table_name, table->table_name_length);
   print_derived_column_names(thd, buff, table->derived_column_names());
 
   buff->append(STRING_WITH_LEN(" AS "));
@@ -2048,7 +2651,7 @@ class List_process_list : public Do_THD_Impl {
         m_client_thd(thd_value),
         m_max_query_length(max_query_length) {}
 
-  virtual void operator()(THD *inspect_thd) {
+  void operator()(THD *inspect_thd) override {
     Security_context *inspect_sctx = inspect_thd->security_context();
     LEX_CSTRING inspect_sctx_user = inspect_sctx->user();
     LEX_CSTRING inspect_sctx_host = inspect_sctx->host();
@@ -2165,7 +2768,7 @@ class List_process_list : public Do_THD_Impl {
 
 void mysqld_list_processes(THD *thd, const char *user, bool verbose) {
   Item *field;
-  List<Item> field_list;
+  mem_root_deque<Item *> field_list(thd->mem_root);
   Thread_info_array thread_infos(thd->mem_root);
   size_t max_query_length =
       (verbose ? thd->variables.max_allowed_packet : PROCESS_LIST_WIDTH);
@@ -2185,7 +2788,7 @@ void mysqld_list_processes(THD *thd, const char *user, bool verbose) {
   field->maybe_null = true;
   field_list.push_back(field = new Item_empty_string("Info", max_query_length));
   field->maybe_null = true;
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return;
 
@@ -2220,7 +2823,10 @@ void mysqld_list_processes(THD *thd, const char *user, bool verbose) {
                     thd_info->query_string.charset());
     if (protocol->end_row()) break; /* purecov: inspected */
   }
-  my_eof(thd);
+  if (thd->lex->select_lex != nullptr)
+    thd->lex->unit->query_result()->send_eof(thd);
+  else
+    my_eof(thd);
 }
 
 /**
@@ -2238,7 +2844,12 @@ class Fill_process_list : public Do_THD_Impl {
   Fill_process_list(THD *thd_value, TABLE_LIST *tables_value)
       : m_client_thd(thd_value), m_tables(tables_value) {}
 
-  virtual void operator()(THD *inspect_thd) {
+  ~Fill_process_list() override {
+    DBUG_EXECUTE_IF("test_fill_proc_with_x_root",
+                    { DEBUG_SYNC(m_client_thd, "fill_proc_list_ended"); });
+  }
+
+  void operator()(THD *inspect_thd) override {
     Security_context *inspect_sctx = inspect_thd->security_context();
     LEX_CSTRING inspect_sctx_user = inspect_sctx->user();
     LEX_CSTRING inspect_sctx_host = inspect_sctx->host();
@@ -2255,6 +2866,12 @@ class Fill_process_list : public Do_THD_Impl {
         (user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
                   strcmp(inspect_sctx_user.str, user))))
       return;
+
+    DBUG_EXECUTE_IF(
+        "test_fill_proc_with_x_root",
+        if (0 == strcmp(inspect_sctx_user.str, "x_root")) {
+          DEBUG_SYNC(m_client_thd, "fill_proc_list_with_x_root");
+        });
 
     TABLE *table = m_tables->table;
     restore_record(table, s->default_values);
@@ -2803,7 +3420,7 @@ const char *get_one_variable_ext(THD *running_thd, THD *target_thd,
 class Add_status : public Do_THD_Impl {
  public:
   Add_status(System_status_var *value) : m_stat_var(value) {}
-  virtual void operator()(THD *thd) {
+  void operator()(THD *thd) override {
     if (!thd->status_var_aggregated)
       add_to_status(m_stat_var, &thd->status_var);
   }
@@ -3044,7 +3661,7 @@ static int show_temporary_tables(THD *thd, TABLE_LIST *tables, Item *) {
   }
 
 end:
-  lex->unit->cleanup(thd, true);
+  lex->cleanup(thd, true);
 
   /* Restore original LEX value, statement's arena and THD arena values. */
   lex_end(thd->lex);
@@ -3612,7 +4229,7 @@ static TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list) {
   int field_count = 0;
   Item *item;
   TABLE *table;
-  List<Item> field_list;
+  mem_root_deque<Item *> fields(thd->mem_root);
   ST_SCHEMA_TABLE *schema_table = table_list->schema_table;
   ST_FIELD_INFO *fields_info = schema_table->fields_info;
   CHARSET_INFO *cs = system_charset_info;
@@ -3690,7 +4307,7 @@ static TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list) {
         item->item_name.copy(fields_info->field_name);
         break;
     }
-    field_list.push_back(item);
+    fields.push_back(item);
     item->maybe_null = (fields_info->field_flags & MY_I_S_MAYBE_NULL);
     field_count++;
   }
@@ -3702,7 +4319,7 @@ static TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list) {
   tmp_table_param->schema_table = true;
   SELECT_LEX *select_lex = thd->lex->current_select();
   if (!(table = create_tmp_table(
-            thd, tmp_table_param, field_list, (ORDER *)nullptr, false, false,
+            thd, tmp_table_param, fields, /*group=*/nullptr, false, false,
             select_lex->active_options() | TMP_TABLE_ALL_COLUMNS, HA_POS_ERROR,
             table_list->alias)))
     return nullptr;
@@ -3785,9 +4402,10 @@ static int make_tmp_table_columns_format(THD *thd,
 */
 
 bool mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list) {
-  TABLE *table;
   DBUG_TRACE;
-  if (!(table = create_schema_table(thd, table_list))) return true;
+  TABLE *table = create_schema_table(thd, table_list);
+  if (table == nullptr) return true;
+
   table->s->tmp_table = SYSTEM_TMP_TABLE;
   table_list->grant.privilege = SELECT_ACL;
   /*
@@ -3797,11 +4415,8 @@ bool mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list) {
     views
     working correctly
   */
-  if (table_list->schema_table_name)
-    table->alias_name_used = my_strcasecmp(
-        table_alias_charset, table_list->schema_table_name, table_list->alias);
-  table_list->table_name = table->s->table_name.str;
-  table_list->table_name_length = table->s->table_name.length;
+  table->alias_name_used = my_strcasecmp(
+      table_alias_charset, table_list->table_name, table_list->alias);
   table_list->table = table;
   table->pos_in_table_list = table_list;
   if (table_list->select_lex->first_execution)
@@ -3811,8 +4426,7 @@ bool mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list) {
   if (table_list->schema_table_reformed)  // show command
   {
     SELECT_LEX *sel = lex->current_select();
-    Item *item;
-    Field_translator *transl, *org_transl;
+    Field_translator *transl;
 
     ulonglong want_privilege_saved = thd->want_privilege;
     thd->want_privilege = SELECT_ACL;
@@ -3832,17 +4446,18 @@ bool mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list) {
 
       return false;
     }
-    List_iterator_fast<Item> it(sel->fields_list);
     if (!(transl = (Field_translator *)(thd->stmt_arena->alloc(
-              sel->fields_list.elements * sizeof(Field_translator))))) {
+              sel->fields.size() * sizeof(Field_translator))))) {
       return true;
     }
-    for (org_transl = transl; (item = it++); transl++) {
+    Field_translator *org_transl = transl;
+    for (Item *item : sel->visible_fields()) {
       transl->item = item;
       transl->name = item->item_name.ptr();
       if (!item->fixed && item->fix_fields(thd, &transl->item)) {
         return true;
       }
+      ++transl;
     }
 
     thd->want_privilege = want_privilege_saved;
@@ -3867,7 +4482,7 @@ bool mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list) {
 bool make_schema_select(THD *thd, SELECT_LEX *sel,
                         enum enum_schema_tables schema_table_idx) {
   ST_SCHEMA_TABLE *schema_table = get_schema_table(schema_table_idx);
-  LEX_STRING db, table;
+  LEX_STRING db{nullptr, 0}, table{nullptr, 0};
   DBUG_TRACE;
   DBUG_PRINT("enter", ("mysql_schema_select: %s", schema_table->table_name));
   /*
@@ -3919,14 +4534,17 @@ bool make_schema_select(THD *thd, SELECT_LEX *sel,
 
   @param thd            Thread context.
   @param table_list     I_S table.
-  @param qep_tab     JOIN/SELECT table.
+  @param condition
+    Condition, which can be used to do less file manipulations (for
+    example, WHERE TABLE_SCHEMA='test' allows to open only directory 'test',
+    not other database directories).
 
   @return Error status.
   @retval true Error.
   @retval false Success.
 */
 bool do_fill_information_schema_table(THD *thd, TABLE_LIST *table_list,
-                                      QEP_TAB *qep_tab) {
+                                      Item *condition) {
   /*
     Return if there is already an error reported.
 
@@ -3952,17 +4570,7 @@ bool do_fill_information_schema_table(THD *thd, TABLE_LIST *table_list,
   // when we call copy_non_errors_from_da below.
   thd->push_diagnostics_area(&tmp_da, false);
 
-  /*
-    We pass a condition, which can be used to do less file manipulations (for
-    example, WHERE TABLE_SCHEMA='test' allows to open only directory 'test',
-    not other database directories). Filling schema tables is done before
-    QEP_TAB::sort_table() (=filesort, for ORDER BY), so we can trust
-    that condition() is complete, has not been zeroed by filesort:
-  */
-  DBUG_ASSERT(qep_tab->condition() == qep_tab->condition_optim());
-
-  bool res = table_list->schema_table->fill_table(thd, table_list,
-                                                  qep_tab->condition());
+  bool res = table_list->schema_table->fill_table(thd, table_list, condition);
 
   thd->pop_diagnostics_area();
 
@@ -4048,7 +4656,9 @@ bool get_schema_tables_result(JOIN *join,
       } else
         table_list->table->file->stats.records = 0;
 
-      if (do_fill_information_schema_table(thd, table_list, tab)) {
+      DBUG_ASSERT(tab->condition() == tab->condition_optim());
+
+      if (do_fill_information_schema_table(thd, table_list, tab->condition())) {
         result = true;
         join->error = 1;
         table_list->schema_table_state = executed_place;
@@ -4081,6 +4691,14 @@ static int hton_fill_schema_table(THD *thd, TABLE_LIST *tables, Item *cond) {
   struct run_hton_fill_schema_table_args args;
   args.tables = tables;
   args.cond = cond;
+
+  /* INFORMATION_SCHEMA.TABLESPACES is deprecated in 8.0 by WL#14064.
+   * This should be removed in 9.0 (or next GA) by WL#14065 */
+  if (!my_strcasecmp(system_charset_info, tables->table_name, "TABLESPACES"))
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                        ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+                        "INFORMATION_SCHEMA.TABLESPACES");
 
   plugin_foreach(thd, run_hton_fill_schema_table, MYSQL_STORAGE_ENGINE_PLUGIN,
                  &args);
@@ -4327,7 +4945,6 @@ int finalize_schema_table(st_plugin_int *plugin) {
 
 static bool show_create_trigger_impl(THD *thd, Trigger *trigger) {
   Protocol *p = thd->get_protocol();
-  List<Item> fields;
 
   // Construct sql_mode string.
 
@@ -4358,20 +4975,20 @@ static bool show_create_trigger_impl(THD *thd, Trigger *trigger) {
 
   // Send header.
 
-  if (fields.push_back(new Item_empty_string("Trigger", NAME_LEN)) ||
-      fields.push_back(
-          new Item_empty_string("sql_mode", sql_mode_str.length)) ||
-      fields.push_back(stmt_fld) ||
-      fields.push_back(
-          new Item_empty_string("character_set_client", MY_CS_NAME_SIZE)) ||
-      fields.push_back(
-          new Item_empty_string("collation_connection", MY_CS_NAME_SIZE)) ||
-      fields.push_back(
-          new Item_empty_string("Database Collation", MY_CS_NAME_SIZE)) ||
-      fields.push_back(new Item_temporal(
-          MYSQL_TYPE_TIMESTAMP, Name_string("Created", sizeof("created") - 1),
-          0, 0)) ||
-      thd->send_result_metadata(&fields,
+  mem_root_deque<Item *> fields(thd->mem_root);
+  fields.push_back(new Item_empty_string("Trigger", NAME_LEN));
+  fields.push_back(new Item_empty_string("sql_mode", sql_mode_str.length));
+  fields.push_back(stmt_fld);
+  fields.push_back(
+      new Item_empty_string("character_set_client", MY_CS_NAME_SIZE));
+  fields.push_back(
+      new Item_empty_string("collation_connection", MY_CS_NAME_SIZE));
+  fields.push_back(
+      new Item_empty_string("Database Collation", MY_CS_NAME_SIZE));
+  fields.push_back(
+      new Item_temporal(MYSQL_TYPE_TIMESTAMP,
+                        Name_string("Created", sizeof("created") - 1), 0, 0));
+  if (thd->send_result_metadata(fields,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 
@@ -4718,6 +5335,10 @@ void show_sql_type(enum_field_types type, bool is_array, uint metadata,
   DBUG_PRINT("enter", ("type: %d, metadata: 0x%x", type, metadata));
 
   switch (type) {
+    case MYSQL_TYPE_BOOL:
+      str->set_ascii(STRING_WITH_LEN("boolean"));
+      break;
+
     case MYSQL_TYPE_TINY:
       str->set_ascii(STRING_WITH_LEN("tinyint"));
       break;
@@ -4895,6 +5516,7 @@ void show_sql_type(enum_field_types type, bool is_array, uint metadata,
       str->set_ascii(STRING_WITH_LEN("json"));
       break;
 
+    case MYSQL_TYPE_INVALID:
     default:
       str->set_ascii(STRING_WITH_LEN("<unknown type>"));
   }

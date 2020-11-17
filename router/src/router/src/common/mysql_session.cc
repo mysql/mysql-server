@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -772,7 +772,7 @@ class RealResultRow : public MySQLSession::ResultRow {
   RealResultRow(MySQLSession::Row row, MYSQL_RES *res)
       : ResultRow(std::move(row)), res_(res) {}
 
-  virtual ~RealResultRow() { mysql_free_result(res_); }
+  ~RealResultRow() override { mysql_free_result(res_); }
 
  private:
   MYSQL_RES *res_;

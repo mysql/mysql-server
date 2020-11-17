@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -193,7 +193,7 @@ args: -n NodeFailLcpStall T1
 max-time: 360
 
 cmd: testBlobs
-args: -bug 28746560 -skip p -loop 10
+args: -bug 28746560 -pk2cs utf8 -skip p -loop 10
 max-time: 900
 
 cmd: testLimits
@@ -239,4 +239,8 @@ max-time: 1200
 cmd: testPartitioning
 args : -n startTransactionHint_orderedIndex_MaxKey T1
 max-time: 60
+
+cmd: testBlobs
+args : -bug 27772916 -skip p
+max-time: 120
 

@@ -314,7 +314,7 @@ eval SET GLOBAL debug=IF(LENGTH('$old_debug') > 0, CONCAT('$old_debug', ":d,erro
 SET @xxx = REPEAT('xxx', 1000);
 SET @yyy = REPEAT('yyy', 1000);
 -- error ER_NO_UNIQUE_LOGFILE
-DELETE FROM t4 WHERE a IN (@xxx, @yyy) or a != '1';
+DELETE FROM t4 WHERE a IN (@xxx, @yyy) or a <> '1';
 
 # Restart the server to enable binary log.
 --let $rpl_server_number= 1

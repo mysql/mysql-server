@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2008 MySQL AB
-    Use is subject to license terms.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,8 +50,8 @@ class FileInputStream : public InputStream {
   FILE * f;
 public:
   FileInputStream(FILE * file = stdin);
-  virtual ~FileInputStream() {}
-  char* gets(char * buf, int bufLen); 
+  ~FileInputStream() override {}
+  char* gets(char * buf, int bufLen) override;
 };
 
 extern FileInputStream Stdin;
@@ -65,10 +64,10 @@ class SocketInputStream : public InputStream {
   bool m_timedout;
 public:
   SocketInputStream(NDB_SOCKET_TYPE socket, unsigned read_timeout_ms = 3000);
-  virtual ~SocketInputStream() {}
-  char* gets(char * buf, int bufLen);
+  ~SocketInputStream() override {}
+  char* gets(char * buf, int bufLen) override;
   bool timedout() { return m_timedout; }
-  void reset_timeout() { m_timedout= false; m_timeout_remain= m_timeout_ms;}
+  void reset_timeout() override { m_timedout= false; m_timeout_remain= m_timeout_ms;}
 
 };
 

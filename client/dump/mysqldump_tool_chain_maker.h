@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -62,30 +62,33 @@ class Mysqldump_tool_chain_maker
       Mysqldump_tool_chain_maker_options *options,
       Mysql::Tools::Base::Abstract_program *program);
 
-  ~Mysqldump_tool_chain_maker();
+  ~Mysqldump_tool_chain_maker() override;
 
-  I_object_reader *create_chain(Chain_data *chain_data, I_dump_task *dump_task);
+  I_object_reader *create_chain(Chain_data *chain_data,
+                                I_dump_task *dump_task) override;
 
-  void delete_chain(uint64 chain_id, I_object_reader *chain);
+  void delete_chain(uint64 chain_id, I_object_reader *chain) override;
 
   // Fix "inherits ... via dominance" warnings
-  void register_progress_watcher(I_progress_watcher *new_progress_watcher) {
+  void register_progress_watcher(
+      I_progress_watcher *new_progress_watcher) override {
     Abstract_chain_element::register_progress_watcher(new_progress_watcher);
   }
 
   // Fix "inherits ... via dominance" warnings
-  uint64 get_id() const { return Abstract_chain_element::get_id(); }
+  uint64 get_id() const override { return Abstract_chain_element::get_id(); }
 
  protected:
   // Fix "inherits ... via dominance" warnings
-  void item_completion_in_child_callback(Item_processing_data *item_processed) {
+  void item_completion_in_child_callback(
+      Item_processing_data *item_processed) override {
     Abstract_chain_element::item_completion_in_child_callback(item_processed);
   }
 
  private:
   void mysql_thread_callback(bool is_starting);
 
-  void stop_queues();
+  void stop_queues() override;
 
   Mysqldump_tool_chain_maker_options *m_options;
 

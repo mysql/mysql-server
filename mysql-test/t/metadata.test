@@ -231,3 +231,33 @@ DROP TABLE t1;
 
 --echo # End of test for Bug#22364401
 
+--echo # Testing Org_table/Table/DB returned to client for derived tables
+
+create table t(a int);
+create view v as select a as d, 2*a as two from t;
+
+--enable_metadata
+select a as d from t limit 1;
+
+select * from (select a as d, 2*a as two from t) dt;
+select d, two from (select a as d, 2*a as two from t) dt;
+select d as e, two as f from (select a as d, 2*a as two from t) dt;
+
+select * from v;
+select d, two from v;
+select d as e, two as f from v;
+
+set optimizer_switch="derived_merge=off";
+
+select * from (select a as d, 2*a as two from t) dt;
+select d from (select a as d, 2*a as two from t) dt;
+select d as e from (select a as d, 2*a as two from t) dt;
+
+select * from v;
+select d, two from v;
+select d as e, two as f from v;
+
+--disable_metadata
+set optimizer_switch=default;
+drop view v;
+drop table t;

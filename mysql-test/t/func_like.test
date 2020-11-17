@@ -206,7 +206,8 @@ DROP TABLE t1, t2;
 --echo # Bug#20035071: Out of range error in subselect lead to assertion failed
 
 CREATE TABLE t1(a INTEGER) engine=innodb;
-# Error is OK but not mandatory.
+INSERT INTO t1 VALUES(1);
+--error ER_DATA_OUT_OF_RANGE
 SELECT 1 FROM t1 HAVING (SELECT 1 FROM t1) LIKE EXP(NOW());
 DROP TABLE t1;
 
@@ -326,3 +327,19 @@ SELECT * FROM t WHERE col1 LIKE '2019%';
 SELECT * FROM t WHERE col1 LIKE '2019-06-1%';
 DROP TABLE t;
 
+--echo #
+--echo # Bug#31249687 WL9384: RESULTSET MISMATCH WITH LIKE KEYWORD USING PREPARE STATEMENT
+--echo #
+
+create table t1(a int);
+insert into t1 values(0);
+
+set @pattern="%1%";
+
+# "0" doesn't match the pattern
+select 1 from t1 where a like @pattern;
+
+prepare s from 'select 1 from t1 where a like ?';
+execute s using @pattern;
+
+drop table t1;

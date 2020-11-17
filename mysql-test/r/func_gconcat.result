@@ -29,6 +29,22 @@ grp	group_concat("(",a,":",c,")")
 1	(1:a)
 2	(2:b),(3:c)
 3	(4:E),(5:C),(6:D),(7:d),(8:d),(9:D)
+select grp,group_concat(null) from t1 group by grp;
+grp	group_concat(null)
+1	NULL
+2	NULL
+3	NULL
+select grp,group_concat(a,null) from t1 group by grp;
+grp	group_concat(a,null)
+1	NULL
+2	NULL
+3	NULL
+select group_concat(null) from t1;
+group_concat(null)
+NULL
+select group_concat(a,c,null) from t1;
+group_concat(a,c,null)
+NULL
 select grp,group_concat(c separator ",") from t1 group by grp;
 grp	group_concat(c separator ",")
 1	a
@@ -126,9 +142,9 @@ grp	group_concat(a separator "")+0
 3	456789
 select grp, group_concat(a separator "")+0.0 from t1 group by grp;
 grp	group_concat(a separator "")+0.0
-1	1.0
-2	23.0
-3	456789.0
+1	1
+2	23
+3	456789
 select grp, ROUND(group_concat(a separator "")) from t1 group by grp;
 grp	ROUND(group_concat(a separator ""))
 1	1
@@ -642,7 +658,7 @@ insert into t1 values (1,repeat('a',255)),(2,repeat('b',255));
 select f2,group_concat(f1) from t1 group by f2;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	test	t1	t1	f2	f2	253	1020	255	Y	0	0	255
-def					group_concat(f1)	253	1600	1	Y	0	0	255
+def					group_concat(f1)	253	1600	1	Y	0	31	255
 f2	group_concat(f1)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	1
 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb	2
@@ -762,7 +778,7 @@ insert into t1 values (1,repeat('a',255)),(2,repeat('b',255));
 select f2,group_concat(f1) from t1 group by f2;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	test	t1	t1	f2	f2	253	255	255	Y	0	0	8
-def					group_concat(f1)	251	1024	1	Y	0	0	8
+def					group_concat(f1)	251	1024	1	Y	0	31	8
 f2	group_concat(f1)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	1
 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb	2
@@ -1023,7 +1039,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 2	DERIVED	td	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select distinct group_concat(`test`.`td`.`f1` separator ',') AS `GROUP_CONCAT(td.f1)` from `test`.`t1` join `test`.`t1` `td` group by `test`.`td`.`f1`) `d` join `test`.`t1`
+Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select distinct group_concat(`test`.`t1`.`f1` separator ',') AS `GROUP_CONCAT(td.f1)` from `test`.`t1` join `test`.`t1` `td` group by `test`.`td`.`f1`) `d` join `test`.`t1`
 SELECT 1 FROM
 (SELECT DISTINCT GROUP_CONCAT(td.f1) FROM t1,t1 AS td GROUP BY td.f1) AS d,t1;
 1

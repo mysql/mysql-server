@@ -1005,6 +1005,9 @@ class HARNESS_EXPORT Loader {
 
   void spawn_signal_handler_thread();
 
+  std::mutex signal_thread_ready_m_;
+  std::condition_variable signal_thread_ready_cond_;
+  bool signal_thread_ready_{false};
   std::thread signal_thread_;
 
 #ifdef FRIEND_TEST

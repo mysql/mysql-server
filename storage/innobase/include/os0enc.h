@@ -105,7 +105,7 @@ class Encryption {
   static constexpr size_t INFO_MAX_SIZE = INFO_SIZE + sizeof(uint32);
 
   /** Default master key id for bootstrap */
-  static constexpr size_t DEFAULT_MASTER_KEY_ID = 0;
+  static constexpr uint32_t DEFAULT_MASTER_KEY_ID = 0;
 
   /** (De)Encryption Operation information size */
   static constexpr size_t OPERATION_INFO_SIZE = 1;
@@ -194,13 +194,14 @@ class Encryption {
   @param[in]      master_key_id master key id
   @param[in]      srv_uuid      uuid of server instance
   @param[in,out]  master_key    master key */
-  static void get_master_key(ulint master_key_id, char *srv_uuid,
+  static void get_master_key(uint32_t master_key_id, char *srv_uuid,
                              byte **master_key) noexcept;
 
   /** Get current master key and key id.
   @param[in,out]  master_key_id master key id
   @param[in,out]  master_key    master key */
-  static void get_master_key(ulint *master_key_id, byte **master_key) noexcept;
+  static void get_master_key(uint32_t *master_key_id,
+                             byte **master_key) noexcept;
 
   /** Fill the encryption information.
   @param[in]      key           encryption key
@@ -334,7 +335,7 @@ class Encryption {
 
   /** Get master key id
   @return master key id **/
-  static ulint get_master_key_id();
+  static uint32_t get_master_key_id();
 
  private:
   /** Encrypt type */
@@ -350,7 +351,7 @@ class Encryption {
   byte *m_iv;
 
   /** Current master key id */
-  static ulint s_master_key_id;
+  static uint32_t s_master_key_id;
 
   /** Current uuid of server instance */
   static char s_uuid[SERVER_UUID_LEN + 1];

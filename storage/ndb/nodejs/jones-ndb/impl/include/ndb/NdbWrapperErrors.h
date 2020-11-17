@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2012, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -24,19 +24,17 @@
 
 #include "NdbWrappers.h"
 #include "js_wrapper_macros.h"
+#include "JsValueAccess.h"
 
 class NdbNativeCodeError : public NativeCodeError {
 public:
   const NdbError & ndberr;
   NdbNativeCodeError(const NdbError &err) : NativeCodeError(0), ndberr(err)  {}
     
-  Local<Value> toJS() {
-    // TODO: Verify that all callers have a HandleScope
-    Local<String> JSMsg = String::NewFromUtf8(v8::Isolate::GetCurrent(), ndberr.message);
-    Local<Object> Obj = Exception::Error(JSMsg)->ToObject();
-    
-    Obj->Set(NEW_SYMBOL("ndb_error"), NdbError_Wrapper(ndberr));
-
+  Local<Value> toJS() override {
+    Local<String> JSMsg = ToString(ndberr.message);
+    Local<Object> Obj = ToObject(Exception::Error(JSMsg));
+    SetProp(Obj, "ndb_error", NdbError_Wrapper(ndberr));
     return Obj;
   }
 };
@@ -51,7 +49,7 @@ NativeCodeError * getNdbErrorIfNull(R return_val, C * ndbapiobject) {
   }
   
   return err;
-};
+}
 
 
 template<typename R, typename C> 
@@ -63,14 +61,14 @@ NativeCodeError * getNdbErrorIfLessThanZero(R return_val, C * ndbapiobject) {
   }
   
   return err;
-};
+}
 
 
 template<typename R, typename C> 
 NativeCodeError * getNdbErrorAlways(R return_val, C * ndbApiObject) {
 
   return new NdbNativeCodeError(ndbApiObject->getNdbError());
-};
+}
 
 
 template<typename C> 
@@ -79,5 +77,5 @@ void getNdbError(const Arguments &args) {
   C * ndbApiObject = unwrapPointer<C *>(args.Holder());
   const NdbError & ndberr = ndbApiObject->getNdbError();
   args.GetReturnValue().Set(scope.Escape(NdbError_Wrapper(ndberr)));
-};
+}
 

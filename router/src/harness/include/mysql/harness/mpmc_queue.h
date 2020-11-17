@@ -80,11 +80,32 @@ class MPMCQueueMS2Lock {
    *
    * @returns if item was enqueued
    * @retval true item got assigned to queue
-   * @retval false queue is full
    */
   bool enqueue(const T &item) {
     Node *node = new Node;
     node->data = item;
+
+    {
+      std::unique_lock<std::mutex> lk(tail_mutex_);
+
+      tail_->next = node;
+      tail_ = node;
+    }
+
+    return true;
+  }
+
+  /**
+   * enqueue an element.
+   *
+   * @param item item to enqueue
+   *
+   * @returns if item was enqueued
+   * @retval true item got assigned to queue
+   */
+  bool enqueue(T &&item) {
+    Node *node = new Node;
+    node->data = std::move(item);
 
     {
       std::unique_lock<std::mutex> lk(tail_mutex_);

@@ -101,12 +101,13 @@ enum dict_table_op_t {
   DICT_TABLE_OP_LOAD_TABLESPACE
 };
 
-/** Decrements the count of open handles to a table. */
-void dict_table_close(dict_table_t *table, /*!< in/out: table */
-                      ibool dict_locked, /*!< in: TRUE=data dictionary locked */
-                      ibool try_drop);   /*!< in: TRUE=try to drop any orphan
-                                         indexes after an aborted online
-                                         index creation */
+/** Decrements the count of open handles to a table.
+@param[in,out] table Table
+@param[in] dict_locked True=data dictionary locked
+@param[in] try_drop True=try to drop any orphan indexes after an aborted online
+index creation */
+void dict_table_close(dict_table_t *table, ibool dict_locked, ibool try_drop);
+
 /** Closes the only open handle to a table and drops a table while assuring
  that dict_sys->mutex is held the whole time.  This assures that the table
  is not evicted after the close when the count of open handles goes to zero.
@@ -189,21 +190,24 @@ ibool dict_col_name_is_reserved(const char *name) /*!< in: column name */
 /** Acquire the autoinc lock. */
 void dict_table_autoinc_lock(dict_table_t *table); /*!< in/out: table */
 
-/** Unconditionally set the autoinc counter. */
-void dict_table_autoinc_initialize(
-    dict_table_t *table, /*!< in/out: table */
-    ib_uint64_t value);  /*!< in: next value to assign to a row */
+/** Unconditionally set the autoinc counter.
+@param[in,out] table Table
+@param[in] value Next value to assign to a row */
+void dict_table_autoinc_initialize(dict_table_t *table, ib_uint64_t value);
+
 /** Reads the next autoinc value (== autoinc counter value), 0 if not yet
  initialized.
  @return value for a new row, or 0 */
 ib_uint64_t dict_table_autoinc_read(const dict_table_t *table) /*!< in: table */
     MY_ATTRIBUTE((warn_unused_result));
-/** Updates the autoinc counter if the value supplied is greater than the
- current value. */
-void dict_table_autoinc_update_if_greater(
 
-    dict_table_t *table, /*!< in/out: table */
-    ib_uint64_t value);  /*!< in: value which was assigned to a row */
+/** Updates the autoinc counter if the value supplied is greater than the
+ current value.
+@param[in,out] table Table
+@param[in] value Value which was assigned to a row */
+void dict_table_autoinc_update_if_greater(dict_table_t *table,
+                                          ib_uint64_t value);
+
 /** Release the autoinc lock. */
 void dict_table_autoinc_unlock(dict_table_t *table); /*!< in/out: table */
 
@@ -225,7 +229,7 @@ void dict_table_autoinc_set_col_pos(dict_table_t *table, ulint pos);
 update some existing smaller one to bigger.
 @param[in,out]	table	InnoDB table object
 @param[in]	value	AUTOINC counter to log
-@param[in,out]	mtr	mini-transaction */
+@param[in,out]	mtr	Mini-transaction */
 void dict_table_autoinc_log(dict_table_t *table, uint64_t value, mtr_t *mtr);
 
 /** Check if a table has an autoinc counter column.
@@ -235,17 +239,21 @@ UNIV_INLINE
 bool dict_table_has_autoinc_col(const dict_table_t *table);
 
 #endif /* !UNIV_HOTBACKUP */
-/** Adds system columns to a table object. */
-void dict_table_add_system_columns(dict_table_t *table, /*!< in/out: table */
-                                   mem_heap_t *heap); /*!< in: temporary heap */
+
+/** Adds system columns to a table object.
+@param[in,out] table Table
+@param[in] heap Temporary heap */
+void dict_table_add_system_columns(dict_table_t *table, mem_heap_t *heap);
+
 #ifndef UNIV_HOTBACKUP
 /** Mark if table has big rows.
 @param[in,out]	table	table handler */
 void dict_table_set_big_rows(dict_table_t *table) MY_ATTRIBUTE((nonnull));
+
 /** Adds a table object to the dictionary cache.
-@param[in]	table		table
+@param[in,out]	table		table
 @param[in]	can_be_evicted	true if can be evicted
-@param[in]	heap		temporary heap
+@param[in,out]	heap		temporary heap
 */
 void dict_table_add_to_cache(dict_table_t *table, ibool can_be_evicted,
                              mem_heap_t *heap);
@@ -365,12 +373,12 @@ dict_index_t *dict_foreign_find_index(
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Returns a virtual column's name.
-@param[in]	table		table object
-@param[in]	col_nr		virtual column number(nth virtual column)
-@return column name. */
+@param[in]	table	target table
+@param[in]	col_nr	virtual column number (nth virtual column)
+@return column name or NULL if column number out of range. */
 const char *dict_table_get_v_col_name(const dict_table_t *table, ulint col_nr);
 
-/** Check if the table has a given column.
+/** Check if the table has a given (non_virtual) column.
 @param[in]	table		table object
 @param[in]	col_name	column name
 @param[in]	col_nr		column number guessed, 0 as default
@@ -380,12 +388,15 @@ ulint dict_table_has_column(const dict_table_t *table, const char *col_name,
                             ulint col_nr = 0);
 
 /** Outputs info on a foreign key of a table in a format suitable for
- CREATE TABLE. */
-void dict_print_info_on_foreign_key_in_create_format(
-    FILE *file,              /*!< in: file where to print */
-    trx_t *trx,              /*!< in: transaction */
-    dict_foreign_t *foreign, /*!< in: foreign key constraint */
-    ibool add_newline);      /*!< in: whether to add a newline */
+ CREATE TABLE.
+@param[in] file File where to print
+@param[in] trx Transaction
+@param[in] foreign Foreign key constraint
+@param[in] add_newline Whether to add a newline */
+void dict_print_info_on_foreign_key_in_create_format(FILE *file, trx_t *trx,
+                                                     dict_foreign_t *foreign,
+                                                     ibool add_newline);
+
 /** Tries to find an index whose first fields are the columns in the array,
  in the same order and is not marked for deletion and is not the same
  as types_idx.
@@ -503,7 +514,7 @@ void dict_table_n_rows_inc(dict_table_t *table); /*!< in/out: table */
 UNIV_INLINE
 void dict_table_n_rows_dec(dict_table_t *table); /*!< in/out: table */
 
-/** Get nth virtual column
+/** Get nth virtual column according to its original MySQL table position
 @param[in]	table	target table
 @param[in]	col_nr	column number in MySQL Table definition
 @return dict_v_col_t ptr */
@@ -576,11 +587,13 @@ fil_space_t::flags  |     0     |    0    |     1      |    1
 @return tablespace flags (fil_space_t::flags) */
 uint32_t dict_tf_to_fsp_flags(uint32_t table_flags);
 
-/** Extract the page size from table flags.
+/** Extract the page size info from table flags.
 @param[in]	flags	flags
-@return compressed page size, or 0 if not compressed */
+@return a structure containing the compressed and uncompressed
+page sizes and a boolean indicating if the page is compressed. */
 UNIV_INLINE
 const page_size_t dict_tf_get_page_size(uint32_t flags);
+
 #endif /* !UNIV_HOTBACKUP */
 
 /** Determine the extent size (in pages) for the given table
@@ -654,22 +667,16 @@ ulint dict_make_room_in_cache(
 #define BIG_ROW_SIZE 1024
 
 /** Adds an index to the dictionary cache.
-@param[in]	table	table on which the index is
-@param[in]	index	index; NOTE! The index memory
+@param[in,out]	table	table on which the index is
+@param[in,out]	index	index; NOTE! The index memory
                         object is freed in this function!
 @param[in]	page_no	root page number of the index
 @param[in]	strict	TRUE=refuse to create the index
                         if records could be too big to fit in
                         an B-tree page
 @return DB_SUCCESS, DB_TOO_BIG_RECORD, or DB_CORRUPTION */
-dberr_t dict_index_add_to_cache(
-    dict_table_t *table, /*!< in: table on which the index is */
-    dict_index_t *index, /*!< in, own: index; NOTE! The index memory
-                         object is freed in this function! */
-    page_no_t page_no,   /*!< in: root page number of the index */
-    ibool strict)        /*!< in: TRUE=refuse to create the index
-                         if records could be too big to fit in
-                         an B-tree page */
+dberr_t dict_index_add_to_cache(dict_table_t *table, dict_index_t *index,
+                                page_no_t page_no, ibool strict)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Clears the virtual column's index list before index is being freed.
@@ -678,8 +685,8 @@ void dict_index_remove_from_v_col_list(dict_index_t *index);
 
 /** Adds an index to the dictionary cache, with possible indexing newly
 added column.
-@param[in]	table	table on which the index is
-@param[in]	index	index; NOTE! The index memory
+@param[in,out]	table	table on which the index is
+@param[in,out]	index	index; NOTE! The index memory
                         object is freed in this function!
 @param[in]	add_v	new virtual column that being added along with
                         an add index call
@@ -777,11 +784,13 @@ its original MySQL table position n
 @return column position in InnoDB */
 ulint dict_table_mysql_pos_to_innodb(const dict_table_t *table, ulint n);
 
-/** Copies types of fields contained in index to tuple. */
-void dict_index_copy_types(dtuple_t *tuple,           /*!< in/out: data tuple */
-                           const dict_index_t *index, /*!< in: index */
-                           ulint n_fields);           /*!< in: number of
-                                                      field types to copy */
+/** Copies types of fields contained in index to tuple.
+@param[in,out] tuple Data tuple
+@param[in] index Index
+@param[in] n_fields Number of field types to copy */
+void dict_index_copy_types(dtuple_t *tuple, const dict_index_t *index,
+                           ulint n_fields);
+
 #ifdef UNIV_DEBUG
 /** Checks that a tuple has n_fields_cmp value in a sensible range, so that
  no comparison can occur with the page number field in a node pointer.
@@ -799,12 +808,13 @@ enum check_name {
   /** Allow partial indexes to exist. */
   CHECK_PARTIAL_OK
 };
-/** Check for duplicate index entries in a table [using the index name] */
-void dict_table_check_for_dup_indexes(
-    const dict_table_t *table, /*!< in: Check for dup indexes
-                               in this table */
-    enum check_name check);    /*!< in: whether and when to allow
-                               temporary index names */
+
+/** Check for duplicate index entries in a table [using the index name]
+@param[in] table Check for dup indexes in this table
+@param[in] check Whether and when to allow temporary index names */
+void dict_table_check_for_dup_indexes(const dict_table_t *table,
+                                      enum check_name check);
+
 /** Check if a table is a temporary table with compressed row format,
 we should always expect false.
 @param[in]	table	table
@@ -1099,12 +1109,11 @@ struct dict_sys_t {
     mutex_exit(&mutex);
   }
 
-  /** Check if a tablespace id is a reserved one
-  @param[in]	space	tablespace id to check
+  /** Check if a tablespace id is a reserved tablespace ID
+  @param[in]  space  tablespace id to check
   @return true if a reserved tablespace id, otherwise false */
   static bool is_reserved(space_id_t space) {
-    return (space >= dict_sys_t::s_reserved_space_id ||
-            fsp_is_session_temporary(space));
+    return (space >= dict_sys_t::s_reserved_space_id);
   }
 
   /** Set of ids of DD tables */
@@ -1133,25 +1142,27 @@ struct dict_sys_t {
   static constexpr space_id_t s_temp_space_id = 0xFFFFFFFD;
 
   /** The number of space IDs dedicated to each undo tablespace */
-  static constexpr space_id_t undo_space_id_range = 512;
+  static constexpr space_id_t s_undo_space_id_range = 400000;
 
   /** The lowest undo tablespace ID. */
   static constexpr space_id_t s_min_undo_space_id =
-      s_log_space_first_id - (FSP_MAX_UNDO_TABLESPACES * undo_space_id_range);
+      s_log_space_first_id - (FSP_MAX_UNDO_TABLESPACES * s_undo_space_id_range);
 
   /** The highest undo tablespace ID. */
   static constexpr space_id_t s_max_undo_space_id = s_log_space_first_id - 1;
 
-  /** The first reserved tablespace ID */
-  static constexpr space_id_t s_reserved_space_id = s_min_undo_space_id;
+  /** Start space_ids for temporary tablespaces. */
+  static constexpr space_id_t s_max_temp_space_id = s_min_undo_space_id - 1;
 
-  /** Leave 1K space_ids and start space_ids for temporary
-  general tablespaces (total 400K space_ids)*/
-  static constexpr space_id_t s_max_temp_space_id = s_reserved_space_id - 1000;
+  /** The number of space IDs dedicated to temporary tablespaces */
+  static constexpr space_id_t s_temp_space_id_range = 400000;
 
   /** Lowest temporary general space id */
   static constexpr space_id_t s_min_temp_space_id =
-      s_reserved_space_id - 1000 - 400000;
+      s_min_undo_space_id - s_temp_space_id_range;
+
+  /** The first reserved tablespace ID */
+  static constexpr space_id_t s_reserved_space_id = s_min_temp_space_id;
 
   /** The dd::Tablespace::id of the dictionary tablespace. */
   static constexpr dd::Object_id s_dd_space_id = 1;
@@ -1384,9 +1395,10 @@ to set it directly.
 void dict_set_corrupted(dict_index_t *index) UNIV_COLD;
 
 #ifndef UNIV_HOTBACKUP
+
 /** Check if there is any latest persistent dynamic metadata recorded
 in DDTableBuffer table of the specific table. If so, read the metadata and
-update the table object accordingly
+update the table object accordingly. It's used when loading table.
 @param[in]	table		table object */
 void dict_table_load_dynamic_metadata(dict_table_t *table);
 
@@ -1463,8 +1475,8 @@ bool dict_table_is_locking_disabled(const dict_table_t *table)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Turn-off redo-logging if temporary table.
-@param[in]	table	table to check
-@param[out]	mtr	mini-transaction */
+@param[in]	table	Table to check
+@param[out]	mtr	Mini-transaction */
 UNIV_INLINE
 void dict_disable_redo_if_temporary(const dict_table_t *table, mtr_t *mtr);
 
@@ -1605,7 +1617,7 @@ order:
 
 1. dd_sdi_acquire_exclusive_mdl
 2. row_drop_table_from_cache()/innodb_drop_tablespace()
-   ->dd_sdi_remove_from_cache()->dd_table_open_on_id()
+   ->dict_sdi_remove_from_cache()->dd_table_open_on_id()
 
 In purge:
 
@@ -1683,6 +1695,13 @@ void dict_table_change_id_sys_tables();
 /** Get the tablespace data directory if set, otherwise empty string.
 @return the data directory */
 std::string dict_table_get_datadir(const dict_table_t *table)
+    MY_ATTRIBUTE((warn_unused_result));
+
+/** Set the compression type for the tablespace of a table
+@param[in]     table           The table that should be compressed
+@param[in]     algorithm       Text representation of the algorithm
+@return DB_SUCCESS or error code */
+dberr_t dict_set_compression(dict_table_t *table, const char *algorithm)
     MY_ATTRIBUTE((warn_unused_result));
 
 #include "dict0dict.ic"

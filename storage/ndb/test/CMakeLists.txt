@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,9 @@ IF(MY_COMPILER_IS_GNU_OR_CLANG)
           "error=deprecated-copy"
           # Downgrade -Werror to warning for "may be used uninitialized"
           # and "is used uninitialized in this function"
-          "error=maybe-uninitialized")
+          "error=maybe-uninitialized"
+          # Downgrade -Werror=suggest-override to warning
+          "error=suggest-override")
     STRING(REPLACE "-" "_" warning_ ${warning})
     STRING(TOUPPER ${warning_} WARNING)
     CHECK_CXX_COMPILER_FLAG("-W${warning}" HAVE_${WARNING})

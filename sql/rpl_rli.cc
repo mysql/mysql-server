@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1443,7 +1443,7 @@ void Relay_log_info::slave_close_thread_tables(THD *thd) {
 */
 bool mysql_show_relaylog_events(THD *thd) {
   Master_info *mi = nullptr;
-  List<Item> field_list;
+  mem_root_deque<Item *> field_list(thd->mem_root);
   bool res;
   DBUG_TRACE;
 
@@ -1458,7 +1458,7 @@ bool mysql_show_relaylog_events(THD *thd) {
   }
 
   Log_event::init_show_field_list(&field_list);
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)) {
     res = true;
     goto err;

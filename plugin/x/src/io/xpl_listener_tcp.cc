@@ -270,8 +270,6 @@ Listener_tcp::~Listener_tcp() {
   close_listener();
 }
 
-void Listener_tcp::set_state(const State state) { m_state.set(state); }
-
 const Listener_tcp::Sync_variable_state &Listener_tcp::get_state() const {
   return m_state;
 }
@@ -318,6 +316,7 @@ void Listener_tcp::close_listener() {
 
 void Listener_tcp::pre_loop() {
   if (m_tcp_socket) m_tcp_socket->set_socket_thread_owner();
+  m_state.set(xpl::iface::Listener::State::k_running);
 }
 
 void Listener_tcp::loop() {}

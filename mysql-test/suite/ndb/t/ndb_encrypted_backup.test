@@ -1,0 +1,130 @@
+-- source include/have_ndb.inc
+-- source suite/ndb/include/backup_restore_setup.inc
+
+set @windows = convert(@@version_compile_os using latin1)
+                 in ('Win32', 'Win64', 'Windows');
+
+CREATE TABLE t1(k int not null primary key auto_increment) engine=ndb;
+
+INSERT INTO t1 VALUES (NULL);
+
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+
+
+# Test all encryption password formats
+
+--echo # Password in double quotes
+--echo ndb_mgm --verbose=0 -e 'start backup snapshotend encrypt password="abc"'
+if (!`select @windows`)
+{
+--replace_regex /[0-9]+/X/
+--exec $NDB_MGM --verbose=0 -e 'start backup snapshotend encrypt password="abc"'
+
+}
+if (`select @windows`)
+{
+--replace_regex /[0-9]+/X/
+--exec $NDB_MGM --verbose=0 -e "start backup snapshotend encrypt password=""abc"""
+
+}
+
+--echo # Password in single quotes
+--echo ndb_mgm --verbose=0 -e "start backup encrypt password='abc'"
+--replace_regex /[0-9]+/X/
+--exec $NDB_MGM --verbose=0 -e "start backup encrypt password='abc'"
+
+--echo # Empty password
+--echo ndb_mgm --verbose=0 -e "start backup encrypt password="
+--error 255
+--exec $NDB_MGM --verbose=0 -e "start backup encrypt password="
+
+--echo # Empty password
+--echo ndb_mgm --verbose=0 -e "start backup encrypt password=''"
+--error 255
+--exec $NDB_MGM --verbose=0 -e "start backup encrypt password=''"
+
+--echo # Empty password
+--echo ndb_mgm --verbose=0 -e 'start backup encrypt password=""'
+if (!`select @windows`)
+{
+--error 255
+--exec $NDB_MGM --verbose=0 -e 'start backup encrypt password=""'
+}
+if (`select @windows`)
+{
+--error 255
+--exec $NDB_MGM --verbose=0 -e "start backup encrypt password="""""
+}
+
+--echo # Password of length 256
+--echo ndb_mgm --verbose=0 -e "start backup encrypt password='heCrNh3UIn3yDmO02yic6FTAdkTRQEd2qunuj2K5QHluWa52YvsVnS1yzLJuXnSEeZENu9RBjf3bu3acQg56H1jnvWs4kesAPJPZFHRtdv9ap5WXWyGLBIUE7fOANSX2xIlkoHpy39RtdJAMuKa5cXC1ZTrrFujAPET68QHraLLWOJHNf7fYsqdehwGQiZG0cz2TErLQoNWu5YX32iBGPHTopZ1yDsAEOZyOdaDcbz0bflKZcSWH5FoVjyGF643K'"
+--replace_regex /[0-9]+/X/
+--exec $NDB_MGM --verbose=0 -e "start backup encrypt password='heCrNh3UIn3yDmO02yic6FTAdkTRQEd2qunuj2K5QHluWa52YvsVnS1yzLJuXnSEeZENu9RBjf3bu3acQg56H1jnvWs4kesAPJPZFHRtdv9ap5WXWyGLBIUE7fOANSX2xIlkoHpy39RtdJAMuKa5cXC1ZTrrFujAPET68QHraLLWOJHNf7fYsqdehwGQiZG0cz2TErLQoNWu5YX32iBGPHTopZ1yDsAEOZyOdaDcbz0bflKZcSWH5FoVjyGF643K'"
+
+--echo # Password > 256 chars
+--echo ndb_mgm --verbose=0 -e "start backup encrypt password='heCrNh3UIn3yDmO02yic6FTAdkTRQEd2qunuj2K5QHluWa52YvsVnS1yzLJuXnSEeZENu9RBjf3bu3acQg56H1jnvWs4kesAPJPZFHRtdv9ap5WXWyGLBIUE7fOANSX2xIlkoHpy39RtdJAMuKa5cXC1ZTrrFujAPET68QHraLLWOJHNf7fYsqdehwGQiZG0cz2TErLQoNWu5YX32iBGPHTopZ1yDsAEOZyOdaDcbz0bflKZcSWH5FoVjyGF643Ki'"
+--error 255
+--exec $NDB_MGM --verbose=0 -e "start backup encrypt password='heCrNh3UIn3yDmO02yic6FTAdkTRQEd2qunuj2K5QHluWa52YvsVnS1yzLJuXnSEeZENu9RBjf3bu3acQg56H1jnvWs4kesAPJPZFHRtdv9ap5WXWyGLBIUE7fOANSX2xIlkoHpy39RtdJAMuKa5cXC1ZTrrFujAPET68QHraLLWOJHNf7fYsqdehwGQiZG0cz2TErLQoNWu5YX32iBGPHTopZ1yDsAEOZyOdaDcbz0bflKZcSWH5FoVjyGF643Ki'"
+
+--echo # Password >512 chars
+--echo ndb_mgm --verbose=0 -e "start backup encrypt password='heCrNh3UIn3yDmO02yic6FTAdkTRQEd2qunuj2K5QHluWa52YvsVnS1yzLJuXnSEeZENu9RBjf3bu3acQg56H1jnvWs4kesAPJPZFHRtdv9ap5WXWyGLBIUE7fOANSX2xIlkoHpy39RtdJAMuKa5cXC1ZTrrFujAPET68QHraLLWOJHNf7fYsqdehwGQiZG0cz2TErLQoNWu5YX32iBGPHTopZ1yDsAEOZyOdaDcbz0bflKZcSWH5FoVjyGF643KiheCrNh3UIn3yDmO02yic6FTAdkTRQEd2qunuj2K5QHluWa52YvsVnS1yzLJuXnSEeZENu9RBjf3bu3acQg56H1jnvWs4kesAPJPZFHRtdv9ap5WXWyGLBIUE7fOANSX2xIlkoHpy39RtdJAMuKa5cXC1ZTrrFujAPET68QHraLLWOJHNf7fYsqdehwGQiZG0cz2TErLQoNWu5YX32iBGPHTopZ1yDsAEOZyOdaDcbz0bflKZcSWH5FoVjyGF643Ki'"
+--error 255
+--exec $NDB_MGM --verbose=0 -e "start backup encrypt password='heCrNh3UIn3yDmO02yic6FTAdkTRQEd2qunuj2K5QHluWa52YvsVnS1yzLJuXnSEeZENu9RBjf3bu3acQg56H1jnvWs4kesAPJPZFHRtdv9ap5WXWyGLBIUE7fOANSX2xIlkoHpy39RtdJAMuKa5cXC1ZTrrFujAPET68QHraLLWOJHNf7fYsqdehwGQiZG0cz2TErLQoNWu5YX32iBGPHTopZ1yDsAEOZyOdaDcbz0bflKZcSWH5FoVjyGF643KiheCrNh3UIn3yDmO02yic6FTAdkTRQEd2qunuj2K5QHluWa52YvsVnS1yzLJuXnSEeZENu9RBjf3bu3acQg56H1jnvWs4kesAPJPZFHRtdv9ap5WXWyGLBIUE7fOANSX2xIlkoHpy39RtdJAMuKa5cXC1ZTrrFujAPET68QHraLLWOJHNf7fYsqdehwGQiZG0cz2TErLQoNWu5YX32iBGPHTopZ1yDsAEOZyOdaDcbz0bflKZcSWH5FoVjyGF643Ki'"
+
+--echo # Password =512 chars
+--echo ndb_mgm --verbose=0 -e "start backup encrypt password='heCrNh3UIn3yDmO02yic6FTAdkTRQEd2qunuj2K5QHluWa52YvsVnS1yzLJuXnSEeZENu9RBjf3bu3acQg56H1jnvWs4kesAPJPZFHRtdv9ap5WXWyGLBIUE7fOANSX2xIlkoHpy39RtdJAMuKa5cXC1ZTrrFujAPET68QHraLLWOJHNf7fYsqdehwGQiZG0cz2TErLQoNWu5YX32iBGPHTopZ1yDsAEOZyOdaDcbz0bflKZcSWH5FoVjyGF643KiheCrNh3UIn3yDmO02yic6FTAdkTRQEd2qunuj2K5QHluWa52YvsVnS1yzLJuXnSEeZENu9RBjf3bu3acQg56H1jnvWs4kesAPJPZFHRtdv9ap5WXWyGLBIUE7fOANSX2xIlkoHpy39RtdJAMuKa5cXC1ZTrrFujAPET68QHraLLWOJHNf7fYsqdehwGQiZG0cz2TErLQoNWu5YX32iBGPHTopZ1yDsAEOZyOdaDcbz0bflKZcSWH5FoVjyGF643'"
+--error 255
+--exec $NDB_MGM --verbose=0 -e "start backup encrypt password='heCrNh3UIn3yDmO02yic6FTAdkTRQEd2qunuj2K5QHluWa52YvsVnS1yzLJuXnSEeZENu9RBjf3bu3acQg56H1jnvWs4kesAPJPZFHRtdv9ap5WXWyGLBIUE7fOANSX2xIlkoHpy39RtdJAMuKa5cXC1ZTrrFujAPET68QHraLLWOJHNf7fYsqdehwGQiZG0cz2TErLQoNWu5YX32iBGPHTopZ1yDsAEOZyOdaDcbz0bflKZcSWH5FoVjyGF643KiheCrNh3UIn3yDmO02yic6FTAdkTRQEd2qunuj2K5QHluWa52YvsVnS1yzLJuXnSEeZENu9RBjf3bu3acQg56H1jnvWs4kesAPJPZFHRtdv9ap5WXWyGLBIUE7fOANSX2xIlkoHpy39RtdJAMuKa5cXC1ZTrrFujAPET68QHraLLWOJHNf7fYsqdehwGQiZG0cz2TErLQoNWu5YX32iBGPHTopZ1yDsAEOZyOdaDcbz0bflKZcSWH5FoVjyGF643'"
+
+--echo # Password with spaces
+--echo ndb_mgm --verbose=0 -e "start backup encrypt password='one two  three   '"
+--replace_regex /[0-9]+/X/
+--exec $NDB_MGM --verbose=0 -e "start backup encrypt password='one two  three   '"
+
+--echo # Password with disallowed characters
+--echo ndb_mgm --verbose=0 -e "start backup encrypt password='a#b!'"
+--error 255
+--exec $NDB_MGM --verbose=0 -e "start backup encrypt password='a#b!'"
+
+--echo # Password with allowed special characters
+--echo ndb_mgm --verbose=0 -e "start backup encrypt password='(+*-)'"
+--replace_regex /[0-9]+/X/
+--exec $NDB_MGM --verbose=0 -e "start backup encrypt password='(+*-)'"
+
+--echo # Invalid commands caught by ndb_mgm parser
+--echo ndb_mgm --verbose=0 -e "start backup encrypt password='abba' 'garbage'"
+--error 255
+--exec $NDB_MGM --verbose=0 -e "start backup encrypt password='abba' 'garbage'"
+
+--echo ndb_mgm --verbose=0 -e 'start backup encrypt password="abba" encrypt password='"'garbage'"
+if (!`select @windows`)
+{
+--error 255
+--exec $NDB_MGM --verbose=0 -e 'start backup encrypt password="abba" encrypt password='"'garbage'"
+}
+if (`select @windows`)
+{
+--error 255
+--exec $NDB_MGM --verbose=0 -e "start backup encrypt password=""abba"" encrypt password='garbage'"
+}
+
+
+--echo ndb_mgm --verbose=0 -e "start backup encrypt password='abba' encrypt password='garbage'"
+--error 255
+--exec $NDB_MGM --verbose=0 -e "start backup encrypt password='abba' encrypt password='garbage'"
+
+--echo ndb_mgm --verbose=0 -e "start backup encrypt password='"
+--error 255
+--exec $NDB_MGM --verbose=0 -e "start backup encrypt password='"
+
+--echo ndb_mgm --verbose=0 -e "start backup encrypt password='abba' '"
+--error 255
+--exec $NDB_MGM --verbose=0 -e "start backup encrypt password='abba' '"
+
+#cleanup
+DROP TABLE t1;
+
+--source suite/ndb/include/backup_restore_cleanup.inc

@@ -43,6 +43,8 @@ INSERT INTO t1 VALUES (2);
 ==== Try START SLAVE on slave : I/O thread should throw error ====
 [connection slave]
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=2061]
 ==== Try setting correct public key ====
 [connection slave]

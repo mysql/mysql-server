@@ -1,4 +1,4 @@
--- Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -13,13 +13,16 @@
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
-REPLACE INTO mysql.user VALUES
+INSERT IGNORE INTO mysql.user VALUES
 ('localhost','mysql.sys','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'caching_sha2_password','\$A\$005\$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED','N',CURRENT_TIMESTAMP,NULL,'Y','N','N',NULL,NULL,NULL,NULL);
 
-REPLACE INTO mysql.db VALUES
+INSERT IGNORE INTO mysql.db VALUES
 ('localhost','sys','mysql.sys','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y');
 
-REPLACE INTO mysql.tables_priv VALUES
+INSERT IGNORE INTO mysql.tables_priv VALUES
 ('localhost','sys','mysql.sys','sys_config','root@localhost',
 CURRENT_TIMESTAMP, 'Select', '');
 
+-- GRANT SYSTEM_USER ON *.* TO 'mysql.sys'@localhost
+INSERT IGNORE INTO mysql.global_grants (USER,HOST,PRIV,WITH_GRANT_OPTION)
+VALUES ('mysql.sys','localhost','SYSTEM_USER','N');

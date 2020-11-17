@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,10 +48,11 @@ class Sql_cmd_do final : public Sql_cmd_select {
 class Query_result_do final : public Query_result {
  public:
   Query_result_do() : Query_result() {}
-  bool send_result_set_metadata(THD *, List<Item> &, uint) override {
+  bool send_result_set_metadata(THD *, const mem_root_deque<Item *> &,
+                                uint) override {
     return false;
   }
-  bool send_data(THD *thd, List<Item> &items) override;
+  bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
   bool send_eof(THD *thd) override;
   bool check_simple_select() const override { return false; }
   void abort_result_set(THD *) override {}

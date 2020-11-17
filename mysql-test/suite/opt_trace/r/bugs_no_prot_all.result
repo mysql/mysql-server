@@ -2153,6 +2153,13 @@ ON table2 .col_int_key = table1 .col_int_key
             } /* creating_tmp_table */
           },
           {
+            "subselect_execution": {
+              "select#": 2,
+              "steps": [
+              ] /* steps */
+            } /* subselect_execution */
+          },
+          {
             "attaching_conditions_to_tables": {
               "original_condition": "((`<subquery3>`.`field1` = `where_subselect_20070`.`field1`) and (`table2`.`col_int_key` = `table1`.`col_int_key`))",
               "attached_conditions_computation": [
@@ -2221,7 +2228,7 @@ ON table2 .col_int_key = table1 .col_int_key
                   "attached": "(`where_subselect_20070`.`field1` is not null)"
                 },
                 {
-                  "table": "``.`<subquery3>`",
+                  "table": "`<subquery3>`",
                   "attached": "(`<subquery3>`.`field1` = `where_subselect_20070`.`field1`)"
                 },
                 {
@@ -2243,7 +2250,7 @@ ON table2 .col_int_key = table1 .col_int_key
                 "final_table_condition   ": "(`where_subselect_20070`.`field1` is not null)"
               },
               {
-                "table": "``.`<subquery3>`",
+                "table": "`<subquery3>`",
                 "original_table_condition": "(`<subquery3>`.`field1` = `where_subselect_20070`.`field1`)",
                 "final_table_condition   ": null
               },
@@ -2265,7 +2272,7 @@ ON table2 .col_int_key = table1 .col_int_key
                 "table": "`where_subselect_20070`"
               },
               {
-                "table": "``.`<subquery3>`"
+                "table": "`<subquery3>`"
               },
               {
                 "table": "`t1` `table1`"
@@ -2372,13 +2379,6 @@ ON table2 .col_int_key = table1 .col_int_key
                 }
               ] /* steps */
             } /* materialize */
-          },
-          {
-            "subselect_execution": {
-              "select#": 2,
-              "steps": [
-              ] /* steps */
-            } /* subselect_execution */
           }
         ] /* steps */
       } /* join_execution */
@@ -2498,13 +2498,13 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                       "table": "`t1`",
                                       "field": "a",
                                       "equals": "1",
-                                      "null_rejecting": false
+                                      "null_rejecting": true
                                     },
                                     {
                                       "table": "`t1`",
                                       "field": "a",
                                       "equals": "1",
-                                      "null_rejecting": false
+                                      "null_rejecting": true
                                     }
                                   ] /* ref_optimizer_key_uses */
                                 },

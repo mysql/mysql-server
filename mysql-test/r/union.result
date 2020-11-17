@@ -94,7 +94,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using filesort
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary; Using filesort
 Warnings:
-Note	1003	(/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` limit 2) union all (/* select#2 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`a` limit 1) order by `<union temporary>`.`b` desc
+Note	1003	(/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` limit 2) union all (/* select#2 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`a` limit 1) order by `b` desc
 select count(*) from (
 (select                      a,b from t1 limit 2)  union all (select a,b from t2 order by a)) q;
 count(*)
@@ -136,11 +136,12 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary
 5	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 NULL	UNION RESULT	<union1,5>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary; Using filesort
-6	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	No tables used
 Warnings:
 Note	1276	Field or reference 'a' of SELECT #4 was resolved in SELECT #2
+Note	1249	Select 4 was reduced during optimization
 Note	1276	Field or reference 'a' of SELECT #6 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`) union /* select#3 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`))) union /* select#5 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by (/* select#6 */ select `<union temporary>`.`a`)
+Note	1249	Select 6 was reduced during optimization
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`) union /* select#3 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`))) union /* select#5 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `a`
 explain select a,b from t1 union all select a,b from t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
@@ -598,7 +599,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary; Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `<union temporary>`.`a`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `a`
 drop table t1;
 create table t1 (a int not null primary key auto_increment, b int, key(b));
 create table t2 (a int not null primary key auto_increment, b int);
@@ -619,7 +620,7 @@ EXPLAIN
 -> Table scan on <union temporary>  (cost=2.50 rows=0)
     -> Union materialize with deduplication
         -> Zero rows (no matching row in const table)
-        -> Rows fetched before execution
+        -> Rows fetched before execution  (cost=0.00 rows=1)
 
 (select * from t1 where a=5) union (select * from t2 where a=1);
 a	b
@@ -661,9 +662,9 @@ insert into users (group_name) values ('Group B');
 insert into t3 (user_id, group_id) values (1,1);
 select 1 'is_in_group', a.user_name, c.group_name, b.id from `groups` a, t3 b, users c where a.id = b.user_id and b.group_id = c.id UNION  select 0 'is_in_group', a.user_name, c.group_name, null from `groups` a, users c;
 is_in_group	user_name	group_name	id
-1	Tester	Group A	1
 0	Tester	Group A	NULL
 0	Tester	Group B	NULL
+1	Tester	Group A	1
 drop table t3, users, `groups`;
 create table t1 (mat_id MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, matintnum CHAR(6) NOT NULL, test MEDIUMINT UNSIGNED NULL);
 create table t2 (mat_id MEDIUMINT UNSIGNED NOT NULL, pla_id MEDIUMINT UNSIGNED NOT NULL);
@@ -1717,7 +1718,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `<union temporary>`.`a`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `a`
 DROP TABLE t1;
 End of 5.0 tests
 #
@@ -1778,7 +1779,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by (`<union temporary>`.`a` + 12)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by (`a` + 12)
 # Should not crash
 SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY a + 12;
 a
@@ -1814,7 +1815,7 @@ NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using tempor
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1276	Field or reference 'a' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by (/* select#3 */ select `<union temporary>`.`a` from `test`.`t2` where (`test`.`t2`.`b` = 12))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by (/* select#3 */ select `a` from `test`.`t2` where (`test`.`t2`.`b` = 12))
 # Should not crash
 SELECT * FROM t1 UNION SELECT * FROM t1
 ORDER BY (SELECT a FROM t2 WHERE b = 12);
@@ -3303,10 +3304,10 @@ EXPLAIN
     -> Append
         -> Stream results
             -> Limit: 10 row(s)
-                -> Table scan on t1  (cost=3.45 rows=32)
+                -> Table scan on t1
         -> Stream results
             -> Limit: 10 row(s)
-                -> Table scan on t1  (cost=3.45 rows=32)
+                -> Table scan on t1
 
 FLUSH STATUS;
 ( SELECT *, 'a' FROM t1 LIMIT 10 )
@@ -3336,7 +3337,7 @@ PRIMARY KEY (pk)
 INSERT INTO t1 VALUES (1,'');
 EXPLAIN FORMAT=tree SELECT * FROM ( SELECT * FROM t1 WHERE pk=1 UNION SELECT * FROM t1 WHERE FALSE ) d1;
 EXPLAIN
--> Rows fetched before execution
+-> Rows fetched before execution  (cost=0.00 rows=1)
 
 SELECT * FROM ( SELECT * FROM t1 WHERE pk=1 UNION SELECT * FROM t1 WHERE FALSE ) d1;
 pk	b

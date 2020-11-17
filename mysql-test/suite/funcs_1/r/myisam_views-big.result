@@ -23145,7 +23145,7 @@ CREATE VIEW test3.v31 AS SELECT * FROM test3.v30;
 CREATE VIEW test3.v32 AS SELECT * FROM test3.v31;
 SHOW CREATE VIEW test3.v32;
 View	Create View	character_set_client	collation_connection
-v32	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test3`.`v32` AS select `v31`.`f1` AS `f1` from `test3`.`v31`	utf8mb4	utf8mb4_0900_ai_ci
+v32	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test3`.`v32` AS select `test3`.`v31`.`f1` AS `f1` from `test3`.`v31`	utf8mb4	utf8mb4_0900_ai_ci
 SELECT * FROM test3.v32;
 f1
 1.000
@@ -23157,7 +23157,7 @@ Note	1003	/* select#1 */ select '1.000' AS `f1` from dual
 DROP VIEW test3.v0;
 SHOW CREATE VIEW test3.v32;
 View	Create View	character_set_client	collation_connection
-v32	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test3`.`v32` AS select `v31`.`f1` AS `f1` from `test3`.`v31`	utf8mb4	utf8mb4_0900_ai_ci
+v32	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test3`.`v32` AS select `test3`.`v31`.`f1` AS `f1` from `test3`.`v31`	utf8mb4	utf8mb4_0900_ai_ci
 Warnings:
 Warning	1356	View 'test3.v32' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 SELECT * FROM test3.v32;
@@ -23270,7 +23270,7 @@ CREATE OR REPLACE VIEW test1.v20 AS SELECT f1, f2
 FROM test3.t1 tab1 NATURAL JOIN test1.v19 tab2;
 SHOW CREATE VIEW test1.v20;
 View	Create View	character_set_client	collation_connection
-v20	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test1`.`v20` AS select `tab1`.`f1` AS `f1`,`tab1`.`f2` AS `f2` from (`test3`.`t1` `tab1` join `test1`.`v19` `tab2` on(((`tab1`.`f1` = `tab2`.`f1`) and (`tab1`.`f2` = `tab2`.`f2`))))	utf8mb4	utf8mb4_0900_ai_ci
+v20	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test1`.`v20` AS select `tab1`.`f1` AS `f1`,`tab1`.`f2` AS `f2` from (`test3`.`t1` `tab1` join `test1`.`v19` `tab2` on(((`tab1`.`f1` = `test1`.`tab2`.`f1`) and (`tab1`.`f2` = `test1`.`tab2`.`f2`))))	utf8mb4	utf8mb4_0900_ai_ci
 SELECT CAST(f1 AS SIGNED INTEGER) AS f1,
 CAST(f2 AS CHAR) AS f2 FROM test1.v20;
 f1	f2
@@ -23290,7 +23290,7 @@ CREATE VIEW test1.v21 AS SELECT f1, f2
 FROM test3.t1 tab1 NATURAL JOIN test1.v20 tab2;
 SHOW CREATE VIEW test1.v21;
 View	Create View	character_set_client	collation_connection
-v21	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test1`.`v21` AS select `tab1`.`f1` AS `f1`,`tab1`.`f2` AS `f2` from (`test3`.`t1` `tab1` join `test1`.`v20` `tab2` on(((`tab1`.`f1` = `tab2`.`f1`) and (`tab1`.`f2` = `tab2`.`f2`))))	utf8mb4	utf8mb4_0900_ai_ci
+v21	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test1`.`v21` AS select `tab1`.`f1` AS `f1`,`tab1`.`f2` AS `f2` from (`test3`.`t1` `tab1` join `test1`.`v20` `tab2` on(((`tab1`.`f1` = `test1`.`tab2`.`f1`) and (`tab1`.`f2` = `test1`.`tab2`.`f2`))))	utf8mb4	utf8mb4_0900_ai_ci
 SELECT CAST(f1 AS SIGNED INTEGER) AS f1,
 CAST(f2 AS CHAR) AS f2 FROM test1.v21;
 f1	f2

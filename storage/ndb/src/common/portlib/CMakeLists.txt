@@ -38,6 +38,12 @@ IF(WIN32)
   SET(EXTRA_SRC ndb_nt_servc.cc)
 ENDIF(WIN32)
 
+IF(WIN32)
+  SET(EXTRA_SRC ${EXTRA_SRC} ndb_file_win32.cpp)
+ELSE()
+  SET(EXTRA_SRC ${EXTRA_SRC} ndb_file_posix.cpp)
+ENDIF()
+
 ADD_CONVENIENCE_LIBRARY(ndbportlib
   NdbCondition.cpp
   NdbMutex.cpp
@@ -51,6 +57,7 @@ ADD_CONVENIENCE_LIBRARY(ndbportlib
   NdbTick.cpp
   NdbDir.cpp
   ndb_daemon.cpp
+  ndb_file_common.cpp
   ndb_stacktrace.cpp
   ${EXTRA_SRC}
   NdbNuma.cpp

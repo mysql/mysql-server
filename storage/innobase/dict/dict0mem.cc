@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -142,7 +142,7 @@ dict_v_col_t *dict_mem_table_add_v_col(dict_table_t *table, mem_heap_t *heap,
 }
 
 /** Adds a stored column definition to a table.
-@param[in]	table		table
+@param[in,out]	table		table
 @param[in]	num_base	number of base columns. */
 void dict_mem_table_add_s_col(dict_table_t *table, ulint num_base) {
   ulint i = table->n_def - 1;
@@ -306,14 +306,15 @@ static void dict_mem_table_col_rename_low(
   }
 }
 
-/** Renames a column of a table in the data dictionary cache. */
-void dict_mem_table_col_rename(dict_table_t *table, /*!< in/out: table */
-                               ulint nth_col,       /*!< in: column index */
-                               const char *from,    /*!< in: old column name */
-                               const char *to,      /*!< in: new column name */
-                               bool is_virtual)
-/*!< in: if this is a virtual column */
-{
+/** Renames a column of a table in the data dictionary cache.
+@param[in,out] table Table
+@param[in] nth_col Column index
+@param[in] from Old column name
+@param[in] to New column name
+@param[in] is_virtual If this is a virtual column */
+void dict_mem_table_col_rename(dict_table_t *table, ulint nth_col,
+                               const char *from, const char *to,
+                               bool is_virtual) {
   const char *s = is_virtual ? table->v_col_names : table->col_names;
 
   ut_ad((!is_virtual && nth_col < table->n_def) ||
@@ -614,6 +615,34 @@ bool dict_index_t::is_usable(const trx_t *trx) const {
           trx->read_view->changes_visible(trx_id, table->name));
 }
 #endif /* !UNIV_HOTBACKUP */
+
+bool dict_index_t::is_tuple_instant_format(
+    const uint16_t n_fields_in_tuple) const {
+  ut_ad(n_fields_in_tuple <= n_fields);
+
+  if (!has_instant_cols()) {
+    return false;
+  }
+
+  /* For instant index, if the tuple comes from UPDATE, its fields could be less
+  than index definition */
+  if (n_fields_in_tuple < n_fields) {
+    /* If PK is not specified, DB_ROW_ID will be part of tuple */
+    uint16_t sys_fields_in_tuple = 0;
+    if (innobase_strcasecmp(name, innobase_index_reserve_name) == 0) {
+      sys_fields_in_tuple = table->get_n_sys_cols();
+    } else {
+      sys_fields_in_tuple = table->get_n_sys_cols() - 1;
+    }
+
+    uint16_t fields_in_tuple = n_fields_in_tuple - sys_fields_in_tuple;
+    if (fields_in_tuple == table->get_instant_cols()) {
+      return false;
+    }
+  }
+
+  return true;
+}
 
 /** Gets the column number the nth field in an index.
 @param[in] pos	position of the field

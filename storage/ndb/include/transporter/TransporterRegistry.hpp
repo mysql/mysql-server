@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,7 +88,7 @@ public:
   {
     m_transporter_registry= t;
   }
-  SocketServer::Session * newSession(NDB_SOCKET_TYPE socket);
+  SocketServer::Session * newSession(NDB_SOCKET_TYPE socket) override;
 };
 
 /**
@@ -501,7 +501,7 @@ public:
   Transporter* get_transporter(TrpId id) const;
   Transporter* get_node_transporter(NodeId nodeId) const;
   bool is_shm_transporter(NodeId nodeId);
-  struct in_addr get_connect_address(NodeId node_id) const;
+  struct in6_addr get_connect_address(NodeId node_id) const;
 
   Uint64 get_bytes_sent(NodeId nodeId) const;
   Uint64 get_bytes_received(NodeId nodeId) const;

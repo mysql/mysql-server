@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,18 +24,11 @@
 #ifndef MY_TABLE_MAP_INCLUDED
 #define MY_TABLE_MAP_INCLUDED
 
-#include "my_dbug.h"
-#include "my_inttypes.h"
+#include <stdint.h>
 
 using table_map = uint64_t;    // Used for table bits in join.
 using nesting_map = uint64_t;  // Used for flags of nesting constructs.
 using qep_tab_map = uint64_t;  // Used for indexing QEP_TABs in a JOIN.
-
-// Returns a bitmap representing the semi-open interval [start, end).
-static inline uint64_t TablesBetween(unsigned start, unsigned end) {
-  DBUG_ASSERT(end >= start);
-  return (uint64_t{1} << end) - (uint64_t{1} << start);
-}
 
 // Test whether "map" contains the given table.
 static inline bool ContainsTable(uint64_t map, unsigned idx) {

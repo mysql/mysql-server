@@ -379,7 +379,7 @@ define("dojo/i18n", ["./_base/kernel", "require", "./has", "./_base/array", "./_
 										var bundle = rollup[p],
 											match = p.match(/(.+)\/([^\/]+)$/),
 											bundleName, bundlePath;
-											
+
 											// If there is no match, the bundle is not a regular bundle from an AMD layer.
 											if (!match){continue;}
 
@@ -432,8 +432,8 @@ define("dojo/i18n", ["./_base/kernel", "require", "./has", "./_base/array", "./_
 												if(requiredBundles.length){
 													preloadingAddLock();
 													contextRequire(requiredBundles, function(){
-														// requiredBundles was constructed by forEachLocale so it contains locales from 
-														// less specific to most specific. 
+														// requiredBundles was constructed by forEachLocale so it contains locales from
+														// less specific to most specific.
 														// the loop starts with the most specific locale, the last one.
 														for(var i = requiredBundles.length - 1; i >= 0 ; i--){
 															bundle = lang.mixin(lang.clone(bundle), arguments[i]);
@@ -619,6 +619,12 @@ define("dojo/i18n", ["./_base/kernel", "require", "./has", "./_base/array", "./_
 				}
 			);
 			return result;
+		};
+	}
+	else {
+		thisModule.getLocalization = function(moduleName, bundleName, locale){
+			var key = moduleName.replace(/\./g, '/') + '/nls/' + bundleName + '/' + (locale || config.locale);
+			return this.cache[key];
 		};
 	}
 

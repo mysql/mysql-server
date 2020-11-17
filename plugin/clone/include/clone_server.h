@@ -111,6 +111,11 @@ class Server {
   int send_key_value(Command_Response rcmd, String_Key &key_str,
                      String_Key &val_str);
 
+  /** @return true iff need to send only plugin name for old clone version. */
+  bool send_only_plugin_name() const {
+    return m_protocol_version == CLONE_PROTOCOL_VERSION_V1;
+  }
+
   /** Configuration parameters to be validated by remote. */
   static Key_Values s_configs;
 

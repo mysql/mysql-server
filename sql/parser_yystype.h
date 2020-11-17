@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,17 +23,28 @@
 #ifndef PARSER_YYSTYPE_INCLUDED
 #define PARSER_YYSTYPE_INCLUDED
 
+#include <sys/types.h>  // TODO: replace with cstdint
+
+#include "field_types.h"
+#include "lex_string.h"
 #include "my_base.h"
-#include "my_time.h"  // interval_type
+#include "my_dbug.h"
+#include "my_inttypes.h"  // TODO: replace with cstdint
+#include "my_time.h"      // interval_type
+#include "mysql_time.h"
 #include "sql/comp_creator.h"
+#include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item_create.h"    // Cast_target
 #include "sql/key_spec.h"       // keytype, fk_option
 #include "sql/lexer_yystype.h"  // Lexer_yystype
-#include "sql/opt_hints.h"      // opt_hints_enum
+#include "sql/mem_root_array.h"
+#include "sql/opt_hints.h"  // opt_hints_enum
 #include "sql/parse_tree_hints.h"
+#include "sql/parse_tree_node_base.h"
 #include "sql/resourcegroups/platform/thread_attrs_api.h"  // ...::cpu_id_t
 #include "sql/resourcegroups/resource_group_basic_types.h"  // resourcegroups::Range
+#include "sql/set_var.h"
 #include "sql/sql_admin.h"     // Sql_cmd_analyze_table::Histogram_command
 #include "sql/sql_alter.h"     // Alter_info::enum_with_validation
 #include "sql/sql_exchange.h"  // Line_separators, enum_filetype
@@ -43,29 +54,109 @@
 #include "sql/trigger_def.h"          // enum_trigger_order_type
 #include "sql/window_lex.h"           // enum_window_frame_unit
 #include "sql/xa.h"                   // xa_option_words
-#include "sql_string.h"               // String
 #include "thr_lock.h"                 // thr_lock_type
 
+class Index_hint;
+class Item;
+class Item_num;
+class Item_param;
+class Item_string;
+class PTI_text_literal;
+class PT_add_partition;
+class PT_adm_partition;
+class PT_alter_instance;
+class PT_alter_table_action;
+class PT_alter_table_standalone_action;
+class PT_assign_to_keycache;
+class PT_base_index_option;
+class PT_border;
+class PT_borders;
+class PT_column_attr_base;
+class PT_column_def;
+class PT_common_table_expr;
+class PT_create_index_stmt;
+class PT_create_table_option;
 class PT_ddl_table_option;
+class PT_derived_table;
+class PT_exclusion;
+class PT_field_def_base;
+class PT_frame;
+class PT_group;
+class PT_insert_values_list;
+class PT_internal_variable_name;
+class PT_into_destination;
+class PT_isolation_level;
+class PT_item_list;
+class PT_joined_table;
 class PT_json_table_column;
+class PT_key_part_specification;
+class PT_limit_clause;
+class PT_locking_clause;
+class PT_locking_clause_list;
+class PT_option_value_following_option_type;
+class PT_option_value_list_head;
+class PT_option_value_no_option_type;
+class PT_order;
+class PT_order_expr;
+class PT_order_list;
+class PT_part_definition;
+class PT_part_type_def;
+class PT_part_value_item;
+class PT_part_value_item_list_paren;
+class PT_part_values;
+class PT_partition;
+class PT_partition_option;
+class PT_preload_keys;
+class PT_query_expression;
+class PT_query_expression_body;
+class PT_query_primary;
+class PT_role_or_privilege;
+class PT_select_var;
+class PT_select_var_list;
+class PT_set;
+class PT_start_option_value_list;
+class PT_start_option_value_list_following_option_type;
+class PT_sub_partition;
+class PT_subpartition;
+class PT_subquery;
+class PT_subselect;
+class PT_table_constraint_def;
+class PT_table_element;
+class PT_table_reference;
+class PT_transaction_access_mode;
+class PT_transaction_characteristics;
+class PT_type;
+class PT_window;
+class PT_window_list;
+class PT_with_clause;
+class PT_with_list;
 class Parse_tree_root;
+class SELECT_LEX;
+class String;
 class Table_ident;
+class sp_condition_value;
+class sp_head;
+class sp_name;
 enum class Acl_type;
+enum class Json_on_response_type : uint16;
+enum class enum_ha_read_modes;
 enum class enum_ha_read_modes;
 enum class enum_jt_column;
-enum class Json_on_response_type : uint16;
 enum class enum_key_algorithm;
 enum class partition_type;
 struct Alter_tablespace_parse_context;
+struct CHARSET_INFO;
+struct LEX;
 struct Sql_cmd_srs_attributes;
 struct udf_func;
+
+template <class T>
+class List;
 
 typedef Parse_tree_node_tmpl<Alter_tablespace_parse_context>
     PT_alter_tablespace_option_base;
 
 enum enum_yes_no_unknown { TVL_YES, TVL_NO, TVL_UNKNOWN };
-
-enum class enum_ha_read_modes;
 
 /**
   used by the parser to store internal variable name
@@ -250,8 +341,8 @@ union YYSTYPE {
     Hint parser section (sql_hints.yy)
   */
   opt_hints_enum hint_type;
-  class PT_hint *hint;
-  class PT_hint_list *hint_list;
+  PT_hint *hint;
+  PT_hint_list *hint_list;
   Hint_param_index_list hint_param_index_list;
   Hint_param_table hint_param_table;
   Hint_param_table_list hint_param_table_list;
@@ -268,21 +359,21 @@ union YYSTYPE {
   char *simple_string;
   Item *item;
   Item_num *item_num;
-  List<Item> *item_list;
+  mem_root_deque<Item *> *item_list;
   List<String> *string_list;
   String *string;
   Mem_root_array<Table_ident *> *table_list;
   udf_func *udf;
   LEX_USER *lex_user;
   List<LEX_USER> *user_list;
-  struct sys_var_with_base variable;
-  enum enum_var_type var_type;
+  sys_var_with_base variable;
+  enum_var_type var_type;
   keytype key_type;
-  enum ha_key_alg key_alg;
+  ha_key_alg key_alg;
   enum row_type row_type;
-  enum ha_rkey_function ha_rkey_mode;
+  ha_rkey_function ha_rkey_mode;
   enum_ha_read_modes ha_read_mode;
-  enum enum_tx_isolation tx_isolation;
+  enum_tx_isolation tx_isolation;
   const char *c_str;
   struct {
     const CHARSET_INFO *charset;
@@ -292,23 +383,23 @@ union YYSTYPE {
     const char *length;
     const char *dec;
   } precision;
-  struct Cast_type cast_type;
+  Cast_type cast_type;
   thr_lock_type lock_type;
   interval_type interval, interval_time_st;
   enum_mysql_timestamp_type date_time_type;
   SELECT_LEX *select_lex;
   chooser_compare_func_creator boolfunc2creator;
-  class sp_condition_value *spcondvalue;
+  sp_condition_value *spcondvalue;
   struct {
     int vars, conds, hndlrs, curs;
   } spblock;
   sp_name *spname;
   LEX *lex;
   sp_head *sphead;
-  enum index_hint_type index_hint;
-  enum enum_filetype filetype;
-  enum fk_option m_fk_option;
-  enum enum_yes_no_unknown m_yes_no_unk;
+  index_hint_type index_hint;
+  enum_filetype filetype;
+  fk_option m_fk_option;
+  enum_yes_no_unknown m_yes_no_unk;
   enum_condition_item_name da_condition_item_name;
   Diagnostics_information::Which_area diag_area;
   Diagnostics_information *diag_info;
@@ -320,152 +411,151 @@ union YYSTYPE {
   List<Condition_information_item> *cond_info_list;
   bool is_not_empty;
   Set_signal_information *signal_item_list;
-  enum enum_trigger_order_type trigger_action_order_type;
+  enum_trigger_order_type trigger_action_order_type;
   struct {
-    enum enum_trigger_order_type ordering_clause;
+    enum_trigger_order_type ordering_clause;
     LEX_CSTRING anchor_trigger_name;
   } trg_characteristics;
-  class Index_hint *key_usage_element;
+  Index_hint *key_usage_element;
   List<Index_hint> *key_usage_list;
-  class PT_subselect *subselect;
-  class PT_item_list *item_list2;
-  class PT_order_expr *order_expr;
-  class PT_order_list *order_list;
-  struct Limit_options limit_options;
+  PT_subselect *subselect;
+  PT_item_list *item_list2;
+  PT_order_expr *order_expr;
+  PT_order_list *order_list;
+  Limit_options limit_options;
   Query_options select_options;
-  class PT_limit_clause *limit_clause;
+  PT_limit_clause *limit_clause;
   Parse_tree_node *node;
   enum olap_type olap_type;
-  class PT_group *group;
-  class PT_window_list *windows;
-  class PT_window *window;
-  class PT_frame *window_frame;
+  PT_group *group;
+  PT_window_list *windows;
+  PT_window *window;
+  PT_frame *window_frame;
   enum_window_frame_unit frame_units;
-  class PT_borders *frame_extent;
-  class PT_border *bound;
-  class PT_exclusion *frame_exclusion;
-  enum enum_null_treatment null_treatment;
-  enum enum_from_first_last from_first_last;
+  PT_borders *frame_extent;
+  PT_border *bound;
+  PT_exclusion *frame_exclusion;
+  enum_null_treatment null_treatment;
+  enum_from_first_last from_first_last;
   Item_string *item_string;
-  class PT_order *order;
-  class PT_table_reference *table_reference;
-  class PT_joined_table *join_table;
-  enum PT_joined_table_type join_type;
-  class PT_internal_variable_name *internal_variable_name;
-  class PT_option_value_following_option_type
-      *option_value_following_option_type;
-  class PT_option_value_no_option_type *option_value_no_option_type;
-  class PT_option_value_list_head *option_value_list;
-  class PT_start_option_value_list *start_option_value_list;
-  class PT_transaction_access_mode *transaction_access_mode;
-  class PT_isolation_level *isolation_level;
-  class PT_transaction_characteristics *transaction_characteristics;
-  class PT_start_option_value_list_following_option_type
+  PT_order *order;
+  PT_table_reference *table_reference;
+  PT_joined_table *join_table;
+  PT_joined_table_type join_type;
+  PT_internal_variable_name *internal_variable_name;
+  PT_option_value_following_option_type *option_value_following_option_type;
+  PT_option_value_no_option_type *option_value_no_option_type;
+  PT_option_value_list_head *option_value_list;
+  PT_start_option_value_list *start_option_value_list;
+  PT_transaction_access_mode *transaction_access_mode;
+  PT_isolation_level *isolation_level;
+  PT_transaction_characteristics *transaction_characteristics;
+  PT_start_option_value_list_following_option_type
       *start_option_value_list_following_option_type;
-  class PT_set *set;
+  PT_set *set;
   Line_separators line_separators;
   Field_separators field_separators;
-  class PT_into_destination *into_destination;
-  class PT_select_var *select_var_ident;
-  class PT_select_var_list *select_var_list;
+  PT_into_destination *into_destination;
+  PT_select_var *select_var_ident;
+  PT_select_var_list *select_var_list;
   Mem_root_array_YY<PT_table_reference *> table_reference_list;
-  class Item_param *param_marker;
-  class PTI_text_literal *text_literal;
-  class PT_query_expression *query_expression;
-  class PT_derived_table *derived_table;
-  class PT_query_expression_body *query_expression_body;
-  class PT_query_primary *query_primary;
-  class PT_subquery *subquery;
-  class PT_key_part_specification *key_part;
+  Item_param *param_marker;
+  PTI_text_literal *text_literal;
+  PT_query_expression *query_expression;
+  PT_derived_table *derived_table;
+  PT_query_expression_body *query_expression_body;
+  PT_query_primary *query_primary;
+  PT_subquery *subquery;
+  PT_key_part_specification *key_part;
 
   XID *xid;
-  enum xa_option_words xa_option_type;
+  xa_option_words xa_option_type;
   struct {
     Item *column;
     Item *value;
   } column_value_pair;
   struct {
-    class PT_item_list *column_list;
-    class PT_item_list *value_list;
+    PT_item_list *column_list;
+    PT_item_list *value_list;
   } column_value_list_pair;
   struct {
-    class PT_item_list *column_list;
-    class PT_insert_values_list *row_value_list;
+    PT_item_list *column_list;
+    PT_insert_values_list *row_value_list;
   } column_row_value_list_pair;
   struct {
-    class PT_item_list *column_list;
-    class PT_query_primary *insert_query_expression;
+    PT_item_list *column_list;
+    PT_query_primary *insert_query_expression;
   } insert_query_expression;
   struct {
-    class Item *offset;
-    class Item *default_value;
+    Item *offset;
+    Item *default_value;
   } lead_lag_info;
-  class PT_insert_values_list *values_list;
+  PT_insert_values_list *values_list;
   Parse_tree_root *top_level_node;
-  class Table_ident *table_ident;
+  Table_ident *table_ident;
   Mem_root_array_YY<Table_ident *> table_ident_list;
   delete_option_enum opt_delete_option;
-  class PT_alter_instance *alter_instance_cmd;
-  class PT_create_index_stmt *create_index_stmt;
-  class PT_table_constraint_def *table_constraint_def;
+  PT_alter_instance *alter_instance_cmd;
+  PT_create_index_stmt *create_index_stmt;
+  PT_table_constraint_def *table_constraint_def;
   List<PT_key_part_specification> *index_column_list;
   struct {
     LEX_STRING name;
-    class PT_base_index_option *type;
+    PT_base_index_option *type;
   } index_name_and_type;
   PT_base_index_option *index_option;
   Mem_root_array_YY<PT_base_index_option *> index_options;
   Mem_root_array_YY<LEX_STRING> lex_str_list;
   bool visibility;
-  class PT_with_clause *with_clause;
-  class PT_with_list *with_list;
-  class PT_common_table_expr *common_table_expr;
+  PT_with_clause *with_clause;
+  PT_with_list *with_list;
+  PT_common_table_expr *common_table_expr;
   Create_col_name_list simple_ident_list;
-  class PT_partition_option *partition_option;
+  PT_partition_option *partition_option;
   Mem_root_array<PT_partition_option *> *partition_option_list;
-  class PT_subpartition *sub_part_definition;
+  PT_subpartition *sub_part_definition;
   Mem_root_array<PT_subpartition *> *sub_part_list;
-  class PT_part_value_item *part_value_item;
+  PT_part_value_item *part_value_item;
   Mem_root_array<PT_part_value_item *> *part_value_item_list;
-  class PT_part_value_item_list_paren *part_value_item_list_paren;
+  PT_part_value_item_list_paren *part_value_item_list_paren;
   Mem_root_array<PT_part_value_item_list_paren *> *part_value_list;
-  class PT_part_values *part_values;
+  PT_part_values *part_values;
   struct {
     partition_type type;
     PT_part_values *values;
   } opt_part_values;
-  class PT_part_definition *part_definition;
+  PT_part_definition *part_definition;
   Mem_root_array<PT_part_definition *> *part_def_list;
   List<char> *name_list;  // TODO: merge with string_list
   enum_key_algorithm opt_key_algo;
-  class PT_sub_partition *opt_sub_part;
-  class PT_part_type_def *part_type_def;
-  class PT_partition *partition_clause;
-  class PT_add_partition *add_partition_rule;
+  PT_sub_partition *opt_sub_part;
+  PT_part_type_def *part_type_def;
+  PT_partition *partition_clause;
+  PT_add_partition *add_partition_rule;
   struct {
     decltype(HA_CHECK_OPT::flags) flags;
     decltype(HA_CHECK_OPT::sql_flags) sql_flags;
   } mi_type;
   enum_drop_mode opt_restrict;
   Ternary_option ternary_option;
-  class PT_create_table_option *create_table_option;
+  PT_create_table_option *create_table_option;
   Mem_root_array<PT_create_table_option *> *create_table_options;
   Mem_root_array<PT_ddl_table_option *> *space_separated_alter_table_opts;
   On_duplicate on_duplicate;
-  class PT_column_attr_base *col_attr;
+  PT_column_attr_base *col_attr;
   column_format_type column_format;
   ha_storage_media storage_media;
   Mem_root_array<PT_column_attr_base *> *col_attr_list;
   Virtual_or_stored virtual_or_stored;
   ulong field_option;  // 0 or combinations of UNSIGNED_FLAG and ZEROFILL_FLAG
   Int_type int_type;
-  class PT_type *type;
+  PT_type *type;
   Numeric_type numeric_type;
   struct {
     const char *expr_start;
     Item *expr;
   } sp_default;
-  class PT_field_def_base *field_def;
+  PT_field_def_base *field_def;
   struct {
     fk_option fk_update_opt;
     fk_option fk_delete_opt;
@@ -479,8 +569,8 @@ union YYSTYPE {
     fk_option fk_update_opt;
     fk_option fk_delete_opt;
   } fk_references;
-  class PT_column_def *column_def;
-  class PT_table_element *table_element;
+  PT_column_def *column_def;
+  PT_table_element *table_element;
   Mem_root_array<PT_table_element *> *table_element_list;
   struct {
     Mem_root_array<PT_create_table_option *> *opt_create_table_options;
@@ -490,8 +580,8 @@ union YYSTYPE {
   } create_table_tail;
   Lock_strength lock_strength;
   Locked_row_action locked_row_action;
-  class PT_locking_clause *locking_clause;
-  class PT_locking_clause_list *locking_clause_list;
+  PT_locking_clause *locking_clause;
+  PT_locking_clause_list *locking_clause_list;
   Mem_root_array<PT_json_table_column *> *jtc_list;
   // ON EMPTY/ON ERROR response for JSON_TABLE and JSON_VALUE.
   struct Json_on_response {
@@ -516,12 +606,12 @@ union YYSTYPE {
   } histogram;
   Acl_type acl_type;
   Mem_root_array<LEX_CSTRING> *lex_cstring_list;
-  class PT_role_or_privilege *role_or_privilege;
+  PT_role_or_privilege *role_or_privilege;
   Mem_root_array<PT_role_or_privilege *> *role_or_privilege_list;
   enum_order order_direction;
   Alter_info::enum_with_validation with_validation;
-  class PT_alter_table_action *alter_table_action;
-  class PT_alter_table_standalone_action *alter_table_standalone_action;
+  PT_alter_table_action *alter_table_action;
+  PT_alter_table_standalone_action *alter_table_standalone_action;
   Alter_info::enum_alter_table_algorithm alter_table_algorithm;
   Alter_info::enum_alter_table_lock alter_table_lock;
   struct Algo_and_lock {
@@ -565,10 +655,10 @@ union YYSTYPE {
     Algo_and_lock_and_validation flags;
     PT_alter_table_standalone_action *action;
   } standalone_alter_table_action;
-  class PT_assign_to_keycache *assign_to_keycache;
+  PT_assign_to_keycache *assign_to_keycache;
   Mem_root_array<PT_assign_to_keycache *> *keycache_list;
-  class PT_adm_partition *adm_partition;
-  class PT_preload_keys *preload_keys;
+  PT_adm_partition *adm_partition;
+  PT_preload_keys *preload_keys;
   Mem_root_array<PT_preload_keys *> *preload_list;
   PT_alter_tablespace_option_base *ts_option;
   Mem_root_array<PT_alter_tablespace_option_base *> *ts_options;
@@ -599,6 +689,7 @@ union YYSTYPE {
     LEX_CSTRING table_alias;
     Create_col_name_list *column_list;
   } insert_update_values_reference;
+  my_thread_id query_id;
 };
 
 static_assert(sizeof(YYSTYPE) <= 32, "YYSTYPE is too big");

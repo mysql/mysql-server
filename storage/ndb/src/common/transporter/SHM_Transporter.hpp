@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,20 +63,20 @@ public:
   /**
    * SHM destructor
    */
-  virtual ~SHM_Transporter();
+  ~SHM_Transporter() override;
 
   /**
    * Clear any data buffered in the transporter.
    * Should only be called in a disconnected state.
    */
-  virtual void resetBuffers();
+  void resetBuffers() override;
 
-  virtual bool configure_derived(const TransporterConfiguration* conf);
+  bool configure_derived(const TransporterConfiguration* conf) override;
 
   /**
    * Do initialization
    */
-  bool initTransporter();
+  bool initTransporter() override;
   
   void getReceivePtr(Uint32 ** ptr,
                      Uint32 ** eod,
@@ -93,7 +93,7 @@ protected:
    * -# deletes the shm buffer associated with a segment
    * -# marks the segment for removal
    */
-  void disconnectImpl();
+  void disconnectImpl() override;
 
   /**
    * Disconnect socket that was used for wakeup services.
@@ -111,7 +111,7 @@ protected:
    *            i.e., both agrees that the other one has setup the segment.
    *            Otherwise false.
    */
-  virtual bool connect_server_impl(NDB_SOCKET_TYPE sockfd);
+  bool connect_server_impl(NDB_SOCKET_TYPE sockfd) override;
 
   /**
    * Blocking
@@ -124,7 +124,7 @@ protected:
    *            i.e., both agrees that the other one has setup the segment.
    *            Otherwise false.
    */
-  virtual bool connect_client_impl(NDB_SOCKET_TYPE sockfd);
+  bool connect_client_impl(NDB_SOCKET_TYPE sockfd) override;
 
   bool connect_common(NDB_SOCKET_TYPE sockfd);
 
@@ -149,7 +149,7 @@ protected:
   /**
    * doSend (i.e signal receiver)
    */
-  bool doSend(bool need_wakeup = true);
+  bool doSend(bool need_wakeup = true) override;
   void doReceive();
   void wakeup();
 
@@ -220,11 +220,11 @@ private:
 
   void make_error_info(char info[], int sz);
 
-  bool send_limit_reached(int bufsize)
+  bool send_limit_reached(int bufsize) override
   {
     return ((Uint32)bufsize >= m_signal_threshold);
   }
-  bool send_is_possible(int timeout_millisec) const;
+  bool send_is_possible(int timeout_millisec) const override;
   void detach_shm(bool rep_error);
 };
 

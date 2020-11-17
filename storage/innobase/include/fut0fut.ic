@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -34,12 +34,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sync0rw.h"
 
 /** Gets a pointer to a file address and latches the page.
-@param[in]	space		space id
-@param[in]	page_size	page size
-@param[in]	addr		file address
+@param[in]	space		Space id
+@param[in]	page_size	Page size
+@param[in]	addr		File address
 @param[in]	rw_latch	RW_S_LATCH, RW_X_LATCH, RW_SX_LATCH
-@param[in,out]	mtr		mini-transaction
-@param[out]	ptr_block	file page
+@param[in,out]	mtr		Mini-transaction
+@param[out]	ptr_block	File page
 @return pointer to a byte in (*ptr_block)->frame; the *ptr_block is
 bufferfixed and latched */
 UNIV_INLINE

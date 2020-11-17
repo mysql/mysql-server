@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 
 int ndb_socketpair(ndb_socket_t s[2])
 {
-  struct sockaddr_in addr;
+  struct sockaddr_in6 addr;
   ndb_socket_len_t addrlen = sizeof(addr);
   ndb_socket_t listener;
 
@@ -41,14 +41,14 @@ int ndb_socketpair(ndb_socket_t s[2])
   ndb_socket_invalidate(&s[0]);
   ndb_socket_invalidate(&s[1]);
 
-  listener= ndb_socket_create(AF_INET, SOCK_STREAM, 0);
+  listener= ndb_socket_create_dual_stack(SOCK_STREAM, 0);
   if (!ndb_socket_valid(listener))
     return -1;
 
   bzero(&addr, sizeof(addr));
-  addr.sin_family = AF_INET;
-  addr.sin_addr.s_addr = htonl(0x7f000001); /* localhost */
-  addr.sin_port = 0; /* Any port */
+  addr.sin6_family = AF_INET6;
+  addr.sin6_addr = in6addr_loopback; /* localhost */
+  addr.sin6_port = 0; /* Any port */
 
   /* bind any local address */
   if (ndb_bind_inet(listener, &addr) == -1)
@@ -61,12 +61,12 @@ int ndb_socketpair(ndb_socket_t s[2])
   if (ndb_listen(listener, 1) == -1)
     goto err;
 
-  s[0]= ndb_socket_create(AF_INET, SOCK_STREAM, 0);
+  s[0]= ndb_socket_create(AF_INET6, SOCK_STREAM, 0);
 
   if (!ndb_socket_valid(s[0]))
     goto err;
 
-  if (ndb_connect_inet(s[0], &addr) == -1)
+  if (ndb_connect_inet6(s[0], &addr) == -1)
     goto err;
 
   s[1]= ndb_accept(listener, 0, 0);

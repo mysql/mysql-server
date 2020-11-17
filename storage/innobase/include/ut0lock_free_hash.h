@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -448,7 +448,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   }
 
   /** Destructor. Not thread safe. */
-  ~ut_lock_free_hash_t() {
+  ~ut_lock_free_hash_t() override {
     mutex_destroy(&m_optimize_latch);
 
     arr_node_t *arr = m_data.load(std::memory_order_relaxed);
@@ -471,7 +471,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   /** Get the value mapped to a given key.
   @param[in]	key	key to look for
   @return the value that corresponds to key or NOT_FOUND. */
-  int64_t get(uint64_t key) const {
+  int64_t get(uint64_t key) const override {
     ut_ad(key != UNUSED);
     ut_ad(key != AVOID);
 
@@ -533,7 +533,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   present with value either val_a or val_b.
   @param[in]	key	key whose value to set
   @param[in]	val	value to be set */
-  void set(uint64_t key, int64_t val) {
+  void set(uint64_t key, int64_t val) override {
     ut_ad(key != UNUSED);
     ut_ad(key != AVOID);
     ut_ad(val != NOT_FOUND);
@@ -561,7 +561,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   It is undefined which one of [1] or [2] will happen. It is up to the
   caller to accept this behavior or prevent it at a higher level.
   @param[in]	key	key whose pair to delete */
-  void del(uint64_t key) {
+  void del(uint64_t key) override {
     ut_ad(key != UNUSED);
     ut_ad(key != AVOID);
 
@@ -631,7 +631,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   Thread 2: set(key, val)
   when both have finished the value will be either val or val + 1.
   @param[in]	key	key whose value to increment or insert as 1 */
-  void inc(uint64_t key) {
+  void inc(uint64_t key) override {
     ut_ad(key != UNUSED);
     ut_ad(key != AVOID);
 
@@ -645,7 +645,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   that the calls will execute in isolation, but the order in which they
   will execute is undeterministic.
   @param[in]	key	key whose value to decrement */
-  void dec(uint64_t key) {
+  void dec(uint64_t key) override {
     ut_ad(key != UNUSED);
     ut_ad(key != AVOID);
 

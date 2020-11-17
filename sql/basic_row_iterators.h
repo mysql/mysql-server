@@ -1,7 +1,7 @@
 #ifndef SQL_BASIC_ROW_ITERATORS_H_
 #define SQL_BASIC_ROW_ITERATORS_H_
 
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,12 +30,15 @@
  */
 
 #include <sys/types.h>
+
 #include <memory>
 
 #include "map_helpers.h"
+#include "mem_root_deque.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_inttypes.h"
+#include "prealloced_array.h"
 #include "sql/mem_root_array.h"
 #include "sql/row_iterator.h"
 #include "sql/sql_list.h"
@@ -71,8 +74,6 @@ class TableScanIterator final : public TableRowIterator {
   bool Init() override;
   int Read() override;
 
-  std::vector<std::string> DebugString() const override;
-
  private:
   uchar *const m_record;
   QEP_TAB *const m_qep_tab;
@@ -101,7 +102,6 @@ class IndexScanIterator final : public TableRowIterator {
 
   bool Init() override;
   int Read() override;
-  std::vector<std::string> DebugString() const override;
 
  private:
   uchar *const m_record;
@@ -137,7 +137,6 @@ class IndexRangeScanIterator final : public TableRowIterator {
 
   bool Init() override;
   int Read() override;
-  std::vector<std::string> DebugString() const override;
 
  private:
   // NOTE: No destructor; quick_range will call ha_index_or_rnd_end() for us.
@@ -171,18 +170,19 @@ class IndexRangeScanIterator final : public TableRowIterator {
   In this case the records are fetched from a memory buffer.
  */
 template <bool Packed_addon_fields>
-class SortBufferIterator final : public TableRowIterator {
+class SortBufferIterator final : public RowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   // The table is used solely for NULL row flags.
-  SortBufferIterator(THD *thd, TABLE *table, Filesort_info *sort,
-                     Sort_result *sort_result, ha_rows *examined_rows);
+  SortBufferIterator(THD *thd, Prealloced_array<TABLE *, 4> tables,
+                     Filesort_info *sort, Sort_result *sort_result,
+                     ha_rows *examined_rows);
   ~SortBufferIterator() override;
 
   bool Init() override;
   int Read() override;
-  std::vector<std::string> DebugString() const override;
   void UnlockRow() override {}
+  void SetNullRowFlag(bool is_null_row) override;
 
  private:
   // NOTE: No m_record -- unpacks directly into each Field's field->ptr.
@@ -190,6 +190,7 @@ class SortBufferIterator final : public TableRowIterator {
   Sort_result *const m_sort_result;
   unsigned m_unpack_counter;
   ha_rows *const m_examined_rows;
+  Prealloced_array<TABLE *, 4> m_tables;
 };
 
 /**
@@ -202,7 +203,7 @@ class SortBufferIterator final : public TableRowIterator {
   In this case the record data is fetched from the handler using the saved
   reference using the rnd_pos handler call.
  */
-class SortBufferIndirectIterator final : public TableRowIterator {
+class SortBufferIndirectIterator final : public RowIterator {
  public:
   // Ownership here is suboptimal: Takes only partial ownership of
   // "sort_result", so it must be alive for as long as the RowIterator is.
@@ -211,21 +212,24 @@ class SortBufferIndirectIterator final : public TableRowIterator {
   // The pushed condition can be nullptr.
   //
   // "examined_rows", if not nullptr, is incremented for each successful Read().
-  SortBufferIndirectIterator(THD *thd, TABLE *table, Sort_result *sort_result,
-                             bool ignore_not_found_rows,
+  SortBufferIndirectIterator(THD *thd, Prealloced_array<TABLE *, 4> tables,
+                             Sort_result *sort_result,
+                             bool ignore_not_found_rows, bool has_null_flags,
                              ha_rows *examined_rows);
   ~SortBufferIndirectIterator() override;
   bool Init() override;
   int Read() override;
-  std::vector<std::string> DebugString() const override;
+  void SetNullRowFlag(bool is_null_row) override;
+  void UnlockRow() override {}
 
  private:
   Sort_result *const m_sort_result;
-  const uint m_ref_length;
+  Prealloced_array<TABLE *, 4> m_tables;
+  uint m_sum_ref_length;
   ha_rows *const m_examined_rows;
-  uchar *m_record = nullptr;
   uchar *m_cache_pos = nullptr, *m_cache_end = nullptr;
   bool m_ignore_not_found_rows;
+  bool m_has_null_flags;
 };
 
 /**
@@ -237,22 +241,24 @@ class SortBufferIndirectIterator final : public TableRowIterator {
   necessarily suboptimal compared to e.g. SortBufferIndirectIterator.
  */
 template <bool Packed_addon_fields>
-class SortFileIterator final : public TableRowIterator {
+class SortFileIterator final : public RowIterator {
  public:
   // Takes ownership of tempfile.
   // The table is used solely for NULL row flags.
-  SortFileIterator(THD *thd, TABLE *table, IO_CACHE *tempfile,
-                   Filesort_info *sort, ha_rows *examined_rows);
+  SortFileIterator(THD *thd, Prealloced_array<TABLE *, 4> tables,
+                   IO_CACHE *tempfile, Filesort_info *sort,
+                   ha_rows *examined_rows);
   ~SortFileIterator() override;
 
   bool Init() override { return false; }
   int Read() override;
-  std::vector<std::string> DebugString() const override;
   void UnlockRow() override {}
+  void SetNullRowFlag(bool is_null_row) override;
 
  private:
   uchar *const m_rec_buf;
-  const uint m_ref_length;
+  const uint m_buf_length;
+  Prealloced_array<TABLE *, 4> m_tables;
   IO_CACHE *const m_io_cache;
   Filesort_info *const m_sort;
   ha_rows *const m_examined_rows;
@@ -267,47 +273,32 @@ class SortFileIterator final : public TableRowIterator {
   are read from file, then those record IDs are used to look up rows in the
   table.
  */
-class SortFileIndirectIterator final : public TableRowIterator {
+class SortFileIndirectIterator final : public RowIterator {
  public:
   // Takes ownership of tempfile.
   //
   // The pushed condition can be nullptr.
   //
   // "examined_rows", if not nullptr, is incremented for each successful Read().
-  SortFileIndirectIterator(THD *thd, TABLE *table, IO_CACHE *tempfile,
-                           bool request_cache, bool ignore_not_found_rows,
-                           ha_rows *examined_rows);
+  SortFileIndirectIterator(THD *thd, Prealloced_array<TABLE *, 4> tables,
+                           IO_CACHE *tempfile, bool ignore_not_found_rows,
+                           bool has_null_flags, ha_rows *examined_rows);
   ~SortFileIndirectIterator() override;
 
   bool Init() override;
   int Read() override;
-  std::vector<std::string> DebugString() const override;
+  void SetNullRowFlag(bool is_null_row) override;
+  void UnlockRow() override {}
 
  private:
-  bool InitCache();
-  int CachedRead();
-  int UncachedRead();
-
   IO_CACHE *m_io_cache = nullptr;
   ha_rows *const m_examined_rows;
-  uchar *m_record = nullptr;
-  uchar *m_ref_pos = nullptr; /* pointer to form->refpos */
+  Prealloced_array<TABLE *, 4> m_tables;
+  uchar *m_ref_pos = nullptr;
   bool m_ignore_not_found_rows;
+  bool m_has_null_flags;
 
-  // This is a special variant that can be used for
-  // handlers that is not using the HA_FAST_KEY_READ table flag. Instead
-  // of reading the references one by one from the temporary file it reads
-  // a set of them, sorts them and reads all of them into a buffer which
-  // is then used for a number of subsequent calls to Read().
-  // It is only used for SELECT queries and a number of other conditions
-  // on table size.
-  bool m_using_cache;
-  uint m_cache_records;
-  uint m_ref_length, m_struct_length, m_reclength, m_rec_cache_size,
-      m_error_offset;
-  unique_ptr_my_free<uchar[]> m_cache;
-  uchar *m_cache_pos = nullptr, *m_cache_end = nullptr,
-        *m_read_positions = nullptr;
+  uint m_sum_ref_length;
 };
 
 // Used when the plan is const, ie. is known to contain a single row
@@ -336,10 +327,6 @@ class FakeSingleRowIterator final : public RowIterator {
     }
   }
 
-  std::vector<std::string> DebugString() const override {
-    return {"Rows fetched before execution"};
-  }
-
   void SetNullRowFlag(bool is_null_row MY_ATTRIBUTE((unused))) override {
     DBUG_ASSERT(!is_null_row);
   }
@@ -362,8 +349,6 @@ class UnqualifiedCountIterator final : public RowIterator {
  public:
   UnqualifiedCountIterator(THD *thd, JOIN *join)
       : RowIterator(thd), m_join(join) {}
-
-  std::vector<std::string> DebugString() const override;
 
   bool Init() override {
     m_has_row = true;
@@ -394,19 +379,13 @@ class UnqualifiedCountIterator final : public RowIterator {
  */
 class ZeroRowsIterator final : public RowIterator {
  public:
-  ZeroRowsIterator(THD *thd, const char *reason,
+  ZeroRowsIterator(THD *thd,
                    unique_ptr_destroy_only<RowIterator> child_iterator)
-      : RowIterator(thd),
-        m_reason(reason),
-        m_child_iterator(std::move(child_iterator)) {}
+      : RowIterator(thd), m_child_iterator(std::move(child_iterator)) {}
 
   bool Init() override { return false; }
 
   int Read() override { return -1; }
-
-  std::vector<std::string> DebugString() const override {
-    return {std::string("Zero rows (") + m_reason + ")"};
-  }
 
   void SetNullRowFlag(bool is_null_row) override {
     DBUG_ASSERT(m_child_iterator != nullptr);
@@ -416,7 +395,6 @@ class ZeroRowsIterator final : public RowIterator {
   void UnlockRow() override {}
 
  private:
-  const char *m_reason;
   unique_ptr_destroy_only<RowIterator> m_child_iterator;
 };
 
@@ -433,12 +411,8 @@ class SELECT_LEX;
 class ZeroRowsAggregatedIterator final : public RowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
-  ZeroRowsAggregatedIterator(THD *thd, const char *reason, JOIN *join,
-                             ha_rows *examined_rows)
-      : RowIterator(thd),
-        m_reason(reason),
-        m_join(join),
-        m_examined_rows(examined_rows) {}
+  ZeroRowsAggregatedIterator(THD *thd, JOIN *join, ha_rows *examined_rows)
+      : RowIterator(thd), m_join(join), m_examined_rows(examined_rows) {}
 
   bool Init() override {
     m_has_row = true;
@@ -447,18 +421,12 @@ class ZeroRowsAggregatedIterator final : public RowIterator {
 
   int Read() override;
 
-  std::vector<std::string> DebugString() const override {
-    return {std::string("Zero input rows (") + m_reason +
-            "), aggregated into one output row"};
-  }
-
   void SetNullRowFlag(bool) override { DBUG_ASSERT(false); }
 
   void UnlockRow() override {}
 
  private:
   bool m_has_row;
-  const char *const m_reason;
   JOIN *const m_join;
   ha_rows *const m_examined_rows;
 };
@@ -496,8 +464,6 @@ class FollowTailIterator final : public TableRowIterator {
 
   bool Init() override;
   int Read() override;
-
-  std::vector<std::string> DebugString() const override;
 
   /**
     Signal where we can expect to find the number of generated rows for this
@@ -550,16 +516,13 @@ class FollowTailIterator final : public TableRowIterator {
  */
 class TableValueConstructorIterator final : public RowIterator {
  public:
-  TableValueConstructorIterator(THD *thd, ha_rows *examined_rows,
-                                const List<List<Item>> &row_value_list,
-                                List<Item> *join_fields);
+  TableValueConstructorIterator(
+      THD *thd, ha_rows *examined_rows,
+      const mem_root_deque<mem_root_deque<Item *> *> &row_value_list,
+      mem_root_deque<Item *> *join_fields);
 
   bool Init() override;
   int Read() override;
-
-  std::vector<std::string> DebugString() const override {
-    return {"Rows fetched before execution"};
-  }
 
   void SetNullRowFlag(bool) override { DBUG_ASSERT(false); }
 
@@ -571,13 +534,13 @@ class TableValueConstructorIterator final : public RowIterator {
   /// Contains the row values that are part of a VALUES clause. Read() will
   /// modify contained Item objects during execution by calls to is_null() and
   /// the required val function to extract its value.
-  const List<List<Item>> &m_row_value_list;
-  List_STL_Iterator<const List<Item>> m_row_it;
+  const mem_root_deque<mem_root_deque<Item *> *> &m_row_value_list;
+  mem_root_deque<mem_root_deque<Item *> *>::const_iterator m_row_it;
 
   /// References to the row we currently want to output. When multiple rows must
   /// be output, this contains Item_values_column objects. In this case, each
   /// call to Read() will replace its current reference with the next row.
-  List<Item> *const m_output_refs;
+  mem_root_deque<Item *> *const m_output_refs;
 };
 
 #endif  // SQL_BASIC_ROW_ITERATORS_H_

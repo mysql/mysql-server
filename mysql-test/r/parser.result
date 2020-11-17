@@ -755,7 +755,7 @@ Warning	1329	No data - zero rows fetched, selected, or processed
 (SELECT 1 FROM t1 LIMIT 1) LIMIT 1;
 1
 ((SELECT 1 FROM t1 ORDER BY 1) ORDER BY 1) ORDER BY 1;
-ERROR 42000: This version of MySQL doesn't yet support 'parenthesized query block with more than one external level of ORDER/LIMIT operations'
+ERROR 42000: This version of MySQL doesn't yet support 'parenthesized query expression with more than one external level of ORDER/LIMIT operations'
 ((SELECT 1 FROM t1 LIMIT 1) LIMIT 1) LIMIT 1;
 1
 (SELECT 1 FROM t1 ORDER BY 1) LIMIT 1;
@@ -2548,11 +2548,11 @@ EXPLAIN (SELECT * FROM t3 ORDER BY a LIMIT 3) ORDER BY b DESC LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using filesort
 Warnings:
-Note	1003	(/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` order by `test`.`t3`.`a` limit 3) order by `test`.`t3`.`b` desc limit 2
+Note	1003	(/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` order by `test`.`t3`.`a` limit 3) order by `b` desc limit 2
 EXPLAIN ((SELECT * FROM t3 ORDER BY a LIMIT 3)
 ORDER BY b DESC LIMIT 2)
 ORDER BY c LIMIT 1;
-ERROR 42000: This version of MySQL doesn't yet support 'parenthesized query block with more than one external level of ORDER/LIMIT operations'
+ERROR 42000: This version of MySQL doesn't yet support 'parenthesized query expression with more than one external level of ORDER/LIMIT operations'
 DROP VIEW v1;
 DROP VIEW v2;
 DROP TABLE t1, t2, t3;
@@ -2666,3 +2666,69 @@ SELECT test.t1.`*`, test.t1.* FROM t1;
 *	c1	*	c3
 2	1	2	3
 DROP TABLE t1;
+#
+# Bug#30592703: UNDOCUMENTED SYNTAX
+#               '('<QUERY BLOCK>')' {LIMIT|ORDER [LIMIT]} INTO ...
+#
+(SELECT 1) LIMIT 1 INTO @var;
+SELECT @var;
+@var
+1
+(SELECT 2 AS c) ORDER BY c INTO @var;
+SELECT @var;
+@var
+2
+(SELECT 3 AS c) ORDER BY c LIMIT 1 INTO @var;
+SELECT @var;
+@var
+3
+(SELECT 4) INTO @var;
+SELECT @var;
+@var
+4
+#
+# <time zone> syntax.
+#
+SET time_zone = '+01:00';
+SELECT cast( DATE'2019-10-10' AT LOCAL AS DATETIME );
+ERROR 42000: This version of MySQL doesn't yet support 'AT LOCAL'
+SELECT cast( DATE'2019-10-10' AT TIME ZONE 'UTC' AS DATETIME );
+ERROR HY000: Cannot cast value to TIMESTAMP WITH TIME ZONE.
+SELECT cast( TIME'10:10' AT LOCAL AS DATETIME );
+ERROR 42000: This version of MySQL doesn't yet support 'AT LOCAL'
+SELECT cast( TIME'10:10' AT TIME ZONE '+01:00' AS DATETIME );
+ERROR HY000: Cannot cast value to TIMESTAMP WITH TIME ZONE.
+SELECT cast( TIME'10:10' AT TIME ZONE INTERVAL 'UTC' AS DATETIME );
+ERROR HY000: Cannot cast value to TIMESTAMP WITH TIME ZONE.
+SELECT cast( TIME'10:10' AT TIME ZONE '' AS DATETIME );
+ERROR HY000: Cannot cast value to TIMESTAMP WITH TIME ZONE.
+SELECT cast( TIME'10:10' AT TIME ZONE INTERVAL '' AS DATETIME );
+ERROR HY000: Cannot cast value to TIMESTAMP WITH TIME ZONE.
+SELECT cast( TIMESTAMP'2019-10-10 10:11:12' AT LOCAL AS DATETIME );
+ERROR 42000: This version of MySQL doesn't yet support 'AT LOCAL'
+SELECT cast( NULL AT TIME ZONE 'UTC' AS DATETIME );
+cast( NULL AT TIME ZONE 'UTC' AS DATETIME )
+NULL
+# Casting to prohibited types
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS BINARY );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'BINARY )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS CHAR );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CHAR )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS DATE );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DATE )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS DECIMAL );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DECIMAL )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS DOUBLE );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DOUBLE )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS FLOAT );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FLOAT )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS SIGNED INTEGER );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SIGNED INTEGER )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS TIME );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'TIME )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS UNSIGNED INTEGER );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNSIGNED INTEGER )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS JSON );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'JSON )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS REAL );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'REAL )' at line 1

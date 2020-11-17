@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -191,8 +191,8 @@ wrappers, they will terminate the process if there is
 an allocation failure.
 */
 static void init_dynamic_string_checked(DYNAMIC_STRING *str,
-                                        const char *init_str, size_t init_alloc,
-                                        size_t alloc_increment);
+                                        const char *init_str,
+                                        size_t init_alloc);
 static void dynstr_append_checked(DYNAMIC_STRING *dest, const char *src);
 static void dynstr_set_checked(DYNAMIC_STRING *str, const char *init_str);
 static void dynstr_append_mem_checked(DYNAMIC_STRING *str, const char *append,
@@ -2632,7 +2632,7 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
     complete_insert = opt_complete_insert;
     if (!insert_pat_inited) {
       insert_pat_inited = true;
-      init_dynamic_string_checked(&insert_pat, "", 1024, 1024);
+      init_dynamic_string_checked(&insert_pat, "", 1024);
     } else
       dynstr_set_checked(&insert_pat, "");
   }
@@ -3585,9 +3585,8 @@ static void dump_table(char *table, char *db) {
 
   verbose_msg("-- Sending SELECT query...\n");
 
-  init_dynamic_string_checked(&query_string, "", 1024, 1024);
-  if (extended_insert)
-    init_dynamic_string_checked(&extended_row, "", 1024, 1024);
+  init_dynamic_string_checked(&query_string, "", 1024);
+  if (extended_insert) init_dynamic_string_checked(&extended_row, "", 1024);
 
   if (opt_order_by_primary) order_by = primary_key_fields(result_table);
   if (path) {
@@ -4019,7 +4018,7 @@ static int dump_tablespaces_for_tables(char *db, char **table_names,
                               " INFORMATION_SCHEMA.PARTITIONS"
                               " WHERE"
                               " TABLE_SCHEMA='",
-                              256, 1024);
+                              256);
   dynstr_append_checked(&where, name_buff);
   dynstr_append_checked(&where, "' AND TABLE_NAME IN (");
 
@@ -4051,7 +4050,7 @@ static int dump_tablespaces_for_databases(char **databases) {
                               " INFORMATION_SCHEMA.PARTITIONS"
                               " WHERE"
                               " TABLE_SCHEMA IN (",
-                              256, 1024);
+                              256);
 
   for (i = 0; databases[i] != nullptr; i++) {
     char db_name_buff[NAME_LEN * 2 + 3];
@@ -4095,7 +4094,7 @@ static int dump_tablespaces(char *ts_where) {
                               " WHERE FILE_TYPE = 'UNDO LOG'"
                               " AND FILE_NAME IS NOT NULL"
                               " AND LOGFILE_GROUP_NAME IS NOT NULL",
-                              256, 1024);
+                              256);
   if (ts_where) {
     dynstr_append_checked(&sqlbuf,
                           " AND LOGFILE_GROUP_NAME IN ("
@@ -4172,7 +4171,7 @@ static int dump_tablespaces(char *ts_where) {
                               " ENGINE"
                               " FROM INFORMATION_SCHEMA.FILES"
                               " WHERE FILE_TYPE = 'DATAFILE'",
-                              256, 1024);
+                              256);
 
   if (ts_where) dynstr_append_checked(&sqlbuf, ts_where);
 
@@ -4449,7 +4448,7 @@ static int dump_all_tables_in_db(char *database) {
 
   if (lock_tables) {
     DYNAMIC_STRING query;
-    init_dynamic_string_checked(&query, "LOCK TABLES ", 256, 1024);
+    init_dynamic_string_checked(&query, "LOCK TABLES ", 256);
     for (numrows = 0; (table = getTableName(1));) {
       char *end = my_stpcpy(afterdot, table);
       if (include_table(hash_key, end - hash_key)) {
@@ -4603,7 +4602,7 @@ static bool dump_all_views_in_db(char *database) {
                   NullS);
   if (lock_tables) {
     DYNAMIC_STRING query;
-    init_dynamic_string_checked(&query, "LOCK TABLES ", 256, 1024);
+    init_dynamic_string_checked(&query, "LOCK TABLES ", 256);
     for (numrows = 0; (table = getTableName(1));) {
       char *end = my_stpcpy(afterdot, table);
       if (include_table(hash_key, end - hash_key)) {
@@ -4699,7 +4698,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables) {
   if (!(dump_tables = pos = (char **)root.Alloc(tables * sizeof(char *))))
     die(EX_EOM, "alloc_root failure.");
 
-  init_dynamic_string_checked(&lock_tables_query, "LOCK TABLES ", 256, 1024);
+  init_dynamic_string_checked(&lock_tables_query, "LOCK TABLES ", 256);
   for (; tables > 0; tables--, table_names++) {
     /* the table name passed on commandline may be wrong case */
     if ((*pos = get_actual_table_name(*table_names, &root))) {
@@ -5017,7 +5016,7 @@ static int get_bin_log_name(MYSQL *mysql_con, char *buff_log_name,
 static int purge_bin_logs_to(MYSQL *mysql_con, char *log_name) {
   DYNAMIC_STRING str;
   int err;
-  init_dynamic_string_checked(&str, "PURGE BINARY LOGS TO '", 1024, 1024);
+  init_dynamic_string_checked(&str, "PURGE BINARY LOGS TO '", 1024);
   dynstr_append_checked(&str, log_name);
   dynstr_append_checked(&str, "'");
   err = mysql_query_with_error_report(mysql_con, nullptr, str.str);
@@ -5279,7 +5278,7 @@ static int replace(DYNAMIC_STRING *ds_str, const char *search_str,
   DYNAMIC_STRING ds_tmp;
   const char *start = strstr(ds_str->str, search_str);
   if (!start) return 1;
-  init_dynamic_string_checked(&ds_tmp, "", ds_str->length + replace_len, 256);
+  init_dynamic_string_checked(&ds_tmp, "", ds_str->length + replace_len);
   dynstr_append_mem_checked(&ds_tmp, ds_str->str, start - ds_str->str);
   dynstr_append_mem_checked(&ds_tmp, replace_str, replace_len);
   dynstr_append_checked(&ds_tmp, start + search_len);
@@ -5538,7 +5537,7 @@ static bool get_view_structure(char *table, char *db) {
     /* Save the result of SHOW CREATE TABLE in ds_view */
     row = mysql_fetch_row(table_res);
     lengths = mysql_fetch_lengths(table_res);
-    init_dynamic_string_checked(&ds_view, row[1], lengths[1] + 1, 1024);
+    init_dynamic_string_checked(&ds_view, row[1], lengths[1] + 1);
     mysql_free_result(table_res);
 
     /* Get the result from "select ... information_schema" */
@@ -5642,9 +5641,9 @@ static bool get_view_structure(char *table, char *db) {
 #define DYNAMIC_STR_ERROR_MSG "Couldn't perform DYNAMIC_STRING operation"
 
 static void init_dynamic_string_checked(DYNAMIC_STRING *str,
-                                        const char *init_str, size_t init_alloc,
-                                        size_t alloc_increment) {
-  if (init_dynamic_string(str, init_str, init_alloc, alloc_increment))
+                                        const char *init_str,
+                                        size_t init_alloc) {
+  if (init_dynamic_string(str, init_str, init_alloc))
     die(EX_MYSQLERR, DYNAMIC_STR_ERROR_MSG);
 }
 

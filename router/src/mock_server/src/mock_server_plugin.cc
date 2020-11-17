@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,12 +23,6 @@
 */
 
 #include "mock_server_plugin.h"
-
-#ifdef _WIN32
-#include <direct.h>  // getcwd
-#else
-#include <unistd.h>  // getcwd
-#endif
 
 #include <array>
 #include <climits>  // PATH_MAX
@@ -171,6 +165,7 @@ mysql_harness::Plugin MOCK_SERVER_EXPORT harness_plugin_mock_server = {
     init,     // init
     nullptr,  // deinit
     start,    // start
-    nullptr   // stop
+    nullptr,  // stop
+    true,     // declares_readiness
 };
 }

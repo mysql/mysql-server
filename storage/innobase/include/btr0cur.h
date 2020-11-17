@@ -76,9 +76,6 @@ struct btr_latch_leaves_t {
 #include "row0types.h"
 #endif /* !UNIV_HOTBACKUP */
 
-#define BTR_CUR_ADAPT
-#define BTR_CUR_HASH_ADAPT
-
 #ifdef UNIV_DEBUG
 /** Returns the page cursor component of a tree cursor.
  @return pointer to page cursor component */
@@ -121,13 +118,13 @@ void btr_cur_position(dict_index_t *index, rec_t *rec, buf_block_t *block,
                       btr_cur_t *cursor);
 
 /** Optimistically latches the leaf page or pages requested.
-@param[in]	block		guessed buffer block
-@param[in]	modify_clock	modify clock value
+@param[in]	block		Guessed buffer block
+@param[in]	modify_clock	Modify clock value
 @param[in,out]	latch_mode	BTR_SEARCH_LEAF, ...
-@param[in,out]	cursor		cursor
-@param[in]	file		file name
-@param[in]	line		line where called
-@param[in]	mtr		mini-transaction
+@param[in,out]	cursor		Cursor
+@param[in]	file		File name
+@param[in]	line		Line where called
+@param[in]	mtr		Mini-transaction
 @return true if success */
 bool btr_cur_optimistic_latch_leaves(buf_block_t *block,
                                      ib_uint64_t modify_clock,
@@ -175,39 +172,41 @@ void btr_cur_search_to_nth_level(
     mtr_t *mtr);      /*!< in: mtr */
 
 /** Searches an index tree and positions a tree cursor on a given level.
-This function will avoid placing latches the travesal path and so
+This function will avoid placing latches while traversing the path and so
 should be used only for cases where-in latching is not needed.
 
-@param[in]	index	index
-@param[in]	level	the tree level of search
-@param[in]	tuple	data tuple; Note: n_fields_cmp in compared
+@param[in]	index	Index
+@param[in]	level	The tree level of search
+@param[in]	tuple	Data tuple; Note: n_fields_cmp in compared
                         to the node ptr page node field
 @param[in]	mode	PAGE_CUR_L, ....
                         Insert should always be made using PAGE_CUR_LE
                         to search the position.
-@param[in,out]	cursor	tree cursor; points to record of interest.
-@param[in]	file	file name
-@param[in]	line	line where called from
-@param[in,out]	mtr	mtr
-@param[in]	mark_dirty
-                        if true then mark the block as dirty */
+@param[in,out]	cursor	Tree cursor; points to record of interest.
+@param[in]	file	File name
+@param[in]	line	Line where called from
+@param[in,out]	mtr	Mini-transaction
+@param[in]	mark_dirty if true then mark the block as dirty */
 void btr_cur_search_to_nth_level_with_no_latch(
     dict_index_t *index, ulint level, const dtuple_t *tuple,
     page_cur_mode_t mode, btr_cur_t *cursor, const char *file, ulint line,
     mtr_t *mtr, bool mark_dirty = true);
 
-/** Opens a cursor at either end of an index. */
-void btr_cur_open_at_index_side_func(
-    bool from_left,      /*!< in: true if open to the low end,
-                         false if to the high end */
-    dict_index_t *index, /*!< in: index */
-    ulint latch_mode,    /*!< in: latch mode */
-    btr_cur_t *cursor,   /*!< in/out: cursor */
-    ulint level,         /*!< in: level to search for
-                         (0=leaf) */
-    const char *file,    /*!< in: file name */
-    ulint line,          /*!< in: line where called */
-    mtr_t *mtr);         /*!< in/out: mini-transaction */
+/** Opens a cursor at either end of an index.
+@param[in]      from_left   True if open to the low end, false if to the high
+end
+@param[in]      index       Index
+@param[in]      latch_mode  Latch mode
+@param[in,out]  cursor      Cursor
+@param[in]      level       Level to search for (0=leaf)
+@param[in]      file        File name
+@param[in]      line        Line where called
+@param[in,out] mtr Mini-transaction */
+void btr_cur_open_at_index_side_func(bool from_left, dict_index_t *index,
+                                     ulint latch_mode, btr_cur_t *cursor,
+                                     ulint level, const char *file, ulint line,
+                                     mtr_t *mtr);
+
 #define btr_cur_open_at_index_side(f, i, l, c, lv, m) \
   btr_cur_open_at_index_side_func(f, i, l, c, lv, __FILE__, __LINE__, m)
 
@@ -215,14 +214,14 @@ void btr_cur_open_at_index_side_func(
 Avoid taking latches on buffer, just pin (by incrementing fix_count)
 to keep them in buffer pool. This mode is used by intrinsic table
 as they are not shared and so there is no need of latching.
-@param[in]	from_left	true if open to low end, false if open
-                                to high end.
-@param[in]	index		index
-@param[in,out]	cursor		cursor
-@param[in]	file		file name
-@param[in]	line		line where called
-@param[in,out]	mtr		mini transaction
-*/
+@param[in]	from_left	true if open to low end, false if open to high
+end.
+@param[in]	index	Index
+@param[in,out]	cursor	Cursor
+@param[in]	level	Level to search for (0=leaf)
+@param[in]	file	File name
+@param[in]	line	Line where called
+@param[in,out]	mtr	Mini-transaction */
 void btr_cur_open_at_index_side_with_no_latch_func(
     bool from_left, dict_index_t *index, btr_cur_t *cursor, ulint level,
     const char *file, ulint line, mtr_t *mtr);
@@ -328,50 +327,52 @@ bool btr_cur_update_alloc_zip_func(
                                  mtr)                                       \
   btr_cur_update_alloc_zip_func(page_zip, cursor, index, len, cr, mtr)
 #endif /* UNIV_DEBUG */
+
 /** Updates a record when the update causes no size changes in its fields.
- @return locking or undo log related error code, or
- @retval DB_SUCCESS on success
- @retval DB_ZIP_OVERFLOW if there is not enough space left
- on the compressed page (IBUF_BITMAP_FREE was reset outside mtr) */
-dberr_t btr_cur_update_in_place(
-    ulint flags,         /*!< in: undo logging and locking flags */
-    btr_cur_t *cursor,   /*!< in: cursor on the record to update;
-                         cursor stays valid and positioned on the
-                         same record */
-    ulint *offsets,      /*!< in/out: offsets on cursor->page_cur.rec */
-    const upd_t *update, /*!< in: update vector */
-    ulint cmpl_info,     /*!< in: compiler info on secondary index
-                       updates */
-    que_thr_t *thr,      /*!< in: query thread, or NULL if
-                         flags & (BTR_NO_LOCKING_FLAG
-                         | BTR_NO_UNDO_LOG_FLAG
-                         | BTR_CREATE_FLAG
-                         | BTR_KEEP_SYS_FLAG) */
-    trx_id_t trx_id,     /*!< in: transaction id */
-    mtr_t *mtr)          /*!< in/out: mini-transaction; if this
-                         is a secondary index, the caller must
-                         mtr_commit(mtr) before latching any
-                         further pages */
+@param[in] flags Undo logging and locking flags
+@param[in] cursor Cursor on the record to update; cursor stays valid and
+positioned on the same record
+@param[in,out] offsets Offsets on cursor->page_cur.rec
+@param[in] update Update vector
+@param[in] cmpl_info Compiler info on secondary index updates
+@param[in] thr Query thread, or null if flags & (btr_no_locking_flag |
+btr_no_undo_log_flag | btr_create_flag | btr_keep_sys_flag)
+@param[in] trx_id Transaction id
+@param[in,out] mtr Mini-transaction; if this is a secondary index, the caller
+must mtr_commit(mtr) before latching any further pages
+@return locking or undo log related error code, or
+@retval DB_SUCCESS on success
+@retval DB_ZIP_OVERFLOW if there is not enough space left
+on the compressed page (IBUF_BITMAP_FREE was reset outside mtr) */
+dberr_t btr_cur_update_in_place(ulint flags, btr_cur_t *cursor, ulint *offsets,
+                                const upd_t *update, ulint cmpl_info,
+                                que_thr_t *thr, trx_id_t trx_id, mtr_t *mtr)
     MY_ATTRIBUTE((warn_unused_result));
-/** Writes a redo log record of updating a record in-place. */
-void btr_cur_update_in_place_log(
-    ulint flags,         /*!< in: undo logging and locking flags */
-    const rec_t *rec,    /*!< in: record */
-    dict_index_t *index, /*!< in: index of the record */
-    const upd_t *update, /*!< in: update vector */
-    trx_id_t trx_id,     /*!< in: transaction id */
-    roll_ptr_t roll_ptr, /*!< in: roll ptr */
-    mtr_t *mtr);         /*!< in: mtr */
+
+/** Writes a redo log record of updating a record in-place.
+@param[in] flags Undo logging and locking flags
+@param[in] rec Record
+@param[in] index Index of the record
+@param[in] update Update vector
+@param[in] trx_id Transaction id
+@param[in] roll_ptr Roll ptr
+@param[in] mtr Mini-transaction */
+void btr_cur_update_in_place_log(ulint flags, const rec_t *rec,
+                                 dict_index_t *index, const upd_t *update,
+                                 trx_id_t trx_id, roll_ptr_t roll_ptr,
+                                 mtr_t *mtr);
+
 /** Tries to update a record on a page in an index tree. It is assumed that mtr
- holds an x-latch on the page. The operation does not succeed if there is too
- little space on the page or if the update would result in too empty a page,
- so that tree compression is recommended.
- @return error code, including
- @retval DB_SUCCESS on success
- @retval DB_OVERFLOW if the updated record does not fit
- @retval DB_UNDERFLOW if the page would become too empty
- @retval DB_ZIP_OVERFLOW if there is not enough space left
- on the compressed page */
+holds an x-latch on the page. The operation does not succeed if there is too
+little space on the page or if the update would result in too empty a page,
+so that tree compression is recommended. We assume here that the ordering
+fields of the record do not change.
+@return error code, including
+@retval DB_SUCCESS on success
+@retval DB_OVERFLOW if the updated record does not fit
+@retval DB_UNDERFLOW if the page would become too empty
+@retval DB_ZIP_OVERFLOW if there is not enough space left
+on the compressed page (IBUF_BITMAP_FREE was reset outside mtr) */
 dberr_t btr_cur_optimistic_update(
     ulint flags,         /*!< in: undo logging and locking flags */
     btr_cur_t *cursor,   /*!< in: cursor on the record to update;
@@ -399,30 +400,32 @@ dberr_t btr_cur_optimistic_update(
 that mtr holds an x-latch on the tree and on the cursor page. If the
 update is made on the leaf level, to avoid deadlocks, mtr must also
 own x-latches to brothers of page, if those brothers exist.
-@param[in]     flags         undo logging, locking, and rollback flags
+@param[in]     flags         Undo logging, locking, and rollback flags
 @param[in,out] cursor        cursor on the record to update;
                              cursor may become invalid if *big_rec == NULL
                              || !(flags & BTR_KEEP_POS_FLAG)
-@param[out]    offsets       offsets on cursor->page_cur.rec
-@param[in,out] offsets_heap  pointer to memory heap that can be emptied,
+@param[out]    offsets       Offsets on cursor->page_cur.rec
+@param[in,out] offsets_heap  Pointer to memory heap that can be emptied,
                              or NULL
-@param[in,out] entry_heap    memory heap for allocating big_rec and the
+@param[in,out] entry_heap    Memory heap for allocating big_rec and the
                              index tuple.
-@param[out]    big_rec       big rec vector whose fields have to be stored
+@param[out]    big_rec       Big rec vector whose fields have to be stored
                              externally by the caller, or NULL
-@param[in,out] update        update vector; this is allowed to also contain
+@param[in,out] update        Update vector; this is allowed to also contain
                              trx id and roll ptr fields. Non-updated columns
-                             that are moved offpage will be appended to this.
-@param[in]     cmpl_info     compiler info on secondary index updates
-@param[in]     thr           query thread, or NULL if flags &
+                             that are moved offpage will be appended to
+this.
+@param[in]     cmpl_info     Compiler info on secondary index updates
+@param[in]     thr           Query thread, or NULL if flags &
                              (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG |
                               BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG)
-@param[in]     trx_id        transaction id
-@param[in]     undo_no       undo number of the transaction. This is needed
-                             for rollback to savepoint of partially updated LOB.
-@param[in,out] mtr           mini transaction; must be committed before latching
-                             any further pages
-@param[in]     pcur          the persistent cursor on the record to update.
+@param[in]     trx_id        Transaction id
+@param[in]     undo_no       Undo number of the transaction. This is needed
+                             for rollback to savepoint of partially updated
+LOB.
+@param[in,out] mtr           Mini-transaction; must be committed before
+latching any further pages
+@param[in]     pcur          The persistent cursor on the record to update.
 @return DB_SUCCESS or error code */
 dberr_t btr_cur_pessimistic_update(
     ulint flags, btr_cur_t *cursor, ulint **offsets, mem_heap_t **offsets_heap,
@@ -505,17 +508,17 @@ ibool btr_cur_optimistic_delete_func(
 @param[in] has_reserved_extents TRUE if the caller has already reserved
                                 enough free extents so that he knows
                                 that the operation will succeed
-@param[in] cursor cursor on the record to delete; if compression does not
+@param[in] cursor Cursor on the record to delete; if compression does not
                   occur, the cursor stays valid: it points to successor of
                   deleted record on function exit
 @param[in] flags  BTR_CREATE_FLAG or 0
-@param[in] rollback true if performing rollback, false otherwise.
-@param[in] trx_id the current transaction id.
-@param[in] undo_no undo number of the transaction. This is needed for rollback
-                   to savepoint of partially updated LOB.
-@param[in] rec_type undo record type.
-@param[in] mtr the mini transaction
-@param[in] pcur   persistent cursor on the record to delete.
+@param[in] rollback True if performing rollback, false otherwise.
+@param[in] trx_id The current transaction id.
+@param[in] undo_no Undo number of the transaction. This is needed for
+rollback to savepoint of partially updated LOB.
+@param[in] rec_type Undo record type.
+@param[in] mtr Mini-transaction
+@param[in] pcur   Persistent cursor on the record to delete.
 @return true if compression occurred */
 ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
                                  btr_cur_t *cursor, uint32_t flags,
@@ -531,8 +534,8 @@ byte *btr_cur_parse_update_in_place(
     page_t *page,             /*!< in/out: page or NULL */
     page_zip_des_t *page_zip, /*!< in/out: compressed page, or NULL */
     dict_index_t *index);     /*!< in: index corresponding to page */
-/** Parses the redo log record for delete marking or unmarking of a clustered
- index record.
+/** Parses the redo log record for delete marking or unmarking of a
+ clustered index record.
  @return end of log record or NULL */
 byte *btr_cur_parse_del_mark_set_clust_rec(
     byte *ptr,                /*!< in: buffer */
@@ -540,8 +543,8 @@ byte *btr_cur_parse_del_mark_set_clust_rec(
     page_t *page,             /*!< in/out: page or NULL */
     page_zip_des_t *page_zip, /*!< in/out: compressed page, or NULL */
     dict_index_t *index);     /*!< in: index corresponding to page */
-/** Parses the redo log record for delete marking or unmarking of a secondary
- index record.
+/** Parses the redo log record for delete marking or unmarking of a
+ secondary index record.
  @return end of log record or NULL */
 byte *btr_cur_parse_del_mark_set_sec_rec(
     byte *ptr,                 /*!< in: buffer */
@@ -619,11 +622,12 @@ UNIV_INLINE
 void btr_rec_set_deleted_flag(rec_t *rec, page_zip_des_t *page_zip, ulint flag);
 
 /** Latches the leaf page or pages requested.
-@param[in]	block		leaf page where the search converged
-@param[in]	page_id		page id of the leaf
+@param[in]	block		Leaf page where the search converged
+@param[in]	page_id		Page id of the leaf
+@param[in]	page_size	Page size
 @param[in]	latch_mode	BTR_SEARCH_LEAF, ...
-@param[in]	cursor		cursor
-@param[in]	mtr		mini-transaction
+@param[in]	cursor		Cursor
+@param[in]	mtr		Mini-transaction
 @return	blocks and savepoints which actually latched. */
 btr_latch_leaves_t btr_cur_latch_leaves(buf_block_t *block,
                                         const page_id_t &page_id,
@@ -710,7 +714,7 @@ struct btr_cur_t {
   /*------------------------------*/
   /** The following fields are used in
   btr_cur_search_to_nth_level to pass information: */
-  /* @{ */
+  /** @{ */
   btr_cur_method flag{BTR_CUR_UNSET}; /*!< Search method used */
   ulint tree_height{0};               /*!< Tree height if the search is done
                                       for a pessimistic insert or update
@@ -751,7 +755,7 @@ struct btr_cur_t {
                                       NULL */
   ulint fold{0};                      /*!< fold value used in the search if
                                       flag is BTR_CUR_HASH */
-  /* @} */
+  /** @} */
   btr_path_t *path_arr{nullptr}; /*!< in estimating the number of
                          rows in range, we store in this array
                          information of the path through

@@ -2049,7 +2049,7 @@ SimulatedBlock::allocRecordAligned(const char * type, size_t s, size_t n, void *
   Uint64 real_size = (Uint64)((Uint64)n)*((Uint64)s) + over_alloc;
   refresh_watch_dog(9);
   if (real_size > 0){
-#if defined(VM_TRACE_MEM) || defined(VM_TRACE) || defined(ERROR_INSERT)
+#if defined(VM_TRACE_MEM)
     g_eventLogger->info("%s::allocRecord(%s, %zu, %zu) = %llu bytes",
 	                getBlockName(number()),
 	                type,
@@ -2603,6 +2603,7 @@ SimulatedBlock::execCALLBACK_CONF(Signal* signal)
   Uint32 callbackData = conf->callbackData;
   Uint32 callbackInfo = conf->callbackInfo;
   Uint32 returnCode = conf->returnCode;
+  ndbrequire(returnCode == 0);
 
   ndbrequire(m_callbackTableAddr != 0);
   const CallbackEntry& ce = getCallbackEntry(callbackIndex);
@@ -2611,7 +2612,13 @@ SimulatedBlock::execCALLBACK_CONF(Signal* signal)
   Callback callback;
   callback.m_callbackFunction = function;
   callback.m_callbackData = callbackData;
-  execute(signal, callback, returnCode);
+
+  /**
+   * For both PROCESS_LOG_SYNC_WAITERS and PROCESS_LOG_BUFFER_WAITERS,
+   * sendCallbackConf() places logfile_group_id in senderData.
+   * drop_table_log_buffer_callback() needs logfile_group_id.
+  */
+  execute(signal, callback, senderData);
 
   if (ce.m_flags & CALLBACK_ACK) {
     jam();
@@ -4785,7 +4792,6 @@ SimulatedBlock::execLOCAL_ROUTE_ORD(Signal* signal)
 bool
 SimulatedBlock::debugOutOn()
 {
-  return true;
   SignalLoggerManager::LogMode mask = SignalLoggerManager::LogInOut;
   return
     globalData.testOn &&

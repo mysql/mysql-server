@@ -96,16 +96,14 @@ bool Ndb_metadata_sync::object_sync_pending(
   return false;
 }
 
-bool Ndb_metadata_sync::object_blacklisted(
-    const Detected_object &object) const {
-  std::lock_guard<std::mutex> guard(m_blacklist_mutex);
-  for (const auto &blacklisted_object : m_blacklist) {
-    if (blacklisted_object.m_type == object.m_type &&
-        blacklisted_object.m_schema_name == object.m_schema_name &&
-        blacklisted_object.m_name == object.m_name) {
-      ndb_log_info(
-          "%s is currently blacklisted and needs to be synced manually",
-          object_type_and_name_str(blacklisted_object).c_str());
+bool Ndb_metadata_sync::object_excluded(const Detected_object &object) const {
+  std::lock_guard<std::mutex> guard(m_excluded_objects_mutex);
+  for (const auto &excluded_object : m_excluded_objects) {
+    if (excluded_object.m_type == object.m_type &&
+        excluded_object.m_schema_name == object.m_schema_name &&
+        excluded_object.m_name == object.m_name) {
+      ndb_log_info("%s is currently excluded and needs to be synced manually",
+                   object_type_and_name_str(excluded_object).c_str());
       return true;
     }
   }
@@ -116,7 +114,7 @@ bool Ndb_metadata_sync::add_logfile_group(const std::string &lfg_name) {
   std::lock_guard<std::mutex> guard(m_objects_mutex);
   const Detected_object obj("", lfg_name,
                             object_detected_type::LOGFILE_GROUP_OBJECT);
-  if (object_sync_pending(obj) || object_blacklisted(obj)) {
+  if (object_sync_pending(obj) || object_excluded(obj)) {
     return false;
   }
   m_objects.emplace_back(obj);
@@ -131,7 +129,7 @@ bool Ndb_metadata_sync::add_tablespace(const std::string &tablespace_name) {
   std::lock_guard<std::mutex> guard(m_objects_mutex);
   const Detected_object obj("", tablespace_name,
                             object_detected_type::TABLESPACE_OBJECT);
-  if (object_sync_pending(obj) || object_blacklisted(obj)) {
+  if (object_sync_pending(obj) || object_excluded(obj)) {
     return false;
   }
   m_objects.emplace_back(obj);
@@ -146,7 +144,7 @@ bool Ndb_metadata_sync::add_schema(const std::string &schema_name) {
   std::lock_guard<std::mutex> guard(m_objects_mutex);
   const Detected_object obj(schema_name, "",
                             object_detected_type::SCHEMA_OBJECT);
-  if (object_sync_pending(obj) || object_blacklisted(obj)) {
+  if (object_sync_pending(obj) || object_excluded(obj)) {
     return false;
   }
   m_objects.emplace_back(obj);
@@ -161,7 +159,7 @@ bool Ndb_metadata_sync::add_table(const std::string &schema_name,
   std::lock_guard<std::mutex> guard(m_objects_mutex);
   const Detected_object obj(schema_name, table_name,
                             object_detected_type::TABLE_OBJECT);
-  if (object_sync_pending(obj) || object_blacklisted(obj)) {
+  if (object_sync_pending(obj) || object_excluded(obj)) {
     return false;
   }
   m_objects.emplace_back(obj);
@@ -202,36 +200,38 @@ void Ndb_metadata_sync::get_next_object(std::string &schema_name,
   m_objects.pop_front();
 }
 
-static long long g_blacklist_size =
-    0;  // protected implicitly by m_blacklist_mutex
-static void increment_blacklist_size() { g_blacklist_size++; }
-static void decrement_blacklist_size() { g_blacklist_size--; }
-static SHOW_VAR ndb_status_vars_blacklist_size[] = {
-    {"metadata_blacklist_size", reinterpret_cast<char *>(&g_blacklist_size),
+static long long g_excluded_count =
+    0;  // protected implicitly by m_excluded_objects_mutex
+static void increment_excluded_count() { g_excluded_count++; }
+static void decrement_excluded_count() { g_excluded_count--; }
+static void reset_excluded_count() { g_excluded_count = 0; }
+static SHOW_VAR ndb_status_vars_excluded_count[] = {
+    {"metadata_excluded_count", reinterpret_cast<char *>(&g_excluded_count),
      SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
 
-int show_ndb_metadata_blacklist_size(THD *, SHOW_VAR *var, char *) {
+int show_ndb_metadata_excluded_count(THD *, SHOW_VAR *var, char *) {
   var->type = SHOW_ARRAY;
-  var->value = reinterpret_cast<char *>(&ndb_status_vars_blacklist_size);
+  var->value = reinterpret_cast<char *>(&ndb_status_vars_excluded_count);
   return 0;
 }
 
-void Ndb_metadata_sync::add_object_to_blacklist(const std::string &schema_name,
-                                                const std::string &name,
-                                                object_detected_type type,
-                                                const std::string &reason) {
-  std::lock_guard<std::mutex> guard(m_blacklist_mutex);
+void Ndb_metadata_sync::exclude_object_from_sync(const std::string &schema_name,
+                                                 const std::string &name,
+                                                 object_detected_type type,
+                                                 const std::string &reason) {
+  std::lock_guard<std::mutex> guard(m_excluded_objects_mutex);
   const Detected_object obj(schema_name, name, type, reason);
-  m_blacklist.emplace_back(obj);
-  ndb_log_info("%s added to blacklist", object_type_and_name_str(obj).c_str());
-  increment_blacklist_size();
+  m_excluded_objects.emplace_back(obj);
+  ndb_log_info("%s is excluded from detection",
+               object_type_and_name_str(obj).c_str());
+  increment_excluded_count();
 }
 
-bool Ndb_metadata_sync::get_blacklist_object_for_validation(
+bool Ndb_metadata_sync::get_excluded_object_for_validation(
     std::string &schema_name, std::string &name, object_detected_type &type) {
-  std::lock_guard<std::mutex> guard(m_blacklist_mutex);
-  for (Detected_object &obj : m_blacklist) {
+  std::lock_guard<std::mutex> guard(m_excluded_objects_mutex);
+  for (Detected_object &obj : m_excluded_objects) {
     switch (obj.m_validation_state) {
       case object_validation_state::PENDING: {
         // Found object pending validation. Retrieve details and mark the object
@@ -255,7 +255,7 @@ bool Ndb_metadata_sync::get_blacklist_object_for_validation(
         return false;
     }
   }
-  // Reached the end of the blacklist having found no objects pending validation
+  // No objects pending validation
   return false;
 }
 
@@ -413,17 +413,18 @@ bool Ndb_metadata_sync::check_object_mismatch(THD *thd,
   return true;
 }
 
-void Ndb_metadata_sync::validate_blacklist_object(bool check_mismatch_result) {
-  std::lock_guard<std::mutex> guard(m_blacklist_mutex);
-  for (auto it = m_blacklist.begin(); it != m_blacklist.end(); it++) {
+void Ndb_metadata_sync::validate_excluded_object(bool check_mismatch_result) {
+  std::lock_guard<std::mutex> guard(m_excluded_objects_mutex);
+  for (auto it = m_excluded_objects.begin(); it != m_excluded_objects.end();
+       it++) {
     Detected_object &obj = *it;
     if (obj.m_validation_state == object_validation_state::IN_PROGRESS) {
       if (!check_mismatch_result) {
-        // Mismatch no longer exists, remove object from blacklist
-        ndb_log_info("%s removed from blacklist",
+        // Mismatch no longer exists, remove excluded object
+        ndb_log_info("%s is no longer excluded from detection",
                      object_type_and_name_str(obj).c_str());
-        m_blacklist.erase(it);
-        decrement_blacklist_size();
+        m_excluded_objects.erase(it);
+        decrement_excluded_count();
       } else {
         // Mark object as already validated for this cycle
         obj.m_validation_state = object_validation_state::DONE;
@@ -434,56 +435,63 @@ void Ndb_metadata_sync::validate_blacklist_object(bool check_mismatch_result) {
   DBUG_ASSERT(false);
 }
 
-void Ndb_metadata_sync::reset_blacklist_state() {
-  std::lock_guard<std::mutex> guard(m_blacklist_mutex);
-  for (Detected_object &obj : m_blacklist) {
+void Ndb_metadata_sync::reset_excluded_objects_state() {
+  std::lock_guard<std::mutex> guard(m_excluded_objects_mutex);
+  for (Detected_object &obj : m_excluded_objects) {
     obj.m_validation_state = object_validation_state::PENDING;
   }
 }
 
-void Ndb_metadata_sync::validate_blacklist(THD *thd) {
-  ndb_log_info("Validating blacklist");
+void Ndb_metadata_sync::validate_excluded_objects(THD *thd) {
+  ndb_log_info("Validating excluded objects");
   /*
     The validation is done by the change monitor thread at the beginning of
     each detection cycle. There's a possibility that the binlog thread is
     attempting to synchronize an object at the same time. Should the sync
-    fail, the object has to be added to the back of the blacklist which could
-    result in the binlog thread waiting to acquire m_blacklist_mutex. This is
-    avoided by ensuring that the mutex is held by the validation code for short
-    intervals of time per object. The mutex is acquired as the details of the
-    object are retrieved and once again when it has been decided if the object
-    should continue to remain in the blacklist or not. This avoids holding the
-    mutex during the object mismatch check which involves calls to DD and NDB
-    Dictionary.
+    fail, the object has to be added to the back of the excluded objects list
+    which could result in the binlog thread waiting to acquire
+    m_excluded_objects_mutex. This is avoided by ensuring that the mutex is held
+    by the validation code for short intervals of time per object. The mutex is
+    acquired as the details of the object are retrieved and once again when it
+    has been decided if the object should continue to remain remain excluded or
+    not. This avoids holding the mutex during the object mismatch check which
+    involves calls to DD and NDB Dictionary.
   */
   while (true) {
     std::string schema_name, name;
     object_detected_type type;
-    if (!get_blacklist_object_for_validation(schema_name, name, type)) {
+    if (!get_excluded_object_for_validation(schema_name, name, type)) {
       // No more objects pending validation
       break;
     }
     const bool check_mismatch_result =
         check_object_mismatch(thd, schema_name, name, type);
-    validate_blacklist_object(check_mismatch_result);
+    validate_excluded_object(check_mismatch_result);
   }
-  // Reset the states of all blacklisted objects
-  reset_blacklist_state();
+  // Reset the states of all excluded objects
+  reset_excluded_objects_state();
 }
 
-void Ndb_metadata_sync::retrieve_blacklist(
+void Ndb_metadata_sync::clear_excluded_objects() {
+  std::lock_guard<std::mutex> guard(m_excluded_objects_mutex);
+  m_excluded_objects.clear();
+  reset_excluded_count();
+  ndb_log_info("Excluded objects cleared");
+}
+
+void Ndb_metadata_sync::retrieve_excluded_objects(
     Ndb_sync_excluded_objects_table *excluded_table) {
-  std::lock_guard<std::mutex> guard(m_blacklist_mutex);
-  for (const Detected_object &obj : m_blacklist) {
+  std::lock_guard<std::mutex> guard(m_excluded_objects_mutex);
+  for (const Detected_object &obj : m_excluded_objects) {
     excluded_table->add_excluded_object(obj.m_schema_name, obj.m_name,
                                         static_cast<int>(obj.m_type),
                                         obj.m_reason);
   }
 }
 
-unsigned int Ndb_metadata_sync::get_blacklist_count() {
-  std::lock_guard<std::mutex> guard(m_blacklist_mutex);
-  return m_blacklist.size();
+unsigned int Ndb_metadata_sync::get_excluded_objects_count() {
+  std::lock_guard<std::mutex> guard(m_excluded_objects_mutex);
+  return m_excluded_objects.size();
 }
 
 extern bool opt_ndb_metadata_sync;
@@ -502,10 +510,8 @@ bool Ndb_metadata_sync::retry_limit_exceeded(const std::string &schema_name,
   }
   /*
      The ndb_metadata_sync variable has been set. Check if the retry limit (10)
-     has been hit in which case the object is added to the blacklist by the
-     caller.
+     has been hit in which case the object is excluded by the caller.
   */
-  std::lock_guard<std::mutex> guard(m_retry_objects_mutex);
   for (Detected_object &object : m_retry_objects) {
     if (object.m_type == type && object.m_schema_name == schema_name &&
         object.m_name == name) {
@@ -521,109 +527,25 @@ bool Ndb_metadata_sync::retry_limit_exceeded(const std::string &schema_name,
   return false;
 }
 
-bool Ndb_metadata_sync::get_retry_object_for_validation(
-    std::string &schema_name, std::string &name, object_detected_type &type) {
-  std::lock_guard<std::mutex> guard(m_retry_objects_mutex);
-  for (Detected_object &obj : m_retry_objects) {
-    switch (obj.m_validation_state) {
-      case object_validation_state::PENDING: {
-        // Found object pending validation. Retrieve details and mark the object
-        // as being validated
-        schema_name = obj.m_schema_name;
-        name = obj.m_name;
-        type = obj.m_type;
-        obj.m_validation_state = object_validation_state::IN_PROGRESS;
-        return true;
-      } break;
-      case object_validation_state::DONE: {
-      } break;
-      case object_validation_state::IN_PROGRESS: {
-        // Not possible since there can't be two objects being validated at once
-        DBUG_ASSERT(false);
-        return false;
-      } break;
-      default:
-        // Unknown state, not possible
-        DBUG_ASSERT(false);
-        return false;
-    }
-  }
-  // Reached the end of the list having found no objects pending validation
-  return false;
-}
-
-bool Ndb_metadata_sync::object_blacklisted(const std::string &schema_name,
-                                           const std::string &name,
-                                           object_detected_type type) const {
-  std::lock_guard<std::mutex> guard(m_blacklist_mutex);
-  for (const auto &blacklisted_object : m_blacklist) {
-    if (blacklisted_object.m_type == type &&
-        blacklisted_object.m_schema_name == schema_name &&
-        blacklisted_object.m_name == name) {
-      ndb_log_info("%s is currently blacklisted",
-                   object_type_and_name_str(blacklisted_object).c_str());
+bool Ndb_metadata_sync::object_excluded(const std::string &schema_name,
+                                        const std::string &name,
+                                        object_detected_type type) const {
+  std::lock_guard<std::mutex> guard(m_excluded_objects_mutex);
+  for (const auto &excluded_object : m_excluded_objects) {
+    if (excluded_object.m_type == type &&
+        excluded_object.m_schema_name == schema_name &&
+        excluded_object.m_name == name) {
+      ndb_log_info("%s is currently excluded from detection",
+                   object_type_and_name_str(excluded_object).c_str());
       return true;
     }
   }
   return false;
 }
 
-void Ndb_metadata_sync::validate_retry_object(bool remove_retry_object) {
-  std::lock_guard<std::mutex> guard(m_retry_objects_mutex);
-  for (auto it = m_retry_objects.begin(); it != m_retry_objects.end(); it++) {
-    Detected_object &obj = *it;
-    if (obj.m_validation_state == object_validation_state::IN_PROGRESS) {
-      if (remove_retry_object) {
-        ndb_log_info("%s removed from retry object list",
-                     object_type_and_name_str(obj).c_str());
-        m_retry_objects.erase(it);
-      } else {
-        // Mark object as already validated for this cycle
-        obj.m_validation_state = object_validation_state::DONE;
-      }
-      return;
-    }
-  }
-  DBUG_ASSERT(false);
-}
-
-void Ndb_metadata_sync::reset_retry_objects_state() {
-  std::lock_guard<std::mutex> guard(m_retry_objects_mutex);
-  for (Detected_object &obj : m_retry_objects) {
-    obj.m_validation_state = object_validation_state::PENDING;
-  }
-}
-
-void Ndb_metadata_sync::validate_retry_list(THD *thd) {
-  ndb_log_info("Validating retry list");
-  /*
-    The validation is done by the change monitor thread at the beginning of
-    each detection cycle. There's a possibility that the binlog thread is
-    attempting to synchronize an object at the same time. Should the sync
-    fail with a temporary error, the object has to be added to the back of the
-    retry objects list which could result in the binlog thread waiting to
-    acquire m_retry_objects_mutex. This is avoided by ensuring that the mutex is
-    held by the validation code for short intervals of time per object. The
-    mutex is acquired as the details of the object are retrieved and once again
-    when it has been decided if the object should continue to remain in the
-    retry objects list or not. This avoids holding the mutex during the object
-    mismatch and blacklist check which involves calls to DD and NDB
-    Dictionary and iterating over the blacklist.
-  */
-  while (true) {
-    std::string schema_name, name;
-    object_detected_type type;
-    if (!get_retry_object_for_validation(schema_name, name, type)) {
-      // No more objects pending validation
-      break;
-    }
-    const bool remove_retry_object =
-        object_blacklisted(schema_name, name, type) ||
-        !check_object_mismatch(thd, schema_name, name, type);
-    validate_retry_object(remove_retry_object);
-  }
-  // Reset the states of all retry objects
-  reset_retry_objects_state();
+void Ndb_metadata_sync::clear_retry_objects() {
+  m_retry_objects.clear();
+  ndb_log_info("Retry objects cleared");
 }
 
 bool Ndb_metadata_sync::sync_logfile_group(THD *thd,
@@ -1134,11 +1056,10 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
     }
     if (!tablespace_exists) {
       const Detected_object obj("", tablespace_name, TABLESPACE_OBJECT);
-      if (object_blacklisted(obj)) {
+      if (object_excluded(obj)) {
         // The tablespace was detected but its sync failed. Such errors
-        // shouldn't be treated as temporary errors and the table is added to
-        // the blacklist
-        ndb_log_error("Tablespace '%s' is currently blacklisted",
+        // shouldn't be treated as temporary errors and the table is excluded
+        ndb_log_error("Tablespace '%s' is currently excluded",
                       tablespace_name.c_str());
         ndb_log_error("Failed to install disk data table '%s.%s'",
                       schema_name.c_str(), table_name.c_str());

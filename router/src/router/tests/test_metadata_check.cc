@@ -96,7 +96,8 @@ static MySQLSessionReplayer &q_metadata_has_one_cluster(
 static MySQLSessionReplayer &q_member_state(MySQLSessionReplayer &m) {
   m.expect_query_one(
       "SELECT member_state FROM performance_schema.replication_group_members "
-      "WHERE member_id = @@server_uuid");
+      "WHERE CAST(member_id AS char ascii) = CAST(@@server_uuid AS char "
+      "ascii)");
   return m;
 }
 
@@ -104,7 +105,8 @@ static MySQLSessionReplayer &q_member_state(MySQLSessionReplayer &m,
                                             const char *state) {
   m.expect_query_one(
       "SELECT member_state FROM performance_schema.replication_group_members "
-      "WHERE member_id = @@server_uuid");
+      "WHERE CAST(member_id AS char ascii) = CAST(@@server_uuid AS char "
+      "ascii)");
   m.then_return(1, {{m.string_or_null(state)}});
   return m;
 }

@@ -45,8 +45,6 @@
 #include "storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
 #include "storage/ndb/src/ndbapi/NdbQueryOperation.hpp"
 
-typedef NdbDictionary::Table NDBTAB;
-
 /**
  * antijoin_null_cond is inserted by the optimizer when it create the
  * special antijoin-NULL-condition. It serves as a token to uniquely
@@ -870,8 +868,8 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
     const Item *const key_item = table->get_key_field(key_part_no);
     const KEY_PART_INFO *key_part = table->get_key_part_info(key_part_no);
 
-    if (key_item->const_item())  // REF is a literal or field from const-table
-    {
+    if (key_item->const_for_execution()) {
+      // REF is a literal or field from const-table
       DBUG_PRINT("info", (" Item type:%d is 'const_item'", key_item->type()));
       if (!is_const_item_pushable(key_item, key_part)) {
         return false;
@@ -1384,9 +1382,8 @@ bool ndb_pushed_builder_ctx::is_outer_nests_referable(
 
   const uint tab_no = table->get_access_no();
   const uint first_inner = m_tables[tab_no].m_first_inner;
-  const ndb_table_access_map embedding_nests(
-      m_tables[tab_no].embedding_nests());
-  DBUG_ASSERT(!embedding_nests.contain(depend_parents));
+  // Check that embedding nests does not already contain dependent parents
+  DBUG_ASSERT(!m_tables[tab_no].embedding_nests().contain(depend_parents));
 
   /**
    * Include nest-level ancestor dependencies already enforced.
@@ -1849,7 +1846,7 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
 bool ndb_pushed_builder_ctx::is_const_item_pushable(
     const Item *key_item, const KEY_PART_INFO *key_part) {
   DBUG_TRACE;
-  DBUG_ASSERT(key_item->const_item());
+  DBUG_ASSERT(key_item->const_for_execution());
 
   /**
    * Propagate Items constant value to Field containing the value of this
@@ -2045,7 +2042,8 @@ void ndb_pushed_builder_ctx::collect_key_refs(const AQP::Table_access *table,
     const Item *const key_item = table->get_key_field(key_part_no);
     key_refs[key_part_no] = key_item;
 
-    DBUG_ASSERT(key_item->const_item() || key_item->type() == Item::FIELD_ITEM);
+    DBUG_ASSERT(key_item->const_for_execution() ||
+                key_item->type() == Item::FIELD_ITEM);
 
     if (key_item->type() == Item::FIELD_ITEM) {
       const Item_field *join_item = static_cast<const Item_field *>(key_item);
@@ -2163,8 +2161,8 @@ int ndb_pushed_builder_ctx::build_key(const AQP::Table_access *table,
     if (ndbcluster_is_lookup_operation(table->get_access_type())) {
       const ha_ndbcluster *handler =
           down_cast<ha_ndbcluster *>(table->get_table()->file);
-      ndbcluster_build_key_map(
-          handler->m_table, handler->m_index[table->get_index_no()], key, map);
+      const NDB_INDEX_DATA &index = handler->m_index[table->get_index_no()];
+      index.fill_column_map(key, map);
     } else {
       for (uint ix = 0; ix < key_fields; ix++) {
         map[ix] = ix;
@@ -2180,8 +2178,7 @@ int ndb_pushed_builder_ctx::build_key(const AQP::Table_access *table,
       const Item *const item = join_items[i];
       op_key[map[i]] = NULL;
 
-      DBUG_ASSERT(item->const_item() == item->const_for_execution());
-      if (item->const_item()) {
+      if (item->const_for_execution()) {
         /**
          * Propagate Items constant value to Field containing the value of this
          * key_part:
@@ -2458,50 +2455,3 @@ int ndb_pushed_builder_ctx::build_query() {
 
   return 0;
 }  // ndb_pushed_builder_ctx::build_query()
-
-/**
- * Fill in ix_map[] to map from KEY_PART_INFO[] order into
- * primary key / unique key order of key fields.
- */
-void ndbcluster_build_key_map(const NDBTAB *table, const NDB_INDEX_DATA &index,
-                              const KEY *key_def, uint ix_map[]) {
-  uint ix;
-
-  if (index.unique_index_attrid_map)  // UNIQUE_ORDERED_INDEX or UNIQUE_INDEX
-  {
-    for (ix = 0; ix < key_def->user_defined_key_parts; ix++) {
-      ix_map[ix] = index.unique_index_attrid_map[ix];
-    }
-  } else  // Primary key does not have a 'unique_index_attrid_map'
-  {
-    KEY_PART_INFO *key_part;
-    uint key_pos = 0;
-    int columnnr = 0;
-    assert(index.type == PRIMARY_KEY_ORDERED_INDEX ||
-           index.type == PRIMARY_KEY_INDEX);
-
-    for (ix = 0, key_part = key_def->key_part;
-         ix < key_def->user_defined_key_parts; ix++, key_part++) {
-      // As NdbColumnImpl::m_keyInfoPos isn't available through
-      // NDB API we have to calculate it ourself, else we could:
-      // ix_map[ix]= table->getColumn(key_part->fieldnr-1)->m_impl.m_keyInfoPos;
-
-      if (key_part->fieldnr < columnnr) {
-        // PK columns are not in same order as the columns are defined in the
-        // table, Restart PK search from first column:
-        key_pos = 0;
-        columnnr = 0;
-      }
-
-      while (columnnr < key_part->fieldnr - 1) {
-        if (table->getColumn(columnnr++)->getPrimaryKey()) key_pos++;
-      }
-
-      assert(table->getColumn(columnnr)->getPrimaryKey());
-      ix_map[ix] = key_pos;
-
-      columnnr++;
-      key_pos++;
-    }
-  }
-}  // ndbcluster_build_key_map

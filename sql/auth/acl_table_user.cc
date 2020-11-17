@@ -55,9 +55,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/field.h"     /* Field, Field_json, Field_enum, TYPE_OK */
 #include "sql/handler.h"   /* handler, DB_TYPE_NDBCLUSTER, handlerton */
 #include "sql/item_func.h" /* mqh_used */
-#include "sql/json_dom.h"
-#include "sql/key.h"    /* key_copy, KEY */
-#include "sql/mysqld.h" /* specialflag */
+#include "sql/key.h"       /* key_copy, KEY */
+#include "sql/mysqld.h"    /* specialflag */
 #include "sql/records.h"
 #include "sql/row_iterator.h"     /* RowIterator */
 #include "sql/sql_class.h"        /* THD */
@@ -126,122 +125,6 @@ static std::map<const User_attribute_type, const std::string>
         {User_attribute_type::PASSWORD_LOCKING, consts::Password_locking},
         {User_attribute_type::METADATA, consts::json_metadata_tag},
         {User_attribute_type::COMMENT, consts::json_comment_tag}};
-
-namespace {
-/**
-  Class to handle information stored in mysql.user.user_attributes
-*/
-class Acl_user_attributes {
- public:
-  /**
-    Default constructor.
-  */
-  Acl_user_attributes(MEM_ROOT *mem_root, bool read_restrictions,
-                      Auth_id &auth_id, ulong global_privs);
-
-  Acl_user_attributes(MEM_ROOT *mem_root, bool read_restrictions,
-                      Auth_id &auth_id, Restrictions *m_restrictions);
-
-  ~Acl_user_attributes();
-
- public:
-  /**
-    Obtain info from JSON representation of user attributes
-
-    @param [in] json_object JSON object that holds user attributes
-
-    @returns status of parsing json_object
-      @retval false Success
-      @retval true  Error parsing the JSON object
-  */
-  bool deserialize(const Json_object &json_object);
-
-  /**
-    Create JSON object from user attributes
-
-    @param [out] json_object Object to store serialized user attributes
-
-    @returns status of serialization
-      @retval false Success
-      @retval true  Error serializing user attributes
-  */
-  bool serialize(Json_object &json_object) const;
-
-  /**
-    Update second password for user. We replace existing one if any.
-
-    @param [in] credential Second password
-
-    @returns status of password update
-      @retval false Success
-      @retval true  Error. Second password is empty
-  */
-  bool update_additional_password(std::string &credential);
-
-  /**
-    Discard second password.
-  */
-  void discard_additional_password();
-
-  /**
-    Get second password
-
-    @returns second password
-  */
-  const std::string get_additional_password() const;
-
-  /**
-    Get the restriction list for the user
-
-    @returns Restriction list
-  */
-  Restrictions get_restrictions() const;
-
-  void update_restrictions(const Restrictions &restricitions);
-
-  auto get_failed_login_attempts() const {
-    return m_password_lock.failed_login_attempts;
-  }
-  auto get_password_lock_time_days() const {
-    return m_password_lock.password_lock_time_days;
-  }
-  auto get_password_lock() const { return m_password_lock; }
-  void set_password_lock(Password_lock password_lock) {
-    m_password_lock = password_lock;
-  }
-
-  /**
-    Take over ownership of the json pointer.
-    @return Error state
-      @retval true An error occurred
-      @retval false Success
-  */
-  bool consume_user_attributes_json(Json_dom_ptr json);
-
- private:
-  void report_and_remove_invalid_db_restrictions(
-      DB_restrictions &db_restrictions, ulong mask, enum loglevel level,
-      ulonglong errcode);
-  bool deserialize_password_lock(const Json_object &json_object);
-
- private:
-  /** Mem root */
-  MEM_ROOT *m_mem_root;
-  /** Operation for restrictions */
-  bool m_read_restrictions;
-  /** Auth ID */
-  Auth_id m_auth_id;
-  /** Second password for user */
-  std::string m_additional_password;
-  /** Restrictions_list on certain databases for user */
-  Restrictions m_restrictions;
-  /** Global static privileges */
-  ulong m_global_privs;
-  /** password locking */
-  Password_lock m_password_lock;
-  /** Save the original json object */
-  Json_dom_ptr m_user_attributes_json;
-};
 
 Acl_user_attributes::Acl_user_attributes(MEM_ROOT *mem_root,
                                          bool read_restrictions,
@@ -474,6 +357,7 @@ void Acl_user_attributes::update_restrictions(
   m_restrictions = restricitions;
 }
 
+namespace {
 /**
   Helper function to parse mysql.user.user_attributes column
 
@@ -1288,17 +1172,9 @@ bool Acl_table_user_writer::update_user_attributes(
             m_combo->alter_status.password_lock_time;
       user_attributes.set_password_lock(return_value.password_lock);
 
-      /* Update the column */
-      {
-        Json_object out_json_object;
-        user_attributes.serialize(out_json_object);
-        Json_wrapper json_wrapper(&out_json_object);
-        json_wrapper.set_alias();
-        Field_json *json_field = down_cast<Field_json *>(
-            m_table->field[m_table_schema->user_attributes_idx()]);
-        if (json_field->store_json(&json_wrapper) != TYPE_OK) return true;
-        m_table->field[m_table_schema->user_attributes_idx()]->set_notnull();
-      }
+      /* Update the column in the table */
+      if (write_user_attributes_column(user_attributes)) return true;
+
       return_value.restrictions = user_attributes.get_restrictions();
     } else {
       my_error(ER_BAD_FIELD_ERROR, MYF(0), "user_attributes", "mysql.user");
@@ -1330,6 +1206,26 @@ void Acl_table_user_writer::replace_user_application_user_metadata(
 bool Acl_table_user_writer::update_user_application_user_metadata() {
   if (m_has_user_application_user_metadata)
     return m_user_application_user_metadata(m_table);
+  return false;
+}
+/**
+  Helper function to write updated user_attributes in the column
+*/
+bool Acl_table_user_writer::write_user_attributes_column(
+    const Acl_user_attributes &user_attributes) {
+  Json_object out_json_object;
+  user_attributes.serialize(out_json_object);
+  if (out_json_object.cardinality()) {
+    Json_wrapper json_wrapper(&out_json_object);
+    json_wrapper.set_alias();
+    Field_json *json_field = down_cast<Field_json *>(
+        m_table->field[m_table_schema->user_attributes_idx()]);
+    if (json_field->store_json(&json_wrapper) != TYPE_OK) return true;
+    m_table->field[m_table_schema->user_attributes_idx()]->set_notnull();
+  } else {
+    /* Set the default column value that is NULL */
+    m_table->field[m_table_schema->user_attributes_idx()]->set_null();
+  }
   return false;
 }
 
@@ -1421,8 +1317,9 @@ Acl_table_op_status Acl_table_user_reader::finish_operation(
 */
 bool Acl_table_user_reader::setup_table(bool &is_old_db_layout) {
   DBUG_TRACE;
-  m_iterator = init_table_iterator(m_thd, m_table, nullptr, false,
-                                   /*ignore_not_found_rows=*/false);
+  m_iterator = init_table_iterator(m_thd, m_table, nullptr,
+                                   /*ignore_not_found_rows=*/false,
+                                   /*count_examined_rows=*/false);
   if (m_iterator == nullptr) return true;
   m_table->use_all_columns();
   clean_user_cache();

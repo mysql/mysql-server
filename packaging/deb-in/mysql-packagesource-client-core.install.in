@@ -29,8 +29,6 @@ usr/bin/mysqlpump
 usr/share/man/man1/mysql.1
 usr/share/man/man1/mysqldump.1
 usr/share/man/man1/mysqlpump.1
-# plugins
-usr/lib/mysql/plugin/authentication_ldap_sasl_client.so
 # legal
 usr/share/mysql-@MYSQL_BASE_VERSION@/LICENSE usr/share/doc/mysql-@DEB_PRODUCTNAME@-client-core/
 usr/share/mysql-@MYSQL_BASE_VERSION@/README usr/share/doc/mysql-@DEB_PRODUCTNAME@-client-core/

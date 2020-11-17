@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2016, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -26,13 +26,12 @@
 #include <assert.h>
 
 #include <NdbApi.hpp>
-#include <node_buffer.h>
 
 #include "adapter_global.h"
 #include "unified_debug.h"
 #include "BlobHandler.h"
 #include "JsWrapper.h"
-
+#include "JsValueAccess.h"
 
 // BlobHandler constructor
 BlobHandler::BlobHandler(int colId, int fieldNo) :
@@ -86,10 +85,10 @@ int BlobReadHandler::runActiveHook(NdbBlob *b) {
   return 0;
 }
 
-v8::Local<v8::Object> BlobReadHandler::getResultBuffer(v8::Isolate * iso) {
-  v8::Local<v8::Object> buffer;
+Local<Object> BlobReadHandler::getResultBuffer(v8::Isolate * iso) {
+  Local<Object> buffer;
   if(content) {
-    buffer = LOCAL_BUFFER(node::Buffer::New(iso, content, length, freeBufferContentsFromJs, 0));
+    buffer = NewJsBuffer(iso, content, length, freeBufferContentsFromJs);
     /* Content belongs to someone else now; clear it for the next user */
     content = 0;
     length = 0;
@@ -101,11 +100,11 @@ v8::Local<v8::Object> BlobReadHandler::getResultBuffer(v8::Isolate * iso) {
 // BlobWriteHandler methods
 
 BlobWriteHandler::BlobWriteHandler(int colId, int fieldNo,
-                                   v8::Handle<v8::Object> blobValue) :
+                                   Local<Object> blobValue) :
   BlobHandler(colId, fieldNo)
 {
-  length = node::Buffer::Length(blobValue);
-  content = node::Buffer::Data(blobValue);
+  length = GetBufferLength(blobValue);
+  content = GetBufferData(blobValue);
 }
 
 void BlobWriteHandler::prepare(const NdbOperation * ndbop) {

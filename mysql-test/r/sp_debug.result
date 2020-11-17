@@ -120,9 +120,9 @@ ERROR 42000: PROCEDURE proc_root does not exist
 SHOW PROCEDURE CODE testdb.proc_definer;
 ERROR 42000: PROCEDURE proc_definer does not exist
 SHOW FUNCTION CODE testdb.func_root;
-ERROR 42000: PROCEDURE func_root does not exist
+ERROR 42000: FUNCTION func_root does not exist
 SHOW FUNCTION CODE testdb.func_definer;
-ERROR 42000: PROCEDURE func_definer does not exist
+ERROR 42000: FUNCTION func_definer does not exist
 
 # Connect as user with SHOW_ROUTINE privilege.
 
@@ -155,9 +155,9 @@ ERROR 42000: PROCEDURE proc_root does not exist
 SHOW PROCEDURE CODE testdb.proc_definer;
 ERROR 42000: PROCEDURE proc_definer does not exist
 SHOW FUNCTION CODE testdb.func_root;
-ERROR 42000: PROCEDURE func_root does not exist
+ERROR 42000: FUNCTION func_root does not exist
 SHOW FUNCTION CODE testdb.func_definer;
-ERROR 42000: PROCEDURE func_definer does not exist
+ERROR 42000: FUNCTION func_definer does not exist
 
 # Activate role.
 
@@ -204,7 +204,7 @@ Pos	Instruction
 SHOW PROCEDURE CODE testdb.proc_root;
 ERROR 42000: PROCEDURE proc_root does not exist
 SHOW FUNCTION CODE testdb.func_root;
-ERROR 42000: PROCEDURE func_root does not exist
+ERROR 42000: FUNCTION func_root does not exist
 
 # Should show the Instructions of proc_definer and func_definer.
 
@@ -225,9 +225,9 @@ ERROR 42000: PROCEDURE proc_root does not exist
 SHOW PROCEDURE CODE testdb.proc_definer;
 ERROR 42000: PROCEDURE proc_definer does not exist
 SHOW FUNCTION CODE testdb.func_root;
-ERROR 42000: PROCEDURE func_root does not exist
+ERROR 42000: FUNCTION func_root does not exist
 SHOW FUNCTION CODE testdb.func_definer;
-ERROR 42000: PROCEDURE func_definer does not exist
+ERROR 42000: FUNCTION func_definer does not exist
 
 # Connect as user who has CREATE ROUTINE privilege.
 
@@ -239,9 +239,9 @@ ERROR 42000: PROCEDURE proc_root does not exist
 SHOW PROCEDURE CODE testdb.proc_definer;
 ERROR 42000: PROCEDURE proc_definer does not exist
 SHOW FUNCTION CODE testdb.func_root;
-ERROR 42000: PROCEDURE func_root does not exist
+ERROR 42000: FUNCTION func_root does not exist
 SHOW FUNCTION CODE testdb.func_definer;
-ERROR 42000: PROCEDURE func_definer does not exist
+ERROR 42000: FUNCTION func_definer does not exist
 
 # Connect as user who has ALTER ROUTINE privilege.
 
@@ -253,9 +253,9 @@ ERROR 42000: PROCEDURE proc_root does not exist
 SHOW PROCEDURE CODE testdb.proc_definer;
 ERROR 42000: PROCEDURE proc_definer does not exist
 SHOW FUNCTION CODE testdb.func_root;
-ERROR 42000: PROCEDURE func_root does not exist
+ERROR 42000: FUNCTION func_root does not exist
 SHOW FUNCTION CODE testdb.func_definer;
-ERROR 42000: PROCEDURE func_definer does not exist
+ERROR 42000: FUNCTION func_definer does not exist
 
 # Test showing code after partial revoke of SELECT privilege.
 
@@ -273,9 +273,9 @@ ERROR 42000: PROCEDURE proc_root does not exist
 SHOW PROCEDURE CODE testdb.proc_definer;
 ERROR 42000: PROCEDURE proc_definer does not exist
 SHOW FUNCTION CODE testdb.func_root;
-ERROR 42000: PROCEDURE func_root does not exist
+ERROR 42000: FUNCTION func_root does not exist
 SHOW FUNCTION CODE testdb.func_definer;
-ERROR 42000: PROCEDURE func_definer does not exist
+ERROR 42000: FUNCTION func_definer does not exist
 
 # Restore partial_revokes to its previous value.
 
@@ -285,5 +285,7 @@ SET @@global.partial_revokes = @start_partial_revokes;
 # Cleanup.
 
 DROP USER usr_no_priv@localhost, usr_show_routine@localhost, usr_definer@localhost, usr_role@localhost, usr_create_routine@localhost, usr_alter_routine@localhost, usr_execute@localhost;
+Warnings:
+Warning	4005	User 'usr_definer'@'localhost' is referenced as a definer account in a stored routine.
 DROP ROLE role_show_routine;
 DROP SCHEMA testdb;

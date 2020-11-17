@@ -96,6 +96,8 @@ Note	3084	Replication thread(s) for channel '' are already stopped.
 Note	3084	Replication thread(s) for channel 'channel_1' are already stopped.
 Note	3084	Replication thread(s) for channel 'channel_2' are already stopped.
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -140,6 +142,8 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 include/rpl_restart_server.inc [server_number=1]
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_LOG_FILE='FILE', MASTER_LOG_POS=POS;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -191,6 +195,8 @@ Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UT
 include/rpl_restart_server.inc [server_number=1]
 include/stop_slave.inc
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_LOG_FILE='FILE', MASTER_LOG_POS=POS;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.

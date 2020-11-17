@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@ class Server_ongoing_transactions_handler : public Group_transaction_listener {
   Server_ongoing_transactions_handler();
 
   /** Class destructor */
-  ~Server_ongoing_transactions_handler();
+  ~Server_ongoing_transactions_handler() override;
 
   /**
     Fetch the registry and the service for this class
@@ -66,23 +66,22 @@ class Server_ongoing_transactions_handler : public Group_transaction_listener {
   /** Abort any running waiting process */
   void abort_waiting_process();
 
-  virtual int before_transaction_begin(my_thread_id thread_id,
-                                       ulong gr_consistency_level,
-                                       ulong hold_timeout,
-                                       enum_rpl_channel_type rpl_channel_type);
+  int before_transaction_begin(my_thread_id thread_id,
+                               ulong gr_consistency_level, ulong hold_timeout,
+                               enum_rpl_channel_type rpl_channel_type) override;
 
-  virtual int before_commit(
+  int before_commit(
       my_thread_id thread_id,
-      Group_transaction_listener::enum_transaction_origin origin);
+      Group_transaction_listener::enum_transaction_origin origin) override;
 
-  virtual int before_rollback(
+  int before_rollback(
       my_thread_id thread_id,
-      Group_transaction_listener::enum_transaction_origin origin);
+      Group_transaction_listener::enum_transaction_origin origin) override;
 
-  virtual int after_rollback(my_thread_id thread_id);
+  int after_rollback(my_thread_id thread_id) override;
 
-  virtual int after_commit(my_thread_id thread_id, rpl_sidno sidno,
-                           rpl_gno gno);
+  int after_commit(my_thread_id thread_id, rpl_sidno sidno,
+                   rpl_gno gno) override;
 
  private:
   /** The transactions that finished while the service is running */

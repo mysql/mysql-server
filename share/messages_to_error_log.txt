@@ -5139,7 +5139,7 @@ ER_GRP_RPL_FORCE_MEMBERS_SET_UPDATE_NOT_ALLOWED
   eng "group_replication_force_members can only be updated when Group Replication is running and a majority of the members are unreachable"
 
 ER_GRP_RPL_GRP_COMMUNICATION_INIT_WITH_CONF
-  eng "Initialized group communication with configuration: group_replication_group_name: '%s'; group_replication_local_address: '%s'; group_replication_group_seeds: '%s'; group_replication_bootstrap_group: '%s'; group_replication_poll_spin_loops: %lu; group_replication_compression_threshold: %lu; group_replication_ip_whitelist: '%s'; group_replication_communication_debug_options: '%s'; group_replication_member_expel_timeout: '%lu'; group_replication_communication_max_message_size: %lu; group_replication_message_cache_size: '%luu'"
+  eng "Initialized group communication with configuration: group_replication_group_name: '%s'; group_replication_local_address: '%s'; group_replication_group_seeds: '%s'; group_replication_bootstrap_group: '%s'; group_replication_poll_spin_loops: %lu; group_replication_compression_threshold: %lu; group_replication_ip_allowlist: '%s'; group_replication_communication_debug_options: '%s'; group_replication_member_expel_timeout: '%lu'; group_replication_communication_max_message_size: %lu; group_replication_message_cache_size: '%luu'"
 
 ER_GRP_RPL_UNKNOWN_GRP_RPL_APPLIER_PIPELINE_REQUESTED
   eng "Unknown group replication applier pipeline requested"
@@ -6441,7 +6441,7 @@ ER_IB_MSG_UNEXPECTED_FILE_EXISTS
   eng "The file '%s' already exists though the corresponding table did not exist. Have you moved InnoDB .ibd files around without using the SQL commands DISCARD TABLESPACE and IMPORT TABLESPACE, or did mysqld crash in the middle of CREATE TABLE? You can resolve the problem by removing the file '%s' under the 'datadir' of MySQL."
 
 ER_IB_MSG_303
-  eng "posix_fallocate(): Failed to preallocate data for file %s, desired size %llu Operating system error number %d. Check that the disk is not full or a disk quota exceeded. Make sure the file system supports this function. Some operating system error numbers are described at %s operating-system-error-codes.html"
+  eng "posix_fallocate(): Failed to preallocate data for file %s, desired size %llu Operating system error number %d. Check that the disk is not full or a disk quota exceeded. Make sure the file system supports this function. Refer to your operating system documentation for operating system error code information."
 
 ER_IB_MSG_304
   eng "Could not write the first page to tablespace '%s'"
@@ -8994,7 +8994,7 @@ OBSOLETE_ER_IB_MSG_1153
   eng "Waiting for dict_stats_thread to exit"
 
 ER_IB_MSG_1154
-  eng "Query counter shows %llu queries still inside InnoDB at shutdown"
+  eng "Query counter shows %lld queries still inside InnoDB at shutdown"
 
 ER_IB_MSG_1155
   eng "Shutdown completed; log sequence number %llu"
@@ -11043,11 +11043,53 @@ ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_CLONE
 ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_MDL
   eng "Delaying truncate of undo tablespace %s due to a metadata lock."
 
-ER_IB_MSG_UNDO_INJECT_CRASH
+ER_IB_MSG_INJECT_CRASH
   eng "Injected debug crash point: %s"
 
-ER_IB_MSG_UNDO_INJECT_FAILURE
+ER_IB_MSG_INJECT_FAILURE
   eng "Injected debug failure point: %s"
+
+ER_GRP_RPL_TIMEOUT_RECEIVED_VC_LEAVE_ON_REJOIN
+  eng "Timeout while waiting for a view change event during the leave step before a auto-rejoin attempt."
+
+ER_RPL_ASYNC_RECONNECT_FAIL_NO_SOURCE
+  eng "Failed to automatically re-connect to a different source, for channel '%s', because %s. To fix this %s."
+
+ER_UDF_REGISTER_SERVICE_ERROR
+  eng "Could not execute the installation of UDF functions. Check for other errors in the log"
+
+ER_UDF_REGISTER_ERROR
+  eng "Could not execute the installation of UDF function: %s. Check if the function is already present, if so, try to remove it."
+
+ER_UDF_UNREGISTER_ERROR
+  eng "Could not uninstall UDF functions. Try to remove them manually if present."
+
+ER_EMPTY_PRIVILEGE_NAME_IGNORED
+  eng "An empty or illegal privilege identifier was ignored when global privileges were read from disk."
+
+ER_IB_MSG_INCORRECT_SIZE
+  eng "%s"
+
+ER_TMPDIR_PATH_TOO_LONG
+  eng "A tmpdir temporary path \"%s\" is too long (> %zu) for this OS. This would not leave enough space for a temporary filename of length %zu within it."
+
+ER_ERROR_LOG_DESTINATION_NOT_A_FILE
+  eng "Error-log destination \"%s\" is not a file. Can not restore error log messages from previous run."
+
+ER_NO_ERROR_LOG_PARSER_CONFIGURED
+  eng "None of the log-sinks selected with --log-error-services=... provides a log-parser. The server will not be able to make the previous runs' error-logs available in performance_schema.error_log."
+
+ER_UPGRADE_NONEXISTENT_SCHEMA
+  eng "The schema \"%.64s\" referenced by %.16s \"%.128s\" does not exist. Please clean up any orphan %.16s before upgrading."
+
+ER_IB_MSG_CREATED_UNDO_SPACE
+  eng "Created undo tablespace '%s'."
+
+ER_IB_MSG_DROPPED_UNDO_SPACE
+  eng "Dropped undo tablespace '%s'."
+
+ER_IB_MSG_MASTER_KEY_ROTATED
+  eng "The InnoDB Encryption Master Key has been rotated in %d tablespaces."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -100,7 +100,7 @@ class Ename_index_by_emp_num : public Ename_index {
  public:
   PSI_plugin_key_integer m_emp_num;
 
-  bool match(Ename_Record *record) {
+  bool match(Ename_Record *record) override {
     return table_svc->match_key_integer(false, record->e_number.val,
                                         &m_emp_num);
   }
@@ -112,7 +112,7 @@ class Ename_index_by_emp_fname : public Ename_index {
   PSI_plugin_key_string m_emp_fname;
   char m_emp_fname_buffer[20];
 
-  bool match(Ename_Record *record) {
+  bool match(Ename_Record *record) override {
     return table_svc->match_key_string(false, record->f_name,
                                        record->f_name_length, &m_emp_fname);
   }

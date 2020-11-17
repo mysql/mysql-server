@@ -18,6 +18,8 @@ FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_NAME = 't_end';
 END WHILE;
 END|
+Warnings:
+Warning	1287	'SHOW SLAVE STATUS' is deprecated and will be removed in a future release. Please use SHOW REPLICA STATUS instead
 CREATE PROCEDURE read_gtid_executed ()
 BEGIN
 DECLARE name VARCHAR(100) DEFAULT('');

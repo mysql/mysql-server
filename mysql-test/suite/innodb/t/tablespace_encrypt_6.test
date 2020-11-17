@@ -13,7 +13,7 @@
 ############################################################################
 --source include/no_valgrind_without_big.inc
 # Waiting time when (re)starting the server
---let $explicit_default_wait_counter=10000;
+--let $explicit_default_wait_counter=10000
 
 # Suppress warnings
 -- disable_query_log

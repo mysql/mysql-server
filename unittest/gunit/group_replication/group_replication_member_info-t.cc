@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@ class ClusterMemberInfoTest : public ::testing::Test {
  protected:
   ClusterMemberInfoTest() {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     string hostname("pc_hostname");
     string uuid("781f947c-db4a-11e3-98d1-f01faf1a1c44");
     uint port = 4444;
@@ -72,7 +72,7 @@ class ClusterMemberInfoTest : public ::testing::Test {
     local_node->update_gtid_sets(executed_gtid, purged_gtid, retrieved_gtid);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     delete gcs_member_id;
     delete local_node;
   }
@@ -118,7 +118,7 @@ class ClusterMemberInfoManagerTest : public ::testing::Test {
  protected:
   ClusterMemberInfoManagerTest() {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     string hostname("pc_hostname");
     string uuid("8d7r947c-dr4a-17i3-59d1-f01faf1kkc44");
     uint port = 4444;
@@ -149,7 +149,7 @@ class ClusterMemberInfoManagerTest : public ::testing::Test {
         new Group_member_info_manager(local_node, PSI_NOT_INSTRUMENTED);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     delete cluster_member_mgr;
     delete gcs_member_id;
     delete local_node;

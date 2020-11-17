@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -139,9 +139,11 @@ struct TABLE_REF {
     a match.
   */
   bool impossible_null_ref() const {
-    if (null_rejecting != 0) {
-      for (uint i = 0; i < key_parts; i++) {
-        if ((null_rejecting & 1 << i) && items[i]->is_null()) return true;
+    if (null_rejecting == 0) return false;
+    for (uint i = 0; i < key_parts; i++) {
+      if ((null_rejecting & 1 << i) && items[i]->maybe_null &&
+          items[i]->is_null()) {
+        return true;
       }
     }
     return false;

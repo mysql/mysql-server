@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,14 +53,14 @@ class Index_stat_impl : public Entity_object_impl, public Index_stat {
   Index_stat_impl() : m_cardinality(0), m_cached_time(0) {}
 
  public:
-  virtual void debug_print(String_type &outb) const;
+  void debug_print(String_type &outb) const override;
 
-  virtual const Object_table &object_table() const;
+  const Object_table &object_table() const override;
 
-  virtual bool validate() const;
+  bool validate() const override;
 
-  virtual bool restore_attributes(const Raw_record &r);
-  virtual bool store_attributes(Raw_record *r);
+  bool restore_attributes(const Raw_record &r) override;
+  bool store_attributes(Raw_record *r) override;
 
  public:
   static void register_tables(Open_dictionary_tables_ctx *otx);
@@ -69,9 +69,9 @@ class Index_stat_impl : public Entity_object_impl, public Index_stat {
   // schema name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &schema_name() const { return m_schema_name; }
+  const String_type &schema_name() const override { return m_schema_name; }
 
-  virtual void set_schema_name(const String_type &schema_name) {
+  void set_schema_name(const String_type &schema_name) override {
     m_schema_name = schema_name;
   }
 
@@ -79,9 +79,9 @@ class Index_stat_impl : public Entity_object_impl, public Index_stat {
   // table name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &table_name() const { return m_table_name; }
+  const String_type &table_name() const override { return m_table_name; }
 
-  virtual void set_table_name(const String_type &table_name) {
+  void set_table_name(const String_type &table_name) override {
     m_table_name = table_name;
   }
 
@@ -89,9 +89,9 @@ class Index_stat_impl : public Entity_object_impl, public Index_stat {
   // index name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &index_name() const { return m_index_name; }
+  const String_type &index_name() const override { return m_index_name; }
 
-  virtual void set_index_name(const String_type &index_name) {
+  void set_index_name(const String_type &index_name) override {
     m_index_name = index_name;
   }
 
@@ -99,9 +99,9 @@ class Index_stat_impl : public Entity_object_impl, public Index_stat {
   // column name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &column_name() const { return m_column_name; }
+  const String_type &column_name() const override { return m_column_name; }
 
-  virtual void set_column_name(const String_type &column_name) {
+  void set_column_name(const String_type &column_name) override {
     m_column_name = column_name;
   }
 
@@ -109,9 +109,9 @@ class Index_stat_impl : public Entity_object_impl, public Index_stat {
   // cardinality.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong cardinality() const { return m_cardinality; }
+  ulonglong cardinality() const override { return m_cardinality; }
 
-  virtual void set_cardinality(ulonglong cardinality) {
+  void set_cardinality(ulonglong cardinality) override {
     m_cardinality = cardinality;
   }
 
@@ -119,27 +119,29 @@ class Index_stat_impl : public Entity_object_impl, public Index_stat {
   // cached_time.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong cached_time() const { return m_cached_time; }
+  ulonglong cached_time() const override { return m_cached_time; }
 
-  virtual void set_cached_time(ulonglong cached_time) {
+  void set_cached_time(ulonglong cached_time) override {
     m_cached_time = cached_time;
   }
 
  public:
-  virtual Object_key *create_primary_key() const;
-  virtual bool has_new_primary_key() const;
+  Object_key *create_primary_key() const override;
+  bool has_new_primary_key() const override;
 
   // Fix "inherits ... via dominance" warnings
-  virtual Entity_object_impl *impl() { return Entity_object_impl::impl(); }
-  virtual const Entity_object_impl *impl() const {
+  Entity_object_impl *impl() override { return Entity_object_impl::impl(); }
+  const Entity_object_impl *impl() const override {
     return Entity_object_impl::impl();
   }
-  virtual Object_id id() const { return Entity_object_impl::id(); }
-  virtual bool is_persistent() const {
+  Object_id id() const override { return Entity_object_impl::id(); }
+  bool is_persistent() const override {
     return Entity_object_impl::is_persistent();
   }
-  virtual const String_type &name() const { return Entity_object_impl::name(); }
-  virtual void set_name(const String_type &name) {
+  const String_type &name() const override {
+    return Entity_object_impl::name();
+  }
+  void set_name(const String_type &name) override {
     Entity_object_impl::set_name(name);
   }
 

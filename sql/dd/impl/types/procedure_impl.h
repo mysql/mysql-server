@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,128 +48,132 @@ class Procedure_impl : public Routine_impl, public Procedure {
  public:
   Procedure_impl() {}
 
-  virtual ~Procedure_impl() {}
+  ~Procedure_impl() override {}
 
  public:
-  virtual bool update_routine_name_key(Name_key *key, Object_id schema_id,
-                                       const String_type &name) const;
+  bool update_routine_name_key(Name_key *key, Object_id schema_id,
+                               const String_type &name) const override;
 
-  virtual void debug_print(String_type &outb) const;
+  void debug_print(String_type &outb) const override;
 
   // Fix "inherits ... via dominance" warnings
-  virtual Entity_object_impl *impl() { return Entity_object_impl::impl(); }
-  virtual const Entity_object_impl *impl() const {
+  Entity_object_impl *impl() override { return Entity_object_impl::impl(); }
+  const Entity_object_impl *impl() const override {
     return Entity_object_impl::impl();
   }
-  virtual Object_id id() const { return Entity_object_impl::id(); }
-  virtual bool is_persistent() const {
+  Object_id id() const override { return Entity_object_impl::id(); }
+  bool is_persistent() const override {
     return Entity_object_impl::is_persistent();
   }
-  virtual const String_type &name() const { return Entity_object_impl::name(); }
-  virtual void set_name(const String_type &name) {
+  const String_type &name() const override {
+    return Entity_object_impl::name();
+  }
+  void set_name(const String_type &name) override {
     Entity_object_impl::set_name(name);
   }
-  virtual const Object_table &object_table() const {
+  const Object_table &object_table() const override {
     return Routine_impl::object_table();
   }
-  virtual Object_id schema_id() const { return Routine_impl::schema_id(); }
-  virtual void set_schema_id(Object_id schema_id) {
+  Object_id schema_id() const override { return Routine_impl::schema_id(); }
+  void set_schema_id(Object_id schema_id) override {
     Routine_impl::set_schema_id(schema_id);
   }
-  virtual enum_routine_type type() const { return Routine_impl::type(); }
-  virtual const String_type &definition() const {
+  enum_routine_type type() const override { return Routine_impl::type(); }
+  const String_type &definition() const override {
     return Routine_impl::definition();
   }
-  virtual void set_definition(const String_type &definition) {
+  void set_definition(const String_type &definition) override {
     Routine_impl::set_definition(definition);
   }
-  virtual const String_type &definition_utf8() const {
+  const String_type &definition_utf8() const override {
     return Routine_impl::definition_utf8();
   }
-  virtual void set_definition_utf8(const String_type &definition_utf8) {
+  void set_definition_utf8(const String_type &definition_utf8) override {
     Routine_impl::set_definition_utf8(definition_utf8);
   }
-  virtual const String_type &parameter_str() const {
+  const String_type &parameter_str() const override {
     return Routine_impl::parameter_str();
   }
-  virtual void set_parameter_str(const String_type &parameter_str) {
+  void set_parameter_str(const String_type &parameter_str) override {
     Routine_impl::set_parameter_str(parameter_str);
   }
-  virtual bool is_deterministic() const {
+  bool is_deterministic() const override {
     return Routine_impl::is_deterministic();
   }
-  virtual void set_deterministic(bool deterministic) {
+  void set_deterministic(bool deterministic) override {
     Routine_impl::set_deterministic(deterministic);
   }
-  virtual enum_sql_data_access sql_data_access() const {
+  enum_sql_data_access sql_data_access() const override {
     return Routine_impl::sql_data_access();
   }
-  virtual void set_sql_data_access(enum_sql_data_access sda) {
+  void set_sql_data_access(enum_sql_data_access sda) override {
     Routine_impl::set_sql_data_access(sda);
   }
-  virtual View::enum_security_type security_type() const {
+  View::enum_security_type security_type() const override {
     return Routine_impl::security_type();
   }
-  virtual void set_security_type(View::enum_security_type security_type) {
+  void set_security_type(View::enum_security_type security_type) override {
     Routine_impl::set_security_type(security_type);
   }
-  virtual ulonglong sql_mode() const { return Routine_impl::sql_mode(); }
-  virtual void set_sql_mode(ulonglong sm) { Routine_impl::set_sql_mode(sm); }
-  virtual const String_type &definer_user() const {
+  ulonglong sql_mode() const override { return Routine_impl::sql_mode(); }
+  void set_sql_mode(ulonglong sm) override { Routine_impl::set_sql_mode(sm); }
+  const String_type &definer_user() const override {
     return Routine_impl::definer_user();
   }
-  virtual const String_type &definer_host() const {
+  const String_type &definer_host() const override {
     return Routine_impl::definer_host();
   }
-  virtual void set_definer(const String_type &username,
-                           const String_type &hostname) {
+  void set_definer(const String_type &username,
+                   const String_type &hostname) override {
     Routine_impl::set_definer(username, hostname);
   }
-  virtual Object_id client_collation_id() const {
+  Object_id client_collation_id() const override {
     return Routine_impl::client_collation_id();
   }
-  virtual void set_client_collation_id(Object_id client_collation_id) {
+  void set_client_collation_id(Object_id client_collation_id) override {
     Routine_impl::set_client_collation_id(client_collation_id);
   }
-  virtual Object_id connection_collation_id() const {
+  Object_id connection_collation_id() const override {
     return Routine_impl::connection_collation_id();
   }
-  virtual void set_connection_collation_id(Object_id connection_collation_id) {
+  void set_connection_collation_id(Object_id connection_collation_id) override {
     Routine_impl::set_connection_collation_id(connection_collation_id);
   }
-  virtual Object_id schema_collation_id() const {
+  Object_id schema_collation_id() const override {
     return Routine_impl::schema_collation_id();
   }
-  virtual void set_schema_collation_id(Object_id schema_collation_id) {
+  void set_schema_collation_id(Object_id schema_collation_id) override {
     Routine_impl::set_schema_collation_id(schema_collation_id);
   }
-  virtual ulonglong created(bool convert_time) const {
+  ulonglong created(bool convert_time) const override {
     return Routine_impl::created(convert_time);
   }
-  virtual void set_created(ulonglong created) {
+  void set_created(ulonglong created) override {
     Routine_impl::set_created(created);
   }
-  virtual ulonglong last_altered(bool convert_time) const {
+  ulonglong last_altered(bool convert_time) const override {
     return Routine_impl::last_altered(convert_time);
   }
-  virtual void set_last_altered(ulonglong last_altered) {
+  void set_last_altered(ulonglong last_altered) override {
     Routine_impl::set_last_altered(last_altered);
   }
-  virtual const String_type &comment() const { return Routine_impl::comment(); }
-  virtual void set_comment(const String_type &comment) {
+  const String_type &comment() const override {
+    return Routine_impl::comment();
+  }
+  void set_comment(const String_type &comment) override {
     Routine_impl::set_comment(comment);
   }
-  virtual Parameter *add_parameter() { return Routine_impl::add_parameter(); }
-  virtual const Parameter_collection &parameters() const {
+  Parameter *add_parameter() override { return Routine_impl::add_parameter(); }
+  const Parameter_collection &parameters() const override {
     return Routine_impl::parameters();
   }
-  virtual bool update_name_key(Name_key *key) const {
+  bool update_name_key(Name_key *key) const override {
     return Routine::update_name_key(key);
   }
 
  private:
   Procedure_impl(const Procedure_impl &src);
-  Procedure_impl *clone() const { return new Procedure_impl(*this); }
+  Procedure_impl *clone() const override { return new Procedure_impl(*this); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

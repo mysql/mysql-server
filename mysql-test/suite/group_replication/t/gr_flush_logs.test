@@ -605,11 +605,11 @@ flush logs;
 
 --echo # Check 'server2-bin.000002' is created after execute 'flush logs' statement.
 --echo # Make sure applier logs was flushed after execute 'flush logs' statement.
---echo # Make sure recovery logs was not flushed after execute 'flush logs' statement.
+--echo # Make sure recovery logs was flushed after execute 'flush logs' statement.
 --let $server_number = 2
 --let $must_rotate_binlog = yes
 --let $must_rotate_applier_log = yes
---let $must_rotate_recovery_log = no
+--let $must_rotate_recovery_log = yes
 --source $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc
 
 --source include/rpl_sync.inc

@@ -349,9 +349,12 @@ DROP TABLE sp;
 # Set the debug points to be used for creating ndb_info
 #
 connection slave;
-SET debug = "+d,extra_row_ndb_info_check";
+--let $debug_point_silent= 1
+--let $debug_point= extra_row_ndb_info_check
+--source include/add_debug_point.inc
 connection master;
-SET debug = "+d,extra_row_ndb_info_set";
+--let $debug_point= extra_row_ndb_info_set_3
+--source include/add_debug_point.inc
 
 CREATE TABLE t1 (store_id INT NOT NULL) PARTITION BY RANGE (store_id) ( PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20));
 
@@ -374,9 +377,11 @@ INSERT INTO t1 VALUES (1), (11), (15);
 # Cleanup
 
 --source include/sync_slave_sql_with_master.inc
-SET debug = "-d,extra_row_ndb_info_check";
+--let $debug_point= extra_row_ndb_info_check
+--source include/remove_debug_point.inc
 connection master;
-SET debug = "-d,extra_row_ndb_info_set";
+--let $debug_point= extra_row_ndb_info_set_3
+--source include/remove_debug_point.inc
 
 --echo #####11.Test partial JSON Update #####
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
@@ -410,7 +415,3 @@ DROP TABLE t1;
 --remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_partition_1.binlog
 RESET MASTER;
 --source include/rpl_end.inc
-
-# The state of binlog is not reverting back to original, restart is needed if
-# this case is to be tested again.
---source include/force_restart.inc

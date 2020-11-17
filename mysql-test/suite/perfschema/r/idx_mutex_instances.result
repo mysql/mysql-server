@@ -108,7 +108,7 @@ explain select count(*)
 from performance_schema.mutex_instances
 where LOCKED_BY_THREAD_ID = @lbtid;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	mutex_instances	NULL	ref	LOCKED_BY_THREAD_ID	LOCKED_BY_THREAD_ID	9	const	#	100.00	Using where
+1	SIMPLE	mutex_instances	NULL	ref	LOCKED_BY_THREAD_ID	LOCKED_BY_THREAD_ID	9	const	#	100.00	NULL
 ############# Explain End #########################################
 flush status;
 select count(*)

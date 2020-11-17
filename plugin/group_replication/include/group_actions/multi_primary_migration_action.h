@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,21 +47,21 @@ class Multi_primary_migration_action : public Group_action,
   */
   Multi_primary_migration_action(my_thread_id invoking_thread_id);
 
-  ~Multi_primary_migration_action();
+  ~Multi_primary_migration_action() override;
 
   /*
     Get the message with parameters to this action
     @param message  [out] the message to start the action
   */
-  virtual void get_action_message(Group_action_message **message);
+  void get_action_message(Group_action_message **message) override;
 
   /*
   Get the message with parameters to this action
   @param message the message to start the action
   @param message_origin the invoker address
 */
-  virtual int process_action_message(Group_action_message &message,
-                                     const std::string &message_origin);
+  int process_action_message(Group_action_message &message,
+                             const std::string &message_origin) override;
 
   /**
     Execute the action
@@ -71,9 +71,9 @@ class Multi_primary_migration_action : public Group_action,
 
     @returns the execution result
   */
-  virtual Group_action::enum_action_execution_result execute_action(
+  Group_action::enum_action_execution_result execute_action(
       bool invoking_member, Plugin_stage_monitor_handler *stage_handler,
-      Notification_context *ctx);
+      Notification_context *ctx) override;
 
   /*
     Terminate the executing configuration operation
@@ -81,26 +81,26 @@ class Multi_primary_migration_action : public Group_action,
 
     @return true if a problem was found when stopping the action.
   */
-  virtual bool stop_action_execution(bool killed);
+  bool stop_action_execution(bool killed) override;
 
   /**
     Returns the name of the action for debug messages and such
     @return the action name
   */
-  virtual const char *get_action_name();
+  const char *get_action_name() override;
 
   /**
     Gets the info about execution, be it success or failure
     @return the execution diagnostics object that was the message and its level
   */
-  virtual Group_action_diagnostics *get_execution_info();
+  Group_action_diagnostics *get_execution_info() override;
 
   /**
     For this action, what is the PSI key for the last stage when the action is
     terminating.
     @return The stage key for this class
   */
-  virtual PSI_stage_key get_action_stage_termination_key();
+  PSI_stage_key get_action_stage_termination_key() override;
 
  private:
   /**
@@ -118,19 +118,18 @@ class Multi_primary_migration_action : public Group_action,
 
   // The listeners for group events
 
-  virtual int after_view_change(
-      const std::vector<Gcs_member_identifier> &joining,
-      const std::vector<Gcs_member_identifier> &leaving,
-      const std::vector<Gcs_member_identifier> &group, bool is_leaving,
-      bool *skip_election, enum_primary_election_mode *election_mode,
-      std::string &suggested_primary);
-  virtual int after_primary_election(std::string primary_uuid,
-                                     bool primary_changed,
-                                     enum_primary_election_mode election_mode,
-                                     int error);
-  virtual int before_message_handling(const Plugin_gcs_message &message,
-                                      const std::string &message_origin,
-                                      bool *skip_message);
+  int after_view_change(const std::vector<Gcs_member_identifier> &joining,
+                        const std::vector<Gcs_member_identifier> &leaving,
+                        const std::vector<Gcs_member_identifier> &group,
+                        bool is_leaving, bool *skip_election,
+                        enum_primary_election_mode *election_mode,
+                        std::string &suggested_primary) override;
+  int after_primary_election(std::string primary_uuid, bool primary_changed,
+                             enum_primary_election_mode election_mode,
+                             int error) override;
+  int before_message_handling(const Plugin_gcs_message &message,
+                              const std::string &message_origin,
+                              bool *skip_message) override;
 
   /** The thread that invoked this action - if applicable, 0 otherwise */
   my_thread_id invoking_thread_id;

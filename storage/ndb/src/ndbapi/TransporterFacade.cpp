@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1220,9 +1220,9 @@ class ReceiveThreadClient : public trp_client
 {
   public :
   explicit ReceiveThreadClient(TransporterFacade *facade);
-  ~ReceiveThreadClient();
+  ~ReceiveThreadClient() override;
   void trp_deliver_signal(const NdbApiSignal *,
-                          const LinearSectionPtr ptr[3]);
+                          const LinearSectionPtr ptr[3]) override;
 };
 
 ReceiveThreadClient::ReceiveThreadClient(TransporterFacade * facade)
@@ -2466,7 +2466,7 @@ public:
    * Reset the iterator to the start of the current sub-range
    * Avoid calling as it could be expensive.
    */
-  void reset()
+  void reset() override
   {
     /* Reset iterator to last specified range */
     assert(checkInvariants());
@@ -2480,7 +2480,7 @@ public:
    * (GenericSectionIterator)
    * Get ptr and size of next contiguous words in subrange
    */
-  const Uint32* getNextWords(Uint32& sz)
+  const Uint32* getNextWords(Uint32& sz) override
   {
     assert(checkInvariants());
     const Uint32* currPtr= NULL;
@@ -4468,7 +4468,7 @@ TransporterFacade::ext_set_max_api_reg_req_interval(Uint32 interval)
   theClusterMgr->set_max_api_reg_req_interval(interval);
 }
 
-struct in_addr
+struct in6_addr
 TransporterFacade::ext_get_connect_address(Uint32 nodeId)
 {
   return theTransporterRegistry->get_connect_address(nodeId);

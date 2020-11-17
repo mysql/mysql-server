@@ -170,7 +170,7 @@ dberr_t row_search_for_mysql(byte *buf, page_cur_mode_t mode,
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Searches for rows in the database using cursor.
-function is meant for temporary table that are not shared accross connection
+Function is for temporary tables that are not shared accross connections
 and so lot of complexity is reduced especially locking and transaction related.
 The cursor is an iterator over the table/index.
 

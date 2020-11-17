@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,11 @@
 
 #include "mysql/harness/filesystem.h"
 
+#include <algorithm>
 #include <cstring>
 #include <fstream>
+#include <functional>
+#include <iterator>
 #include <ostream>
 #ifndef _WIN32
 #include <fcntl.h>
@@ -129,7 +132,10 @@ bool Path::is_absolute() const {
 
 bool Path::exists() const {
   validate_non_empty_path();  // throws std::invalid_argument
-  return type() != FileType::FILE_NOT_FOUND && type() != FileType::STATUS_ERROR;
+  // First type() needs to be force refreshed as the type of the file could have
+  // been changed in the meantime (e.g. file was created)
+  return type(true) != FileType::FILE_NOT_FOUND &&
+         type() != FileType::STATUS_ERROR;
 }
 
 bool Path::is_readable() const {
@@ -203,6 +209,53 @@ Directory::DirectoryIterator Directory::glob(const string &pattern) {
 }
 
 Directory::DirectoryIterator Directory::end() { return DirectoryIterator(); }
+
+Directory::DirectoryIterator Directory::cbegin() const {
+  return DirectoryIterator(*this);
+}
+
+Directory::DirectoryIterator Directory::cend() const {
+  return DirectoryIterator();
+}
+
+bool Directory::is_empty() const {
+  return std::none_of(cbegin(), cend(), [](const Directory &dir) {
+    std::string name = dir.basename().str();
+    return name != "." && name != "..";
+  });
+}
+
+std::vector<Path> Directory::list_recursive() const {
+  auto merge_subpaths = [](mysql_harness::Directory dir,
+                           std::vector<mysql_harness::Path> subpaths) {
+    std::transform(
+        std::begin(subpaths), std::end(subpaths), std::begin(subpaths),
+        [&dir](mysql_harness::Path &subpath) { return dir.join(subpath); });
+    return subpaths;
+  };
+
+  // Recursively visit all subdirectories (for files just return their name),
+  // call upper on the stack merges the parent directory name to the returned
+  // path.
+  std::function<std::vector<mysql_harness::Path>(mysql_harness::Directory)>
+      recurse = [&recurse, &merge_subpaths](mysql_harness::Directory dir) {
+        std::vector<mysql_harness::Path> result;
+        for (const auto &file : dir) {
+          if (file.is_directory() &&
+              !mysql_harness::Directory{file}.is_empty()) {
+            auto partial_results = merge_subpaths(
+                file.basename(), recurse(mysql_harness::Directory{file}));
+            std::move(std::begin(partial_results), std::end(partial_results),
+                      std::back_inserter(result));
+          } else {
+            result.push_back(file.basename());
+          }
+        }
+        return result;
+      };
+
+  return recurse(*this);
+}
 
 ///////////////////////////////////////////////////////////
 // Directory members

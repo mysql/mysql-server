@@ -94,7 +94,7 @@ would accommodate 3354832851 rows. */
 
 /** The following are some testing auxiliary macros. Do not enable them
 in a production environment. */
-/* @{ */
+/** @{ */
 
 #if 0
 /** If this is enabled then lock folds will always be different
@@ -131,7 +131,7 @@ if this is enabled, also if this is enabled searching into the hash is
 noop because it will be empty. */
 #define TEST_DO_NOT_INSERT_INTO_THE_HASH_TABLE
 #endif
-/* @} */
+/** @} */
 
 /** Memory limit passed to ha_storage_put_memlim().
 @param cache hash storage

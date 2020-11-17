@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -190,8 +190,9 @@ sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,
 enum_sp_return_code sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
                                      bool lookup_only, sp_head **sp);
 
-enum_sp_return_code sp_cache_routine(THD *thd, enum_sp_type type, sp_name *name,
-                                     bool lookup_only, sp_head **sp);
+enum_sp_return_code sp_cache_routine(THD *thd, enum_sp_type type,
+                                     const sp_name *name, bool lookup_only,
+                                     sp_head **sp);
 
 bool sp_exist_routines(THD *thd, TABLE_LIST *procs, bool is_proc);
 

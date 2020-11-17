@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ using ::testing::StrictMock;
 
 class Timers_test_suite : public ::testing::Test {
  public:
-  void SetUp() {
+  void SetUp() override {
     config->m_timeouts.m_interactive_timeout =
         defaults::timeout::k_interactive_timeout;
     config->m_timeouts.m_read_timeout = defaults::timeout::k_read_timeout;
@@ -59,7 +59,7 @@ class Timers_test_suite : public ::testing::Test {
                                               &mock_protocol_monitor));
   }
 
-  void TearDown() { EXPECT_CALL(*mock_vio, shutdown()); }
+  void TearDown() override { EXPECT_CALL(*mock_vio, shutdown()); }
 
   using Strict_mock_vio = StrictMock<Mock_vio>;
   std::shared_ptr<Strict_mock_vio> mock_vio{new Strict_mock_vio()};

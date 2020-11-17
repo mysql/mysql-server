@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,9 +43,9 @@
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
-#include "sql/sql_time.h"  // TIME_to_timestamp
 #include "sql/table.h"
 #include "sql_string.h"  // validate_string
+#include "tztime.h"      // Time_zone
 
 /*
   Set a name of the event
@@ -157,7 +157,6 @@ bool Event_parse_data::check_dates(THD *thd, int previous_on_completion) {
 */
 
 int Event_parse_data::init_execute_at(THD *thd) {
-  bool not_used;
   MYSQL_TIME ltime;
   my_time_t ltime_utc;
 
@@ -165,17 +164,20 @@ int Event_parse_data::init_execute_at(THD *thd) {
 
   if (!item_execute_at) return 0;
 
-  if (item_execute_at->fix_fields(thd, &item_execute_at)) goto wrong_value;
+  if (!item_execute_at->fixed &&
+      item_execute_at->fix_fields(thd, &item_execute_at))
+    goto wrong_value;
 
   /* no starts and/or ends in case of execute_at */
   DBUG_PRINT("info", ("starts_null && ends_null should be 1 is %d",
                       (starts_null && ends_null)));
   DBUG_ASSERT(starts_null && ends_null);
 
-  if ((not_used = item_execute_at->get_date(&ltime, TIME_NO_ZERO_DATE)))
-    goto wrong_value;
+  if ((item_execute_at->get_date(&ltime, TIME_NO_ZERO_DATE))) goto wrong_value;
 
-  ltime_utc = TIME_to_timestamp(thd, &ltime, &not_used);
+  bool is_in_dst_gap_ignored;
+  ltime_utc = thd->time_zone()->TIME_to_gmt_sec(&ltime, &is_in_dst_gap_ignored);
+
   if (!ltime_utc) {
     DBUG_PRINT("error", ("Execute AT after year 2037"));
     goto wrong_value;
@@ -224,7 +226,9 @@ int Event_parse_data::init_interval(THD *thd) {
       break;
   }
 
-  if (item_expression->fix_fields(thd, &item_expression)) goto wrong_value;
+  if (!item_expression->fixed &&
+      item_expression->fix_fields(thd, &item_expression))
+    goto wrong_value;
 
   value.alloc(MAX_DATETIME_FULL_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
   if (get_interval_value(item_expression, interval, &value, &interval_tmp))
@@ -315,19 +319,20 @@ wrong_value:
 */
 
 int Event_parse_data::init_starts(THD *thd) {
-  bool not_used;
   MYSQL_TIME ltime;
   my_time_t ltime_utc;
 
   DBUG_TRACE;
   if (!item_starts) return 0;
 
-  if (item_starts->fix_fields(thd, &item_starts)) goto wrong_value;
-
-  if ((not_used = item_starts->get_date(&ltime, TIME_NO_ZERO_DATE)))
+  if (!item_starts->fixed && item_starts->fix_fields(thd, &item_starts))
     goto wrong_value;
 
-  ltime_utc = TIME_to_timestamp(thd, &ltime, &not_used);
+  if ((item_starts->get_date(&ltime, TIME_NO_ZERO_DATE))) goto wrong_value;
+
+  bool is_in_dst_gap_ignored;
+  ltime_utc = thd->time_zone()->TIME_to_gmt_sec(&ltime, &is_in_dst_gap_ignored);
+
   if (!ltime_utc) goto wrong_value;
 
   DBUG_PRINT("info", ("now: %ld  starts: %ld", (long)thd->query_start_in_secs(),
@@ -363,20 +368,21 @@ wrong_value:
 */
 
 int Event_parse_data::init_ends(THD *thd) {
-  bool not_used;
   MYSQL_TIME ltime;
   my_time_t ltime_utc;
 
   DBUG_TRACE;
   if (!item_ends) return 0;
 
-  if (item_ends->fix_fields(thd, &item_ends)) goto error_bad_params;
-
-  DBUG_PRINT("info", ("convert to TIME"));
-  if ((not_used = item_ends->get_date(&ltime, TIME_NO_ZERO_DATE)))
+  if (!item_ends->fixed && item_ends->fix_fields(thd, &item_ends))
     goto error_bad_params;
 
-  ltime_utc = TIME_to_timestamp(thd, &ltime, &not_used);
+  DBUG_PRINT("info", ("convert to TIME"));
+
+  if ((item_ends->get_date(&ltime, TIME_NO_ZERO_DATE))) goto error_bad_params;
+
+  bool is_in_dst_gap_ignored;
+  ltime_utc = thd->time_zone()->TIME_to_gmt_sec(&ltime, &is_in_dst_gap_ignored);
   if (!ltime_utc) goto error_bad_params;
 
   /* Check whether ends is after starts */

@@ -292,13 +292,23 @@ execute stmt1 using @arg00 ;
 #  after order by? column number or constant
 set @arg00=2 ;
 select a,b from t1 order by 2 ;
-prepare stmt1 from ' select a,b from t1
-order by ? ';
+prepare stmt1 from ' select a,b from t1 order by ? ';
+# WL#9384 Made the result order undefined.
+# Bug#31684243 will make query invalid.
+# Until then we sort result to get a deterministic test case.
+--sorted_result
 execute stmt1 using @arg00;
 set @arg00=1 ;
+# WL#9384 Made the result order undefined.
+# Bug#31684243 will make query invalid.
+# Until then we sort result to get a deterministic test case.
+--sorted_result
 execute stmt1 using @arg00;
 set @arg00=0 ;
---error 1054
+# WL#9384 Made the result order undefined.
+# Bug#31684243 will make query invalid.
+# Until then we sort result to get a deterministic test case.
+--sorted_result
 execute stmt1 using @arg00;
 
 ##### parameter used in limit clause

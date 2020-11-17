@@ -70,6 +70,8 @@ Master D	4	D
 
 * Do failure for C and then make new connection B->D *
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
 include/start_slave.inc
 INSERT INTO t1 VALUES(6,'C',2);
@@ -157,6 +159,8 @@ DELETE FROM t1 WHERE a = 6;
 include/start_slave.inc
 RESET MASTER;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/rpl_change_topology.inc [new topology=1->2->3->4->1]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.

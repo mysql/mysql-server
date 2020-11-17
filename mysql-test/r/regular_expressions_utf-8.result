@@ -914,7 +914,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bigint NOT NULL DEFAULT '0',
   `b` int NOT NULL DEFAULT '0',
-  `c` longtext CHARACTER SET latin1,
+  `c` longtext CHARACTER SET latin1 NOT NULL,
   `d` varchar(1) CHARACTER SET latin1 DEFAULT NULL,
   `e` varchar(512) CHARACTER SET latin1 DEFAULT NULL,
   `f` text CHARACTER SET latin1
@@ -1004,3 +1004,158 @@ a	b
 abc	abc
 abc	abc
 DROP TABLE t1;
+#
+# Bug#31031886: EVALUATING REGEXP CHARACTER CLASSES IN BINARY
+#               STRING CONTEXTS
+#
+#
+# Small part of the test. Making sure you can't mix binary strings with
+# any other character set. See regular_expressions_utf-8_big.test for the
+# big part.
+#
+SELECT regexp_like('1', x'01');
+ERROR HY000: Character set 'utf8mb4_0900_ai_ci' cannot be used in conjunction with 'binary' in call to regexp_like.
+SELECT regexp_like(x'01', '1');
+ERROR HY000: Character set 'binary' cannot be used in conjunction with 'utf8mb4_0900_ai_ci' in call to regexp_like.
+SELECT regexp_replace('01', '01', x'02');
+ERROR HY000: Character set 'utf8mb4_0900_ai_ci' cannot be used in conjunction with 'binary' in call to regexp_replace.
+SELECT regexp_replace('01', x'01', '02');
+ERROR HY000: Character set 'utf8mb4_0900_ai_ci' cannot be used in conjunction with 'binary' in call to regexp_replace.
+SELECT regexp_replace('01', x'01', x'02');
+ERROR HY000: Character set 'utf8mb4_0900_ai_ci' cannot be used in conjunction with 'binary' in call to regexp_replace.
+SELECT regexp_replace(x'01', '01', '02');
+ERROR HY000: Character set 'binary' cannot be used in conjunction with 'utf8mb4_0900_ai_ci' in call to regexp_replace.
+SELECT regexp_replace(x'01', '01', x'02');
+ERROR HY000: Character set 'binary' cannot be used in conjunction with 'utf8mb4_0900_ai_ci' in call to regexp_replace.
+SELECT regexp_replace(x'01', x'01', '02');
+ERROR HY000: Character set 'binary' cannot be used in conjunction with 'utf8mb4_0900_ai_ci' in call to regexp_replace.
+# We repeat the above test for other char types, but this time we
+# make it a little smaller, just to check that the same rule applies for
+# all the relevant data types.
+CREATE TABLE t1(a CHAR(1));
+CREATE TABLE t2(a BLOB);
+CREATE TABLE t3(a TEXT);
+INSERT INTO t1 VALUES('1');
+INSERT INTO t2 VALUES('1');
+INSERT INTO t3 VALUES('1');
+SELECT regexp_like(a, x'01') FROM t1;
+ERROR HY000: Character set 'utf8mb4_0900_ai_ci' cannot be used in conjunction with 'binary' in call to regexp_like.
+SELECT regexp_like(a, x'01') FROM t2;
+regexp_like(a, x'01')
+0
+SELECT regexp_like(a, x'01') FROM t3;
+ERROR HY000: Character set 'utf8mb4_0900_ai_ci' cannot be used in conjunction with 'binary' in call to regexp_like.
+SELECT regexp_like(x'01', a) FROM t1;
+ERROR HY000: Character set 'binary' cannot be used in conjunction with 'utf8mb4_0900_ai_ci' in call to regexp_like.
+SELECT regexp_like(x'01', a) FROM t2;
+regexp_like(x'01', a)
+0
+SELECT regexp_like(x'01', a) FROM t3;
+ERROR HY000: Character set 'binary' cannot be used in conjunction with 'utf8mb4_0900_ai_ci' in call to regexp_like.
+DROP TABLE t1, t2, t3;
+# When any argument is NULL, the result of a regular expression function
+# is also NULL, obviously. These tests are only here to show that we
+# don't mistakenly reject NULL values based on character set.
+SELECT regexp_instr(1, 'a');
+regexp_instr(1, 'a')
+0
+SELECT regexp_instr('a', 1);
+regexp_instr('a', 1)
+0
+SELECT regexp_instr(NULL, 'a');
+regexp_instr(NULL, 'a')
+NULL
+SELECT regexp_instr('a', NULL);
+regexp_instr('a', NULL)
+NULL
+SELECT regexp_like(1, 'a');
+regexp_like(1, 'a')
+0
+SELECT regexp_like('a', 1);
+regexp_like('a', 1)
+0
+SELECT regexp_like(NULL, 'a');
+regexp_like(NULL, 'a')
+NULL
+SELECT regexp_like('a', NULL);
+regexp_like('a', NULL)
+NULL
+SELECT regexp_replace(1, 1, 'a');
+regexp_replace(1, 1, 'a')
+a
+SELECT regexp_replace(1, 'a', 1);
+regexp_replace(1, 'a', 1)
+1
+SELECT regexp_replace(1, 'a', 'a');
+regexp_replace(1, 'a', 'a')
+1
+SELECT regexp_replace('a', 1, 1);
+regexp_replace('a', 1, 1)
+a
+SELECT regexp_replace('a', 1, 'a');
+regexp_replace('a', 1, 'a')
+a
+SELECT regexp_replace('a', 'a', 1);
+regexp_replace('a', 'a', 1)
+1
+SELECT regexp_replace(NULL, NULL, 'a');
+regexp_replace(NULL, NULL, 'a')
+NULL
+SELECT regexp_replace(NULL, 'a', NULL);
+regexp_replace(NULL, 'a', NULL)
+NULL
+SELECT regexp_replace(NULL, 'a', 'a');
+regexp_replace(NULL, 'a', 'a')
+NULL
+SELECT regexp_replace('a', NULL, NULL);
+regexp_replace('a', NULL, NULL)
+NULL
+SELECT regexp_replace('a', NULL, 'a');
+regexp_replace('a', NULL, 'a')
+NULL
+SELECT regexp_replace('a', 'a', NULL);
+regexp_replace('a', 'a', NULL)
+NULL
+SELECT regexp_substr(1, 'a');
+regexp_substr(1, 'a')
+NULL
+SELECT regexp_substr('a', 1);
+regexp_substr('a', 1)
+NULL
+SELECT regexp_substr(NULL, 'a');
+regexp_substr(NULL, 'a')
+NULL
+SELECT regexp_substr('a', NULL);
+regexp_substr('a', NULL)
+NULL
+#
+# Bug#31031888: REGEXP_REPLACE AND REGEXP_SUBSTR STILL ADD NULL
+# BYTES
+#
+SELECT hex(regexp_replace(x'01', x'01', x'02'));
+hex(regexp_replace(x'01', x'01', x'02'))
+02
+SELECT hex(regexp_substr(x'FFFF', x'FFFF'));
+hex(regexp_substr(x'FFFF', x'FFFF'))
+FFFF
+CREATE TABLE t1 AS SELECT regexp_substr(x'01', x'01');
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `regexp_substr(x'01', x'01')` varbinary(1) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1 AS SELECT regexp_replace(x'01', x'01', x'02');
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `regexp_replace(x'01', x'01', x'02')` longblob NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#
+# Bug #31514995 REGEXP::CHECK_ICU_STATUS: ASSERTION `FALSE' FAILED.
+#
+do regexp_like(0, "^{18446744073709551616");
+ERROR HY000: Decimal number in regular expression is too large.
+do regexp_instr(0, "^{18446744073709551616");
+ERROR HY000: Decimal number in regular expression is too large.

@@ -26,6 +26,7 @@
 #define NDB_NDBAPI_UTIL_H
 
 #include <stddef.h>
+#include <functional>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -33,6 +34,9 @@
 #include "storage/ndb/include/ndbapi/NdbBlob.hpp"
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
 #include "storage/ndb/include/ndbapi/NdbRecAttr.hpp"
+
+class THD;
+class NdbScanFilter;
 
 union NdbValue {
   const NdbRecAttr *rec;
@@ -174,15 +178,11 @@ bool ndb_get_tablespace_names(
  * @param dict              NDB Dictionary
  * @param schema_name       Schema name
  * @param table_names [out] List of table names
- * @param skip_util_tables  Controls whether the NDB utility tables i.e.
- *                          ndb_schema, ndb_schema_result, and ndb_sql_metadata
- *                          are included in list of table names returned or not
  * @return true on success, false on failure
  */
-bool ndb_get_table_names_in_schema(const NdbDictionary::Dictionary *dict,
-                                   const std::string &schema_name,
-                                   std::unordered_set<std::string> *table_names,
-                                   bool skip_util_tables = true);
+bool ndb_get_table_names_in_schema(
+    const NdbDictionary::Dictionary *dict, const std::string &schema_name,
+    std::unordered_set<std::string> *table_names);
 
 /**
  * @brief Retrieves list of undofile names assigned to a logfile group from NDB
@@ -300,5 +300,20 @@ bool ndb_get_tablespace_id_and_version(NdbDictionary::Dictionary *dict,
 bool ndb_table_index_count(const NdbDictionary::Dictionary *dict,
                            const NdbDictionary::Table *ndbtab,
                            unsigned int &index_count);
+/**
+ * @brief Scan the given table and delete the rows returned
+ * @param ndb                    The Ndb Object
+ * @param thd                    The THD object
+ * @param ndb_table              NDB Table object whose rows are to be deleted
+ * @param ndb_err [out]          NdbError object to send back the error during
+ *                               a failure
+ * @param ndb_scan_filter_defn   An optional std::function defining a
+ *                               NdbScanFilter to be used by the scan
+ * @return true if the rows were successfully deleted, false if not
+ */
+bool ndb_table_scan_and_delete_rows(
+    Ndb *ndb, const THD *thd, const NdbDictionary::Table *ndb_table,
+    NdbError &ndb_err,
+    const std::function<void(NdbScanFilter &)> &ndb_scan_filter_defn = nullptr);
 
 #endif

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -108,13 +108,13 @@ class table_replication_applier_global_filters : public PFS_engine_table {
 
     @retval 0 if HAVE_REPLICATION is defined, else HA_ERR_RECORD_DELETED.
   */
-  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all);
+  int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                      bool read_all) override;
 
   table_replication_applier_global_filters();
 
  public:
-  ~table_replication_applier_global_filters();
+  ~table_replication_applier_global_filters() override;
 
   /** Table share. */
   static PFS_engine_table_share m_share;
@@ -132,14 +132,14 @@ class table_replication_applier_global_filters : public PFS_engine_table {
       0    Did not reach the end of the table.
       HA_ERR_END_OF_FILE    reached the end of the table.
   */
-  virtual int rnd_next();
+  int rnd_next() override;
   /**
     Fetch a row by position.
 
     @param pos position to fetch
   */
-  virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+  int rnd_pos(const void *pos) override;
+  void reset_position(void) override;
 };
 
 /** @} */

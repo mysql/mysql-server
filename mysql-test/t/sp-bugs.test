@@ -482,8 +482,14 @@ SET NAMES default;
 --echo # Bug#30034972 - Deterministic function returns different value after
 --echo #                error.
 --echo #
+DELIMITER //;
 CREATE FUNCTION myfunc(dt VARCHAR(50)) RETURNS VARCHAR(32) DETERMINISTIC
-  RETURN CONCAT(UNIX_TIMESTAMP(dt));
+BEGIN
+  DECLARE dt_local TIMESTAMP(0);
+  SET dt_local = dt;
+  RETURN CONCAT(UNIX_TIMESTAMP(dt_local));
+END; //
+DELIMITER ;//
 --echo # Stored function returns seconds without fractional
 --echo # part (e.g. 1546290000)
 SELECT myfunc('2019-01-01 00:00:00');

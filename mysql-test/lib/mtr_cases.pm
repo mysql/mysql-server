@@ -1294,12 +1294,6 @@ sub collect_one_test_case {
       if ($default_storage_engine =~ /^mysiam/i);
   }
 
-  # Skip non-parallel tests if 'non-parallel-test' option is disabled
-  if ($tinfo->{'not_parallel'} and !$::opt_non_parallel_test) {
-    skip_test($tinfo, "Test needs 'non-parallel-test' option");
-    return $tinfo;
-  }
-
   # Except the tests which need big-test or only-big-test option to run
   # in valgrind environment(i.e tests having no_valgrind_without_big.inc
   # include file), other normal/non-big tests shouldn't run with
@@ -1337,6 +1331,13 @@ sub collect_one_test_case {
   if ($tinfo->{'asan_need_debug'} && !$::debug_compiled_binaries) {
     if ($::mysql_version_extra =~ /asan/) {
       skip_test($tinfo, "Test needs debug binaries if built with ASAN.");
+      return $tinfo;
+    }
+  }
+
+  if ($tinfo->{'need_backup'}) {
+    if (!$::mysqlbackup_enabled) {
+      skip_test($tinfo, "Test needs mysqlbackup.");
       return $tinfo;
     }
   }
@@ -1490,6 +1491,7 @@ my @tags = (
 
   [ "include/big_test.inc",       "big_test",   1 ],
   [ "include/asan_have_debug.inc","asan_need_debug", 1 ],
+  [ "include/have_backup.inc",    "need_backup", 1 ],
   [ "include/have_debug.inc",     "need_debug", 1 ],
   [ "include/have_ndb.inc",       "ndb_test",   1 ],
   [ "include/have_multi_ndb.inc", "ndb_test",   1 ],

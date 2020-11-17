@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,9 +41,9 @@ using my_testing::Server_initializer;
 
 class ISNativeFuncTest : public ::testing::Test {
  protected:
-  virtual void SetUp() { initializer.SetUp(); }
+  void SetUp() override { initializer.SetUp(); }
 
-  virtual void TearDown() { initializer.TearDown(); }
+  void TearDown() override { initializer.TearDown(); }
 
   THD *thd() { return initializer.thd(); }
 
@@ -198,6 +198,11 @@ TEST_F(ISNativeFuncTest, AllNullArguments) {
   // Empty string value is returned in this case.
   EXPECT_EQ(static_cast<size_t>(0), (item->val_str(&str))->length());
 
+  // GET_DD_SCHEMA_OPTIONS(NULL)
+  CREATE_ITEM(Item_func_get_dd_schema_options, NULL_ARG);
+  // Empty string value is returned in this case.
+  EXPECT_EQ(static_cast<size_t>(0), (item->val_str(&str))->length());
+
   // INTERNAL_GET_PARTITION_NODEGROUP()
   CREATE_ITEM(Item_func_get_partition_nodegroup, NULL_ARG);
   EXPECT_EQ(0, strcmp((item->val_str(&str))->ptr(), "default"));
@@ -278,6 +283,11 @@ TEST_F(ISNativeFuncTest, AllNullArguments) {
 
   // INTERNAL_IS_ENABLED_ROLE()
   CREATE_ITEM(Item_func_internal_is_enabled_role, TWO_NULL_ARGS);
+  item->val_int();
+  EXPECT_EQ(1, item->null_value);
+
+  // CAN_ACCESS_USER(NULL, NULL, NULL)
+  CREATE_ITEM(Item_func_can_access_user, TWO_NULL_ARGS);
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 }

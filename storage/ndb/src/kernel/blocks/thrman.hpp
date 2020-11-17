@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ class Thrman : public SimulatedBlock
   friend class ThrmanProxy;
 public:
   Thrman(Block_context& ctx, Uint32 instanceNumber = 0);
-  virtual ~Thrman();
+  ~Thrman() override;
   BLOCK_DEFINES(Thrman);
 
   void execDBINFO_SCANREQ(Signal*);
@@ -344,12 +344,12 @@ class ThrmanProxy : public LocalProxy
 {
 public:
   ThrmanProxy(Block_context& ctx);
-  virtual ~ThrmanProxy();
+  ~ThrmanProxy() override;
   BLOCK_DEFINES(ThrmanProxy);
   void execFREEZE_THREAD_REQ(Signal*);
 
 protected:
-  virtual SimulatedBlock* newWorker(Uint32 instanceNo);
+  SimulatedBlock* newWorker(Uint32 instanceNo) override;
 
 };
 #undef JAM_FILE_ID

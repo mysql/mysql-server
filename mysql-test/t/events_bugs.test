@@ -950,7 +950,6 @@ SELECT COUNT(*) > 0 AS "Expect 1" FROM events_test.event_log;
 #
 --echo connection default;
 connection default;
-DROP USER evtest1@localhost;
 # 2. If we meet BUG#28924 again than a server crash happens within the next
 #    few seconds
 # 3. Check that the event is never executed again
@@ -970,6 +969,7 @@ SELECT COUNT(*) > @row_cnt AS "Expect 0" FROM events_test.event_log;
 # Cleanup
 disconnect e1;
 DROP EVENT events_test.ev_sched_1823;
+DROP USER evtest1@localhost;
 DROP TABLE events_test.event_log;
 SET GLOBAL event_scheduler = OFF;
 SET @@session.autocommit = @save_session_autocommit;
@@ -1305,7 +1305,7 @@ USE test;
 --echo # Bug#17435114 ASSERTION FAILED: THD->LEX->LOCK_TABLES_STATE == QUERY_TABLES_LIST::LTS_NOT_LOCK
 --echo #
 
---error ER_EVENT_INTERVAL_NOT_POSITIVE_OR_TOO_BIG
+--error ER_EVENT_DOES_NOT_EXIST
 ALTER EVENT e1 ON SCHEDULE EVERY
 EXISTS (SELECT 1 AS x ORDER BY x LIMIT 0) NOT IN (1) MINUTE_SECOND;
 --error ER_EVENT_DOES_NOT_EXIST

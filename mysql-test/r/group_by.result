@@ -1006,15 +1006,10 @@ aaa
 aaa
 Warnings:
 Warning	1052	Column 'c2' in group statement is ambiguous
-show warnings;
-Level	Code	Message
-Warning	1052	Column 'c2' in group statement is ambiguous
 select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4
 group by t1.c1;
 c2
 aaa
-show warnings;
-Level	Code	Message
 drop table t1, t2;
 CREATE TABLE t1 (a tinyint(3), b varchar(255), PRIMARY KEY  (a));
 Warnings:
@@ -1806,7 +1801,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` USE INDE
 EXPLAIN SELECT 1 FROM t1 WHERE a IN
 (SELECT a FROM t1 USE INDEX (i2) IGNORE INDEX (i2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY,i2	PRIMARY	4	NULL	144	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	PRIMARY,i2	PRIMARY	4	NULL	144	100.00	Using index
 1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t1.a	1	100.00	NULL
 2	MATERIALIZED	t1	NULL	ALL	NULL	NULL	NULL	NULL	144	100.00	NULL
 Warnings:
@@ -2040,19 +2035,19 @@ test.t1	analyze	status	OK
 EXPLAIN
 SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY aa+0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using filesort
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary; Using filesort
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select (/* select#2 */ select `test`.`t1`.`a`) AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by ((/* select#2 */ select `test`.`t1`.`a`) + 0)
+Note	1249	Select 2 was reduced during optimization
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by (`test`.`t1`.`a` + 0)
 EXPLAIN
 SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY -aa;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using filesort
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary; Using filesort
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select (/* select#2 */ select `test`.`t1`.`a`) AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by -((/* select#2 */ select `test`.`t1`.`a`))
+Note	1249	Select 2 was reduced during optimization
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by -(`test`.`t1`.`a`)
 # should return only one record
 SELECT (SELECT tt.a FROM t1 tt LIMIT 1) aa, COUNT(DISTINCT b) FROM t1
 GROUP BY aa;
@@ -3960,3 +3955,87 @@ f3 integer
 SELECT * FROM t1 GROUP BY f3,f2,f1 WITH ROLLUP;
 f1	f2	f3
 DROP TABLE t1;
+# Bug#23599127 Unexpected unknown column error without ONLY_FULL_GROUP_BY
+SET SQL_MODE = '';
+CREATE TABLE t1 (
+id_aams int NOT NULL ,
+PRIMARY KEY (id_aams)
+);
+CREATE TABLE t2 (
+id int NOT NULL,
+id_game int DEFAULT NULL,
+code_id char(11) DEFAULT NULL,
+PRIMARY KEY (id),
+UNIQUE KEY codeid (code_id,id_game)
+);
+select count(distinct x.id_aams)
+from (select *
+from (select t1.id_aams, t2.*
+from t1 left join t2
+on t2.code_id='G0000000012' and
+t1.id_aams=t2.id_game
+where t1.id_aams=1715000360
+order by t2.id desc
+) as g
+group by g.id_aams
+having g.id is null
+) as x;
+count(distinct x.id_aams)
+0
+CREATE FUNCTION f1(vlt_code_id CHAR(11)) RETURNS tinyint DETERMINISTIC
+BEGIN
+DECLARE not_installed TINYINT DEFAULT 0;
+select count(distinct x.id_aams)
+into not_installed
+from (select *
+from (select t1.id_aams, t2.*
+from t1 left join t2
+on t2.code_id = vlt_code_id and
+t1.id_aams = t2.id_game
+where t1.id_aams = 1715000360
+order by t2.id desc
+) as g
+group by g.id_aams
+having g.id is null
+) as x;
+RETURN TRUE;
+END //
+SELECT f1('G0000000012');
+f1('G0000000012')
+1
+SELECT f1('G0000000012');
+f1('G0000000012')
+1
+PREPARE stmt from "
+select count(distinct x.id_aams)
+from (select g.id_aams, g.id
+      from (select t1.id_aams, t2.*
+            from t1 left join t2
+                 on t2.code_id='G0000000012' and
+                    t1.id_aams=t2.id_game
+            where t1.id_aams=1715000360
+            order by t2.id desc
+           ) as g
+      group by g.id_aams
+      having g.id is null
+     ) as x";
+EXECUTE stmt;
+count(distinct x.id_aams)
+0
+EXECUTE stmt;
+count(distinct x.id_aams)
+0
+DEALLOCATE PREPARE stmt;
+DROP FUNCTION f1;
+DROP TABLE t1, t2;
+SET SQL_MODE = DEFAULT;
+# Bug#31562881: Crash in change_to_use_tmp_fields_except_sums
+CREATE TABLE w(a INTEGER);
+INSERT INTO w VALUES (1),(2),(3),(4);
+SELECT MAX(FROM_UNIXTIME(1536999161)),
+GROUP_CONCAT(ST_LATFROMGEOHASH(ST_GEOHASH(POINT(115,155),201)))
+FROM w RIGHT JOIN w AS e ON TRUE
+GROUP BY w.a
+LIMIT 39;
+ERROR 22003: latitude value is out of range in 'st_geohash'
+DROP TABLE w;

@@ -1,0 +1,636 @@
+--source include/have_ndb.inc
+
+
+# Use large batch sizes to see behaviour in the limit
+set @saved_batch_size:=@@ndb_batch_size;
+set @saved_blob_write_batch:=@@ndb_blob_write_batch_bytes;
+set @saved_blob_read_batch:=@@ndb_blob_read_batch_bytes;
+
+set @batch_sz = 8 * 1024 * 1024;
+set global ndb_batch_size=@batch_sz;
+set ndb_batch_size=@batch_sz;
+set global ndb_blob_write_batch_bytes=@batch_sz;
+set ndb_blob_write_batch_bytes=@batch_sz;
+set global ndb_blob_read_batch_bytes=@batch_sz;
+set ndb_blob_read_batch_bytes=@batch_sz;
+
+let $_count_suffix=_session;
+
+# t1 - single blob table
+create table t1 (a varchar(10) character set utf8mb4 primary key,
+                 b text) engine=ndb;
+
+# t2 - multi blob table
+create table t2 (a varchar(10) character set utf8mb4 primary key, 
+                 b text,
+                 c text) engine=ndb;
+
+# tv - varbinary table
+create table tv (a varchar(10) character set utf8mb4 primary key,
+                 b varbinary(5000)) engine=ndb;
+
+--echo Testing round trips with varying factors
+--echo   rows         - Number of rows affected by single statement
+--echo   blobs        - Number of blobs per row affected by single statement
+--echo   autocommit   - Whether autocommit or separate prepare, commit
+--echo   parts        - Whether the operation requires part rows ops or not
+--echo   Update
+--echo     blind/RMW  - column value updated with no reference to existing
+--echo                  value
+--echo     read-modify-write
+--echo                - new column value is a function of existing value
+
+--echo *********************************************************
+--echo Basic varbinary batching tests showing baseline behaviour
+--echo *********************************************************
+--source suite/ndb/include/ndb_init_api_counts.inc
+
+--let $tablename=tv
+--let $valCol1=b
+--let $valCol2=0
+
+--echo Single row
+--echo ----------
+
+--echo INSERT single row, no parts, autocommit
+--echo Expect 2 RTs
+# Interesting : 1 RT ideally : Missing autocommit optimisation?
+--let $sql_statement=insert into tv values ("A", repeat("J", 20));
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo INSERT Single row, no parts, prepare only
+--echo Expect 1 RT
+--let $sql_statement=begin; insert into tv values ("A", repeat("J", 20));
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo UPDATE single row, no parts, autocommit, blind update
+--echo Expect 1 RT
+--let $sql_statement=update tv set b=repeat("Y",20) where a="Short1";
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo UPDATE single row, no parts, autocommit, read-modify-write
+--echo Expect 2 RTs
+--let $sql_statement=update tv set b=concat(b, "U") where a="Short1";
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo DELETE single row, no parts, autocommit
+--echo Expect 1 Rt
+--let $sql_statement=delete from tv where a="Short1";
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo DELETE single row, no parts, prepare only
+--echo Expect 1 Rt
+--let $sql_statement=begin; delete from tv where a="Short1";
+--source suite/ndb/t/ndb_blob_helper.inc
+
+
+--echo Multi row
+--echo ---------
+
+# INSERT
+--echo INSERT multi row, no parts, autocommit
+--echo Expect 1 RT
+--let $sql_statement=insert into tv values ("C", repeat("C", 20)), ("D", repeat("T", 20));
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo INSERT multi row, no parts, prepare only
+--echo Expect 1 Rt
+--let $sql_statement=begin; insert into tv values ("E", repeat("S", 20)), ("F", repeat("D", 20));
+--source suite/ndb/t/ndb_blob_helper.inc
+
+
+# UPDATE
+--echo UPDATE multi row, no parts, autocommit, blind update
+--echo Expect 1 Rt
+--let $sql_statement=update tv set b=repeat("Y",20) where a in ("Short1", "Short2");
+--source suite/ndb/t/ndb_blob_helper.inc
+
+
+--echo UPDATE multi row, no parts, autocommit, read-modify-write
+--echo Expect 2 Rts
+--let $sql_statement=update tv set b=concat(b, "M") where a in ("Short1", "Short2");
+--source suite/ndb/t/ndb_blob_helper.inc
+
+
+# DELETE
+--echo DELETE multi row, no parts, autocommit
+--echo Expect 1 Rt
+--let $sql_statement=delete from tv where a in ("Short1", "Short2");
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo DELETE multi row, no parts, prepare-only
+--echo Expect 1 Rt
+--let $sql_statement=begin; delete from tv where a in("Short1", "Short2");
+--source suite/ndb/t/ndb_blob_helper.inc
+
+
+
+--echo *************************
+--echo Basic blob batching tests
+--echo *************************
+
+# FC : RBW removal allows blind updates to avoid RTs
+# FC : Exec on commit allows RT reduction
+
+--echo -----------------------------
+--echo Single row, single blob tests
+--echo -----------------------------
+
+--let $tablename=t1
+--let $valCol1=b
+--let $valCol2=0
+
+# INSERT
+--echo INSERT single row, single blob, no parts, autocommit
+--echo Expect 3 Rts
+# Interesting : Ideally 1 RT
+--let $sql_statement=insert into t1 values ("A", repeat("B", 20));
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo INSERT single row, single blob, parts, autocommit
+--echo Expect 3 Rts
+# Interesting : Ideally 1 RT
+--let $sql_statement=insert into t1 values ("B", repeat("J", 5000));
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo INSERT single row, single blob, no parts, prepare only
+--echo Expect 2 RTs
+--let $sql_statement=begin; insert into t1 values ("C", repeat("C", 20));
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo INSERT single row, single blob, parts, prepare only
+--echo Expect 2 RTs
+--let $sql_statement=begin; insert into t1 values ("D", repeat("T", 40000));
+--source suite/ndb/t/ndb_blob_helper.inc
+
+# UPDATE
+
+--echo UPDATE single row, single blob, no parts, autocommit, blind update
+--echo Expect 4 Rts
+# Interesting, ideally 2 RTs
+--let $sql_statement=update t1 set b=repeat("Y",20) where a="Short1";
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo UPDATE single row, single blob, no parts, autocommit, read-modify-write
+--echo Expect 4 Rts
+# Interesting, ideally 2 RTs
+--let $sql_statement=update t1 set b=concat(b, "U") where a="Short1";
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo UPDATE single row, single blob, parts, autocommit, blind update
+--echo Expect 4 Rts
+# Interesting, ideally 2 RTs
+--let $sql_statement=update t1 set b=repeat("Y",40000) where a="Long1";
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo UPDATE single row, single blob, parts, autocommit, read-modify-write
+--echo Expect 5 RTs
+# Interesting, ideally 3 RTs
+--let $sql_statement=update t1 set b=concat(b, "U") where a="Long1";
+--source suite/ndb/t/ndb_blob_helper.inc
+
+
+# DELETE
+--echo DELETE single row, single blob, no parts, autocommit
+--echo Expect 3 Rts
+# Interesting, ideally 2 RTs
+--let $sql_statement=delete from t1 where a="Short1";
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo DELETE single row, single blob, parts, autocommit
+--echo Expect 3 Rts
+# Interesting, ideally 2 RTs
+--let $sql_statement=delete from t1 where a="Long1";
+--source suite/ndb/t/ndb_blob_helper.inc
+
+
+--echo ----------------------------
+--echo Single row, multi blob tests
+--echo ----------------------------
+--let $tablename=t2
+--let $valCol1=b
+--let $valCol2=c
+
+# INSERT
+
+--echo INSERT single row, multi blob, no parts, autocommit
+--echo Expect 3 Rts
+# Interesting, ideally 1 RT
+--let $sql_statement=insert into t2 values ("A", repeat("B", 20), repeat("B", 20));
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo INSERT single row, multi blob, parts, autocommit
+--echo Expect 3 Rts
+# Interesting, ideally 1 RT
+--let $sql_statement=insert into t2 values ("B", repeat("J", 5000), repeat("J", 5000));
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo INSERT single row, multi blob, no parts, prepare only
+--echo Expect 2 Rts
+# Interesting, ideally 1 RT
+--let $sql_statement=begin; insert into t2 values("C", repeat("C", 20), repeat("C", 20));
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo INSERT single row, multi blob, parts, prepare only
+--echo Expect 2 Rts
+# Interesting, ideally 1 RT
+--let $sql_statement=begin; insert into t2 values("D", repeat("T", 40000), repeat("C", 40000));
+--source suite/ndb/t/ndb_blob_helper.inc
+
+# UPDATE
+
+--echo UPDATE single row, multi blob, no parts, autocommit, blind update
+--echo Expect 4 Rts
+# Could be improved, but reads break batching
+--let $sql_statement=update t2 set b=repeat("Y",20), c=repeat("Y", 20) where a="Short1";
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo UPDATE single row, multi blob, no parts, autocommit, read-modify-write
+--echo Expect 4 Rts
+# Could be improved, but reads break batching
+--let $sql_statement=update t2 set b=concat(b, "U"), c=concat(c, "U") where a="Short1";
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo UPDATE single row, multi blob, parts, autocommit, blind update
+--echo Expect 4 Rts
+# Could be improved, but reads break batching
+--let $sql_statement=update t2 set b=repeat("Y",5000), c=repeat("Y", 5000) where a="Long1";
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo UPDATE single row, multi blob, parts, autocommit, read-modify-write
+--echo Expect 6 RTs
+# Could be improved, but reads break batching
+--let $sql_statement=update t2 set b=concat(b, "U"), c=concat(c, "U") where a="Long1";
+--source suite/ndb/t/ndb_blob_helper.inc
+
+# DELETE
+
+--echo DELETE single row, multi blob, no parts, autocommit
+--echo Expect 3 Rts
+# Interesting, ideally 2 RTs
+--let $sql_statement=delete from t2 where a="Short1";
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo DELETE single row, multi blob, parts, autocommit
+--echo Expect 4 Rts
+# Interesting, ideally 2 RTs
+--let $sql_statement=delete from t2 where a="Long1";
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo ---------------
+--echo Multi row tests
+--echo ---------------
+
+--echo ----------------------------
+--echo Multi row, single blob tests
+--echo ----------------------------
+--let $tablename=t1
+--let $valCol1=b
+--let $valCol2=0
+
+# INSERT
+
+--echo INSERT multi row, single blob, no parts, autocommit
+--echo Expect 1 Rt
+--let $sql_statement=insert into t1 values ("A", repeat("B", 20)), ("B", repeat("J", 20));
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo INSERT multi row, single blob, parts, autocommit
+--echo Expect 1 Rt
+--let $sql_statement=insert into t1 values ("C", repeat("C", 5000)), ("D", repeat("T", 5000));
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo INSERT multi row, single blob, noparts, prepare only
+--echo Expect 2 Rts
+# Require 2 for safe IgnoreError Insert
+--let $sql_statement=begin; insert into t1 values  ("E", repeat("B", 20)), ("F", repeat("J", 20));
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo INSERT multi row, single blob, parts, prepare only
+--echo Expect 2 Rts
+--let $sql_statement=begin; insert into t1 values ("G", repeat("C", 5000)),("H", repeat("T", 5000));
+--source suite/ndb/t/ndb_blob_helper.inc
+
+# UPDATE
+
+# noparts
+--echo UPDATE multi row, single blob, no parts, autocommit, blind update
+--echo Expect 4 Rts
+# Could be improved, but reads break batching
+--let $sql_statement=update t1 set b=repeat("Y", 20) where a in ("Short1", "Short2");
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo UPDATE multi row, single blob, no parts, autocommit, read-modify-write
+--echo Expect 6 Rts
+# Could be improved, but reads break batching
+--let $sql_statement=update t1 set b=concat(b, "U") where a in ("Short1", "Short2");
+--source suite/ndb/t/ndb_blob_helper.inc
+
+# parts
+--echo UPDATE multi row, single blob, parts, autocommit, blind update
+--echo Expect 4 Rts
+# Could be improved, but reads break batching
+--let $sql_statement=update t1 set b=repeat("M", 5000) where a in ("Long1", "Long2");
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo UPDATE multi row, single blob, parts, autocommit, read-modify-write
+--echo Expect 8 Rts
+# Could be improved, but reads break batching
+--let $sql_statement=update t1 set b=concat(b, "M") where a in ("Long1", "Long2");
+--source suite/ndb/t/ndb_blob_helper.inc
+
+# DELETE
+
+# noparts
+--echo DELETE multi row, single blob, noparts, autocommit
+--echo expect 3 Rts
+# Interesting, ideally 2 RTs
+--let $sql_statement=delete from t1 where a in ("Short1", "Short2");
+--source suite/ndb/t/ndb_blob_helper.inc
+
+# parts
+--echo DELETE multi row, single blob, parts, autocommit
+--echo expect 3 Rts
+# Interesting, ideally 2 RTs
+--let $sql_statement=delete from t1 where a in ("Long1", "Long2");
+--source suite/ndb/t/ndb_blob_helper.inc
+
+
+--echo ---------------------------
+--echo Multi row, multi blob tests
+--echo ---------------------------
+--let $tablename=t2
+--let $valCol1=b
+--let $valCol2=c
+
+# INSERT
+
+--echo INSERT multi row, multi blob, no parts, autocommit
+--echo Expect 1 Rt
+--let $sql_statement=insert into t2 values ("I", repeat("S", 20), repeat("S", 20)),("J", repeat("D", 20), repeat("D", 20));
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo INSERT multi row, multi blob, parts, autocommit
+--echo Expect 1 Rt
+--let $sql_statement=insert into t2 values ("K", repeat("G", 5000), repeat("G", 5000)),("L", repeat("!", 5000), repeat("!", 5000));
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo INSERT multi row, multi blob, no parts, prepare only
+--echo Expect 2 Rts
+# Required for safe IgnoreError insert
+--let $sql_statement=begin;insert into t2 values ("M", repeat("S", 20), repeat("S", 20)),("N", repeat("D", 20), repeat("D", 20));
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo INSERT multi row, multi blob, parts, prepare only
+--echo Expect 2 Rts
+--let $sql_statement=begin;insert into t2 values ("O", repeat("G", 5000), repeat("G", 5000)),("P", repeat("!", 5000), repeat("!", 5000));
+--source suite/ndb/t/ndb_blob_helper.inc
+
+# UPDATE
+--echo UPDATE multi row, multi blob, no parts, autocommit, blind update
+--echo Expect 4 Rts
+# Could be improved, but reads break batching
+--let $sql_statement=update t2 set b=repeat("Y", 20), c= repeat("U", 20) where a in ("Short1", "Short2");
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo UPDATE multi row, multi blob, no parts, autocommit, read-modify-write
+--echo Expect 6 Rts
+# Could be improved, but reads break batching
+--let $sql_statement=update t2 set b=concat(b, "M"), c= concat(b, "M") where a in ("Short1", "Short2");
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo UPDATE multi row, multi blob, parts, autocommit, blind update
+--echo Expect 4 Rts
+# Could be improved, but reads break batching
+--let $sql_statement=update t2 set b=repeat("Y", 5000), c= repeat("U", 5000) where a in ("Long1", "Long2");
+--source suite/ndb/t/ndb_blob_helper.inc
+
+--echo UPDATE multi row, multi blob, parts, autocommit, read-modify-write
+--echo Expect 8 Rts
+# Could be improved, but reads break batching
+--let $sql_statement=update t2 set b=concat(b, "M"), c= concat(b, "M") where a in ("Long1", "Long2");
+--source suite/ndb/t/ndb_blob_helper.inc
+
+# DELETE
+# noparts
+--echo DELETE multi row, multi blob, no parts, autocommit
+--echo Expect 3 Rts
+# Interesting, ideally 2 RTs
+--let $sql_statement=delete from t2 where a in ("Short1", "Short2");
+--source suite/ndb/t/ndb_blob_helper.inc
+
+# parts
+--echo DELETE multi row, multi blob, parts, autocommit
+--echo Expect 3 Rts
+# Interesting, ideally 2 RTs
+--let $sql_statement=delete from t2 where a in ("Long1", "Long2");
+--source suite/ndb/t/ndb_blob_helper.inc
+
+drop table t1;
+drop table t2;
+drop table tv;
+
+--echo ****************************************
+--echo Testing of various bulk insert scenarios
+--echo ****************************************
+
+--echo Create table with blob content on InnoDB, which can be scanned
+--echo without any Ndb round trips
+create table ta (a int primary key, b blob, c blob) engine=innodb;
+
+--disable_query_log
+--let $r=40
+while($r)
+{
+  eval insert into ta values ($r, repeat("B", 5000), repeat("C", 5000));
+  --dec $r
+}
+--enable_query_log
+
+--echo *********************
+--echo Test LOAD DATA INFILE
+--echo *********************
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--eval select * into outfile '$MYSQLD_DATADIR/ta_data' from test.ta;
+
+--echo Varbinary Load Data Infile
+create table ti (a int primary key, b varbinary(5000), c varbinary(5000)) engine=ndb;
+
+--source suite/ndb/include/ndb_init_api_counts.inc
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--eval load data infile '$MYSQLD_DATADIR/ta_data' into table ti;
+--source suite/ndb/include/ndb_diff_api_counts.inc
+drop table ti;
+
+--echo Blob Load Data Infile
+create table ti (a int primary key, b blob, c blob) engine=ndb;
+
+--source suite/ndb/include/ndb_init_api_counts.inc
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--eval load data infile '$MYSQLD_DATADIR/ta_data' into table ti;
+--source suite/ndb/include/ndb_diff_api_counts.inc
+drop table ti;
+
+--remove_file $MYSQLD_DATADIR/ta_data
+
+
+--echo ***************************
+--echo Test Create Table As Select
+--echo ***************************
+
+--source suite/ndb/include/ndb_init_api_counts.inc
+--echo Varbinary CTAS
+create table tn (a int primary key, b varbinary(5000), c varbinary(5000)) engine=ndb
+as select * from ta;
+--source suite/ndb/include/ndb_diff_api_counts.inc
+drop table tn;
+
+--source suite/ndb/include/ndb_init_api_counts.inc
+--echo Blob CTAS
+create table tn (a int primary key, b blob, c blob) engine=ndb
+as select * from ta;
+--source suite/ndb/include/ndb_diff_api_counts.inc
+drop table tn;
+
+--echo *****************************
+--echo Test ALTER engine bulk insert
+--echo *****************************
+
+create table tb (a int primary key, b varbinary(5000), c varbinary(5000)) engine=innodb
+as select * from ta;
+--echo Varbinary ALTER
+--source suite/ndb/include/ndb_init_api_counts.inc
+alter table tb engine=ndb;
+--source suite/ndb/include/ndb_diff_api_counts.inc
+drop table tb;
+
+--echo Blob ALTER
+--source suite/ndb/include/ndb_init_api_counts.inc
+alter table ta engine=ndb;
+--source suite/ndb/include/ndb_diff_api_counts.inc
+drop table ta;
+
+--echo **************
+--echo Test JSON type
+--echo **************
+
+# The JSON type maps to a Blob in NdbApi, let's capture the round-trip
+# properties it has.
+
+--disable_result_log
+--disable_query_log
+select repeat('JS', 20000) into @content;
+--let $JSONVAL=query_get_value(select @content as j, j, 1)
+--enable_result_log
+--enable_query_log
+
+--echo Single JSON columns in row
+--echo --------------------------
+
+create table js1 (a int primary key, b json) engine=ndb;
+
+--source suite/ndb/include/ndb_init_api_counts.inc
+
+--echo Single row JSON insert autocommit.  
+--echo Expect 3 RTs
+--disable_query_log
+--eval insert into js1 values (1, '{"key1":"$JSONVAL"}');
+--enable_query_log
+--source suite/ndb/include/ndb_diff_api_counts.inc
+
+--echo Multi row JSON insert autocommit
+--echo Expect 1 RT
+--disable_query_log
+--eval insert into js1 values (2, '{"key1":"$JSONVAL"}'),(3, '{"key1":"$JSONVAL"}'),(4, '{"key1":"$JSONVAL"}');
+--enable_query_log
+--source suite/ndb/include/ndb_diff_api_counts.inc
+
+--echo Single row JSON update autocommit
+--echo Expect 4 RTs
+--disable_query_log
+--eval update js1 set b='{"key2":"$JSONVAL"}' where a=1;
+--enable_query_log
+--source suite/ndb/include/ndb_diff_api_counts.inc
+
+--echo Multi row JSON update autocommit
+--echo Expect 4 RTs
+--disable_query_log
+--eval update js1 set b='{"key2":"$JSONVAL"}' where a in (2,3,4);
+--enable_query_log
+--source suite/ndb/include/ndb_diff_api_counts.inc
+
+--echo Single row JSON delete autocommit
+--echo Expect 3 RTs
+delete from js1 where a=1;
+--source suite/ndb/include/ndb_diff_api_counts.inc
+
+--echo Expect 3RTs
+delete from js1 where a in (2,3,4);
+--source suite/ndb/include/ndb_diff_api_counts.inc
+drop table js1;
+
+
+--echo Multiple JSON columns in row
+--echo ----------------------------
+create table js2 (a int primary key, b json, c json) engine=ndb;
+
+--source suite/ndb/include/ndb_init_api_counts.inc
+
+--echo Single row JSON insert autocommit.  
+--echo Expect 3 RTs
+--disable_query_log
+--eval insert into js2 values (1, '{"key1":"$JSONVAL"}', '{"keyA":"$JSONVAL"}');
+--enable_query_log
+--source suite/ndb/include/ndb_diff_api_counts.inc
+
+--echo Multi row JSON insert autocommit
+--echo Expect 1 RT
+--disable_query_log
+--eval insert into js2 values (2, '{"key1":"$JSONVAL"}', '{"keyA":"$JSONVAL"}'),(3, '{"key1":"$JSONVAL"}', '{"keyA":"$JSONVAL"}'),(4, '{"key1":"$JSONVAL"}', '{"keyA":"$JSONVAL"}');
+--enable_query_log
+--source suite/ndb/include/ndb_diff_api_counts.inc
+
+--echo Single row JSON update autocommit
+--echo Expect 4 RTs
+--disable_query_log
+--eval update js2 set b='{"key2":"$JSONVAL"}', c='{"keyB":"$JSONVAL"}' where a=1;
+--enable_query_log
+--source suite/ndb/include/ndb_diff_api_counts.inc
+
+--echo Multi row JSON update autocommit
+--echo Expect 4 RTs
+--disable_query_log
+--eval update js2 set b='{"key2":"$JSONVAL"}', c='{"keyB":"$JSONVAL"}' where a in (2,3,4);
+--enable_query_log
+--source suite/ndb/include/ndb_diff_api_counts.inc
+
+--echo Single row JSON delete autocommit
+--echo Expect 3 RTs
+delete from js2 where a=1;
+--source suite/ndb/include/ndb_diff_api_counts.inc
+
+--echo Expect 3RTs
+delete from js2 where a in (2,3,4);
+--source suite/ndb/include/ndb_diff_api_counts.inc
+
+drop table js2;
+
+# Cleanup
+set global ndb_batch_size=@saved_batch_size;
+set ndb_batch_size=@saved_batch_size;
+set global ndb_blob_write_batch_bytes=@saved_blob_write_batch;
+set ndb_blob_write_batch_bytes=@saved_blob_write_batch;
+set global ndb_blob_read_batch_bytes=@saved_blob_read_batch;
+set ndb_blob_read_batch_bytes=@saved_blob_read_batch;
+
+# TODO
+# Replace
+# Insert on duplicate key update
+# Insert Ignore
+# Missing opt 1 : Autocommit can defer until commit time
+# Missing opt 2 : Read before Write removal?
+# Similar key
+# 

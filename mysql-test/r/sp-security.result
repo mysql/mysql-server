@@ -321,6 +321,8 @@ call p_bug14834();
 user()	current_user()
 user3_bug14834@localhost	user1_bug14834@localhost
 drop user user1_bug14834@localhost;
+Warnings:
+Warning	4005	User 'user1_bug14834'@'localhost' is referenced as a definer account in a stored routine.
 drop user user2_bug14834@localhost;
 drop user user3_bug14834@localhost;
 drop database db_bug14834;
@@ -400,6 +402,8 @@ wl2897_f3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ER
 RETURN 3	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 DROP USER mysqltest_1@localhost;
 DROP USER mysqltest_2@localhost;
+Warnings:
+Warning	4005	User 'mysqltest_2'@'localhost' is referenced as a definer account in a stored routine.
 DROP DATABASE mysqltest;
 
 ---> connection: root
@@ -434,6 +438,8 @@ bug13198_f1()
 
 ---> connection: root
 DROP USER mysqltest_1@localhost;
+Warnings:
+Warning	4005	User 'mysqltest_1'@'localhost' is referenced as a definer account in a stored routine.
 
 ---> connection: mysqltest_2_con
 USE mysqltest;
@@ -781,7 +787,7 @@ connect  conn1, localhost, usr_no_priv,,;
 
 # Should not return any rows.
 
-SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb";
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
 ROUTINE_DEFINITION
 
 # Should pretend that routine does not exist.
@@ -809,7 +815,7 @@ connect  conn1, localhost, usr_show_routine,,;
 
 # Should show the routine_definition of all 4 routines.
 
-SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb";
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
 ROUTINE_DEFINITION
 RETURN "FuncDefiner"
 RETURN "FuncRoot"
@@ -864,7 +870,7 @@ connect  conn1, localhost, usr_role,,;
 
 # Should not return any rows.
 
-SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb";
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
 ROUTINE_DEFINITION
 
 # Should pretend that routine does not exist.
@@ -891,7 +897,7 @@ SET ROLE role_show_routine;
 
 # Should show the routine_definition of all 4 routines.
 
-SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb";
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
 ROUTINE_DEFINITION
 RETURN "FuncDefiner"
 RETURN "FuncRoot"
@@ -986,7 +992,7 @@ connect  conn1, localhost, usr_definer,,;
 
 # Should show the routine_definition of only proc_definer and func_definer.
 
-SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb";
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
 ROUTINE_DEFINITION
 RETURN "FuncDefiner"
 SELECT "ProcDefiner"
@@ -1031,7 +1037,7 @@ connect  conn1, localhost, usr_execute,,;
 
 # Should show NULL routine_definition for all 4 routines.
 
-SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb";
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
 ROUTINE_DEFINITION
 NULL
 NULL
@@ -1077,7 +1083,7 @@ connect  conn1, localhost, usr_create_routine,,;
 
 # Should show NULL routine_definition for all 4 routines.
 
-SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb";
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
 ROUTINE_DEFINITION
 NULL
 NULL
@@ -1123,7 +1129,7 @@ connect  conn1, localhost, usr_alter_routine,,;
 
 # Should show NULL routine_definition for all 4 routines.
 
-SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb";
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
 ROUTINE_DEFINITION
 NULL
 NULL
@@ -1176,7 +1182,7 @@ connect  conn1, localhost, usr_global_select,,;
 
 # Should not return any rows.
 
-SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb";
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
 ROUTINE_DEFINITION
 
 # Should pretend that routine does not exist.
@@ -1207,6 +1213,8 @@ SET @@global.partial_revokes = @start_partial_revokes;
 # Cleanup.
 
 DROP USER usr_no_priv@localhost, usr_show_routine@localhost, usr_definer@localhost, usr_role@localhost, usr_create_routine@localhost, usr_alter_routine@localhost, usr_execute@localhost;
+Warnings:
+Warning	4005	User 'usr_definer'@'localhost' is referenced as a definer account in a stored routine.
 DROP ROLE role_show_routine;
 DROP SCHEMA testdb;
 delete from mysql.db;

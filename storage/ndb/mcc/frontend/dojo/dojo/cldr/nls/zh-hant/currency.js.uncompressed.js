@@ -2,22 +2,23 @@ define(
 "dojo/cldr/nls/zh-hant/currency", //begin v1.x content
 {
 	"HKD_displayName": "港幣",
-	"CHF_displayName": "瑞士法郎",
-	"JPY_symbol": "¥",
-	"CAD_displayName": "加幣",
-	"HKD_symbol": "HK$",
 	"CNY_displayName": "人民幣",
-	"USD_symbol": "$",
-	"AUD_displayName": "澳幣",
 	"JPY_displayName": "日圓",
-	"CAD_symbol": "CA$",
+	"JPY_symbol": "¥",
 	"USD_displayName": "美元",
-	"EUR_symbol": "€",
-	"CNY_symbol": "CN¥",
+	"CAD_symbol": "CA$",
 	"GBP_displayName": "英鎊",
+	"CHF_displayName": "瑞士法郎",
+	"CNY_symbol": "CN¥",
+	"EUR_displayName": "歐元",
 	"GBP_symbol": "£",
-	"AUD_symbol": "AU$",
-	"EUR_displayName": "歐元"
+	"CAD_displayName": "加幣",
+	"USD_symbol": "US$",
+	"EUR_symbol": "€",
+	"AUD_displayName": "澳幣",
+	"CHF_symbol": "CHF",
+	"HKD_symbol": "HK$",
+	"AUD_symbol": "AU$"
 }
 //end v1.x content
 );

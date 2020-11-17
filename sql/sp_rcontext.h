@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -410,9 +410,10 @@ class sp_cursor {
     uint get_field_count() { return field_count; }
     void set_spvar_list(List<sp_variable> *vars) { spvar_list = vars; }
 
-    virtual bool send_eof(THD *) { return false; }
-    virtual bool send_data(THD *thd, List<Item> &items);
-    virtual bool prepare(THD *thd, List<Item> &list, SELECT_LEX_UNIT *u);
+    bool send_eof(THD *) override { return false; }
+    bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
+    bool prepare(THD *thd, const mem_root_deque<Item *> &list,
+                 SELECT_LEX_UNIT *u) override;
   };
 
  public:

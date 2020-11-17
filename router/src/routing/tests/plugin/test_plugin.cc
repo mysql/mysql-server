@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include <functional>
 #include <sstream>
 #include <thread>
+#include "mysqlrouter/io_backend.h"
 #ifndef _WIN32
 #include <sys/un.h>
 #include <unistd.h>
@@ -42,6 +43,7 @@
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
+#include "mysqlrouter/io_component.h"
 
 #include "gtest_consoleoutput.h"
 #include "mysql/harness/logging/logging.h"
@@ -76,10 +78,10 @@ class RoutingPluginTests : public ConsoleOutputTest {
   TcpPortPool tcp_port_pool_;
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     set_origin(g_origin);
     ConsoleOutputTest::SetUp();
-    config_path.reset(new Path(g_cwd));
+    config_path = std::make_unique<Path>(g_cwd);
     config_path->append("test_routing_plugin.conf");
     cmd = app_mysqlrouter->str() + " -c " + config_path->str();
 
@@ -94,6 +96,8 @@ class RoutingPluginTests : public ConsoleOutputTest {
     client_connect_timeout = "9";
     max_connect_errors = "100";
     protocol = "classic";
+
+    IoComponent::get_instance().init(1, IoBackend::preferred());
   }
 
   bool in_missing(std::vector<std::string> missing, std::string needle) {
@@ -140,7 +144,7 @@ class RoutingPluginTests : public ConsoleOutputTest {
     }
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     if (unlink(config_path->c_str()) == -1) {
       if (errno != ENOENT) {
         // File missing is OK.
@@ -177,7 +181,7 @@ TEST_F(RoutingPluginTests, PluginObject) {
             static_cast<uint32_t>(VERSION_NUMBER(0, 0, 1)));
   ASSERT_EQ(harness_plugin_routing.conflicts_length, 0U);
   ASSERT_THAT(harness_plugin_routing.conflicts, IsNull());
-  ASSERT_THAT(harness_plugin_routing.deinit, IsNull());
+  ASSERT_THAT(harness_plugin_routing.deinit, NotNull());
   ASSERT_THAT(harness_plugin_routing.brief,
               StrEq("Routing MySQL connections between MySQL "
                     "clients/connectors and servers"));
@@ -196,6 +200,9 @@ TEST_F(RoutingPluginTests, InitAppInfo) {
 
   ASSERT_THAT(g_app_info, Not(IsNull()));
   ASSERT_THAT(program.c_str(), StrEq(g_app_info->program));
+
+  harness_plugin_routing.deinit(&env);
+  ASSERT_TRUE(env.exit_ok());
 }
 
 TEST_F(RoutingPluginTests, ListeningTcpSocket) {
@@ -252,12 +259,13 @@ TEST_F(RoutingPluginTests, TwoUnixSocketsWithoutTcp) {
   section2.add("mode", "read-only");
   section2.add("socket", "./socket2");
 
-  EXPECT_NO_THROW({
-    mysql_harness::AppInfo info;
-    info.config = &cfg;
-    mysql_harness::PluginFuncEnv env(&info, nullptr);
-    harness_plugin_routing.init(&env);
-  });
+  mysql_harness::AppInfo info;
+  info.config = &cfg;
+  mysql_harness::PluginFuncEnv env(&info, nullptr);
+
+  EXPECT_NO_THROW({ harness_plugin_routing.init(&env); });
+
+  harness_plugin_routing.deinit(&env);
 }
 
 TEST_F(RoutingPluginTests, TwoUnixSocketsWithTcp) {
@@ -273,12 +281,14 @@ TEST_F(RoutingPluginTests, TwoUnixSocketsWithTcp) {
   section2.add("bind_address", "127.0.0.1:15502");
   section2.add("socket", "./socket2");
 
-  EXPECT_NO_THROW({
-    mysql_harness::AppInfo info;
-    info.config = &cfg;
-    mysql_harness::PluginFuncEnv env(&info, nullptr);
-    harness_plugin_routing.init(&env);
-  });
+  mysql_harness::AppInfo info;
+  info.config = &cfg;
+  mysql_harness::PluginFuncEnv env(&info, nullptr);
+
+  EXPECT_NO_THROW({ harness_plugin_routing.init(&env); });
+
+  harness_plugin_routing.deinit(&env);
+  ASSERT_TRUE(env.exit_ok());
 }
 
 static std::string make_string(size_t len, char c = 'a') {
@@ -345,10 +355,11 @@ TEST_F(RoutingPluginTests, TwoNonuniqueTcpSockets) {
   section2.add("mode", "read-only");
   section2.add("bind_address", "127.0.0.1:15508");
 
+  mysql_harness::AppInfo info;
+  info.config = &cfg;
+  mysql_harness::PluginFuncEnv env(&info, nullptr);
+
   try {
-    mysql_harness::AppInfo info;
-    info.config = &cfg;
-    mysql_harness::PluginFuncEnv env(&info, nullptr);
     harness_plugin_routing.init(&env);
 
     std::exception_ptr e;
@@ -365,6 +376,8 @@ TEST_F(RoutingPluginTests, TwoNonuniqueTcpSockets) {
   } catch (...) {
     FAIL() << "Expected std::invalid_argument to be thrown";
   }
+  harness_plugin_routing.deinit(&env);
+  ASSERT_TRUE(env.exit_ok());
 }
 
 #ifndef _WIN32
@@ -413,6 +426,38 @@ TEST_F(RoutingPluginTests, ListeningHostIsInvalid) {
   }
 }
 #endif
+
+TEST_F(RoutingPluginTests, Ipv6LinkLocal) {
+  mysql_harness::Config cfg;
+  mysql_harness::ConfigSection &section = cfg.add("routing", "test_route");
+  section.add("destinations", "[fe80::3617:ebff:fecb:587e%3]:3306");
+  section.add("mode", "read-only");
+  section.add("bind_port", "6446");
+
+  try {
+    RoutingPluginConfig config(&section);
+    validate_socket_info_test_proxy("", &section, config);
+  } catch (const std::exception &e) {
+    FAIL() << "no exception, got: " << e.what();
+  }
+}
+
+TEST_F(RoutingPluginTests, InvalidIpv6) {
+  mysql_harness::Config cfg;
+  mysql_harness::ConfigSection &section = cfg.add("routing", "test_route");
+  section.add("destinations", "[fe80::3617:ebff:fecb:587e@3]:3306");
+  section.add("mode", "read-only");
+  section.add("bind_port", "6446");
+
+  try {
+    RoutingPluginConfig config(&section);
+    validate_socket_info_test_proxy("", &section, config);
+    FAIL() << "expected to throw, but succeeded";
+  } catch (const std::exception &e) {
+    EXPECT_THAT(e.what(), ::testing::HasSubstr(
+                              "invalid IPv6 address: illegal character(s)"));
+  }
+}
 
 int main(int argc, char *argv[]) {
   init_test_logger();

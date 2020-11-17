@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@
 #include <vector>
 
 #include "mysql/harness/filesystem.h"
+#include "mysql/harness/net_ts/internet.h"
 #include "mysql_router_thread.h"
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/routing.h"
@@ -77,14 +78,14 @@ class MySQLRoutingContext {
    * When a client host is actually blocked, true will be returned,
    * otherwise false.
    *
-   * @param client_ip_array IP address as array[16] of uint8_t
-   * @param client_ip_str IP address as string (for logging purposes)
+   * @param endpoint IP address as array[16] of uint8_t
    * @param server Server file descriptor to wish to send
    *               fake handshake reply (default is not to send anything)
    * @return bool
    */
-  bool block_client_host(const ClientIpArray &client_ip_array,
-                         const std::string &client_ip_str, int server = -1);
+  template <class Protocol>
+  bool block_client_host(const typename Protocol::endpoint &endpoint,
+                         int server = -1);
 
   /** @brief Clears error counter (if needed) for particular host
    *
@@ -93,17 +94,19 @@ class MySQLRoutingContext {
    *
    * @sa block_client_host()
    *
-   * @param client_ip_array IP address as array[16] of uint8_t
-   * @param client_ip_str IP address as string (for logging purposes)
+   * @param endpoint IP address as array[16] of uint8_t
    */
-  void clear_error_counter(const ClientIpArray &client_ip_array,
-                           const std::string &client_ip_str);
+  template <class Protocol>
+  void clear_error_counter(const typename Protocol::endpoint &endpoint);
+
+  template <class Protocol>
+  bool is_blocked(const typename Protocol::endpoint &endpoint) const;
 
   /** @brief Returns list of blocked client hosts
    *
    * Returns list of the blocked client hosts.
    */
-  const std::vector<ClientIpArray> get_blocked_client_hosts() const;
+  std::vector<std::string> get_blocked_client_hosts() const;
 
   void increase_info_active_routes();
   void decrease_info_active_routes();
@@ -178,8 +181,11 @@ class MySQLRoutingContext {
   mutable std::mutex mutex_conn_errors_;
 
  public:
-  /** @brief Connection error counters for IPv4 or IPv6 hosts */
-  std::map<ClientIpArray, size_t> conn_error_counters_;
+  /** @brief Connection error counters for IPv4 hosts */
+  std::map<net::ip::address_v4, size_t> conn_error_counters_v4_;
+
+  /** @brief Connection error counters for IPv4 hosts */
+  std::map<net::ip::address_v6, size_t> conn_error_counters_v6_;
 
   /** @brief Max connect errors blocking hosts when handshake not completed */
   unsigned long long max_connect_errors_;

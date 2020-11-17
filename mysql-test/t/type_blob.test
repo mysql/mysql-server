@@ -106,7 +106,9 @@ select distinct t from t1;
 select distinct b from t1;
 select distinct t from t1 order by t;
 select distinct b from t1 order by b;
+--sorted_result
 select t from t1 group by t;
+--sorted_result
 select b from t1 group by b;
 set big_tables=1;
 select distinct t from t1;
@@ -847,10 +849,8 @@ CREATE TABLE t1 (c1 INTEGER PRIMARY KEY, c2 TEXT, c3 INTEGER);
 
 INSERT INTO t1(c1) VALUES(0);
 
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1(c1) VALUES(0) ON DUPLICATE KEY
 UPDATE c2 = VALUES(c2), c3 = NULL;
---enable_ps_protocol
 
 SELECT * FROM t1;
 DROP TABLE t1;

@@ -1754,8 +1754,9 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
   /*
     Prepare reading from the mysql.db table
   */
-  iterator = init_table_iterator(thd, table = tables[1].table, nullptr, false,
-                                 /*ignore_not_found_rows=*/false);
+  iterator = init_table_iterator(thd, table = tables[1].table, nullptr,
+                                 /*ignore_not_found_rows=*/false,
+                                 /*count_examined_rows=*/false);
   if (iterator == nullptr) goto end;
   table->use_all_columns();
   acl_dbs->clear();
@@ -1810,8 +1811,9 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
   acl_proxy_users->clear();
 
   if (tables[2].table) {
-    iterator = init_table_iterator(thd, table = tables[2].table, nullptr, false,
-                                   /*ignore_not_found_rows=*/false);
+    iterator = init_table_iterator(thd, table = tables[2].table, nullptr,
+                                   /*ignore_not_found_rows=*/false,
+                                   /*count_examined_rows=*/false);
     if (iterator == nullptr) goto end;
     table->use_all_columns();
     while (!(read_rec_errcode = iterator->Read())) {
@@ -1908,9 +1910,9 @@ bool check_engine_type_for_acl_table(THD *thd, bool mdl_locked) {
     with other code.
   */
 
-  grant_tables_setup_for_open(tables, TL_READ, MDL_SHARED_READ_ONLY);
-
+  acl_tables_setup_for_read(tables);
   bool result = open_and_lock_tables(thd, tables, flags);
+
   if (!result) {
     check_engine_type_for_acl_table(tables, false);
     if (!mdl_locked)
@@ -1928,9 +1930,9 @@ bool check_engine_type_for_acl_table(THD *thd, bool mdl_locked) {
 */
 class Acl_ignore_error_handler : public Internal_error_handler {
  public:
-  virtual bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *level,
-                                const char *) {
+  bool handle_condition(THD *, uint sql_errno, const char *,
+                        Sql_condition::enum_severity_level *level,
+                        const char *) override {
     switch (sql_errno) {
       case ER_CANNOT_LOAD_FROM_TABLE_V2:
       case ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2:
@@ -1998,8 +2000,7 @@ bool check_acl_tables_intact(THD *thd, bool mdl_locked) {
                          MYSQL_OPEN_IGNORE_FLUSH
                    : MYSQL_LOCK_IGNORE_TIMEOUT;
 
-  grant_tables_setup_for_open(tables, TL_READ, MDL_SHARED_READ_ONLY);
-
+  acl_tables_setup_for_read(tables);
   bool result_acl = open_and_lock_tables(thd, tables, flags);
 
   thd->push_internal_handler(&acl_ignore_handler);
@@ -2339,7 +2340,8 @@ static bool grant_load_procs_priv(TABLE *p_table) {
         LogErr(WARNING_LEVEL,
                ER_AUTHCACHE_PROCS_PRIV_ENTRY_IGNORED_BAD_ROUTINE_TYPE,
                mem_check->tname);
-        continue;
+        destroy(mem_check);
+        goto next_record;
       }
 
       mem_check->privs = fix_rights_for_procedure(mem_check->privs);
@@ -2349,6 +2351,7 @@ static bool grant_load_procs_priv(TABLE *p_table) {
         hash->emplace(mem_check->hash_key,
                       unique_ptr_destroy_only<GRANT_NAME>(mem_check));
       }
+    next_record:
       error = p_table->file->ha_index_next(p_table->record[0]);
       DBUG_ASSERT(p_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
                   error != HA_ERR_LOCK_DEADLOCK);
@@ -3366,11 +3369,11 @@ class Acl_cache_error_handler : public Internal_error_handler {
     @param [in] msg           Message string. Unused.
   */
 
-  virtual bool handle_condition(THD *thd MY_ATTRIBUTE((unused)), uint sql_errno,
-                                const char *sqlstate MY_ATTRIBUTE((unused)),
-                                Sql_condition::enum_severity_level *level
-                                    MY_ATTRIBUTE((unused)),
-                                const char *msg MY_ATTRIBUTE((unused))) {
+  bool handle_condition(THD *thd MY_ATTRIBUTE((unused)), uint sql_errno,
+                        const char *sqlstate MY_ATTRIBUTE((unused)),
+                        Sql_condition::enum_severity_level *level
+                            MY_ATTRIBUTE((unused)),
+                        const char *msg MY_ATTRIBUTE((unused))) override {
     return (sql_errno == ER_LOCK_DEADLOCK ||
             sql_errno == ER_LOCK_WAIT_TIMEOUT ||
             sql_errno == ER_QUERY_INTERRUPTED || sql_errno == ER_QUERY_TIMEOUT);
@@ -3394,7 +3397,7 @@ class Release_acl_cache_locks : public MDL_release_locks_visitor {
       @retval false Ticket does not match
   */
 
-  virtual bool release(MDL_ticket *ticket) {
+  bool release(MDL_ticket *ticket) override {
     return ticket->get_key()->mdl_namespace() == MDL_key::ACL_CACHE;
   }
 };
@@ -3529,6 +3532,10 @@ uint32 global_password_reuse_interval = 0;
 /**
   Reload all ACL caches
 
+  We call this in two cases:
+  1. FLUSH PRIVILEGES
+  2. ACL DDL rollback
+
   @param [in] thd              THD handle
   @param [in] mdl_locked       MDL locks are taken
   @returns Status of reloading ACL caches
@@ -3537,8 +3544,46 @@ uint32 global_password_reuse_interval = 0;
 */
 
 bool reload_acl_caches(THD *thd, bool mdl_locked) {
-  bool retval = true;
   DBUG_TRACE;
+  bool retval = true;
+  bool save_mdl_locked = mdl_locked;
+  uint flags = MYSQL_LOCK_IGNORE_TIMEOUT;
+
+  DBUG_EXECUTE_IF("wl14084_simulate_flush_privileges_timeout", flags = 0;);
+  DEBUG_SYNC(thd, "wl14084_flush_privileges_before_table_locks");
+  /*
+    If mdl_locked is false, it implies we are here as a part
+    of FLUSH PRIVILEGES. In such situation, it is useful to
+    acquire and keep MDLs till the end of the function so that
+    a concurrent ACL DDL does not interfere with cache reload
+    operation.
+
+    If mdl_locked is true, it would mean we are in process of
+    reverting ACL DDL. This means we already have required
+    MDLs and thus, no need to acquire MDLs.
+  */
+  if (!mdl_locked) {
+    TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
+    acl_tables_setup_for_read(tables);
+    /*
+      Ideally, we can just call lock_table_names() here because all we want
+      is to obtain MDL on ACL tables. However, if FLUSH PRIVILEGES is called
+      under LOCK TABLES, we will hit an assertion that checks that
+      lock_table_names() is not called under LOCK TABLES. The only exception
+      to this rule RENAME TABLE. Hence, we call open_and_lock_tables()
+      instead and make sure that proper cleanup is done in case we encounter
+      an error.
+    */
+    bool result = open_and_lock_tables(thd, tables, flags);
+    if (!result)
+      close_thread_tables(thd);
+    else {
+      commit_and_close_mysql_tables(thd);
+      return result;
+    }
+    mdl_locked = true;
+    DEBUG_SYNC(thd, "wl14084_flush_privileges_after_table_locks");
+  }
 
   if (check_engine_type_for_acl_table(thd, mdl_locked) ||
       check_acl_tables_intact(thd, mdl_locked) || acl_reload(thd, mdl_locked) ||
@@ -3546,8 +3591,28 @@ bool reload_acl_caches(THD *thd, bool mdl_locked) {
     goto end;
   }
   retval = false;
+  DBUG_EXECUTE_IF("wl14084_trigger_acl_ddl_timeout", sleep(2););
 
 end:
+  /*
+    When reload_acl_caches() is called with mdl_locked = true,
+    it implies that caller has all required MDLs in place and
+    thus, reload_acl_caches() need not go through process of
+    obtained any MDLs.
+
+    If mdl_locked = false when function is called, it means
+    we would have acquired required MDLs to make sure that
+    reload operations do not have compete for this resources
+    with other threads. In such situation, release MDLs before
+    returning to caller.
+
+    In addition, since we pass mdl_locked = true to functions that
+    reload caches, we would also have to commit the transaction.
+  */
+  if (!save_mdl_locked) {
+    close_thread_tables(thd);
+    commit_and_close_mysql_tables(thd);
+  }
   return retval;
 }
 

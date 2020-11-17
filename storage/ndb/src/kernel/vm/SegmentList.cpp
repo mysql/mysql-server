@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -623,7 +623,7 @@ public:
   TestSegmentUtils() {}
 
   SectionSegment*
-  getSegmentPtr(Uint32 iVal)
+  getSegmentPtr(Uint32 iVal) override
   {
     return g_sectionSegmentPool.getPtr(iVal);
   }
@@ -634,19 +634,19 @@ public:
   }
 
   bool
-  seizeSegment(Ptr<SectionSegment>& p)
+  seizeSegment(Ptr<SectionSegment>& p) override
   {
     return g_sectionSegmentPool.seize(p);
   }
 
   void
-  releaseSegment(Uint32 iVal)
+  releaseSegment(Uint32 iVal) override
   {
     return g_sectionSegmentPool.release(iVal);
   }
 
   void
-  releaseSegmentList(Uint32 firstSegmentIVal)
+  releaseSegmentList(Uint32 firstSegmentIVal) override
   {
     if (firstSegmentIVal != RNIL)
     {

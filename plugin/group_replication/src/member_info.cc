@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -773,6 +773,21 @@ size_t Group_member_info_manager::get_number_of_members() {
   return members->size();
 }
 
+size_t Group_member_info_manager::get_number_of_members_online() {
+  size_t number = 0;
+  mysql_mutex_lock(&update_lock);
+
+  for (auto it = members->begin(); it != members->end(); it++) {
+    if ((*it).second->get_recovery_status() ==
+        Group_member_info::MEMBER_ONLINE) {
+      number++;
+    }
+  }
+
+  mysql_mutex_unlock(&update_lock);
+  return number;
+}
+
 bool Group_member_info_manager::is_member_info_present(
     const std::string &uuid) {
   bool found = false;
@@ -854,22 +869,51 @@ Member_version Group_member_info_manager::get_group_lowest_online_version() {
 }
 
 Group_member_info *
-Group_member_info_manager::get_group_member_info_by_member_id(
-    Gcs_member_identifier idx) {
+Group_member_info_manager::get_group_member_info_by_member_id_internal(
+    const Gcs_member_identifier &id) {
+  mysql_mutex_assert_owner(&update_lock);
   Group_member_info *member = nullptr;
-
-  mysql_mutex_lock(&update_lock);
 
   map<string, Group_member_info *>::iterator it;
   for (it = members->begin(); it != members->end(); it++) {
-    if ((*it).second->get_gcs_member_id() == idx) {
+    if ((*it).second->get_gcs_member_id() == id) {
       member = (*it).second;
       break;
     }
   }
 
-  mysql_mutex_unlock(&update_lock);
   return member;
+}
+
+Group_member_info *
+Group_member_info_manager::get_group_member_info_by_member_id(
+    const Gcs_member_identifier &id) {
+  Group_member_info *member_copy = nullptr;
+  mysql_mutex_lock(&update_lock);
+
+  Group_member_info *member = get_group_member_info_by_member_id_internal(id);
+  if (member != nullptr) {
+    member_copy = new Group_member_info(*member);
+  }
+
+  mysql_mutex_unlock(&update_lock);
+  return member_copy;
+}
+
+Group_member_info::Group_member_status
+Group_member_info_manager::get_group_member_status_by_member_id(
+    const Gcs_member_identifier &id) {
+  Group_member_info::Group_member_status status = Group_member_info::MEMBER_END;
+  Group_member_info *member = nullptr;
+  mysql_mutex_lock(&update_lock);
+
+  member = get_group_member_info_by_member_id_internal(id);
+  if (nullptr != member) {
+    status = member->get_recovery_status();
+  }
+
+  mysql_mutex_unlock(&update_lock);
+  return status;
 }
 
 vector<Group_member_info *> *Group_member_info_manager::get_all_members() {
@@ -979,6 +1023,25 @@ void Group_member_info_manager::update_member_status(
   }
 
   mysql_mutex_unlock(&update_lock);
+}
+
+void Group_member_info_manager::set_member_unreachable(
+    const std::string &uuid) {
+  MUTEX_LOCK(lock, &update_lock);
+
+  auto it = members->find(uuid);
+  if (it != members->end()) {
+    (*it).second->set_unreachable();
+  }
+}
+
+void Group_member_info_manager::set_member_reachable(const std::string &uuid) {
+  MUTEX_LOCK(lock, &update_lock);
+
+  auto it = members->find(uuid);
+  if (it != members->end()) {
+    (*it).second->set_reachable();
+  }
 }
 
 void Group_member_info_manager::update_gtid_sets(const string &uuid,

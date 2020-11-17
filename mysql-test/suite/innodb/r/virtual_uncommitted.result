@@ -61,8 +61,8 @@ SET DEBUG_SYNC='now WAIT_FOR s1';
 SET DEBUG_SYNC='now SIGNAL s2 WAIT_FOR s1';
 SELECT vj FROM t WHERE c LIKE 'aaaa1234%';
 vj
-the_hash_c
 NULL
+the_hash_c
 SET DEBUG_SYNC='now SIGNAL s2';
 # Connection con1:
 ROLLBACK;

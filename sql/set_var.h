@@ -1,6 +1,6 @@
 #ifndef SET_VAR_INCLUDED
 #define SET_VAR_INCLUDED
-/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -402,11 +402,11 @@ class set_var : public set_var_base {
   set_var(enum_var_type type_arg, sys_var *var_arg, LEX_CSTRING base_name_arg,
           Item *value_arg);
 
-  int resolve(THD *thd);
-  int check(THD *thd);
-  int update(THD *thd);
+  int resolve(THD *thd) override;
+  int check(THD *thd) override;
+  int update(THD *thd) override;
   void update_source_user_host_timestamp(THD *thd);
-  int light_check(THD *thd);
+  int light_check(THD *thd) override;
   /**
     Print variable in short form.
 
@@ -414,12 +414,12 @@ class set_var : public set_var_base {
     @param str String buffer to append the partial assignment to.
   */
   void print_short(const THD *thd, String *str);
-  void print(const THD *, String *str); /* To self-print */
+  void print(const THD *, String *str) override; /* To self-print */
   bool is_global_persist() {
     return (type == OPT_GLOBAL || type == OPT_PERSIST ||
             type == OPT_PERSIST_ONLY);
   }
-  virtual bool is_var_optimizer_trace() const {
+  bool is_var_optimizer_trace() const override {
     extern sys_var *Sys_optimizer_trace_ptr;
     return var == Sys_optimizer_trace_ptr;
   }
@@ -431,11 +431,11 @@ class set_var_user : public set_var_base {
 
  public:
   set_var_user(Item_func_set_user_var *item) : user_var_item(item) {}
-  int resolve(THD *thd);
-  int check(THD *thd);
-  int update(THD *thd);
-  int light_check(THD *thd);
-  void print(const THD *thd, String *str); /* To self-print */
+  int resolve(THD *thd) override;
+  int check(THD *thd) override;
+  int update(THD *thd) override;
+  int light_check(THD *thd) override;
+  void print(const THD *thd, String *str) override; /* To self-print */
 };
 
 class set_var_password : public set_var_base {
@@ -454,11 +454,11 @@ class set_var_password : public set_var_base {
   const LEX_USER *get_user(void) { return user; }
   bool has_generated_password(void) { return generate_password; }
   const char *get_generated_password(void) { return str_generated_password; }
-  int resolve(THD *) { return 0; }
-  int check(THD *thd);
-  int update(THD *thd);
-  void print(const THD *thd, String *str); /* To self-print */
-  virtual ~set_var_password();
+  int resolve(THD *) override { return 0; }
+  int check(THD *thd) override;
+  int update(THD *thd) override;
+  void print(const THD *thd, String *str) override; /* To self-print */
+  ~set_var_password() override;
 };
 
 /* For SET NAMES and SET CHARACTER SET */
@@ -483,10 +483,10 @@ class set_var_collation_client : public set_var_base {
         character_set_client(client_coll_arg),
         character_set_results(result_coll_arg),
         collation_connection(connection_coll_arg) {}
-  int resolve(THD *) { return 0; }
-  int check(THD *thd);
-  int update(THD *thd);
-  void print(const THD *thd, String *str); /* To self-print */
+  int resolve(THD *) override { return 0; }
+  int check(THD *thd) override;
+  int update(THD *thd) override;
+  void print(const THD *thd, String *str) override; /* To self-print */
 };
 
 /* optional things, have_* variables */

@@ -37,10 +37,11 @@
 --source include/not_windows.inc
 --source include/have_binlog_format_row.inc
 call mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Changing innodb_extend_and_initialize not supported on this platform.");
 call mtr.add_suppression("Failed to initialize TLS for channel: mysql_main");
 
 let $total_global_vars=`SELECT COUNT(*) FROM performance_schema.global_variables where variable_name NOT LIKE 'ndb_%'`;
-let $total_persistent_vars=403;
+let $total_persistent_vars=409;
 
 --echo ***************************************************************
 --echo * 0. Verify that variables present in performance_schema.global

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -496,8 +496,8 @@ static int set_command(void) {
 
   DYNAMIC_STRING file_buf, path_buf;
 
-  init_dynamic_string(&path_buf, "", MY_LINE_MAX, MY_LINE_MAX);
-  init_dynamic_string(&file_buf, "", file_size, 3 * MY_LINE_MAX);
+  init_dynamic_string(&path_buf, "", MY_LINE_MAX);
+  init_dynamic_string(&file_buf, "", file_size);
 
   if (tty_password) opt_password = get_tty_password(NullS);
 
@@ -579,8 +579,8 @@ static int remove_command(void) {
 
   DYNAMIC_STRING file_buf, path_buf;
 
-  init_dynamic_string(&path_buf, "", MY_LINE_MAX, MY_LINE_MAX);
-  init_dynamic_string(&file_buf, "", file_size, 3 * MY_LINE_MAX);
+  init_dynamic_string(&path_buf, "", MY_LINE_MAX);
+  init_dynamic_string(&file_buf, "", file_size);
 
   if (file_size) {
     if (read_and_decrypt_file(&file_buf) == -1) goto error;
@@ -626,7 +626,7 @@ static int print_command(void) {
   DBUG_TRACE;
   DYNAMIC_STRING file_buf;
 
-  init_dynamic_string(&file_buf, "", file_size, 3 * MY_LINE_MAX);
+  init_dynamic_string(&file_buf, "", file_size);
 
   if (file_size) {
     if (read_and_decrypt_file(&file_buf) == -1) goto error;
@@ -1002,7 +1002,7 @@ static char *locate_login_path(DYNAMIC_STRING *file_buf,
   char *addr = nullptr;
   DYNAMIC_STRING dy_path_name;
 
-  init_dynamic_string(&dy_path_name, "", 512, 512);
+  init_dynamic_string(&dy_path_name, "", 512);
 
   dynstr_append(&dy_path_name, "\n[");
   dynstr_append(&dy_path_name, path_name);

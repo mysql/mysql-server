@@ -259,6 +259,21 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   mysql_service_foo->some_api();
   @endverbatim
 
+  Similarly to use a service in another service within the same
+  component. Call the implementation of the service directly in
+  the other service since both services belong to the same component.
+  Suppose mysql_bar_imp and mysql_foo_imp services belongs to the
+  same component. And if foo service is required in bar service then
+  use below method.
+
+  @verbatim
+  mysql_bar_imp::bar_api() {
+    ...
+    mysql_foo_imp::foo_api();
+    ...
+  }
+  @endverbatim
+
   @param service A referenced Service name.
 */
 #define REQUIRES_SERVICE_PLACEHOLDER(service) \

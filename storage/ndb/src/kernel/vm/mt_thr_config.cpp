@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -583,7 +583,7 @@ THRConfig::do_bindings(bool allow_too_few_cpus)
      *    threads to do.
      */
     const T_Thread* io_thread = &m_threads[T_IO][0];
-    add(T_IXBLD, io_thread->m_realtime, 0);
+    add(T_IXBLD, 0, 0);
 
     if (io_thread->m_bind_type != T_Thread::B_UNBOUND)
     {

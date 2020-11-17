@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -541,10 +541,12 @@ void rw_lock_list_print_info(FILE *file); /*!< in: file where to print */
 
 /*#####################################################################*/
 
-/** Prints info of a debug struct. */
-void rw_lock_debug_print(FILE *f,                      /*!< in: output stream */
-                         const rw_lock_debug_t *info); /*!< in: debug struct */
-#endif                                                 /* UNIV_DEBUG */
+/** Prints info of a debug struct.
+@param[in] f Output stream
+@param[in] info Debug struct */
+void rw_lock_debug_print(FILE *f, const rw_lock_debug_t *info);
+
+#endif /* UNIV_DEBUG */
 
 #endif /* !UNIV_LIBRARY */
 
@@ -651,13 +653,13 @@ struct rw_lock_t
 
 #ifdef UNIV_DEBUG
   /** Destructor */
-  virtual ~rw_lock_t() {
+  ~rw_lock_t() override {
     ut_ad(magic_n == MAGIC_N);
     magic_n = 0;
   }
 
-  virtual std::string to_string() const;
-  virtual std::string locked_from() const;
+  virtual std::string to_string() const override;
+  virtual std::string locked_from() const override;
 
   /** For checking memory corruption. */
   static const uint32_t MAGIC_N = 22643;

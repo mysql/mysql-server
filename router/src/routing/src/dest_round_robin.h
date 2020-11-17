@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,34 +25,53 @@
 #ifndef ROUTING_DEST_ROUND_ROBIN_INCLUDED
 #define ROUTING_DEST_ROUND_ROBIN_INCLUDED
 
+#include <algorithm>
+#include <condition_variable>
 #include <future>
+#include <mutex>
 
 #include "destination.h"
+#include "mysql/harness/stdx/monitor.h"
+#include "mysql_router_thread.h"
 #include "mysqlrouter/routing.h"
 
-#include "mysql/harness/logging/logging.h"
-#include "mysql_router_thread.h"
+class QuanrantinableDestination;
+
+class Quarantine {
+ public:
+  std::vector<size_t> quarantined() const;
+
+  void add(size_t ndx);
+
+  bool has(size_t ndx) const;
+
+  void erase(size_t ndx);
+
+  size_t size() const;
+
+  bool empty() const;
+
+ private:
+  std::vector<size_t> quarantined_;
+};
 
 class DestRoundRobin : public RouteDestination {
  public:
-  using RouteDestination::RouteDestination;
-
   /** @brief Default constructor
    *
    * @param protocol Protocol for the destination, defaults to value returned
    *        by Protocol::get_default()
-   * @param routing_sock_ops Socket operations implementation to use, defaults
+   * @param sock_ops Socket operations implementation to use, defaults
    *        to "real" (not mock) implementation
    * (mysql_harness::SocketOperations)
    * @param thread_stack_size memory in kilobytes allocated for thread's stack
    */
   DestRoundRobin(
       Protocol::Type protocol = Protocol::get_default(),
-      routing::RoutingSockOpsInterface *routing_sock_ops =
-          routing::RoutingSockOps::instance(
-              mysql_harness::SocketOperations::instance()),
+      mysql_harness::SocketOperationsBase *sock_ops =
+          mysql_harness::SocketOperations::instance(),
       size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes)
-      : RouteDestination(protocol, routing_sock_ops),
+      : RouteDestination(protocol, sock_ops),
         quarantine_thread_(thread_stack_size),
         stopped_{stopper_.get_future()} {}
 
@@ -64,15 +83,15 @@ class DestRoundRobin : public RouteDestination {
 
   void start(const mysql_harness::PluginFuncEnv * /*env*/) override;
 
-  stdx::expected<mysql_harness::socket_t, std::error_code> get_server_socket(
-      std::chrono::milliseconds connect_timeout,
-      mysql_harness::TCPAddress *address = nullptr) noexcept override;
+  Destinations destinations() override;
 
   /** @brief Returns number of quarantined servers
    *
    * @return size_t
    */
   size_t size_quarantine();
+
+  friend QuanrantinableDestination;
 
  protected:
   /** @brief Returns whether destination is quarantined
@@ -84,11 +103,11 @@ class DestRoundRobin : public RouteDestination {
    * @return True if destination is quarantined
    */
   virtual bool is_quarantined(const size_t index) {
-    return std::find(quarantined_.begin(), quarantined_.end(), index) !=
-           quarantined_.end();
+    return quarantine_([=](auto &q) { return q.has(index); });
   }
 
-  /** @brief Adds server to quarantine
+  /**
+   * Adds server to quarantine.
    *
    * Adds the given server address to the quarantine list. The index argument
    * is the index of the server in the destination list.
@@ -119,17 +138,7 @@ class DestRoundRobin : public RouteDestination {
    */
   virtual void cleanup_quarantine() noexcept;
 
-  /** @brief List of destinations which are quarantined */
-  std::vector<size_t> quarantined_;
-
-  /** @brief Conditional variable blocking quarantine manager thread */
-  std::condition_variable condvar_quarantine_;
-
-  /** @brief Mutex for quarantine manager thread */
-  std::mutex mutex_quarantine_manager_;
-
-  /** @brief Mutex for updating quarantine */
-  std::mutex mutex_quarantine_;
+  WaitableMonitor<Quarantine> quarantine_{Quarantine{}};
 
   /** @brief refresh thread facade */
   mysql_harness::MySQLRouterThread quarantine_thread_;
@@ -137,6 +146,9 @@ class DestRoundRobin : public RouteDestination {
   /** @brief Whether we are stopping */
   std::promise<void> stopper_;
   std::future<void> stopped_;
+
+  // MUST take the RouteDestination Mutex
+  size_t start_pos_{};
 };
 
 #endif  // ROUTING_DEST_ROUND_ROBIN_INCLUDED

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@ sanity () {
 	verify_ready $1
 	verify_database $1
 
-	@DEB_INIT_APPARMOR@
+	@DEB_INIT_SERVER_APPARMOR@
 
 	if [ ! -r /etc/mysql/my.cnf ]; then
 		echo "MySQL configuration not found at /etc/mysql/my.cnf. Please install one."

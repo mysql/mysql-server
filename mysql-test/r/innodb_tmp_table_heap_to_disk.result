@@ -43,7 +43,7 @@ create table t11 select * from t1;
 insert into t1 select a+80, b+80, c from t1;
 explain select * from t1 where a in (select a from t11) order by 1, 2, 3 limit 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	x	100.00	Using where; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	x	100.00	Using filesort
 1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t1.a	x	100.00	NULL
 2	MATERIALIZED	t11	NULL	ALL	NULL	NULL	NULL	NULL	x	100.00	NULL
 Warnings:
@@ -97,7 +97,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	x	100.00	NULL
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	x	NULL	Using temporary; Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` union /* select#2 */ select `test`.`t2`.`id` AS `id` from `test`.`t2` order by `<union temporary>`.`id` limit 1
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` union /* select#2 */ select `test`.`t2`.`id` AS `id` from `test`.`t2` order by `id` limit 1
 select * from t1 union select * from t2 order by 1 limit 1;
 id
 1

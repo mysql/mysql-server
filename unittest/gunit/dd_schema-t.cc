@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,7 @@ class SchemaTest : public ::testing::Test {
  protected:
   SchemaTest() {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     m_dict = new Dictionary_impl();
     m_def_cat_id = Dictionary_impl::DEFAULT_CATALOG_ID;
 
@@ -82,7 +82,7 @@ class SchemaTest : public ::testing::Test {
     m_init.thd()->variables.option_bits |= OPTION_NOT_AUTOCOMMIT;
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     delete m_dict;
 
     // Tear down dummy server.

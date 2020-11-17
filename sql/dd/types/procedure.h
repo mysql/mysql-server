@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@ class Procedure : virtual public Routine {
  public:
   typedef Procedure_impl Impl;
 
-  virtual bool update_name_key(Name_key *key) const {
+  bool update_name_key(Name_key *key) const override {
     return update_routine_name_key(key, schema_id(), name());
   }
 
@@ -45,7 +45,7 @@ class Procedure : virtual public Routine {
                               const String_type &name);
 
  public:
-  virtual ~Procedure() {}
+  ~Procedure() override {}
 
  public:
   /**
@@ -54,7 +54,7 @@ class Procedure : virtual public Routine {
 
     @return pointer to dynamically allocated copy
   */
-  virtual Procedure *clone() const = 0;
+  Procedure *clone() const override = 0;
 
   static void create_mdl_key(const String_type &schema_name,
                              const String_type &name, MDL_key *key) {

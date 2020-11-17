@@ -773,13 +773,7 @@ static dberr_t srv_undo_tablespace_fixup_num(space_id_t space_num) {
    */
   space_id_t space_id = SPACE_UNKNOWN;
   std::string scanned_name;
-  for (size_t ndx = 0;
-       ndx < dict_sys_t::undo_space_id_range && scanned_name.length() == 0;
-       ndx++) {
-    space_id = undo::num2id(space_num, ndx);
-
-    scanned_name = fil_system_open_fetch(space_id);
-  }
+  fil_system_get_file_by_space_num(space_num, space_id, scanned_name);
 
   /* If the previous file still exists, delete it. */
   if (scanned_name.length() > 0) {
@@ -981,19 +975,21 @@ dberr_t srv_undo_tablespace_open(undo::Tablespace &undo_space) {
 @return DB_SUCCESS or error code */
 static dberr_t srv_undo_tablespace_open_by_id(space_id_t space_id) {
   undo::Tablespace undo_space(space_id);
+  std::string scanned_name;
 
-  /* See if the name found in the file map for this undo space_id
+  /* If an undo tablespace with this space_id already exists,
+  check if the name found in the file map for this undo space_id
   is the standard name.  The directory scan assured that there are
   no duplicates.  The filename found must match the standard name
   if this is an implicit undo tablespace. In other words, implicit
   undo tablespaces must be found in srv_undo_dir. */
-  std::string scanned_name = fil_system_open_fetch(space_id);
 
-  if (scanned_name.length() != 0 &&
+  bool found = fil_system_get_file_by_space_id(space_id, scanned_name);
+
+  if (found &&
       !Fil_path::is_same_as(undo_space.file_name(), scanned_name.c_str())) {
     ib::error(ER_IB_MSG_FOUND_WRONG_UNDO_SPACE, undo_space.file_name(),
               ulong{space_id}, scanned_name.c_str());
-
     return (DB_WRONG_FILE_NAME);
   }
 
@@ -1005,20 +1001,12 @@ static dberr_t srv_undo_tablespace_open_by_id(space_id_t space_id) {
 @return DB_SUCCESS or error code */
 static dberr_t srv_undo_tablespace_open_by_num(space_id_t space_num) {
   space_id_t space_id = SPACE_UNKNOWN;
-  size_t ndx;
   std::string scanned_name;
 
   /* Search for a file that is using any of the space IDs assigned to this
   undo number. The directory scan assured that there are no duplicate files
   with the same space_id or with the same undo space number. */
-  for (ndx = 0;
-       ndx < dict_sys_t::undo_space_id_range && scanned_name.length() == 0;
-       ndx++) {
-    space_id = undo::num2id(space_num, ndx);
-
-    scanned_name = fil_system_open_fetch(space_id);
-  }
-  if (scanned_name.length() == 0) {
+  if (!fil_system_get_file_by_space_num(space_num, space_id, scanned_name)) {
     return (DB_CANNOT_OPEN_FILE);
   }
 
@@ -2800,8 +2788,11 @@ files_checked:
   rotation. */
   if (!srv_read_only_mode && !create_new_db &&
       srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
-    if (!fil_encryption_rotate()) {
-      ib::info(ER_IB_MSG_1146) << "fil_encryption_rotate() failed!";
+    size_t fail_count = fil_encryption_rotate();
+    if (fail_count > 0) {
+      ib::info(ER_IB_MSG_1146)
+          << "During recovery, fil_encryption_rotate() failed for "
+          << fail_count << " tablespace(s).";
     }
   }
 
@@ -2944,7 +2935,7 @@ void srv_start_purge_threads() {
   srv_start_state_set(SRV_START_STATE_PURGE);
 }
 
-/** Start up the remaining InnoDB service threads.
+/** Start up the InnoDB service threads which are independent of DDL recovery
 @param[in]	bootstrap	True if this is in bootstrap */
 void srv_start_threads(bool bootstrap) {
   if (!srv_read_only_mode) {
@@ -3053,6 +3044,9 @@ void srv_start_threads_after_ddl_recovery() {
   /* Now the InnoDB Metadata and file system should be consistent.
   Start the Purge thread */
   srv_start_purge_threads();
+
+  /* If recovered, should do write back the dynamic metadata. */
+  dict_persist_to_dd_table_buffer();
 }
 
 #if 0
@@ -3116,7 +3110,7 @@ void srv_pre_dd_shutdown() {
     if (threads_count == 0) {
       break;
     }
-    ib::warn(ER_IB_MSG_1154, ulonglong{threads_count});
+    ib::warn(ER_IB_MSG_1154, threads_count);
     os_thread_sleep(1000000);  // 1s
   }
   /* Crash if some query threads are still alive. */
@@ -3124,9 +3118,7 @@ void srv_pre_dd_shutdown() {
 
   ut_a(!srv_thread_is_active(srv_threads.m_recv_writer));
 
-  /* This assertion is waiting for fix, because currently purge threads might
-  create transactions belonging to mysql_trx_list (found by Nikša, thanks!)
-  trx_sys_before_pre_dd_shutdown_validate(); */
+  trx_sys_before_pre_dd_shutdown_validate();
 
   /* Avoid fast shutdown, if redo logging is disabled. Otherwise, we won't be
   able to recover. */
@@ -3172,6 +3164,10 @@ void srv_pre_dd_shutdown() {
   if (srv_shutdown_waits_for_rollback_of_recovered_transactions()) {
     /* We need to wait for rollback of recovered transactions. */
     for (uint32_t count = 0;; ++count) {
+      /* Should not loop and wait if rollback thread isn't there. */
+      if (!srv_thread_is_active(srv_threads.m_trx_recovery_rollback)) {
+        break;
+      }
       const auto total_trx = trx_sys_recovered_active_trxs_count();
       if (total_trx == 0) {
         break;

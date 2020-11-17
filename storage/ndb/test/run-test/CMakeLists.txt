@@ -77,6 +77,8 @@ INSTALL(PROGRAMS
   atrt-backtrace.sh
   atrt-gather-result.sh
   atrt-setup.sh
+  atrt-analyze-coverage.sh
+  atrt-compute-coverage.sh
   atrt-mysqltest
   autotest-boot.sh
   autotest-run.sh

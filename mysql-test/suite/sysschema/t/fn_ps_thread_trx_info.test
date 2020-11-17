@@ -92,7 +92,6 @@ SELECT JSON_CONTAINS(@json_doc, '"COMMIT"', '$[0].statements_executed[1].sql_tex
 SET @sys.ps_thread_trx_info.max_length = 100;
 
 # Should return an error JSON object
---replace_regex /Row 1[1-2] was/Row 1X was/
 SELECT sys.ps_thread_trx_info(@ps_thread_id);
 
 # Setting the user variable back to NULL should reset to 65535 from sys_config, and no truncation

@@ -18,7 +18,7 @@ commit;
 --remove_files_wildcard $MYSQLD_DATADIR cht_logbin.*
 --remove_files_wildcard $MYSQLD_DATADIR binlog.*
 
---let $explicit_default_counter = 15000
+--let $explicit_default_wait_counter = 15000
 --source include/start_mysqld.inc
 
 drop table t1;

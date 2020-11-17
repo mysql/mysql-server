@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlbinlog\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/01/2020
+.\"      Date: 09/04/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLBINLOG\FR" "1" "06/01/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLBINLOG\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -40,9 +40,9 @@ that describe modifications to database contents\&. The server writes these file
 \fBmysqlbinlog\fR
 utility\&. You can also use
 \fBmysqlbinlog\fR
-to display the contents of relay log files written by a slave server in a replication setup because relay logs have the same format as binary logs\&. The binary log and relay log are discussed further in
+to display the contents of relay log files written by a replica server in a replication setup because relay logs have the same format as binary logs\&. The binary log and relay log are discussed further in
 Section\ \&5.4.4, \(lqThe Binary Log\(rq, and
-Section\ \&17.2.4, \(lqReplication Relay and Status Logs\(rq\&.
+Section\ \&17.2.4, \(lqRelay Log and Replication Metadata Repositories\(rq\&.
 .PP
 Invoke
 \fBmysqlbinlog\fR
@@ -93,7 +93,7 @@ In the first line, the number following
 at
 indicates the file offset, or starting position, of the event in the binary log file\&.
 .PP
-The second line starts with a date and time indicating when the statement started on the server where the event originated\&. For replication, this timestamp is propagated to slave servers\&.
+The second line starts with a date and time indicating when the statement started on the server where the event originated\&. For replication, this timestamp is propagated to replica servers\&.
 server id
 is the
 server_id
@@ -103,7 +103,7 @@ indicates where the next event starts (that is, it is the end position of the cu
 thread_id
 indicates which thread executed the event\&.
 exec_time
-is the time spent executing the event, on a master server\&. On a slave, it is the difference of the end execution time on the slave minus the beginning execution time on the master\&. The difference serves as an indicator of how much replication lags behind the master\&.
+is the time spent executing the event, on a replication source server\&. On a replica, it is the difference of the end execution time on the replica minus the beginning execution time on the source\&. The difference serves as an indicator of how much replication lags behind the source\&.
 error_code
 indicates the result from executing the event\&. Zero means that no error occurred\&.
 .if n \{\
@@ -126,7 +126,7 @@ When using event groups, the file offsets of events may be grouped together and 
 The output from
 \fBmysqlbinlog\fR
 can be re\-executed (for example, by using it as input to
-\fBmysql\fR) to redo the statements in the log\&. This is useful for recovery operations after a server crash\&. For other usage examples, see the discussion later in this section and in
+\fBmysql\fR) to redo the statements in the log\&. This is useful for recovery operations after an unexpected server exit\&. For other usage examples, see the discussion later in this section and in
 Section\ \&7.5, \(lqPoint-in-Time (Incremental) Recovery\(rq\&. To execute the internal\-use
 BINLOG
 statements used by
@@ -362,13 +362,6 @@ On a computer having multiple network interfaces, use this option to select whic
 \fB\-\-binlog\-row\-event\-max\-size=\fR\fB\fIN\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -427,10 +420,10 @@ Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .\}
 \fB\-\-compress\fR
 Compress all information sent between the client and the server if possible\&. See
-Section\ \&4.2.6, \(lqConnection Compression Control\(rq\&.
+Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
 .sp
 This option was added in MySQL 8\&.0\&.17\&. As of MySQL 8\&.0\&.18 it is deprecated\&. It will be removed in a future MySQL version\&. See
-the section called \(lqLegacy Connection Compression Configuration\(rq\&.
+the section called \(lqConfiguring Legacy Connection Compression\(rq\&.
 .RE
 .sp
 .RS 4
@@ -448,7 +441,7 @@ system variable\&. The default value is
 uncompressed\&.
 .sp
 For more information, see
-Section\ \&4.2.6, \(lqConnection Compression Control\(rq\&.
+Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
 .sp
 This option was added in MySQL 8\&.0\&.18\&.
 .RE
@@ -465,7 +458,7 @@ This option was added in MySQL 8\&.0\&.18\&.
 \fB\-\-connection\-server\-id\fR
 specifies the server ID that
 \fBmysqlbinlog\fR
-reports when it connects to the server\&. It can be used to avoid a conflict with the ID of a slave server or another
+reports when it connects to the server\&. It can be used to avoid a conflict with the ID of a replica server or another
 \fBmysqlbinlog\fR
 process\&.
 .sp
@@ -785,7 +778,7 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 \fB\-D\fR
 Disable binary logging\&. This is useful for avoiding an endless loop if you use the
 \fB\-\-to\-last\-log\fR
-option and are sending the output to the same MySQL server\&. This option also is useful when restoring after a crash to avoid duplication of the statements you have logged\&.
+option and are sending the output to the same MySQL server\&. This option also is useful when restoring after an unexpected exit to avoid duplication of the statements you have logged\&.
 .sp
 This option causes
 \fBmysqlbinlog\fR
@@ -1157,8 +1150,8 @@ binlog\-row\-metadata\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
-The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally result in use of a protocol other than the one you want\&. For details on the permissible values, see
-Section\ \&4.2.4, \(lqConnecting to the MySQL Server Using Command Options\(rq\&.
+The transport protocol to use for connecting to the server\&. It is useful when the other connection parameters normally result in use of a protocol other than the one you want\&. For details on the permissible values, see
+Section\ \&4.2.7, \(lqConnection Transport Protocols\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1213,7 +1206,7 @@ or
 BINLOG\-DUMP\-GTIDS, respectively\&. If
 \fB\-\-read\-from\-remote\-master=BINLOG\-DUMP\-GTIDS\fR
 is combined with
-\fB\-\-exclude\-gtids\fR, transactions can be filtered out on the master, avoiding unnecessary network traffic\&.
+\fB\-\-exclude\-gtids\fR, transactions can be filtered out on the source, avoiding unnecessary network traffic\&.
 .sp
 The connection parameter options are used with this option or the
 \fB\-\-read\-from\-remote\-server\fR
@@ -1583,7 +1576,7 @@ Controls whether to enable FIPS mode on the client side\&. The
 option differs from other
 \fB\-\-ssl\-\fR\fB\fIxxx\fR\fR
 options in that it is not used to establish encrypted connections, but rather to affect which cryptographic operations to permit\&. See
-Section\ \&6.6, \(lqFIPS Support\(rq\&.
+Section\ \&6.8, \(lqFIPS Support\(rq\&.
 .sp
 These
 \fB\-\-ssl\-fips\-mode\fR
@@ -1755,7 +1748,7 @@ With
 \fBmysqlbinlog\fR
 reports a server ID of 1 when it connects to the server\&. Use
 \fB\-\-connection\-server\-id\fR
-to explicitly specify an alternative ID to report\&. It can be used to avoid a conflict with the ID of a slave server or another
+to explicitly specify an alternative ID to report\&. It can be used to avoid a conflict with the ID of a replica server or another
 \fBmysqlbinlog\fR
 process\&. See
 the section called \(lqSPECIFYING THE MYSQLBINLOG SERVER ID\(rq\&.
@@ -1921,7 +1914,7 @@ zstd
 compression\&.
 .sp
 For more information, see
-Section\ \&4.2.6, \(lqConnection Compression Control\(rq\&.
+Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
 .sp
 This option was added in MySQL 8\&.0\&.18\&.
 .RE
@@ -1930,7 +1923,7 @@ You can pipe the output of
 \fBmysqlbinlog\fR
 into the
 \fBmysql\fR
-client to execute the events contained in the binary log\&. This technique is used to recover from a crash when you have an old backup (see
+client to execute the events contained in the binary log\&. This technique is used to recover from an unexpected exit when you have an old backup (see
 Section\ \&7.5, \(lqPoint-in-Time (Incremental) Recovery\(rq)\&. For example:
 .sp
 .if n \{\
@@ -2142,7 +2135,7 @@ to produce a hex dump of the binary log contents:
 .RS 4
 .\}
 .nf
-shell> \fBmysqlbinlog \-\-hexdump master\-bin\&.000001\fR
+shell> \fBmysqlbinlog \-\-hexdump source\-bin\&.000001\fR
 .fi
 .if n \{\
 .RE
@@ -2222,7 +2215,7 @@ Type: The event type code\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-Master ID: The server ID of the master that created the event\&.
+Master ID: The server ID of the replication source server that created the event\&.
 .RE
 .sp
 .RS 4
@@ -2244,7 +2237,7 @@ Size: The size in bytes of the event\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-Master Pos: The position of the next event in the original master log file\&.
+Master Pos: The position of the next event in the original source\*(Aqs binary log file\&.
 .RE
 .sp
 .RS 4
@@ -2721,7 +2714,7 @@ runs until the connection ends (for example, when the server exits) or
 \fBmysqlbinlog\fR
 is forcibly terminated\&. When the connection ends,
 \fBmysqlbinlog\fR
-does not wait and retry the connection, unlike a slave replication server\&. To continue a live backup after the server has been restarted, you must also restart
+does not wait and retry the connection, unlike a replica server\&. To continue a live backup after the server has been restarted, you must also restart
 \fBmysqlbinlog\fR\&.
 .if n \{\
 .sp
@@ -2761,7 +2754,7 @@ The
 (or
 \fB\-R\fR) option tells
 \fBmysqlbinlog\fR
-to connect to a server and request its binary log\&. (This is similar to a slave replication server connecting to its master server\&.)
+to connect to a server and request its binary log\&. (This is similar to a replica server connecting to its replication source server\&.)
 .RE
 .sp
 .RS 4
@@ -2813,7 +2806,7 @@ Several other options are useful in conjunction with
 \fBmysqlbinlog\fR
 reports when it connects to a server\&. When
 \fB\-\-stop\-never\fR
-is used, the default reported server ID is 1\&. If this causes a conflict with the ID of a slave server or another
+is used, the default reported server ID is 1\&. If this causes a conflict with the ID of a replica server or another
 \fBmysqlbinlog\fR
 process, use
 \fB\-\-connection\-server\-id\fR
@@ -3034,7 +3027,7 @@ Execute the
 \fBmysqldump\fR
 command periodically to create newer snapshots as desired\&.
 .PP
-If data loss occurs (for example, if the server crashes), use the most recent dump file to restore the data:
+If data loss occurs (for example, if the server unexpectedly exits), use the most recent dump file to restore the data:
 .sp
 .if n \{\
 .RS 4
@@ -3101,7 +3094,7 @@ does not automatically reconnect to the MySQL server if the connection is lost (
 .sp -1
 .IP \(bu 2.3
 .\}
-The delay for a backup is similar to the delay for a replication slave\&.
+The delay for a backup is similar to the delay for a replica server\&.
 .RE
 .SH "SPECIFYING THE MYSQLBINLOG SERVER ID"
 .PP

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -43,7 +43,7 @@ constexpr uint ARCH_PAGE_FILE_HDR_SIZE =
     ARCH_PAGE_FILE_NUM_RESET_PAGE * ARCH_PAGE_BLK_SIZE;
 
 /** @name Page Archive doublewrite buffer file name prefix and constant length
-parameters. //@{ */
+parameters. @{ */
 
 /** Archive doublewrite buffer directory prefix */
 constexpr char ARCH_DBLWR_DIR[] = "ib_dblwr";
@@ -61,9 +61,10 @@ constexpr uint ARCH_DBLWR_NUM_FILES = 1;
 /** Archive doublewrite buffer file capacity in no. of blocks */
 constexpr uint ARCH_DBLWR_FILE_CAPACITY = 3;
 
-/** //@} */
+/** @} */
 
-/** @name Archive block header elements //@{ */
+/** @name Archive block header elements
+@{ */
 
 /** Block Header: Version is in first 1 byte. */
 constexpr uint ARCH_PAGE_BLK_HEADER_VERSION_OFFSET = 0;
@@ -90,9 +91,10 @@ constexpr uint ARCH_PAGE_BLK_HEADER_NUMBER_OFFSET = 24;
 Keep header length in multiple of #ARCH_BLK_PAGE_ID_SIZE */
 constexpr uint ARCH_PAGE_BLK_HEADER_LENGTH = 32;
 
-/** //@} */
+/** @} */
 
-/** @name Page Archive reset block elements size. //@{ */
+/** @name Page Archive reset block elements size.
+@{ */
 
 /** Serialized Reset ID: Reset LSN total size */
 constexpr uint ARCH_PAGE_FILE_HEADER_RESET_LSN_SIZE = 8;
@@ -108,9 +110,10 @@ constexpr uint ARCH_PAGE_FILE_HEADER_RESET_POS_SIZE =
     ARCH_PAGE_FILE_HEADER_RESET_BLOCK_NUM_SIZE +
     ARCH_PAGE_FILE_HEADER_RESET_BLOCK_OFFSET_SIZE;
 
-/** //@} */
+/** @} */
 
-/** @name Page Archive data block elements //@{ */
+/** @name Page Archive data block elements
+@{ */
 
 /** Serialized page ID: tablespace ID in First 4 bytes */
 constexpr uint ARCH_BLK_SPCE_ID_OFFSET = 0;
@@ -121,7 +124,7 @@ constexpr uint ARCH_BLK_PAGE_NO_OFFSET = 4;
 /** Serialized page ID: Total length */
 constexpr uint ARCH_BLK_PAGE_ID_SIZE = 8;
 
-/** //@} */
+/** @} */
 
 /** Number of memory blocks */
 constexpr uint ARCH_PAGE_NUM_BLKS = 32;

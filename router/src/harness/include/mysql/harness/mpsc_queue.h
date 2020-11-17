@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -58,6 +58,11 @@ class MPSCQueueDV {
     delete front;
   }
 
+  MPSCQueueDV(const MPSCQueueDV &) = delete;
+  MPSCQueueDV &operator=(const MPSCQueueDV &) = delete;
+  MPSCQueueDV(MPSCQueueDV &&) = default;
+  MPSCQueueDV &operator=(MPSCQueueDV &&) = default;
+
   /**
    * enqueue an element.
    *
@@ -65,11 +70,29 @@ class MPSCQueueDV {
    *
    * @returns if item was enqueued
    * @retval true item got assigned to queue
-   * @retval false queue is full
    */
   bool enqueue(const T &item) {
     Node *node = new Node;
     node->data = item;
+    node->next.store(nullptr, std::memory_order_relaxed);
+
+    Node *prev_head = head_.exchange(node, std::memory_order_acq_rel);
+    prev_head->next.store(node, std::memory_order_release);
+
+    return true;
+  }
+
+  /**
+   * enqueue an element.
+   *
+   * @param item item to enqueue
+   *
+   * @returns if item was enqueued
+   * @retval true item got assigned to queue
+   */
+  bool enqueue(T &&item) {
+    Node *node = new Node;
+    node->data = std::move(item);
     node->next.store(nullptr, std::memory_order_relaxed);
 
     Node *prev_head = head_.exchange(node, std::memory_order_acq_rel);
@@ -105,9 +128,6 @@ class MPSCQueueDV {
   }
 
  private:
-  MPSCQueueDV(const MPSCQueueDV &) = delete;
-  void operator=(const MPSCQueueDV &) = delete;
-
   struct Node {
     T data;
     std::atomic<Node *> next{nullptr};

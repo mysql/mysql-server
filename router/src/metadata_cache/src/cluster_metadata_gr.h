@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@ class METADATA_API GRClusterMetadata : public ClusterMetadata {
    *
    * Disconnect and release the connection to the metadata node.
    */
-  virtual ~GRClusterMetadata() override;
+  ~GRClusterMetadata() override;
 
   /** @brief Returns replicasets defined in the metadata server
    *

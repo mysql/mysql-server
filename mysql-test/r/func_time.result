@@ -568,7 +568,7 @@ Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select unix_timestamp(@a);
 unix_timestamp(@a)
-1
+1.000000
 select unix_timestamp('1969-12-01 19:00:01');
 unix_timestamp('1969-12-01 19:00:01')
 0
@@ -1264,8 +1264,8 @@ t1	t2	SEC_TO_TIME( TIME_TO_SEC( t2 ) - TIME_TO_SEC( t1 ) )	QUARTER(d)
 DROP TABLE t1;
 SELECT TIME_FORMAT(SEC_TO_TIME(a),"%H:%i:%s") FROM (SELECT 3020399 AS a UNION SELECT 3020398 ) x GROUP BY 1;
 TIME_FORMAT(SEC_TO_TIME(a),"%H:%i:%s")
-838:59:59
 838:59:58
+838:59:59
 set names latin1;
 create table t1 (a varchar(15) character set ascii not null);
 insert into t1 values ('070514-000000');
@@ -1391,8 +1391,6 @@ Warning	1411	Incorrect datetime value: '  ' for function str_to_date
 #
 SET GLOBAL SQL_MODE='';
 DO  STR_TO_DATE((''), FROM_DAYS(@@GLOBAL.SQL_MODE));
-Warnings:
-Warning	1411	Incorrect datetime value: '' for function str_to_date
 SET GLOBAL SQL_MODE=DEFAULT;
 #
 # Bug#11766087  59125: VALGRIND UNINITIALISED VALUE WARNING IN ULL2DEC, LONGLONG2DECIMAL
@@ -1400,8 +1398,6 @@ SET GLOBAL SQL_MODE=DEFAULT;
 SELECT FORMAT(YEAR(STR_TO_DATE('',GET_FORMAT(TIME,''))),1);
 FORMAT(YEAR(STR_TO_DATE('',GET_FORMAT(TIME,''))),1)
 NULL
-Warnings:
-Warning	1411	Incorrect datetime value: '' for function str_to_date
 #
 # Bug#11766126  59166: ANOTHER DATETIME VALGRIND UNINITIALIZED WARNING
 #
@@ -2018,6 +2014,7 @@ date_add('1995-01-05', INTERVAL '9223372036854775808-02' SECOND) as result;
 result
 NULL
 Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '9223372036854775808-02'
 Warning	1292	Truncated incorrect DECIMAL value: '9223372036854775808'
 Warning	1441	Datetime function: date_add_interval field overflow
 SELECT

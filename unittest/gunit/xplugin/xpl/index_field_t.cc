@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -313,7 +313,7 @@ INSTANTIATE_TEST_CASE_P(add_column, Index_field_add_column_test,
 
 class Index_field_is_column_exists_test : public ::testing::Test {
  public:
-  void SetUp() {
+  void SetUp() override {
     ngs::Error_code error;
     field.reset(
         Index_field::create(true, Field_info(PATH, "int", REQUIRED), &error));

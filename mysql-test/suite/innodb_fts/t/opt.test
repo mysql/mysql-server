@@ -49,6 +49,7 @@ FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score DESC;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 --echo No sorting for this query even if MATCH is part of an expression
@@ -60,6 +61,7 @@ FROM wp
 WHERE MATCH(title, text) AGAINST ('database') > 0.1
 ORDER BY score DESC;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 --echo No sorting even if there are several MATCH expressions as long as the
@@ -74,6 +76,7 @@ FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score1 DESC;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 --echo No Sorting since FT table is first table in query
@@ -85,6 +88,7 @@ FROM wp, t1
 WHERE MATCH(title, text) AGAINST ('database') AND FTS_DOC_ID = t1.i
 ORDER BY score DESC;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort_rows%';
 
 --echo Sorting since there is no WHERE clause
@@ -95,6 +99,7 @@ SELECT MATCH(title, text) AGAINST ('database') AS score, title
 FROM wp
 ORDER BY score DESC;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort_rows%';
 
 --echo Sorting since ordering on multiple columns
@@ -105,6 +110,7 @@ FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score DESC, FTS_DOC_ID;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort_rows%';
 
 --echo Sorting since ordering is not descending
@@ -115,6 +121,7 @@ FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score ASC;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort_rows%';
 
 --echo Sorting because one is ordering on a different MATCH expression
@@ -126,6 +133,7 @@ FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score DESC;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort_rows%';
 
 #
@@ -138,6 +146,7 @@ SELECT title, MATCH(title, text) AGAINST ('database') AS score
 FROM wp
 ORDER BY score DESC LIMIT 2;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 --echo Revert to table scan and sorting for this query since not
@@ -148,7 +157,9 @@ SELECT title, MATCH(title, text) AGAINST ('database') AS score
 FROM wp
 ORDER BY score DESC LIMIT 3;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Handler_read%';
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort_rows%';
 
 --echo Sorting since no LIMIT clause
@@ -158,6 +169,7 @@ SELECT title, MATCH(title, text) AGAINST ('database') AS score
 FROM wp
 ORDER BY score DESC;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort_rows%';
 
 --echo Sorting since there is a WHERE clause
@@ -168,6 +180,7 @@ FROM wp
 WHERE dummy IS NULL
 ORDER BY score DESC LIMIT 2;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort_rows%';
 
 --echo Sorting since ordering is not on a simple MATCH expressions
@@ -177,6 +190,7 @@ SELECT title, (MATCH(title, text) AGAINST ('database')) * 100 AS score
 FROM wp
 ORDER BY score DESC LIMIT 2;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort_rows%';
 
 #
@@ -190,6 +204,7 @@ SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database');
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Handler_read%';
 
 --echo Still no handler accesses when adding FTS_DOC_ID to WHERE clause
@@ -199,6 +214,7 @@ SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database') AND FTS_DOC_ID > 2;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Handler_read%';
 
 --echo Still no handler accesses when ordering by MATCH expression
@@ -209,6 +225,7 @@ FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Handler_read%';
 
 --echo Optimization is disabled when ordering on FTS_DOC_ID
@@ -219,6 +236,7 @@ FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY 1 DESC;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Handler_read%';
 
 --echo Optimization also work with several MATCH expressions
@@ -229,6 +247,7 @@ SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score1,
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database');
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Handler_read%';
 
 --echo Optimization does not apply if sorting on a different MATCH expressions
@@ -241,6 +260,7 @@ FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score2 DESC;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Handler_read%';
 
 FLUSH STATUS;
@@ -252,6 +272,7 @@ FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 GROUP BY score;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Handler_read%';
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
@@ -266,7 +287,9 @@ SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score
 FROM wp
 ORDER BY score DESC LIMIT 2;
 
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 #
@@ -283,6 +306,7 @@ eval EXPLAIN $query;
 FLUSH STATUS;
 eval $query;
 --echo Verify that there was no table access
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 
 let $query =
@@ -341,6 +365,7 @@ SELECT title,
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database' WITH QUERY EXPANSION)
 ORDER BY score DESC;
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check ORDER BY/LIMIT query with no WHERE clause
@@ -349,6 +374,7 @@ SELECT title,
        MATCH(title, text) AGAINST ('database' WITH QUERY EXPANSION) AS score
 FROM wp
 ORDER BY score DESC LIMIT 2;
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check query where FTS result is "covering"
@@ -365,7 +391,9 @@ SELECT FTS_DOC_ID docid,
        MATCH(title, text) AGAINST ('database' WITH QUERY EXPANSION) AS score
 FROM wp
 ORDER BY score DESC LIMIT 2;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check the count optimization
@@ -376,6 +404,7 @@ WHERE MATCH(title,text) AGAINST ('database' WITH QUERY EXPANSION);
 eval EXPLAIN $query;
 FLUSH STATUS;
 eval $query;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 
 #
@@ -389,6 +418,7 @@ SELECT title,
 FROM wp
 WHERE MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE)
 ORDER BY score DESC;
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check ORDER BY/LIMIT query with no WHERE clause
@@ -397,6 +427,7 @@ SELECT title,
        MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score
 FROM wp
 ORDER BY score DESC LIMIT 2;
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check query where FTS result is "covering"
@@ -413,7 +444,9 @@ SELECT FTS_DOC_ID docid,
        MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score 
 FROM wp 
 ORDER BY score DESC LIMIT 2;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check the count optimization
@@ -424,6 +457,7 @@ WHERE MATCH(title,text) AGAINST ('+MySQL -database' IN BOOLEAN MODE);
 eval EXPLAIN $query;
 FLUSH STATUS;
 eval $query;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 
 
@@ -439,6 +473,7 @@ SELECT title,
 FROM wp
 WHERE MATCH(title, text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE)
 ORDER BY score DESC;
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check ORDER BY/LIMIT query with no WHERE clause
@@ -447,6 +482,7 @@ SELECT title,
        MATCH(title, text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE) AS score
 FROM wp
 ORDER BY score DESC LIMIT 1;
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check query where FTS result is "covering"
@@ -463,7 +499,9 @@ SELECT FTS_DOC_ID docid,
        MATCH(title, text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE) AS score
 FROM wp
 ORDER BY score DESC LIMIT 1;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check the count optimization
@@ -474,6 +512,7 @@ WHERE MATCH(title,text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE);
 eval EXPLAIN $query;
 FLUSH STATUS;
 eval $query;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 
 #
@@ -509,6 +548,7 @@ SELECT title, MATCH(title, text) AGAINST ('database') AS score
 FROM wp 
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score DESC;
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check ORDER BY/LIMIT query with no WHERE clause
@@ -516,6 +556,7 @@ FLUSH STATUS;
 SELECT title, MATCH(title, text) AGAINST ('database') AS score 
 FROM wp 
 ORDER BY score DESC LIMIT 2;
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check query where FTS result is "covering"
@@ -530,7 +571,9 @@ FLUSH STATUS;
 SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score 
 FROM wp 
 ORDER BY score DESC LIMIT 2;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check the count optimization
@@ -541,6 +584,7 @@ WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
 eval EXPLAIN $query;
 FLUSH STATUS;
 eval $query;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 
 

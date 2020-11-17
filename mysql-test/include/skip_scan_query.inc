@@ -4,6 +4,7 @@ FLUSH STATUS;
 --disable_result_log
 --eval $query
 --enable_result_log
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'handler_read%';
 --disable_query_log
 --eval CREATE TABLE skip_scan $query
@@ -15,6 +16,7 @@ FLUSH STATUS;
 --disable_result_log
 --eval $query
 --enable_result_log
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'handler_read%';
 --disable_query_log
 --eval CREATE TABLE no_skip_scan $query
@@ -28,6 +30,7 @@ FLUSH STATUS;
 --disable_result_log
 --eval $hint_query
 --enable_result_log
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'handler_read%';
 --disable_query_log
 --eval CREATE TABLE hint_skip_scan $hint_query

@@ -348,19 +348,19 @@ EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND 
                 "table": "`t1`",
                 "field": "f2",
                 "equals": "2",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`t1`",
                 "field": "f3",
                 "equals": "'b'",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`t1`",
                 "field": "f4",
                 "equals": "'h'",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },

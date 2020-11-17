@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -454,7 +454,7 @@ struct B1 : public B0 {
         ABORT_ERROR("!USE OF COPY CONSTRUCTOR!");
     }
 
-    virtual ~B1() {}
+    ~B1() override {}
 
     B1 & operator=(const B1 & p) {
         TRACE("B1 & operator=(const B1 &)");
@@ -475,7 +475,7 @@ struct B1 : public B0 {
         return 31;
     }
 
-    virtual int32_t f0v() const {
+    int32_t f0v() const override {
         TRACE("int32_t B1::f0v()");
         return 32;
     }
@@ -886,7 +886,7 @@ struct C1 : public C0 {
         ABORT_ERROR("!USE OF COPY CONSTRUCTOR!");
     }
 
-    virtual ~C1() {
+    ~C1() override {
         TRACE("~C1()");
     }
 
@@ -994,11 +994,11 @@ struct D1 : D0 {
     static D1 * d;
     static void init();
     static void finit();
-    virtual ~D1() {}
+    ~D1() override {}
 
     int f_d1() { TRACE("D0::f_d1()"); return 30; }
     int f_nv() { TRACE("D1::f_nv()"); return 31; }
-    virtual int f_v() { TRACE("D1::f_v()"); return 32; }
+    int f_v() override { TRACE("D1::f_v()"); return 32; }
     static D1 * sub();
 };
 
@@ -1006,11 +1006,11 @@ struct D2 : D1 {
     static D2 * d;
     static void init();
     static void finit();
-    virtual ~D2() {}
+    ~D2() override {}
 
     int f_d2() { TRACE("D2::f_d2()"); return 40; }
     int f_nv() { TRACE("D2::f_nv()"); return 41; }
-    virtual int f_v() { TRACE("D2::f_v()"); return 42; }
+    int f_v() override { TRACE("D2::f_v()"); return 42; }
     static D1 * sub();
 };
 

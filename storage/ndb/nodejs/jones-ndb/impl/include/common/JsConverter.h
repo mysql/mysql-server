@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2012, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -26,11 +26,10 @@
 #define NODEJS_ADAPTER_INCLUDE_JSCONVERTER_H
 
 #include "JsWrapper.h"
-#include "node_buffer.h"
+#include "JsValueAccess.h"
 
 typedef Local<v8::Value> jsvalue;
-typedef Handle<v8::Object> jsobject;
- 
+typedef Local<v8::Function> jsfunction;
 
 /*****************************************************************
  JsValueConverter 
@@ -39,6 +38,10 @@ typedef Handle<v8::Object> jsobject;
  Some additional NDB-Specific specializations are in NdBJsConverters.h
  
 ******************************************************************/
+
+inline Isolate * GetIsolate() {
+  return v8::Isolate::GetCurrent();
+}
 
 /* Generic (for pointers).
    If you get an "invalid static cast from type void *", then the compiler
@@ -51,7 +54,7 @@ public:
       native_object = 0;
     } else {
       DEBUG_ASSERT(v->IsObject());
-      Local<Object> obj = v->ToObject();
+      Local<Object> obj = ToObject(v);
       DEBUG_ASSERT(obj->InternalFieldCount() == 2);
       native_object = unwrapPointer<T>(obj);
     }
@@ -74,9 +77,10 @@ template <>
 class JsValueConverter <int> {
 public:
   jsvalue jsval;
+  Local<Context> ctx;
   
-  JsValueConverter(jsvalue v) : jsval(v) {};
-  int toC() { return jsval->Int32Value(); };
+  JsValueConverter(jsvalue v) : jsval(v) {}
+  int toC() { return GetInt32Value(jsval); }
 };
 
 
@@ -85,8 +89,8 @@ class JsValueConverter <uint32_t> {
 public:
   jsvalue jsval;
   
-  JsValueConverter(jsvalue v) : jsval(v) {};
-  int toC() { return jsval->Uint32Value(); };
+  JsValueConverter(jsvalue v) : jsval(v) {}
+  int toC() { return GetUint32Value(jsval); }
 };
 
 
@@ -95,8 +99,8 @@ class JsValueConverter <unsigned long> {
 public:
   jsvalue jsval;
   
-  JsValueConverter(jsvalue v) : jsval(v) {};
-  int64_t toC() { return jsval->IntegerValue(); };
+  JsValueConverter(jsvalue v) : jsval(v) {}
+  int64_t toC() { return GetIntegerValue(jsval); }
 };
 
 
@@ -105,8 +109,8 @@ class JsValueConverter <double> {
 public:
   jsvalue jsval;
   
-JsValueConverter(jsvalue v) : jsval(v) {};
-  double toC() { return jsval->NumberValue(); };
+JsValueConverter(jsvalue v) : jsval(v) {}
+  double toC() { return ToNumber(jsval); }
 };
 
 
@@ -115,8 +119,8 @@ class JsValueConverter <int64_t> {
 public:
   jsvalue jsval;
   
-  JsValueConverter(jsvalue v) : jsval(v) {};
-  int64_t toC() { return jsval->IntegerValue(); };
+  JsValueConverter(jsvalue v) : jsval(v) {}
+  int64_t toC() { return GetIntegerValue(jsval); }
 };
 
 
@@ -125,8 +129,8 @@ class JsValueConverter <bool> {
 public:
   jsvalue jsval;
   
-  JsValueConverter(jsvalue v) : jsval(v) {};
-  bool toC()  { return jsval->BooleanValue(); };
+  JsValueConverter(jsvalue v) : jsval(v) {}
+  bool toC()  { return GetBoolValue(jsval); }
 };
 
 
@@ -137,8 +141,8 @@ private:
   v8::String::Utf8Value av;
 
 public: 
-  JsValueConverter(jsvalue v) : av(v)   {};
-  const char * toC()  { return *av;  };
+  JsValueConverter(jsvalue v) : av(GetIsolate(), v)   {}
+  const char * toC()  { return *av;  }
 };
 
 
@@ -147,22 +151,22 @@ template <>
 class JsValueConverter <char *> {
 public: 
   jsvalue jsval;
-  JsValueConverter(jsvalue v) : jsval(v)   {};
+  JsValueConverter(jsvalue v) : jsval(v)   {}
   char * toC()  { 
     DEBUG_PRINT_DETAIL("Unwrapping Node buffer");
-    return node::Buffer::Data(jsval->ToObject());
-  };
+    return GetBufferData(ToObject(jsval));
+  }
 };
 
 /* Pass through of JavaScript value */
 template <>
-class JsValueConverter <Handle<v8::Function> > {
+class JsValueConverter <jsfunction> {
 public:
-  Local<v8::Function> jsval;
-  JsValueConverter(Local<Value> v) {
-    jsval = Local<v8::Function>::New(v8::Isolate::GetCurrent(), Local<v8::Function>::Cast(v));
-  };
-  Handle<v8::Function> toC()  { return jsval;  };
+  jsfunction jsval;
+  JsValueConverter(jsvalue v) {
+    jsval = Local<v8::Function>::New(GetIsolate(), Local<v8::Function>::Cast(v));
+  }
+  jsfunction toC()  { return jsval;  }
 };
 
 /*****************************************************************
@@ -206,25 +210,24 @@ inline Local<Value> toJS<unsigned short>(Isolate * isolate, unsigned short cval)
 template <>
 inline Local<Value> toJS<double>(Isolate * isolate, double cval) {
   return v8::Number::New(isolate, cval);
-};
+}
 
 // const char *
 template <> 
 inline Local<Value> toJS<const char *>(Isolate * isolate, const char * cval) {
-  return v8::String::NewFromUtf8(isolate, cval);
+  return v8::String::NewFromUtf8(isolate, cval, v8::NewStringType::kNormal).
+         ToLocalChecked();
 }
 
 // const bool * 
 template <> 
 inline Local<Value> toJS<const bool *>(Isolate * isolate, const bool * cbp) {
-  // return Local<Value>::New(Boolean::New(isolate, *cbp));
   return *cbp ? True(isolate) : False(isolate);
 }
 
 // bool 
 template <>
 inline Local<Value> toJS<bool>(Isolate * isolate, bool b) {
-  // return Local<Value>::New(Boolean::New(isolate, b));
   return b ? True(isolate) : False(isolate);
 }
 

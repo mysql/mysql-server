@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -96,10 +96,10 @@ bool Session_sysvar_resource_manager::update(char **var, char *val,
   return false;
 }
 
-void Session_sysvar_resource_manager::claim_memory_ownership() {
+void Session_sysvar_resource_manager::claim_memory_ownership(bool claim) {
   /* Release Sys_var_charptr resources here. */
   for (const auto &key_and_value : m_sysvar_string_alloc_hash) {
-    my_claim(key_and_value.second.get());
+    my_claim(key_and_value.second.get(), claim);
   }
 }
 

@@ -975,33 +975,176 @@ int Client::connect_remote(bool is_restart, bool use_aux) {
   return (0);
 }
 
-int Client::validate_remote_params() {
-  /* Validate plugins.*/
-  for (auto &plugin_name : m_parameters.m_plugins) {
-    /* Attempt to lock plugin by name. */
-    auto plugin = my_plugin_lock_by_name(
-        get_thd(), to_lex_cstring(plugin_name.c_str()), MYSQL_ANY_PLUGIN);
+bool Client::plugin_is_loadable(std::string &so_name) {
+  Key_Values configs = {{"plugin_dir", ""}};
+  auto err =
+      mysql_service_clone_protocol->mysql_clone_get_configs(get_thd(), configs);
 
-    if (plugin) {
-      plugin_unlock(get_thd(), plugin);
+  if (err != 0) {
+    return false;
+  }
+
+  std::string path(configs[0].second);
+  path.append("/");
+  path.append(so_name);
+
+  return clone_os_test_load(path);
+}
+
+bool Client::plugin_is_installed(std::string &plugin_name) {
+  /* Attempt to lock plugin by name. */
+  auto plugin = my_plugin_lock_by_name(
+      get_thd(), to_lex_cstring(plugin_name.c_str()), MYSQL_ANY_PLUGIN);
+
+  if (plugin) {
+    plugin_unlock(get_thd(), plugin);
+    return true;
+  }
+  return false;
+}
+
+int Client::validate_remote_params() {
+  int last_error = 0;
+
+  /* Validate plugins from old version CLONE_PROTOCOL_VERSION_V1.*/
+  for (auto &plugin_name : m_parameters.m_plugins) {
+    DBUG_ASSERT(m_share->m_protocol_version == CLONE_PROTOCOL_VERSION_V1);
+
+    if (plugin_is_installed(plugin_name)) {
       continue;
     }
     /* Plugin is not installed. */
     my_error(ER_CLONE_PLUGIN_MATCH, MYF(0), plugin_name.c_str());
-    return (ER_CLONE_PLUGIN_MATCH);
+    last_error = ER_CLONE_PLUGIN_MATCH;
+  }
+
+  /* Validate plugins and check if shared objects can be loaded. */
+  for (auto &plugin : m_parameters.m_plugins_with_so) {
+    DBUG_ASSERT(m_share->m_protocol_version > CLONE_PROTOCOL_VERSION_V1);
+
+    auto &plugin_name = plugin.first;
+    auto &so_name = plugin.second;
+
+    if (plugin_is_installed(plugin_name)) {
+      continue;
+    }
+
+    /* Built-in plugins with no shared object should already be installed. */
+    DBUG_ASSERT(!so_name.empty());
+
+    if (so_name.empty() || plugin_is_loadable(so_name)) {
+      continue;
+    }
+
+    /* Donor plugin is not there in recipient. */
+    my_error(ER_CLONE_PLUGIN_MATCH, MYF(0), plugin_name.c_str());
+    last_error = ER_CLONE_PLUGIN_MATCH;
   }
 
   /* Validate character sets */
   auto err = mysql_service_clone_protocol->mysql_clone_validate_charsets(
       get_thd(), m_parameters.m_charsets);
   if (err != 0) {
-    return (err);
+    last_error = err;
   }
 
   /* Validate configurations */
   err = mysql_service_clone_protocol->mysql_clone_validate_configs(
       get_thd(), m_parameters.m_configs);
+  if (err != 0) {
+    last_error = err;
+  }
+  return (last_error);
+}
 
+int Client::extract_string(const uchar *&packet, size_t &length,
+                           String_Key &str) {
+  /* Check length. */
+  if (length >= 4) {
+    auto name_length = uint4korr(packet);
+    length -= 4;
+    packet += 4;
+
+    /* Check length. */
+    if (length >= name_length) {
+      str.clear();
+      if (name_length > 0) {
+        auto char_str = reinterpret_cast<const char *>(packet);
+        auto str_len = static_cast<size_t>(name_length);
+        str.assign(char_str, str_len);
+
+        length -= name_length;
+        packet += name_length;
+      }
+      return (0);
+    }
+  }
+  /* purecov: begin deadcode */
+  int err = ER_CLONE_PROTOCOL;
+  my_error(err, MYF(0), "Wrong Clone RPC response length for parameters");
+  return (err);
+  /* purecov: end */
+}
+
+int Client::extract_key_value(const uchar *&packet, size_t &length,
+                              Key_Value &keyval) {
+  /* Get configuration parameter name. */
+  String_Key key;
+  auto err = extract_string(packet, length, key);
+  if (err != 0) {
+    return (err); /* purecov: inspected */
+  }
+
+  /* Get configuration parameter value */
+  String_Key value;
+  err = extract_string(packet, length, value);
+  if (err == 0) {
+    keyval = std::make_pair(key, value);
+  }
+  return (err);
+}
+
+int Client::add_plugin(const uchar *packet, size_t length) {
+  /* Get plugin name. */
+  String_Key plugin_name;
+  auto err = extract_string(packet, length, plugin_name);
+  if (err == 0) {
+    m_parameters.m_plugins.push_back(plugin_name);
+  }
+  return (err);
+}
+
+int Client::add_plugin_with_so(const uchar *packet, size_t length) {
+  /* Get plugin name name and shared object name. */
+  Key_Value plugin;
+
+  auto err = extract_key_value(packet, length, plugin);
+
+  if (err == 0) {
+    m_parameters.m_plugins_with_so.push_back(plugin);
+  }
+  return (err);
+}
+
+int Client::add_charset(const uchar *packet, size_t length) {
+  /* Get character set collation name. */
+  String_Key charset_name;
+  auto err = extract_string(packet, length, charset_name);
+  if (err == 0) {
+    m_parameters.m_charsets.push_back(charset_name);
+  }
+  return (err);
+}
+
+int Client::add_config(const uchar *packet, size_t length) {
+  /* Get configuration parameter name and value. */
+  Key_Value config;
+
+  auto err = extract_key_value(packet, length, config);
+
+  if (err == 0) {
+    m_parameters.m_configs.push_back(config);
+  }
   return (err);
 }
 
@@ -1293,6 +1436,10 @@ int Client::handle_response(const uchar *packet, size_t length, int in_err,
   switch (res_com) {
     case COM_RES_PLUGIN:
       err = add_plugin(packet, length);
+      break;
+
+    case COM_RES_PLUGIN_V2:
+      err = add_plugin_with_so(packet, length);
       break;
 
     case COM_RES_CONFIG:

@@ -25,7 +25,7 @@ insert into t2 values(3,0),(NULL,0);
 insert into t2 values(NULL,0),(500,0);
 select a,b, truncate(rand_value,4) from t1;
 a	b	truncate(rand_value,4)
-1	1	0.4320
+1	1	0.432
 2	2	0.3055
 select * from t2;
 a	b
@@ -36,7 +36,7 @@ a	b
 500	0
 select a,name, old_a, old_b, truncate(rand_value,4) from t3;
 a	name	old_a	old_b	truncate(rand_value,4)
-100	log	0	0	0.0000
+100	log	0	0	0
 101	t1	1	1	0.3203
 102	t1	0	2	0.5666
 103	t2	1	2	0.9164
@@ -49,7 +49,7 @@ include/sync_slave_sql_with_master.inc
 --- On slave --
 select a,b, truncate(rand_value,4) from t1;
 a	b	truncate(rand_value,4)
-1	1	0.4320
+1	1	0.432
 2	2	0.3055
 select * from t2;
 a	b
@@ -60,7 +60,7 @@ a	b
 500	0
 select a,name, old_a, old_b, truncate(rand_value,4) from t3;
 a	name	old_a	old_b	truncate(rand_value,4)
-100	log	0	0	0.0000
+100	log	0	0	0
 101	t1	1	1	0.3203
 102	t1	0	2	0.5666
 103	t2	1	2	0.9164
@@ -899,12 +899,18 @@ drop table t21,t31;
 drop table t11;
 include/sync_slave_sql_with_master.inc
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 FLUSH LOGS;
 include/rpl_stop_server.inc [server_number=1]
 include/rpl_start_server.inc [server_number=1]
 --> Master binlog: Server ver: 5.0.16-debug-log, Binlog ver: 4
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 SELECT MASTER_POS_WAIT('master-bin.000001', 513) >= 0;
 MASTER_POS_WAIT('master-bin.000001', 513) >= 0
 NULL
@@ -917,13 +923,19 @@ Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_clie
 DROP TABLE t1;
 DROP TABLE t2;
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 SHOW TABLES LIKE 't_';
 Tables_in_test (t_)
 SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 RESET MASTER;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reset.inc
 
 ---> Test for BUG#20438

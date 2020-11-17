@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -245,6 +245,18 @@ class Ndb_util_table {
      @return the value stored in the varbinary column
    */
   static std::string unpack_varbinary(NdbRecAttr *ndbRecAttr);
+
+  /**
+     @brief Return the id of the given column within the table
+     @return the column number
+   */
+  int get_column_num(const char *col_name) const;
+
+  /**
+     @brief Delete all util table rows.
+     @return true on success. false otherwise.
+ */
+  bool delete_all_rows();
 };
 
 #endif

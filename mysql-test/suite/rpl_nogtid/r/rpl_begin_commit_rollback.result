@@ -50,6 +50,8 @@ before call replicate_do_db.p1()
 after call replicate_do_db.p1()
 [connection slave]
 START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=MASTER_POS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 include/assert.inc [Slave should have stopped after executing the stored procedure transaction]
 SELECT * from replicate_do_db.t1;
@@ -86,6 +88,8 @@ executed replicate_do_db.p2()
 after call replicate_do_db.p2()
 [connection slave]
 START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=MASTER_POS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 include/assert.inc [Slave should have stopped after executing the stored procedure transaction]
 SELECT * from replicate_do_db.t1;
@@ -100,6 +104,8 @@ s
 before call replicate_do_db.p1()
 executed replicate_do_db.p2()
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_start.inc
 #
 # SAVEPOINT and ROLLBACK TO have the same problem in BUG#43263
@@ -186,8 +192,12 @@ USE replicate_do_db;
 SET @timeout_old= @@GLOBAL.innodb_lock_wait_timeout;
 SET GLOBAL innodb_lock_wait_timeout= 1;
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_start.inc
 # Verify the SQL thread doesn't retry the transaction when one of
 # its statements has modified a non-transactional table.
@@ -210,6 +220,8 @@ COMMIT;
 include/wait_for_slave_sql_error.inc [errno=1205]
 ROLLBACK;
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_start.inc
 
 # INSERT ... SELECT statement inserts a row to a non-transactional table.
@@ -229,6 +241,8 @@ COMMIT;
 include/wait_for_slave_sql_error.inc [errno=1205]
 ROLLBACK;
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_start.inc
 
 # UPDATE statement updates a row to a non-transactional table.
@@ -248,6 +262,8 @@ COMMIT;
 include/wait_for_slave_sql_error.inc [errno=1205]
 ROLLBACK;
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_start.inc
 
 # MULTI-UPDATE statement updates a row to a non-transactional table.
@@ -267,6 +283,8 @@ COMMIT;
 include/wait_for_slave_sql_error.inc [errno=1205]
 ROLLBACK;
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_start.inc
 
 # DELETE statement deletes a row from a non-transactional table.
@@ -286,6 +304,8 @@ COMMIT;
 include/wait_for_slave_sql_error.inc [errno=1205]
 ROLLBACK;
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_start.inc
 
 # CREATE TEMPORARY TABLE statement in the transaction
@@ -303,6 +323,8 @@ COMMIT;
 include/wait_for_slave_sql_error.inc [errno=1205]
 ROLLBACK;
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_start.inc
 
 # DROP TEMPORARY TABLE statement in the transaction
@@ -320,6 +342,8 @@ COMMIT;
 include/wait_for_slave_sql_error.inc [errno=1205]
 ROLLBACK;
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_start.inc
 
 # Verify that the SQL thread doesn't retry the transaction if one
@@ -376,6 +400,8 @@ COMMIT;
 include/wait_for_slave_sql_error.inc [errno=1205]
 ROLLBACK;
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_start.inc
 
 # The INSERT ... SELECT statement in a function inserts a row into a
@@ -396,6 +422,8 @@ COMMIT;
 include/wait_for_slave_sql_error.inc [errno=1205]
 ROLLBACK;
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_start.inc
 
 # The UPDATE statement in a function updates a row of a
@@ -416,6 +444,8 @@ COMMIT;
 include/wait_for_slave_sql_error.inc [errno=1205]
 ROLLBACK;
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_start.inc
 
 # The MULTI-UPDATE statement in a function updates a row of a
@@ -436,6 +466,8 @@ COMMIT;
 include/wait_for_slave_sql_error.inc [errno=1205]
 ROLLBACK;
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_start.inc
 
 # The DELETE statement in a function deletes a row from a
@@ -456,6 +488,8 @@ COMMIT;
 include/wait_for_slave_sql_error.inc [errno=1205]
 ROLLBACK;
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_start.inc
 SET @@global.innodb_lock_wait_timeout= @timeout_old;
 #

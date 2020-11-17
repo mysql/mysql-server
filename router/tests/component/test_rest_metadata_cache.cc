@@ -105,11 +105,11 @@ TEST_P(RestMetadataCacheApiWithoutClusterTest, DISABLED_ensure_openapi) {
 
   auto config_sections = get_restapi_config("rest_routing", userfile,
                                             GetParam().request_authentication);
-  config_sections.push_back(ConfigBuilder::build_section(
+  config_sections.push_back(mysql_harness::ConfigBuilder::build_section(
       "rest_metadata_cache", {
                                  {"require_realm", http_auth_realm_name},
                              }));
-  config_sections.push_back(ConfigBuilder::build_section(
+  config_sections.push_back(mysql_harness::ConfigBuilder::build_section(
       "metadata_cache:" + metadata_cache_section_name,
       {
           {"user", keyring_username},
@@ -313,6 +313,9 @@ static void wait_metadata_fetched(const std::string &http_hostname,
                                   const std::string &metadata_status_uri,
                                   std::chrono::milliseconds timeout = 1s) {
   ASSERT_GT(timeout, 0ms);
+  if (getenv("WITH_VALGRIND")) {
+    timeout *= 10;
+  }
 
   // wait for metadata-cache to finish its first fetch
   IOContext io_ctx;
@@ -355,7 +358,7 @@ TEST_P(RestMetadataCacheApiTest, ensure_openapi) {
   const std::string http_hostname = "127.0.0.1";
   const std::string http_uri = GetParam().uri;
 
-  auto &md_server = ProcessManager::launch_mysql_server_mock(
+  /*auto &md_server =*/ProcessManager::launch_mysql_server_mock(
       get_data_dir().join("metadata_1_node_repeat.js").str(),
       metadata_server_port_, EXIT_SUCCESS, false);
 
@@ -364,12 +367,12 @@ TEST_P(RestMetadataCacheApiTest, ensure_openapi) {
   auto config_sections = get_restapi_config("rest_routing", userfile,
                                             GetParam().request_authentication);
 
-  config_sections.push_back(ConfigBuilder::build_section(
+  config_sections.push_back(mysql_harness::ConfigBuilder::build_section(
       "rest_metadata_cache", {
                                  {"require_realm", http_auth_realm_name},
                              }));
 
-  config_sections.push_back(ConfigBuilder::build_section(
+  config_sections.push_back(mysql_harness::ConfigBuilder::build_section(
       "metadata_cache:" + metadata_cache_section_name,
       {
           {"user", keyring_username},
@@ -384,9 +387,6 @@ TEST_P(RestMetadataCacheApiTest, ensure_openapi) {
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"),
       &default_section_)};
 
-  // delay the wait until we really need it.
-  ASSERT_NO_FATAL_FAILURE(
-      check_port_ready(md_server, metadata_server_port_, 5000ms));
   auto &router_proc{launch_router({"-c", conf_file})};
 
   g_refresh_succeeded = 0;
@@ -505,9 +505,11 @@ static const RestApiTestParams rest_api_valid_methods[]{
             ASSERT_NE(value, nullptr);
             ASSERT_TRUE(value->IsInt());
 
-            // check if it is more than last time we checked
-            ASSERT_GT(value->GetInt(), g_refresh_succeeded);
-            g_refresh_succeeded = static_cast<size_t>(value->GetInt());
+            if (!getenv("WITH_VALGRIND")) {
+              // check if it is more than last time we checked
+              ASSERT_GT(value->GetInt(), g_refresh_succeeded);
+              g_refresh_succeeded = static_cast<size_t>(value->GetInt());
+            }
           }},
          {"/timeLastRefreshSucceeded",
           [](const JsonValue *value) -> void {
@@ -848,11 +850,10 @@ TEST_F(RestMetadataCacheApiTest, metadata_cache_api_no_auth) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
+  auto &router =
+      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  // wait until process failed by itself and check the error-msg
-  const auto wait_for_process_exit_timeout{10000ms};
-  check_exit_code(router, EXIT_FAILURE, wait_for_process_exit_timeout);
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
   const std::string router_output = router.get_full_logfile();
   EXPECT_THAT(router_output,
@@ -874,11 +875,10 @@ TEST_F(RestMetadataCacheApiTest, invalid_realm) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
+  auto &router =
+      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  // wait until process failed by itself and check the error-msg
-  const auto wait_for_process_exit_timeout{10000ms};
-  check_exit_code(router, EXIT_FAILURE, wait_for_process_exit_timeout);
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
   const std::string router_output = router.get_full_logfile();
   EXPECT_THAT(
@@ -902,13 +902,6 @@ TEST_F(RestMetadataCacheApiTest, metadata_cache_api_no_rest_api) {
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
   launch_router({"-c", conf_file}, EXIT_SUCCESS);
-
-  // wait until signal handler is up before we let the teardown of the test
-  // terminate the router and check its exit-code
-  //
-  // should be removed once we have another way to know that the process is
-  // ready to receive a shutdown signal.
-  std::this_thread::sleep_for(100ms);
 }
 
 /**
@@ -928,8 +921,7 @@ TEST_F(RestMetadataCacheApiTest, DISABLED_metadata_cache_api_no_mdc_section) {
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
   auto &router = launch_router({"-c", conf_file});
 
-  const auto wait_for_process_exit_timeout{10000ms};
-  check_exit_code(router, EXIT_FAILURE, wait_for_process_exit_timeout);
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
   const std::string router_output = router.get_full_output();
   EXPECT_THAT(router_output,
@@ -951,14 +943,14 @@ TEST_F(RestMetadataCacheApiTest, rest_metadata_cache_section_twice) {
 
   // force [rest_metadata_cache] twice in the config
   config_sections.push_back(
-      ConfigBuilder::build_section("rest_metadata_cache", {}));
+      mysql_harness::ConfigBuilder::build_section("rest_metadata_cache", {}));
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
+  auto &router =
+      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  const auto wait_for_process_exit_timeout{10000ms};
-  check_exit_code(router, EXIT_FAILURE, wait_for_process_exit_timeout);
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
   const std::string router_output = router.get_full_output();
   EXPECT_THAT(
@@ -981,10 +973,10 @@ TEST_F(RestMetadataCacheApiTest, rest_metadata_cache_section_has_key) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
+  auto &router =
+      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  const auto wait_for_process_exit_timeout{10000ms};
-  check_exit_code(router, EXIT_FAILURE, wait_for_process_exit_timeout);
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
   const std::string router_output = router.get_full_logfile();
   EXPECT_THAT(

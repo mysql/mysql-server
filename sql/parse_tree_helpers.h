@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,31 +23,32 @@
 #ifndef PARSE_TREE_HELPERS_INCLUDED
 #define PARSE_TREE_HELPERS_INCLUDED
 
-#include <stddef.h>
-#include <sys/types.h>
+#include <sys/types.h>  // TODO: replace with cstdint
 #include <new>
 
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
-#include "my_inttypes.h"
+#include "my_inttypes.h"  // TODO: replace with cstdint
 #include "mysql_time.h"
 #include "sql/item.h"
-#include "sql/item_func.h"  // Item etc.
-#include "sql/mem_root_array.h"
+#include "sql/item_func.h"       // Item etc.
+#include "sql/parse_location.h"  // POS
 #include "sql/parse_tree_node_base.h"
 #include "sql/resourcegroups/resource_group_basic_types.h"  // resourcegroups::Range
 #include "sql/set_var.h"                                    // enum_var_type
+#include "sql/sql_error.h"
 #include "sql/sql_list.h"
 
 class String;
 class THD;
 class my_decimal;
+struct Column_parse_context;
 struct MEM_ROOT;
 struct handlerton;
 
-struct Parse_context;
-struct Column_parse_context;
+template <typename Element_type>
+class Mem_root_array;
 
 /**
   Base class for parse-time Item objects
@@ -100,28 +101,29 @@ class PT_item_list : public Parse_tree_node {
   typedef Parse_tree_node super;
 
  public:
-  List<Item> value;
+  PT_item_list() : value(*THR_MALLOC) {}
+
+  mem_root_deque<Item *> value;
 
   bool contextualize(Parse_context *pc) override {
     if (super::contextualize(pc)) return true;
-    List_iterator<Item> it(value);
-    Item *item;
-    while ((item = it++)) {
+    for (Item *&item : value) {
       if (item->itemize(pc, &item)) return true;
-      it.replace(item);
     }
     return false;
   }
 
-  bool is_empty() const { return value.is_empty(); }
-  uint elements() const { return value.elements; }
+  bool is_empty() const { return value.empty(); }
+  uint elements() const { return value.size(); }
 
   bool push_back(Item *item) {
     /*
      Item may be NULL in case of OOM: just ignore it and check thd->is_error()
      in the caller code.
     */
-    return item == nullptr || value.push_back(item);
+    if (item == nullptr) return true;
+    value.push_back(item);
+    return false;
   }
 
   bool push_front(Item *item) {
@@ -129,12 +131,16 @@ class PT_item_list : public Parse_tree_node {
      Item may be NULL in case of OOM: just ignore it and check thd->is_error()
      in the caller code.
     */
-    return item == nullptr || value.push_front(item);
+    if (item == nullptr) return true;
+    value.push_front(item);
+    return false;
   }
 
   Item *pop_front() {
     DBUG_ASSERT(!is_empty());
-    return value.pop();
+    Item *ret = value.front();
+    value.pop_front();
+    return ret;
   }
 
   Item *operator[](uint index) const { return value[index]; }

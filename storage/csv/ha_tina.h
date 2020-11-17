@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -104,17 +104,17 @@ class ha_tina : public handler {
 
  public:
   ha_tina(handlerton *hton, TABLE_SHARE *table_arg);
-  ~ha_tina() {
+  ~ha_tina() override {
     if (chain_alloced) my_free(chain);
     if (file_buff) delete file_buff;
     free_root(&blobroot, MYF(0));
   }
-  const char *table_type() const { return "CSV"; }
-  ulonglong table_flags() const {
+  const char *table_type() const override { return "CSV"; }
+  ulonglong table_flags() const override {
     return (HA_NO_TRANSACTIONS | HA_NO_AUTO_INCREMENT | HA_BINLOG_ROW_CAPABLE |
             HA_BINLOG_STMT_CAPABLE | HA_CAN_REPAIR);
   }
-  ulong index_flags(uint, uint, bool) const {
+  ulong index_flags(uint, uint, bool) const override {
     /*
       We will never have indexes so this will never be called(AKA we return
       zero)
@@ -128,7 +128,7 @@ class ha_tina : public handler {
   /*
      Called in test_quick_select to determine if indexes should be used.
    */
-  virtual double scan_time() {
+  double scan_time() override {
     return (double)(stats.records + stats.deleted) / 20.0 + 10;
   }
   /* The next method will never be called */
@@ -138,34 +138,35 @@ class ha_tina : public handler {
     (e.g. save number of records seen on full table scan and/or use file size
     as upper bound)
   */
-  ha_rows estimate_rows_upper_bound() { return HA_POS_ERROR; }
+  ha_rows estimate_rows_upper_bound() override { return HA_POS_ERROR; }
 
   int open(const char *name, int mode, uint open_options,
-           const dd::Table *table_def);
-  int close(void);
-  int write_row(uchar *buf);
-  int update_row(const uchar *old_data, uchar *new_data);
-  int delete_row(const uchar *buf);
-  int rnd_init(bool scan = true);
-  int rnd_next(uchar *buf);
-  int rnd_pos(uchar *buf, uchar *pos);
-  bool check_and_repair(THD *thd);
-  int check(THD *thd, HA_CHECK_OPT *check_opt);
-  bool is_crashed() const;
-  int rnd_end();
-  int repair(THD *thd, HA_CHECK_OPT *check_opt);
+           const dd::Table *table_def) override;
+  int close(void) override;
+  int write_row(uchar *buf) override;
+  int update_row(const uchar *old_data, uchar *new_data) override;
+  int delete_row(const uchar *buf) override;
+  int rnd_init(bool scan = true) override;
+  int rnd_next(uchar *buf) override;
+  int rnd_pos(uchar *buf, uchar *pos) override;
+  bool check_and_repair(THD *thd) override;
+  int check(THD *thd, HA_CHECK_OPT *check_opt) override;
+  bool is_crashed() const override;
+  int rnd_end() override;
+  int repair(THD *thd, HA_CHECK_OPT *check_opt) override;
   /* This is required for SQL layer to know that we support autorepair */
-  bool auto_repair() const { return true; }
-  void position(const uchar *record);
-  int info(uint);
-  int extra(enum ha_extra_function operation);
-  int delete_all_rows(void);
+  bool auto_repair() const override { return true; }
+  void position(const uchar *record) override;
+  int info(uint) override;
+  int extra(enum ha_extra_function operation) override;
+  int delete_all_rows(void) override;
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
-             dd::Table *table_def);
-  bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes);
+             dd::Table *table_def) override;
+  bool check_if_incompatible_data(HA_CREATE_INFO *info,
+                                  uint table_changes) override;
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
-                             enum thr_lock_type lock_type);
+                             enum thr_lock_type lock_type) override;
 
   /*
     These functions used to get/update status of the handler.

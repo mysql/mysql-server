@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -298,7 +298,7 @@ bool handle_reload_request(THD *thd, unsigned long options, TABLE_LIST *tables,
     }
   }
   if (options & REFRESH_OPTIMIZER_COSTS) reload_optimizer_cost_constants();
-  if (options & REFRESH_SLAVE) {
+  if (options & REFRESH_REPLICA) {
     tmp_write_to_binlog = 0;
     if (reset_slave_cmd(thd)) {
       /*NOTE: my_error() has been already called by reset_slave() */

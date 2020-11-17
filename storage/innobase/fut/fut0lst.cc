@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -82,12 +82,11 @@ void flst_insert_before(
     flst_node_t *node3,     /*!< in: node to insert before */
     mtr_t *mtr);            /*!< in: mini-transaction handle */
 
-/** Adds a node as the last node in a list. */
-void flst_add_last(
-    flst_base_node_t *base, /*!< in: pointer to base node of list */
-    flst_node_t *node,      /*!< in: node to add */
-    mtr_t *mtr)             /*!< in: mini-transaction handle */
-{
+/** Adds a node as the last node in a list.
+@param[in] base Pointer to base node of list
+@param[in] node Node to add
+@param[in] mtr Mini-transaction handle */
+void flst_add_last(flst_base_node_t *base, flst_node_t *node, mtr_t *mtr) {
   space_id_t space;
   fil_addr_t node_addr;
   ulint len;
@@ -126,12 +125,11 @@ void flst_add_last(
   }
 }
 
-/** Adds a node as the first node in a list. */
-void flst_add_first(
-    flst_base_node_t *base, /*!< in: pointer to base node of list */
-    flst_node_t *node,      /*!< in: node to add */
-    mtr_t *mtr)             /*!< in: mini-transaction handle */
-{
+/** Adds a node as the first node in a list.
+@param[in] base Pointer to base node of list
+@param[in] node Node to add
+@param[in] mtr Mini-transaction handle */
+void flst_add_first(flst_base_node_t *base, flst_node_t *node, mtr_t *mtr) {
   space_id_t space;
   fil_addr_t node_addr;
   ulint len;
@@ -281,12 +279,11 @@ void flst_insert_before(
   mlog_write_ulint(base + FLST_LEN, len + 1, MLOG_4BYTES, mtr);
 }
 
-/** Removes a node. */
-void flst_remove(
-    flst_base_node_t *base, /*!< in: pointer to base node of list */
-    flst_node_t *node2,     /*!< in: node to remove */
-    mtr_t *mtr)             /*!< in: mini-transaction handle */
-{
+/** Removes a node.
+@param[in] base Pointer to base node of list
+@param[in] node2 Node to remove
+@param[in] mtr Mini-transaction handle */
+void flst_remove(flst_base_node_t *base, flst_node_t *node2, mtr_t *mtr) {
   space_id_t space;
   flst_node_t *node1;
   fil_addr_t node1_addr;

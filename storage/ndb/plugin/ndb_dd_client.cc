@@ -50,7 +50,6 @@
 #include "storage/ndb/plugin/ndb_fk_util.h"
 #include "storage/ndb/plugin/ndb_log.h"
 #include "storage/ndb/plugin/ndb_schema_dist_table.h"
-#include "storage/ndb/plugin/ndb_tdc.h"
 #include "storage/ndb/plugin/ndb_thd.h"
 
 Ndb_dd_client::Ndb_dd_client(THD *thd)
@@ -1607,9 +1606,7 @@ bool Ndb_referenced_tables_invalidator::fetch_referenced_tables_to_invalidate(
 }
 
 /**
-  Invalidate all the tables in the referenced_tables set by closing
-  any cached instances in the table definition cache and invalidating
-  the same from the local DD.
+  @brief Invalidate all the referenced tables from the MySQL DD cache.
 
   @return true        On success.
   @return false       Invalidation failed.
@@ -1617,13 +1614,12 @@ bool Ndb_referenced_tables_invalidator::fetch_referenced_tables_to_invalidate(
 bool Ndb_referenced_tables_invalidator::invalidate() const {
   DBUG_TRACE;
   for (auto parent_it : m_referenced_tables) {
-    // Invalidate Table and Table Definition Caches too.
+    // Invalidate the table from DD
     const char *schema_name = parent_it.first.c_str();
     const char *table_name = parent_it.second.c_str();
     DBUG_PRINT("info",
                ("Invalidating parent table '%s.%s'", schema_name, table_name));
-    if (ndb_tdc_close_cached_table(m_thd, schema_name, table_name) ||
-        m_thd->dd_client()->invalidate(schema_name, table_name) != 0) {
+    if (m_thd->dd_client()->invalidate(schema_name, table_name) != 0) {
       DBUG_PRINT("error", ("Unable to invalidate table '%s.%s'", schema_name,
                            table_name));
       return false;

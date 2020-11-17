@@ -22,6 +22,8 @@ include/rpl_sync.inc
 #     certified remote transactions are not applied.
 #     This will mimic a slow server.
 STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 
 ############################################################
 #  3. Commit a transaction (T1) on server 1, that will be
@@ -59,6 +61,8 @@ include/assert.inc ['There is no value 2 in table t1']
 #     certified remote transactions are applied.
 #     Wait until all group transactions are applied.
 START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_sync.inc
 
 ############################################################

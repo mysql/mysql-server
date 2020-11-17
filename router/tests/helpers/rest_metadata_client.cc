@@ -207,6 +207,10 @@ std::error_code RestMetadataClient::wait_for_cache_changed(
     std::chrono::milliseconds timeout, MetadataStatus &status) {
   MetadataStatus before;
 
+  if (getenv("WITH_VALGRIND")) {
+    timeout *= 10;
+  }
+
   auto end_tp = std::chrono::steady_clock::now() + timeout;
 
   std::error_code ec = wait_until_cache_fetched(
@@ -231,6 +235,10 @@ std::error_code RestMetadataClient::wait_for_cache_changed(
 std::error_code RestMetadataClient::wait_for_cache_updated(
     std::chrono::milliseconds timeout, MetadataStatus &status) {
   MetadataStatus before;
+
+  if (getenv("WITH_VALGRIND")) {
+    timeout *= 10;
+  }
 
   auto end_tp = std::chrono::steady_clock::now() + timeout;
 

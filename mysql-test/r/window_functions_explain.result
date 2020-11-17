@@ -515,7 +515,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `v`.`i` AS `i`,`v`.`j` AS `j`,`v`.`foo` AS `foo` from `test`.`v`
+Note	1003	/* select#1 */ select `test`.`v`.`i` AS `i`,`test`.`v`.`j` AS `j`,`test`.`v`.`foo` AS `foo` from `test`.`v`
 DROP VIEW v;
 EXPLAIN FORMAT=JSON SELECT i, j, SUM(i+j) OVER (ORDER BY j DESC ROWS UNBOUNDED PRECEDING) foo FROM t ORDER BY foo;
 EXPLAIN
@@ -1193,7 +1193,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`u`.`sex` AS `sex`,sum(distinct `test`.`u`.`id`) AS `uids` from `test`.`t1` `u` join `test`.`t2` where (`test`.`t2`.`user_id` = `test`.`u`.`id`) group by `test`.`u`.`sex` order by `uids`
+Note	1003	/* select#1 */ select `test`.`u`.`sex` AS `sex`,sum(distinct `test`.`t1`.`id`) AS `uids` from `test`.`t1` `u` join `test`.`t2` where (`test`.`t2`.`user_id` = `test`.`u`.`id`) group by `test`.`u`.`sex` order by `uids`
 EXPLAIN FORMAT=JSON SELECT id, sex, RANK() OVER (ORDER BY sex) FROM t1 ORDER BY id;
 EXPLAIN
 {
@@ -1387,7 +1387,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`u`.`sex` AS `sex`,rank() OVER (ORDER BY `test`.`u`.`sex` desc )  AS `rank`,avg(distinct `test`.`u`.`id`) AS `uids` from `test`.`t1` `u` join `test`.`t2` where (`test`.`t2`.`user_id` = `test`.`u`.`id`) group by `test`.`u`.`sex` order by `test`.`u`.`sex`
+Note	1003	/* select#1 */ select `test`.`u`.`sex` AS `sex`,rank() OVER (ORDER BY `test`.`u`.`sex` desc )  AS `rank`,avg(distinct `test`.`t1`.`id`) AS `uids` from `test`.`t1` `u` join `test`.`t2` where (`test`.`t2`.`user_id` = `test`.`u`.`id`) group by `test`.`u`.`sex` order by `test`.`u`.`sex`
 Explicit window definition, WINDOW DESC ordering from GROUP BY
 EXPLAIN FORMAT=JSON SELECT  sex, AVG(id) AS uids, RANK() OVER w `rank` FROM t1 u, t2
 WHERE t2.user_id = u.id GROUP BY sex
@@ -1554,7 +1554,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`u`.`sex` AS `sex`,avg(distinct `test`.`u`.`id`) AS `uids`,rank() OVER `w` AS `rank` from `test`.`t1` `u` join `test`.`t2` where (`test`.`t2`.`user_id` = `test`.`u`.`id`) group by `test`.`u`.`sex` window `w` AS (ORDER BY avg(distinct `test`.`u`.`id`) desc )  order by `test`.`u`.`sex`
+Note	1003	/* select#1 */ select `test`.`u`.`sex` AS `sex`,avg(distinct `test`.`t1`.`id`) AS `uids`,rank() OVER `w` AS `rank` from `test`.`t1` `u` join `test`.`t2` where (`test`.`t2`.`user_id` = `test`.`u`.`id`) group by `test`.`u`.`sex` window `w` AS (ORDER BY avg(distinct `test`.`t1`.`id`) desc )  order by `test`.`u`.`sex`
 Explicit window definition, window ordering from GROUP BY, final ORDER BY
 EXPLAIN FORMAT=JSON SELECT  sex, AVG(id) AS uids, RANK() OVER w `rank` FROM t1 u, t2
 WHERE t2.user_id = u.id GROUP BY sex
@@ -4429,7 +4429,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `v`.`id` AS `id`,`v`.`SUM(id) OVER w` AS `SUM(id) OVER w`,`v`.`sex` AS `sex` from `test`.`v`
+Note	1003	/* select#1 */ select `test`.`v`.`id` AS `id`,`test`.`v`.`SUM(id) OVER w` AS `SUM(id) OVER w`,`test`.`v`.`sex` AS `sex` from `test`.`v`
 DROP VIEW v;
 EXPLAIN FORMAT=JSON SELECT SUM(id) OVER w FROM t1
 WINDOW w AS (PARTITION BY sex ORDER BY id
@@ -5596,54 +5596,7 @@ DROP TABLE td;
 -    Currently suboptimal in that it causes N*N reads of tmp buffer
 ----------------------------------------------------------------------
 EXPLAIN FORMAT=JSON SELECT id, NTILE(NULL) OVER w FROM t1 WINDOW w AS (ORDER BY id);
-EXPLAIN
-{
-  "query_block": {
-    "select_id": 1,
-    "cost_info": {
-      "query_cost": "7.95"
-    },
-    "windowing": {
-      "windows": [
-        {
-          "name": "w",
-          "using_filesort": true,
-          "filesort_key": [
-            "`id`"
-          ],
-          "frame_buffer": {
-            "using_temporary_table": true,
-            "optimized_frame_evaluation": true
-          },
-          "functions": [
-            "ntile"
-          ]
-        }
-      ],
-      "cost_info": {
-        "sort_cost": "7.00"
-      },
-      "table": {
-        "table_name": "t1",
-        "access_type": "ALL",
-        "rows_examined_per_scan": 7,
-        "rows_produced_per_join": 7,
-        "filtered": "100.00",
-        "cost_info": {
-          "read_cost": "0.25",
-          "eval_cost": "0.70",
-          "prefix_cost": "0.95",
-          "data_read_per_join": "112"
-        },
-        "used_columns": [
-          "id"
-        ]
-      }
-    }
-  }
-}
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,ntile(NULL) OVER `w` AS `NTILE(NULL) OVER w` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`id` ) 
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NULL) OVER w FROM t1 WINDOW w AS (ORDER BY id)' at line 1
 EXPLAIN FORMAT=JSON SELECT id, NTILE(1) OVER w FROM t1 WINDOW w AS (ORDER BY id);
 EXPLAIN
 {
@@ -7010,7 +6963,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `v`.`id` AS `id`,`v`.`FIRST_VALUE(id) OVER w` AS `FIRST_VALUE(id) OVER w` from `test`.`v`
+Note	1003	/* select#1 */ select `test`.`v`.`id` AS `id`,`test`.`v`.`FIRST_VALUE(id) OVER w` AS `FIRST_VALUE(id) OVER w` from `test`.`v`
 DROP VIEW v;
 EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM t1 WINDOW w AS (ORDER BY id ROWS  BETWEEN 2 FOLLOWING AND 3 FOLLOWING);
 EXPLAIN
@@ -9207,7 +9160,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `v`.`id` AS `id`,`v`.`FIRST_VALUE(id) OVER w` AS `FIRST_VALUE(id) OVER w` from `test`.`v`
+Note	1003	/* select#1 */ select `test`.`v`.`id` AS `id`,`test`.`v`.`FIRST_VALUE(id) OVER w` AS `FIRST_VALUE(id) OVER w` from `test`.`v`
 DROP VIEW v;
 EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS (ORDER BY id ROWS  BETWEEN 2 FOLLOWING AND 3 FOLLOWING);
 EXPLAIN
@@ -9388,7 +9341,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `v`.`id` AS `id`,`v`.`FIRST_VALUE(id) OVER w` AS `FIRST_VALUE(id) OVER w` from `test`.`v`
+Note	1003	/* select#1 */ select `test`.`v`.`id` AS `id`,`test`.`v`.`FIRST_VALUE(id) OVER w` AS `FIRST_VALUE(id) OVER w` from `test`.`v`
 DROP VIEW v;
 DROP TABLE t_date;
 CREATE TABLE t_time(t TIME, ts TIMESTAMP);
@@ -12615,7 +12568,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `v`.`COUNT(*) OVER w0` AS `COUNT(*) OVER w0`,`v`.`COUNT(*) OVER w` AS `COUNT(*) OVER w`,`v`.`COUNT(*) OVER w1` AS `COUNT(*) OVER w1` from `test`.`v`
+Note	1003	/* select#1 */ select `test`.`v`.`COUNT(*) OVER w0` AS `COUNT(*) OVER w0`,`test`.`v`.`COUNT(*) OVER w` AS `COUNT(*) OVER w`,`test`.`v`.`COUNT(*) OVER w1` AS `COUNT(*) OVER w1` from `test`.`v`
 DROP VIEW v;
 ----------------------------------------------------------------------
 - Bugs with induction of hidden fields from window function also used
@@ -16534,22 +16487,9 @@ ROW_NUMBER() OVER (PARTITION BY i)	SUM(i) OVER (ORDER BY i DESC)
 1	677
 1	518
 1	319
-SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
-QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
-SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t GROUP BY i ORDER BY i	{
-  "steps": [
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "expanded_query": "/* select#1 */ select row_number() OVER (PARTITION BY `t`.`i` )  AS `ROW_NUMBER() OVER (PARTITION BY i)`,sum(`t`.`i`) OVER (ORDER BY `t`.`i` desc )  AS `SUM(i) OVER (ORDER BY i DESC)` from `t` group by `t`.`i` order by `t`.`i`"
-          }
-        ]
-      }
-    },
-    {
-      "join_optimization": {
+SELECT REGEXP_SUBSTR(TRACE, 'join_optimization.*', 1, 1, 'n') FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+REGEXP_SUBSTR(TRACE, 'join_optimization.*', 1, 1, 'n')
+join_optimization": {
         "select#": 1,
         "steps": [
           {
@@ -16784,8 +16724,8 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
                           "memory_available": 262144,
                           "key_size": "XXX",
                           "row_size": "XXX",
-                          "max_rows_per_buffer": 34,
-                          "num_rows_estimate": 34,
+                          "max_rows_per_buffer": "NNN",
+                          "num_rows_estimate": 40,
                           "num_rows_found": 24,
                           "num_initial_chunks_spilled_to_disk": 0,
                           "peak_memory_used": "NNN",
@@ -16814,8 +16754,8 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
                     "memory_available": 262144,
                     "key_size": "XXX",
                     "row_size": "XXX",
-                    "max_rows_per_buffer": 34,
-                    "num_rows_estimate": 34,
+                    "max_rows_per_buffer": "NNN",
+                    "num_rows_estimate": 18446744073709551615,
                     "num_rows_found": 24,
                     "num_initial_chunks_spilled_to_disk": 0,
                     "peak_memory_used": "NNN",
@@ -16844,8 +16784,8 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
               "memory_available": 262144,
               "key_size": "XXX",
               "row_size": "XXX",
-              "max_rows_per_buffer": 34,
-              "num_rows_estimate": 34,
+              "max_rows_per_buffer": "NNN",
+              "num_rows_estimate": 18446744073709551615,
               "num_rows_found": 24,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
@@ -16857,6 +16797,6 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
       }
     }
   ]
-}	0	0
+}
 SET optimizer_trace="enabled=off";
 DROP TABLE t;

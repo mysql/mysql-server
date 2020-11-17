@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,9 +32,9 @@ using my_testing::Server_initializer;
 
 class ItemFuncCaseTest : public ::testing::Test {
  protected:
-  virtual void SetUp() { initializer.SetUp(); }
+  void SetUp() override { initializer.SetUp(); }
 
-  virtual void TearDown() { initializer.TearDown(); }
+  void TearDown() override { initializer.TearDown(); }
 
   THD *thd() { return initializer.thd(); }
 
@@ -57,11 +57,11 @@ class ItemFuncCaseTest : public ::testing::Test {
 TEST_F(ItemFuncCaseTest, CaseWhenElseNull) {
   Item_int *int_one = new Item_int(1);
   Item_int *int_n = new Item_int(180ULL);
-  List<Item> list;
+  mem_root_deque<Item *> list(*THR_MALLOC);
   list.push_back(int_one);
   list.push_back(int_n);
   Item_func_case *item_case =
-      new Item_func_case(POS(), list, nullptr, new Item_null());
+      new Item_func_case(POS(), &list, nullptr, new Item_null());
   EXPECT_FALSE(item_case->fix_fields(thd(), nullptr));
 
   EXPECT_FALSE(int_one->unsigned_flag);

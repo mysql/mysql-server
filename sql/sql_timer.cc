@@ -217,7 +217,8 @@ static bool reap_timer(THD_timer_info *thd_timer, bool pending) {
 
 THD_timer_info *thd_timer_reset(THD_timer_info *thd_timer) {
   bool unreachable;
-  int status, state;
+  int status;
+  int state{0};
   DBUG_TRACE;
 
   status = my_timer_cancel(&thd_timer->timer, &state);

@@ -10,7 +10,7 @@ include/start_and_bootstrap_group_replication.inc
 # 2. Disable applier sql thread on server1 to prevent other servers to
 #    join the group, will be block on recovery
 include/gr_stop_applier_sql_thread.inc
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 
 # 3. Start server 2 that will block on recovery
 [connection server2]
@@ -31,7 +31,7 @@ ERROR HY000: Can't initialize function 'group_replication_switch_to_single_prima
 # 5. Unlock applier sql thread to allow server2 to join to group
 [connection server1]
 include/gr_start_applier_sql_thread.inc
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 
 # 6. Cleanup
 include/group_replication_end.inc

@@ -82,6 +82,41 @@ Pattern "Failed to Populate DD tables." found
 # the server. This will not fail after the bugfix since the trigger order is now corrected.
 # Stop the server.
 # Remove the datadir, but keep the error log in case.
+
+# ------------------------------------------------------------------
+# Bug#31335554 8.0 CRASHES ON UPGRADING DATADIR WITH ORPHAN EVENTS
+# ------------------------------------------------------------------
+
+# Testcase 1: Upgrading with orphan event should fail with an error.
+
+# Copy the 5.7 data zip file to working directory.
+# Check that the zip file exists in the working directory.
+# Unzip 5.7 data directory.
+# Set data directory to the 5.7 data directory.
+# Set log directory.
+# Start server to trigger upgrade.
+# Upgrade will fail due to presence of orphan event.
+
+# Should find this error in the log.
+Pattern "The schema "the_cake_is_a_lie" referenced by event "e1" does not exist\. Please clean up any orphan events before upgrading\." found
+
+# Cleanup.
+
+# Testcase 2: Upgrading with orphan routine should fail with an error.
+
+# Copy the 5.7 data zip file to working directory.
+# Check that the zip file exists in the working directory.
+# Unzip 5.7 data directory.
+# Set data directory to the 5.7 data directory.
+# Set log directory.
+# Start server to trigger upgrade.
+# Upgrade will fail due to presence of orphan routine.
+
+# Should find this error in the log.
+Pattern "The schema "xyz" referenced by routine "p1" does not exist\. Please clean up any orphan routines before upgrading\." found
+
+# Cleanup.
+
 # ------------------------------------------------------------------
 # End-of-test cleanup.
 # ------------------------------------------------------------------

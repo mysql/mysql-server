@@ -1530,7 +1530,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` union /* select#2 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` order by `<union temporary>`.`b`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` union /* select#2 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` order by `b`
 select * from t1 union select * from t2 order by b;
 a	b
 1	a
@@ -1816,32 +1816,21 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.10"
+      "query_cost": "1.95"
     },
     "nested_loop": [
       {
         "table": {
           "table_name": "t",
-          "access_type": "ref",
-          "possible_keys": [
-            "<auto_key0>"
-          ],
-          "key": "<auto_key0>",
-          "used_key_parts": [
-            "a"
-          ],
-          "key_length": "5",
-          "ref": [
-            "const"
-          ],
-          "rows_examined_per_scan": 1,
-          "rows_produced_per_join": 1,
+          "access_type": "ALL",
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 2,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "0.25",
-            "eval_cost": "0.10",
-            "prefix_cost": "0.35",
-            "data_read_per_join": "24"
+            "read_cost": "0.50",
+            "eval_cost": "0.20",
+            "prefix_cost": "0.70",
+            "data_read_per_join": "48"
           },
           "used_columns": [
             "a",
@@ -1860,7 +1849,18 @@ EXPLAIN
               },
               "table": {
                 "table_name": "t6",
-                "access_type": "ALL",
+                "access_type": "ref",
+                "possible_keys": [
+                  "t6_indx1"
+                ],
+                "key": "t6_indx1",
+                "used_key_parts": [
+                  "a"
+                ],
+                "key_length": "5",
+                "ref": [
+                  "const"
+                ],
                 "rows_examined_per_scan": 1,
                 "rows_produced_per_join": 1,
                 "filtered": "100.00",
@@ -1886,14 +1886,14 @@ EXPLAIN
           "table_name": "t1",
           "access_type": "ALL",
           "rows_examined_per_scan": 5,
-          "rows_produced_per_join": 5,
+          "rows_produced_per_join": 10,
           "filtered": "100.00",
           "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.25",
-            "eval_cost": "0.50",
-            "prefix_cost": "1.10",
-            "data_read_per_join": "440"
+            "eval_cost": "1.00",
+            "prefix_cost": "1.95",
+            "data_read_per_join": "880"
           },
           "used_columns": [
             "a",
@@ -1905,7 +1905,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t`.`a` AS `a`,`t`.`b` AS `b`,`t`.`c` AS `c`,`t`.`d` AS `d` from `test`.`t1` join (/* select#2 */ select `test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t6`.`c` AS `c`,`test`.`t6`.`d` AS `d` from `test`.`t6`) `t` where (`t`.`a` = 5)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t`.`a` AS `a`,`t`.`b` AS `b`,`t`.`c` AS `c`,`t`.`d` AS `d` from `test`.`t1` join (/* select#2 */ select `test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t6`.`c` AS `c`,`test`.`t6`.`d` AS `d` from `test`.`t6` where (`test`.`t6`.`a` = 5)) `t`
 select * from t1, (select * from t6) as t where t.a =5;
 a	b	a	b	c	d
 explain format = json select * from t1 where t1.a in (select a from t2) ;
@@ -3420,7 +3420,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` union /* select#2 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` order by `<union temporary>`.`b`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` union /* select#2 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` order by `b`
 select * from t1 union select * from t2 order by b;
 a	b
 9	a
@@ -3705,32 +3705,21 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.10"
+      "query_cost": "1.95"
     },
     "nested_loop": [
       {
         "table": {
           "table_name": "t",
-          "access_type": "ref",
-          "possible_keys": [
-            "<auto_key0>"
-          ],
-          "key": "<auto_key0>",
-          "used_key_parts": [
-            "a"
-          ],
-          "key_length": "5",
-          "ref": [
-            "const"
-          ],
-          "rows_examined_per_scan": 1,
-          "rows_produced_per_join": 1,
+          "access_type": "ALL",
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 2,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "0.25",
-            "eval_cost": "0.10",
-            "prefix_cost": "0.35",
-            "data_read_per_join": "24"
+            "read_cost": "0.50",
+            "eval_cost": "0.20",
+            "prefix_cost": "0.70",
+            "data_read_per_join": "48"
           },
           "used_columns": [
             "a",
@@ -3749,7 +3738,18 @@ EXPLAIN
               },
               "table": {
                 "table_name": "t6",
-                "access_type": "ALL",
+                "access_type": "ref",
+                "possible_keys": [
+                  "t6_indx1"
+                ],
+                "key": "t6_indx1",
+                "used_key_parts": [
+                  "a"
+                ],
+                "key_length": "5",
+                "ref": [
+                  "const"
+                ],
                 "rows_examined_per_scan": 1,
                 "rows_produced_per_join": 1,
                 "filtered": "100.00",
@@ -3775,14 +3775,14 @@ EXPLAIN
           "table_name": "t1",
           "access_type": "ALL",
           "rows_examined_per_scan": 5,
-          "rows_produced_per_join": 5,
+          "rows_produced_per_join": 10,
           "filtered": "100.00",
           "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.25",
-            "eval_cost": "0.50",
-            "prefix_cost": "1.10",
-            "data_read_per_join": "440"
+            "eval_cost": "1.00",
+            "prefix_cost": "1.95",
+            "data_read_per_join": "880"
           },
           "used_columns": [
             "a",
@@ -3794,7 +3794,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t`.`a` AS `a`,`t`.`b` AS `b`,`t`.`c` AS `c`,`t`.`d` AS `d` from `test`.`t1` join (/* select#2 */ select `test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t6`.`c` AS `c`,`test`.`t6`.`d` AS `d` from `test`.`t6`) `t` where (`t`.`a` = 5)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t`.`a` AS `a`,`t`.`b` AS `b`,`t`.`c` AS `c`,`t`.`d` AS `d` from `test`.`t1` join (/* select#2 */ select `test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t6`.`c` AS `c`,`test`.`t6`.`d` AS `d` from `test`.`t6` where (`test`.`t6`.`a` = 5)) `t`
 select * from t1, (select * from t6) as t where t.a =5;
 a	b	a	b	c	d
 explain format = json select * from t1 where t1.a in (select a from t2) ;

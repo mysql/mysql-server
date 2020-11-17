@@ -64,6 +64,7 @@ Mysqlx.Ok {
 }
 ok
 # Syncing with status [ 'Mysqlx_connections_closed' == 1 ]
+# Syncing with status [ 'Mysqlx_sessions_closed' == 1 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	1
@@ -245,6 +246,7 @@ Mysqlx.Ok {
 }
 ok
 # Syncing with status [ 'Mysqlx_connections_closed' == 1 ]
+# Syncing with status [ 'Mysqlx_sessions_closed' == 1 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	1
@@ -946,6 +948,7 @@ Mysqlx.Ok {
 ok
 # Syncing with status [ 'Mysqlx_connections_closed' == 2 ]
 # Syncing with status [ 'Mysqlx_connections_accepted' == 2 ]
+# Syncing with status [ 'Mysqlx_sessions_closed' == 2 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	2
@@ -1009,6 +1012,7 @@ Mysqlx.Ok {
 ok
 # Syncing with status [ 'Mysqlx_connections_closed' == 3 ]
 # Syncing with status [ 'Mysqlx_connections_accepted' == 3 ]
+# Syncing with status [ 'Mysqlx_sessions_closed' == 3 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	3
@@ -1130,6 +1134,7 @@ Mysqlx.Ok {
 ok
 # Syncing with status [ 'Mysqlx_connections_closed' == 6 ]
 # Syncing with status [ 'Mysqlx_connections_accepted' == 6 ]
+# Syncing with status [ 'Mysqlx_sessions_closed' == 6 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	6
@@ -1269,6 +1274,7 @@ Mysqlx.Ok {
 ok
 # Syncing with status [ 'Mysqlx_connections_closed' == 10 ]
 # Syncing with status [ 'Mysqlx_connections_accepted' == 10 ]
+# Syncing with status [ 'Mysqlx_sessions_closed' == 10 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	10

@@ -83,6 +83,7 @@ struct st_opt_hint_info opt_hint_info[] = {
     {"JOIN_INDEX", false, false, false},
     {"GROUP_INDEX", false, false, false},
     {"ORDER_INDEX", false, false, false},
+    {"DERIVED_CONDITION_PUSHDOWN", true, true, false},
     {nullptr, false, false, false}};
 
 /**
@@ -515,12 +516,6 @@ static bool set_join_hint_deps(JOIN *join,
   return false;
 }
 
-/**
-  Function applies join order hints.
-
-  @param join pointer to JOIN object
-*/
-
 void Opt_hints_qb::apply_join_order_hints(JOIN *join) {
   for (uint hint_idx = 0; hint_idx < join_order_hints.size(); hint_idx++) {
     PT_qb_level_hint *hint = join_order_hints[hint_idx];
@@ -545,8 +540,9 @@ void Opt_hints_table::adjust_key_hints(TABLE_LIST *tr) {
   */
   if (keyinfo_array.size()) return;
 
-  if (tr->is_view_or_derived())
-    return;  // Names of keys are not known for derived tables
+  // Names of keys are not known for
+  // derived/internal temp/table_function tables.
+  if (!tr->is_base_table()) return;
 
   TABLE *table = tr->table;
   keyinfo_array.resize(table->s->keys, nullptr);

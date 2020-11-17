@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,9 +35,9 @@ class TransactionPayloadCodecTest : public ::testing::Test {
   std::vector<std::size_t> m_payloads;
   TransactionPayloadCodecTest() {}
 
-  virtual void SetUp() { m_payloads.push_back(128); }
+  void SetUp() override { m_payloads.push_back(128); }
 
-  virtual void TearDown() { m_payloads.clear(); }
+  void TearDown() override { m_payloads.clear(); }
 
   void run_codec_idempotency_test(binary_log::codecs::Codec &codec) {
     for (auto payload_size : m_payloads) {

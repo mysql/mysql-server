@@ -88,7 +88,8 @@ class Filesort_buffer {
   /** Sort me...
     @return Number of records, after any deduplication
    */
-  unsigned sort_buffer(Sort_param *param, uint count);
+  size_t sort_buffer(Sort_param *param, size_t num_input_rows,
+                     size_t max_output_rows);
 
   /**
     Prepares the buffer for the next batch of records to process.

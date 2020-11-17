@@ -18,6 +18,7 @@ if (!$SIMULATED_ENGINE_ATTRIBUTE_SUPPORT) {
 CREATE TABLE t1(i INT) ENGINE_ATTRIBUTE='';
 if ($SIMULATED_ENGINE_ATTRIBUTE_SUPPORT) {
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM information_schema.tables_extensions WHERE table_name = 't1';
 DROP TABLE t1;
 }
@@ -28,6 +29,7 @@ if (!$SIMULATED_ENGINE_ATTRIBUTE_SUPPORT) {
 CREATE TABLE t1(i INT) ENGINE_ATTRIBUTE='{"table attr": "for engine"}';
 if ($SIMULATED_ENGINE_ATTRIBUTE_SUPPORT) {
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM information_schema.tables_extensions WHERE table_name = 't1';
 DROP TABLE t1;
 }
@@ -46,6 +48,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1(i INT) SECONDARY_ENGINE_ATTRIBUTE='{"table attr": "for secondary engine"}';
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM information_schema.tables_extensions WHERE table_name = 't1';
 DROP TABLE t1;
 
@@ -62,6 +65,7 @@ CREATE TABLE t1(i INT ENGINE_ATTRIBUTE='');
 if ($SIMULATED_ENGINE_ATTRIBUTE_SUPPORT) {
 SHOW CREATE TABLE t1;
 SHOW FULL COLUMNS FROM t1;
+--sorted_result
 SELECT * FROM information_schema.columns_extensions WHERE table_name = 't1';
 DROP TABLE t1;
 }
@@ -74,6 +78,7 @@ CREATE TABLE t1(i INT ENGINE_ATTRIBUTE='{"column attr": "for engine"}' SECONDARY
 if ($SIMULATED_ENGINE_ATTRIBUTE_SUPPORT) {
 SHOW CREATE TABLE t1;
 SHOW FULL COLUMNS FROM t1;
+--sorted_result
 SELECT * FROM information_schema.columns_extensions WHERE table_name = 't1';
 DROP TABLE t1;
 }
@@ -93,6 +98,7 @@ CREATE TABLE t1(i INT, j INT, INDEX(j) ENGINE_ATTRIBUTE='{"index attr": "for eng
 if ($SIMULATED_ENGINE_ATTRIBUTE_SUPPORT) {
 SHOW CREATE TABLE t1;
 SHOW INDEX FROM t1;
+--sorted_result
 SELECT * FROM information_schema.table_constraints_extensions WHERE table_name = 't1';
 DROP TABLE t1;
 }
@@ -113,6 +119,7 @@ if (!$SIMULATED_ENGINE_ATTRIBUTE_SUPPORT) {
 CREATE INDEX ix ON t1(i) ENGINE_ATTRIBUTE='{"index attr": "for engine"}' SECONDARY_ENGINE_ATTRIBUTE='{"index attr":"for secondary engine"}';
 SHOW CREATE TABLE t1;
 SHOW INDEX FROM t1;
+--sorted_result
 SELECT * FROM information_schema.table_constraints_extensions WHERE table_name = 't1';
 DROP TABLE t1;
 
@@ -133,8 +140,11 @@ if ($SIMULATED_ENGINE_ATTRIBUTE_SUPPORT) {
 SHOW CREATE TABLE t1;
 SHOW FULL COLUMNS FROM t1;
 SHOW INDEX FROM t1;
+--sorted_result
 SELECT * FROM information_schema.tables_extensions WHERE table_name = 't1';
+--sorted_result
 SELECT * FROM information_schema.columns_extensions WHERE table_name = 't1' ORDER BY column_name;
+--sorted_result
 SELECT * FROM information_schema.table_constraints_extensions WHERE table_name = 't1' ORDER BY constraint_name;
 
 --echo # Verify that SHOW CREATE TABLE output can be used to create
@@ -176,8 +186,11 @@ if ($SIMULATED_ENGINE_ATTRIBUTE_SUPPORT) {
 SHOW CREATE TABLE t1;
 SHOW FULL COLUMNS FROM t1;
 SHOW INDEX FROM t1;
+--sorted_result
 SELECT * FROM information_schema.tables_extensions WHERE table_name = 't1';
+--sorted_result
 SELECT * FROM information_schema.columns_extensions WHERE table_name = 't1' ORDER BY column_name;
+--sorted_result
 SELECT * FROM information_schema.table_constraints_extensions WHERE table_name = 't1' ORDER BY constraint_name;
 
 CREATE TABLE t2 LIKE t1;
@@ -196,8 +209,11 @@ CREATE TABLE t3 ENGINE_ATTRIBUTE='{"table attr": "t3, create as select"}' AS SEL
 SHOW CREATE TABLE t3;
 SHOW FULL COLUMNS FROM t3;
 SHOW INDEX FROM t3;
+--sorted_result
 SELECT * FROM information_schema.tables_extensions WHERE table_name = 't3';
+--sorted_result
 SELECT * FROM information_schema.columns_extensions WHERE table_name = 't3' ORDER BY column_name;
+--sorted_result
 SELECT * FROM information_schema.table_constraints_extensions WHERE table_name = 't3' ORDER BY constraint_name;
 
 DROP TABLE t3;
@@ -237,8 +253,11 @@ if ($SIMULATED_ENGINE_ATTRIBUTE_SUPPORT) {
 SHOW CREATE TABLE t1;
 SHOW FULL COLUMNS FROM t1;
 SHOW INDEX FROM t1;
+--sorted_result
 SELECT * FROM information_schema.tables_extensions WHERE table_name = 't1';
+--sorted_result
 SELECT * FROM information_schema.columns_extensions WHERE table_name = 't1' ORDER BY column_name;
+--sorted_result
 SELECT * FROM information_schema.table_constraints_extensions WHERE table_name = 't1' ORDER BY constraint_name;
 
 DROP TABLE t1;
@@ -257,6 +276,7 @@ if (!$SIMULATED_ENGINE_ATTRIBUTE_SUPPORT) {
 }
 ALTER TABLE t1 ENGINE_ATTRIBUTE='{"table algo": "none"}';
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM information_schema.tables_extensions WHERE table_name = 't1';
 
 if (!$SIMULATED_ENGINE_ATTRIBUTE_SUPPORT) {
@@ -265,6 +285,7 @@ if (!$SIMULATED_ENGINE_ATTRIBUTE_SUPPORT) {
 ALTER TABLE t1 ENGINE_ATTRIBUTE='{"table algo": "inplace"}',
 ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM information_schema.tables_extensions WHERE table_name = 't1';
 
 
@@ -285,6 +306,7 @@ if (!$SIMULATED_ENGINE_ATTRIBUTE_SUPPORT) {
 }
 ALTER TABLE t1 ADD COLUMN l VARCHAR(64) ENGINE_ATTRIBUTE='{"add column algo":"none"}';
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM information_schema.columns_extensions WHERE table_name = 't1';
 
 if (!$SIMULATED_ENGINE_ATTRIBUTE_SUPPORT) {
@@ -292,6 +314,7 @@ if (!$SIMULATED_ENGINE_ATTRIBUTE_SUPPORT) {
 }
 ALTER TABLE t1 ADD COLUMN m VARCHAR(64) ENGINE_ATTRIBUTE='{"add column algo":"inplace"}', ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM information_schema.columns_extensions WHERE table_name = 't1';
 
 if (!$SIMULATED_ENGINE_ATTRIBUTE_SUPPORT) {
@@ -299,6 +322,7 @@ if (!$SIMULATED_ENGINE_ATTRIBUTE_SUPPORT) {
 }
 ALTER TABLE t1 ADD COLUMN n VARCHAR(64) ENGINE_ATTRIBUTE='{"add column algo":"instant"}', ALGORITHM=INSTANT;
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM information_schema.columns_extensions WHERE table_name = 't1';
 
 --echo ## Modifying columns with attributes
@@ -307,6 +331,7 @@ if (!$SIMULATED_ENGINE_ATTRIBUTE_SUPPORT) {
 }
 ALTER TABLE t1 MODIFY COLUMN l INT ENGINE_ATTRIBUTE='{"modify column algo": "none"}';
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM information_schema.columns_extensions WHERE table_name = 't1';
 
 if (!$SIMULATED_ENGINE_ATTRIBUTE_SUPPORT) {
@@ -332,6 +357,7 @@ if (!$SIMULATED_ENGINE_ATTRIBUTE_SUPPORT) {
 --error ER_ENGINE_ATTRIBUTE_NOT_SUPPORTED
 ALTER TABLE t1 CHANGE COLUMN l ll CHAR(8) ENGINE_ATTRIBUTE='{"change column algo": "none"}';
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM information_schema.columns_extensions WHERE table_name = 't1';
 }
 
@@ -343,6 +369,7 @@ if ($SIMULATED_ENGINE_ATTRIBUTE_SUPPORT) {
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 CHANGE COLUMN m mm CHAR(8) ENGINE_ATTRIBUTE='{"change column algo": "inplace" }', ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM information_schema.columns_extensions WHERE table_name = 't1';
 }
 
@@ -354,6 +381,7 @@ if ($SIMULATED_ENGINE_ATTRIBUTE_SUPPORT) {
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 CHANGE COLUMN n nn CHAR(8) ENGINE_ATTRIBUTE='{"change column algo": "instant" }', ALGORITHM=INSTANT;
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM information_schema.columns_extensions WHERE table_name = 't1';
 }
 
@@ -363,6 +391,7 @@ if (!$SIMULATED_ENGINE_ATTRIBUTE_SUPPORT) {
 }
 ALTER TABLE t1 ADD INDEX (i) ENGINE_ATTRIBUTE='{"index algo":"none"}';
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM information_schema.table_constraints_extensions WHERE table_name = 't1';
 
 if (!$SIMULATED_ENGINE_ATTRIBUTE_SUPPORT) {
@@ -372,6 +401,7 @@ ALTER TABLE t1 ADD INDEX (m) ENGINE_ATTRIBUTE='{"index algo":"inplace"}', ALGORI
 if ($SIMULATED_ENGINE_ATTRIBUTE_SUPPORT) {
 ALTER TABLE t1 ADD INDEX (m) ENGINE_ATTRIBUTE='{"index algo":"inplace"}', ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM information_schema.table_constraints_extensions WHERE table_name = 't1';
 }
 
@@ -397,11 +427,13 @@ CREATE TABLE t1(i INT, j INT, k INT);
 --echo ## Altering attributes on table
 ALTER TABLE t1 SECONDARY_ENGINE_ATTRIBUTE='{"table algo": "none"}';
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM information_schema.tables_extensions WHERE table_name = 't1';
 
 ALTER TABLE t1 SECONDARY_ENGINE_ATTRIBUTE='{"table algo": "inplace"}',
 ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM information_schema.tables_extensions WHERE table_name = 't1';
 
 --error ER_ALTER_OPERATION_NOT_SUPPORTED
@@ -411,19 +443,23 @@ ALGORITHM=INSTANT;
 --echo ## Adding columns with attributes
 ALTER TABLE t1 ADD COLUMN l VARCHAR(64) SECONDARY_ENGINE_ATTRIBUTE='{"add column algo":"none"}';
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM information_schema.columns_extensions WHERE table_name = 't1';
 
 ALTER TABLE t1 ADD COLUMN m VARCHAR(64) SECONDARY_ENGINE_ATTRIBUTE='{"add column algo":"inplace"}', ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM information_schema.columns_extensions WHERE table_name = 't1';
 
 ALTER TABLE t1 ADD COLUMN n VARCHAR(64) SECONDARY_ENGINE_ATTRIBUTE='{"add column algo":"instant"}', ALGORITHM=INSTANT;
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM information_schema.columns_extensions WHERE table_name = 't1';
 
 --echo ## Modifying columns with attributes
 ALTER TABLE t1 MODIFY COLUMN l INT SECONDARY_ENGINE_ATTRIBUTE='{"modify column algo": "none"}';
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM information_schema.columns_extensions WHERE table_name = 't1';
 
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
@@ -432,6 +468,7 @@ ALTER TABLE t1 MODIFY COLUMN m INT SECONDARY_ENGINE_ATTRIBUTE='{"modify column a
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 MODIFY COLUMN m INT SECONDARY_ENGINE_ATTRIBUTE='{"modify column algo": "inplace"}', ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM information_schema.columns_extensions WHERE table_name = 't1';
 
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
@@ -440,12 +477,14 @@ ALTER TABLE t1 MODIFY COLUMN n INT SECONDARY_ENGINE_ATTRIBUTE='{"modify column a
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 MODIFY COLUMN n INT SECONDARY_ENGINE_ATTRIBUTE='{"modify column algo": "instant"}', ALGORITHM=INSTANT;
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM information_schema.columns_extensions WHERE table_name = 't1';
 
 
 --echo ## Changing columns with attributes
 ALTER TABLE t1 CHANGE COLUMN l ll CHAR(8) SECONDARY_ENGINE_ATTRIBUTE='{"change column algo": "none"}';
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM information_schema.columns_extensions WHERE table_name = 't1';
 
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
@@ -454,6 +493,7 @@ ALTER TABLE t1 CHANGE COLUMN m mm CHAR(8) SECONDARY_ENGINE_ATTRIBUTE='{"change c
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 CHANGE COLUMN m mm CHAR(8) SECONDARY_ENGINE_ATTRIBUTE='{"change column algo": "inplace" }', ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM information_schema.columns_extensions WHERE table_name = 't1';
 
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
@@ -462,15 +502,18 @@ ALTER TABLE t1 CHANGE COLUMN n nn CHAR(8) SECONDARY_ENGINE_ATTRIBUTE='{"change c
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 CHANGE COLUMN n nn CHAR(8) SECONDARY_ENGINE_ATTRIBUTE='{"change column algo": "instant" }', ALGORITHM=INSTANT;
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM information_schema.columns_extensions WHERE table_name = 't1';
 
 --echo ## Adding index with attributes
 ALTER TABLE t1 ADD INDEX (i) SECONDARY_ENGINE_ATTRIBUTE='{"index algo":"none"}';
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM information_schema.table_constraints_extensions WHERE table_name = 't1';
 
 ALTER TABLE t1 ADD INDEX (m) SECONDARY_ENGINE_ATTRIBUTE='{"index algo":"inplace"}', ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM information_schema.table_constraints_extensions WHERE table_name = 't1';
 
 --error ER_ALTER_OPERATION_NOT_SUPPORTED
@@ -500,8 +543,11 @@ ALTER TABLE t1 MODIFY COLUMN i INT
 
 if ($SIMULATED_ENGINE_ATTRIBUTE_SUPPORT) {
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM information_schema.tables_extensions WHERE table_name = 't1';
+--sorted_result
 SELECT * FROM information_schema.columns_extensions WHERE table_name = 't1' ORDER BY column_name;
+--sorted_result
 SELECT * FROM information_schema.table_constraints_extensions WHERE table_name = 't1' ORDER BY constraint_name;
 }
 DROP TABLE t1;
@@ -528,8 +574,11 @@ ALTER TABLE t1
 
 if ($SIMULATED_ENGINE_ATTRIBUTE_SUPPORT) {
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM information_schema.tables_extensions WHERE table_name = 't1';
+--sorted_result
 SELECT * FROM information_schema.columns_extensions WHERE table_name = 't1' ORDER BY column_name;
+--sorted_result
 SELECT * FROM information_schema.table_constraints_extensions WHERE table_name = 't1' ORDER BY constraint_name;
 }
 DROP TABLE t1;

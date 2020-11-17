@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -145,7 +145,7 @@ class PFS_index_uvar_by_thread : public PFS_engine_index {
         m_key_1("THREAD_ID"),
         m_key_2("VARIABLE_NAME") {}
 
-  ~PFS_index_uvar_by_thread() {}
+  ~PFS_index_uvar_by_thread() override {}
 
   virtual bool match(PFS_thread *pfs);
   virtual bool match(const User_variable *pfs);
@@ -165,22 +165,22 @@ class table_uvar_by_thread : public PFS_engine_table {
   static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
 
-  virtual void reset_position(void);
+  void reset_position(void) override;
 
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
+  int rnd_next() override;
+  int rnd_pos(const void *pos) override;
 
-  virtual int index_init(uint idx, bool sorted);
-  virtual int index_next();
+  int index_init(uint idx, bool sorted) override;
+  int index_next() override;
 
  protected:
-  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all);
+  int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                      bool read_all) override;
 
   table_uvar_by_thread();
 
  public:
-  ~table_uvar_by_thread() { m_THD_cache.reset(); }
+  ~table_uvar_by_thread() override { m_THD_cache.reset(); }
 
  protected:
   int materialize(PFS_thread *thread);

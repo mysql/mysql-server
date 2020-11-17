@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,8 +47,8 @@ using ::testing::StrictMock;
 */
 class CopyInfoTest : public ::testing::Test {
  protected:
-  virtual void SetUp() { initializer.SetUp(); }
-  virtual void TearDown() { initializer.TearDown(); }
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
 
   Server_initializer initializer;
 };
@@ -70,7 +70,8 @@ class Mock_field : public Field_long {
 */
 class Mock_COPY_INFO : public COPY_INFO {
  public:
-  Mock_COPY_INFO(operation_type optype, List<Item> *inserted_columns,
+  Mock_COPY_INFO(operation_type optype,
+                 mem_root_deque<Item *> *inserted_columns,
                  enum_duplicates duplicate_handling)
       : COPY_INFO(optype, inserted_columns,
                   true,  // manage_defaults
@@ -88,10 +89,10 @@ class Mock_COPY_INFO_insert : public COPY_INFO {
  public:
   Mock_COPY_INFO_insert()
       : COPY_INFO(COPY_INFO::INSERT_OPERATION,
-                  static_cast<List<Item> *>(nullptr),
+                  static_cast<mem_root_deque<Item *> *>(nullptr),
                   true,  // manage_defaults
                   DUP_UPDATE) {}
-  Mock_COPY_INFO_insert(List<Item> *fields)
+  explicit Mock_COPY_INFO_insert(mem_root_deque<Item *> *fields)
       : COPY_INFO(COPY_INFO::INSERT_OPERATION, fields,
                   true,  // manage_defaults
                   DUP_UPDATE) {}
@@ -117,7 +118,7 @@ class Mock_COPY_INFO_update : public COPY_INFO {
   Tests that constuctors initialize the stats object properly.
 */
 TEST_F(CopyInfoTest, constructors) {
-  List<Item> inserted_columns;
+  mem_root_deque<Item *> inserted_columns(*THR_MALLOC);
 
   COPY_INFO insert(COPY_INFO::INSERT_OPERATION, &inserted_columns,
                    true,  // manage_defaults
@@ -130,8 +131,8 @@ TEST_F(CopyInfoTest, constructors) {
   EXPECT_EQ(0U, insert.stats.error_count);
   EXPECT_EQ(0U, insert.stats.touched);
 
-  List<Item> columns;
-  List<Item> values;
+  mem_root_deque<Item *> columns(*THR_MALLOC);
+  mem_root_deque<Item *> values(*THR_MALLOC);
   COPY_INFO update(COPY_INFO::UPDATE_OPERATION, &columns, &values);
 
   EXPECT_EQ(0U, update.stats.records);
@@ -146,7 +147,7 @@ TEST_F(CopyInfoTest, constructors) {
   Tests the accessors when the COPY_INFO represents an insert operation.
 */
 TEST_F(CopyInfoTest, insertAccessors) {
-  List<Item> inserted_columns;
+  mem_root_deque<Item *> inserted_columns(*THR_MALLOC);
 
   COPY_INFO insert(COPY_INFO::INSERT_OPERATION, &inserted_columns,
                    true,  // manage_defaults
@@ -154,7 +155,8 @@ TEST_F(CopyInfoTest, insertAccessors) {
 
   EXPECT_EQ(COPY_INFO::INSERT_OPERATION, insert.get_operation_type());
   EXPECT_EQ(&inserted_columns, insert.get_changed_columns());
-  EXPECT_EQ(static_cast<List<Item> *>(nullptr), insert.get_changed_columns2());
+  EXPECT_EQ(static_cast<mem_root_deque<Item *> *>(nullptr),
+            insert.get_changed_columns2());
   EXPECT_TRUE(insert.get_manage_defaults());
   EXPECT_EQ(DUP_REPLACE, insert.get_duplicate_handling());
 }
@@ -164,8 +166,8 @@ TEST_F(CopyInfoTest, insertAccessors) {
   operation.
 */
 TEST_F(CopyInfoTest, loadDataAccessors) {
-  List<Item> inserted_columns;
-  List<Item> inserted_columns2;
+  mem_root_deque<Item *> inserted_columns(*THR_MALLOC);
+  mem_root_deque<Item *> inserted_columns2(*THR_MALLOC);
 
   COPY_INFO load_data(COPY_INFO::INSERT_OPERATION, &inserted_columns,
                       &inserted_columns2,
@@ -183,14 +185,15 @@ TEST_F(CopyInfoTest, loadDataAccessors) {
   Tests the accessors when the COPY_INFO represents an update operation.
 */
 TEST_F(CopyInfoTest, updateAccessors) {
-  List<Item> columns;
-  List<Item> values;
+  mem_root_deque<Item *> columns(*THR_MALLOC);
+  mem_root_deque<Item *> values(*THR_MALLOC);
 
   COPY_INFO update(COPY_INFO::UPDATE_OPERATION, &columns, &values);
 
   EXPECT_EQ(COPY_INFO::UPDATE_OPERATION, update.get_operation_type());
   EXPECT_EQ(&columns, update.get_changed_columns());
-  EXPECT_EQ(static_cast<List<Item> *>(nullptr), update.get_changed_columns2());
+  EXPECT_EQ(static_cast<mem_root_deque<Item *> *>(nullptr),
+            update.get_changed_columns2());
   EXPECT_TRUE(update.get_manage_defaults());
   EXPECT_EQ(DUP_ERROR, update.get_duplicate_handling());
 }
@@ -262,7 +265,7 @@ TEST_F(CopyInfoTest, setFunctionDefaults) {
 
   Fake_TABLE table(&a, &b, &c);
 
-  List<Item> assigned_columns;
+  mem_root_deque<Item *> assigned_columns(*THR_MALLOC);
   assigned_columns.push_front(new Item_field(&a));
 
   Mock_COPY_INFO insert(COPY_INFO::INSERT_OPERATION, &assigned_columns,

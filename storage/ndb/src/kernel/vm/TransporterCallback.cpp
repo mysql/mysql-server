@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -108,14 +108,14 @@ class TransporterCallbackKernelNonMT :
   public TransporterSendBufferHandle,
   public TransporterReceiveHandleKernel
 {
-  void reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes);
+  void reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes) override;
 
 public:
   TransporterCallbackKernelNonMT()
   : m_send_buffers(NULL), m_page_freelist(NULL), m_send_buffer_memory(NULL)
   {}
 
-  ~TransporterCallbackKernelNonMT();
+  ~TransporterCallbackKernelNonMT() override;
 
   /**
    * Allocate send buffer.
@@ -125,19 +125,19 @@ public:
    * The second is the config parameter ExtraSendBufferMemory
    */
   void allocate_send_buffers(Uint64 total_send_buffer,
-                             Uint64 extra_send_buffer);
+                             Uint64 extra_send_buffer) override;
 
   /**
    * Implements TransporterCallback interface:
    */
-  void enable_send_buffer(NodeId, TrpId);
-  void disable_send_buffer(NodeId, TrpId);
+  void enable_send_buffer(NodeId, TrpId) override;
+  void disable_send_buffer(NodeId, TrpId) override;
 
   Uint32 get_bytes_to_send_iovec(NodeId node_id,
                                  TrpId trp_id,
                                  struct iovec *dst,
-                                 Uint32 max);
-  Uint32 bytes_sent(NodeId, TrpId, Uint32 bytes);
+                                 Uint32 max) override;
+  Uint32 bytes_sent(NodeId, TrpId, Uint32 bytes) override;
 
   /**
    * These are the TransporterSendBufferHandle methods used by the
@@ -148,10 +148,10 @@ public:
                       Uint32 lenBytes,
                       Uint32 prio,
                       Uint32 max_use,
-                      SendStatus *error);
-  Uint32 updateWritePtr(NodeId, TrpId, Uint32 lenBytes, Uint32 prio);
-  void getSendBufferLevel(NodeId node, SB_LevelType &level);
-  bool forceSend(NodeId, TrpId);
+                      SendStatus *error) override;
+  Uint32 updateWritePtr(NodeId, TrpId, Uint32 lenBytes, Uint32 prio) override;
+  void getSendBufferLevel(NodeId node, SB_LevelType &level) override;
+  bool forceSend(NodeId, TrpId) override;
 
 private:
   /* Send buffer pages. */

@@ -183,10 +183,10 @@ static bool read_binlog_position(const byte *binlog_buf, const char *&file_name,
 }
 
 /** Write binary log position into passed buffer.
-@param[in]	file_name	binary log file name
-@param[in]	offset		binary log offset
-@param[out]	binlog_buf	buffer from trx sys page to write to
-@param[in,out]	mtr		mini transaction */
+@param[in]	file_name	Binary log file name
+@param[in]	offset		Binary log offset
+@param[out]	binlog_buf	Buffer from trx sys page to write to
+@param[in,out]	mtr		Mini-transaction */
 static void write_binlog_position(const char *file_name, uint64_t offset,
                                   byte *binlog_buf, mtr_t *mtr) {
   if (file_name == nullptr ||
@@ -600,26 +600,51 @@ void trx_sys_close(void) {
 void trx_sys_before_pre_dd_shutdown_validate() {
   /** All connections are closed and close_connection unregisters
   associated trx from mysql_trx_list. We still might have some non
-  started transactions in mysql_trx_list. */
+  started transactions in mysql_trx_list.
+  Purge threads are an exception, they create their own trx_t objects which are
+  not real transactions but are needed for the purge sys to use the query
+  threads framework. Purge sys shutdown happens at a later point in the shutdown
+  sequence so we need to skip its transactions here.
+  IMPORTANT: If allocating transactions for background threads, please use
+  trx_allocate_for_background. This function does not add the trx to the
+  mysql_trx_list so we don't have to add logic to skip these at shutdown.
+  */
   trx_sys_mutex_enter();
   for (trx_t *trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list); trx != nullptr;
        trx = UT_LIST_GET_NEXT(mysql_trx_list, trx)) {
+    /** Skip purge thread trx, it will be cleared after purge sys shutdown */
+    if (trx->purge_sys_trx) {
+      continue;
+    }
     ut_a(trx->state == TRX_STATE_NOT_STARTED);
   }
   trx_sys_mutex_exit();
 }
 
 void trx_sys_after_pre_dd_shutdown_validate() {
-  trx_sys_before_pre_dd_shutdown_validate();
+  trx_sys_mutex_enter();
+  /** At this point we check the mysql_trx_list again, now we don't expect purge
+  thread transactions in the list */
+  for (trx_t *trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list); trx != nullptr;
+       trx = UT_LIST_GET_NEXT(mysql_trx_list, trx)) {
+    ut_a(trx->state == TRX_STATE_NOT_STARTED);
+  }
+  trx_sys_mutex_exit();
 
-  /** Additionally, the only left transactions are those that have
-  state == TRX_STATE_PREPARED, unless we didn't expect to rollback
-  all recovered transactions (e.g. fast shutdown) in which case we
-  could also have some transactions with is_recovered == true and
-  state == TRX_STATE_ACTIVE. */
+  /* We assert that all transactions are rolled back if
+  [1] Not force recovery mode.
+  [2] Not fast shutdown
+  [3] The rollback thread has started and stopped gracefully.
+
+  The only left transactions are those that have state == TRX_STATE_PREPARED.
+
+  Above, [3] could be false during error exit, when the rollback thread might
+  never have started and we don't rollback the recovered transactions in that
+  case. */
 
   const auto active_recovered_trxs = trx_sys_recovered_active_trxs_count();
-  if (srv_shutdown_waits_for_rollback_of_recovered_transactions()) {
+  if (srv_shutdown_waits_for_rollback_of_recovered_transactions() &&
+      srv_thread_is_stopped(srv_threads.m_trx_recovery_rollback)) {
     ut_a(active_recovered_trxs == 0);
   }
 

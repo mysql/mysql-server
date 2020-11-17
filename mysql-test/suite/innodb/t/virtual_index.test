@@ -239,17 +239,23 @@ INSERT INTO t1(col1, col2, col3, col4, col9) VALUES (100, 3240, 4000, 11, "dskf"
 INSERT INTO t1(col1, col2, col3, col4, col9) VALUES (5, 400, 20, 900, "hqal");
 
 SELECT * FROM t1;
+--sorted_result
 SELECT col5 FROM t1;
+--sorted_result
 SELECT col6 FROM t1;
 
+--sorted_result
 SELECT col7 FROM t1;
 ALTER TABLE t1 ADD INDEX idx3 (col7 DESC);
 CHECK TABLE t1;
+--sorted_result
 SELECT col7 FROM t1;
 
+--sorted_result
 SELECT col7 FROM t1;
 ALTER TABLE t1 DROP INDEX idx3, ADD INDEX idx3 (col7 ASC);
 CHECK TABLE t1;
+--sorted_result
 SELECT col7 FROM t1;
 
 DROP TABLE t1;

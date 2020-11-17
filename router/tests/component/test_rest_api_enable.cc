@@ -1,0 +1,1048 @@
+/*
+ Copyright (c) 2020, Oracle and/or its affiliates.
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
+
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+
+#include <algorithm>
+#include <chrono>
+#include <cstdint>
+#include <cstdlib>
+#include <fstream>
+#include <iterator>
+#include <map>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include <gmock/gmock-matchers.h>
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
+#include "filesystem_utils.h"
+#include "keyring/keyring_manager.h"
+#include "mock_server_rest_client.h"
+#include "mock_server_testutils.h"
+#include "mysql/harness/filesystem.h"
+#include "mysqlrouter/http_client.h"
+#include "mysqlrouter/tls_client_context.h"
+#include "mysqlrouter/tls_context.h"
+#include "process_wrapper.h"
+#include "rest_api_testutils.h"
+#include "router_component_test.h"
+#include "tcp_port_pool.h"
+#include "utils.h"
+
+using namespace std::chrono_literals;
+
+class TestRestApiEnable : public RouterComponentTest {
+ public:
+  void SetUp() override {
+    RouterComponentTest::SetUp();
+
+    cluster_node_port = port_pool_.get_next_available();
+    cluster_http_port = port_pool_.get_next_available();
+
+    SCOPED_TRACE("// Launch a server mock that will act as our cluster member");
+    const auto trace_file = get_data_dir().join("rest_api_enable.js").str();
+
+    ProcessManager::launch_mysql_server_mock(
+        trace_file, cluster_node_port, EXIT_SUCCESS, false, cluster_http_port);
+
+    set_globals();
+
+    custom_port = port_pool_.get_next_available();
+    router_port = port_pool_.get_next_available();
+
+    setup_paths();
+  }
+
+  ProcessWrapper &do_bootstrap(std::vector<std::string> additional_config) {
+    std::vector<std::string> cmdline = {
+        "--bootstrap=" + gr_member_ip + ":" + std::to_string(cluster_node_port),
+        "-d", temp_test_dir.name(), "--conf-base-port",
+        std::to_string(router_port)};
+    std::move(std::begin(additional_config), std::end(additional_config),
+              std::back_inserter(cmdline));
+    auto &router_bootstrap = launch_router(cmdline, EXIT_SUCCESS);
+
+    router_bootstrap.register_response("Please enter MySQL password for root: ",
+                                       k_root_password + "\n");
+    check_exit_code(router_bootstrap, EXIT_SUCCESS);
+
+    EXPECT_TRUE(router_bootstrap.expect_output(
+        "MySQL Router configured for the InnoDB Cluster 'mycluster'"));
+
+    add_plugin_folder_to_config(config_path.str());
+
+    return router_bootstrap;
+  }
+
+  void add_plugin_folder_to_config(const std::string &config_path) {
+    std::fstream config_stream{config_path};
+    std::vector<std::string> config;
+    std::string line;
+    while (std::getline(config_stream, line)) {
+      config.push_back(line);
+    }
+    config_stream.close();
+
+    auto plugin_dir = mysql_harness::get_plugin_dir(get_origin().str());
+    if (config.size() > 2) {
+      config.insert(std::begin(config) + 2, "plugin_folder=" + plugin_dir);
+    }
+
+    std::ofstream out_stream{config_path};
+    std::copy(std::begin(config), std::end(config),
+              std::ostream_iterator<std::string>(out_stream, "\n"));
+    out_stream.close();
+  }
+
+  void assert_rest_config(const mysql_harness::Path &config_path,
+                          const bool is_enabled) const {
+    const static char *nl = R"(((.|\r\n)*\s*))";
+
+    EXPECT_EQ(is_enabled, file_contains_regex(config_path, "\\[rest_api\\]"));
+
+    EXPECT_EQ(is_enabled,
+              file_contains_regex(config_path,
+                                  std::string{"\\[http_server\\]"} + nl +
+                                      "port=.*" + nl + "ssl=1" + nl +
+                                      "ssl_cert=.*" + nl + "ssl_key=.*"));
+
+    EXPECT_EQ(is_enabled,
+              file_contains_regex(
+                  config_path,
+                  std::string{"\\[http_auth_backend:default_auth_backend\\]"} +
+                      nl + "backend=metadata_cache"));
+
+    EXPECT_EQ(is_enabled,
+              file_contains_regex(
+                  config_path,
+                  std::string{"\\[http_auth_realm:default_auth_realm\\]"} + nl +
+                      "backend=default_auth_backend" + nl + "method=basic" +
+                      nl + "name=default_realm"));
+
+    EXPECT_EQ(is_enabled,
+              file_contains_regex(config_path,
+                                  std::string{"\\[rest_router\\]"} + nl +
+                                      "require_realm=default_auth_realm"));
+
+    EXPECT_EQ(is_enabled,
+              file_contains_regex(config_path,
+                                  std::string{"\\[rest_routing\\]"} + nl +
+                                      "require_realm=default_auth_realm"));
+
+    EXPECT_EQ(is_enabled,
+              file_contains_regex(
+                  config_path, std::string{"\\[rest_metadata_cache\\]"} + nl +
+                                   "require_realm=default_auth_realm"));
+  }
+
+  enum class CertFile { k_ca_key, k_ca_cert, k_router_key, k_router_cert };
+
+  void create_cert_files(const std::vector<CertFile> &files) {
+    mysql_harness::mkdir(datadir_path.str().c_str(), 0755);
+
+    for (const auto &cert : files) {
+      std::ofstream cert_stream{
+          datadir_path.join(cert_filenames.at(cert)).str()};
+      ASSERT_TRUE(cert_stream);
+      cert_stream << expected_cert_contents.at(cert);
+    }
+  }
+
+  std::string read_cert(CertFile cert) const {
+    return read_file(datadir_path.join(cert_filenames.at(cert)).str());
+  }
+
+  bool certificate_files_not_modified(
+      const std::vector<CertFile> &user_cert_files) const {
+    return std::all_of(std::begin(user_cert_files), std::end(user_cert_files),
+                       [this](const CertFile &cert) {
+                         return read_cert(cert) ==
+                                expected_cert_contents.at(cert);
+                       });
+  }
+
+  bool certificate_files_exists(const std::vector<CertFile> &cert_files) const {
+    return std::all_of(
+        std::begin(cert_files), std::end(cert_files),
+        [this](const CertFile &cert) {
+          return mysql_harness::Path{mysql_harness::Path(temp_test_dir.name())
+                                         .join("data")
+                                         .join(cert_filenames.at(cert))}
+              .exists();
+        });
+  }
+
+  bool certificate_files_not_changed(
+      const std::vector<CertFile> &user_cert_files) const {
+    // Check if there are no certificate files that were not add by the user
+    for (const auto &cert : {CertFile::k_ca_key, CertFile::k_ca_cert,
+                             CertFile::k_router_key, CertFile::k_router_cert}) {
+      if (std::find(std::begin(user_cert_files), std::end(user_cert_files),
+                    cert) == std::end(user_cert_files) &&
+          certificate_files_exists({cert})) {
+        return false;
+      }
+    }
+
+    return certificate_files_not_modified(user_cert_files);
+  }
+
+  void assert_rest_works(const uint16_t port) {
+    const auto uri = std::string(rest_api_basepath) + "/router/status";
+    wait_for_rest_endpoint_ready(uri, port);
+
+    const auto ca_file =
+        datadir_path.join(cert_filenames.at(CertFile::k_ca_cert));
+    // Try to verify router certificate using a CA certificate only if the
+    // latter exists.
+    TlsVerify mode = ca_file.exists() ? TlsVerify::PEER : TlsVerify::NONE;
+
+    TlsClientContext tls_ctx(mode);
+    tls_ctx.ssl_ca(ca_file.str(), "");
+
+    assert_certificate_common_name(
+        CertFile::k_router_cert,
+        "CN=MySQL_Router_Auto_Generated_Router_Certificate");
+    if (ca_file.exists()) {
+      assert_certificate_common_name(
+          CertFile::k_ca_cert, "CN=MySQL_Router_Auto_Generated_CA_Certificate");
+    }
+
+    IOContext io_ctx;
+    auto https_client = std::make_unique<HttpsClient>(
+        io_ctx, std::move(tls_ctx), gr_member_ip, port);
+    RestClient rest_client(std::move(https_client));
+
+    JsonDocument json_doc;
+    // We do not care to authenticate, just check if we got a response
+    ASSERT_NO_FATAL_FAILURE(request_json(rest_client, uri, HttpMethod::Get,
+                                         HttpStatusCode::Unauthorized, json_doc,
+                                         kContentTypeHtmlCharset));
+  }
+
+  void verify_bootstrap_at_custom_path(const mysql_harness::Path &path) {
+    std::vector<std::string> cmdline = {
+        "--bootstrap=" + gr_member_ip + ":" + std::to_string(cluster_node_port),
+        "-d", path.str()};
+    auto &router_bootstrap = launch_router(cmdline, EXIT_SUCCESS);
+
+    router_bootstrap.register_response("Please enter MySQL password for root: ",
+                                       k_root_password + "\n");
+    check_exit_code(router_bootstrap, EXIT_SUCCESS);
+
+    auto custom_config_path = path.join("mysqlrouter.conf");
+    assert_rest_config(custom_config_path, true);
+
+    std::vector<CertFile> cert_files{CertFile::k_ca_key, CertFile::k_ca_cert,
+                                     CertFile::k_router_key,
+                                     CertFile::k_router_cert};
+    EXPECT_TRUE(
+        std::all_of(std::begin(cert_files), std::end(cert_files),
+                    [this, &path](const CertFile &cert) {
+                      return mysql_harness::Path{
+                          path.join("data").join(cert_filenames.at(cert))}
+                          .exists();
+                    }));
+  }
+
+  void assert_certificate_common_name(CertFile cert,
+                                      const std::string &CN) const {
+    auto cert_path =
+        mysql_harness::Path{temp_test_dir.name()}.join("data").join(
+            cert_filenames.at(cert));
+    ASSERT_TRUE(cert_path.exists());
+    ASSERT_EQ(CN, get_CN_from_certificate(cert_path.str()));
+  }
+
+  std::string get_CN_from_certificate(std::string cert_filename) const {
+    using BIO_ptr = std::unique_ptr<BIO, decltype(&BIO_free)>;
+    using X509_ptr = std::unique_ptr<X509, decltype(&X509_free)>;
+
+    BIO_ptr input(BIO_new(BIO_s_file()), BIO_free);
+    BIO_read_filename(input.get(), const_cast<char *>(cert_filename.c_str()));
+
+    X509_ptr cert(PEM_read_bio_X509_AUX(input.get(), nullptr, nullptr, nullptr),
+                  X509_free);
+
+    X509_NAME *subject = X509_get_subject_name(cert.get());
+    BIO_ptr output_bio(BIO_new(BIO_s_mem()), BIO_free);
+    X509_NAME_print_ex(output_bio.get(), subject, 0, 0);
+
+    std::string result;
+    const auto length = BIO_pending(output_bio.get());
+    result.resize(length);
+    BIO_read(output_bio.get(), &result[0], length);
+    return result;
+  }
+
+  ProcessWrapper &launch_router(
+      const std::vector<std::string> &params, int expected_exit_code /*= 0*/,
+      std::chrono::milliseconds wait_for_notify_ready = -1s) {
+    return ProcessManager::launch_router(
+        params, expected_exit_code,
+        /*catch_stderr*/ true, /*with_sudo*/ false, wait_for_notify_ready);
+  }
+
+  TlsLibraryContext m_tls_lib_ctx;
+  const std::string gr_member_ip{"127.0.0.1"};
+  const std::string cluster_id{"3a0be5af-0022-11e8-9655-0800279e6a88"};
+  const std::string k_root_password{"fake-pass"};
+  uint16_t cluster_node_port;
+  uint16_t cluster_http_port;
+  uint16_t custom_port;
+  uint16_t router_port;
+  uint16_t default_rest_port{8443};
+  ProcessWrapper *cluster_node;
+  TcpPortPool port_pool_;
+
+  TempDirectory temp_test_dir;
+  mysql_harness::Path config_path;
+  mysql_harness::Path datadir_path;
+  mysql_harness::Path logdir_path;
+
+  static const std::string predefined_ca_key;
+  static const std::string predefined_ca_cert;
+  static const std::string predefined_router_key;
+  static const std::string predefined_router_cert;
+
+  const std::map<CertFile, std::string> expected_cert_contents{
+      {CertFile::k_ca_key, predefined_ca_key},
+      {CertFile::k_ca_cert, predefined_ca_cert},
+      {CertFile::k_router_key, predefined_router_key},
+      {CertFile::k_router_cert, predefined_router_cert}};
+
+  const std::map<CertFile, std::string> cert_filenames{
+      {CertFile::k_ca_key, "ca-key.pem"},
+      {CertFile::k_ca_cert, "ca.pem"},
+      {CertFile::k_router_key, "router-key.pem"},
+      {CertFile::k_router_cert, "router-cert.pem"}};
+
+ protected:
+  void set_globals() {
+    auto json_doc = mock_GR_metadata_as_json(cluster_id, {cluster_node_port},
+                                             0 /*primary_id*/, 0 /*view_id*/,
+                                             false /*error_on_md_query*/);
+    JsonAllocator allocator;
+    JsonValue gr_members_json(rapidjson::kArrayType);
+    JsonValue member(rapidjson::kArrayType);
+    member.PushBack(
+        JsonValue(gr_member_ip.c_str(), gr_member_ip.length(), allocator),
+        allocator);
+    member.PushBack(cluster_node_port, allocator);
+    gr_members_json.PushBack(member, allocator);
+
+    json_doc.AddMember("innodb_cluster_instances", gr_members_json, allocator);
+
+    const auto json_str = json_to_string(json_doc);
+
+    EXPECT_NO_THROW(
+        MockServerRestClient(cluster_http_port).set_globals(json_str));
+  }
+
+  void setup_paths() {
+    config_path =
+        mysql_harness::Path{temp_test_dir.name()}.join("mysqlrouter.conf");
+    datadir_path = mysql_harness::Path{temp_test_dir.name()}.join("data");
+    logdir_path = mysql_harness::Path{temp_test_dir.name()}.join("log");
+  }
+};
+
+using cert_file_t = TestRestApiEnable::CertFile;
+
+const std::string TestRestApiEnable::predefined_ca_key{
+    R"(-----BEGIN RSA PRIVATE KEY-----
+MIIEpAIBAAKCAQEA2T3oTODA9W45q241vGKEM9CZMzO2IVKcXjuY8GUun4sKdYob
+n7bJfZf9/6rHQpaqiXWiVmKM7Aclw1Sq7pM1VADEq/TTc/aalBYHLzspdjLZNSlg
+EB8nQAfEFSVsPEecAomUMv6hfCh8z5pAGpfu4QZDGQO/8S0YxNUEXeMESidMTHJY
+QSRc470usq9wa6Y4rVHolRHdWigkz5+L1emTkumUUrwqXPf5D/MLWBHtK9K45txF
+z8Fd5vGo1SOqdSw3pEQ5O822/SocFHHlkNYPp/qmEJPf6QVPWc/GM4CHKwx5UXQm
+9KxYly6v8e0q1kZ0WL6+ekcrGJuqZeTH1N+o2QIDAQABAoIBAQDJpHPd//Q7Gz++
+RsLsBEmPyryY0RPp5EMuGIWCBXj8L9PafAHeAo0N3amuyTbBMRZEFwNCyaDiaFP9
+9bXfUpZ6TWg/8DThe3HJqJSsm26FvvbsKGZ5MGF/RnYT5rOLVDCUDl2X48/CbdZD
+4HpF9OaOygA31Moxs1k9QjgWaWSO6iqxh1kQI7mbO6X5JV870VEqcSK1gb8hZegG
+oHkAFReDPidqaKQXEr3tvnz3D+ckgec3O0M5C9itLP5j2nqekp3YkQDG/WD34X/e
+Ghz+/GixrIUZGfAiAQwZCxDtVo/iIYgOCWHySPTNH+kV24wcQA1Y/AZFSM6VJEA0
+T2kD/EqdAoGBAPj5cit4pWS1uOnXqGEecrnMrCD+agWBtY5hWNDXaRr4hWalQSO9
+lN38OJukTzCYNdWZUNN/zEvfbpF9WyaYTyeTp9KuY8fRVj326r+ADO1YMbWIBfXS
+kb5HzAj30j6CBeNLSV+04dgkdhOPqipHKTBL/pfD09tNXlHUYZE3QF5jAoGBAN9f
+OuVsgG03CdK6t+gt/mLLx/nvUwVDAO8u6sIC6oHVugfkd49uClWM62GK+lMDCbat
+OojHkmKT4TnfkTThMFHQ29t5T0l3EkzOS/yjSlMBqN5UXbb/ik3bohrZ3yvxjRw/
+fNRFdLarJwvbPMULg2v3VSOyvQJpETYS/CksJ5KTAoGAcxkWP6R5iXI89tW8wJEL
+5nsJBAO5TaxmG1lDbuB2dYJ4YTh6QaSN4oWMQd+WwFdNY96JsAy/jD/RZK736YK1
+7Qzko4/9Ds3muaShZ0AyObLw4APvBXJ/7+BPIcI3TrBbOnV+iSEc2wgYEfjzaLIX
+B33KR6y/Dv3YYan2JOTO/BMCgYAbPikXvCD5sQHAssclSR7Ce+oa4IZ2mNJvWYCG
+QwbI6QE0Xzf5xUj7YCGBFwsqvq8bmYsPDZAb9787aLn0Ahb7k4aNAQGbiysvNOXt
+nRi+gPBQlWeMnyQGFOhzb+kZGe/E5zVZSlNOyBcOCiIiQiI4M8Utgmos9hWES9J3
+TwxQgwKBgQDxSEZTTebnwQHshKwQ+rK4TtCLBrQna1l0//MRkovT6WdOl6GFaVpP
+7xpOMKPGdIp/rsVrBrGymP+X1nVg2/5figLuXBOh35TFftIu2jzhY9e2mcK0yUg/
+xBH5Q3lqBr8DL9VPrUdE3e5q0RT2pSxTkuLLlpyfTRLJCaNrbzeunQ==
+-----END RSA PRIVATE KEY-----)"};
+const std::string TestRestApiEnable::predefined_ca_cert{
+    R"(-----BEGIN CERTIFICATE-----
+MIIC+DCCAeCgAwIBAgIBATANBgkqhkiG9w0BAQsFADA1MTMwMQYDVQQDDCpNeVNR
+TF9Sb3V0ZXJfQXV0b19HZW5lcmF0ZWRfQ0FfQ2VydGlmaWNhdGUwHhcNMjAwMzMx
+MTQyOTI4WhcNMzAwMzI5MTQyOTI4WjA1MTMwMQYDVQQDDCpNeVNRTF9Sb3V0ZXJf
+QXV0b19HZW5lcmF0ZWRfQ0FfQ2VydGlmaWNhdGUwggEiMA0GCSqGSIb3DQEBAQUA
+A4IBDwAwggEKAoIBAQDZPehM4MD1bjmrbjW8YoQz0JkzM7YhUpxeO5jwZS6fiwp1
+ihuftsl9l/3/qsdClqqJdaJWYozsByXDVKrukzVUAMSr9NNz9pqUFgcvOyl2Mtk1
+KWAQHydAB8QVJWw8R5wCiZQy/qF8KHzPmkAal+7hBkMZA7/xLRjE1QRd4wRKJ0xM
+clhBJFzjvS6yr3BrpjitUeiVEd1aKCTPn4vV6ZOS6ZRSvCpc9/kP8wtYEe0r0rjm
+3EXPwV3m8ajVI6p1LDekRDk7zbb9KhwUceWQ1g+n+qYQk9/pBU9Zz8YzgIcrDHlR
+dCb0rFiXLq/x7SrWRnRYvr56RysYm6pl5MfU36jZAgMBAAGjEzARMA8GA1UdEwEB
+/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBABR9C4QO8PA9aQWp9x4oAO4a8J0S
+OG9xNaE2naMIH7w9/IV0/aMbGh/uSA1gNgGMoWh3FXLlcNfA+gdBgIjwj92WOWI5
+K+2kazRuw4/JA7V4280rsE0pysfMZebyr2QpdVMQj93BUevwdmkLBTj2g1c1b1no
+SGCB70NN+WLJ7m8Ug1yI12V+r//zVpsBCQD5GvHaLzgyQiT+uAsZlLGka4PovTvD
+vdtg4l1Z7x7KYv3cc93gDQ/Mjzidsz22tFyXF6lWeYDrxDc0PA9BXLwS3HHpgb9p
+5uWx33fi5CL8fvEvqQ7NmIf/gc3vBhTA7Mep8c56O53TF2AJyEcF1IB/4Cw=
+-----END CERTIFICATE-----)"};
+const std::string TestRestApiEnable::predefined_router_key{
+    R"(-----BEGIN RSA PRIVATE KEY-----
+MIIEogIBAAKCAQEAwIR0W80QVKg91toariO65pB7/aoR67WzIomLmxgTVbcT4qpd
+Rxj5kzwVyO0TTcwH9XEjsMUtao0+VByZGGYpxDUrsiyqMBqDpNrzY6PSUDCOPULi
+UVMUMzxdtpoiKpvJ35DFYYHZOUCaynIzBKbR/JLFlQZ3GZLJVnKhu3b37hSEnSzB
+y/ZKYgFQT45V5ejh80BNmW8zHc8/hEXyes474SsJqyFvmhQbzpjMzPxcbU3+a8VB
+7WRomLJG+Gm8SKufPlEjqKESyW4V7fMBv6Qsqry4Z5DJ5GVKIzd6vxoAsRetp5H8
+7y86ddwivL1Pv4nya1k8mgtJhRTiP863GmL9JwIDAQABAoIBAChLUONp/1IIyLCw
+g8cQ+WyKrzj/oLKaHD1NVqgGmP1mzUWy7MUVyB72A4VDgbfVzZCktpioHIJhv7rx
+JWYC9Bj6HAQ17wUUd5tIrIqdXkakcxEFb8MfxWmX5/FxP1d1tgISFg37lJC0IfHf
+hyghFnBr8+jmKoVywKtUYN+Q3gG5crnlF57zsVzQK4GDyFO7SJ4VugAeWZ+wZvMJ
+rOabSeonTmLa8pRXSd5DlFE/jujZsW+bN+KytPNwTxaTCm1EOAuZI1N3A0Hhs+lK
+tv4yOTWRHroEXpcDQvRgLUa8I6LlyBL9FOVweT5EUUdOxxvVZlczdcSHhsp2U0fZ
+A2aUQ9ECgYEA4ggSArPRJp5ZPtbdQtV4F6RGNpu1by4r+1FeuYI+uOS7j1efFuNU
+s35uvGQ5YDX6x4eMe4RlS/7558pgcbYZAcGf0Pxap3A1ifb8NdbqzHCSZMZDpFKJ
+MYph2FddfBqPn3urG8oN1z9vDn+Y+9eopx6Rz/hh1COiRre+PyAgsjkCgYEA2gra
+QZqJk/Tl7heji/jW1Tgu2TNuXyyI2KxZpXjiN1r/IqUBD1zs3decoA+0S2U+TnnU
+o5YrJOvjb6SLNEiBiGH2wChIweQEphyTsNl0KoAbpvBkq2BLLb+5xu4odScuLM09
+iKd3OXfnbF9U1/2rPi/yzDRsDSXt5mKtSfsfql8CgYAD4GeOrE7V/rlBHqZE0yxw
+G10o6pq+AWi3srmRLO6udR3SY4pS9ispuO1lRcLGJ6bZbTW3mJm0J/dZRltJF/pt
+0UhQaUOUw5Pnfdjtg3Ybc4LPP6dBVjkMJHdxIm50BnCYJ6LToy+BlZDuCrow943o
+79lIW9YxsTrDQ7t7ka194QKBgH3bh9IYZtNtqA7/vBp+f1tB++DJzCrJpRAUpAZc
+uY8kSmLwBaWdiOggnbrSdcqTXRylPDVU6AB+3KBDxUpfk81qZqjSV/T7LifIFQQe
+8OvbWJrK5gD6K0r0AUMvk1DUVdXsfllT+QDGEmI+wNWQCflyad6vX7NTMngqe0ZZ
+2xRXAoGAZK18grIW9zEdUxQceuPdL6os+zGiJGLe2B7LORdSP6eIwDTh69SS3mJT
+dDI/EFuabDmzNi31ThTfB8wa9sE8w1YLIQI8/FvccnmPC4k92kcxYSmocBaQr9tx
+NvYxE7VBhdCH6qaCzmWM/dO/4emCQIEe+PMAlC7nPtpp3TWpqDc=
+-----END RSA PRIVATE KEY-----)"};
+const std::string TestRestApiEnable::predefined_router_cert{
+    R"(-----BEGIN CERTIFICATE-----
+MIIC+TCCAeGgAwIBAgIBAjANBgkqhkiG9w0BAQsFADA1MTMwMQYDVQQDDCpNeVNR
+TF9Sb3V0ZXJfQXV0b19HZW5lcmF0ZWRfQ0FfQ2VydGlmaWNhdGUwHhcNMjAwMzMx
+MTQyOTI4WhcNMzAwMzI5MTQyOTI4WjA5MTcwNQYDVQQDDC5NeVNRTF9Sb3V0ZXJf
+QXV0b19HZW5lcmF0ZWRfUm91dGVyX0NlcnRpZmljYXRlMIIBIjANBgkqhkiG9w0B
+AQEFAAOCAQ8AMIIBCgKCAQEAwIR0W80QVKg91toariO65pB7/aoR67WzIomLmxgT
+VbcT4qpdRxj5kzwVyO0TTcwH9XEjsMUtao0+VByZGGYpxDUrsiyqMBqDpNrzY6PS
+UDCOPULiUVMUMzxdtpoiKpvJ35DFYYHZOUCaynIzBKbR/JLFlQZ3GZLJVnKhu3b3
+7hSEnSzBy/ZKYgFQT45V5ejh80BNmW8zHc8/hEXyes474SsJqyFvmhQbzpjMzPxc
+bU3+a8VB7WRomLJG+Gm8SKufPlEjqKESyW4V7fMBv6Qsqry4Z5DJ5GVKIzd6vxoA
+sRetp5H87y86ddwivL1Pv4nya1k8mgtJhRTiP863GmL9JwIDAQABoxAwDjAMBgNV
+HRMBAf8EAjAAMA0GCSqGSIb3DQEBCwUAA4IBAQBFH+T9AZgTHTCmw9Zhvg8RQlDN
+lRqtChv4ww3kwB3thcEbxaal6ERuZjSzoguHvnktZwg5K0gAgeKYMkGOPD2xJrKW
+LEEyROqbrsgSSPLBJQqcUQ0Sr9Sh0S4NUL1FUJfjxcJXbAIi4tYKkC2cWAziBbSv
+8JXqOCv7hNeCnLIYB1GFYgBZn9oeeqzxT7C+hcOCAjyPzHQzrqS/GCX9AkCpY0zi
+iOhZnJao1ZvGZ6lJLf+SG69L5mFqASpxqriBbZasvg+k4yfKA1uN7IukMgWQ4gUl
+VeZwMK4Cb8EO7PzsnX2tD6AA5Ums6GhNgYsbJgdq4MdKb3x6YWZ8DpksSIX2
+-----END CERTIFICATE-----)"};
+
+/**
+ * @test
+ * Verify --disable-rest disables REST support. 'mysqlrouter.conf' should not
+ * contain lines required to enable REST API and connecting to REST API
+ * should fail.
+ *
+ * WL13906:TS_FR01_01
+ * WL13906:TS_FR06_01
+ */
+TEST_F(TestRestApiEnable, ensure_rest_is_disabled) {
+  do_bootstrap({"--disable-rest"});
+
+  EXPECT_FALSE(certificate_files_exists(
+      {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
+       cert_file_t::k_router_cert}));
+  assert_rest_config(config_path, false);
+
+  launch_router({"-c", config_path.str()}, EXIT_SUCCESS);
+  wait_for_port_ready(router_port);
+
+  IOContext io_ctx;
+  auto http_client =
+      std::make_unique<HttpClient>(io_ctx, gr_member_ip, default_rest_port);
+  RestClient rest_client(std::move(http_client));
+
+  const auto uri = std::string(rest_api_basepath) + "/router/status";
+  wait_endpoint_404(rest_client, uri, std::chrono::milliseconds(1000));
+}
+
+/**
+ * @test
+ * Verify that bootstrap enables REST API by default. 'mysqlrouter.conf' should
+ * contain lines required to enable REST API and connecting to REST API
+ * should work.
+ *
+ * WL13906:TS_FR03_01
+ * WL13906:TS_FR05_01
+ */
+TEST_F(TestRestApiEnable, ensure_rest_works) {
+  do_bootstrap({/*default command line arguments*/});
+
+  EXPECT_TRUE(certificate_files_exists(
+      {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
+       cert_file_t::k_router_cert}));
+  assert_rest_config(config_path, true);
+
+  launch_router({"-c", config_path.str()}, EXIT_SUCCESS);
+  wait_for_port_ready(router_port);
+
+  assert_rest_works(default_rest_port);
+}
+
+/**
+ * @test
+ * Verify that --https-port sets REST API port. Verify that connecting to REST
+ * API on this specific port works as expected.
+ *
+ * WL13906:TS_FR02_01
+ */
+TEST_F(TestRestApiEnable, ensure_rest_works_on_custom_port) {
+  do_bootstrap({"--https-port", std::to_string(custom_port)});
+
+  EXPECT_TRUE(certificate_files_exists(
+      {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
+       cert_file_t::k_router_cert}));
+  assert_rest_config(config_path, true);
+
+  launch_router({"-c", config_path.str()}, EXIT_SUCCESS);
+  wait_for_port_ready(router_port);
+
+  assert_rest_works(custom_port);
+}
+
+class UseEdgeHttpsPortValues : public TestRestApiEnable,
+                               public ::testing::WithParamInterface<int> {};
+
+/**
+ * @test
+ * Verify that --https-port sets REST API port for high and low port values.
+ * Verify that 'mysqlrouter.conf' contains configuration for the specified
+ * port.
+ *
+ * WL13906:TS_FR02_02
+ * WL13906:TS_FR02_03
+ */
+TEST_P(UseEdgeHttpsPortValues,
+       ensure_bootstrap_works_for_edge_https_port_values) {
+  do_bootstrap({"--https-port", std::to_string(GetParam())});
+
+  EXPECT_TRUE(certificate_files_exists(
+      {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
+       cert_file_t::k_router_cert}));
+  assert_rest_config(config_path, true);
+}
+
+INSTANTIATE_TEST_SUITE_P(CheckEdgeHttpsPortValues, UseEdgeHttpsPortValues,
+                         ::testing::Values(1, 65535));
+
+class EnableWrongHttpsPort : public TestRestApiEnable,
+                             public ::testing::WithParamInterface<int> {};
+
+/**
+ * @test
+ * Verify that --https-port values out of the allowed range cause bootstrap to
+ * fail.
+ *
+ * WL13906:TS_FailReq02_01
+ * WL13906:TS_FailReq02_03
+ */
+TEST_P(EnableWrongHttpsPort, ensure_bootstrap_fails_for_invalid_https_port) {
+  std::vector<std::string> cmdline = {
+      "--bootstrap=" + gr_member_ip + ":" + std::to_string(cluster_node_port),
+      "-d", temp_test_dir.name(), "--https-port", std::to_string(GetParam())};
+  auto &router_bootstrap = launch_router(cmdline, EXIT_FAILURE);
+
+  check_exit_code(router_bootstrap, EXIT_FAILURE);
+
+  EXPECT_FALSE(router_bootstrap.expect_output(
+      "MySQL Router configured for the InnoDB Cluster 'mycluster'"));
+
+  EXPECT_FALSE(certificate_files_exists(
+      {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
+       cert_file_t::k_router_cert}));
+}
+
+INSTANTIATE_TEST_SUITE_P(CheckWrongHttpsPort, EnableWrongHttpsPort,
+                         ::testing::Values(0, 65536));
+
+class OverlappingHttpsPort
+    : public TestRestApiEnable,
+      public ::testing::WithParamInterface<uint16_t TestRestApiEnable::*> {};
+
+/**
+ * @test
+ * Verify that bootstrap do not check if --https-port overlaps with other ports.
+ * Bootstrap procedure should succeed.
+ *
+ * WL13906:TS_NFR02_01
+ * WL13906:TS_NFR02_02
+ */
+TEST_P(OverlappingHttpsPort,
+       ensure_bootstrap_works_for_overlapping_https_port) {
+  do_bootstrap({"--https-port", std::to_string(this->*GetParam())});
+
+  EXPECT_TRUE(certificate_files_exists(
+      {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
+       cert_file_t::k_router_cert}));
+  assert_rest_config(config_path, true);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    CheckOverlappingHttpsPort, OverlappingHttpsPort,
+    ::testing::Values(&TestRestApiEnable::router_port,
+                      &TestRestApiEnable::cluster_node_port));
+
+/**
+ * @test
+ * Verify --https-port and --disable-rest are mutually exclusive. Bootstrap must
+ * fail and no certificate files should be created.
+ *
+ * WL13906:TS_FailReq01_01
+ */
+TEST_F(TestRestApiEnable, bootstrap_conflicting_options) {
+  std::vector<std::string> cmdline = {
+      "--bootstrap=" + gr_member_ip + ":" + std::to_string(cluster_node_port),
+      "-d",
+      temp_test_dir.name(),
+      "--https-port",
+      std::to_string(custom_port),
+      "--disable-rest"};
+  auto &router_bootstrap = launch_router(cmdline, EXIT_FAILURE);
+
+  check_exit_code(router_bootstrap, EXIT_FAILURE);
+
+  EXPECT_FALSE(router_bootstrap.expect_output(
+      "MySQL Router configured for the InnoDB Cluster 'mycluster'"));
+
+  EXPECT_FALSE(certificate_files_exists(
+      {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
+       cert_file_t::k_router_cert}));
+}
+
+class RestApiEnableUserCertificates
+    : public TestRestApiEnable,
+      public ::testing::WithParamInterface<std::vector<cert_file_t>> {};
+
+/**
+ * @test
+ * Verify bootstrap behavior when user provides Router certificates to be used
+ * for the REST API service. Bootstrap keeps existing Router/CA cert/key files
+ * (does not create new, does not delete old, does not overwrite existing), and
+ * exits with success. Verify that connecting to REST API works fine.
+ *
+ * WL13906:TS_FR04_01
+ */
+TEST_P(RestApiEnableUserCertificates, ensure_rest_works_with_user_certs) {
+  create_cert_files(GetParam());
+  auto &router_bootstrap = do_bootstrap({/*default command line arguments*/});
+  const auto expected_message = mysqlrouter::string_format(
+      "- Using existing certificates from the '%s' directory",
+      datadir_path.real_path().c_str());
+  EXPECT_THAT(router_bootstrap.get_full_output(),
+              ::testing::HasSubstr(expected_message));
+
+  EXPECT_TRUE(certificate_files_exists(
+      {cert_file_t::k_router_key, cert_file_t::k_router_cert}));
+  assert_rest_config(config_path, true);
+  EXPECT_TRUE(certificate_files_not_changed(GetParam()));
+
+  launch_router({"-c", config_path.str()}, EXIT_SUCCESS);
+  wait_for_port_ready(router_port);
+
+  assert_rest_works(default_rest_port);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    CheckRestApiUserCertificates, RestApiEnableUserCertificates,
+    ::testing::Values(std::vector<cert_file_t>{cert_file_t::k_router_key,
+                                               cert_file_t::k_router_cert},
+                      std::vector<cert_file_t>{cert_file_t::k_ca_key,
+                                               cert_file_t::k_router_key,
+                                               cert_file_t::k_router_cert},
+                      std::vector<cert_file_t>{cert_file_t::k_ca_cert,
+                                               cert_file_t::k_router_key,
+                                               cert_file_t::k_router_cert},
+                      std::vector<cert_file_t>{cert_file_t::k_ca_key,
+                                               cert_file_t::k_ca_cert,
+                                               cert_file_t::k_router_key,
+                                               cert_file_t::k_router_cert}));
+
+class RestApiEnableNotEnoughFiles
+    : public TestRestApiEnable,
+      public ::testing::WithParamInterface<std::vector<cert_file_t>> {};
+
+/**
+ * @test
+ * Verify that if the data directory contains some certificate or key files but
+ * Router certificate or RSA key file associated with it is missing the
+ * bootstrap procedure must fail.
+ *
+ * WL13906:TS_FR04_01
+ */
+TEST_P(RestApiEnableNotEnoughFiles, ensure_rest_fail) {
+  create_cert_files(GetParam());
+  std::vector<std::string> cmdline = {
+      "--bootstrap=" + gr_member_ip + ":" + std::to_string(cluster_node_port),
+      "-d", temp_test_dir.name()};
+  auto &router_bootstrap = launch_router(cmdline, EXIT_FAILURE);
+
+  router_bootstrap.register_response("Please enter MySQL password for root: ",
+                                     k_root_password + "\n");
+  check_exit_code(router_bootstrap, EXIT_FAILURE);
+
+  const auto &files = GetParam();
+  auto has_file = [files](const cert_file_t &file) {
+    return std::find(std::begin(files), std::end(files), file) !=
+           std::end(files);
+  };
+
+  const auto &router_key_filename =
+      cert_filenames.at(cert_file_t::k_router_key);
+  const auto &router_cert_filename =
+      cert_filenames.at(cert_file_t::k_router_cert);
+
+  std::string missing_files;
+  if (!has_file(cert_file_t::k_router_key))
+    missing_files += router_key_filename;
+  if (!missing_files.empty()) missing_files += ", ";
+  if (!has_file(cert_file_t::k_router_cert))
+    missing_files += router_cert_filename;
+  const std::string output = mysqlrouter::string_format(
+      "Error: Missing certificate files in %s: '%s'. Please provide them or "
+      "erase the existing certificate files and re-run bootstrap.",
+      datadir_path.real_path().c_str(), missing_files.c_str());
+  EXPECT_TRUE(router_bootstrap.expect_output(output));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    CheckRestApiEnableNotEnoughFiles, RestApiEnableNotEnoughFiles,
+    ::testing::Values(std::vector<cert_file_t>{cert_file_t::k_router_key},
+                      std::vector<cert_file_t>{cert_file_t::k_ca_key,
+                                               cert_file_t::k_router_key},
+                      std::vector<cert_file_t>{cert_file_t::k_ca_cert,
+                                               cert_file_t::k_router_key},
+                      std::vector<cert_file_t>{cert_file_t::k_ca_key,
+                                               cert_file_t::k_ca_cert,
+                                               cert_file_t::k_router_key},
+                      std::vector<cert_file_t>{cert_file_t::k_router_cert},
+                      std::vector<cert_file_t>{cert_file_t::k_ca_key,
+                                               cert_file_t::k_router_cert},
+                      std::vector<cert_file_t>{cert_file_t::k_ca_cert,
+                                               cert_file_t::k_router_cert},
+                      std::vector<cert_file_t>{cert_file_t::k_ca_key,
+                                               cert_file_t::k_ca_cert,
+                                               cert_file_t::k_router_cert},
+                      std::vector<cert_file_t>{cert_file_t::k_ca_key},
+                      std::vector<cert_file_t>{cert_file_t::k_ca_cert},
+                      std::vector<cert_file_t>{cert_file_t::k_ca_key,
+                                               cert_file_t::k_ca_cert}));
+
+class RestApiInvalidUserCerts
+    : public TestRestApiEnable,
+      public ::testing::WithParamInterface<std::string> {};
+
+/**
+ * @test
+ * Verify that bootstrap do not check if user provided certs and keys are valid.
+ * Verify that bootstrap succeeds and files are not changed.
+ *
+ * WL13906:TS_NFR01_01
+ * WL13906:TS_NFR01_02
+ */
+TEST_P(RestApiInvalidUserCerts,
+       ensure_rest_fail_for_invalid_user_certificates) {
+  mysql_harness::mkdir(datadir_path.str().c_str(), 0755);
+
+  const auto &ca_key_filename = cert_filenames.at(cert_file_t::k_ca_key);
+  const auto &ca_cert_filename = cert_filenames.at(cert_file_t::k_ca_cert);
+  const auto &router_key_filename =
+      cert_filenames.at(cert_file_t::k_router_key);
+  const auto &router_cert_filename =
+      cert_filenames.at(cert_file_t::k_router_cert);
+
+  {
+    std::ofstream ca_key_stream{datadir_path.join(ca_key_filename).str()};
+    ca_key_stream << GetParam();
+    std::ofstream ca_cert_stream{datadir_path.join(ca_cert_filename).str()};
+    ca_cert_stream << GetParam();
+    std::ofstream router_key_stream{
+        datadir_path.join(router_key_filename).str()};
+    router_key_stream << GetParam();
+    std::ofstream router_cert_stream{
+        datadir_path.join(router_cert_filename).str()};
+    router_cert_stream << GetParam();
+  }
+
+  auto &router_bootstrap = do_bootstrap({/*default command line arguments*/});
+  const auto expected_message = mysqlrouter::string_format(
+      "- Using existing certificates from the '%s' directory",
+      datadir_path.real_path().c_str());
+  EXPECT_THAT(router_bootstrap.get_full_output(),
+              ::testing::HasSubstr(expected_message));
+
+  EXPECT_TRUE(certificate_files_exists(
+      {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
+       cert_file_t::k_router_cert}));
+  EXPECT_EQ(read_file(datadir_path.join(ca_key_filename).str()), GetParam());
+  EXPECT_EQ(read_file(datadir_path.join(ca_cert_filename).str()), GetParam());
+  EXPECT_EQ(read_file(datadir_path.join(router_key_filename).str()),
+            GetParam());
+  EXPECT_EQ(read_file(datadir_path.join(router_cert_filename).str()),
+            GetParam());
+  assert_rest_config(config_path, true);
+
+  auto &router = launch_router({"-c", config_path.str()}, EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
+
+  std::string log_error =
+      "Error: using SSL certificate file '" +
+      datadir_path.real_path().join(router_cert_filename).str() + "' failed";
+  EXPECT_THAT(router.get_full_logfile("mysqlrouter.log", logdir_path.str()),
+              ::testing::HasSubstr(log_error));
+
+  IOContext io_ctx;
+  auto http_client =
+      std::make_unique<HttpClient>(io_ctx, gr_member_ip, default_rest_port);
+  RestClient rest_client(std::move(http_client));
+
+  const auto uri = std::string(rest_api_basepath) + "/router/status";
+  wait_endpoint_404(rest_client, uri, std::chrono::milliseconds(1000));
+}
+
+INSTANTIATE_TEST_SUITE_P(CheckRestApiInvalidUserCerts, RestApiInvalidUserCerts,
+                         ::testing::Values("", "this aint no certificate"));
+
+/**
+ * @test
+ * Verify certificates and keys can be written to less common filenames.
+ * Pass datadir as a relative path.
+ *
+ * WL13906:TS_Extra_02
+ */
+TEST_F(TestRestApiEnable, use_custom_datadir_relative_path) {
+  auto odd_path = mysql_harness::Path{temp_test_dir.name()}.join(
+      "Path with CAPS, punctuation, spaces and ¿ó¿-¿¿¿ii");
+
+  verify_bootstrap_at_custom_path(odd_path);
+}
+
+/**
+ * @test
+ * Verify certificates and keys can be written to less common filenames.
+ * Pass datadir as an absolute path.
+ *
+ * WL13906:TS_Extra_01
+ */
+TEST_F(TestRestApiEnable, use_custom_datadir_absolute_path) {
+  auto odd_path = mysql_harness::Path{temp_test_dir.name()}.real_path().join(
+      "Path with CAPS, punctuation, spaces and ¿ó¿-¿¿¿ii");
+
+  verify_bootstrap_at_custom_path(odd_path);
+}
+
+/**
+ * @test
+ * Verify certificates and keys are cleaned up on error. Verify that 1)
+ * bootstrap fails and exits with a meaningful error, 2) any key/certificate
+ * files created during bootstrap are erased.
+ *
+ * WL13906:TS_Extra_03
+ */
+TEST_F(TestRestApiEnable, ensure_certificate_files_cleanup) {
+  std::vector<std::string> cmdline = {
+      "--bootstrap=" + gr_member_ip + ":" + std::to_string(cluster_node_port),
+      "-d", temp_test_dir.name(), "--strict"};
+
+  // Account verification is done after the certificates are created, therefore
+  // we expect the following order of events:
+  // 1. Certificates are created
+  // 2. Account verification fails due to the '--strict' option and missing
+  //    queries in the rest_api_enable.js file.
+  // 3. Certificates are cleaned up.
+  auto &router_bootstrap = launch_router(cmdline, EXIT_FAILURE);
+  router_bootstrap.register_response("Please enter MySQL password for root: ",
+                                     k_root_password + "\n");
+
+  check_exit_code(router_bootstrap, EXIT_FAILURE);
+  EXPECT_THAT(router_bootstrap.get_full_output(),
+              ::testing::HasSubstr("Account verification failed"));
+
+  EXPECT_FALSE(certificate_files_exists(
+      {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
+       cert_file_t::k_router_cert}));
+}
+
+class TestRestApiEnableBootstrapFailover : public TestRestApiEnable {
+ public:
+  void SetUp() override {
+    RouterComponentTest::SetUp();
+    setup_paths();
+  }
+
+  void setup_mocks(const bool failover_successful) {
+    for (auto i = 0; i < k_node_count; ++i) {
+      gr_members.emplace_back(gr_member_ip, port_pool_.get_next_available());
+    }
+
+    for (auto i = 0; i < k_node_count; ++i) {
+      cluster_http_port = port_pool_.get_next_available();
+      auto port = gr_members[i].second;
+
+      std::string trace_file;
+      if (i == 0 || !failover_successful) {
+        trace_file = get_data_dir()
+                         .join("bootstrap_failover_super_read_only_1_gr.js")
+                         .str();
+      } else {
+        trace_file = get_data_dir().join("rest_api_enable.js").str();
+      }
+
+      mock_servers.emplace_back(
+          port, ProcessManager::launch_mysql_server_mock(
+                    trace_file, port, EXIT_SUCCESS, false, cluster_http_port));
+
+      auto &mock_server = mock_servers.back().second;
+      ASSERT_NO_FATAL_FAILURE(check_port_ready(mock_server, port));
+      ASSERT_TRUE(MockServerRestClient(cluster_http_port)
+                      .wait_for_rest_endpoint_ready());
+
+      set_mock_bootstrap_data(cluster_http_port, cluster_name, gr_members,
+                              metadata_version, cluster_id);
+    }
+
+    cluster_node_port = gr_members[0].second;
+    router_port = port_pool_.get_next_available();
+  }
+
+ private:
+  const mysqlrouter::MetadataSchemaVersion metadata_version{2, 0, 3};
+  const std::string cluster_name{"mycluster"};
+  std::vector<std::pair<uint16_t, ProcessWrapper &>> mock_servers;
+  std::vector<std::pair<std::string, unsigned>> gr_members;
+  static const uint8_t k_node_count{3};
+};
+
+/**
+ * @test
+ * Verify certificates/key generation works fine when failover happens.
+ * 'mysqlrouter.conf' should contain lines required to enable REST API and
+ * connecting to REST API should work.
+ *
+ * WL13906:TS_Extra_04
+ */
+TEST_F(TestRestApiEnableBootstrapFailover,
+       ensure_rest_works_after_node_failover) {
+  const bool successful_failover = true;
+  setup_mocks(successful_failover);
+  auto &router_bootstrap = do_bootstrap({/*default command line arguments*/});
+  EXPECT_THAT(router_bootstrap.get_full_output(),
+              ::testing::HasSubstr("trying to connect to another node"));
+
+  EXPECT_TRUE(certificate_files_exists(
+      {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
+       cert_file_t::k_router_cert}));
+  assert_rest_config(config_path, true);
+
+  launch_router({"-c", config_path.str()}, EXIT_SUCCESS);
+  wait_for_port_ready(router_port);
+
+  assert_rest_works(default_rest_port);
+}
+
+/**
+ * @test
+ * Verify certificates and keys are cleaned up on error after cluster node
+ * failover. Verify that 1) bootstrap fails and exits with a meaningful error,
+ * 2) any key/certificate files created during bootstrap are erased.
+ *
+ * WL13906:TS_Extra_05
+ */
+TEST_F(TestRestApiEnableBootstrapFailover,
+       ensure_certificate_files_cleanup_on_error) {
+  const bool successful_failover = true;
+  setup_mocks(successful_failover);
+
+  std::vector<std::string> cmdline = {
+      "--bootstrap=" + gr_member_ip + ":" + std::to_string(cluster_node_port),
+      "-d", temp_test_dir.name(), "--strict"};
+  auto &router_bootstrap = launch_router(cmdline, EXIT_FAILURE);
+  router_bootstrap.register_response("Please enter MySQL password for root: ",
+                                     k_root_password + "\n");
+
+  check_exit_code(router_bootstrap, EXIT_FAILURE);
+  EXPECT_THAT(router_bootstrap.get_full_output(),
+              ::testing::HasSubstr("trying to connect to another node"));
+  EXPECT_THAT(router_bootstrap.get_full_output(),
+              ::testing::HasSubstr("Account verification failed"));
+
+  EXPECT_FALSE(certificate_files_exists(
+      {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
+       cert_file_t::k_router_cert}));
+}
+
+/**
+ * @test
+ * Verify no certificate/key files remain after a failed bootstrap due to all
+ * nodes being read only.
+ *
+ * WL13906:TS_Extra_05
+ */
+TEST_F(TestRestApiEnableBootstrapFailover,
+       ensure_certificate_files_cleanup_on_failed_node_failover) {
+  const bool successful_failover = false;
+  setup_mocks(successful_failover);
+
+  std::vector<std::string> cmdline = {
+      "--bootstrap=" + gr_member_ip + ":" + std::to_string(cluster_node_port),
+      "-d", temp_test_dir.name()};
+  auto &router_bootstrap = launch_router(cmdline, EXIT_FAILURE);
+  router_bootstrap.register_response("Please enter MySQL password for root: ",
+                                     k_root_password + "\n");
+
+  check_exit_code(router_bootstrap, EXIT_FAILURE);
+  EXPECT_THAT(
+      router_bootstrap.get_full_output(),
+      ::testing::HasSubstr("Error: no more nodes to fail-over too, giving up"));
+
+  EXPECT_FALSE(certificate_files_exists(
+      {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
+       cert_file_t::k_router_cert}));
+}
+
+int main(int argc, char *argv[]) {
+  init_windows_sockets();
+  ProcessManager::set_origin(Path(argv[0]).dirname());
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,15 +70,15 @@ using dd::tables::Tables;
 
 namespace dd {
 
+static const std::set<String_type> default_valid_option_keys = {"read_only"};
+
 ///////////////////////////////////////////////////////////////////////////
 // Schema_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
 Schema_impl::Schema_impl()
-    : m_created(0),
-      m_last_altered(0),
-      m_default_encryption(enum_encryption_type::ET_NO),
-      m_se_private_data(),
+    : m_se_private_data(),
+      m_options(default_valid_option_keys),
       m_default_collation_id(INVALID_OBJECT_ID) {}
 
 bool Schema_impl::validate() const {
@@ -89,6 +89,22 @@ bool Schema_impl::validate() const {
   }
 
   return false;
+}
+
+/////////////////////////////////////////////////////////////////////////
+
+bool Schema_impl::read_only() const {
+  bool state = false;
+  if (options().exists("read_only") && options().get("read_only", &state)) {
+    return false;
+  }
+  return state;
+}
+
+/////////////////////////////////////////////////////////////////////////
+
+void Schema_impl::set_read_only(bool state) {
+  options().set("read_only", state);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -119,6 +135,7 @@ bool Schema_impl::restore_attributes(const Raw_record &r) {
     set_se_private_data(r.read_str(Schemata::FIELD_SE_PRIVATE_DATA, ""));
   }
 
+  set_options(r.read_str(Schemata::FIELD_OPTIONS, ""));
   return false;
 }
 
@@ -149,7 +166,8 @@ bool Schema_impl::store_attributes(Raw_record *r) {
          r->store_ref_id(Schemata::FIELD_DEFAULT_COLLATION_ID,
                          m_default_collation_id) ||
          r->store(Schemata::FIELD_CREATED, m_created) ||
-         r->store(Schemata::FIELD_LAST_ALTERED, m_last_altered);
+         r->store(Schemata::FIELD_LAST_ALTERED, m_last_altered) ||
+         r->store(Schemata::FIELD_OPTIONS, m_options);
 }
 
 ///////////////////////////////////////////////////////////////////////////

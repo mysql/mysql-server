@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -591,7 +591,7 @@ addition of new virtual columns.
                                 prefixes, or NULL
 @param[in]	heap		memory heap from which
                                 the memory needed is allocated
-@return own: row built; */
+@return own: row built */
 dtuple_t *row_build_w_add_vcol(ulint type, const dict_index_t *index,
                                const rec_t *rec, const ulint *offsets,
                                const dict_table_t *col_table,
@@ -797,23 +797,17 @@ dtuple_t *row_build_row_ref(
 }
 
 /** Builds from a secondary index record a row reference with which we can
- search the clustered index record. */
-void row_build_row_ref_in_tuple(
-    dtuple_t *ref,             /*!< in/out: row reference built;
-                               see the NOTE below! */
-    const rec_t *rec,          /*!< in: record in the index;
-                               NOTE: the data fields in ref
-                               will point directly into this
-                               record, therefore, the buffer
-                               page of this record must be at
-                               least s-latched and the latch
-                               held as long as the row
-                               reference is used! */
-    const dict_index_t *index, /*!< in: secondary index */
-    ulint *offsets,            /*!< in: rec_get_offsets(rec, index)
-                               or NULL */
-    trx_t *trx)                /*!< in: transaction */
-{
+search the clustered index record.
+@param[in,out] ref Row reference built; see the note below!
+@param[in,out] rec Record in the index; note: the data fields in ref will point
+directly into this record, therefore, the buffer page of this record must be at
+least s-latched and the latch held as long as the row reference is used!
+@param[in] index Secondary index
+@param[in] offsets Rec_get_offsets(rec, index) or null
+@param[in] trx Transaction or null */
+void row_build_row_ref_in_tuple(dtuple_t *ref, const rec_t *rec,
+                                const dict_index_t *index, ulint *offsets,
+                                trx_t *trx) {
   const dict_index_t *clust_index;
   dfield_t *dfield;
   const byte *field;
@@ -1208,20 +1202,22 @@ ulint row_raw_format(const char *data,               /*!< in: raw data */
 }
 
 dfield_t *Multi_value_entry_builder_normal::find_multi_value_field() {
-  uint16_t i = 0;
-  dfield_t *field = nullptr;
-  for (; i < m_row->n_v_fields; ++i) {
-    field = &m_row->v_fields[i];
-    if (!dfield_is_multi_value(field) ||
-        (m_mv_field_no = m_index->has_multi_value_col(
-             dict_table_get_nth_v_col(m_index->table, i))) == 0) {
+  for (size_t i = 0; i < m_row->n_v_fields; ++i) {
+    const auto field = &m_row->v_fields[i];
+    if (!dfield_is_multi_value(field)) {
       continue;
     }
 
-    break;
+    const auto vcol = dict_table_get_nth_v_col(m_index->table, i);
+    m_mv_field_no = m_index->has_multi_value_col(vcol);
+
+    if (m_mv_field_no == 0) {
+      continue;
+    }
+    return field;
   }
 
-  return (i == m_row->n_v_fields ? nullptr : field);
+  return nullptr;
 }
 
 #ifdef UNIV_ENABLE_UNIT_TEST_ROW_RAW_FORMAT_INT

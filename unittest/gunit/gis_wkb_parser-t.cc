@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ class WkbParserTest : public ::testing::Test {
   dd::Spatial_reference_system_impl *m_long_lat_srs;
   dd::Spatial_reference_system_impl *m_tweaked_geo_srs;
 
-  void SetUp() {
+  void SetUp() override {
     m_cartesian_srs = dynamic_cast<dd::Spatial_reference_system_impl *>(
         dd::create_object<dd::Spatial_reference_system>());
     m_cartesian_srs->set_id(3857);
@@ -132,7 +132,7 @@ class WkbParserTest : public ::testing::Test {
     m_tweaked_geo_srs->parse_definition();
   }
 
-  void TearDown() {
+  void TearDown() override {
     delete m_cartesian_srs;
     delete m_lat_long_srs;
     delete m_long_lat_srs;

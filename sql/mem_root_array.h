@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -204,6 +204,33 @@ class Mem_root_array_YY {
       return true;
     Element_type *p = &m_array[m_size++];
     ::new (p) Element_type(std::move(element));
+    return false;
+  }
+
+  /**
+    Adds a new element at the beginning of the array.
+    The content of this new element is initialized to a copy of
+    the input argument.
+
+    @param  element Object to copy.
+    @retval true if out-of-memory, false otherwise.
+  */
+  bool push_front(const Element_type &element) {
+    if (push_back(element)) return true;
+    std::rotate(begin(), end() - 1, end());
+    return false;
+  }
+
+  /**
+    Adds a new element at the front of the array.
+    The content of this new element is initialized by moving the input element.
+
+    @param  element Object to move.
+    @retval true if out-of-memory, false otherwise.
+  */
+  bool push_front(Element_type &&element) {
+    if (push_back(std::move(element))) return true;
+    std::rotate(begin(), end() - 1, end());
     return false;
   }
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@ using Mysql::Nullable;
 
 class NullableTest : public ::testing::TestWithParam<uint> {
  protected:
-  virtual void SetUp() {}
+  void SetUp() override {}
 };
 
 TEST(NullableTest, NullConstructor) {

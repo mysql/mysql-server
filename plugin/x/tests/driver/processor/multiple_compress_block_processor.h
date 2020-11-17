@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -41,8 +41,8 @@ class Multiple_compress_block_processor : public Block_processor {
   explicit Multiple_compress_block_processor(Execution_context *context)
       : m_context(context), m_cm(context->m_connection) {}
 
-  virtual Result feed(std::istream &input, const char *linebuf);
-  virtual bool feed_ended_is_state_ok();
+  Result feed(std::istream &input, const char *linebuf) override;
+  bool feed_ended_is_state_ok() override;
 
  protected:
   using Client_message_id = xcl::XProtocol::Client_message_type_id;

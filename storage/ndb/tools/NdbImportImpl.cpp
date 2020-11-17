@@ -3205,10 +3205,20 @@ NdbImportImpl::ExecOpWorkerAsynch::state_define()
           break;
         }
       }
-      bool batch = false;
-      if (bh->preExecute(NdbTransaction::Commit, batch) == -1)
+      NdbBlob::BlobAction rc =
+        bh->preExecute(NdbTransaction::Commit);
+
+      if (rc != NdbBlob::BA_DONE)
       {
-        m_util.set_error_ndb(m_error, __LINE__, bh->getNdbError());
+        if (rc == NdbBlob::BA_ERROR)
+        {
+          m_util.set_error_ndb(m_error, __LINE__, bh->getNdbError());
+        }
+        else
+        {
+          m_util.set_error_gen(m_error, __LINE__, "Blob execution error %u",
+                               rc);
+        }
         break;
       }
     }

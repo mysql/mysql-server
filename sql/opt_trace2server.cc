@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -440,7 +440,7 @@ void opt_trace_disable_if_no_tables_access(THD *thd, TABLE_LIST *tbl) {
       Anonymous derived tables (as in
       "SELECT ... FROM (SELECT ...)") don't have their grant.privilege set.
     */
-    if (!t->is_derived()) {
+    if (!(t->is_derived() || t->is_table_function())) {
       const GRANT_INFO backup_grant_info = t->grant;
       Security_context *const backup_table_sctx = t->security_ctx;
       t->security_ctx = nullptr;

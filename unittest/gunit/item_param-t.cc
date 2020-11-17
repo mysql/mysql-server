@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,14 +31,14 @@ using my_testing::Server_initializer;
 
 class ItemParamTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     m_initializer.SetUp();
     // An Item expects to be owned by current_thd->free_list, so allocate with
     // new, and do not delete it.
     m_item_param = new Item_param(POS(), 1);
   }
 
-  virtual void TearDown() { m_initializer.TearDown(); }
+  void TearDown() override { m_initializer.TearDown(); }
 
   Server_initializer m_initializer;
   Item_param *m_item_param;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -79,7 +79,8 @@ template<typename T>
 void
 WOPool<T>::release_not_current(Ptr<T> ptr)
 {
-  WOPage* page = (WOPage*)(UintPtr(ptr.p) & ~(GLOBAL_PAGE_SIZE - 1));
+  const Uint32 pageI = ptr.i >> POOL_RECORD_BITS;
+  WOPage* page = m_memroot + pageI;
   Uint32 cnt = page->m_ref_count;
   Uint32 type = page->m_type_id;
   Uint32 ri_type = m_record_info.m_type_id;
@@ -87,7 +88,7 @@ WOPool<T>::release_not_current(Ptr<T> ptr)
   {
     if (cnt == 1)
     {
-      m_ctx.release_page(ri_type, ptr.i >> POOL_RECORD_BITS);
+      m_ctx.release_page(ri_type, pageI);
       return;
     }
     page->m_ref_count = cnt - 1;
@@ -142,7 +143,8 @@ template<typename T>
 void
 WOPool<T>::handle_inconsistent_release(Ptr<T> ptr)
 {
-  WOPage* page = (WOPage*)(UintPtr(ptr.p) & ~(GLOBAL_PAGE_SIZE - 1));
+  const Uint32 pageI = ptr.i >> POOL_RECORD_BITS;
+  WOPage* page = m_memroot + pageI;
   Uint32 cnt = page->m_ref_count;
   Uint32 type = page->m_type_id;
   Uint32 ri_type = m_record_info.m_type_id;

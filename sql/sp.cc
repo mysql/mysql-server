@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -265,7 +265,7 @@ void Stored_routine_creation_ctx::delete_backup_ctx() { destroy(this); }
   @retval true                Error
 */
 
-static bool lock_routine_name(THD *thd, enum_sp_type type, sp_name *name,
+static bool lock_routine_name(THD *thd, enum_sp_type type, const sp_name *name,
                               enum_mdl_type mdl_lock_type) {
   DBUG_TRACE;
 
@@ -331,7 +331,8 @@ static void recursion_level_error(THD *thd, sp_head *sp) {
 */
 
 static enum_sp_return_code db_find_routine(THD *thd, enum_sp_type type,
-                                           sp_name *name, sp_head **sphp) {
+                                           const sp_name *name,
+                                           sp_head **sphp) {
   DBUG_TRACE;
   DBUG_PRINT("enter",
              ("type: %d name: %.*s", static_cast<int>(type),
@@ -478,9 +479,9 @@ class Bad_db_error_handler : public Internal_error_handler {
  public:
   Bad_db_error_handler() : m_error_caught(false) {}
 
-  virtual bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *) {
+  bool handle_condition(THD *, uint sql_errno, const char *,
+                        Sql_condition::enum_severity_level *,
+                        const char *) override {
     if (sql_errno == ER_BAD_DB_ERROR) {
       m_error_caught = true;
       return true;
@@ -540,7 +541,7 @@ enum_sp_return_code db_load_routine(
   }
   thd->pop_internal_handler();
   if (db_not_exists_handler.error_caught()) {
-    ret = SP_INTERNAL_ERROR;
+    ret = SP_NO_DB_ERROR;
     my_error(ER_BAD_DB_ERROR, MYF(0), sp_db);
 
     goto end;
@@ -1251,7 +1252,7 @@ static bool show_create_routine_from_dd_routine(THD *thd, enum_sp_type type,
   sql_mode_string_representation(thd, routine->sql_mode(), &sql_mode);
 
   /* Send header. */
-  List<Item> fields;
+  mem_root_deque<Item *> fields(thd->mem_root);
   // Column type
   const char *col1_caption =
       (type == enum_sp_type::PROCEDURE) ? "Procedure" : "Function";
@@ -1289,7 +1290,7 @@ static bool show_create_routine_from_dd_routine(THD *thd, enum_sp_type type,
   fields.push_back(
       new Item_empty_string("Database Collation", MY_CS_NAME_SIZE));
 
-  if (thd->send_result_metadata(&fields,
+  if (thd->send_result_metadata(fields,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 
@@ -1879,8 +1880,9 @@ enum_sp_return_code sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
   @retval non-SP_OK  Error while loading routine from DD table.
 */
 
-enum_sp_return_code sp_cache_routine(THD *thd, enum_sp_type type, sp_name *name,
-                                     bool lookup_only, sp_head **sp) {
+enum_sp_return_code sp_cache_routine(THD *thd, enum_sp_type type,
+                                     const sp_name *name, bool lookup_only,
+                                     sp_head **sp) {
   enum_sp_return_code ret = SP_OK;
   sp_cache **spc = (type == enum_sp_type::FUNCTION) ? &thd->sp_func_cache
                                                     : &thd->sp_proc_cache;
@@ -2161,6 +2163,7 @@ void sp_finish_parsing(THD *thd) {
 Item_result sp_map_result_type(enum enum_field_types type) {
   switch (type) {
     case MYSQL_TYPE_BIT:
+    case MYSQL_TYPE_BOOL:
     case MYSQL_TYPE_TINY:
     case MYSQL_TYPE_SHORT:
     case MYSQL_TYPE_LONG:
@@ -2182,6 +2185,7 @@ Item_result sp_map_result_type(enum enum_field_types type) {
 Item::Type sp_map_item_type(enum enum_field_types type) {
   switch (type) {
     case MYSQL_TYPE_BIT:
+    case MYSQL_TYPE_BOOL:
     case MYSQL_TYPE_TINY:
     case MYSQL_TYPE_SHORT:
     case MYSQL_TYPE_LONG:
@@ -2399,12 +2403,20 @@ bool sp_check_name(LEX_STRING *ident) {
 Item *sp_prepare_func_item(THD *thd, Item **it_addr) {
   it_addr = (*it_addr)->this_item_addr(thd, it_addr);
 
-  if (!(*it_addr)->fixed &&
-      ((*it_addr)->fix_fields(thd, it_addr) || (*it_addr)->check_cols(1))) {
+  if ((*it_addr)->fixed) {
+    thd->lex->set_exec_started();
+    return *it_addr;
+  }
+
+  Prepared_stmt_arena_holder ps_arena_holder(thd);
+  Prepare_error_tracker tracker(thd);
+
+  if ((*it_addr)->fix_fields(thd, it_addr) || (*it_addr)->check_cols(1)) {
     DBUG_PRINT("info", ("fix_fields() failed"));
     return nullptr;
   }
-
+  thd->lex->unit->set_prepared();
+  thd->lex->save_cmd_properties(thd);
   thd->lex->set_exec_started();
 
   return *it_addr;

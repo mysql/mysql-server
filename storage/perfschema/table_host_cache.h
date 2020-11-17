@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -115,7 +115,7 @@ class PFS_index_host_cache : public PFS_engine_index {
  public:
   PFS_index_host_cache(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
 
-  ~PFS_index_host_cache() {}
+  ~PFS_index_host_cache() override {}
 
   virtual bool match(const row_host_cache *row) = 0;
 };
@@ -124,9 +124,9 @@ class PFS_index_host_cache_by_ip : public PFS_index_host_cache {
  public:
   PFS_index_host_cache_by_ip() : PFS_index_host_cache(&m_key), m_key("IP") {}
 
-  ~PFS_index_host_cache_by_ip() {}
+  ~PFS_index_host_cache_by_ip() override {}
 
-  bool match(const row_host_cache *row);
+  bool match(const row_host_cache *row) override;
 
  private:
   PFS_key_ip m_key;
@@ -137,9 +137,9 @@ class PFS_index_host_cache_by_host : public PFS_index_host_cache {
   PFS_index_host_cache_by_host()
       : PFS_index_host_cache(&m_key), m_key("HOST") {}
 
-  ~PFS_index_host_cache_by_host() {}
+  ~PFS_index_host_cache_by_host() override {}
 
-  bool match(const row_host_cache *row);
+  bool match(const row_host_cache *row) override;
 
  private:
   PFS_key_host m_key;
@@ -154,21 +154,21 @@ class table_host_cache : public PFS_engine_table {
   static int delete_all_rows();
   static ha_rows get_row_count();
 
-  virtual void reset_position(void);
+  void reset_position(void) override;
 
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
+  int rnd_next() override;
+  int rnd_pos(const void *pos) override;
 
-  virtual int index_init(uint idx, bool sorted);
-  virtual int index_next();
+  int index_init(uint idx, bool sorted) override;
+  int index_next() override;
 
  protected:
-  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all);
+  int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                      bool read_all) override;
   table_host_cache();
 
  public:
-  ~table_host_cache() {}
+  ~table_host_cache() override {}
 
  private:
   void materialize(THD *thd);

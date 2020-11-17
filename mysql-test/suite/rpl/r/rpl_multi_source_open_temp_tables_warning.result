@@ -28,6 +28,8 @@ Warnings:
 Warning	3022	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
 include/assert.inc [Slave_open_temp_tables is correctly set to 2 after stopping replication thread]
 RESET SLAVE FOR CHANNEL 'channel_1';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/assert.inc [Slave_open_temp_tables is correctly set to 1 after resetting channel]
 Stopping slave on channel_3 only
 include/stop_slave.inc [FOR CHANNEL 'channel_3']
@@ -44,4 +46,6 @@ Stopping slave on channel_3 only
 include/stop_slave.inc [FOR CHANNEL 'channel_3']
 CHANGE MASTER TO MASTER_PORT = 4711 FOR CHANNEL 'channel_3';
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/rpl_end.inc

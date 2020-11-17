@@ -267,7 +267,7 @@ struct PFS_ALIGNED PFS_socket : public PFS_instr {
   /** Owning thread, if applicable */
   PFS_thread *m_thread_owner;
   /** Socket file descriptor */
-  uint m_fd;
+  my_socket m_fd;
   /** Raw socket address */
   struct sockaddr_storage m_sock_addr;
   /** Length of address */
@@ -619,6 +619,8 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice {
   PFS_user *m_user;
   PFS_account *m_account;
 
+  /** Remote (peer) port */
+  uint m_peer_port;
   /** Raw socket address */
   struct sockaddr_storage m_sock_addr;
   /** Length of address */

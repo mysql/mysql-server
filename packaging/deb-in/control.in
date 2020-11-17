@@ -126,7 +126,7 @@ Package: mysql-@DEB_PRODUCTNAME@-client
 Architecture: any
 Depends: mysql-common (>= ${binary:Version}),
  ${shlibs:Depends}, ${misc:Depends},
- mysql-@DEB_PRODUCTNAME@-client-core (= ${binary:Version})
+ mysql-@DEB_PRODUCTNAME@-client-core (= ${binary:Version}),
 Breaks: mysql-common (<< 8.0.1),
  libmysqlclient-dev (<< 5.7.14),
 Conflicts: mysql,
@@ -158,9 +158,35 @@ Description: MySQL Client
  Oracle. This package contains the standard MySQL clients and
  administration tools.
 
-Package: mysql-@DEB_PRODUCTNAME@-client-core
+Package: mysql-@DEB_PRODUCTNAME@-client-plugins
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
+Breaks: mysql-@DEB_PRODUCTNAME@-client-core (<< 8.0.22),
+ mysql-@DEB_NOTPRODUCTNAME@-client-core (<< 8.0.22),
+ mysql-@DEB_PRODUCTNAME@-server (<< 8.0.21),
+ mysql-@DEB_PRODUCTNAME@-server-core (<< 8.0.21),
+ mysql-@DEB_NOTPRODUCTNAME@-server (<< 8.0.21),
+ mysql-@DEB_NOTPRODUCTNAME@-server-core (<< 8.0.21),
+Replaces: mysql-@DEB_PRODUCTNAME@-client-core (<< 8.0.22),
+ mysql-@DEB_NOTPRODUCTNAME@-client-core (<< 8.0.22),
+ mysql-@DEB_PRODUCTNAME@-server (<< 8.0.21),
+ mysql-@DEB_PRODUCTNAME@-server-core (<< 8.0.21),
+ mysql-@DEB_NOTPRODUCTNAME@-server (<< 8.0.21),
+ mysql-@DEB_NOTPRODUCTNAME@-server-core (<< 8.0.21),
+Conflicts: mysql-@DEB_NOTPRODUCTNAME@-client-plugins
+Description: MySQL Client plugin
+  The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
+  and robust SQL (Structured Query Language) database server. MySQL Server
+  is intended for mission-critical, heavy-load production systems as well
+  as for embedding into mass-deployed software. MySQL is a trademark of
+  Oracle. This package contains files used by both the client library and
+  client package.
+
+
+Package: mysql-@DEB_PRODUCTNAME@-client-core
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends},
+ mysql-@DEB_PRODUCTNAME@-client-plugins (= ${binary:Version}),
 Breaks: libmysqlclient-dev (<< 5.7.14),
  mysql-@DEB_PRODUCTNAME@-client (<< 8.0.1),
  mysql-@DEB_NOTPRODUCTNAME@-client (<< 8.0.1),
@@ -192,12 +218,14 @@ Description: MySQL Client Core Binaries
  as for embedding into mass-deployed software. MySQL is a trademark of
  Oracle. This package contains the MySQL client binaries.
 
+
 Package: libmysqlclient21
 Architecture: any
 Section: libs
 Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 Depends: mysql-common (>= ${binary:Version}),
+ mysql-@DEB_PRODUCTNAME@-client-plugins (= ${binary:Version}),
  ${shlibs:Depends}, ${misc:Depends}
 Description: MySQL shared client libraries
  The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,

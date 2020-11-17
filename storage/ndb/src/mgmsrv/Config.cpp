@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -827,7 +827,7 @@ void Config::getConnectString(BaseString& connectstring,
       connectstring.append(separator);
     first= false;
 
-    connectstring.appfmt("%s:%d", hostname, port);
+    connectstring.appfmt("%s %d", hostname, port);
 
   }
   ndbout << connectstring << endl;

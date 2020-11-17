@@ -502,7 +502,6 @@ VE2 are NULL then VE3 must be NULL, which makes the dependency NULL-friendly.
 
 */
 
-#include <stddef.h>
 #include <sys/types.h>
 
 #include "my_alloc.h"
@@ -513,14 +512,15 @@ VE2 are NULL then VE3 must be NULL, which makes the dependency NULL-friendly.
 #include "sql/item_cmpfunc.h"    // Item_func_any_value
 #include "sql/item_sum.h"        // Item_sum
 #include "sql/mem_root_array.h"  // Mem_root_array
-#include "sql/sql_lex.h"
 
 class Opt_trace_context;
 class Opt_trace_object;
+class SELECT_LEX;
 class THD;
 struct TABLE_LIST;
+
 template <class T>
-class List;
+class mem_root_deque;
 
 /**
    Checks for queries which have DISTINCT.
@@ -529,6 +529,8 @@ class Distinct_check : public Item_tree_walker {
  public:
   Distinct_check(SELECT_LEX *select_arg)
       : select(select_arg), failed_ident(nullptr) {}
+  Distinct_check(const Distinct_check &) = delete;
+  Distinct_check &operator=(const Distinct_check &) = delete;
 
   bool check_query(THD *thd);
 
@@ -547,8 +549,6 @@ class Distinct_check : public Item_tree_walker {
   friend bool Item_sum::aggregate_check_distinct(uchar *arg);
   friend bool Item_ident::aggregate_check_distinct(uchar *arg);
   friend bool Item_func_any_value::aggregate_check_distinct(uchar *arg);
-
-  FORBID_COPY_CTOR_AND_ASSIGN_OP(Distinct_check);
 };
 
 /**
@@ -572,6 +572,8 @@ class Group_check : public Item_tree_walker {
   ~Group_check() {
     for (uint j = 0; j < mat_tables.size(); ++j) destroy(mat_tables.at(j));
   }
+  Group_check(const Group_check &) = delete;
+  Group_check &operator=(const Group_check &) = delete;
 
   bool check_query(THD *thd);
   void to_opt_trace(THD *thd);
@@ -698,8 +700,6 @@ class Group_check : public Item_tree_walker {
   friend bool Item_ident::is_strong_side_column_not_in_fd(uchar *arg);
   friend bool Item_ident::is_column_not_in_fd(uchar *arg);
   friend bool Item_func_grouping::aggregate_check_group(uchar *arg);
-
-  FORBID_COPY_CTOR_AND_ASSIGN_OP(Group_check);
 };
 
 #endif

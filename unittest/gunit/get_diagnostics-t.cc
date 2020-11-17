@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,8 +40,8 @@ using my_testing::Server_initializer;
 
 class GetDiagnosticsTest : public ::testing::Test {
  protected:
-  virtual void SetUp() { initializer.SetUp(); }
-  virtual void TearDown() { initializer.TearDown(); }
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
 
   THD *thd() { return initializer.thd(); }
 
@@ -74,7 +74,7 @@ class MockDiagInfo : public Diagnostics_information, private FailHelper {
   MockDiagInfo(List<MockDiagInfoItem> *items) : m_items(items) {}
 
  protected:
-  bool aggregate(THD *thd, const Diagnostics_area *da) {
+  bool aggregate(THD *thd, const Diagnostics_area *da) override {
     bool rv = false;
     MockDiagInfoItem *diag_info_item;
     List_iterator<MockDiagInfoItem> it(*m_items);
@@ -86,7 +86,7 @@ class MockDiagInfo : public Diagnostics_information, private FailHelper {
     return rv;
   }
 
-  ~MockDiagInfo() { fail("MockDiagInfo destructor invoked."); }
+  ~MockDiagInfo() override { fail("MockDiagInfo destructor invoked."); }
 
  private:
   List<MockDiagInfoItem> *m_items;
@@ -164,7 +164,7 @@ class MockDiagInfoError : public Diagnostics_information {
   MockDiagInfoError(bool fatal_error) : m_fatal_error(fatal_error) {}
 
  protected:
-  bool aggregate(THD *thd, const Diagnostics_area *) {
+  bool aggregate(THD *thd, const Diagnostics_area *) override {
     myf flag = m_fatal_error ? MYF(ME_FATALERROR) : MYF(0);
     my_message_sql(ER_UNKNOWN_ERROR, "Unknown error", flag);
     return thd->is_error();

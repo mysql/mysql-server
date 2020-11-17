@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -122,15 +122,15 @@ void row_upd_rec_sys_fields(rec_t *rec, page_zip_des_t *page_zip,
                             const dict_index_t *index, const ulint *offsets,
                             const trx_t *trx, roll_ptr_t roll_ptr);
 
-/** Sets the trx id or roll ptr field of a clustered index entry. */
-void row_upd_index_entry_sys_field(
-    dtuple_t *entry,     /*!< in/out: index entry, where the memory
-                         buffers for sys fields are already allocated:
-                         the function just copies the new values to
-                         them */
-    dict_index_t *index, /*!< in: clustered index */
-    ulint type,          /*!< in: DATA_TRX_ID or DATA_ROLL_PTR */
-    ib_uint64_t val);    /*!< in: value to write */
+/** Sets the trx id or roll ptr field of a clustered index entry.
+@param[in,out] entry Index entry, where the memory buffers for sys fields are
+already allocated: the function just copies the new values to them
+@param[in] index Clustered index
+@param[in] type Data_trx_id or data_roll_ptr
+@param[in] val Value to write */
+void row_upd_index_entry_sys_field(dtuple_t *entry, dict_index_t *index,
+                                   ulint type, ib_uint64_t val);
+
 /** Creates an update node for a query graph.
  @return own: update node */
 upd_node_t *upd_node_create(
@@ -205,51 +205,48 @@ upd_t *row_upd_build_difference_binary(dict_index_t *index,
                                        trx_t *trx, mem_heap_t *heap,
                                        TABLE *mysql_table, dberr_t *error)
     MY_ATTRIBUTE((warn_unused_result));
+
 /** Replaces the new column values stored in the update vector to the index
- entry given. */
-void row_upd_index_replace_new_col_vals_index_pos(
-    dtuple_t *entry,           /*!< in/out: index entry where replaced;
-                               the clustered index record must be
-                               covered by a lock or a page latch to
-                               prevent deletion (rollback or purge) */
-    const dict_index_t *index, /*!< in: index; NOTE that this may also be a
-                         non-clustered index */
-    const upd_t *update,       /*!< in: an update vector built for the index so
-                               that the field number in an upd_field is the
-                               index position */
-    ibool order_only,
-    /*!< in: if TRUE, limit the replacement to
-    ordering fields of index; note that this
-    does not work for non-clustered indexes. */
-    mem_heap_t *heap); /*!< in: memory heap for allocating and
-                       copying the new values */
+ entry given.
+@param[in,out] entry Index entry where replaced; the clustered index record must
+be covered by a lock or a page latch to prevent deletion [rollback or purge]
+@param[in] index Index; note that this may also be a non-clustered index
+@param[in] update An update vector built for the index so that the field number
+in an upd_field is the index position
+@param[in] order_only If true, limit the replacement to ordering fields of
+index; note that this does not work for non-clustered indexes.
+@param[in] heap Memory heap for allocating and copying the new values */
+void row_upd_index_replace_new_col_vals_index_pos(dtuple_t *entry,
+                                                  const dict_index_t *index,
+                                                  const upd_t *update,
+                                                  ibool order_only,
+                                                  mem_heap_t *heap);
+
 /** Replaces the new column values stored in the update vector to the index
- entry given. */
-void row_upd_index_replace_new_col_vals(
-    dtuple_t *entry,           /*!< in/out: index entry where replaced;
-                               the clustered index record must be
-                               covered by a lock or a page latch to
-                               prevent deletion (rollback or purge) */
-    const dict_index_t *index, /*!< in: index; NOTE that this may also be a
-                         non-clustered index */
-    const upd_t *update,       /*!< in: an update vector built for the
-                               CLUSTERED index so that the field number in
-                               an upd_field is the clustered index position */
-    mem_heap_t *heap);         /*!< in: memory heap for allocating and
-                               copying the new values */
-/** Replaces the new column values stored in the update vector. */
-void row_upd_replace(trx_t *trx,      /*!< in: current transaction. */
-                     dtuple_t *row,   /*!< in/out: row where replaced,
-                                      indexed by col_no;
-                                      the clustered index record must be
-                                      covered by a lock or a page latch to
-                                      prevent deletion (rollback or purge) */
-                     row_ext_t **ext, /*!< out, own: NULL, or externally
-                                      stored column prefixes */
-                     const dict_index_t *index, /*!< in: clustered index */
-                     const upd_t *update, /*!< in: an update vector built for
-                                          the clustered index */
-                     mem_heap_t *heap);   /*!< in: memory heap */
+ entry given.
+@param[in,out] entry Index entry where replaced; the clustered index record must
+be covered by a lock or a page latch to prevent deletion (rollback or purge)
+@param[in] index Index; note that this may also be a non-clustered index
+@param[in] update An update vector built for the clustered index so that the
+field number in an upd_field is the clustered index position
+@param[in] heap Memory heap for allocating and copying the new values */
+void row_upd_index_replace_new_col_vals(dtuple_t *entry,
+                                        const dict_index_t *index,
+                                        const upd_t *update, mem_heap_t *heap);
+
+/** Replaces the new column values stored in the update vector.
+@param[in] trx Current transaction.
+@param[in,out] row Row where replaced, indexed by col_no; the clustered index
+record must be covered by a lock or a page latch to prevent deletion (rollback
+or purge)
+@param[in,out] ext Null, or externally stored column prefixes
+@param[in] index Clustered index
+@param[in] update An update vector built for the clustered index
+@param[in] heap Memory heap */
+void row_upd_replace(trx_t *trx, dtuple_t *row, row_ext_t **ext,
+                     const dict_index_t *index, const upd_t *update,
+                     mem_heap_t *heap);
+
 /** Replaces the virtual column values stored in a dtuple with that of
 a update vector.
 @param[in,out]	row	dtuple whose column to be updated
@@ -331,13 +328,16 @@ bool row_upd_changes_doc_id(dict_table_t *table,    /*!< in: table */
 ibool row_upd_changes_some_index_ord_field_binary(
     const dict_table_t *table, /*!< in: table */
     const upd_t *update);      /*!< in: update vector for the row */
+
 /** Stores to the heap the row on which the node->pcur is positioned.
+@param[in]	trx		the transaction object
 @param[in]	node		row update node
 @param[in]	thd		mysql thread handle
 @param[in,out]	mysql_table	NULL, or mysql table object when
                                 user thread invokes dml */
 void row_upd_store_row(trx_t *trx, upd_node_t *node, THD *thd,
                        TABLE *mysql_table);
+
 /** Updates a row in a table. This is a high-level function used
  in SQL execution graphs.
  @return query thread to run next or NULL */
@@ -349,15 +349,19 @@ byte *row_upd_parse_sys_vals(const byte *ptr,     /*!< in: buffer */
                              ulint *pos, /*!< out: TRX_ID position in record */
                              trx_id_t *trx_id,      /*!< out: trx id */
                              roll_ptr_t *roll_ptr); /*!< out: roll ptr */
+
 /** Updates the trx id and roll ptr field in a clustered index record in
- database recovery. */
-void row_upd_rec_sys_fields_in_recovery(
-    rec_t *rec,               /*!< in/out: record */
-    page_zip_des_t *page_zip, /*!< in/out: compressed page, or NULL */
-    const ulint *offsets,     /*!< in: array returned by rec_get_offsets() */
-    ulint pos,                /*!< in: TRX_ID position in rec */
-    trx_id_t trx_id,          /*!< in: transaction id */
-    roll_ptr_t roll_ptr);     /*!< in: roll ptr of the undo log record */
+ database recovery.
+@param[in,out] rec Record
+@param[in,out] page_zip Compressed page, or null
+@param[in] offsets Array returned by rec_get_offsets()
+@param[in] pos Trx_id position in rec
+@param[in] trx_id Transaction id
+@param[in] roll_ptr Roll ptr of the undo log record */
+void row_upd_rec_sys_fields_in_recovery(rec_t *rec, page_zip_des_t *page_zip,
+                                        const ulint *offsets, ulint pos,
+                                        trx_id_t trx_id, roll_ptr_t roll_ptr);
+
 /** Parses the log data written by row_upd_index_write_log.
  @return log data end or NULL */
 byte *row_upd_index_parse(const byte *ptr,     /*!< in: buffer */
@@ -370,7 +374,9 @@ byte *row_upd_index_parse(const byte *ptr,     /*!< in: buffer */
 an autoinc field defined in this table.
 @param[in]	update			update vector for the clustered index
 @param[in]	autoinc_field_no	autoinc field's order in clustered index
-@return the new counter if we find it in the update vector, otherwise 0 */
+@return the new counter if we find it in the update vector, otherwise 0.
+We don't mind that the new counter happens to be 0, we just care about
+non-zero counters. */
 ib_uint64_t row_upd_get_new_autoinc_counter(const upd_t *update,
                                             ulint autoinc_field_no);
 
@@ -590,6 +596,11 @@ struct upd_t {
   /** Determine if the given field_no is modified.
   @return true if modified, false otherwise.  */
   bool is_modified(const ulint field_no) const {
+    if (table == nullptr) {
+      ut_ad(false);
+      return false;
+    }
+
     return (get_field_by_field_no(field_no, table->first_index()) != nullptr);
   }
 

@@ -48,10 +48,12 @@ INCLUDE(${CMAKE_BINARY_DIR}/win/configure.data OPTIONAL)
 GET_FILENAME_COMPONENT(_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
 INCLUDE(${_SCRIPT_DIR}/WindowsCache.cmake)
 
-# We require at least Visual Studio 2019 (aka 16) which has version nr 1920.
-IF(NOT FORCE_UNSUPPORTED_COMPILER AND MSVC_VERSION LESS 1920)
+# We require at least Visual Studio 2019 Update 4 (aka 16.4),
+# which has version nr 1924.
+MESSAGE(STATUS "MSVC_VERSION is ${MSVC_VERSION}")
+IF(NOT FORCE_UNSUPPORTED_COMPILER AND MSVC_VERSION LESS 1924)
   MESSAGE(FATAL_ERROR
-    "Visual Studio 2019 or newer is required!")
+    "Visual Studio 2019 Update 4 or newer is required!")
 ENDIF()
 
 # OS display name (version_compile_os etc).
@@ -196,9 +198,7 @@ IF(MSVC)
   STRING_APPEND(CMAKE_CXX_FLAGS " /wd4244")
 
   # Enable stricter standards conformance when using Visual Studio
-  IF(NOT WIN32_CLANG)
-    STRING_APPEND(CMAKE_CXX_FLAGS " /permissive-")
-  ENDIF()
+  STRING_APPEND(CMAKE_CXX_FLAGS " /permissive-")
 ENDIF()
 
 # Always link with socket library

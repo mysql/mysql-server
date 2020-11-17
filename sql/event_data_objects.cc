@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -118,13 +118,13 @@ class Event_creation_ctx : public Stored_program_creation_ctx {
                                         Stored_program_creation_ctx **ctx);
 
  public:
-  virtual Stored_program_creation_ctx *clone(MEM_ROOT *mem_root) {
+  Stored_program_creation_ctx *clone(MEM_ROOT *mem_root) override {
     return new (mem_root)
         Event_creation_ctx(m_client_cs, m_connection_cl, m_db_cl);
   }
 
  protected:
-  virtual Object_creation_ctx *create_backup_ctx(THD *) const {
+  Object_creation_ctx *create_backup_ctx(THD *) const override {
     /*
       We can avoid usual backup/restore employed in stored programs since we
       know that this is a top level statement and the worker thread is
@@ -134,7 +134,7 @@ class Event_creation_ctx : public Stored_program_creation_ctx {
     return nullptr;
   }
 
-  virtual void delete_backup_ctx() { destroy(this); }
+  void delete_backup_ctx() override { destroy(this); }
 
  private:
   Event_creation_ctx(const CHARSET_INFO *client_cs,
@@ -195,9 +195,9 @@ bool Event_queue_element_for_exec::init(LEX_CSTRING db, LEX_CSTRING n) {
   return false;
 }
 
-void Event_queue_element_for_exec::claim_memory_ownership() {
-  my_claim(dbname.str);
-  my_claim(name.str);
+void Event_queue_element_for_exec::claim_memory_ownership(bool claim) {
+  my_claim(dbname.str, claim);
+  my_claim(name.str, claim);
 }
 
 /*
@@ -1009,7 +1009,7 @@ bool Event_job_data::construct_sp_sql(THD *thd, String *sp_sql) {
 bool Event_job_data::execute(THD *thd, bool drop) {
   String sp_sql;
   Security_context event_sctx, *save_sctx = nullptr;
-  List<Item> empty_item_list;
+  mem_root_deque<Item *> empty_item_list(thd->mem_root);
   bool ret = true;
   sql_digest_state *parent_digest = thd->m_digest;
   PSI_statement_locker *parent_locker = thd->m_statement_psi;
@@ -1183,7 +1183,7 @@ end:
     set_system_user_flag(thd);
   }
 
-  thd->lex->unit->cleanup(thd, true);
+  thd->lex->cleanup(thd, true);
   thd->end_statement();
   thd->cleanup_after_query();
   /* Avoid races with SHOW PROCESSLIST */

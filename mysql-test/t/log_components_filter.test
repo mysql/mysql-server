@@ -1,3 +1,5 @@
+--source include/not_hypergraph.inc  # Logs extra text to stderr for now.
+
 --echo #
 --echo # WL#9651:  Logging services: filter configuration engine
 --echo #
@@ -614,7 +616,9 @@ call mtr.add_suppression("\\[ERROR\\] \\[MY\\-010000\\] \\[Server\\] Errors shou
 
 SET @save_suppression_list=@@global.log_error_suppression_list;
 
+enable_warnings;
 SET @@global.log_error_services='log_filter_dragnet; log_filter_internal; log_sink_internal';
+disable_warnings;
 SET @@global.log_error_suppression_list='10000';
 # Log message with [System] label - not suppressed
 SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_PARSER_TRACE THEN SET prio=0. IF err_code==ER_PARSER_TRACE THEN SET msg="System messages should not be suppressed".';
@@ -624,6 +628,8 @@ SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_PARSER_TRACE THEN S
 SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_PARSER_TRACE THEN SET prio=2. IF err_code==ER_PARSER_TRACE THEN SET msg="Warnings should be suppressed".';
 # Log message as a [Note] - suppressed
 SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_PARSER_TRACE THEN SET prio=3. IF err_code==ER_PARSER_TRACE THEN SET msg="Notes should be suppressed".';
+
+FLUSH ERROR LOGS;
 
 SET @@global.log_error_services=DEFAULT;
 

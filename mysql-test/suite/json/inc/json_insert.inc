@@ -119,6 +119,35 @@ execute ps2 using @g;
 select json_type(j), j from pt1 order by j;
 select json_type(j), j from pt2 order by j;
 
+delete from pt1;
+delete from pt2;
+
+# Check different character sets
+set @string_utf8=CONVERT(x'616263C3A6C3B8C3A578797A' USING utf8mb4);
+set @json_utf8=CONCAT('{"label" : "', @string_utf8, '"}');
+set @json_latin1=CONVERT(@json_utf8 USING LATIN1);
+select @string_utf8, @json_utf8, @json_latin1;
+
+execute ps1 using @json_utf8;
+execute ps1 using @json_latin1;
+execute ps2 using @json_utf8;
+execute ps2 using @json_latin1;
+
+set @string_ucs2=_ucs2 0x0627064A0631062706460650;
+# What to expect when reading from the JSON column:
+select HEX(CONVERT(@string_ucs2 USING utf8mb4));
+set @json_ucs2=CONCAT('{"label" : "', @string_ucs2, '"}');
+# Check it's a UCS2 string:
+select collation(@json_ucs2);
+
+# insert:
+execute ps1 using @json_ucs2;
+execute ps2 using @json_ucs2;
+
+# and read:
+select hex(j->>"$.label") from pt1 order by (j->>"$.label");
+select hex(j->>"$.label") from pt2 order by (j->>"$.label");
+
 drop prepare ps1;
 drop prepare ps2;
 drop table pt1;

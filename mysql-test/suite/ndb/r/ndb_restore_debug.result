@@ -1,0 +1,20 @@
+********************************************************
+ndb_restore threads exit cleanly on tuple restore error
+********************************************************
+create table t1(id int primary key, val int) engine=ndb;
+Cause backup stall
+Starting backup
+Backup started
+update t1 set val=12345 where id between 125 and 850;
+Waiting for backup to complete
+Backup completed
+Test restore failure handling for log-replay failure
+select count(*) > 0 from ndb_restore_output where a like "Thread % failed, exiting" order by a;
+count(*) > 0
+1
+truncate table t1;
+Test restore failure handling for tuple-restore failure
+select count(*) > 0 from ndb_restore_output where a like "Thread % failed, exiting" order by a;
+count(*) > 0
+1
+drop table t1;

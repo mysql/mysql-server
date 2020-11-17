@@ -25,6 +25,10 @@ select grp,group_concat(c) from t1 group by grp;
 explain select grp,group_concat(c) from t1 group by grp;
 select grp,group_concat(a,c) from t1 group by grp;
 select grp,group_concat("(",a,":",c,")") from t1 group by grp;
+select grp,group_concat(null) from t1 group by grp;
+select grp,group_concat(a,null) from t1 group by grp;
+select group_concat(null) from t1;
+select group_concat(a,c,null) from t1;
 
 # Test of MySQL with options
 select grp,group_concat(c separator ",") from t1 group by grp;

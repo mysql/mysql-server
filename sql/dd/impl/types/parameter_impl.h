@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,24 +59,24 @@ class Parameter_impl : public Entity_object_impl, public Parameter {
 
   Parameter_impl(const Parameter_impl &src, Routine_impl *parent);
 
-  virtual ~Parameter_impl() {}
+  ~Parameter_impl() override {}
 
  public:
-  virtual const Object_table &object_table() const;
+  const Object_table &object_table() const override;
 
-  virtual bool validate() const;
+  bool validate() const override;
 
-  virtual bool restore_children(Open_dictionary_tables_ctx *otx);
+  bool restore_children(Open_dictionary_tables_ctx *otx) override;
 
-  virtual bool store_children(Open_dictionary_tables_ctx *otx);
+  bool store_children(Open_dictionary_tables_ctx *otx) override;
 
-  virtual bool drop_children(Open_dictionary_tables_ctx *otx) const;
+  bool drop_children(Open_dictionary_tables_ctx *otx) const override;
 
-  virtual bool store_attributes(Raw_record *r);
+  bool store_attributes(Raw_record *r) override;
 
-  virtual bool restore_attributes(const Raw_record &r);
+  bool restore_attributes(const Raw_record &r) override;
 
-  virtual void debug_print(String_type &outb) const;
+  void debug_print(String_type &outb) const override;
 
   void set_ordinal_position(uint ordinal_position) {
     m_ordinal_position = ordinal_position;
@@ -89,45 +89,47 @@ class Parameter_impl : public Entity_object_impl, public Parameter {
   // Name is nullable in case of function return type.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual void set_name_null(bool is_null) { m_is_name_null = is_null; }
+  void set_name_null(bool is_null) override { m_is_name_null = is_null; }
 
-  virtual bool is_name_null() const { return m_is_name_null; }
+  bool is_name_null() const override { return m_is_name_null; }
 
   /////////////////////////////////////////////////////////////////////////
   // ordinal_position.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint ordinal_position() const { return m_ordinal_position; }
+  uint ordinal_position() const override { return m_ordinal_position; }
 
   /////////////////////////////////////////////////////////////////////////
   // parameter_mode.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual enum_parameter_mode mode() const { return m_parameter_mode; }
+  enum_parameter_mode mode() const override { return m_parameter_mode; }
 
-  virtual void set_mode(enum_parameter_mode mode) { m_parameter_mode = mode; }
+  void set_mode(enum_parameter_mode mode) override { m_parameter_mode = mode; }
 
-  virtual void set_parameter_mode_null(bool is_null) {
+  void set_parameter_mode_null(bool is_null) override {
     m_parameter_mode_null = is_null;
   }
 
-  virtual bool is_parameter_mode_null() const { return m_parameter_mode_null; }
+  bool is_parameter_mode_null() const override { return m_parameter_mode_null; }
 
   /////////////////////////////////////////////////////////////////////////
   // parameter_mode.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual enum_column_types data_type() const { return m_data_type; }
+  enum_column_types data_type() const override { return m_data_type; }
 
-  virtual void set_data_type(enum_column_types type) { m_data_type = type; }
+  void set_data_type(enum_column_types type) override { m_data_type = type; }
 
   /////////////////////////////////////////////////////////////////////////
   // display type
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &data_type_utf8() const { return m_data_type_utf8; }
+  const String_type &data_type_utf8() const override {
+    return m_data_type_utf8;
+  }
 
-  virtual void set_data_type_utf8(const String_type &data_type_utf8) {
+  void set_data_type_utf8(const String_type &data_type_utf8) override {
     m_data_type_utf8 = data_type_utf8;
   }
 
@@ -135,17 +137,17 @@ class Parameter_impl : public Entity_object_impl, public Parameter {
   // is_zerofill.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool is_zerofill() const { return m_is_zerofill; }
+  bool is_zerofill() const override { return m_is_zerofill; }
 
-  virtual void set_zerofill(bool zerofill) { m_is_zerofill = zerofill; }
+  void set_zerofill(bool zerofill) override { m_is_zerofill = zerofill; }
 
   /////////////////////////////////////////////////////////////////////////
   // is_unsigned.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool is_unsigned() const { return m_is_unsigned; }
+  bool is_unsigned() const override { return m_is_unsigned; }
 
-  virtual void set_unsigned(bool unsigned_flag) {
+  void set_unsigned(bool unsigned_flag) override {
     m_is_unsigned = unsigned_flag;
   }
 
@@ -153,9 +155,9 @@ class Parameter_impl : public Entity_object_impl, public Parameter {
   // char_length.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual size_t char_length() const { return m_char_length; }
+  size_t char_length() const override { return m_char_length; }
 
-  virtual void set_char_length(size_t char_length) {
+  void set_char_length(size_t char_length) override {
     m_char_length = char_length;
   }
 
@@ -163,9 +165,9 @@ class Parameter_impl : public Entity_object_impl, public Parameter {
   // numeric_precision.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint numeric_precision() const { return m_numeric_precision; }
+  uint numeric_precision() const override { return m_numeric_precision; }
 
-  virtual void set_numeric_precision(uint numeric_precision) {
+  void set_numeric_precision(uint numeric_precision) override {
     m_numeric_precision_null = false;
     m_numeric_precision = numeric_precision;
   }
@@ -182,26 +184,26 @@ class Parameter_impl : public Entity_object_impl, public Parameter {
   // numeric_scale.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint numeric_scale() const { return m_numeric_scale; }
+  uint numeric_scale() const override { return m_numeric_scale; }
 
-  virtual void set_numeric_scale(uint numeric_scale) {
+  void set_numeric_scale(uint numeric_scale) override {
     m_numeric_scale_null = false;
     m_numeric_scale = numeric_scale;
   }
 
-  virtual void set_numeric_scale_null(bool is_null) {
+  void set_numeric_scale_null(bool is_null) override {
     m_numeric_scale_null = is_null;
   }
 
-  virtual bool is_numeric_scale_null() const { return m_numeric_scale_null; }
+  bool is_numeric_scale_null() const override { return m_numeric_scale_null; }
 
   /////////////////////////////////////////////////////////////////////////
   // datetime_precision.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint datetime_precision() const { return m_datetime_precision; }
+  uint datetime_precision() const override { return m_datetime_precision; }
 
-  virtual void set_datetime_precision(uint datetime_precision) {
+  void set_datetime_precision(uint datetime_precision) override {
     m_datetime_precision_null = false;
     m_datetime_precision = datetime_precision;
   }
@@ -218,9 +220,9 @@ class Parameter_impl : public Entity_object_impl, public Parameter {
   // collation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Object_id collation_id() const { return m_collation_id; }
+  Object_id collation_id() const override { return m_collation_id; }
 
-  virtual void set_collation_id(Object_id collation_id) {
+  void set_collation_id(Object_id collation_id) override {
     m_collation_id = collation_id;
   }
 
@@ -228,11 +230,11 @@ class Parameter_impl : public Entity_object_impl, public Parameter {
   // Options.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Properties &options() const { return m_options; }
+  const Properties &options() const override { return m_options; }
 
-  virtual Properties &options() { return m_options; }
+  Properties &options() override { return m_options; }
 
-  virtual bool set_options(const String_type &options_raw) {
+  bool set_options(const String_type &options_raw) override {
     return m_options.insert_values(options_raw);
   }
 
@@ -240,35 +242,37 @@ class Parameter_impl : public Entity_object_impl, public Parameter {
   // routine.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Routine &routine() const;
+  const Routine &routine() const override;
 
-  virtual Routine &routine();
+  Routine &routine() override;
 
   /////////////////////////////////////////////////////////////////////////
   // Elements.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Parameter_type_element *add_element();
+  Parameter_type_element *add_element() override;
 
-  virtual const Parameter_type_element_collection &elements() const {
+  const Parameter_type_element_collection &elements() const override {
     DBUG_ASSERT(data_type() == enum_column_types::ENUM ||
                 data_type() == enum_column_types::SET);
     return m_elements;
   }
 
-  virtual size_t elements_count() const { return m_elements.size(); }
+  size_t elements_count() const override { return m_elements.size(); }
 
   // Fix "inherits ... via dominance" warnings
-  virtual Entity_object_impl *impl() { return Entity_object_impl::impl(); }
-  virtual const Entity_object_impl *impl() const {
+  Entity_object_impl *impl() override { return Entity_object_impl::impl(); }
+  const Entity_object_impl *impl() const override {
     return Entity_object_impl::impl();
   }
-  virtual Object_id id() const { return Entity_object_impl::id(); }
-  virtual bool is_persistent() const {
+  Object_id id() const override { return Entity_object_impl::id(); }
+  bool is_persistent() const override {
     return Entity_object_impl::is_persistent();
   }
-  virtual const String_type &name() const { return Entity_object_impl::name(); }
-  virtual void set_name(const String_type &name) {
+  const String_type &name() const override {
+    return Entity_object_impl::name();
+  }
+  void set_name(const String_type &name) override {
     Entity_object_impl::set_name(name);
   }
 

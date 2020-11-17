@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -154,7 +154,7 @@ class SegmentSubPool :
 {
 public:
   explicit SegmentSubPool(SegmentUtils& parentPool);
-  ~SegmentSubPool();
+  ~SegmentSubPool() override;
 
   /**
    * init
@@ -168,13 +168,13 @@ public:
             Uint32 maxSegments);
 
   /* SegmentUtils Api */
-  virtual SectionSegment* getSegmentPtr(Uint32 iVal);
+  SectionSegment* getSegmentPtr(Uint32 iVal) override;
   virtual void getSegmentPtr(Ptr<SectionSegment>& p, Uint32 iVal);
-  virtual bool seizeSegment(Ptr<SectionSegment>& p);
-  virtual void releaseSegment(Uint32 iVal);
+  bool seizeSegment(Ptr<SectionSegment>& p) override;
+  void releaseSegment(Uint32 iVal) override;
 
   /* Release a section (ll of segments with size) */
-  virtual void releaseSegmentList(Uint32 iVal);
+  void releaseSegmentList(Uint32 iVal) override;
 
   /* SegmentSubPool information : */
   /**

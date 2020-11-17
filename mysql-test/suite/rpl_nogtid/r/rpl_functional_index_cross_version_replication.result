@@ -10,10 +10,14 @@ Note	####	Storing MySQL user name or password information in the master info rep
 include/setup_fake_relay_log.inc
 Setting up fake replication from MYSQL_TEST_DIR/std_data/rpl_unfiltered_hidden_gcol.000001
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
 include/assert.inc [Slave was able to apply the provided relay log.]
 DROP TABLE t;
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/cleanup_fake_relay_log.inc
 include/start_slave.inc
 include/rpl_end.inc

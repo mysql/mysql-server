@@ -750,10 +750,8 @@ CREATE TABLE create_replace_test (a INT, b INT, PRIMARY KEY(b)) REPLACE SELECT *
 CREATE TEMPORARY TABLE temp1 (a INT, b INT, PRIMARY KEY(b)) REPLACE SELECT * FROM filler_table;
 
 #INSERT.... ON DUP KEY UPDATE on a table with more than one UNIQUE KEY
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO insert_2_keys VALUES (1, 2) 
        ON DUPLICATE KEY UPDATE a=VALUES(a)+10, b=VALUES(b)+10;
---enable_ps_protocol
 
 #WAIT_FOR_EXECUTED_GTID_SET is also unsafe statement. The test for that is
 #added here binlog.binlog_wait_for_executed_gtid_set_unsafe_statement.

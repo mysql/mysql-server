@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,7 +60,7 @@ class Group_service_message : public Plugin_gcs_message {
   /**
     Group service message destructor
    */
-  virtual ~Group_service_message();
+  ~Group_service_message() override;
 
   /**
      Set data to message that will be transmitted to group members.
@@ -117,14 +117,15 @@ class Group_service_message : public Plugin_gcs_message {
 
     @param[out] buffer   the message buffer to be written
   */
-  void encode_payload(std::vector<unsigned char> *buffer) const;
+  void encode_payload(std::vector<unsigned char> *buffer) const override;
 
   /**
     Group service message decoding method
 
     @param[in] buffer the received data
   */
-  void decode_payload(const unsigned char *buffer, const unsigned char *);
+  void decode_payload(const unsigned char *buffer,
+                      const unsigned char *) override;
 
  private:
   /**The message identifier*/

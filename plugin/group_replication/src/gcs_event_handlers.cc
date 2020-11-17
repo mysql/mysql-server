@@ -486,7 +486,7 @@ void Plugin_gcs_events_handler::on_suspicions(
                        member_info->get_port());
           // flag as a member having changed state
           m_notification_ctx.set_member_state_changed();
-          member_info->set_unreachable();
+          group_member_mgr->set_member_unreachable(member_info->get_uuid());
         }
         // remove to not check again against this one
         tmp_unreachable.erase(uit);
@@ -498,10 +498,12 @@ void Plugin_gcs_events_handler::on_suspicions(
           /* purecov: begin inspected */
           // flag as a member having changed state
           m_notification_ctx.set_member_state_changed();
-          member_info->set_reachable();
+          group_member_mgr->set_member_reachable(member_info->get_uuid());
           /* purecov: end */
         }
       }
+
+      delete member_info;
     }
   }
 
@@ -595,6 +597,8 @@ void Plugin_gcs_events_handler::get_hosts_from_view(
     if (all_members_it != members.end()) {
       hosts_string << ", ";
     }
+
+    delete member_info;
   }
   all_hosts.assign(hosts_string.str());
   primary_host.assign(primary_string.str());
@@ -1122,6 +1126,7 @@ int Plugin_gcs_events_handler::process_local_exchanged_data(
         LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_DATA_NOT_PROVIDED_BY_MEM,
                      member_info->get_hostname().c_str(),
                      member_info->get_port());
+        delete member_info;
       }
       continue;
       /* purecov: end */
@@ -1288,6 +1293,8 @@ void Plugin_gcs_events_handler::update_member_status(
       group_member_mgr->update_member_status(member_info->get_uuid(), status,
                                              m_notification_ctx);
     }
+
+    delete member_info;
   }
 }
 

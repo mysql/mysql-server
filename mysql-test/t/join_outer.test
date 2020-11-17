@@ -23,18 +23,27 @@ insert into t2 values (1,1,"a",1),(3,4,"A",4),(3,5,"B",5),(3,6,"C",6),(4,7,"D",7
 
 select t1.*,t2.* from t1 JOIN t2 where t1.a=t2.a;
 # Tests printing of EXPLAIN FORMAT=tree for outer join BKA (in join_outer_bka.test).
+--skip_if_hypergraph  # No BKA support.
 EXPLAIN FORMAT=tree select t1.*,t2.* from t1 left join t2 on (t1.a=t2.a) order by t1.grp,t1.a,t2.c;
 select t1.*,t2.* from t1 left join t2 on (t1.a=t2.a) order by t1.grp,t1.a,t2.c;
+--sorted_result
 select t1.*,t2.* from { oj t2 left outer join t1 on (t1.a=t2.a) };
+--sorted_result
 select t1.*,t2.* from t1 as t0,{ oj t2 left outer join t1 on (t1.a=t2.a) } WHERE t0.a=2;
+--sorted_result
 select t1.*,t2.* from t1 left join t2 using (a);
+--sorted_result
 select t1.*,t2.* from t1 left join t2 using (a) where t1.a=t2.a;
+--sorted_result
 select t1.*,t2.* from t1 left join t2 using (a,c);
 --sorted_result
 select t1.*,t2.* from t1 left join t2 using (c);
+--sorted_result
 select t1.*,t2.* from t1 natural left outer join t2;
 
+--sorted_result
 select t1.*,t2.* from t1 left join t2 on (t1.a=t2.a) where t2.id=3;
+--sorted_result
 select t1.*,t2.* from t1 left join t2 on (t1.a=t2.a) where t2.id is null;
 
 explain select t1.*,t2.* from t1,t2 where t1.a=t2.a and isnull(t2.a)=1;
@@ -265,6 +274,7 @@ select t1.name, t2.name, t2.id,t3.id from t2 right join t1 on (t1.id = t2.owner)
 select t1.name, t2.name, t2.id,t3.id from t1 right join t2 on (t1.id = t2.owner) right join t1 as t3 on t3.id=t2.owner;
 # In join_outer_bka.test, demonstrates that when combining outer BKA and BNL,
 # we revert to simple nested loops.
+--skip_if_hypergraph  # Depends on the query plan.
 explain format=tree select t1.name, t2.name, t2.id, t2.owner, t3.id from t1 left join t2 on (t1.id = t2.owner) right join t1 as t3 on t3.id=t2.owner;
 --sorted_result
 select t1.name, t2.name, t2.id, t2.owner, t3.id from t1 left join t2 on (t1.id = t2.owner) right join t1 as t3 on t3.id=t2.owner;
@@ -276,6 +286,7 @@ insert into t1 values (1, null), (2, null), (3, "foo"), (4, "bar");
 select * from t1 where str is not null order by id;
 select * from t1 where str is null;
 explain select * from t1 where str is null;
+--skip_if_hypergraph  # Depends on the query plan.
 explain format=tree select * from t1 where str is null;  # Tests printing of index condition pushdown on RefIterator.
 drop table t1;
 
@@ -388,8 +399,10 @@ CREATE TABLE t2 (
 INSERT INTO t2 VALUES ('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw6000'),('kvw6000'),('kld2000');
 --source include/turn_off_only_full_group_by.inc
 
+--sorted_result
 SELECT t1.pcode, IF(ISNULL(t2.pcode), 0, COUNT(*)) AS count FROM t1
 LEFT JOIN t2 ON t1.pcode = t2.pcode GROUP BY t1.pcode;
+--sorted_result
 SELECT SQL_BIG_RESULT t1.pcode, IF(ISNULL(t2.pcode), 0, COUNT(*)) AS count FROM t1 LEFT JOIN t2 ON t1.pcode = t2.pcode GROUP BY t1.pcode;
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
@@ -890,6 +903,7 @@ SELECT t1.id, a FROM t1 LEFT JOIN t2 ON t1.id=t2.id WHERE t2.b IS NULL;
 
 flush status;
 SELECT t1.id, a FROM t1 LEFT JOIN t2 ON t1.id=t2.id WHERE t2.b IS NULL;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read%';
 
 DROP TABLE t1,t2;
@@ -1365,6 +1379,7 @@ WHERE   t1.col_int_key IS NULL OR t4.pk < t3.col_int;
 # Demonstrates the case where we put a condition on the top level above
 # an outer join with const tables on the left side. The found_match test
 # is redundant and should probably be removed if we can.
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=tree SELECT t1.col_int
 FROM t1
   LEFT JOIN t2
@@ -1574,6 +1589,7 @@ eval EXPLAIN $query;
 FLUSH STATUS;
 eval $query;
 # Without the "not exists" optimization, there would be more read_rnd_next
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'HANDLER_READ%';
 DROP TABLE t1,t2;
 
@@ -2502,6 +2518,7 @@ ANALYZE TABLE t1, t2, t3;
 let $query =
   SELECT * FROM t1 LEFT JOIN t2 ON t1.pk = t2.pk LEFT JOIN t3 ON t2.pk = t3.f2 WHERE t2.pk < 5;
 
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -2548,6 +2565,7 @@ let $query =
 
 # Verify that we've got BKA (in join_outer_bka.test) on the innermost join,
 # but not on the outermost, because that join is not right-deep.
+--skip_if_hypergraph  # No BKA support.
 eval EXPLAIN format=tree $query;
 --sorted_result
 eval $query;
@@ -2569,6 +2587,7 @@ ANALYZE TABLE t1, t2;
 
 # Conditions referring to no sides should be pushed, and the entire right side
 # should be removed.
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON 1=2;
 
 DROP TABLE t1, t2;

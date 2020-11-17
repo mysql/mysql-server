@@ -4419,6 +4419,55 @@ a
 DROP TABLE t1;
 SET NAMES default;
 #
+#  Bug #31361838 WRONG RESULT FOR COLUMN CHANGED TO CASE-SENSITIVE COLLATION AFTER ADD INDEX
+#
+CREATE TABLE t1 (a INT,b VARCHAR(255),KEY(a))ENGINE=INNODB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int DEFAULT NULL,
+  `b` varchar(255) DEFAULT NULL,
+  KEY `a` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES (100,'1A204A9228E5201A36122351DA1744AF');
+INSERT INTO t1 VALUES (100,'1a204a9228e5201a36122351da1744af');
+ALTER TABLE t1 MODIFY b VARCHAR(255) COLLATE UTF8MB4_BIN;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int DEFAULT NULL,
+  `b` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  KEY `a` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ADD KEY(b);
+SELECT b FROM t1 USE INDEX (b) WHERE  b='1A204A9228E5201A36122351DA1744AF';
+b
+1A204A9228E5201A36122351DA1744AF
+DROP TABLE t1;
+CREATE TABLE t1 (a INT,b TEXT(255),KEY(a))ENGINE=INNODB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int DEFAULT NULL,
+  `b` text,
+  KEY `a` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES (100,'1A204A9228E5201A36122351DA1744AF');
+INSERT INTO t1 VALUES (100,'1a204a9228e5201a36122351da1744af');
+ALTER TABLE t1 MODIFY b TEXT(255) COLLATE UTF8MB4_BIN;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int DEFAULT NULL,
+  `b` text CHARACTER SET utf8mb4 COLLATE utf8mb4_bin,
+  KEY `a` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ADD KEY(b(255));
+SELECT b FROM t1 USE INDEX (b) WHERE  b='1A204A9228E5201A36122351DA1744AF';
+b
+1A204A9228E5201A36122351DA1744AF
+DROP TABLE t1;
+#
 # Bug #29501324	ADD VIRTUAL FIRST + ADD COLUMN CAUSES ASSERTION FAILURE.
 #
 CREATE TABLE t1 (b INT);
@@ -4464,3 +4513,50 @@ DROP TABLE t1;
 #
 ALTER TABLE z ADD b INT AS (EXISTS((SELECT 1 UNION DISTINCT SELECT 2) LIMIT 3));
 ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+#
+# Bug#31330789: "ALTER TABLE ... ADD ... DEFAULT NOW()" GENERATES WRONG
+# TIME AT FIRST INSERT
+# Fixed by WL#9384
+# Set a fixed reference TIMESTAMP
+SET TIMESTAMP=1558818549;
+# Add column with default now() to table without defaults
+CREATE TABLE t1 (i INT PRIMARY KEY, no_default DATETIME);
+ALTER TABLE t1 ADD alter_default DATETIME DEFAULT (now());
+CREATE TABLE t2(i INT, alter_date DATETIME);
+INSERT INTO t2 VALUES (0, now()), (1, now()), (2, now());
+# Advance TIMESTAMP 5 seconds to ensure timestamps have changed
+SET TIMESTAMP=1558818554;
+# Insert rows in t1 which should all be newer than t2.alter_time
+INSERT INTO t1 (i, no_default) VALUES (0, now()), (1, now()), (2, now());
+# Verify
+SELECT (t1.no_default > t2.alter_date) AS no_default_newer_than_alter,
+(t1.alter_default > t2.alter_date) AS alter_default_newer_than_alter FROM t1
+NATURAL JOIN t2;
+no_default_newer_than_alter	alter_default_newer_than_alter
+1	1
+1	1
+1	1
+DROP TABLE t2;
+DROP TABLE t1;
+# Set a fixed reference TIMESTAMP
+SET TIMESTAMP=1558818549;
+# Add column with default now() to table with existing column with
+# default now()
+CREATE TABLE t1 (i INT, no_default DATETIME, create_default DATETIME DEFAULT (now()) );
+ALTER TABLE t1 ADD alter_default DATETIME DEFAULT (now());
+CREATE TABLE t2(i INT, alter_date DATETIME);
+INSERT INTO t2 VALUES (0, now()), (1, now()), (2, now());
+# Advance TIMESTAMP 5 seconds to ensure timestamps have changed
+SET TIMESTAMP=1558818554;
+INSERT INTO t1 (i, no_default) VALUES (0, now()), (1, now()), (2, now());
+# Verify
+SELECT (no_default > alter_date) AS no_default_newer_than_alter,
+(create_default > alter_date) AS create_default_newer_than_alter,
+(alter_default > alter_date) AS alter_default_newer_than_alter FROM t1 NATURAL
+JOIN t2;
+no_default_newer_than_alter	create_default_newer_than_alter	alter_default_newer_than_alter
+1	1	1
+1	1	1
+1	1	1
+DROP TABLE t2, t1;
+SET TIMESTAMP=default;

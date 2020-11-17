@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,7 @@ class Admin_command_handler_stub : public Admin_command_handler {
 
 class Admin_command_handler_test : public ::testing::Test {
  public:
-  void SetUp() {
+  void SetUp() override {
     command.reset(new Admin_command_handler_stub(&mock_session));
 
     EXPECT_CALL(mock_session, data_context())

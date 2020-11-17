@@ -8,8 +8,12 @@ DROP TABLE IF EXISTS t1;
 *** Create "wider" table on slave ***
 include/sync_slave_sql_with_master.inc
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_to_stop.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 SET @saved_slave_type_conversions = @@slave_type_conversions;
 SET GLOBAL SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
@@ -63,6 +67,8 @@ Warning	1681	Specifying number of digits for floating point data types is deprec
 RESET MASTER;
 *** Start replication ***
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 *** Insert data on master and display it. ***
 INSERT INTO t1 () VALUES (

@@ -50,6 +50,12 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
   NdbOut.cpp
   NdbPack.cpp
   NdbSqlUtil.cpp
+  ndb_az31.cpp
+  ndb_ndbxfrm1.cpp
+  ndb_openssl_evp.cpp
+  ndb_zlib.cpp
+  ndbxfrm_readfile.cpp
+  ndbxfrm_writefile.cpp
   OutputStream.cpp
   OwnProcessInfo.cpp
   Parser.cpp
@@ -80,7 +86,8 @@ TARGET_LINK_LIBRARIES(ndbgeneral ${NDBGENERAL_LIBS})
 # Cyclic dependencies for ndbgeneral.
 SET_TARGET_PROPERTIES(ndbgeneral PROPERTIES LINK_INTERFACE_MULTIPLICITY 3)
 
-FOREACH(tests BaseString Bitmask SparseBitmask Parser HashMap2 LinkedStack)
+FOREACH(tests BaseString Bitmask SparseBitmask Parser HashMap2 LinkedStack
+        ndb_zlib)
   NDB_ADD_TEST("${tests}-t" "${tests}.cpp" LIBS ndbgeneral)
 ENDFOREACH(tests)
 
@@ -89,6 +96,7 @@ NDB_ADD_TEST(ndb_version-t version.cpp LIBS ndbgeneral)
 FOREACH(tests
     NdbPack
     mysql_utils_test
+    ndb_openssl_evp
     NdbSqlUtil
     LogBuffer
     testSimpleProperties

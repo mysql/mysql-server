@@ -386,7 +386,9 @@ DROP TABLE td;
 --echo -    Currently suboptimal in that it causes N*N reads of tmp buffer
 --echo ----------------------------------------------------------------------
 
+--error ER_PARSE_ERROR
 EXPLAIN FORMAT=JSON SELECT id, NTILE(NULL) OVER w FROM t1 WINDOW w AS (ORDER BY id);
+
 EXPLAIN FORMAT=JSON SELECT id, NTILE(1) OVER w FROM t1 WINDOW w AS (ORDER BY id);
 EXPLAIN FORMAT=JSON SELECT id, NTILE(2) OVER w FROM t1 WINDOW w AS (ORDER BY id);
 EXPLAIN FORMAT=JSON SELECT id, NTILE(5) OVER w FROM t1 WINDOW w AS (ORDER BY id);
@@ -1148,8 +1150,13 @@ EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (PARTITION BY i) FROM t;
 --echo Test optimizer trace with window costs
 SET optimizer_trace="enabled=on";
 SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t GROUP BY i ORDER BY i;
---replace_regex /("peak_memory_used":) [0-9]+/\1 "NNN"/ /("key_size":) [0-9]+/\1 "XXX"/ /("row_size":) [0-9]+/\1 "XXX"/
-SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+# Display optimization and execution parts
+# (preparation part exists only in non-ps mode).
+# Note: JSON_PRETTY(JSON_EXTRACT()) is also a possibility but it shuffles keys
+# which makes the trace have non-chronological order.
+# Eliminate numbers which may vary:
+--replace_regex /("peak_memory_used":) [0-9]+/\1 "NNN"/ /("key_size":) [0-9]+/\1 "XXX"/ /("row_size":) [0-9]+/\1 "XXX"/ /("max_rows_per_buffer":) [0-9]+/\1 "NNN"/
+SELECT REGEXP_SUBSTR(TRACE, 'join_optimization.*', 1, 1, 'n') FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 SET optimizer_trace="enabled=off";
 
 DROP TABLE t;

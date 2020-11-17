@@ -96,7 +96,7 @@ create unique index new_index on t1 (b,c);
 
 # Bug#16275500, Check if `ndb_mgm> SHOW` show Api node in single user mode.
 
---replace_regex /mysql(.*?)(?=, )/MYSQL_VERSION NDB_VERSION/ /mysql(.*?)(?=\))/MYSQL_VERSION NDB_VERSION/
+--replace_regex /mysql(.*?)(?=, )/MYSQL_VERSION NDB_VERSION/ /mysql(.*?)(?=\))/MYSQL_VERSION NDB_VERSION/ /@127.0.0.1/LOCALHOST/ /@::1/LOCALHOST/
 --exec $NDB_MGM --verbose=0 -e show;
 
 drop table t2;

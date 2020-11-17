@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,18 +31,25 @@
 
 #include "sql/item_strfunc.h"
 
-#include <stdio.h>
-#include <string.h>
-#include <zconf.h>
-#include <zlib.h>
+#include <fcntl.h>
 
 #include <algorithm>
 #include <atomic>
-#include <cmath>  // std::isfinite
+#include <climits>
+#include <cmath>    // std::isfinite
+#include <cstddef>  // size_t
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <memory>
 #include <ostream>
 #include <string>
 #include <utility>
+#include <vector>  // vector
+
+#include <openssl/sha.h>  // SHA256_DIGEST_LENGTH
+#include <zconf.h>
+#include <zlib.h>
 
 #include "base64.h"  // base64_encode_max_arg_length
 #include "decimal.h"
@@ -50,27 +57,29 @@
 #include "lex_string.h"   // LEX_CSTRING
 #include "m_ctype.h"      // is_supported_parser_charset
 #include "m_string.h"
-#include "my_aes.h"  // MY_AES_IV_SIZE
+#include "my_aes.h"    // MY_AES_IV_SIZE
+#include "my_alloc.h"  // MEM_ROOT
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_dir.h"  // For my_stat
 #include "my_io.h"
-#include "my_macros.h"
-#include "my_md5.h"  // MD5_HASH_SIZE
+#include "my_loglevel.h"  // WARNING_LEVEL
+#include "my_md5.h"       // MD5_HASH_SIZE
 #include "my_md5_size.h"
 #include "my_rnd.h"  // my_rand_buffer
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_systime.h"
 #include "myisampack.h"
+#include "mysql/components/services/log_builtins.h"  // LogErr
+#include "mysql/components/services/my_io_bits.h"    // File
+#include "mysql/mysql_lex_string.h"                  // MYSQL_LEX_CSTRING
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/service_mysql_password_policy.h"
 #include "mysqld_error.h"
 #include "mysys_err.h"
-#include "password.h"  // my_make_scrambled_password
-#include "sha1.h"      // SHA1_HASH_SIZE
+#include "sha1.h"  // SHA1_HASH_SIZE
 #include "sha2.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_password_policy
@@ -92,11 +101,13 @@
 #include "sql/handler.h"
 #include "sql/my_decimal.h"
 #include "sql/mysqld.h"                             // binary_keyword etc
+#include "sql/parse_tree_node_base.h"               // Parse_context
 #include "sql/resourcegroups/resource_group_mgr.h"  // num_vcpus
 #include "sql/rpl_gtid.h"
 #include "sql/sort_param.h"
-#include "sql/sql_base.h"
-#include "sql/sql_class.h"  // THD
+#include "sql/sql_class.h"          // THD
+#include "sql/sql_digest.h"         // get_max_digest_length
+#include "sql/sql_digest_stream.h"  // sql_digest_state
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_locale.h"  // my_locale_by_name
@@ -262,7 +273,8 @@ static CHARSET_INFO *get_checksum_charset(const char *csname) {
   return cs;
 }
 
-bool Item_func_md5::resolve_type(THD *) {
+bool Item_func_md5::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, -1)) return true;
   CHARSET_INFO *cs = get_checksum_charset(args[0]->collation.collation->csname);
   args[0]->collation.set(cs, DERIVATION_COERCIBLE);
   set_data_type_string(32, default_charset());
@@ -290,7 +302,8 @@ String *Item_func_sha::val_str_ascii(String *str) {
   return nullptr;
 }
 
-bool Item_func_sha::resolve_type(THD *) {
+bool Item_func_sha::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1)) return true;
   CHARSET_INFO *cs = get_checksum_charset(args[0]->collation.collation->csname);
   args[0]->collation.set(cs, DERIVATION_COERCIBLE);
   // size of hex representation of hash
@@ -379,6 +392,8 @@ String *Item_func_sha2::val_str_ascii(String *str) {
 }
 
 bool Item_func_sha2::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1)) return true;
+  if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
   maybe_null = true;
   longlong sha_variant;
   if (args[1]->const_item()) {
@@ -536,6 +551,7 @@ String *Item_func_aes_encrypt::val_str(String *str) {
 }
 
 bool Item_func_aes_encrypt::resolve_type(THD *thd) {
+  if (Item_str_func::resolve_type(thd)) return true;
   ulong aes_opmode = thd->variables.my_aes_mode;
   DBUG_ASSERT(aes_opmode <= MY_AES_END);
 
@@ -596,7 +612,8 @@ String *Item_func_aes_decrypt::val_str(String *str) {
   return nullptr;
 }
 
-bool Item_func_aes_decrypt::resolve_type(THD *) {
+bool Item_func_aes_decrypt::resolve_type(THD *thd) {
+  if (Item_str_func::resolve_type(thd)) return true;
   set_data_type_string(args[0]->max_char_length());
   maybe_null = true;
   return false;
@@ -619,7 +636,8 @@ bool Item_func_random_bytes::itemize(Parse_context *pc, Item **res) {
 */
 const ulonglong Item_func_random_bytes::MAX_RANDOM_BYTES_BUFFER = 1024ULL;
 
-bool Item_func_random_bytes::resolve_type(THD *) {
+bool Item_func_random_bytes::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_LONGLONG)) return true;
   set_data_type_string(MAX_RANDOM_BYTES_BUFFER, &my_charset_bin);
   return false;
 }
@@ -659,6 +677,7 @@ String *Item_func_random_bytes::val_str(String *) {
 }
 
 bool Item_func_to_base64::resolve_type(THD *thd) {
+  if (Item_str_func::resolve_type(thd)) return true;
   maybe_null = args[0]->maybe_null;
   collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
   if (args[0]->max_length > (uint)base64_encode_max_arg_length()) {
@@ -695,7 +714,8 @@ String *Item_func_to_base64::val_str_ascii(String *str) {
   return &tmp_value;
 }
 
-bool Item_func_from_base64::resolve_type(THD *) {
+bool Item_func_from_base64::resolve_type(THD *thd) {
+  if (Item_str_func::resolve_type(thd)) return true;
   if (args[0]->max_length > (uint)base64_decode_max_arg_length()) {
     set_data_type_string(ulonglong(base64_decode_max_arg_length()));
   } else {
@@ -902,6 +922,7 @@ bool parse(THD *thd, Item *statement_expr, String *statement_string) {
 }  // namespace
 
 bool Item_func_statement_digest::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1)) return true;
   set_data_type_string(DIGEST_HASH_TO_STRING_LENGTH, default_charset());
   m_token_buffer = static_cast<uchar *>(thd->alloc(get_max_digest_length()));
   if (m_token_buffer == nullptr) return true;
@@ -946,6 +967,7 @@ String *Item_func_statement_digest::val_str_ascii(String *buf) {
 }
 
 bool Item_func_statement_digest_text::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1)) return true;
   set_data_type_string(MAX_BLOB_WIDTH, args[0]->collation);
   m_token_buffer = static_cast<uchar *>(thd->alloc(get_max_digest_length()));
   if (m_token_buffer == nullptr) return true;
@@ -1009,6 +1031,8 @@ String *Item_func_concat::val_str(String *str) {
 }
 
 bool Item_func_concat::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, -1)) return true;
+
   ulonglong char_length = 0;
 
   if (agg_arg_charsets_for_string_result(collation, args, arg_count))
@@ -1066,6 +1090,8 @@ String *Item_func_concat_ws::val_str(String *str) {
 }
 
 bool Item_func_concat_ws::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, -1)) return true;
+
   ulonglong char_length;
 
   if (agg_arg_charsets_for_string_result(collation, args, arg_count))
@@ -1117,7 +1143,8 @@ String *Item_func_reverse::val_str(String *str) {
   return &tmp_value;
 }
 
-bool Item_func_reverse::resolve_type(THD *) {
+bool Item_func_reverse::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1)) return true;
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
   DBUG_ASSERT(collation.collation != nullptr);
   set_data_type_string(args[0]->max_char_length());
@@ -1189,6 +1216,8 @@ String *Item_func_replace::val_str(String *str) {
 }
 
 bool Item_func_replace::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 3)) return true;
+
   ulonglong char_length = args[0]->max_char_length();
   int diff = (int)(args[2]->max_char_length() - args[1]->max_char_length());
   if (diff > 0 && args[1]->max_char_length()) {  // Calculate of maxreplaces
@@ -1267,6 +1296,10 @@ String *Item_func_insert::val_str(String *str) {
 }
 
 bool Item_func_insert::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1)) return true;
+  if (param_type_is_default(thd, 1, 3, MYSQL_TYPE_LONGLONG)) return true;
+  if (param_type_is_default(thd, 3, 4)) return true;
+
   // Handle character set for args[0] and args[3].
   if (agg_arg_charsets_for_string_result(collation, args, 2, 3)) return true;
   ulonglong length = ulonglong{args[0]->max_char_length()} +
@@ -1308,7 +1341,8 @@ String *Item_str_conv::val_str(String *str) {
   return res;
 }
 
-bool Item_func_lower::resolve_type(THD *) {
+bool Item_func_lower::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, -1)) return true;
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
 
   DBUG_ASSERT(collation.collation != nullptr);
@@ -1318,7 +1352,8 @@ bool Item_func_lower::resolve_type(THD *) {
   return false;
 }
 
-bool Item_func_upper::resolve_type(THD *) {
+bool Item_func_upper::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, -1)) return true;
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
 
   DBUG_ASSERT(collation.collation != nullptr);
@@ -1376,7 +1411,9 @@ String *Item_str_func::push_packet_overflow_warning(THD *thd,
   return error_str();
 }
 
-bool Item_func_left::resolve_type(THD *) {
+bool Item_func_left::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1)) return true;
+  if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
   DBUG_ASSERT(collation.collation != nullptr);
   left_right_max_length();
@@ -1405,7 +1442,9 @@ String *Item_func_right::val_str(String *str) {
   return &tmp_value;
 }
 
-bool Item_func_right::resolve_type(THD *) {
+bool Item_func_right::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1)) return true;
+  if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
 
   DBUG_ASSERT(collation.collation != nullptr);
@@ -1456,11 +1495,15 @@ String *Item_func_substr::val_str(String *str) {
   return &tmp_value;
 }
 
-bool Item_func_substr::resolve_type(THD *) {
+bool Item_func_substr::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1)) return true;
+  if (param_type_is_default(thd, 1, 3, MYSQL_TYPE_LONGLONG)) return true;
+
   uint32 max_char_length = args[0]->max_char_length();
 
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
 
+  set_data_type_string(0U);
   DBUG_ASSERT(collation.collation != nullptr);
   if (args[1]->const_item()) {
     longlong start = args[1]->val_int();
@@ -1491,7 +1534,9 @@ end:
   return false;
 }
 
-bool Item_func_substr_index::resolve_type(THD *) {
+bool Item_func_substr_index::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 2)) return true;
+  if (param_type_is_default(thd, 2, 3, MYSQL_TYPE_LONGLONG)) return true;
   // We let the first argument (only) determine the character set of the result.
   // SUBSTRING_INDEX(str, delim, count)
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
@@ -1715,7 +1760,8 @@ String *Item_func_trim::val_str(String *str) {
   return &tmp_value;
 }
 
-bool Item_func_trim::resolve_type(THD *) {
+bool Item_func_trim::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, -1)) return true;
   // The parser swaps arguments, so args[0] is FROM str.
   // We let the first argument (only) determine the character set of the
   // result.
@@ -1825,28 +1871,66 @@ String *Item_func_database::val_str(String *str) {
 }
 
 /**
+  We override Item::save_in_field_inner() for reasons explained in the comment
+  of that function - we need str_value to survive unchanged between successive
+  calls.
+*/
+type_conversion_status Item_func_user::save_in_field_inner(Field *field, bool) {
+  (void)val_str(nullptr);
+  return save_str_value_in_field(field, &str_value);
+}
+
+String *Item_func_user::val_str(String *) {
+  DBUG_ASSERT(fixed);
+  if (!m_evaluated &&
+      evaluate(current_thd->m_main_security_ctx.user().str,
+               current_thd->m_main_security_ctx.host_or_ip().str))
+    return nullptr;
+  return null_value ? nullptr : &str_value;
+}
+
+type_conversion_status Item_func_current_user::save_in_field_inner(Field *field,
+                                                                   bool) {
+  if (val_str(nullptr) == nullptr && !null_value) return TYPE_ERR_OOM;
+  return save_str_value_in_field(field, &str_value);
+}
+
+String *Item_func_current_user::val_str(String *) {
+  DBUG_ASSERT(fixed);
+  if (!m_evaluated) {
+    Security_context *const ctx = context->security_ctx
+                                      ? context->security_ctx
+                                      : current_thd->security_context();
+    if (evaluate(ctx->priv_user().str, ctx->priv_host().str)) return nullptr;
+  }
+  return null_value ? nullptr : &str_value;
+}
+
+/**
   @note USER() is replicated correctly if binlog_format=ROW or (as of
   BUG#28086) binlog_format=MIXED, but is incorrectly replicated to ''
   if binlog_format=STATEMENT.
 */
-bool Item_func_user::init(const char *user, const char *host) {
-  DBUG_ASSERT(fixed == 1);
-  DBUG_ASSERT(host != nullptr);
+bool Item_func_user::evaluate(const char *user, const char *host) {
+  DBUG_ASSERT(fixed && !m_evaluated && host != nullptr);
+
   // For system threads (e.g. replication SQL thread) user may be empty
   if (user) {
     const CHARSET_INFO *cs = str_value.charset();
     size_t res_length = (strlen(user) + strlen(host) + 2) * cs->mbmaxlen;
 
-    if (str_value.alloc((uint)res_length)) {
+    if (str_value.alloc(res_length)) {
       null_value = true;
       return true;
     }
 
     res_length = cs->cset->snprintf(cs, str_value.ptr(), res_length, "%s@%s",
                                     user, host);
-    str_value.length((uint)res_length);
-    str_value.mark_as_const();
+    str_value.length(res_length);
   }
+
+  m_evaluated = true;
+
   return false;
 }
 
@@ -1860,12 +1944,6 @@ bool Item_func_user::itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
-bool Item_func_user::fix_fields(THD *thd, Item **ref) {
-  return (Item_func_sysconst::fix_fields(thd, ref) ||
-          init(thd->m_main_security_ctx.user().str,
-               thd->m_main_security_ctx.host_or_ip().str));
-}
-
 bool Item_func_current_user::itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
   if (super::itemize(pc, res)) return true;
@@ -1874,15 +1952,8 @@ bool Item_func_current_user::itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
-bool Item_func_current_user::fix_fields(THD *thd, Item **ref) {
-  if (Item_func_sysconst::fix_fields(thd, ref)) return true;
-
-  Security_context *ctx =
-      (context->security_ctx ? context->security_ctx : thd->security_context());
-  return init(ctx->priv_user().str, ctx->priv_host().str);
-}
-
-bool Item_func_soundex::resolve_type(THD *) {
+bool Item_func_soundex::resolve_type(THD *thd) {
+  if (Item_str_func::resolve_type(thd)) return true;
   uint32 char_length = args[0]->max_char_length();
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
   DBUG_ASSERT(collation.collation != nullptr);
@@ -2042,7 +2113,12 @@ MY_LOCALE *Item_func_format::get_locale(Item *) {
   return lc;
 }
 
-bool Item_func_format::resolve_type(THD *) {
+bool Item_func_format::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_NEWDECIMAL)) return true;
+  if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
+  if (param_type_is_default(thd, 2, 3)) return true;
+
+  decimals = FORMAT_MAX_DECIMALS;
   uint32 char_length = args[0]->max_char_length();
   uint32 max_sep_count = (char_length / 3) + (decimals ? 1 : 0) + /*sign*/ 1;
   set_data_type_string(char_length + max_sep_count + decimals,
@@ -2164,7 +2240,9 @@ void Item_func_format::print(const THD *thd, String *str,
   str->append(')');
 }
 
-bool Item_func_elt::resolve_type(THD *) {
+bool Item_func_elt::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_LONGLONG)) return true;
+  if (param_type_is_default(thd, 1, -1)) return true;
   uint32 char_length = 0;
   decimals = 0;
 
@@ -2230,12 +2308,14 @@ bool Item_func_make_set::itemize(Parse_context *pc, Item **res) {
 }
 
 void Item_func_make_set::split_sum_func(THD *thd, Ref_item_array ref_item_array,
-                                        List<Item> &fields) {
+                                        mem_root_deque<Item *> *fields) {
   item->split_sum_func2(thd, ref_item_array, fields, &item, true);
   Item_str_func::split_sum_func(thd, ref_item_array, fields);
 }
 
-bool Item_func_make_set::resolve_type(THD *) {
+bool Item_func_make_set::resolve_type(THD *thd) {
+  if (item->propagate_type(thd, MYSQL_TYPE_LONGLONG)) return true;
+  if (param_type_is_default(thd, 0, -1)) return true;
   uint32 char_length = arg_count - 1; /* Separators */
 
   if (agg_arg_charsets_for_string_result(collation, args, arg_count))
@@ -2305,16 +2385,9 @@ String *Item_func_make_set::val_str(String *str) {
 }
 
 Item *Item_func_make_set::transform(Item_transformer transformer, uchar *arg) {
-  Item *new_item = item->transform(transformer, arg);
-  if (!new_item) return nullptr;
+  item = item->transform(transformer, arg);
+  if (item == nullptr) return nullptr;
 
-  /*
-    THD::change_item_tree() should be called only if the tree was
-    really transformed, i.e. when a new item has been created.
-    Otherwise we'll be allocating a lot of unnecessary memory for
-    change records at each execution.
-  */
-  if (item != new_item) current_thd->change_item_tree(&item, new_item);
   return Item_str_func::transform(transformer, arg);
 }
 
@@ -2380,6 +2453,9 @@ inline String *alloc_buffer(String *res, String *str, String *tmp_value,
 }
 
 bool Item_func_repeat::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1)) return true;
+  if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
+
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
   DBUG_ASSERT(collation.collation != nullptr);
   if (args[1]->const_item()) {
@@ -2460,6 +2536,8 @@ String *Item_func_repeat::val_str(String *str) {
 }
 
 bool Item_func_space::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_LONGLONG)) return true;
+
   collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
   if (args[0]->const_item()) {
     /* must be longlong to avoid truncation */
@@ -2511,6 +2589,9 @@ String *Item_func_space::val_str(String *str) {
 }
 
 bool Item_func_rpad::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
+  if (param_type_is_default(thd, 0, -1)) return true;
+
   // Handle character set for args[0] and args[2].
   if (agg_arg_charsets_for_string_result(collation, &args[0], 2, 2))
     return true;
@@ -2632,6 +2713,9 @@ String *Item_func_rpad::val_str(String *str) {
 }
 
 bool Item_func_lpad::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
+  if (param_type_is_default(thd, 0, -1)) return true;
+
   // Handle character set for args[0] and args[2].
   if (agg_arg_charsets_for_string_result(collation, &args[0], 2, 2))
     return true;
@@ -2654,7 +2738,9 @@ end:
   return false;
 }
 
-bool Item_func_uuid_to_bin::resolve_type(THD *) {
+bool Item_func_uuid_to_bin::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
+  if (Item_str_func::resolve_type(thd)) return true;
   set_data_type_string(uint32(binary_log::Uuid::BYTE_LENGTH), &my_charset_bin);
   maybe_null = true;
   return false;
@@ -2694,7 +2780,9 @@ err:
   return nullptr;
 }
 
-bool Item_func_bin_to_uuid::resolve_type(THD *) {
+bool Item_func_bin_to_uuid::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
+  if (Item_str_func::resolve_type(thd)) return true;
   set_data_type_string(uint32(binary_log::Uuid::TEXT_LENGTH),
                        default_charset());
   maybe_null = true;
@@ -2849,7 +2937,8 @@ String *Item_func_lpad::val_str(String *str) {
   return str;
 }
 
-bool Item_func_conv::resolve_type(THD *) {
+bool Item_func_conv::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_LONGLONG)) return true;
   set_data_type_string(CONV_MAX_LENGTH, default_charset());
   maybe_null = true;
   return reject_geometry_args(arg_count, args, this);
@@ -2939,7 +3028,8 @@ String *Item_func_conv_charset::val_str(String *str) {
                                                true);  // truncate
 }
 
-bool Item_func_conv_charset::resolve_type(THD *) {
+bool Item_func_conv_charset::resolve_type(THD *thd) {
+  if (Item_str_func::resolve_type(thd)) return true;
   collation.set(conv_charset, DERIVATION_IMPLICIT);
   set_data_type_string(args[0]->max_char_length());
   return false;
@@ -3069,7 +3159,8 @@ void Item_func_weight_string::print(const THD *thd, String *str,
   str->append(')');
 }
 
-bool Item_func_weight_string::resolve_type(THD *) {
+bool Item_func_weight_string::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1)) return true;
   const CHARSET_INFO *cs = args[0]->collation.collation;
   collation.set(&my_charset_bin, args[0]->collation.derivation);
   flags = my_strxfrm_flag_normalize(flags);
@@ -3134,7 +3225,7 @@ String *Item_func_weight_string::val_str(String *str) {
   sortorder.item = args[0];
   sortlength(current_thd, &sortorder, /*s_length=*/1);
   if (sortorder.result_type == INT_RESULT) {
-    longlong value = get_int_sort_key_for_item(args[0]);
+    longlong value = args[0]->int_sort_key();
     if (args[0]->maybe_null && args[0]->null_value) return error_str();
     if (tmp_value.alloc(sortorder.length)) return error_str();
     copy_native_longlong(pointer_cast<uchar *>(tmp_value.ptr()),
@@ -3405,6 +3496,12 @@ String *Item_typecast_char::val_str(String *str) {
 }
 
 bool Item_typecast_char::resolve_type(THD *thd) {
+  if (args[0]->data_type() == MYSQL_TYPE_INVALID) {
+    if (args[0]->propagate_type(thd,
+                                Type_properties(MYSQL_TYPE_VARCHAR, cast_cs)))
+      return true;
+    args[0]->set_data_type_inherited();
+  }
   /*
     If we convert between two ASCII compatible character sets and the
     argument repertoire is MY_REPERTOIRE_ASCII then from_cs is set to cast_cs.
@@ -3446,11 +3543,6 @@ bool Item_load_file::itemize(Parse_context *pc, Item **res) {
   pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
   return false;
 }
-
-#include <fcntl.h>
-#include <limits.h>
-#include <stdlib.h>
-#include <sys/stat.h>
 
 String *Item_load_file::val_str(String *str) {
   DBUG_ASSERT(fixed == 1);
@@ -3588,8 +3680,13 @@ String *Item_func_export_set::val_str(String *str) {
 }
 
 bool Item_func_export_set::resolve_type(THD *thd) {
-  uint32 length = max(args[1]->max_char_length(), args[2]->max_char_length());
-  uint32 sep_length = (arg_count > 3 ? args[3]->max_char_length() : 1);
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_LONGLONG)) return true;
+  if (param_type_is_default(thd, 1, 4)) return true;
+  if (param_type_is_default(thd, 4, 5, MYSQL_TYPE_LONGLONG)) return true;
+
+  ulonglong length =
+      max(args[1]->max_char_length(), args[2]->max_char_length());
+  ulonglong sep_length = (arg_count > 3 ? args[3]->max_char_length() : 1);
 
   if (agg_arg_charsets_for_string_result(collation, args + 1,
                                          min(4U, arg_count) - 1))
@@ -3600,6 +3697,7 @@ bool Item_func_export_set::resolve_type(THD *thd) {
 }
 
 bool Item_func_quote::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, -1)) return true;
   /*
     Since QUOTE may add escapes to potentially all the characters in its
     argument, we need to compute the maximum by multiplying the argument's
@@ -4098,7 +4196,8 @@ String *Item_func_uuid::val_str(String *str) {
   return mysql_generate_uuid(str);
 }
 
-bool Item_func_gtid_subtract::resolve_type(THD *) {
+bool Item_func_gtid_subtract::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, -1)) return true;
   maybe_null = args[0]->maybe_null || args[1]->maybe_null;
   collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
   /*
@@ -4402,6 +4501,69 @@ String *Item_func_get_dd_create_options::val_str(String *str) {
       ptr = my_stpcpy(ptr, opt_value.c_str());
       ptr = my_stpcpy(ptr, "\"");
     }
+  }
+
+  if (ptr == option_buff)
+    oss << "";
+  else
+    oss << option_buff + 1;
+
+  str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+
+  return str;
+}
+
+/**
+  @brief
+    This function prepares string representing options for a schema.
+    This is required for IS implementation which uses views on DD tables.
+    With IS implementation using DD, all internal option values are
+    stored in the options field.
+    So, this UDF filters internal options from user defined options
+
+    Syntax:
+      string get_dd_schema_options(dd.schemata.options)
+
+    The arguments accept values from options from 'schemata' DD table,
+    as shown above.
+
+ */
+String *Item_func_get_dd_schema_options::val_str(String *str) {
+  DBUG_TRACE;
+
+  // Read schemata.options
+  String option;
+  String *option_ptr;
+  std::ostringstream oss("");
+
+  if ((option_ptr = args[0]->val_str(&option)) == nullptr) {
+    str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+    return str;
+  }
+
+  // Read required values from properties
+  std::unique_ptr<dd::Properties> p(
+      dd::Properties::parse_properties(option_ptr->c_ptr_safe()));
+
+  // Warn if the property string is corrupt.
+  if (!p.get()) {
+    LogErr(WARNING_LEVEL, ER_WARN_PROPERTY_STRING_PARSE_FAILED,
+           option_ptr->c_ptr_safe());
+    if (DBUG_EVALUATE_IF("continue_on_property_string_parse_failure", 0, 1))
+      DBUG_ASSERT(false);
+    str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+    return str;
+  }
+
+  char option_buff[350], *ptr;
+  ptr = option_buff;
+
+  // Print READ ONLY clause if set.
+  if (p->exists("read_only")) {
+    dd::String_type schema_read_only;
+    p->get("read_only", &schema_read_only);
+    DBUG_ASSERT(schema_read_only == "0" || schema_read_only == "1");
+    if (schema_read_only == "1") ptr = my_stpcpy(ptr, " READ ONLY=1");
   }
 
   if (ptr == option_buff)
@@ -4845,6 +5007,7 @@ void Item_func_current_role::cleanup() {
     value_cache.set((char *)nullptr, 0, system_charset_info);
     value_cache_set = false;
   }
+  super::cleanup();
 }
 
 String *Item_func_current_role::val_str(String *) {
@@ -4895,6 +5058,7 @@ void Item_func_roles_graphml::cleanup() {
     value_cache.set((char *)nullptr, 0, system_charset_info);
     value_cache_set = false;
   }
+  super::cleanup();
 }
 
 /**

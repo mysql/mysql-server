@@ -14,4 +14,4 @@ let SEARCH_PATTERN = ib_undo_trunc_empty_file;
 
 # Cleanup this test
 --source suite/innodb_undo/include/truncate_recover_cleanup.inc
-
+--source include/restart_mysqld.inc

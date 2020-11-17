@@ -82,7 +82,8 @@ class Security_context {
                                          bool cumulative = false);
   bool can_operate_with(const Auth_id &auth_id, const std::string &privilege,
                         bool cumulative = false,
-                        bool ignore_if_nonextant = true);
+                        bool ignore_if_nonextant = true,
+                        bool throw_error = true);
   int activate_role(LEX_CSTRING user, LEX_CSTRING host,
                     bool validate_access = false);
   void clear_active_roles(void);

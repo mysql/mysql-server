@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_sqlcommand.h"
+#include "my_time.h"
 #include "myisampack.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/psi_base.h"
@@ -61,6 +62,7 @@
 #include "storage/perfschema/table_ees_by_thread_by_error.h"
 #include "storage/perfschema/table_ees_by_user_by_error.h"
 #include "storage/perfschema/table_ees_global_by_error.h"
+#include "storage/perfschema/table_error_log.h"
 #include "storage/perfschema/table_esgs_by_account_by_event_name.h"
 #include "storage/perfschema/table_esgs_by_host_by_event_name.h"
 #include "storage/perfschema/table_esgs_by_thread_by_event_name.h"
@@ -108,6 +110,7 @@
 #include "storage/perfschema/table_performance_timers.h"
 #include "storage/perfschema/table_persisted_variables.h"
 #include "storage/perfschema/table_prepared_stmt_instances.h"
+#include "storage/perfschema/table_processlist.h"
 #include "storage/perfschema/table_replication_applier_configuration.h"
 #include "storage/perfschema/table_replication_applier_filters.h"
 #include "storage/perfschema/table_replication_applier_global_filters.h"
@@ -116,6 +119,7 @@
 #include "storage/perfschema/table_replication_applier_status_by_worker.h"
 /* For replication related perfschema tables. */
 #include "storage/perfschema/table_log_status.h"
+#include "storage/perfschema/table_replication_asynchronous_connection_failover.h"
 #include "storage/perfschema/table_replication_connection_configuration.h"
 #include "storage/perfschema/table_replication_connection_status.h"
 #include "storage/perfschema/table_replication_group_member_stats.h"
@@ -556,6 +560,7 @@ bool PFS_table_context::is_item_set(ulong n) {
 
 static PFS_engine_table_share *all_shares[] = {
     &table_cond_instances::m_share,
+    &table_error_log::m_share,
     &table_events_waits_current::m_share,
     &table_events_waits_history::m_share,
     &table_events_waits_history_long::m_share,
@@ -572,6 +577,7 @@ static PFS_engine_table_share *all_shares[] = {
     &table_mutex_instances::m_share,
     &table_os_global_by_type::m_share,
     &table_performance_timers::m_share,
+    &table_processlist::m_share,
     &table_rwlock_instances::m_share,
     &table_setup_actors::m_share,
     &table_setup_consumers::m_share,
@@ -653,6 +659,7 @@ static PFS_engine_table_share *all_shares[] = {
     &table_replication_group_member_stats::m_share,
     &table_replication_applier_filters::m_share,
     &table_replication_applier_global_filters::m_share,
+    &table_replication_asynchronous_connection_failover::m_share,
     &table_log_status::m_share,
 
     &table_prepared_stmt_instances::m_share,
@@ -971,11 +978,12 @@ class PFS_internal_schema_access : public ACL_internal_schema_access {
  public:
   PFS_internal_schema_access() {}
 
-  ~PFS_internal_schema_access() {}
+  ~PFS_internal_schema_access() override {}
 
-  ACL_internal_access_result check(ulong want_access, ulong *save_priv) const;
+  ACL_internal_access_result check(ulong want_access,
+                                   ulong *save_priv) const override;
 
-  const ACL_internal_table_access *lookup(const char *name) const;
+  const ACL_internal_table_access *lookup(const char *name) const override;
 };
 
 static bool allow_drop_schema_privilege() {
@@ -1122,6 +1130,33 @@ ACL_internal_access_result PFS_readonly_world_acl::check(
   if (res == ACL_INTERNAL_ACCESS_CHECK_GRANT) {
     res = ACL_INTERNAL_ACCESS_GRANTED;
   }
+  return res;
+}
+
+PFS_readonly_processlist_acl pfs_readonly_processlist_acl;
+
+ACL_internal_access_result PFS_readonly_processlist_acl::check(
+    ulong want_access, ulong *save_priv) const {
+  ACL_internal_access_result res =
+      PFS_readonly_acl::check(want_access, save_priv);
+
+  if ((res == ACL_INTERNAL_ACCESS_CHECK_GRANT) && (want_access == SELECT_ACL)) {
+    THD *thd = current_thd;
+    if (thd != nullptr) {
+      if (thd->lex->sql_command == SQLCOM_SHOW_PROCESSLIST ||
+          thd->lex->sql_command == SQLCOM_SELECT) {
+        /*
+          For compatibility with the historical
+          SHOW PROCESSLIST command,
+          SHOW PROCESSLIST does not require a
+          SELECT privilege on table performance_schema.processlist,
+          when rewriting the query using table processlist.
+        */
+        return ACL_INTERNAL_ACCESS_GRANTED;
+      }
+    }
+  }
+
   return res;
 }
 
@@ -1305,6 +1340,35 @@ enum ha_rkey_function PFS_key_reader::read_longlong(
 enum ha_rkey_function PFS_key_reader::read_ulonglong(
     enum ha_rkey_function find_flag, bool &isnull, ulonglong *value) {
   READ_INT_COMMON(8, HA_KEYTYPE_ULONGLONG, unsigned long long, uint8korr);
+}
+
+enum ha_rkey_function PFS_key_reader::read_timestamp(
+    enum ha_rkey_function find_flag, bool &isnull, ulonglong *value, uint dec) {
+  size_t data_size = 4 + ((size_t)((dec + 1) / 2));
+  struct timeval tm;
+
+  if (m_remaining_key_part_info->store_length <= m_remaining_key_len) {
+    DBUG_ASSERT(m_remaining_key_part_info->type == HA_KEYTYPE_BINARY);
+    DBUG_ASSERT(m_remaining_key_part_info->store_length >= data_size);
+    isnull = false;
+    if (m_remaining_key_part_info->field->is_nullable()) {
+      if (m_remaining_key[0]) {
+        isnull = true;
+      }
+      m_remaining_key += HA_KEY_NULL_LENGTH;
+      m_remaining_key_len -= HA_KEY_NULL_LENGTH;
+    }
+    my_timestamp_from_binary(&tm, m_remaining_key, dec);
+    ulonglong data = (((ulonglong)tm.tv_sec) * 1000000ULL) + tm.tv_usec;
+    m_remaining_key += data_size;
+    m_remaining_key_len -= (uint)data_size;
+    m_parts_found++;
+    m_remaining_key_part_info++;
+    *value = data;
+    return ((m_remaining_key_len == 0) ? find_flag : HA_READ_KEY_EXACT);
+  }
+  DBUG_ASSERT(m_remaining_key_len == 0);
+  return HA_READ_INVALID;
 }
 
 enum ha_rkey_function PFS_key_reader::read_varchar_utf8(

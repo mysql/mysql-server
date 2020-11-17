@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,8 +29,9 @@
 
 #include "sql/item_pfs_func.h"
 
-#include <stdio.h>
-#include <cmath>
+#include <cstdint>  // uint64_t
+#include <cstdio>
+#include <cstdlib>  // abs
 
 #include "m_ctype.h"
 #include "my_dbug.h"
@@ -41,6 +42,7 @@
 #include "pfs_thread_provider.h"
 #include "sql/field.h"
 #include "sql/item.h"
+#include "sql/parse_tree_node_base.h"  // Parse_context
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 
@@ -150,10 +152,8 @@ longlong Item_func_pfs_thread_id::val_int() {
 /** format_bytes() */
 
 bool Item_func_pfs_format_bytes::resolve_type(THD *) {
-  maybe_null = true;
-  collation.set(&my_charset_utf8_general_ci);
   /* Format is 'AAAA.BB UUU' = 11 characters or 'AAAA bytes' = 10 characters. */
-  fix_char_length(11);
+  set_data_type_string(11U, &my_charset_utf8_general_ci);
   return false;
 }
 
@@ -223,9 +223,8 @@ String *Item_func_pfs_format_bytes::val_str(String *) {
 
 bool Item_func_pfs_format_pico_time::resolve_type(THD *) {
   maybe_null = true;
-  collation.set(&my_charset_utf8_general_ci);
   /* Format is 'AAAA.BB UUU' = 11 characters or 'AAA ps' = 6 characters. */
-  fix_char_length(11);
+  set_data_type_string(11U, &my_charset_utf8_general_ci);
   return false;
 }
 

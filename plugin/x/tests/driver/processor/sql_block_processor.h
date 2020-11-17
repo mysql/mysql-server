@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -39,8 +39,8 @@ class Sql_block_processor : public Block_processor {
   explicit Sql_block_processor(Execution_context *context)
       : m_context(context), m_cm(context->m_connection), m_sql(false) {}
 
-  virtual Result feed(std::istream &input, const char *linebuf);
-  virtual bool feed_ended_is_state_ok();
+  Result feed(std::istream &input, const char *linebuf) override;
+  bool feed_ended_is_state_ok() override;
 
  protected:
   int run_sql_batch(xcl::XSession *conn, const std::string &sql_,

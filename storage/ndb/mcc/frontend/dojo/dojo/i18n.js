@@ -260,6 +260,11 @@ _7c=_80;
 });
 return _7c;
 };
+}else{
+_a.getLocalization=function(_81,_82,_83){
+var key=_81.replace(/\./g,"/")+"/nls/"+_82+"/"+(_83||_5.locale);
+return this.cache[key];
+};
 }
 return _6.mixin(_a,{dynamic:true,normalize:_28,load:_2d,cache:_14,getL10nName:_19});
 });

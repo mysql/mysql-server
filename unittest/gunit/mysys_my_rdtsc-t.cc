@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,7 @@ const int LOOP_COUNT = 100;
 
 class RDTimeStampCounter : public ::testing::Test {
  protected:
-  void SetUp() { test_init(); }
+  void SetUp() override { test_init(); }
   void test_init();
 
   MY_TIMER_INFO myt;

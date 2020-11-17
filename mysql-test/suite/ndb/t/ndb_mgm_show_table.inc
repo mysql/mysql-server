@@ -43,16 +43,16 @@ eval LOAD DATA INFILE '$dump_file' INTO TABLE ndb_mgm_show
 UPDATE ndb_mgm_show SET a = TRIM(TRAILING "\r" FROM a);
 
 
---replace_result $mysql_version MYSQL_VERSION $ndb_version NDB_VERSION
+--replace_result $mysql_version MYSQL_VERSION $ndb_version NDB_VERSION @127.0.0.1 LOCALHOST @::1 LOCALHOST
 SELECT a as 'ndbd(s)' FROM ndb_mgm_show
   WHERE SUBSTR(a, 4, 3) IN (1, 2, 3, 4);
 
 
---replace_result $mysql_version MYSQL_VERSION $ndb_version NDB_VERSION
+--replace_result $mysql_version MYSQL_VERSION $ndb_version NDB_VERSION @127.0.0.1 LOCALHOST @::1 LOCALHOST
 SELECT a as 'ndb_mgmd(s)' FROM ndb_mgm_show
   WHERE SUBSTR(a, 4, 3) IN (5);
 
---replace_result $mysql_version MYSQL_VERSION $ndb_version NDB_VERSION
+--replace_result $mysql_version MYSQL_VERSION $ndb_version NDB_VERSION @127.0.0.1 LOCALHOST @::1 LOCALHOST
 SELECT a as 'mysqld(s)' FROM ndb_mgm_show
   WHERE SUBSTR(a, 4, 3)
     IN (6,7,8,9,10,11,12,13,14,15,16,17,18,19)

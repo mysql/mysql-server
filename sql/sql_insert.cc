@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+
 #include <atomic>
 #include <map>
 #include <utility>
@@ -86,12 +87,12 @@
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
-#include "sql/sql_optimizer.h"  // Prepare_error_tracker
-#include "sql/sql_resolver.h"   // validate_gc_assignment
-#include "sql/sql_show.h"       // store_create_info
-#include "sql/sql_table.h"      // quick_rm_table
-#include "sql/sql_update.h"     // records_are_comparable
-#include "sql/sql_view.h"       // check_key_in_view
+#include "sql/sql_resolver.h"  // validate_gc_assignment
+#include "sql/sql_select.h"    // check_privileges_for_list
+#include "sql/sql_show.h"      // store_create_info
+#include "sql/sql_table.h"     // quick_rm_table
+#include "sql/sql_update.h"    // records_are_comparable
+#include "sql/sql_view.h"      // check_key_in_view
 #include "sql/system_variables.h"
 #include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
 #include "sql/thd_raii.h"
@@ -126,19 +127,17 @@ static void prepare_for_positional_update(TABLE *table, TABLE_LIST *tables);
   @return false if success, true if an error was raised.
 */
 
-static bool check_single_table_insert(List<Item> &fields, TABLE_LIST *view,
+static bool check_single_table_insert(const mem_root_deque<Item *> &fields,
+                                      TABLE_LIST *view,
                                       TABLE_LIST **insert_table_ref) {
   // It is join view => we need to find the table for insert
-  List_iterator_fast<Item> it(fields);
-  Item *item;
   *insert_table_ref = nullptr;  // reset for call to check_single_table()
   table_map tables = 0;
 
-  while ((item = it++)) tables |= item->used_tables();
+  for (Item *item : fields) tables |= item->used_tables();
 
   if (view->check_single_table(insert_table_ref, tables)) {
-    my_error(ER_VIEW_MULTIUPDATE, MYF(0), view->view_db.str,
-             view->view_name.str);
+    my_error(ER_VIEW_MULTIUPDATE, MYF(0), view->db, view->table_name);
     return true;
   }
   DBUG_ASSERT(*insert_table_ref && (*insert_table_ref)->is_insertable());
@@ -159,7 +158,7 @@ static bool check_single_table_insert(List<Item> &fields, TABLE_LIST *view,
 */
 
 static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
-                                List<Item> &fields) {
+                                mem_root_deque<Item *> *fields) {
   LEX *const lex = thd->lex;
 
 #ifndef DBUG_OFF
@@ -170,7 +169,7 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
 
   DBUG_ASSERT(table_list->is_insertable());
 
-  if (fields.elements == 0) {
+  if (fields->empty()) {
     /*
       No field list supplied, but a value list has been supplied.
       Use field list of table being updated.
@@ -179,9 +178,16 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
 
     lex->insert_table_leaf = table_list;
 
-    Field_iterator_table_ref field_it;
-    field_it.set(table_list);
-    if (check_grant_all_columns(thd, INSERT_ACL, &field_it)) return true;
+    Field_iterator_table_ref it;
+    it.set(table_list);
+    if (check_grant_all_columns(thd, INSERT_ACL, &it)) return true;
+
+    for (it.set(table_list); !it.end_of_fields(); it.next()) {
+      if (it.field()->is_hidden_from_user()) continue;
+      Item *item = it.create_item(thd);
+      if (item == nullptr) return true;
+      fields->push_back(item);
+    }
   } else {
     // INSERT with explicit field list.
     SELECT_LEX *select_lex = thd->lex->select_lex;
@@ -195,16 +201,14 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
       Perform name resolution only in the first table - 'table_list',
       which is the table that is inserted into.
     */
-    TABLE_LIST *next_name_resolution_table =
-        table_list->next_name_resolution_table;
-    table_list->next_name_resolution_table = nullptr;
     table_list->next_local = nullptr;
-
     context->resolve_in_table_list_only(table_list);
-    const bool res = setup_fields(thd, Ref_item_array(), fields, INSERT_ACL,
-                                  nullptr, false, true);
 
-    table_list->next_name_resolution_table = next_name_resolution_table;
+    const bool res =
+        setup_fields(thd, /*want_privilege=*/INSERT_ACL,
+                     /*allow_sum_func=*/false, /*split_sum_funcs=*/false,
+                     /*column_update=*/true, /*typed_items=*/nullptr, fields,
+                     Ref_item_array());
 
     /* Restore the current context. */
     ctx_state.restore_state(context, table_list);
@@ -212,7 +216,7 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
     if (res) return true;
 
     if (table_list->is_merged()) {
-      if (check_single_table_insert(fields, table_list,
+      if (check_single_table_insert(*fields, table_list,
                                     &lex->insert_table_leaf))
         return true;
       table = lex->insert_table_leaf->table;
@@ -223,14 +227,14 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
     // We currently don't check for unique columns when inserting via a view.
     const bool check_unique = !table_list->is_view();
 
-    if (check_unique && bitmap_bits_set(table->write_set) < fields.elements) {
-      for (auto i = fields.cbegin(); i != fields.cend(); ++i) {
+    if (check_unique && bitmap_bits_set(table->write_set) < fields->size()) {
+      for (auto i = fields->cbegin(); i != fields->cend(); ++i) {
         // Skipping views means that we only have FIELD_ITEM.
-        const Item &item1 = *i;
-        for (auto j = std::next(i); j != fields.cend(); ++j) {
-          const Item &item2 = *j;
-          if (item1.eq(&item2, true)) {
-            my_error(ER_FIELD_SPECIFIED_TWICE, MYF(0), item1.item_name.ptr());
+        const Item *item1 = *i;
+        for (auto j = std::next(i); j != fields->cend(); ++j) {
+          const Item *item2 = *j;
+          if (item1->eq(item2, true)) {
+            my_error(ER_FIELD_SPECIFIED_TWICE, MYF(0), item1->item_name.ptr());
             break;
           }
         }
@@ -266,20 +270,17 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
   @return false if success, true if error
 */
 
-static bool check_valid_table_refs(const TABLE_LIST *view, List<Item> &values,
+static bool check_valid_table_refs(const TABLE_LIST *view,
+                                   const mem_root_deque<Item *> &values,
                                    table_map map) {
-  List_iterator_fast<Item> it(values);
-  Item *item;
-
   if (!view->is_view())  // Ignore check if called with base table.
     return false;
 
   map |= PSEUDO_TABLE_BITS;
 
-  while ((item = it++)) {
+  for (Item *item : values) {
     if (item->used_tables() & ~map) {
-      my_error(ER_VIEW_MULTIUPDATE, MYF(0), view->view_db.str,
-               view->view_name.str);
+      my_error(ER_VIEW_MULTIUPDATE, MYF(0), view->db, view->table_name);
       return true;
     }
   }
@@ -372,11 +373,12 @@ void prepare_triggers_for_insert_stmt(THD *thd, TABLE *table) {
     @retval true    Failure
 */
 
-static bool mysql_prepare_blob_values(THD *thd, List<Item> &fields,
+static bool mysql_prepare_blob_values(THD *thd,
+                                      const mem_root_deque<Item *> &fields,
                                       MEM_ROOT *mem_root) {
   DBUG_TRACE;
 
-  if (fields.elements <= 1) return false;
+  if (fields.size() <= 1) return false;
 
   // Collect LHS_FIELD's which are updated in a 'set'.
   // This 'set' helps decide if we need to make copy of BLOB value
@@ -384,11 +386,9 @@ static bool mysql_prepare_blob_values(THD *thd, List<Item> &fields,
 
   Prealloced_array<Field_blob *, 16> blob_update_field_set(
       PSI_NOT_INSTRUMENTED);
-  if (blob_update_field_set.reserve(fields.elements)) return true;
+  if (blob_update_field_set.reserve(fields.size())) return true;
 
-  List_iterator_fast<Item> f(fields);
-  Item *fld;
-  while ((fld = f++)) {
+  for (Item *fld : fields) {
     Item_field *field = fld->field_for_view_update();
     Field *lhs_field = field->field;
 
@@ -401,12 +401,12 @@ static bool mysql_prepare_blob_values(THD *thd, List<Item> &fields,
   // and make copy of BLOB values in RHS_FIELD, if the same field is
   // modified (present in above 'set' prepared).
   if (thd->lex->has_values_map()) {
-    std::map<Field *, Field *>::iterator iter;
+    std::map<Item_field *, Field *>::iterator iter;
     for (iter = thd->lex->begin_values_map();
          iter != thd->lex->end_values_map(); ++iter) {
       // Retrieve the Field_blob pointers from the map.
       // and initialize newly declared variables immediately.
-      Field_blob *lhs_field = down_cast<Field_blob *>(iter->first);
+      Field_blob *lhs_field = down_cast<Field_blob *>(iter->first->field);
       Field_blob *rhs_field = down_cast<Field_blob *>(iter->second);
 
       // Check if the Field_blob object is updated before making a copy.
@@ -421,15 +421,42 @@ static bool mysql_prepare_blob_values(THD *thd, List<Item> &fields,
 }
 
 bool Sql_cmd_insert_base::precheck(THD *thd) {
+  DBUG_TRACE;
   /*
     Check that we have modify privileges for the first table and
     select privileges for the rest
   */
   ulong privilege = INSERT_ACL | (duplicates == DUP_REPLACE ? DELETE_ACL : 0) |
-                    (update_value_list.elements ? UPDATE_ACL : 0);
+                    (update_value_list.empty() ? 0 : UPDATE_ACL);
 
   if (check_one_table_access(thd, privilege, lex->query_tables)) return true;
 
+  return false;
+}
+
+bool Sql_cmd_insert_base::check_privileges(THD *thd) {
+  DBUG_TRACE;
+
+  if (check_all_table_privileges(thd)) return (true);
+
+  if (check_privileges_for_list(thd, insert_field_list, INSERT_ACL))
+    return true;
+
+  if (values_need_privilege_check) {
+    for (List_item *values : insert_many_values) {
+      if (check_privileges_for_list(thd, *values, SELECT_ACL)) return true;
+    }
+  }
+  if (duplicates == DUP_UPDATE) {
+    if (check_privileges_for_list(thd, update_field_list, UPDATE_ACL))
+      return true;
+    if (check_privileges_for_list(thd, update_value_list, SELECT_ACL))
+      return true;
+  }
+
+  for (SELECT_LEX *sl = lex->unit->first_select(); sl; sl = sl->next_select()) {
+    if (sl->check_column_privileges(thd)) return true;
+  }
   return false;
 }
 
@@ -447,9 +474,6 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
   DBUG_ASSERT(thd->lex->sql_command == SQLCOM_REPLACE ||
               thd->lex->sql_command == SQLCOM_INSERT);
 
-  List_iterator_fast<List_item> its(insert_many_values);
-  List_item *values;
-
   /*
     We have three alternative syntax rules for the INSERT statement:
     1) "INSERT (columns) VALUES ...", so non-listed columns need a default
@@ -460,8 +484,8 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
     expr_i is "DEFAULT" (in which case the column is set by
     Item_default_value::save_in_field_inner()).
   */
-  const bool manage_defaults = insert_field_list.elements != 0 ||  // 1)
-                               value_count == 0;                   // 2)
+  const bool manage_defaults = column_count > 0 ||  // 1)
+                               value_count == 0;    // 2)
   COPY_INFO info(COPY_INFO::INSERT_OPERATION, &insert_field_list,
                  manage_defaults, duplicates);
   COPY_INFO update(COPY_INFO::UPDATE_OPERATION, &update_field_list,
@@ -537,7 +561,7 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
        same table in the same connection.
     */
     if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
-      insert_table->file->ha_start_bulk_insert(insert_many_values.elements);
+      insert_table->file->ha_start_bulk_insert(insert_many_values.size());
 
     prepare_triggers_for_insert_stmt(thd, insert_table);
 
@@ -547,7 +571,7 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
       Notice that policy must be reset before leaving this function.
     */
     thd->check_for_truncated_fields =
-        ((insert_many_values.elements == 1 && !lex->is_ignore())
+        ((insert_many_values.size() == 1 && !lex->is_ignore())
              ? CHECK_FIELD_ERROR_FOR_NULL
              : CHECK_FIELD_WARN);
     thd->num_truncated_fields = 0L;
@@ -556,49 +580,37 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
       (*next_field)->reset_warnings();
     }
 
-    while ((values = its++)) {
+    for (const List_item *values : insert_many_values) {
       Autoinc_field_has_explicit_non_null_value_reset_guard after_each_row(
           insert_table);
 
-      if (insert_field_list.elements || !value_count) {
-        restore_record(insert_table, s->default_values);  // Get empty record
-
+      restore_record(insert_table, s->default_values);  // Get empty record
+      /*
+        Check whether default values of the insert_field_list not specified in
+        column list are correct or not.
+      */
+      if (validate_default_values_of_unset_fields(thd, insert_table)) {
+        has_error = true;
+        break;
+      }
+      if (fill_record_n_invoke_before_triggers(
+              thd, &info, insert_field_list, *values, insert_table,
+              TRG_EVENT_INSERT, insert_table->s->fields, true, nullptr)) {
+        DBUG_ASSERT(thd->is_error());
         /*
-          Check whether default values of the insert_field_list not specified in
-          column list are correct or not.
+          TODO: Convert warnings to errors if values_list.elements == 1
+          and check that all items return warning in case of problem with
+          storing field.
         */
-        if (validate_default_values_of_unset_fields(thd, insert_table)) {
-          has_error = true;
-          break;
-        }
-        if (fill_record_n_invoke_before_triggers(
-                thd, &info, insert_field_list, *values, insert_table,
-                TRG_EVENT_INSERT, insert_table->s->fields, true, nullptr)) {
-          DBUG_ASSERT(thd->is_error());
-          /*
-            TODO: Convert warnings to errors if values_list.elements == 1
-            and check that all items return warning in case of problem with
-            storing field.
-          */
-          has_error = true;
-          break;
-        }
+        has_error = true;
+        break;
+      }
 
-        if (check_that_all_fields_are_given_values(thd, insert_table,
-                                                   table_list)) {
-          DBUG_ASSERT(thd->is_error());
-          has_error = true;
-          break;
-        }
-      } else {
-        restore_record(insert_table, s->default_values);  // Get empty record
-        if (fill_record_n_invoke_before_triggers(
-                thd, insert_table->field, *values, insert_table,
-                TRG_EVENT_INSERT, insert_table->s->fields)) {
-          DBUG_ASSERT(thd->is_error());
-          has_error = true;
-          break;
-        }
+      if (check_that_all_fields_are_given_values(thd, insert_table,
+                                                 table_list)) {
+        DBUG_ASSERT(thd->is_error());
+        has_error = true;
+        break;
       }
 
       const int check_result = table_list->view_check_option(thd);
@@ -727,7 +739,7 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
   DBUG_ASSERT(has_error == thd->get_stmt_da()->is_error());
   if (has_error) return true;
 
-  if (insert_many_values.elements == 1 &&
+  if (insert_many_values.size() == 1 &&
       (!(thd->variables.option_bits & OPTION_WARNINGS) ||
        !thd->num_truncated_fields)) {
     my_ok(thd,
@@ -798,7 +810,7 @@ static bool check_view_insertability(THD *thd, TABLE_LIST *view,
                                      const TABLE_LIST *insert_table_ref) {
   DBUG_TRACE;
 
-  const uint num = view->view_query()->select_lex->fields_list.elements;
+  const uint num = view->view_query()->select_lex->num_visible_fields();
   TABLE *const table = insert_table_ref->table;
   MY_BITMAP used_fields;
   enum_mark_columns save_mark_used_columns = thd->mark_used_columns;
@@ -986,12 +998,12 @@ bool get_default_columns(TABLE *table, MY_BITMAP **m_function_default_columns) {
 bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
   DBUG_TRACE;
 
-  Prepare_error_tracker tracker(thd);
-
-  const bool select_insert = insert_many_values.elements == 0;
+  // Save original number of columns in insert list
+  column_count = insert_field_list.size();
+  const bool select_insert = insert_many_values.empty();
 
   // Number of update fields must match number of update values
-  DBUG_ASSERT(update_field_list.elements == update_value_list.elements);
+  DBUG_ASSERT(update_field_list.size() == update_value_list.size());
 
   SELECT_LEX_UNIT *const unit = lex->unit;
   SELECT_LEX *const select = lex->select_lex;
@@ -1046,7 +1058,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
     */
     ulong privilege = INSERT_ACL |
                       (duplicates == DUP_REPLACE ? DELETE_ACL : 0) |
-                      (update_value_list.elements ? UPDATE_ACL : 0);
+                      (update_value_list.empty() ? 0 : UPDATE_ACL);
 
     if (select->check_view_privileges(thd, privilege, privilege)) return true;
     /*
@@ -1075,11 +1087,10 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
     return true;
   }
 
-  if (insert_into_view && insert_field_list.elements == 0) {
-    empty_field_list_on_rset = true;
+  if (insert_into_view && column_count == 0) {
     if (table_list->is_multiple_tables()) {
-      my_error(ER_VIEW_NO_INSERT_FIELD_LIST, MYF(0), table_list->view_db.str,
-               table_list->view_name.str);
+      my_error(ER_VIEW_NO_INSERT_FIELD_LIST, MYF(0), table_list->db,
+               table_list->table_name);
       return true;
     }
     if (insert_view_fields(&insert_field_list, table_list)) return true;
@@ -1087,8 +1098,8 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
 
   // REPLACE for a JOIN view is not permitted.
   if (table_list->is_multiple_tables() && duplicates == DUP_REPLACE) {
-    my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0), table_list->view_db.str,
-             table_list->view_name.str);
+    my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0), table_list->db,
+             table_list->table_name);
     return true;
   }
 
@@ -1111,57 +1122,63 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
 
   // Prepare the lists of columns and values in the statement.
 
-  if (check_insert_fields(thd, table_list, insert_field_list)) return true;
+  if (check_insert_fields(thd, table_list, &insert_field_list)) return true;
+
+  lex->insert_table_leaf->set_inserted();
+  if (duplicates == DUP_REPLACE) lex->insert_table_leaf->set_deleted();
+  if (duplicates == DUP_UPDATE) lex->insert_table_leaf->set_updated();
 
   TABLE *const insert_table = lex->insert_table_leaf->table;
 
-  uint field_count = insert_field_list.elements ? insert_field_list.elements
-                                                : insert_table->s->fields;
-
-  // If the SQL command was an INSERT without column list (like
-  //  "INSERT INTO foo VALUES (1, 2);", we ignore any columns that is hidden
-  // from the user.
-  if (insert_field_list.elements == 0) {
-    for (uint i = 0; i < insert_table->s->fields; ++i) {
-      if (insert_table->s->field[i]->is_hidden_from_user()) field_count--;
-    }
-  }
-
+  uint field_count = insert_field_list.size();
   table_map map = lex->insert_table_leaf->map();
 
-  List_iterator_fast<List_item> its(insert_many_values);
-  List_item *values;
   uint value_list_counter = 0;
-  while ((values = its++)) {
+  for (const List_item *values : insert_many_values) {
     value_list_counter++;
     /*
       Values for all fields in table must be specified, unless there is
       no field list and no value list is supplied (means all default values).
     */
-    if (values->elements != field_count &&
-        !(values->elements == 0 && insert_field_list.elements == 0)) {
+    if (values->size() != field_count &&
+        !(values->empty() && column_count == 0)) {
       my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), value_list_counter);
       return true;
     }
 
     // Each set of values specified must have the same cardinality
-    if (value_list_counter > 1 && value_count != values->elements) {
+    if (value_list_counter > 1 && value_count != values->size()) {
       my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), value_list_counter);
       return true;
     }
     // Assign value count in the Sql_cmd object
-    value_count = values->elements;
+    value_count = values->size();
 
-    if (setup_fields(thd, Ref_item_array(), *values, SELECT_ACL, nullptr, false,
-                     false))
+    /*
+      If only default values, insert column items are not needed. And
+      fill_record() doesn't accept when the list of column items and of
+      specified values to insert have different lengths.
+    */
+    if (value_count == 0) insert_field_list.clear();
+
+    // The const_cast is fine, since we're sending split_sum_funcs = false.
+    if (setup_fields(thd, /*want_privilege=*/SELECT_ACL,
+                     /*allow_sum_func=*/false, /*split_sum_funcs=*/false,
+                     /*column_update=*/false, &insert_field_list,
+                     const_cast<mem_root_deque<Item *> *>(values),
+                     Ref_item_array()))
       return true;
+
+    for (Item *item : *values) {
+      if (!item->const_for_execution()) values_need_privilege_check = true;
+    }
 
     if (check_valid_table_refs(table_list, *values, map))
       return true; /* purecov: inspected */
 
     if ((insert_table->has_gcol() ||
          insert_table->gen_def_fields_ptr != nullptr) &&
-        validate_gc_assignment(&insert_field_list, values, insert_table))
+        validate_gc_assignment(insert_field_list, *values, insert_table))
       return true;
   }
 
@@ -1177,7 +1194,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
        that all columns are given default values, and default values are
        managed in a different manner, see COPY_INFO for details).
   */
-  if ((insert_into_view || insert_field_list.elements == 0) &&
+  if ((insert_into_view || column_count == 0) &&
       (select_insert || value_count > 0))
     bitmap_set_all(insert_table->write_set);
 
@@ -1188,14 +1205,16 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
   // must be done after setting up the insert table to have access to insert
   // fields. If values_field_list is not empty, the table is already set up
   // (e.g. as part of a PREPARE statement).
-  if (values_column_list != nullptr && values_field_list.is_empty() &&
+  if (values_column_list != nullptr && values_field_list.empty() &&
       prepare_values_table(thd))
     return true;
 
   if (duplicates == DUP_UPDATE) {
     // Setup the columns to be updated
-    if (setup_fields(thd, Ref_item_array(), update_field_list, UPDATE_ACL,
-                     nullptr, false, true))
+    if (setup_fields(thd, /*want_privilege=*/UPDATE_ACL,
+                     /*allow_sum_func=*/false, /*split_sum_funcs=*/false,
+                     /*column_update=*/true, /*typed_items=*/nullptr,
+                     &update_field_list, Ref_item_array()))
       return true;
 
     if (check_valid_table_refs(table_list, update_field_list, map)) return true;
@@ -1286,9 +1305,9 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
     if (lex->sql_command == SQLCOM_REPLACE_SELECT)
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_REPLACE_SELECT);
 
-    result = new (thd->mem_root) Query_result_insert(
-        table_list, insert_table, &insert_field_list, &insert_field_list,
-        &update_field_list, &update_value_list, duplicates);
+    result = new (thd->mem_root)
+        Query_result_insert(table_list, &insert_field_list, &insert_field_list,
+                            &update_field_list, &update_value_list, duplicates);
     if (result == nullptr) return true; /* purecov: inspected */
 
     if (unit->is_union()) {
@@ -1310,10 +1329,8 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
     select->table_list.first = context->table_list =
         context->first_name_resolution_table = first_select_table;
 
-    if (unit->prepare_limit(thd, unit->global_parameters()))
-      return true; /* purecov: inspected */
-
-    if (unit->prepare(thd, result, added_options, 0)) return true;
+    if (unit->prepare(thd, result, &insert_field_list, added_options, 0))
+      return true;
 
     /* Restore the insert table but not the name resolution context */
     if (first_select_table != select->table_list.first) {
@@ -1325,14 +1342,14 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
     select->table_list.first = context->table_list = table_list;
     table_list->next_local = first_select_table;
 
-    if (field_count != unit->types.elements) {
+    if (field_count != unit->num_visible_fields()) {
       my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1);
       return true;
     }
 
     if ((insert_table->has_gcol() || insert_table->gen_def_fields_ptr) &&
-        validate_gc_assignment(&insert_field_list,
-                               unit->get_unit_column_types(), insert_table))
+        validate_gc_assignment(insert_field_list,
+                               *unit->get_unit_column_types(), insert_table))
       return true;
   }
 
@@ -1366,16 +1383,6 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
     if (!unit->is_union() && resolve_update_expressions(thd)) return true;
   }
 
-  if (!unit->is_union() && select->apply_local_transforms(thd, false))
-    return true; /* purecov: inspected */
-
-  if (select_insert) {
-    // Restore the insert table and the name resolution context
-    select->table_list.first = context->table_list = table_list;
-    table_list->next_local = first_select_table;
-    ctx_state.restore_state(context, table_list);
-  }
-
   if (insert_table->triggers) {
     /*
       We don't need to mark columns which are used by ON DELETE and
@@ -1385,6 +1392,16 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
       fields as used.
     */
     if (insert_table->triggers->mark_fields(TRG_EVENT_INSERT)) return true;
+  }
+
+  if (!unit->is_union() && select->apply_local_transforms(thd, false))
+    return true; /* purecov: inspected */
+
+  if (select_insert) {
+    // Restore the insert table and the name resolution context
+    select->table_list.first = context->table_list = table_list;
+    table_list->next_local = first_select_table;
+    ctx_state.restore_state(context, table_list);
   }
 
   if (!select_insert && insert_table->part_info) {
@@ -1401,8 +1418,8 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
       expr_i is "DEFAULT" (in which case the column is set by
       Item_default_value::save_in_field_inner()).
     */
-    const bool manage_defaults = insert_field_list.elements != 0 ||  // 1)
-                                 value_count == 0;                   // 2)
+    const bool manage_defaults = column_count > 0 ||  // 1)
+                                 value_count == 0;    // 2)
     COPY_INFO info(COPY_INFO::INSERT_OPERATION, &insert_field_list,
                    manage_defaults, duplicates);
     COPY_INFO update(COPY_INFO::UPDATE_OPERATION, &update_field_list,
@@ -1423,8 +1440,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
       return true; /* purecov: inspected */
 
     if (can_prune_partitions != partition_info::PRUNE_NO) {
-      its.rewind();
-      values = its++;
+      auto its = insert_many_values.begin();
       num_partitions = insert_table->part_info->lock_partitions.n_bits;
       uint counter = 1;
       /*
@@ -1438,14 +1454,15 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
         rest will be in the same partition.
       */
       if (insert_table->part_info->set_used_partition(
-              insert_field_list, *values, info, prune_needs_default_values,
-              &used_partitions)) {
+              insert_field_list, /*values=*/*(*its++), info,
+              prune_needs_default_values, &used_partitions)) {
         can_prune_partitions = partition_info::PRUNE_NO;
         // set_used_partition may fail.
         if (thd->is_error()) return true;
       }
 
-      while ((values = its++)) {
+      while (its != insert_many_values.end()) {
+        const mem_root_deque<Item *> *values = *its++;
         counter++;
 
         /*
@@ -1496,6 +1513,17 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
     }
   }
 
+  if (!select_insert) {
+    unit->set_prepared();
+  } else {
+    if (!is_regular()) {
+      for (TABLE_LIST *tr = lex->insert_table->first_leaf_table();
+           tr != nullptr; tr = tr->next_leaf)
+        if (tr->save_properties()) return true;
+    }
+  }
+
+  DBUG_ASSERT(CountHiddenFields(insert_field_list) == 0);
   return false;
 }
 
@@ -1526,7 +1554,7 @@ bool Sql_cmd_insert_base::prepare_values_table(THD *thd) {
   // VALUES table. They should be persistent for prepared statements.
   Prepared_stmt_arena_holder ps_arena_holder(thd);
 
-  if (insert_field_list.elements == 0) {
+  if (insert_field_list.empty()) {
     TABLE_LIST *insert_table = lex->select_lex->table_list.first;
     Field_iterator_table_ref it;
     it.set(insert_table);
@@ -1534,12 +1562,11 @@ bool Sql_cmd_insert_base::prepare_values_table(THD *thd) {
     for (it.set(insert_table); !it.end_of_fields(); it.next()) {
       Item *item = it.create_item(current_thd);
       if (item == nullptr) return true;
-      if (values_field_list.push_back(down_cast<Item_field *>(item)))
-        return true;
+      values_field_list.push_back(down_cast<Item_field *>(item));
     }
   } else {
-    for (Item &item : insert_field_list) {
-      Item_field *field = down_cast<Item_field *>(item.real_item());
+    for (Item *item : insert_field_list) {
+      Item_field *field = down_cast<Item_field *>(item->real_item());
       values_field_list.push_back(field);
     }
   }
@@ -1547,8 +1574,8 @@ bool Sql_cmd_insert_base::prepare_values_table(THD *thd) {
   // If no column names were specified for the values table, we fill in names
   // corresponding to the same column of the insert table.
   if (values_column_list->empty()) {
-    for (Item &item : values_field_list) {
-      Item_field *field = down_cast<Item_field *>(&item);
+    for (Item *item : values_field_list) {
+      Item_field *field = down_cast<Item_field *>(item);
       values_column_list->push_back(to_lex_cstring(field->field_name));
     }
   }
@@ -1563,8 +1590,8 @@ bool Sql_cmd_insert_base::prepare_values_table(THD *thd) {
   if (transl == nullptr) return true;
 
   uint field_count = 0;
-  for (Item &item : values_field_list) {
-    Item_field *field_arg = down_cast<Item_field *>(&item);
+  for (Item *item : values_field_list) {
+    Item_field *field_arg = down_cast<Item_field *>(item);
     Item_insert_value *insert_value =
         new Item_insert_value(&thd->lex->current_select()->context, field_arg);
     if (insert_value == nullptr) return true;
@@ -1598,8 +1625,8 @@ bool Sql_cmd_insert_base::resolve_values_table_columns(THD *thd) {
   // the insert table in prepare_values_table(). These new Item_field objects
   // must be fixed as normal insert fields _before_ the Item_insert_value
   // objects in the VALUES table alias are fixed.
-  if (insert_field_list.is_empty() &&
-      check_insert_fields(thd, thd->lex->query_tables, values_field_list))
+  if (insert_field_list.empty() &&
+      check_insert_fields(thd, thd->lex->query_tables, &values_field_list))
     return true;
 
   Field_translator *field_translation = values_table->field_translation;
@@ -1638,21 +1665,23 @@ bool Sql_cmd_insert_base::resolve_update_expressions(THD *thd) {
   TABLE_LIST *const insert_table_ref = lex->query_tables;
   TABLE_LIST *const insert_table_leaf = lex->insert_table_leaf;
 
-  const bool select_insert = insert_many_values.elements == 0;
+  const bool select_insert = insert_many_values.empty();
 
   table_map map = lex->insert_table_leaf->map();
 
   lex->in_update_value_clause = true;
 
-  if (setup_fields(thd, Ref_item_array(), update_value_list, SELECT_ACL,
-                   nullptr, false, false))
+  if (setup_fields(thd, /*want_privilege=*/SELECT_ACL,
+                   /*allow_sum_func=*/false, /*split_sum_funcs=*/false,
+                   /*column_update=*/false, /*typed_items=*/&update_field_list,
+                   &update_value_list, Ref_item_array()))
     return true;
 
   if (check_valid_table_refs(insert_table_ref, update_value_list, map))
     return true;
 
   if (insert_table_leaf->table->has_gcol() &&
-      validate_gc_assignment(&update_field_list, &update_value_list,
+      validate_gc_assignment(update_field_list, update_value_list,
                              insert_table_leaf->table))
     return true;
 
@@ -1666,18 +1695,26 @@ bool Sql_cmd_insert_base::resolve_update_expressions(THD *thd) {
       employs a temporary table.
     */
     SELECT_LEX *const select = lex->select_lex;
-    List_iterator<Item> li(update_value_list);
-    Item *item;
 
-    while ((item = li++)) {
-      Item *new_item = item->transform(&Item::update_value_transformer,
-                                       pointer_cast<uchar *>(select));
+    for (auto it = update_value_list.begin(); it != update_value_list.end();
+         ++it) {
+      Item *new_item = (*it)->transform(&Item::update_value_transformer,
+                                        pointer_cast<uchar *>(select));
       if (new_item == nullptr) return true;
-      if (new_item != item) thd->change_item_tree((Item **)li.ref(), new_item);
+      *it = new_item;
     }
   }
 
   return false;
+}
+
+bool Sql_cmd_insert_base::restore_cmd_properties(THD *thd) {
+  if (duplicates == DUP_UPDATE &&
+      thd->lex->insert_table->set_insert_values(thd->mem_root))
+    return true;
+  if (insert_many_values.empty()) lex->restore_properties_for_insert();
+
+  return Sql_cmd_dml::restore_cmd_properties(thd);
 }
 
 /**
@@ -1886,8 +1923,8 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update) {
                                       &mem_root))
           goto before_trg_err;
         restore_record(table, record[1]);
-        DBUG_ASSERT(update->get_changed_columns()->elements ==
-                    update->update_values->elements);
+        DBUG_ASSERT(update->get_changed_columns()->size() ==
+                    update->update_values->size());
         /*
           Reset TABLE::autoinc_field_has_explicit_non_null_value so we can
           figure out if ON DUPLICATE KEY UPDATE clause specifies value for
@@ -2182,12 +2219,12 @@ bool check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
       }
       if (view) {
         if ((*field)->type() == MYSQL_TYPE_GEOMETRY) {
-          my_error(ER_NO_DEFAULT_FOR_VIEW_FIELD, MYF(0),
-                   table_list->view_db.str, table_list->view_name.str);
+          my_error(ER_NO_DEFAULT_FOR_VIEW_FIELD, MYF(0), table_list->db,
+                   table_list->table_name);
         } else {
-          (*field)->set_warning(
-              Sql_condition::SL_WARNING, ER_NO_DEFAULT_FOR_VIEW_FIELD, 1,
-              table_list->view_db.str, table_list->view_name.str);
+          (*field)->set_warning(Sql_condition::SL_WARNING,
+                                ER_NO_DEFAULT_FOR_VIEW_FIELD, 1, table_list->db,
+                                table_list->table_name);
         }
       } else {
         if ((*field)->type() == MYSQL_TYPE_GEOMETRY) {
@@ -2203,7 +2240,8 @@ bool check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
   return thd->is_error();
 }
 
-bool Query_result_insert::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
+bool Query_result_insert::prepare(THD *thd, const mem_root_deque<Item *> &,
+                                  SELECT_LEX_UNIT *u) {
   DBUG_TRACE;
 
   LEX *const lex = thd->lex;
@@ -2218,8 +2256,34 @@ bool Query_result_insert::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
       update.add_function_default_columns(table, table->write_set))
     return true;
 
+  return false;
+}
+
+/**
+  Set up the target table for execution.
+
+  If the target table is the same as one of the source tables (INSERT SELECT),
+  the target table is not finally set up in the join optimization phase.
+  Do the final setup now.
+
+  @returns false always
+*/
+
+bool Query_result_insert::start_execution(THD *thd) {
+  DBUG_TRACE;
+
+  table = thd->lex->insert_table_leaf->table;
   restore_record(table, s->default_values);  // Get empty record
   table->next_number_field = table->found_next_number_field;
+
+  const enum_duplicates duplicate_handling = info.get_duplicate_handling();
+
+  if (info.add_function_default_columns(table, table->write_set)) {
+    return true;
+  }
+  if ((duplicate_handling == DUP_UPDATE) &&
+      update.add_function_default_columns(table, table->write_set))
+    return true;
 
   if (thd->slave_thread) {
     /* Get SQL thread's rli, even for a slave worker thread */
@@ -2240,45 +2304,42 @@ bool Query_result_insert::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
   if (duplicate_handling == DUP_UPDATE)
     table->file->ha_extra(HA_EXTRA_INSERT_WITH_UPDATE);
 
+  prepare_triggers_for_insert_stmt(thd, table);
+
   for (Field **next_field = table->field; *next_field; ++next_field) {
     (*next_field)->reset_warnings();
     (*next_field)->reset_tmp_null();
   }
 
-  return false;
-}
-
-/**
-  Set up the target table for execution.
-
-  If the target table is the same as one of the source tables (INSERT SELECT),
-  the target table is not finally prepared in the join optimization phase.
-  Do the final preparation now.
-
-  @returns false always
-*/
-
-bool Query_result_insert::start_execution(THD *thd) {
-  DBUG_TRACE;
   if (thd->locked_tables_mode <= LTM_LOCK_TABLES && !thd->lex->is_explain()) {
     DBUG_ASSERT(!bulk_insert_started);
     // TODO: Is there no better estimation than 0 == Unknown number of rows?
     table->file->ha_start_bulk_insert((ha_rows)0);
     bulk_insert_started = true;
   }
+  info.reset_counters();
+
   return false;
 }
 
 void Query_result_insert::cleanup(THD *thd) {
   DBUG_TRACE;
-  if (table) {
+  // table_list and table may be out of synch:
+  if (thd->lex->insert_table_leaf != nullptr &&
+      thd->lex->insert_table_leaf->table == nullptr)
+    table = nullptr;
+  if (table != nullptr) {
     table->next_number_field = nullptr;
     table->file->ha_reset();
+    table = nullptr;
   }
+  info.cleanup();
+  update.cleanup();
   thd->check_for_truncated_fields = CHECK_FIELD_IGNORE;
 }
 
-bool Query_result_insert::send_data(THD *thd, List<Item> &values) {
+bool Query_result_insert::send_data(THD *thd,
+                                    const mem_root_deque<Item *> &values) {
   DBUG_TRACE;
   bool error = false;
 
@@ -2351,8 +2412,9 @@ bool Query_result_insert::send_data(THD *thd, List<Item> &values) {
   return error;
 }
 
-void Query_result_insert::store_values(THD *thd, List<Item> &values) {
-  if (fields->elements) {
+void Query_result_insert::store_values(THD *thd,
+                                       const mem_root_deque<Item *> &values) {
+  if (CountVisibleFields(*fields) != 0) {
     restore_record(table, s->default_values);
     if (!validate_default_values_of_unset_fields(thd, table))
       fill_record_n_invoke_before_triggers(thd, &info, *fields, values, table,
@@ -2376,7 +2438,6 @@ bool Query_result_insert::stmt_binlog_is_trans() const {
 }
 
 bool Query_result_insert::send_eof(THD *thd) {
-  int error;
   ulonglong id, row_count;
   bool changed MY_ATTRIBUTE((unused));
   THD::killed_state killed_status = thd->killed;
@@ -2385,8 +2446,13 @@ bool Query_result_insert::send_eof(THD *thd) {
              ("trans_table=%d, table_type='%s'",
               table->file->has_transactions(), table->file->table_type()));
 
-  error = (bulk_insert_started ? table->file->ha_end_bulk_insert() : 0);
-  if (!error && thd->is_error()) error = thd->get_stmt_da()->mysql_errno();
+  int error = 0;
+
+  if (bulk_insert_started) {
+    error = table->file->ha_end_bulk_insert();
+    if (!error && thd->is_error()) error = thd->get_stmt_da()->mysql_errno();
+    bulk_insert_started = false;
+  }
 
   changed = (info.stats.copied || info.stats.deleted || info.stats.updated);
 
@@ -2476,13 +2542,17 @@ bool Query_result_insert::send_eof(THD *thd) {
 
 void Query_result_insert::abort_result_set(THD *thd) {
   DBUG_TRACE;
+  // table_list and table may be out of synch:
+  if (thd->lex->insert_table_leaf != nullptr &&
+      thd->lex->insert_table_leaf->table == nullptr)
+    table = nullptr;
   /*
     If the creation of the table failed (due to a syntax error, for
     example), no table will have been opened and therefore 'table'
     will be NULL. In that case, we still need to execute the rollback
     and the end of the function.
    */
-  if (table) {
+  if (table != nullptr) {
     bool changed MY_ATTRIBUTE((unused));
     bool transactional_table;
     /*
@@ -2492,7 +2562,10 @@ void Query_result_insert::abort_result_set(THD *thd) {
       if tables are not locked yet (bulk insert is not started yet
       in this case).
     */
-    if (bulk_insert_started) table->file->ha_end_bulk_insert();
+    if (bulk_insert_started) {
+      table->file->ha_end_bulk_insert();
+      bulk_insert_started = false;
+    }
 
     /*
       If at least one row has been inserted/modified and will stay in
@@ -2577,15 +2650,13 @@ void Query_result_insert::abort_result_set(THD *thd) {
 
 static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
                                       TABLE_LIST *create_table,
-                                      Alter_info *alter_info, List<Item> *items,
+                                      Alter_info *alter_info,
+                                      const mem_root_deque<Item *> &items,
                                       handlerton **post_ddl_ht) {
   TABLE tmp_table;  // Used during 'Create_field()'
   TABLE_SHARE share;
   TABLE *table = nullptr;
-  uint select_field_count = items->elements;
-  /* Add selected items to field list */
-  List_iterator_fast<Item> it(*items);
-  Item *item;
+  uint select_field_count = CountVisibleFields(items);
 
   DBUG_TRACE;
 
@@ -2604,7 +2675,8 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   if (!thd->variables.explicit_defaults_for_timestamp)
     promote_first_timestamp_column(&alter_info->create_list);
 
-  while ((item = it++)) {
+  /* Add selected items to field list */
+  for (Item *item : VisibleFields(items)) {
     Create_field *cr_field = generate_create_field(thd, item, &tmp_table);
     if (cr_field == nullptr) {
       return nullptr; /* purecov: deadcode */
@@ -2724,77 +2796,31 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 }
 
 Query_result_create::Query_result_create(TABLE_LIST *table_arg,
-                                         HA_CREATE_INFO *create_info_par,
-                                         Alter_info *alter_info_arg,
-                                         List<Item> &select_fields,
+                                         mem_root_deque<Item *> *fields,
                                          enum_duplicates duplic,
                                          TABLE_LIST *select_tables_arg)
     : Query_result_insert(nullptr,  // table_list_par
-                          nullptr,  // table_par
                           nullptr,  // target_columns
-                          &select_fields,
+                          fields,
                           nullptr,  // update_fields
                           nullptr,  // update_values
                           duplic),
       create_table(table_arg),
-      create_info(create_info_par),
+      create_info(nullptr),
+      alter_info(nullptr),
       select_tables(select_tables_arg),
-      alter_info(alter_info_arg),
+      table_fields(nullptr),
+      m_lock(nullptr),
       m_plock(nullptr),
       m_post_ddl_ht(nullptr) {}
 
-/**
-  Create the new table from the selected items.
-
-  @param thd     Thread handle.
-  @param values  List of items to be used as new columns
-  @param u       Select
-
-  @returns false if success, true if error.
-*/
-
-bool Query_result_create::prepare(THD *thd, List<Item> &values,
+bool Query_result_create::prepare(THD *, const mem_root_deque<Item *> &,
                                   SELECT_LEX_UNIT *u) {
   DBUG_TRACE;
 
   unit = u;
-  DBUG_ASSERT(create_table->table == nullptr);
 
-  DEBUG_SYNC(thd, "create_table_select_before_check_if_exists");
-
-  if (!(table = create_table_from_items(thd, create_info, create_table,
-                                        alter_info, &values, &m_post_ddl_ht)))
-    /* abort() deletes table */
-    return true;
-
-  /* Ignore hidden fields */
-  uint field_count = table->s->fields;
-  for (uint i = 0; i < table->s->fields; ++i) {
-    if (table->s->field[i]->is_field_for_functional_index()) field_count--;
-  }
-
-  if (field_count < values.elements) {
-    my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1L);
-    return true;
-  }
-  /* First field to copy */
-  field = table->field + field_count - values.elements;
-  for (Field **f = field; *f; f++) {
-    if ((*f)->gcol_info && !(*f)->is_field_for_functional_index()) {
-      /*
-        Generated columns are not allowed to be given a value for CREATE TABLE
-        .. SELECT statment.
-      */
-      my_error(ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN, MYF(0),
-               (*f)->field_name, (*f)->table->s->table_name.str);
-      return true;
-    }
-  }
-
-  // Turn off function defaults for columns filled from SELECT list:
-  bool retval = info.ignore_last_columns(table, values.elements);
-
-  return retval;
+  return false;
 }
 
 /**
@@ -2808,6 +2834,41 @@ bool Query_result_create::start_execution(THD *thd) {
   DEBUG_SYNC(thd, "create_table_select_before_lock");
 
   MYSQL_LOCK *extra_lock = nullptr;
+
+  mem_root_deque<Item *> *select_exprs = unit->get_unit_column_types();
+  table = create_table_from_items(thd, create_info, create_table, alter_info,
+                                  *select_exprs, &m_post_ddl_ht);
+  if (table == nullptr) return true;  // abort() deletes table
+
+  /* Ignore hidden fields */
+  uint field_count = table->s->fields;
+  for (uint i = 0; i < table->s->fields; ++i) {
+    if (table->s->field[i]->is_field_for_functional_index()) field_count--;
+  }
+
+  const size_t visible_select_exprs = CountVisibleFields(*select_exprs);
+  if (field_count < visible_select_exprs) {
+    my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1L);
+    return true;
+  }
+  /* First field to copy */
+  table_fields = table->field + (field_count - visible_select_exprs);
+  for (Field **f = table_fields; *f != nullptr; f++) {
+    if ((*f)->gcol_info && !(*f)->is_field_for_functional_index()) {
+      /*
+        Generated columns are not allowed to be given a value for CREATE TABLE
+        .. SELECT statment.
+      */
+      my_error(ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN, MYF(0),
+               (*f)->field_name, (*f)->table->s->table_name.str);
+      return true;
+    }
+  }
+
+  // Turn off function defaults for columns filled from SELECT list:
+  if (info.ignore_last_columns(table, visible_select_exprs)) {
+    return true;
+  }
 
   table->reginfo.lock_type = TL_WRITE;
 
@@ -2835,7 +2896,7 @@ bool Query_result_create::start_execution(THD *thd) {
     *m_plock = extra_lock;
   }
   /* Mark all fields that are given values */
-  for (Field **f = field; *f; f++) {
+  for (Field **f = table_fields; *f != nullptr; f++) {
     bitmap_set_bit(table->write_set, (*f)->field_index());
     bitmap_set_bit(table->fields_set_during_insert, (*f)->field_index());
   }
@@ -2973,7 +3034,8 @@ int Query_result_create::binlog_show_create_table(THD *thd) {
   return result;
 }
 
-void Query_result_create::store_values(THD *thd, List<Item> &values) {
+void Query_result_create::store_values(THD *thd,
+                                       const mem_root_deque<Item *> &values) {
   /*
     Evaluate function defaults and default expressions for the columns defined
     in the CREATE TABLE SELECT.
@@ -2986,7 +3048,7 @@ void Query_result_create::store_values(THD *thd, List<Item> &values) {
   if (info.function_defaults_apply_on_columns(table->write_set))
     info.set_function_defaults(table);
 
-  fill_record_n_invoke_before_triggers(thd, field, values, table,
+  fill_record_n_invoke_before_triggers(thd, table_fields, values, table,
                                        TRG_EVENT_INSERT, table->s->fields);
 }
 
@@ -3272,19 +3334,16 @@ void Query_result_create::abort_result_set(THD *thd) {
 
 bool Sql_cmd_insert_base::accept(THD *thd, Select_lex_visitor *visitor) {
   // Columns
-  if (insert_field_list.elements) {
-    List_iterator<Item> it_field(insert_field_list);
-    while (Item *field = it_field++)
-      if (walk_item(field, visitor)) return true;
+  for (Item *field : insert_field_list) {
+    if (walk_item(field, visitor)) return true;
   }
 
-  if (insert_many_values.elements > 0) {
+  if (!insert_many_values.empty()) {
     // INSERT...VALUES statement
-    List_iterator<List_item> it_row(insert_many_values);
-    while (List_item *row = it_row++) {
-      List_iterator<Item> it_col(*row);
-      while (Item *item = it_col++)
+    for (const List_item *row : insert_many_values) {
+      for (Item *item : *row) {
         if (walk_item(item, visitor)) return true;
+      }
     }
   } else {
     // INSERT...SELECT statement
@@ -3292,10 +3351,14 @@ bool Sql_cmd_insert_base::accept(THD *thd, Select_lex_visitor *visitor) {
   }
 
   // Update list (on duplicate update)
-  List_iterator<Item> it_value(update_value_list), it_column(update_field_list);
-  Item *value, *column;
-  while ((column = it_column++) && (value = it_value++))
+  auto it_value = update_value_list.begin();
+  auto it_column = update_field_list.begin();
+  while (it_value != update_value_list.end() &&
+         it_column != update_field_list.end()) {
+    Item *value = *it_value++;
+    Item *column = *it_column++;
     if (walk_item(column, visitor) || walk_item(value, visitor)) return true;
+  }
 
   return visitor->visit(thd->lex->select_lex);
 }

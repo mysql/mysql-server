@@ -150,7 +150,7 @@ const size_t num_iterations = 2ULL;
 
 class StrnxfrmTest : public ::testing::TestWithParam<size_t> {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     m_length = GetParam();
     m_src.assign(m_length, 0x20);
     m_dst.assign(m_length, 0x20);

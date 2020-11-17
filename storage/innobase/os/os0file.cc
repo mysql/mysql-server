@@ -388,9 +388,9 @@ struct Slot {
 class AIO {
  public:
   /** Constructor
-  @param[in]	id		Latch ID
-  @param[in]	n		Number of slots to configure
-  @param[in]	segments	Number of segments to configure */
+  @param[in]	id		The latch ID
+  @param[in]	n		Number of AIO slots
+  @param[in]	segments	Number of segments */
   AIO(latch_id_t id, ulint n, ulint segments);
 
   /** Destructor */
@@ -441,12 +441,12 @@ class AIO {
     return (&m_slots[i]);
   }
 
-  /** Frees a slot in the AIO array, assumes caller owns the mutex.
-  @param[in,out]	slot	Slot to release */
+  /** Frees a slot in the aio array. Assumes caller owns the mutex.
+  @param[in,out]	slot		Slot to release */
   void release(Slot *slot);
 
-  /** Frees a slot in the AIO array, assumes caller doesn't own the mutex.
-  @param[in,out]	slot	Slot to release */
+  /** Frees a slot in the AIO array. Assumes caller doesn't own the mutex.
+  @param[in,out]	slot		Slot to release */
   void release_with_mutex(Slot *slot);
 
   /** Prints info about the aio array.
@@ -476,8 +476,8 @@ class AIO {
   /** Release the mutex */
   void release() const { mutex_exit(&m_mutex); }
 
-  /** Write out the state to the file/stream
-  @param[in, out]	file	File to write to */
+  /** Prints all pending IO for the array
+  @param[in,out]	file	file where to print */
   void to_file(FILE *file) const;
 
 #ifdef LINUX_NATIVE_AIO
@@ -575,11 +575,14 @@ class AIO {
   }
 #endif /* _WIN32 */
 
-  /** Create an instance using new(std::nothrow)
+  /** Creates an aio wait array. Note that we return NULL in case of failure.
+  We don't care about freeing memory here because we assume that a
+  failure will result in server refusing to start up.
   @param[in]	id		Latch ID
-  @param[in]	n		The number of AIO request slots
-  @param[in]	n_segments	The number of segments
-  @return a new AIO instance */
+  @param[in]	n		maximum number of pending AIO operations
+                                  allowed; n must be divisible by m_n_segments
+  @param[in]	n_segments	number of segments in the AIO array
+  @return own: AIO array, NULL on failure */
   static AIO *create(latch_id_t id, ulint n, ulint n_segments)
       MY_ATTRIBUTE((warn_unused_result));
 
@@ -630,10 +633,8 @@ class AIO {
   static ulint get_segment_no_from_slot(const AIO *array, const Slot *slot)
       MY_ATTRIBUTE((warn_unused_result));
 
-  /** Wakes up a simulated AIO I/O-handler thread if it has something
-  to do.
-  @param[in]	global_segment	the number of the segment in the
-                                  AIO arrays */
+  /** Wakes up a simulated AIO I/O handler thread if it has something to do.
+  @param[in]	global_segment	The number of the segment in the AIO arrays */
   static void wake_simulated_handler_thread(ulint global_segment);
 
   /** Check if it is a read request
@@ -662,19 +663,18 @@ class AIO {
   @return DB_SUCCESS or error code */
   dberr_t init_slots() MY_ATTRIBUTE((warn_unused_result));
 
-  /** Wakes up a simulated AIO I/O-handler thread if it has something
-  to do for a local segment in the AIO array.
-  @param[in]	global_segment	the number of the segment in the
-                                  AIO arrays
-  @param[in]	segment		the local segment in the AIO array */
+  /** Wakes up a simulated AIO I/O-handler thread if it has something to do
+  for a local segment in the AIO array.
+  @param[in]	global_segment	The number of the segment in the AIO arrays
+  @param[in]	segment		The local segment in the AIO array */
   void wake_simulated_handler_thread(ulint global_segment, ulint segment);
 
   /** Prints pending IO requests per segment of an aio array.
   We probably don't need per segment statistics but they can help us
   during development phase to see if the IO requests are being
   distributed as expected.
-  @param[in,out]	file		file where to print
-  @param[in]	segments	pending IO array */
+  @param[in,out]	file		File where to print
+  @param[in]	segments	Pending IO array */
   void print_segment_info(FILE *file, const ulint *segments);
 
 #ifdef LINUX_NATIVE_AIO
@@ -816,8 +816,7 @@ static bool os_file_handle_error(const char *name, const char *operation);
 @return DB_SUCCESS or error code */
 dberr_t os_file_punch_hole(os_file_t fh, os_offset_t off, os_offset_t len);
 
-/**
-Does error handling when a file operation fails.
+/** Does error handling when a file operation fails.
 @param[in]	name		File name or NULL
 @param[in]	operation	Name of operation e.g., "read", "write"
 @param[in]	on_error_silent	if true then don't print any message to the log.
@@ -1056,8 +1055,7 @@ class AIOHandler {
     const byte *src = slot->buf;
 
     version = mach_read_from_1(src + FIL_PAGE_VERSION);
-
-    ut_a(version == 1);
+    ut_a(Compression::is_valid_page_version(version));
 
     /* Includes the page header size too */
     ulint size = compressed_page_size(slot);
@@ -1136,7 +1134,7 @@ ulint os_file_compressed_page_size(const byte *buf) {
 
   if (type == FIL_PAGE_COMPRESSED) {
     ulint version = mach_read_from_1(buf + FIL_PAGE_VERSION);
-    ut_a(version == 1);
+    ut_a(Compression::is_valid_page_version(version));
     return (mach_read_from_2(buf + FIL_PAGE_COMPRESS_SIZE_V1));
   }
 
@@ -1152,7 +1150,7 @@ ulint os_file_original_page_size(const byte *buf) {
 
   if (type == FIL_PAGE_COMPRESSED) {
     ulint version = mach_read_from_1(buf + FIL_PAGE_VERSION);
-    ut_a(version == 1);
+    ut_a(Compression::is_valid_page_version(version));
 
     return (mach_read_from_2(buf + FIL_PAGE_ORIGINAL_SIZE_V1));
   }
@@ -1414,7 +1412,7 @@ byte *os_file_compress_page(Compression compression, ulint block_size,
   /* Add compression control information. Required for decompressing. */
   mach_write_to_2(dst + FIL_PAGE_TYPE, FIL_PAGE_COMPRESSED);
 
-  mach_write_to_1(dst + FIL_PAGE_VERSION, 1);
+  mach_write_to_1(dst + FIL_PAGE_VERSION, Compression::FIL_PAGE_VERSION_2);
 
   mach_write_to_1(dst + FIL_PAGE_ALGORITHM_V1, compression.m_type);
 
@@ -1505,8 +1503,9 @@ static int os_file_lock(int fd, const char *name) {
 }
 #endif /* USE_FILE_LOCK */
 
-/** Calculates local segment number and aio array from global segment number.
-@param[out]	array		aio wait array
+/** Calculates local segment number and aio array from global
+segment number.
+@param[out]	array		AIO wait array
 @param[in]	segment		global segment number
 @return local segment number within the aio array */
 ulint AIO::get_array_and_local_segment(AIO *&array, ulint segment) {
@@ -1595,7 +1594,7 @@ void AIO::release_with_mutex(Slot *slot) {
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Creates a temporary file.  This function is like tmpfile(3), but
+/** Create a temporary file. This function is like tmpfile(3), but
 the temporary file is created in the given parameter path. If the path
 is NULL then it will create the file in the MySQL server configuration
 parameter (--tmpdir).
@@ -1645,8 +1644,8 @@ void os_file_read_string(FILE *file, char *str, ulint size) {
 @param[in,out]	scratch		Scratch area for read decompression
 @param[in]	src_len		Length of the buffer before compression
 @param[in]	offset		file offset from the start where to read
-@param[in]	len		Used buffer length for write and output
-                                buf len for read
+@param[in]	len		Compressed buffer length for write and size
+                                of buf len for read
 @return DB_SUCCESS or error code */
 static dberr_t os_file_io_complete(const IORequest &type, os_file_t fh,
                                    byte *buf, byte *scratch, ulint src_len,
@@ -1941,7 +1940,8 @@ static file::Block *os_file_compress_page(IORequest &type, void *&buf,
     buf = buf_ptr;
     *n = compressed_len;
 
-    if (compressed_len >= old_compressed_len) {
+    if (compressed_len >= old_compressed_len &&
+        !type.is_punch_hole_optimisation_disabled()) {
       ut_ad(old_compressed_len <= UNIV_PAGE_SIZE);
 
       type.clear_punch_hole();
@@ -3427,11 +3427,11 @@ bool os_file_rename_func(const char *oldpath, const char *newpath) {
   return (true);
 }
 
-/** NOTE! Use the corresponding macro os_file_close(), not directly this
-function!
+/** NOTE! Use the corresponding macro os_file_close(), not directly
+this function!
 Closes a file handle. In case of error, error number can be retrieved with
 os_file_get_last_error.
-@param[in]	file		Handle to close
+@param[in]	file		Handle to a file
 @return true if success */
 bool os_file_close_func(os_file_t file) {
   int ret = close(file);
@@ -3446,7 +3446,7 @@ bool os_file_close_func(os_file_t file) {
 }
 
 /** Gets a file size.
-@param[in]	file		handle to an open file
+@param[in]	file		Handle to a file
 @return file size, or (os_offset_t) -1 on failure */
 os_offset_t os_file_get_size(pfs_os_file_t file) {
   /* Store current position */
@@ -3994,7 +3994,7 @@ A simple function to open or create a file.
                                 string
 @param[in]	create_mode	create mode
 @param[in]	access_type	OS_FILE_READ_ONLY or OS_FILE_READ_WRITE
-@param[in]	read_only	if true read only mode checks are enforced
+@param[in]	read_only	if true, read only checks are enforced
 @param[out]	success		true if succeed, false if error
 @return handle to the file, not defined if error, error number
         can be retrieved with os_file_get_last_error */
@@ -4119,8 +4119,8 @@ the call succeeds, unless the fail_if_exists arguments is true.
 If another error occurs, such as a permission error, this does not crash,
 but reports the error and returns false.
 @param[in]	pathname	directory name as null-terminated string
-@param[in]	fail_if_exists	if true, pre-existing directory is treated
-                                as an error.
+@param[in]	fail_if_exists	if true, pre-existing directory is treated as
+                                an error.
 @return true if call succeeds, false on error */
 bool os_file_create_directory(const char *pathname, bool fail_if_exists) {
   BOOL rcode;
@@ -4561,7 +4561,7 @@ bool os_file_rename_func(const char *oldpath, const char *newpath) {
 this function!
 Closes a file handle. In case of error, error number can be retrieved with
 os_file_get_last_error.
-@param[in,own]	file		Handle to a file
+@param[in]	file		Handle to a file
 @return true if success */
 bool os_file_close_func(os_file_t file) {
   ut_a(file != INVALID_HANDLE_VALUE);
@@ -4930,11 +4930,9 @@ void Dir_Walker::walk_win32(const Path &basedir, bool recursive, Function &&f) {
       if ((dirent.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && recursive) {
         path.append("\\*");
 
-        using value_type = Stack::value_type;
+        using Value = Stack::value_type;
 
-        value_type dir(path, current.m_depth + 1);
-
-        directories.push(dir);
+        directories.push(Value{path, current.m_depth + 1});
 
       } else {
         f(path, current.m_depth + 1);
@@ -5271,7 +5269,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 The number should be retrieved before any other OS calls (because they may
 overwrite the error number). If the number is not known to this program,
 the OS error number + 100 is returned.
-@param[in]	report_all_errors	true if we want an error printed
+@param[in]	report_all_errors	true if we want an error message printed
                                         for all errors
 @return error number, or OS error number + 100 */
 ulint os_file_get_last_error(bool report_all_errors) {
@@ -5372,8 +5370,8 @@ static MY_ATTRIBUTE((warn_unused_result)) bool os_file_handle_error_cond_exit(
 }
 
 /** Does error handling when a file operation fails.
-@param[in]	name		name of a file or NULL
-@param[in]	operation	operation name that failed
+@param[in]	name		File name or NULL
+@param[in]	operation	Name of operation e.g., "read", "write"
 @return true if we should retry the operation */
 static bool os_file_handle_error(const char *name, const char *operation) {
   /* Exit in case of unknown error */
@@ -5381,8 +5379,8 @@ static bool os_file_handle_error(const char *name, const char *operation) {
 }
 
 /** Does error handling when a file operation fails.
-@param[in]	name		name of a file or NULL
-@param[in]	operation	operation name that failed
+@param[in]	name		File name or NULL
+@param[in]	operation	Name of operation e.g., "read", "write"
 @param[in]	on_error_silent	if true then don't print any message to the log.
 @return true if we should retry the operation */
 static bool os_file_handle_error_no_exit(const char *name,
@@ -5634,17 +5632,16 @@ bool os_file_seek(const char *pathname, os_file_t file, os_offset_t offset) {
   return (success);
 }
 
-/** NOTE! Use the corresponding macro os_file_read(), not directly this
-function!
-Requests a synchronous positioned read operation.
-@return DB_SUCCESS if request was successful, DB_IO_ERROR on failure
-@param[in]	type		IO flags
+/** NOTE! Use the corresponding macro os_file_read_first_page(), not directly
+this function!
+Requests a synchronous read operation of page 0 of IBD file.
+@param[in]	type		IO request context
 @param[in]  file_name file name
-@param[in]	file		handle to an open file
+@param[in]	file		Open file handle
 @param[out]	buf		buffer where to read
-@param[in]	offset		file offset from the start where to read
-@param[in]	n		number of bytes to read, starting from offset
-@return DB_SUCCESS or error code */
+@param[in]	offset		file offset where to read
+@param[in]	n		number of bytes to read
+@return DB_SUCCESS if request was successful, DB_IO_ERROR on failure */
 dberr_t os_file_read_func(IORequest &type, const char *file_name,
                           os_file_t file, void *buf, os_offset_t offset,
                           ulint n) {
@@ -5654,16 +5651,15 @@ dberr_t os_file_read_func(IORequest &type, const char *file_name,
       os_file_read_page(type, file_name, file, buf, offset, n, nullptr, true));
 }
 
-/** NOTE! Use the corresponding macro os_file_read_first_page(), not
-directly this function!
-Requests a synchronous positioned read operation of page 0 of IBD file
-@return DB_SUCCESS if request was successful, DB_IO_ERROR on failure
-@param[in]	type		IO flags
+/** NOTE! Use the corresponding macro os_file_read_first_page(),
+not directly this function!
+Requests a synchronous read operation of page 0 of IBD file
+@param[in]	type		IO request context
 @param[in]  file_name file name
-@param[in]	file		handle to an open file
+@param[in]	file		Open file handle
 @param[out]	buf		buffer where to read
-@param[in]	n		number of bytes to read, starting from offset
-@return DB_SUCCESS or error code */
+@param[in]	n		number of bytes to read
+@return DB_SUCCESS if request was successful, DB_IO_ERROR on failure */
 dberr_t os_file_read_first_page_func(IORequest &type, const char *file_name,
                                      os_file_t file, void *buf, ulint n) {
   ut_ad(type.is_read());
@@ -5737,7 +5733,8 @@ static dberr_t os_file_copy_read_write(os_file_t src_file,
   return (DB_SUCCESS);
 }
 
-/** copy data from one file to another file.
+/** Copy data from one file to another file. Data is read/written
+at current file offset.
 @param[in]	src_file	file handle to copy from
 @param[in]	src_offset	offset to copy from
 @param[in]	dest_file	file handle to copy to
@@ -5809,14 +5806,14 @@ dberr_t os_file_copy_func(os_file_t src_file, os_offset_t src_offset,
 
 /** NOTE! Use the corresponding macro os_file_read_no_error_handling(),
 not directly this function!
-Requests a synchronous positioned read operation.
-@return DB_SUCCESS if request was successful, DB_IO_ERROR on failure
-@param[in]	type		IO flags
+Requests a synchronous positioned read operation. This function does not do
+any error handling. In case of error it returns FALSE.
+@param[in]	type		IO request context
 @param[in]  file_name file name
-@param[in]	file		handle to an open file
+@param[in]	file		Open file handle
 @param[out]	buf		buffer where to read
-@param[in]	offset		file offset from the start where to read
-@param[in]	n		number of bytes to read, starting from offset
+@param[in]	offset		file offset where to read
+@param[in]	n		number of bytes to read
 @param[out]	o		number of bytes actually read
 @return DB_SUCCESS or error code */
 dberr_t os_file_read_no_error_handling_func(IORequest &type,
@@ -5829,16 +5826,17 @@ dberr_t os_file_read_no_error_handling_func(IORequest &type,
   return (os_file_read_page(type, file_name, file, buf, offset, n, o, false));
 }
 
-/** NOTE! Use the corresponding macro os_file_write(), not directly
+/** NOTE! Use the corresponding macro os_file_write(), not directly this
+function!
 Requests a synchronous write operation.
-@param[in]	type		IO flags
+@param[in,out]	type		IO request context
 @param[in]	name		name of the file or path as a null-terminated
                                 string
-@param[in]	file		handle to an open file
-@param[out]	buf		buffer from which to write
-@param[in]	offset		file offset from the start where to read
-@param[in]	n		number of bytes to read, starting from offset
-@return DB_SUCCESS if request was successful, false if fail */
+@param[in]	file		Open file handle
+@param[out]	buf		buffer where to read
+@param[in]	offset		file offset where to read
+@param[in]	n		number of bytes to read
+@return DB_SUCCESS if request was successful */
 dberr_t os_file_write_func(IORequest &type, const char *name, os_file_t file,
                            const void *buf, os_offset_t offset, ulint n) {
   ut_ad(type.validate());
@@ -6017,11 +6015,11 @@ dberr_t os_file_write_zeros(pfs_os_file_t file, const char *name,
 }
 
 /** Waits for an AIO operation to complete. This function is used to wait the
-for completed requests. The aio array of pending requests is divided
+for completed requests. The AIO array of pending requests is divided
 into segments. The thread specifies which segment or slot it wants to wait
-for. NOTE: this function will also take care of freeing the aio slot,
+for. NOTE: this function will also take care of freeing the AIO slot,
 therefore no other thread is allowed to do the freeing!
-@param[in]	segment		The number of the segment in the aio arrays to
+@param[in]	segment		The number of the segment in the AIO arrays to
                                 wait for; segment 0 is the ibuf I/O thread,
                                 segment 1 the log I/O thread, then follow the
                                 non-ibuf read threads, and as the last are the
@@ -6245,18 +6243,18 @@ AIO::~AIO() {
   m_slots.clear();
 }
 
-/** Initializes the asynchronous io system. Creates one array each for ibuf
-and log i/o. Also creates one array each for read and write where each
-array is divided logically into n_readers and n_writers
+/** Initializes the asynchronous io system. Creates one array each
+for ibuf and log I/O. Also creates one array each for read and write
+where each array is divided logically into n_readers and n_writers
 respectively. The caller must create an i/o handler thread for each
 segment in these arrays. This function also creates the sync array.
-No i/o handler thread needs to be created for that
+No I/O handler thread needs to be created for that
 @param[in]	n_per_seg	maximum number of pending aio
                                 operations allowed per segment
 @param[in]	n_readers	number of reader threads
 @param[in]	n_writers	number of writer threads
 @param[in]	n_slots_sync	number of slots in the sync aio array
-@return true if the AIO sub-system was started successfully */
+@return true if AIO sub-system was started successfully */
 bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers,
                 ulint n_slots_sync) {
 #if defined(LINUX_NATIVE_AIO)
@@ -6604,7 +6602,7 @@ void os_aio_wait_until_no_pending_writes() {
 @param[in]	array		AIO wait array
 @param[in]	slot		slot in this array
 @return segment number (which is the number used by, for example,
-        I/O-handler threads) */
+        I/O handler threads) */
 ulint AIO::get_segment_no_from_slot(const AIO *array, const Slot *slot) {
   ulint segment;
   ulint seg_len;
@@ -6858,7 +6856,7 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
   return (slot);
 }
 
-/** Wakes up a simulated aio i/o-handler thread if it has something to do.
+/** Wakes up a simulated AIO I/O handler thread if it has something to do.
 @param[in]	global_segment	The number of the segment in the AIO arrays */
 void AIO::wake_simulated_handler_thread(ulint global_segment) {
   ut_ad(!srv_use_native_aio);
@@ -7609,15 +7607,15 @@ ulint SimulatedAIOHandler::check_pending(ulint global_segment,
 thread.
 
 @param[in]	global_segment	The number of the segment in the aio arrays to
-                                wait for; segment 0 is the ibuf i/o thread,
+                                await for; segment 0 is the ibuf i/o thread,
                                 segment 1 the log i/o thread, then follow the
                                 non-ibuf read threads, and as the last are the
                                 non-ibuf write threads
 @param[out]	m1		the messages passed with the AIO request; note
                                 that also in the case where the AIO operation
                                 failed, these output parameters are valid and
-                                can be used to restart
-                                the operation, for example
+                                can be used to restart the operation, for
+                                example
 @param[out]	m2		Callback argument
 @param[in]	type		IO context
 @return DB_SUCCESS or error code */
@@ -7952,7 +7950,7 @@ bool os_aio_all_slots_free() { return (AIO::total_pending_io_count() == 0); }
 
 #ifdef UNIV_DEBUG
 /** Prints all pending IO for the array
-@param[in]	file	file where to print */
+@param[in,out]	file	file where to print */
 void AIO::to_file(FILE *file) const {
   acquire();
 

@@ -1,7 +1,7 @@
 #ifndef SQL_PARTITION_INCLUDED
 #define SQL_PARTITION_INCLUDED
 
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,6 @@
 #include <sys/types.h>
 
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "my_base.h"
 #include "my_inttypes.h"
 #include "sql/partition_element.h"  // partition_state
@@ -41,6 +40,7 @@ class KEY;
 class String;
 class THD;
 class partition_info;
+struct CHARSET_INFO;
 struct HA_CREATE_INFO;
 struct MEM_ROOT;
 struct MY_BITMAP;

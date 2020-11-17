@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,8 +23,9 @@
 #ifndef SQL_UPDATE_INCLUDED
 #define SQL_UPDATE_INCLUDED
 
-#include <stddef.h>
 #include <sys/types.h>
+
+#include <cstddef>
 
 #include "my_base.h"
 #include "my_sqlcommand.h"
@@ -35,6 +36,7 @@
 class COPY_INFO;
 class Copy_field;
 class Item;
+class SELECT_LEX;
 class SELECT_LEX_UNIT;
 class Select_lex_visitor;
 class THD;
@@ -72,13 +74,13 @@ class Query_result_update final : public Query_result_interceptor {
   /// Number of rows actually updated, in all affected tables
   ha_rows updated_rows;
   /// List of pointers to fields to update, in order from statement
-  List<Item> *fields;
+  mem_root_deque<Item *> *fields;
   /// List of pointers to values to update with, in order from statement
-  List<Item> *values;
+  mem_root_deque<Item *> *values;
   /// The fields list decomposed into separate lists per table
-  List<Item> **fields_for_table;
+  mem_root_deque<Item *> **fields_for_table;
   /// The values list decomposed into separate lists per table
-  List<Item> **values_for_table;
+  mem_root_deque<Item *> **values_for_table;
   /**
    List of tables referenced in the CHECK OPTION condition of
    the updated view excluding the updated table.
@@ -117,7 +119,8 @@ class Query_result_update final : public Query_result_interceptor {
   COPY_INFO **update_operations;
 
  public:
-  Query_result_update(List<Item> *field_list, List<Item> *value_list)
+  Query_result_update(mem_root_deque<Item *> *field_list,
+                      mem_root_deque<Item *> *value_list)
       : Query_result_interceptor(),
         update_table_count(0),
         update_tables(nullptr),
@@ -135,13 +138,11 @@ class Query_result_update final : public Query_result_interceptor {
         error_handled(false),
         update_operations(nullptr) {}
   bool need_explain_interceptor() const override { return true; }
-  bool prepare(THD *thd, List<Item> &list, SELECT_LEX_UNIT *u) override;
+  bool prepare(THD *thd, const mem_root_deque<Item *> &list,
+               SELECT_LEX_UNIT *u) override;
   bool optimize() override;
-  bool start_execution(THD *) override {
-    update_completed = false;
-    return false;
-  }
-  bool send_data(THD *thd, List<Item> &items) override;
+  bool start_execution(THD *thd) override;
+  bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
   void send_error(THD *thd, uint errcode, const char *err) override;
   bool do_updates(THD *thd);
   bool send_eof(THD *thd) override;
@@ -153,8 +154,10 @@ class Query_result_update final : public Query_result_interceptor {
 
 class Sql_cmd_update final : public Sql_cmd_dml {
  public:
-  Sql_cmd_update(bool multitable_arg, List<Item> *update_values)
-      : multitable(multitable_arg), update_value_list(update_values) {}
+  Sql_cmd_update(bool multitable_arg, mem_root_deque<Item *> *update_values)
+      : multitable(multitable_arg),
+        original_fields(*THR_MALLOC),
+        update_value_list(update_values) {}
 
   enum_sql_command sql_command_code() const override {
     return multitable ? SQLCOM_UPDATE_MULTI : SQLCOM_UPDATE;
@@ -164,6 +167,7 @@ class Sql_cmd_update final : public Sql_cmd_dml {
 
  protected:
   bool precheck(THD *thd) override;
+  bool check_privileges(THD *thd) override;
 
   bool prepare_inner(THD *thd) override;
 
@@ -174,10 +178,19 @@ class Sql_cmd_update final : public Sql_cmd_dml {
 
   bool multitable;
 
+  /// Bitmap of all tables which are to be updated
+  table_map tables_for_update{0};
+
   bool accept(THD *thd, Select_lex_visitor *visitor) override;
 
+  /// Convert list of fields to update to base table fields
+  bool make_base_table_fields(THD *thd, mem_root_deque<Item *> *items);
+
  public:
-  List<Item> *update_value_list;
+  /// The original list of fields to update, used for privilege checking
+  mem_root_deque<Item *> original_fields;
+  /// The values used to update fields
+  mem_root_deque<Item *> *update_value_list;
 };
 
 #endif /* SQL_UPDATE_INCLUDED */

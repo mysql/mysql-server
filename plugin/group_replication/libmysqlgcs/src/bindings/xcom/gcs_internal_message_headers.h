@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -605,15 +605,15 @@ class Gcs_empty_stage_metadata final : public Gcs_stage_metadata {
  public:
   Gcs_empty_stage_metadata() = default;
 
-  std::unique_ptr<Gcs_stage_metadata> clone() final override;
+  std::unique_ptr<Gcs_stage_metadata> clone() final;
 
-  unsigned long long calculate_encode_length() const final override;
+  unsigned long long calculate_encode_length() const final;
 
-  unsigned long long encode(unsigned char *) const final override;
+  unsigned long long encode(unsigned char *) const final;
 
-  unsigned long long decode(unsigned char const *) final override;
+  unsigned long long decode(unsigned char const *) final;
 
-  void dump(std::ostringstream &) const final override;
+  void dump(std::ostringstream &) const final;
 
   Gcs_empty_stage_metadata(Gcs_empty_stage_metadata &&) = default;
   Gcs_empty_stage_metadata &operator=(Gcs_empty_stage_metadata &&) = default;

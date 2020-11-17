@@ -1,0 +1,96 @@
+--echo #
+--echo # Various tests to help QA WL#13681 - performance_schema.error_log
+--echo #
+--echo
+
+# We need debug features so we can add specific messages to the error log
+# in a defined way. If you need to add a test case that does not rely on debug
+# features, add it to error_log.test instead!
+--source include/have_debug.inc
+
+--echo
+--echo # Use a sink (and only that sink) that has no pfs.error_log support
+
+INSTALL COMPONENT 'file://component_log_sink_test';
+SET @@global.log_error_services="log_filter_internal;log_sink_test";
+
+SET @@session.debug="+d,parser_stmt_to_error_log_with_system_prio";
+SELECT "Hello World";
+
+--echo # Must have been unable to add to pfs.error_log
+SELECT COUNT(*)=0
+  FROM performance_schema.error_log
+ WHERE logged>=@startup AND data='Parser saw: SELECT "Hello World"';
+
+--echo
+--echo # when starting with only a sink that does not support adding to
+--echo # pfs.error_log and that has no log-parser, the table should be empty
+--echo # after start-up:
+--let LOG_FILE=$MYSQLTEST_VARDIR/tmp/wl13681.err
+--let $log_services="log_filter_internal;log_sink_test"
+--let restart_parameters="restart: --log-error-services=$log_services --log-error=$LOG_FILE"
+--replace_result $LOG_FILE LOG_FILE
+--source include/restart_mysqld.inc
+SELECT COUNT(*)=0
+  FROM performance_schema.error_log;
+
+# reset to default services so we can UNINSTALL the test-sink
+SET @@global.log_error_services=DEFAULT;
+
+# remove test sink
+UNINSTALL COMPONENT 'file://component_log_sink_test';
+
+
+
+--echo
+--echo # Now add a specific row to the table and show it's there
+--echo # a) with error-log file
+
+--let restart_parameters="restart: --log-error=$LOG_FILE"
+--replace_result $LOG_FILE LOG_FILE
+--source include/restart_mysqld.inc
+SELECT logged INTO @startup
+  FROM performance_schema.error_log
+ WHERE error_code="MY-010116"
+ ORDER BY logged DESC LIMIT 1;
+
+SET @@session.debug="+d,parser_stmt_to_error_log_with_system_prio";
+
+SELECT "Hello World";
+
+SELECT COUNT(*)=1
+  FROM performance_schema.error_log
+ WHERE  logged>=@startup AND data='Parser saw: SELECT "Hello World"';
+
+--echo # b) without error-log file
+--let restart_parameters="restart: "
+--source include/restart_mysqld.inc
+SELECT logged INTO @startup
+  FROM performance_schema.error_log
+ WHERE error_code="MY-010116"
+ ORDER BY logged DESC LIMIT 1;
+
+--echo # Should fail, we should not see entries from the previous run's
+--echo # error log file as we started without reading it.
+SELECT error_code,data
+  FROM performance_schema.error_log
+ WHERE  logged>=@startup AND data='Parser saw: SELECT "Hello World"';
+
+--echo # But there should be entries in the table from start-up.
+SELECT COUNT(*)>1 FROM performance_schema.error_log;
+
+--echo # Now let's re-add our entry.
+SET @@session.debug="+d,parser_stmt_to_error_log_with_system_prio";
+SELECT "Hello World";
+
+--echo # And now finally, it should be available in the table.
+SELECT error_code,data
+  FROM performance_schema.error_log
+ WHERE  logged>=@startup AND data='Parser saw: SELECT "Hello World"';
+
+--echo
+--echo # clean up
+SET @@session.debug="-d,parser_stmt_to_error_log_with_system_prio";
+
+--echo
+--echo # Done!

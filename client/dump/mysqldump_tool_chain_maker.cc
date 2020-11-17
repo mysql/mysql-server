@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -56,31 +56,10 @@ I_object_reader *Mysqldump_tool_chain_maker::create_chain(
     return nullptr;
   }
 
-  Abstract_data_object *object =
-      dynamic_cast<Abstract_data_object *>(dump_task->get_related_db_object());
-  if (!m_options->is_object_included_in_dump(object)) {
+  if (!m_options->is_object_included_in_dump(
+          dynamic_cast<Abstract_data_object *>(
+              dump_task->get_related_db_object()))) {
     return nullptr;
-  }
-  /*
-    View dependency check is moved post filteration. This will ensure that
-    only filtered out views will be checked for their dependecies. This
-    allows mysqlpump to dump a database even when there exsits an invalid
-    view in another database which user is not interested to dump. I_S views
-    are skipped from this check.
-  */
-  if (object && (dynamic_cast<View *>(object) != nullptr) &&
-      my_strcasecmp(&my_charset_latin1, object->get_schema().c_str(),
-                    INFORMATION_SCHEMA_DB_NAME)) {
-    Mysql::Tools::Base::Mysql_query_runner *runner = this->get_runner();
-    /* Check if view dependent objects exists */
-    if (runner->run_query(std::string("LOCK TABLES ") +
-                          this->get_quoted_object_full_name(
-                              object->get_schema(), object->get_name()) +
-                          " READ") != 0)
-      return nullptr;
-    else
-      runner->run_query(std::string("UNLOCK TABLES"));
-    delete runner;
   }
 
   if (m_main_object_reader == nullptr) {

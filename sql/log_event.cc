@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -173,6 +173,8 @@ PSI_memory_key key_memory_log_event;
 PSI_memory_key key_memory_Incident_log_event_message;
 PSI_memory_key key_memory_Rows_query_log_event_rows_query;
 
+extern bool pfs_processlist_enabled;
+
 using std::max;
 using std::min;
 
@@ -316,6 +318,8 @@ static const char *HA_ERR(int i) {
       return "HA_ERR_COMPUTE_FAILED";
     case HA_ERR_NO_WAIT_LOCK:
       return "HA_ERR_NO_WAIT_LOCK";
+    case HA_ERR_FTS_TOO_MANY_NESTED_EXP:
+      return "HA_ERR_FTS_TOO_MANY_NESTED_EXP";
   }
   return "No Error!";
 }
@@ -1167,7 +1171,7 @@ int Log_event::net_send(Protocol *protocol, const char *log_name,
   EVENTS.
 */
 
-void Log_event::init_show_field_list(List<Item> *field_list) {
+void Log_event::init_show_field_list(mem_root_deque<Item *> *field_list) {
   field_list->push_back(new Item_empty_string("Log_name", 20));
   field_list->push_back(new Item_return_int("Pos", MY_INT32_NUM_DECIMAL_DIGITS,
                                             MYSQL_TYPE_LONGLONG));
@@ -2172,6 +2176,8 @@ static size_t log_event_print_value(IO_CACHE *file, const uchar *ptr, uint type,
       }
       return length + meta;
     }
+    case MYSQL_TYPE_BOOL:
+    case MYSQL_TYPE_INVALID:
     default: {
       char tmp[5];
       snprintf(tmp, sizeof(tmp), "%04x", meta);
@@ -4011,9 +4017,8 @@ Query_log_event::Query_log_event(THD *thd_arg, const char *query_arg,
             lex->drop_temporary && thd->in_multi_stmt_transaction_mode();
         break;
       case SQLCOM_CREATE_TABLE:
-        cmd_must_go_to_trx_cache =
-            lex->select_lex->get_fields_list()->elements &&
-            thd->is_current_stmt_binlog_format_row();
+        cmd_must_go_to_trx_cache = !lex->select_lex->field_list_is_empty() &&
+                                   thd->is_current_stmt_binlog_format_row();
         cmd_can_generate_row_events =
             ((lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
              thd->in_multi_stmt_transaction_mode()) ||
@@ -5108,6 +5113,10 @@ end:
 
   /* Mark the statement completed. */
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
+
+  /* Maintain compatibility with the legacy processlist. */
+  if (pfs_processlist_enabled) thd->reset_query_for_display();
+
   thd->m_statement_psi = nullptr;
   thd->m_digest = nullptr;
 
@@ -6809,7 +6818,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli) {
     }
   }
   Item_func_set_user_var *e =
-      new Item_func_set_user_var(Name_string(name, name_len, false), it, false);
+      new Item_func_set_user_var(Name_string(name, name_len, false), it);
   /*
     Item_func_set_user_var can't substitute something else on its place =>
     0 can be passed as last argument (reference on item)
@@ -6819,6 +6828,8 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli) {
     error.
   */
   if (e->fix_fields(thd, nullptr)) return 1;
+
+  if (e->set_entry(thd, true)) return 1;
 
   /*
     A variable can just be considered as a table with
@@ -7508,12 +7519,10 @@ const String *Load_query_generator::generate(size_t *fn_start, size_t *fn_end) {
   }
 
   /* prepare fields-list */
-  if (!cmd->m_opt_fields_or_vars.is_empty()) {
-    List_iterator<Item> li(cmd->m_opt_fields_or_vars);
-    Item *item;
+  if (!cmd->m_opt_fields_or_vars.empty()) {
     str.append(" (");
 
-    while ((item = li++)) {
+    for (Item *item : cmd->m_opt_fields_or_vars) {
       if (item->type() == Item::FIELD_ITEM || item->type() == Item::REF_ITEM)
         append_identifier(thd, &str, item->item_name.ptr(),
                           strlen(item->item_name.ptr()));
@@ -7526,14 +7535,12 @@ const String *Load_query_generator::generate(size_t *fn_start, size_t *fn_end) {
     str.append(')');
   }
 
-  if (!cmd->m_opt_set_fields.is_empty()) {
-    List_iterator<Item> lu(cmd->m_opt_set_fields);
+  if (!cmd->m_opt_set_fields.empty()) {
     List_iterator<String> ls(*cmd->m_opt_set_expr_strings);
-    Item *item;
 
     str.append(" SET ");
 
-    while ((item = lu++)) {
+    for (Item *item : cmd->m_opt_set_fields) {
       String *s = ls++;
 
       append_identifier(thd, &str, item->item_name.ptr(),
@@ -7552,6 +7559,7 @@ const String *Load_query_generator::generate(size_t *fn_start, size_t *fn_end) {
 #ifndef DBUG_OFF
 #ifdef MYSQL_SERVER
 static uchar dbug_extra_row_ndb_info_val = 0;
+static int dbug_extra_row_ndb_info_val_limit = 0;
 
 /**
    set_extra_data
@@ -7561,14 +7569,25 @@ static uchar dbug_extra_row_ndb_info_val = 0;
    thread data structures which can be checked
    when reading the binlog.
 
+   @note if you are using this debug point, find the number of times this
+   method is used for your test and then use that value for the reset_limit
+   parameter in order to avoid inter test contamination.
+
    @param arr  Buffer to use
+   @param reset_limit the limit upon which the counters reset
 */
-static const uchar *set_extra_data(uchar *arr) {
+static const uchar *set_extra_data(uchar *arr, int reset_limit) {
   uchar val = (dbug_extra_row_ndb_info_val++) %
               (EXTRA_ROW_INFO_MAX_PAYLOAD + 1); /* 0 .. MAX_PAYLOAD + 1 */
   arr[EXTRA_ROW_INFO_LEN_OFFSET] = val + EXTRA_ROW_INFO_HEADER_LENGTH;
   arr[EXTRA_ROW_INFO_FORMAT_OFFSET] = val;
   for (uchar i = 0; i < val; i++) arr[EXTRA_ROW_INFO_HEADER_LENGTH + i] = val;
+
+  dbug_extra_row_ndb_info_val_limit++;
+  if (dbug_extra_row_ndb_info_val_limit == reset_limit) {
+    dbug_extra_row_ndb_info_val = 0;
+    dbug_extra_row_ndb_info_val_limit = 0;
+  }
 
   return arr;
 }
@@ -7646,9 +7665,12 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg,
     set_flags(RELAXED_UNIQUE_CHECKS_F);
 #ifndef DBUG_OFF
   uchar extra_data[255];
-  DBUG_EXECUTE_IF("extra_row_ndb_info_set",
+  DBUG_EXECUTE_IF("extra_row_ndb_info_set_618",
                   /* Set extra row data to a known value */
-                  extra_row_ndb_info = set_extra_data(extra_data););
+                  extra_row_ndb_info = set_extra_data(extra_data, 618););
+  DBUG_EXECUTE_IF("extra_row_ndb_info_set_3",
+                  /* Set extra row data to a known value */
+                  extra_row_ndb_info = set_extra_data(extra_data, 3););
 #endif
   partition_info *part_info = tbl_arg->part_info;
   auto part_id = get_rpl_part_id(part_info);
@@ -8159,7 +8181,7 @@ static uint search_key_in_table(TABLE *table, MY_BITMAP *bi_cols,
           (key == table->s->primary_key) ||
           ((slave_rows_search_algorithms_options & SLAVE_ROWS_INDEX_SCAN) &&
            keyinfo->is_functional_index()) ||
-          keyinfo->flags & HA_MULTI_VALUED_KEY) {
+          keyinfo->flags & HA_MULTI_VALUED_KEY || !keyinfo->is_visible) {
         continue;
       }
       res = are_all_columns_signaled_for_key(keyinfo, bi_cols) ? key : MAX_KEY;
@@ -8662,18 +8684,6 @@ int Rows_log_event::close_record_scan() {
   return error;
 }
 
-/**
-  Fetches next row. If it is a HASH_SCAN over an index, it populates
-  table->record[0] with the next row corresponding to the index. If
-  the indexes are in non-contiguous ranges it fetches record corresponding
-  to the key value in the next range.
-
-  @param first_read Signifying if this is the first time we are reading a row
-          over an index.
-  @retval error code when there are no more records to be fetched or some other
-                    error occurred
-  @retval 0 otherwise.
-*/
 int Rows_log_event::next_record_scan(bool first_read) {
   DBUG_TRACE;
   DBUG_ASSERT(m_table->file->inited);
@@ -11257,6 +11267,9 @@ static void get_type_name(uint type, unsigned char **meta_ptr,
     case MYSQL_TYPE_LONG:
       snprintf(typestr, typestr_length, "%s", "INT");
       break;
+    case MYSQL_TYPE_BOOL:
+      snprintf(typestr, typestr_length, "BOOLEAN");
+      break;
     case MYSQL_TYPE_TINY:
       snprintf(typestr, typestr_length, "TINYINT");
       break;
@@ -11377,6 +11390,7 @@ static void get_type_name(uint type, unsigned char **meta_ptr,
                  geometry_type);
       (*meta_ptr)++;
     } break;
+    case MYSQL_TYPE_INVALID:
     default:
       *typestr = 0;
       break;

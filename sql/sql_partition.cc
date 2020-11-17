@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,13 +44,15 @@
 
 #include "sql/sql_partition.h"
 
-#include <assert.h>
-#include <limits.h>
-#include <string.h>
 #include <algorithm>
+#include <cassert>
+#include <climits>
+#include <cstring>
 
 #include "field_types.h"  // enum_field_types
+#include "m_ctype.h"      // system_charset_info
 #include "m_string.h"
+#include "my_alloc.h"  // operator new
 #include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
@@ -58,6 +60,7 @@
 #include "my_io.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysql/components/services/my_io_bits.h"  // File
 #include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
@@ -98,9 +101,8 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thd_raii.h"
+#include "sql/thr_malloc.h"  // sql_calloc
 #include "sql_string.h"
-
-struct MEM_ROOT;
 
 using std::max;
 using std::min;
@@ -912,6 +914,15 @@ static void end_lex_with_single_table(THD *thd, TABLE *table, LEX *old_lex) {
     calling fix_fields and reset it immediately after.
     The get_fields_in_item_tree activates setting of bit in flags
     on the field object.
+
+    The function must be called with thd->mem_root set to the memory
+    allocator associated with the TABLE object. Thus, any memory allocated
+    during resolving and other actions have the same lifetime as the TABLE.
+
+    Notice that memory allocations made during evaluation calls is NOT
+    supported, thus any item class that performs memory allocations during
+    evaluation calls must be disallowed as partition functions.
+    SEE Bug #21658
 */
 
 static bool fix_fields_part_func(THD *thd, Item *func_expr, TABLE *table,
@@ -935,34 +946,8 @@ static bool fix_fields_part_func(THD *thd, Item *func_expr, TABLE *table,
                     (uchar *)&ctx);
   }
   thd->where = "partition function";
-  /*
-    In execution we must avoid the use of thd->change_item_tree since
-    we might release memory before statement is completed. We do this
-    by temporarily setting the stmt_arena->mem_root to be the mem_root
-    of the table object, this also ensures that any memory allocated
-    during fix_fields will not be released at end of execution of this
-    statement. Thus the item tree will remain valid also in subsequent
-    executions of this table object. We do however not at the moment
-    support allocations during execution of val_int so any item class
-    that does this during val_int must be disallowed as partition
-    function.
-    SEE Bug #21658
 
-    This is a tricky call to prepare for since it can have a large number
-    of interesting side effects, both desirable and undesirable.
-  */
-  {
-    const bool save_agg_func = thd->lex->current_select()->agg_func_used();
-
-    error = func_expr->fix_fields(thd, &func_expr);
-
-    /*
-      Restore agg_func.
-      fix_fields should not affect the optimizer later, see Bug#46923.
-    */
-    thd->lex->current_select()->set_agg_func_used(save_agg_func);
-  }
-  if (unlikely(error)) {
+  if (unlikely(func_expr->fix_fields(thd, &func_expr))) {
     DBUG_PRINT("info", ("Field in partition function not part of table"));
     clear_field_flag(table);
     goto end;
@@ -1983,6 +1968,7 @@ static int check_part_field(enum_field_types sql_type, const char *field_name,
       *result_type = STRING_RESULT;
       *need_cs_check = true;
       return false;
+    case MYSQL_TYPE_BOOL:
     case MYSQL_TYPE_NEWDECIMAL:
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_TIMESTAMP:
@@ -1994,6 +1980,7 @@ static int check_part_field(enum_field_types sql_type, const char *field_name,
     case MYSQL_TYPE_ENUM:
     case MYSQL_TYPE_SET:
     case MYSQL_TYPE_GEOMETRY:
+    case MYSQL_TYPE_INVALID:
       goto error;
     default:
       goto error;
@@ -5294,7 +5281,7 @@ void mem_alloc_error(size_t size) {
 
 bool make_used_partitions_str(partition_info *part_info,
                               List<const char> *parts) {
-  parts->empty();
+  parts->clear();
   partition_element *pe;
   uint partition_id = 0;
   List_iterator<partition_element> it(part_info->partitions);

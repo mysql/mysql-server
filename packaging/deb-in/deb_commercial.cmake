@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,14 +20,5 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET (DEB_COMMERCIAL_CONTROL_EXTRAS "
-Package: mysql-${DEB_PRODUCTNAME}-backup
-Architecture: any
-Depends: \${shlibs:Depends}, \${misc:Depends}
-Conflicts: meb
-Description: MySQL Enterprise Backup
- Tool for MySQL Backup
-")
-
-SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DWITH_MEB=1 -DMYSQL_SERVER_SUFFIX=\"-commercial\"")
+SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DMYSQL_SERVER_SUFFIX=\"-commercial\"")
 SET (DEB_CONTROL_BDEPS_COMMERCIAL ", libcurl4-openssl-dev, libkrb5-dev, libsasl2-modules-gssapi-mit")

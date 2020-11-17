@@ -21,10 +21,10 @@ ANALYZE TABLE t2;
 select round(match(t1.texte,t1.sujet,t1.motsclefs) against('droit'),5)
 from t1 left join t2 on t2.id=t1.id;
 round(match(t1.texte,t1.sujet,t1.motsclefs) against('droit'),5)
-0.00000
-0.00000
+0
+0
 0.22764
-0.00000
+0
 select match(t1.texte,t1.sujet,t1.motsclefs) against('droit' IN BOOLEAN MODE)
 from t1 left join t2 on t2.id=t1.id;
 match(t1.texte,t1.sujet,t1.motsclefs) against('droit' IN BOOLEAN MODE)

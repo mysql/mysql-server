@@ -87,16 +87,17 @@ char *dict_get_first_table_name_in_db(
 @retval NULL if no SYS_DATAFILES entry was found. */
 char *dict_get_first_path(ulint space_id);
 
-/** Make sure the data_file_name is saved in dict_table_t if needed.
-Try to read it from the fil_system first, then from SYS_DATAFILES.
+/** Make sure the data_dir_path is saved in dict_table_t if DATA DIRECTORY
+was used. Try to read it from the fil_system first, then from SYS_DATAFILES.
 @param[in]	table		Table object
 @param[in]	dict_mutex_own	true if dict_sys->mutex is owned already */
 void dict_get_and_save_data_dir_path(dict_table_t *table, bool dict_mutex_own);
 
-/** Make sure the tablespace name is saved in dict_table_t if needed.
-Try to read it from the file dictionary first, then from SYS_TABLESPACES.
-@param[in]	table		Table object
-@param[in]	dict_mutex_own	true if dict_sys->mutex is owned already */
+/** Make sure the tablespace name is saved in dict_table_t if the table
+uses a general tablespace.
+Try to read it from the fil_system_t first, then from SYS_TABLESPACES.
+@param[in]  table           Table object
+@param[in]  dict_mutex_own  true if dict_sys->mutex is owned already */
 void dict_get_and_save_space_name(dict_table_t *table, bool dict_mutex_own);
 
 /** Loads a table definition and also all its index definitions, and also
@@ -172,9 +173,11 @@ void dict_load_tablespace(dict_table_t *table, mem_heap_t *heap,
                           dict_err_ignore_t ignore_err);
 
 /** Using the table->heap, copy the null-terminated filepath into
-table->data_dir_path. The data directory patch is derived form the
+table->data_dir_path. The data directory path is derived from the
 filepath by stripping the the table->name.m_name component suffix.
-@param[in,out]	table		table obj
+If the filepath is not of the correct form (".../db/table.ibd"),
+then table->data_dir_path will remain nullptr.
+@param[in,out]	table		table instance
 @param[in]	filepath	filepath of tablespace */
 void dict_save_data_dir_path(dict_table_t *table, char *filepath);
 

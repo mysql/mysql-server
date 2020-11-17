@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,18 +66,18 @@ class Plugin_gcs_events_handler : public Gcs_communication_event_listener,
                             Recovery_module *recovery_module,
                             Compatibility_module *compatibility_manager,
                             ulong components_stop_timeout);
-  virtual ~Plugin_gcs_events_handler();
+  ~Plugin_gcs_events_handler() override;
 
   /*
    Implementation of all callback methods
    */
-  void on_message_received(const Gcs_message &message) const;
+  void on_message_received(const Gcs_message &message) const override;
   void on_view_changed(const Gcs_view &new_view,
-                       const Exchanged_data &exchanged_data) const;
-  Gcs_message_data *get_exchangeable_data() const;
+                       const Exchanged_data &exchanged_data) const override;
+  Gcs_message_data *get_exchangeable_data() const override;
   void on_suspicions(
       const std::vector<Gcs_member_identifier> &members,
-      const std::vector<Gcs_member_identifier> &unreachable) const;
+      const std::vector<Gcs_member_identifier> &unreachable) const override;
 
   /**
     Sets the component stop timeout.

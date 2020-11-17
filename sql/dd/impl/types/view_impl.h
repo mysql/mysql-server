@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,39 +57,39 @@ class View_impl : public Abstract_table_impl, public View {
  public:
   View_impl();
 
-  virtual ~View_impl() {}
+  ~View_impl() override {}
 
  public:
   static void register_tables(Open_dictionary_tables_ctx *otx);
 
-  virtual bool validate() const;
+  bool validate() const override;
 
-  virtual bool restore_children(Open_dictionary_tables_ctx *otx);
+  bool restore_children(Open_dictionary_tables_ctx *otx) override;
 
-  virtual bool store_children(Open_dictionary_tables_ctx *otx);
+  bool store_children(Open_dictionary_tables_ctx *otx) override;
 
-  virtual bool drop_children(Open_dictionary_tables_ctx *otx) const;
+  bool drop_children(Open_dictionary_tables_ctx *otx) const override;
 
-  virtual void remove_children();
+  void remove_children() override;
 
-  virtual bool restore_attributes(const Raw_record &r);
+  bool restore_attributes(const Raw_record &r) override;
 
-  virtual bool store_attributes(Raw_record *r);
+  bool store_attributes(Raw_record *r) override;
 
-  virtual void debug_print(String_type &outb) const;
+  void debug_print(String_type &outb) const override;
 
  public:
   /////////////////////////////////////////////////////////////////////////
   // enum_table_type.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual enum_table_type type() const { return m_type; }
+  enum_table_type type() const override { return m_type; }
 
   /////////////////////////////////////////////////////////////////////////
   // regular/system view flag.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual void set_system_view(bool system_view) {
+  void set_system_view(bool system_view) override {
     m_type =
         system_view ? enum_table_type::SYSTEM_VIEW : enum_table_type::USER_VIEW;
   }
@@ -98,19 +98,19 @@ class View_impl : public Abstract_table_impl, public View {
   // collation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Object_id client_collation_id() const {
+  Object_id client_collation_id() const override {
     return m_client_collation_id;
   }
 
-  virtual void set_client_collation_id(Object_id client_collation_id) {
+  void set_client_collation_id(Object_id client_collation_id) override {
     m_client_collation_id = client_collation_id;
   }
 
-  virtual Object_id connection_collation_id() const {
+  Object_id connection_collation_id() const override {
     return m_connection_collation_id;
   }
 
-  virtual void set_connection_collation_id(Object_id connection_collation_id) {
+  void set_connection_collation_id(Object_id connection_collation_id) override {
     m_connection_collation_id = connection_collation_id;
   }
 
@@ -118,17 +118,17 @@ class View_impl : public Abstract_table_impl, public View {
   // definition/utf8.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &definition() const { return m_definition; }
+  const String_type &definition() const override { return m_definition; }
 
-  virtual void set_definition(const String_type &definition) {
+  void set_definition(const String_type &definition) override {
     m_definition = definition;
   }
 
-  virtual const String_type &definition_utf8() const {
+  const String_type &definition_utf8() const override {
     return m_definition_utf8;
   }
 
-  virtual void set_definition_utf8(const String_type &definition_utf8) {
+  void set_definition_utf8(const String_type &definition_utf8) override {
     m_definition_utf8 = definition_utf8;
   }
 
@@ -136,9 +136,9 @@ class View_impl : public Abstract_table_impl, public View {
   // check_option.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual enum_check_option check_option() const { return m_check_option; }
+  enum_check_option check_option() const override { return m_check_option; }
 
-  virtual void set_check_option(enum_check_option check_option) {
+  void set_check_option(enum_check_option check_option) override {
     m_check_option = check_option;
   }
 
@@ -146,17 +146,17 @@ class View_impl : public Abstract_table_impl, public View {
   // is_updatable.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool is_updatable() const { return m_is_updatable; }
+  bool is_updatable() const override { return m_is_updatable; }
 
-  virtual void set_updatable(bool updatable) { m_is_updatable = updatable; }
+  void set_updatable(bool updatable) override { m_is_updatable = updatable; }
 
   /////////////////////////////////////////////////////////////////////////
   // algorithm.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual enum_algorithm algorithm() const { return m_algorithm; }
+  enum_algorithm algorithm() const override { return m_algorithm; }
 
-  virtual void set_algorithm(enum_algorithm algorithm) {
+  void set_algorithm(enum_algorithm algorithm) override {
     m_algorithm = algorithm;
   }
 
@@ -164,9 +164,9 @@ class View_impl : public Abstract_table_impl, public View {
   // security_type.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual enum_security_type security_type() const { return m_security_type; }
+  enum_security_type security_type() const override { return m_security_type; }
 
-  virtual void set_security_type(enum_security_type security_type) {
+  void set_security_type(enum_security_type security_type) override {
     m_security_type = security_type;
   }
 
@@ -174,12 +174,12 @@ class View_impl : public Abstract_table_impl, public View {
   // definer.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &definer_user() const { return m_definer_user; }
+  const String_type &definer_user() const override { return m_definer_user; }
 
-  virtual const String_type &definer_host() const { return m_definer_host; }
+  const String_type &definer_host() const override { return m_definer_host; }
 
-  virtual void set_definer(const String_type &username,
-                           const String_type &hostname) {
+  void set_definer(const String_type &username,
+                   const String_type &hostname) override {
     m_definer_user = username;
     m_definer_host = hostname;
   }
@@ -188,87 +188,89 @@ class View_impl : public Abstract_table_impl, public View {
   // Explicit list of column names.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Properties &column_names() const { return m_column_names; }
+  const Properties &column_names() const override { return m_column_names; }
 
-  virtual Properties &column_names() { return m_column_names; }
+  Properties &column_names() override { return m_column_names; }
 
   /////////////////////////////////////////////////////////////////////////
   // View_table collection.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual View_table *add_table();
+  View_table *add_table() override;
 
-  virtual const View_tables &tables() const { return m_tables; }
+  const View_tables &tables() const override { return m_tables; }
 
   /////////////////////////////////////////////////////////////////////////
   // View_routine collection.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual View_routine *add_routine();
+  View_routine *add_routine() override;
 
-  virtual const View_routines &routines() const { return m_routines; }
+  const View_routines &routines() const override { return m_routines; }
 
   // Fix "inherits ... via dominance" warnings
-  virtual Entity_object_impl *impl() { return Entity_object_impl::impl(); }
-  virtual const Entity_object_impl *impl() const {
+  Entity_object_impl *impl() override { return Entity_object_impl::impl(); }
+  const Entity_object_impl *impl() const override {
     return Entity_object_impl::impl();
   }
-  virtual Object_id id() const { return Entity_object_impl::id(); }
-  virtual bool is_persistent() const {
+  Object_id id() const override { return Entity_object_impl::id(); }
+  bool is_persistent() const override {
     return Entity_object_impl::is_persistent();
   }
-  virtual const String_type &name() const { return Entity_object_impl::name(); }
-  virtual void set_name(const String_type &name) {
+  const String_type &name() const override {
+    return Entity_object_impl::name();
+  }
+  void set_name(const String_type &name) override {
     Entity_object_impl::set_name(name);
   }
-  virtual Object_id schema_id() const {
+  Object_id schema_id() const override {
     return Abstract_table_impl::schema_id();
   }
-  virtual void set_schema_id(Object_id schema_id) {
+  void set_schema_id(Object_id schema_id) override {
     Abstract_table_impl::set_schema_id(schema_id);
   }
-  virtual uint mysql_version_id() const {
+  uint mysql_version_id() const override {
     return Abstract_table_impl::mysql_version_id();
   }
-  virtual const Properties &options() const {
+  const Properties &options() const override {
     return Abstract_table_impl::options();
   }
-  virtual Properties &options() { return Abstract_table_impl::options(); }
-  virtual bool set_options(const Properties &options) {
+  Properties &options() override { return Abstract_table_impl::options(); }
+  bool set_options(const Properties &options) override {
     return Abstract_table_impl::set_options(options);
   }
-  virtual bool set_options(const String_type &options_raw) {
+  bool set_options(const String_type &options_raw) override {
     return Abstract_table_impl::set_options(options_raw);
   }
-  virtual ulonglong created(bool convert_time) const {
+  ulonglong created(bool convert_time) const override {
     return Abstract_table_impl::created(convert_time);
   }
-  virtual void set_created(ulonglong created) {
+  void set_created(ulonglong created) override {
     Abstract_table_impl::set_created(created);
   }
-  virtual ulonglong last_altered(bool convert_time) const {
+  ulonglong last_altered(bool convert_time) const override {
     return Abstract_table_impl::last_altered(convert_time);
   }
-  virtual void set_last_altered(ulonglong last_altered) {
+  void set_last_altered(ulonglong last_altered) override {
     Abstract_table_impl::set_last_altered(last_altered);
   }
-  virtual Column *add_column() { return Abstract_table_impl::add_column(); }
-  virtual const Column_collection &columns() const {
+  Column *add_column() override { return Abstract_table_impl::add_column(); }
+  const Column_collection &columns() const override {
     return Abstract_table_impl::columns();
   }
-  virtual Column_collection *columns() {
+  Column_collection *columns() override {
     return Abstract_table_impl::columns();
   }
-  const Column *get_column(const String_type &name) const {
+  const Column *get_column(const String_type &name) const override {
     return Abstract_table_impl::get_column(name);
   }
   Column *get_column(const String_type &name) {
     return Abstract_table_impl::get_column(name);
   }
-  virtual enum_hidden_type hidden() const {
+  enum_hidden_type hidden() const override {
     return Abstract_table_impl::hidden();
   }
-  virtual void set_hidden(enum_hidden_type hidden) {
+  void set_hidden(enum_hidden_type hidden) override {
     Abstract_table_impl::set_hidden(hidden);
   }
 
@@ -297,7 +299,7 @@ class View_impl : public Abstract_table_impl, public View {
   Object_id m_connection_collation_id;
 
   View_impl(const View_impl &src);
-  View_impl *clone() const { return new View_impl(*this); }
+  View_impl *clone() const override { return new View_impl(*this); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

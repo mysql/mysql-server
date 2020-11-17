@@ -477,6 +477,7 @@ select f3 from t1 where f3 between cast("2006-1-1 12:1:1" as datetime) and cast(
 select f3 from t1 where timestamp(f3) between cast("2006-1-1 12:1:1" as datetime) and cast("2006-1-1 12:1:2" as datetime);
 select f1 from t1 where cast("2006-1-1" as date) between f1 and f3;
 select f1 from t1 where cast("2006-1-1" as date) between date(f1) and date(f3);
+--skip_if_hypergraph  # Warnings depend on query plan.
 select f1 from t1 where cast("2006-1-1" as date) between f1 and cast('zzz' as date);
 select f1 from t1 where makedate(2006,1) between date(f1) and date(f3);
 select f1 from t1 where makedate(2006,2) between date(f1) and date(f3);
@@ -746,6 +747,7 @@ DROP TABLE t1;
 #
 # Check if using GROUP BY with TIME_FORMAT() produces correct results
 
+--sorted_result
 SELECT TIME_FORMAT(SEC_TO_TIME(a),"%H:%i:%s") FROM (SELECT 3020399 AS a UNION SELECT 3020398 ) x GROUP BY 1;
 
 #
@@ -866,6 +868,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1(a CHAR(10) NOT NULL);
 INSERT INTO t1 VALUES (''),('');
+--skip_if_hypergraph  # Warnings depend on query plan.
 SELECT COUNT(*) FROM t1 GROUP BY TIME_TO_SEC(a);
 DROP TABLE t1;
 
@@ -1078,18 +1081,24 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a TIME NOT NULL) ENGINE=InnoDB;
 INSERT INTO t1 VALUES ('04:39:24');
 INSERT INTO t1 VALUES ('00:20:09');
+--skip_if_hypergraph  # Warnings depend on query plan.
 SELECT a FROM t1
 WHERE CONVERT_TZ(TIMESTAMPADD(YEAR , a, TIMESTAMP('0000-00-00')),
                  '+00:00','+00:00');
+--skip_if_hypergraph  # Warnings depend on query plan.
 SELECT a FROM t1
 WHERE CONVERT_TZ(TIMESTAMPADD(YEAR, a, DATE('0000-00-00')),
                  '+00:00','+00:00');
 DROP TABLE t1;
 CREATE TABLE t1 (a TIME) ENGINE=InnoDB;
 INSERT INTO t1 VALUES ('00:00:00');
+--skip_if_hypergraph  # Warnings depend on query plan.
 SELECT * FROM t1 WHERE TIMESTAMPDIFF(MONTH, a, TIMESTAMP('0000-00-01')) IS NULL;
+--skip_if_hypergraph  # Warnings depend on query plan.
 SELECT * FROM t1 WHERE TIMESTAMPDIFF(MONTH, a, TIMESTAMP'0000-00-01 00:00:00') IS NULL;
+--skip_if_hypergraph  # Warnings depend on query plan.
 SELECT * FROM t1 WHERE TIMESTAMPDIFF(MONTH, a, DATE('0000-00-01')) IS NULL;
+--skip_if_hypergraph  # Warnings depend on query plan.
 SELECT * FROM t1 WHERE TIMESTAMPDIFF(MONTH, a, DATE'0000-00-01') IS NULL;
 DROP TABLE t1;
 SET sql_mode = default;

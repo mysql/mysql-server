@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -325,7 +325,7 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint
                  : index->n_nullable;
   }
 
-  if (index->has_instant_cols() && status != nullptr) {
+  if (index->is_tuple_instant_format(n_fields) && status != nullptr) {
     switch (UNIV_EXPECT(*status, REC_STATUS_ORDINARY)) {
       case REC_STATUS_ORDINARY:
         ut_ad(!temp && n_fields > 0);
@@ -738,7 +738,7 @@ bool rec_convert_dtuple_to_rec_comp(rec_t *rec, const dict_index_t *index,
         ut_ad(n_fields <= dict_index_get_n_fields(index));
         n_node_ptr_field = ULINT_UNDEFINED;
 
-        if (index->has_instant_cols()) {
+        if (index->is_tuple_instant_format(n_fields)) {
           uint32_t n_fields_len;
           n_fields_len = rec_set_n_fields(rec, n_fields);
           nulls -= n_fields_len;
@@ -1347,10 +1347,10 @@ ibool rec_validate(
   return (TRUE);
 }
 
-/** Prints an old-style physical record. */
-void rec_print_old(FILE *file,       /*!< in: file where to print */
-                   const rec_t *rec) /*!< in: physical record */
-{
+/** Prints an old-style physical record.
+@param[in] file File where to print
+@param[in] rec Physical record */
+void rec_print_old(FILE *file, const rec_t *rec) {
   const byte *data;
   ulint len;
   ulint n;
@@ -1506,12 +1506,11 @@ static void rec_print_mbr_old(FILE *file,       /*!< in: file where to print */
   rec_validate_old(rec);
 }
 
-/** Prints a spatial index record. */
-void rec_print_mbr_rec(
-    FILE *file,           /*!< in: file where to print */
-    const rec_t *rec,     /*!< in: physical record */
-    const ulint *offsets) /*!< in: array returned by rec_get_offsets() */
-{
+/** Prints a spatial index record.
+@param[in] file File where to print
+@param[in] rec Physical record
+@param[in] offsets Array returned by rec_get_offsets() */
+void rec_print_mbr_rec(FILE *file, const rec_t *rec, const ulint *offsets) {
   ut_ad(rec);
   ut_ad(offsets);
   ut_ad(rec_offs_validate(rec, nullptr, offsets));
@@ -1604,11 +1603,11 @@ void rec_print_new(
   rec_validate(rec, offsets);
 }
 
-/** Prints a physical record. */
-void rec_print(FILE *file,                /*!< in: file where to print */
-               const rec_t *rec,          /*!< in: physical record */
-               const dict_index_t *index) /*!< in: record descriptor */
-{
+/** Prints a physical record.
+@param[in] file File where to print
+@param[in] rec Physical record
+@param[in] index Record descriptor */
+void rec_print(FILE *file, const rec_t *rec, const dict_index_t *index) {
   ut_ad(index);
 
   if (!dict_table_is_comp(index->table)) {

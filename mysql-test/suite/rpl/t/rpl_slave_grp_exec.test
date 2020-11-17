@@ -122,13 +122,13 @@ if (`select @@GLOBAL.binlog_transaction_dependency_tracking = 'WRITESET'`)
 {
   --disable_query_log
   SET @saved_slave_preserve_commit_order= @@GLOBAL.slave_preserve_commit_order;
-  STOP SLAVE SQL_THREAD;
+  STOP REPLICA SQL_THREAD;
   # Set slave_preserve_commit_order to ON to make the following
   # INSERT statements execute in commit order to make the following
   # SELECT statements output the consistent result even when
   # binlog_transaction_dependency_tracking is set to WRITESET.
   SET GLOBAL slave_preserve_commit_order= ON;
-  START SLAVE SQL_THREAD;
+  START REPLICA SQL_THREAD;
   --enable_query_log
 }
 

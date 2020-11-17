@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,12 +61,12 @@ bool Kerberos::setup() {
   }
   log_dbg("Kerberos setup starting.");
   if ((res_kerberos = krb5_init_context(&m_context)) != 0) {
-    log_info("SASL kerberos set up: failed to initialize context.");
+    log_info("SASL kerberos setup: failed to initialize context.");
     goto EXIT;
   }
   if ((res_kerberos = get_kerberos_config()) != 0) {
     log_info(
-        "SASL kerberos set up: failed to get required details from "
+        "SASL kerberos setup: failed to get required details from "
         "configuration file.");
     goto EXIT;
   }
@@ -101,7 +101,7 @@ void Kerberos::cleanup() {
 
 krb5_error_code Kerberos::store_credentials() {
   krb5_error_code res_kerberos = 0;
-  log_dbg("Store credenatial starting.");
+  log_dbg("Store credentials starting.");
   res_kerberos =
       krb5_cc_store_cred(m_context, m_krb_credentials_cache, &m_credentials);
   if (res_kerberos) {
@@ -136,7 +136,7 @@ krb5_error_code Kerberos::obtain_credentials() {
     goto EXIT;
   }
   if (res_kerberos) {
-    log_info("SASL kerberos obtain credentials: failed to parse user name. ");
+    log_info("SASL kerberos obtain credentials: failed to parse user name.");
     goto EXIT;
   }
   if (m_krb_credentials_cache == nullptr) {
@@ -158,8 +158,7 @@ krb5_error_code Kerberos::obtain_credentials() {
                                    password, NULL, NULL, 0, NULL, options);
 
   if (res_kerberos) {
-    log_info(
-        "SASL kerberos obtain credentials: failed to obtained credential.");
+    log_info("SASL kerberos obtain credentials: failed to obtain credentials.");
     goto EXIT;
   }
   m_credentials_created = true;
@@ -169,7 +168,7 @@ krb5_error_code Kerberos::obtain_credentials() {
   res_kerberos =
       krb5_verify_init_creds(m_context, &m_credentials, NULL, NULL, NULL, NULL);
   if (res_kerberos) {
-    log_info("SASL kerberos obtain credentials: failed to verify credential.");
+    log_info("SASL kerberos obtain credentials: failed to verify credentials.");
     goto EXIT;
   }
   log_dbg("Obtain credential successful");
@@ -216,7 +215,7 @@ bool Kerberos::obtain_store_credentials() {
   */
   if (m_user.empty() || m_password.empty()) {
     log_info(
-        "SASL kerberos obtain and store TGT: empty user name or password. ");
+        "SASL kerberos obtain and store TGT: empty user name or password.");
     goto EXIT;
   }
   /*
@@ -225,13 +224,13 @@ bool Kerberos::obtain_store_credentials() {
     and this can be configured.
   */
   if ((ret_val = credential_valid())) {
-    log_info("SASL kerberos obtain and store TGT: Valid TGT exist. ");
+    log_info("SASL kerberos obtain and store TGT: Valid TGT exists.");
     goto EXIT;
   }
   if ((res_kerberos = obtain_credentials()) != 0) {
     log_info(
         "SASL kerberos obtain and store TGT: failed to obtain "
-        "TGT/credential. ");
+        "TGT/credentials.");
     goto EXIT;
   }
   /*
@@ -240,7 +239,8 @@ bool Kerberos::obtain_store_credentials() {
     preference.
   */
   if ((res_kerberos = store_credentials()) != 0) {
-    log_info("SASL kerberos obtain and store TGT: failed to store credential.");
+    log_info(
+        "SASL kerberos obtain and store TGT: failed to store credentials.");
     goto EXIT;
   }
 
@@ -389,8 +389,7 @@ bool Kerberos::credential_valid() {
   if (m_krb_credentials_cache == nullptr) {
     res_kerberos = krb5_cc_default(m_context, &m_krb_credentials_cache);
     if (res_kerberos) {
-      log_info(
-          "SASL kerberos set up: failed to get default credentials cache.");
+      log_info("SASL kerberos setup: failed to get default credentials cache.");
       goto EXIT;
     }
   }
@@ -402,7 +401,7 @@ bool Kerberos::credential_valid() {
       krb5_parse_name(m_context, m_user.c_str(), &matching_credential.client);
   if (res_kerberos) {
     log_info(
-        "SASL kerberos credentials valid: failed to parsed client principal.");
+        "SASL kerberos credentials valid: failed to parse client principal.");
     goto EXIT;
   }
   res_kerberos = krb5_get_default_realm(m_context, &realm);
@@ -427,7 +426,7 @@ bool Kerberos::credential_valid() {
                                        &matching_credential, &credentials);
   if (res_kerberos) {
     log_info(
-        "SASL kerberos credentials valid: failed to retrieve credentials. ");
+        "SASL kerberos credentials valid: failed to retrieve credentials.");
     goto EXIT;
   }
   credentials_retrieve = true;
@@ -437,20 +436,20 @@ bool Kerberos::credential_valid() {
   res_kerberos = krb5_timeofday(m_context, &krb_current_time);
   if (res_kerberos) {
     log_info(
-        "SASL kerberos credentials valid: failed to retrieve current time. ");
+        "SASL kerberos credentials valid: failed to retrieve current time.");
     goto EXIT;
   }
   /*
     Checking validity of credentials if it is still valid.
   */
   if (credentials.times.endtime < krb_current_time) {
-    log_info("SASL kerberos credentials valid: credentials are expired. ");
+    log_info("SASL kerberos credentials valid: credentials are expired.");
     goto EXIT;
   } else {
     ret_val = true;
     log_info(
         "SASL kerberos credentials valid: credentials are valid. New TGT will "
-        "not be obtained. ");
+        "not be obtained.");
   }
 
 EXIT:
@@ -509,15 +508,14 @@ bool Kerberos::get_user_name(std::string *name) {
     goto EXIT;
   }
   if (!name) {
-    log_dbg("Failed to get Kerberos user name");
+    log_dbg("Failed to get Kerberos user name.");
     goto EXIT;
   }
   *name = "";
   if (m_krb_credentials_cache == nullptr) {
     res_kerberos = krb5_cc_default(m_context, &m_krb_credentials_cache);
     if (res_kerberos) {
-      log_info(
-          "SASL kerberos set up: failed to get default credentials cache.");
+      log_info("SASL kerberos setup: failed to get default credentials cache.");
       goto EXIT;
     }
   }
@@ -535,7 +533,7 @@ bool Kerberos::get_user_name(std::string *name) {
   */
   res_kerberos = krb5_unparse_name(m_context, principal, &user_name);
   if (res_kerberos) {
-    log_info("SASL get user name: failed to parse principal name ");
+    log_info("SASL get user name: failed to parse principal name.");
     goto EXIT;
   } else {
     log_stream << "SASL get user name: ";

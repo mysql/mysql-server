@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,26 +24,56 @@
 
 #include "classic_mock_session.h"
 
+#include <array>
+#include <chrono>
+#include <iostream>
+#include <system_error>
 #include <thread>
-#include "mysql_protocol_utils.h"
 
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/net_ts/buffer.h"
+#include "mysql/harness/net_ts/impl/socket_constants.h"
 #include "mysqld_error.h"
 IMPORT_LOG_FUNCTIONS()
 
 namespace server_mock {
+
+void MySQLClassicProtocol::read_packet(std::vector<uint8_t> &payload) {
+  std::array<char, 4> hdr;
+
+  net::mutable_buffer hdr_buf = net::buffer(hdr);
+
+  read_buffer(hdr_buf);
+
+  net::const_buffer decode_buf = net::buffer(hdr);
+  auto hdr_res = protocol_decoder_.read_header(decode_buf);
+  if (!hdr_res) {
+    throw std::system_error(hdr_res.error());
+  }
+
+  seq_no_ = protocol_decoder_.packet_seq() + 1;
+
+  payload.resize(hdr_res.value());
+  net::mutable_buffer payload_buf = net::buffer(payload);
+
+  read_buffer(payload_buf);
+
+  protocol_decoder_.read_message(net::buffer(payload));
+}
+
+void MySQLClassicProtocol::send_packet(const std::vector<uint8_t> &payload) {
+  send_buffer(net::buffer(payload));
+}
 
 bool MySQLServerMockSessionClassic::process_handshake() {
   using namespace mysql_protocol;
 
   bool is_first_packet = true;
 
-  while (!killed_) {
+  while (!killed()) {
     std::vector<uint8_t> payload;
     if (!is_first_packet) {
-      protocol_decoder_.read_message(client_socket_);
-      seq_no_ = protocol_decoder_.packet_seq() + 1;
-      payload = protocol_decoder_.get_payload();
+      protocol_->read_packet(payload);
     }
     is_first_packet = false;
     if (true == handle_handshake(json_reader_->handle_handshake(payload))) {
@@ -58,13 +88,17 @@ bool MySQLServerMockSessionClassic::process_handshake() {
 bool MySQLServerMockSessionClassic::process_statements() {
   using mysql_protocol::Command;
 
-  while (!killed_) {
-    protocol_decoder_.read_message(client_socket_);
-    seq_no_ = protocol_decoder_.packet_seq() + 1;
-    auto cmd = protocol_decoder_.get_command_type();
+  while (!killed()) {
+    std::vector<uint8_t> payload;
+    protocol_->read_packet(payload);
+
+    auto &protocol_decoder = protocol_->protocol_decoder();
+
+    protocol_->seq_no(protocol_decoder.packet_seq() + 1);
+    auto cmd = protocol_decoder.get_command_type();
     switch (cmd) {
       case Command::QUERY: {
-        std::string statement_received = protocol_decoder_.get_statement();
+        std::string statement_received = protocol_decoder.get_statement();
 
         try {
           handle_statement(json_reader_->handle_statement(statement_received));
@@ -72,8 +106,9 @@ bool MySQLServerMockSessionClassic::process_statements() {
           // handling statement failed. Return the error to the client
           std::this_thread::sleep_for(json_reader_->get_default_exec_time());
           log_error("executing statement failed: %s", e.what());
-          send_error(ER_PARSE_ERROR,
-                     std::string("executing statement failed: ") + e.what());
+          protocol_->send_error(
+              ER_PARSE_ERROR,
+              std::string("executing statement failed: ") + e.what());
 
           // assume the connection is broken
           return true;
@@ -86,12 +121,29 @@ bool MySQLServerMockSessionClassic::process_statements() {
         std::cerr << "received unsupported command from the client: "
                   << static_cast<int>(cmd) << "\n";
         std::this_thread::sleep_for(json_reader_->get_default_exec_time());
-        send_error(ER_PARSE_ERROR,
-                   "Unsupported command: " + std::to_string(cmd));
+        protocol_->send_error(ER_PARSE_ERROR,
+                              "Unsupported command: " + std::to_string(cmd));
     }
   }
 
   return true;
+}
+
+void MySQLClassicProtocol::send_auth_fast_message() {
+  send_packet(protocol_encoder_.encode_auth_fast_message(seq_no_++));
+}
+
+void MySQLClassicProtocol::send_auth_switch_message(
+    const AuthSwitch *auth_switch_resp) {
+  send_packet(protocol_encoder_.encode_auth_switch_message(
+      seq_no_++, auth_switch_resp->method(), auth_switch_resp->data()));
+}
+void MySQLClassicProtocol::send_greeting(const Greeting *greeting_resp) {
+  send_packet(protocol_encoder_.encode_greetings_message(
+      seq_no_++, greeting_resp->server_version(),
+      greeting_resp->connection_id(), greeting_resp->auth_data(),
+      greeting_resp->capabilities(), greeting_resp->auth_method(),
+      greeting_resp->character_set(), greeting_resp->status_flags()));
 }
 
 bool MySQLServerMockSessionClassic::handle_handshake(
@@ -102,51 +154,40 @@ bool MySQLServerMockSessionClassic::handle_handshake(
 
   switch (response.response_type) {
     case ResponseType::GREETING: {
-      Greeting *greeting_resp =
-          dynamic_cast<Greeting *>(response.response.get());
+      auto *greeting_resp = dynamic_cast<Greeting *>(response.response.get());
       harness_assert(greeting_resp);
 
-      send_packet(
-          client_socket_,
-          protocol_encoder_.encode_greetings_message(
-              seq_no_++, greeting_resp->server_version(),
-              greeting_resp->connection_id(), greeting_resp->auth_data(),
-              greeting_resp->capabilities(), greeting_resp->auth_method(),
-              greeting_resp->character_set(), greeting_resp->status_flags()));
+      protocol_->send_greeting(greeting_resp);
     } break;
     case ResponseType::AUTH_SWITCH: {
-      AuthSwitch *auth_switch_resp =
+      auto *auth_switch_resp =
           dynamic_cast<AuthSwitch *>(response.response.get());
       harness_assert(auth_switch_resp);
 
-      send_packet(client_socket_, protocol_encoder_.encode_auth_switch_message(
-                                      seq_no_++, auth_switch_resp->method(),
-                                      auth_switch_resp->data()));
+      protocol_->send_auth_switch_message(auth_switch_resp);
     } break;
     case ResponseType::AUTH_FAST: {
       // sha256-fast-auth is
       // - 0x03
       // - ok
-      send_packet(client_socket_,
-                  protocol_encoder_.encode_auth_fast_message(seq_no_++));
+      protocol_->send_auth_fast_message();
 
-      send_ok(0, 0, 0, 0);
+      protocol_->send_ok(0, 0, 0, 0);
 
       return true;
     }
     case ResponseType::OK: {
-      OkResponse *ok_resp = dynamic_cast<OkResponse *>(response.response.get());
+      auto *ok_resp = dynamic_cast<OkResponse *>(response.response.get());
       harness_assert(ok_resp);
 
-      send_ok(0, ok_resp->last_insert_id, 0, ok_resp->warning_count);
+      protocol_->send_ok(0, ok_resp->last_insert_id, 0, ok_resp->warning_count);
 
       return true;
     }
     case ResponseType::ERROR: {
-      ErrorResponse *err_resp =
-          dynamic_cast<ErrorResponse *>(response.response.get());
+      auto *err_resp = dynamic_cast<ErrorResponse *>(response.response.get());
       harness_assert(err_resp);
-      send_error(err_resp->code, err_resp->msg);
+      protocol_->send_error(err_resp->code, err_resp->msg);
 
       return true;
     }
@@ -159,53 +200,46 @@ bool MySQLServerMockSessionClassic::handle_handshake(
   return false;
 }
 
-void MySQLServerMockSessionClassic::send_error(const uint16_t error_code,
-                                               const std::string &error_msg,
-                                               const std::string &sql_state) {
+void MySQLClassicProtocol::send_error(const uint16_t error_code,
+                                      const std::string &error_msg,
+                                      const std::string &sql_state) {
   auto buf = protocol_encoder_.encode_error_message(seq_no_++, error_code,
                                                     sql_state, error_msg);
-  send_packet(client_socket_, buf);
+  send_packet(buf);
 }
 
-void MySQLServerMockSessionClassic::send_ok(const uint64_t affected_rows,
-                                            const uint64_t last_insert_id,
-                                            const uint16_t server_status,
-                                            const uint16_t warning_count) {
+void MySQLClassicProtocol::send_ok(const uint64_t affected_rows,
+                                   const uint64_t last_insert_id,
+                                   const uint16_t server_status,
+                                   const uint16_t warning_count) {
   auto buf = protocol_encoder_.encode_ok_message(
       seq_no_++, affected_rows, last_insert_id, server_status, warning_count);
-  send_packet(client_socket_, buf);
+  send_packet(buf);
 }
 
-void MySQLServerMockSessionClassic::send_resultset(
+void MySQLClassicProtocol::send_resultset(
     const ResultsetResponse &response,
     const std::chrono::microseconds delay_ms) {
   auto buf = protocol_encoder_.encode_columns_number_message(
       seq_no_++, response.columns.size());
   std::this_thread::sleep_for(delay_ms);
-  send_packet(client_socket_, buf);
+  send_packet(buf);
   for (const auto &column : response.columns) {
     auto col_buf =
         protocol_encoder_.encode_column_meta_message(seq_no_++, column);
-    send_packet(client_socket_, col_buf);
+    send_packet(col_buf);
   }
   buf = protocol_encoder_.encode_eof_message(seq_no_++);
-  send_packet(client_socket_, buf);
+  send_packet(buf);
 
   for (size_t i = 0; i < response.rows.size(); ++i) {
     auto res_buf = protocol_encoder_.encode_row_message(
         seq_no_++, response.columns, response.rows[i]);
-    send_packet(client_socket_, res_buf);
+    send_packet(res_buf);
   }
   buf = protocol_encoder_.encode_eof_message(seq_no_++);
-  send_packet(client_socket_, buf);
-}
 
-MySQLServerMockSessionClassic::MySQLServerMockSessionClassic(
-    const socket_t client_sock,
-    std::unique_ptr<StatementReaderBase> statement_processor,
-    const bool debug_mode)
-    : MySQLServerMockSession(client_sock, std::move(statement_processor),
-                             debug_mode),
-      protocol_decoder_{&read_packet} {}
+  send_packet(buf);
+}
 
 }  // namespace server_mock

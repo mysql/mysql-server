@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -126,8 +126,7 @@ bool ARClusterMetadata::get_member_view_id(mysqlrouter::MySQLSession &session,
                                            unsigned &result) {
   std::string query =
       "select view_id from mysql_innodb_cluster_metadata.v2_ar_members where "
-      "member_id = @@server_uuid";
-
+      "CAST(member_id AS char ascii) = CAST(@@server_uuid AS char ascii)";
   if (!cluster_id.empty()) {
     query += " and cluster_id = " + session.quote(cluster_id);
   }

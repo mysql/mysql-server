@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -170,9 +170,9 @@ class Sql_cmd_check_table : public Sql_cmd_ddl_table {
  public:
   using Sql_cmd_ddl_table::Sql_cmd_ddl_table;
 
-  bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
-  virtual enum_sql_command sql_command_code() const { return SQLCOM_CHECK; }
+  enum_sql_command sql_command_code() const override { return SQLCOM_CHECK; }
 };
 
 /**
@@ -185,9 +185,9 @@ class Sql_cmd_optimize_table : public Sql_cmd_ddl_table {
  public:
   using Sql_cmd_ddl_table::Sql_cmd_ddl_table;
 
-  bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
-  virtual enum_sql_command sql_command_code() const { return SQLCOM_OPTIMIZE; }
+  enum_sql_command sql_command_code() const override { return SQLCOM_OPTIMIZE; }
 };
 
 /**
@@ -200,9 +200,9 @@ class Sql_cmd_repair_table : public Sql_cmd_ddl_table {
  public:
   using Sql_cmd_ddl_table::Sql_cmd_ddl_table;
 
-  bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
-  virtual enum_sql_command sql_command_code() const { return SQLCOM_REPAIR; }
+  enum_sql_command sql_command_code() const override { return SQLCOM_REPAIR; }
 };
 
 /**
@@ -210,8 +210,8 @@ class Sql_cmd_repair_table : public Sql_cmd_ddl_table {
 */
 class Sql_cmd_shutdown : public Sql_cmd {
  public:
-  virtual bool execute(THD *thd);
-  virtual enum_sql_command sql_command_code() const { return SQLCOM_SHUTDOWN; }
+  bool execute(THD *thd) override;
+  enum_sql_command sql_command_code() const override { return SQLCOM_SHUTDOWN; }
 };
 
 enum class role_enum { ROLE_NONE, ROLE_DEFAULT, ROLE_ALL, ROLE_NAME };
@@ -240,8 +240,8 @@ class Sql_cmd_set_role : public Sql_cmd {
   explicit Sql_cmd_set_role(const List<LEX_USER> *role_arg)
       : role_type(role_enum::ROLE_NAME), role_list(role_arg) {}
 
-  virtual bool execute(THD *thd);
-  virtual enum_sql_command sql_command_code() const { return SQLCOM_SET_ROLE; }
+  bool execute(THD *thd) override;
+  enum_sql_command sql_command_code() const override { return SQLCOM_SET_ROLE; }
 };
 
 /**
@@ -258,8 +258,8 @@ class Sql_cmd_create_role : public Sql_cmd {
                                const List<LEX_USER> *roles_arg)
       : if_not_exists(if_not_exists_arg), roles(roles_arg) {}
 
-  virtual bool execute(THD *thd);
-  virtual enum_sql_command sql_command_code() const {
+  bool execute(THD *thd) override;
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_CREATE_ROLE;
   }
 };
@@ -278,8 +278,10 @@ class Sql_cmd_drop_role : public Sql_cmd {
                              const List<LEX_USER> *roles_arg)
       : ignore_errors(ignore_errors_arg), roles(roles_arg) {}
 
-  virtual bool execute(THD *thd);
-  virtual enum_sql_command sql_command_code() const { return SQLCOM_DROP_ROLE; }
+  bool execute(THD *thd) override;
+  enum_sql_command sql_command_code() const override {
+    return SQLCOM_DROP_ROLE;
+  }
 };
 
 /**
@@ -298,8 +300,8 @@ class Sql_cmd_grant_roles : public Sql_cmd {
         users(users_arg),
         with_admin_option(with_admin_option_arg) {}
 
-  virtual bool execute(THD *thd);
-  virtual enum_sql_command sql_command_code() const {
+  bool execute(THD *thd) override;
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_GRANT_ROLE;
   }
 };
@@ -316,8 +318,8 @@ class Sql_cmd_revoke_roles : public Sql_cmd {
                                 const List<LEX_USER> *users_arg)
       : roles(roles_arg), users(users_arg) {}
 
-  virtual bool execute(THD *thd);
-  virtual enum_sql_command sql_command_code() const {
+  bool execute(THD *thd) override;
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_REVOKE_ROLE;
   }
 };
@@ -343,29 +345,9 @@ class Sql_cmd_alter_user_default_role : public Sql_cmd {
         roles(roles_arg),
         role_type(role_type_arg) {}
 
-  virtual bool execute(THD *thd);
-  virtual enum_sql_command sql_command_code() const {
+  bool execute(THD *thd) override;
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_ALTER_USER_DEFAULT_ROLE;
-  }
-};
-
-/**
-  Sql_cmd_show_grants SHOW GRANTS ... statement.
-*/
-class Sql_cmd_show_grants : public Sql_cmd {
-  friend class PT_show_grants;
-
-  const LEX_USER *for_user;
-  const List<LEX_USER> *using_users;
-
- public:
-  Sql_cmd_show_grants(const LEX_USER *for_user_arg,
-                      const List<LEX_USER> *using_users_arg)
-      : for_user(for_user_arg), using_users(using_users_arg) {}
-
-  virtual bool execute(THD *thd);
-  virtual enum_sql_command sql_command_code() const {
-    return SQLCOM_SHOW_GRANTS;
   }
 };
 
@@ -399,8 +381,8 @@ class Sql_cmd_alter_instance : public Sql_cmd {
         channel_name_(channel_name),
         alter_instance(nullptr) {}
 
-  virtual bool execute(THD *thd);
-  virtual enum_sql_command sql_command_code() const {
+  bool execute(THD *thd) override;
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_ALTER_INSTANCE;
   }
 };
@@ -438,9 +420,9 @@ class Sql_cmd_clone : public Sql_cmd {
         m_clone(),
         m_is_local(true) {}
 
-  virtual enum_sql_command sql_command_code() const { return SQLCOM_CLONE; }
+  enum_sql_command sql_command_code() const override { return SQLCOM_CLONE; }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
   /** Execute clone server.
   @param[in] thd server session
@@ -486,19 +468,4 @@ class Sql_cmd_clone : public Sql_cmd {
   /** If it is local clone operation */
   bool m_is_local;
 };
-
-/**
-  Sql_cmd_show represents the SHOW COLUMNS/SHOW INDEX statements.
-*/
-class Sql_cmd_show : public Sql_cmd {
- public:
-  Sql_cmd_show(enum_sql_command sql_command) : m_sql_command(sql_command) {}
-  virtual bool execute(THD *thd);
-  virtual enum_sql_command sql_command_code() const { return m_sql_command; }
-  virtual bool prepare(THD *thd);
-
- private:
-  enum_sql_command m_sql_command;
-};
-
 #endif

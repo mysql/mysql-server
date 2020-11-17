@@ -230,6 +230,12 @@ class Datafile {
   @return DB_SUCCESS or error code */
   dberr_t close();
 
+  /** Returns if the Datafile is created in raw partition
+  @return true if partition  used is raw , false otherwise */
+  bool is_raw_type() {
+    return (m_type == SRV_NEW_RAW || m_type == SRV_OLD_RAW);
+  }
+
   /** Make a full filepath from a directory path and a filename.
   Prepend the dirpath to filename using the extension given.
   If dirpath is nullptr, prepend the default datadir to filepath.
@@ -251,12 +257,12 @@ class Datafile {
   @param[in]	name	Tablespace Name if known, nullptr if not */
   void set_name(const char *name);
 
-  /** Validates the datafile and checks that it conforms with
-  the expected space ID and flags.  The file should exist and be
-  successfully opened in order for this function to validate it.
+  /** Validates the datafile and checks that it conforms with the expected
+  space ID and flags.  The file should exist and be successfully opened
+  in order for this function to validate it.
   @param[in]	space_id	The expected tablespace ID.
   @param[in]	flags		The expected tablespace flags.
-  @param[in]	for_import	is it for importing
+  @param[in]	for_import	if it is for importing
   @retval DB_SUCCESS if tablespace is valid, DB_ERROR if not.
   m_is_valid is also set true on success, else false. */
   dberr_t validate_to_dd(space_id_t space_id, uint32_t flags, bool for_import)
@@ -337,11 +343,11 @@ class Datafile {
   @return m_last_os_error */
   ulint last_os_error() const { return (m_last_os_error); }
 
-  /** Test if the filepath provided looks the same as this filepath
-  by string comparison. If they are two different paths to the same
-  file, same_as() will be used to show that after the files are opened.
+  /** Do a quick test if the filepath provided looks the same as this filepath
+  byte by byte. If they are two different looking paths to the same file,
+  same_as() will be used to show that after the files are opened.
   @param[in]	other	filepath to compare with
-  @retval true if it is the same filename by char comparison
+  @retval true if it is the same filename by byte comparison
   @retval false if it looks different */
   bool same_filepath_as(const char *other) const;
 
@@ -397,7 +403,7 @@ class Datafile {
 
   /** Reads a few significant fields from the first page of the
   datafile, which must already be open.
-  @param[in]	read_only_mode	if true, then readonly mode checks
+  @param[in]	read_only_mode	If true, then readonly mode checks
                                   are enforced.
   @return DB_SUCCESS or DB_IO_ERROR if page cannot be read */
   dberr_t read_first_page(bool read_only_mode)
@@ -412,10 +418,10 @@ class Datafile {
     m_open_flags = open_flags;
   }
 
-  /** Finds a given page of the given space id from the double write
-  buffer and copies it to the corresponding .ibd file.
+  /** Finds a given page of the given space id from the double write buffer
+  and copies it to the corresponding .ibd file.
   @param[in]	restore_page_no		Page number to restore
-  @return DB_SUCCESS if page was restored, else DB_ERROR */
+  @return DB_SUCCESS if page was restored from doublewrite, else DB_ERROR */
   dberr_t restore_from_doublewrite(page_no_t restore_page_no);
 
  private:

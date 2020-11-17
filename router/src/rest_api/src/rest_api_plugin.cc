@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -239,6 +239,8 @@ static void start(mysql_harness::PluginFuncEnv *env) {
     http_srv.add_route(rest_api->uri_prefix_regex(),
                        std::make_unique<RestApiHttpRequestHandler>(rest_api));
 
+    mysql_harness::on_service_ready(env);
+
     wait_for_stop(env, 0);
 
     http_srv.remove_route(rest_api->uri_prefix_regex());
@@ -279,5 +281,6 @@ mysql_harness::Plugin DLLEXPORT harness_plugin_rest_api = {
     deinit,   // deinit
     start,    // start
     nullptr,  // stop
+    true,     // declares_readiness
 };
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ class WkbWriterTest : public ::testing::Test {
   dd::Spatial_reference_system_impl *m_radian_srs;
   dd::Spatial_reference_system_impl *m_grad_srs;
 
-  void SetUp() {
+  void SetUp() override {
     m_cartesian_srs = dynamic_cast<dd::Spatial_reference_system_impl *>(
         dd::create_object<dd::Spatial_reference_system>());
     m_cartesian_srs->set_id(3857);
@@ -113,7 +113,7 @@ class WkbWriterTest : public ::testing::Test {
     m_grad_srs->parse_definition();
   }
 
-  void TearDown() {
+  void TearDown() override {
     delete m_cartesian_srs;
     delete m_radian_srs;
     delete m_grad_srs;

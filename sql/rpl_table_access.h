@@ -68,6 +68,36 @@ class System_table_access {
   bool open_table(THD *thd, const LEX_CSTRING dbstr, const LEX_CSTRING tbstr,
                   uint max_num_field, enum thr_lock_type lock_type,
                   TABLE **table, Open_tables_backup *backup);
+
+  /**
+    Opens and locks a system table.
+
+    It's assumed that the caller knows what they are doing:
+    - whether it was necessary to reset-and-backup the open tables state
+    - whether the requested lock does not lead to a deadlock
+    - whether this open mode would work under LOCK TABLES, or inside a
+    stored function or trigger.
+
+    Note that if the table can't be locked successfully this operation will
+    close it. Therefore it provides guarantee that it either opens and locks
+    table or fails without leaving any tables open.
+
+    @param[in]  thd           Thread requesting to open the table
+    @param[in]  dbstr         Database where the table resides
+    @param[in]  tbstr         Table to be openned
+    @param[in]  max_num_field Maximum number of fields
+    @param[in]  lock_type     How to lock the table
+    @param[out] table         We will store the open table here
+    @param[out] backup        Save the lock info. here
+
+    @retval true open and lock failed - an error message is pushed into the
+                                          stack
+    @retval false success
+  */
+  bool open_table(THD *thd, std::string dbstr, std::string tbstr,
+                  uint max_num_field, enum thr_lock_type lock_type,
+                  TABLE **table, Open_tables_backup *backup);
+
   /**
     Prepares before opening table.
 

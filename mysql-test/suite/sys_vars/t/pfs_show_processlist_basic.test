@@ -1,0 +1,53 @@
+
+#
+# Only global
+#
+select @@global.performance_schema_show_processlist into @save;
+select @@global.performance_schema_show_processlist;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.performance_schema_show_processlist;
+
+show global variables like 'performance_schema_show_processlist';
+
+show session variables like 'performance_schema_show_processlist';
+
+--disable_warnings
+select * from performance_schema.global_variables
+  where variable_name='performance_schema_show_processlist';
+
+select * from performance_schema.session_variables
+  where variable_name='performance_schema_show_processlist';
+--enable_warnings
+
+#
+# Wrong value
+#
+--Error ER_WRONG_VALUE_FOR_VAR
+set global performance_schema_show_processlist = 99;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+set global performance_schema_show_processlist = 'FOO';
+
+#
+# Right value
+#
+set global performance_schema_show_processlist = 1;
+select @@global.performance_schema_show_processlist;
+
+set global performance_schema_show_processlist = 0;
+select @@global.performance_schema_show_processlist;
+
+set global performance_schema_show_processlist = ON;
+select @@global.performance_schema_show_processlist;
+
+set global performance_schema_show_processlist = OFF;
+select @@global.performance_schema_show_processlist;
+
+set global performance_schema_show_processlist = TRUE;
+select @@global.performance_schema_show_processlist;
+
+set global performance_schema_show_processlist = FALSE;
+select @@global.performance_schema_show_processlist;
+
+set @@global.performance_schema_show_processlist = @save;

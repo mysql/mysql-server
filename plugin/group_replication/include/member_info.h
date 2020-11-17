@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -233,7 +233,7 @@ class Group_member_info : public Plugin_gcs_message {
   /**
     Destructor
    */
-  virtual ~Group_member_info();
+  ~Group_member_info() override;
 
   /**
     Update Group_member_info.
@@ -544,8 +544,9 @@ class Group_member_info : public Plugin_gcs_message {
   void set_recovery_endpoints(const char *endpoints);
 
  protected:
-  void encode_payload(std::vector<unsigned char> *buffer) const;
-  void decode_payload(const unsigned char *buffer, const unsigned char *);
+  void encode_payload(std::vector<unsigned char> *buffer) const override;
+  void decode_payload(const unsigned char *buffer,
+                      const unsigned char *) override;
 
  private:
   /**
@@ -603,7 +604,20 @@ class Group_member_info_manager_interface {
  public:
   virtual ~Group_member_info_manager_interface() {}
 
+  /**
+    Number of members in the group.
+
+    @return number of members
+  */
   virtual size_t get_number_of_members() = 0;
+
+  /**
+    Number of ONLINE members in the group.
+    UNREACHABLE members are included.
+
+    @return number of ONLINE members
+  */
+  virtual size_t get_number_of_members_online() = 0;
 
   /**
     Is the member present in the group info
@@ -641,14 +655,24 @@ class Group_member_info_manager_interface {
   virtual Member_version get_group_lowest_online_version() = 0;
 
   /**
-    Retrieves a registered Group member by its backbone GCS identifier
+    Retrieves a registered Group member by its backbone GCS identifier.
 
-    @param[in] idx the GCS identifier
+    @param[in] id the GCS identifier
     @return reference to a copy of Group_member_info. NULL if not managed.
-            The return value must deallocated by the caller.
+            The return value must be deallocated by the caller.
    */
   virtual Group_member_info *get_group_member_info_by_member_id(
-      Gcs_member_identifier idx) = 0;
+      const Gcs_member_identifier &id) = 0;
+
+  /**
+    Return the status of the member with the given GCS identifier.
+
+    @param[in] id the GCS identifier
+    @return status of the member, Group_member_info::MEMBER_END if
+            the member does not exist.
+   */
+  virtual Group_member_info::Group_member_status
+  get_group_member_status_by_member_id(const Gcs_member_identifier &id) = 0;
 
   /**
     Retrieves all Group members managed by this site
@@ -704,6 +728,20 @@ class Group_member_info_manager_interface {
       const std::string &uuid,
       Group_member_info::Group_member_status new_status,
       Notification_context &ctx) = 0;
+
+  /**
+    Sets the identified member as unreachable.
+
+    @param[in] uuid        member uuid
+   */
+  virtual void set_member_unreachable(const std::string &uuid) = 0;
+
+  /**
+    Sets the identified member as reachable.
+
+    @param[in] uuid        member uuid
+   */
+  virtual void set_member_reachable(const std::string &uuid) = 0;
 
   /**
     Updates the GTID sets on a single member
@@ -864,75 +902,89 @@ class Group_member_info_manager : public Group_member_info_manager_interface {
       PSI_mutex_key psi_mutex_key =
           key_GR_LOCK_group_member_info_manager_update_lock);
 
-  virtual ~Group_member_info_manager();
+  ~Group_member_info_manager() override;
 
-  size_t get_number_of_members();
+  size_t get_number_of_members() override;
 
-  bool is_member_info_present(const std::string &uuid);
+  size_t get_number_of_members_online() override;
 
-  Group_member_info *get_group_member_info(const std::string &uuid);
+  bool is_member_info_present(const std::string &uuid) override;
 
-  Group_member_info *get_group_member_info_by_index(int idx);
+  Group_member_info *get_group_member_info(const std::string &uuid) override;
 
-  Member_version get_group_lowest_online_version();
+  Group_member_info *get_group_member_info_by_index(int idx) override;
+
+  Member_version get_group_lowest_online_version() override;
 
   Group_member_info *get_group_member_info_by_member_id(
-      Gcs_member_identifier idx);
+      const Gcs_member_identifier &id) override;
 
-  std::vector<Group_member_info *> *get_all_members();
+  Group_member_info::Group_member_status get_group_member_status_by_member_id(
+      const Gcs_member_identifier &id) override;
+
+  std::vector<Group_member_info *> *get_all_members() override;
 
   std::list<Gcs_member_identifier> *get_online_members_with_guarantees(
-      const Gcs_member_identifier &exclude_member);
+      const Gcs_member_identifier &exclude_member) override;
 
-  void add(Group_member_info *new_member);
+  void add(Group_member_info *new_member) override;
 
-  void update(Group_member_info *update_local_member);
+  void update(Group_member_info *update_local_member) override;
 
-  void update(std::vector<Group_member_info *> *new_members);
+  void update(std::vector<Group_member_info *> *new_members) override;
 
   void update_member_status(const std::string &uuid,
                             Group_member_info::Group_member_status new_status,
-                            Notification_context &ctx);
+                            Notification_context &ctx) override;
+
+  void set_member_unreachable(const std::string &uuid) override;
+
+  void set_member_reachable(const std::string &uuid) override;
 
   void update_gtid_sets(const std::string &uuid, std::string &gtid_executed,
-                        std::string &purged_gtids, std::string &gtid_retrieved);
+                        std::string &purged_gtids,
+                        std::string &gtid_retrieved) override;
 
   void update_member_role(const std::string &uuid,
                           Group_member_info::Group_member_role new_role,
-                          Notification_context &ctx);
+                          Notification_context &ctx) override;
 
   void update_group_primary_roles(const std::string &uuid,
-                                  Notification_context &ctx);
+                                  Notification_context &ctx) override;
 
-  void update_member_weight(const std::string &uuid, uint member_weight);
+  void update_member_weight(const std::string &uuid,
+                            uint member_weight) override;
 
-  void update_primary_member_flag(bool in_primary_mode);
+  void update_primary_member_flag(bool in_primary_mode) override;
 
-  void update_enforce_everywhere_checks_flag(bool enforce_everywhere);
+  void update_enforce_everywhere_checks_flag(bool enforce_everywhere) override;
 
-  void encode(std::vector<uchar> *to_encode);
+  void encode(std::vector<uchar> *to_encode) override;
 
   std::vector<Group_member_info *> *decode(const uchar *to_decode,
-                                           size_t length);
+                                           size_t length) override;
 
-  bool is_conflict_detection_enabled();
+  bool is_conflict_detection_enabled() override;
 
-  bool get_primary_member_uuid(std::string &primary_member_uuid);
+  bool get_primary_member_uuid(std::string &primary_member_uuid) override;
 
-  Group_member_info *get_primary_member_info();
+  Group_member_info *get_primary_member_info() override;
 
-  bool is_majority_unreachable();
+  bool is_majority_unreachable() override;
 
-  bool is_unreachable_member_present();
+  bool is_unreachable_member_present() override;
 
-  bool is_recovering_member_present();
+  bool is_recovering_member_present() override;
 
-  std::string get_string_current_view_active_hosts() const;
+  std::string get_string_current_view_active_hosts() const override;
 
-  mysql_mutex_t *get_update_lock() { return &update_lock; }
+  mysql_mutex_t *get_update_lock() override { return &update_lock; }
 
  private:
   void clear_members();
+
+  Group_member_info *get_group_member_info_by_member_id_internal(
+      const Gcs_member_identifier &id);
 
   std::map<std::string, Group_member_info *> *members;
   Group_member_info *local_member_info;
@@ -1005,7 +1057,7 @@ class Group_member_info_manager_message : public Plugin_gcs_message {
   /**
     Group_member_info_manager_message destructor.
    */
-  virtual ~Group_member_info_manager_message();
+  ~Group_member_info_manager_message() override;
 
   /**
     Retrieves all Group members on this message.
@@ -1015,8 +1067,9 @@ class Group_member_info_manager_message : public Plugin_gcs_message {
   std::vector<Group_member_info *> *get_all_members();
 
  protected:
-  void encode_payload(std::vector<unsigned char> *buffer) const;
-  void decode_payload(const unsigned char *buffer, const unsigned char *end);
+  void encode_payload(std::vector<unsigned char> *buffer) const override;
+  void decode_payload(const unsigned char *buffer,
+                      const unsigned char *end) override;
 
  private:
   /**

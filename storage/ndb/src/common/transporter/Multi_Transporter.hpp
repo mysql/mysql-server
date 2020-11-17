@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,21 +29,21 @@ private:
   // Initialize member variables
   Multi_Transporter(TransporterRegistry&, const Transporter*);
 
-  virtual ~Multi_Transporter();
+  ~Multi_Transporter() override;
 
   /**
    * Clear any data buffered in the transporter.
    * Should only be called in a disconnected state.
    */
-  virtual void resetBuffers();
+  void resetBuffers() override;
 
-  virtual bool configure_derived(const TransporterConfiguration* conf)
+  bool configure_derived(const TransporterConfiguration* conf) override
   {
     return true;
   }
 
 public:
-  virtual Uint64 get_bytes_sent() const
+  Uint64 get_bytes_sent() const override
   {
     Uint64 bytes_sent = m_bytes_sent;
     for (Uint32 i = 0; i < m_num_active_transporters; i++)
@@ -53,7 +53,7 @@ public:
     return bytes_sent;
   }
 
-  virtual Uint64 get_bytes_received() const
+  Uint64 get_bytes_received() const override
   {
     Uint64 bytes_received = m_bytes_received;
     for (Uint32 i = 0; i < m_num_active_transporters; i++)
@@ -63,7 +63,7 @@ public:
     return bytes_received;
   }
 
-  virtual Transporter* get_send_transporter(Uint32 recBlock, Uint32 sendBlock)
+  Transporter* get_send_transporter(Uint32 recBlock, Uint32 sendBlock) override
   {
     /**
      * We hash on receiver instance to avoid any risk of changed signal order
@@ -77,7 +77,7 @@ public:
     return m_active_transporters[index];
   }
 
-  virtual bool isMultiTransporter()
+  bool isMultiTransporter() override
   {
     return true;
   }
@@ -108,26 +108,26 @@ private:
   /**
    * Allocate buffers for sending and receiving
    */
-  bool initTransporter();
+  bool initTransporter() override;
 
   /**
    * Retrieves the contents of the send buffers and writes it on
    * the external TCP/IP interface.
    */
-  bool doSend(bool need_wakeup = true)
+  bool doSend(bool need_wakeup = true) override
   {
     /* Send only done on real transporters */
     require(false);
     return true;
   }
 
-  virtual bool send_is_possible(int) const
+  bool send_is_possible(int) const override
   {
     require(false);
     return true;
   }
 
-  virtual bool send_limit_reached(int)
+  bool send_limit_reached(int) override
   {
     require(false);
     return true;
@@ -144,14 +144,14 @@ protected:
    * A client connects to the remote server
    * A server accepts any new connections
    */
-  virtual bool connect_server_impl(NDB_SOCKET_TYPE sockfd);
-  virtual bool connect_client_impl(NDB_SOCKET_TYPE sockfd);
+  bool connect_server_impl(NDB_SOCKET_TYPE sockfd) override;
+  bool connect_client_impl(NDB_SOCKET_TYPE sockfd) override;
   bool connect_common(NDB_SOCKET_TYPE sockfd);
  
   /**
    * Disconnects a TCP/IP node, possibly blocking.
    */
-  virtual void disconnectImpl();
+  void disconnectImpl() override;
  
 private:
   Uint32 m_num_active_transporters;

@@ -13,6 +13,7 @@ include/sync_slave_sql_with_master.inc
 
 STOP SLAVE;
 Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 Warning	3022	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
 include/wait_for_slave_to_stop.inc
 
@@ -20,6 +21,7 @@ include/wait_for_slave_to_stop.inc
 
 STOP SLAVE SQL_THREAD;
 Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 Note	3084	Replication thread(s) for channel '' are already stopped.
 Warning	3022	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
 include/wait_for_slave_sql_to_stop.inc
@@ -28,6 +30,7 @@ include/wait_for_slave_sql_to_stop.inc
 
 STOP SLAVE IO_THREAD;
 Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 Note	3084	Replication thread(s) for channel '' are already stopped.
 Warning	3022	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
 include/wait_for_slave_io_to_stop.inc

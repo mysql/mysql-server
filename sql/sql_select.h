@@ -1,7 +1,7 @@
 #ifndef SQL_SELECT_INCLUDED
 #define SQL_SELECT_INCLUDED
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,15 +27,16 @@
   @file sql/sql_select.h
 */
 
-#include <limits.h>
-#include <stddef.h>
 #include <sys/types.h>
+
+#include <climits>
 
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_table_map.h"
+#include "sql/field.h"         // Copy_field
 #include "sql/item_cmpfunc.h"  // Item_cond_and
 #include "sql/opt_costmodel.h"
 #include "sql/sql_bitmap.h"
@@ -43,7 +44,6 @@
 #include "sql/sql_const.h"
 #include "sql/sql_opt_exec_shared.h"  // join_type
 
-class Field;
 class Item;
 class Item_func;
 class JOIN_TAB;
@@ -81,8 +81,9 @@ class Sql_cmd_select : public Sql_cmd_dml {
   const MYSQL_LEX_CSTRING *eligible_secondary_storage_engine() const override;
 
  protected:
+  bool may_use_cursor() const override { return true; }
   bool precheck(THD *thd) override;
-
+  bool check_privileges(THD *thd) override;
   bool prepare_inner(THD *thd) override;
 };
 
@@ -226,7 +227,7 @@ class Key_use {
   ha_rows ref_table_rows;    ///< Estimate of how many rows for a key value
   /**
     If true, the comparison this value was created from will not be
-    satisfied if val has NULL 'value'.
+    satisfied if val has NULL 'value' (unless KEY_OPTIMIZE_REF_OR_NULL is set).
     Not used if the index is fulltext (such index cannot be used for
     equalities).
   */
@@ -754,8 +755,8 @@ inline JOIN_TAB::JOIN_TAB()
 
 /* Extern functions in sql_select.cc */
 void count_field_types(SELECT_LEX *select_lex, Temp_table_param *param,
-                       List<Item> &fields, bool reset_with_sum_func,
-                       bool save_sum_fields);
+                       const mem_root_deque<Item *> &fields,
+                       bool reset_with_sum_func, bool save_sum_fields);
 uint find_shortest_key(TABLE *table, const Key_map *usable_keys);
 
 /* functions from opt_sum.cc */
@@ -769,14 +770,21 @@ enum aggregate_evaluated {
 };
 
 bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
-                               List<Item> &all_fields, Item *conds,
-                               aggregate_evaluated *decision);
+                               const mem_root_deque<Item *> &all_fields,
+                               Item *conds, aggregate_evaluated *decision);
 
 /* from sql_delete.cc, used by opt_range.cc */
 extern "C" int refpos_order_cmp(const void *arg, const void *a, const void *b);
 
 /// The name of store_key instances that represent constant items.
 constexpr const char *STORE_KEY_CONST_NAME = "const";
+
+/// Check privileges for all columns referenced from join expression
+bool check_privileges_for_join(THD *thd, mem_root_deque<TABLE_LIST *> *tables);
+
+/// Check privileges for all columns referenced from an expression list
+bool check_privileges_for_list(THD *thd, const mem_root_deque<Item *> &items,
+                               ulong privileges);
 
 /** class to copying an field/item to a key struct */
 
@@ -864,10 +872,8 @@ void reset_statement_timer(THD *thd);
 
 void free_underlaid_joins(THD *thd, SELECT_LEX *select);
 
-void calc_used_field_length(TABLE *table, bool needs_rowid, uint *p_used_fields,
-                            uint *p_used_fieldlength, uint *p_used_blobs,
-                            bool *p_used_null_fields,
-                            bool *p_used_uneven_bit_fields);
+void calc_used_field_length(TABLE *table, bool needs_rowid,
+                            uint *p_used_fieldlength);
 
 ORDER *simple_remove_const(ORDER *order, Item *where);
 bool const_expression_in_where(Item *cond, Item *comp_item,

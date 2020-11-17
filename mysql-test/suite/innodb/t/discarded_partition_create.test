@@ -43,11 +43,11 @@ if ($IS_57)
 
 # Zip data directory and copy
 --echo # Copy and zip old version data directory.
---exec ln -s $MYSQLD_DATADIR data_upgrade
---exec zip -qr $MYSQL_TMP_DIR/data_upgrade.zip data_upgrade
+--exec ln -s $MYSQLD_DATADIR $MYSQLTEST_VARDIR/data_upgrade
+--exec zip -qr $MYSQL_TMP_DIR/data_upgrade.zip $MYSQLTEST_VARDIR/data_upgrade
 --file_exists $MYSQL_TMP_DIR/data_upgrade.zip
 --move_file $MYSQL_TMP_DIR/data_upgrade.zip  $MYSQLTEST_VARDIR/std_data/upgrade/discarded_partition_data_$VERSION.zip.new
---remove_file data_upgrade
+--remove_file $MYSQLTEST_VARDIR/data_upgrade
 
 
 --echo # Cleanup: Restart with default options.

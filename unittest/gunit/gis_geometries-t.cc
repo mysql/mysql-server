@@ -68,7 +68,7 @@ class GeometriesTest : public ::testing::Test {
  public:
   GeometriesTest() {}
 
-  ~GeometriesTest() {}
+  ~GeometriesTest() override {}
 };
 
 typedef ::testing::Types<Cartesian_types, Geographic_types> Types;

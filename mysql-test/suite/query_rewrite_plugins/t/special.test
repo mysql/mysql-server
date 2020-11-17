@@ -77,12 +77,15 @@ VALUES ( 'SELECT COUNT( c1 ), c2, c3 FROM test.t1 GROUP BY ?, ?',
 CALL query_rewrite.flush_rewrite_rules();
 
 --echo # Should be rewritten.
+--sorted_result
 SELECT COUNT( c1 ), c2, c3 FROM test.t1 GROUP BY 2, 3;
 
 --echo # Should be rewritten.
+--sorted_result
 SELECT COUNT( c1 ), c2, c3 FROM test.t1 GROUP BY 3, 2;
 
 --echo # Should not be rewritten.
+--sorted_result
 SELECT COUNT( c1 ), c2, c3 FROM test.t1 GROUP BY c2, c3;
 
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
@@ -92,8 +95,10 @@ VALUES ( 'SELECT COUNT(c1) as c, c2, c3 FROM test.t1 GROUP BY ?, ? HAVING c > ?'
 
 CALL query_rewrite.flush_rewrite_rules();
 
+--sorted_result
 SELECT COUNT( c1 ) as c, c2, c3 FROM test.t1 GROUP BY 2, 3 HAVING c > 2;
 
+--sorted_result
 SELECT COUNT( c1 ) as c, c2, c3 FROM test.t1 GROUP BY 3, 2 HAVING c > 3;
 
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -34,13 +34,14 @@ namespace xpl {
 class Operations_factory : public iface::Operations_factory {
  public:
   std::shared_ptr<iface::Socket> create_socket(PSI_socket_key key, int domain,
-                                               int type, int protocol);
-  std::shared_ptr<iface::Socket> create_socket(MYSQL_SOCKET mysql_socket);
+                                               int type, int protocol) override;
+  std::shared_ptr<iface::Socket> create_socket(
+      MYSQL_SOCKET mysql_socket) override;
 
   std::shared_ptr<iface::File> open_file(const char *name, int access,
-                                         int permission);
+                                         int permission) override;
 
-  std::shared_ptr<iface::System> create_system_interface();
+  std::shared_ptr<iface::System> create_system_interface() override;
 };
 
 }  // namespace xpl

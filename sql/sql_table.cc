@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -107,9 +107,11 @@
 #include "sql/histograms/histogram.h"
 #include "sql/item.h"
 #include "sql/item_timefunc.h"  // Item_func_now_local
-#include "sql/key.h"            // KEY
-#include "sql/key_spec.h"       // Key_part_spec
-#include "sql/lock.h"           // mysql_lock_remove, lock_tablespace_names
+#include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/bit_utils.h"
+#include "sql/key.h"       // KEY
+#include "sql/key_spec.h"  // Key_part_spec
+#include "sql/lock.h"      // mysql_lock_remove, lock_tablespace_names
 #include "sql/locked_tables_list.h"
 #include "sql/log.h"
 #include "sql/log_event.h"  // Query_log_event
@@ -2626,12 +2628,8 @@ static bool secondary_engine_load_table(THD *thd, const TABLE &table) {
   unique_ptr_destroy_only<handler> handler(
       get_new_handler(table.s, is_partitioned, thd->mem_root, hton));
 
-  // Prepare the secondary engine for table load. The secondary engine can in
-  // this phase perform any necessary setup that is only possible while the
-  // server holds an MDL_EXCLUSIVE lock on the table.
-  if (handler->ha_prepare_load_table(table)) return true;
-
-  // Load table from primary into secondary engine.
+  // Load table from primary into secondary engine and add to change
+  // propagation if that is enabled.
   return handler->ha_load_table(table);
 }
 
@@ -4031,7 +4029,7 @@ TYPELIB *create_typelib(MEM_ROOT *mem_root, Create_field *field_def) {
   result->type_names[result->count] = nullptr;  // End marker (char*)
   result->type_lengths[result->count] = 0;      // End marker (uint)
 
-  field_def->interval_list.empty();  // Don't need interval_list anymore
+  field_def->interval_list.clear();  // Don't need interval_list anymore
   return result;
 }
 
@@ -8926,7 +8924,7 @@ bool mysql_create_table_no_lock(THD *thd, const char *db,
 
   // Only needed for CREATE TABLE LIKE / SELECT, as warnings for
   // pure CREATE TABLE is reported in the parser.
-  if (thd->lex->select_lex->fields_list.elements) {
+  if (!thd->lex->select_lex->field_list_is_empty()) {
     for (const Create_field &sql_field : alter_info->create_list) {
       warn_on_deprecated_float_precision(thd, sql_field);
       warn_on_deprecated_float_unsigned(thd, sql_field);
@@ -9974,9 +9972,9 @@ static const char *make_unique_key_name(const char *field_name, KEY *start,
 /* Ignore errors related to invalid collation during rename table. */
 class Rename_table_error_handler : public Internal_error_handler {
  public:
-  virtual bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *) {
+  bool handle_condition(THD *, uint sql_errno, const char *,
+                        Sql_condition::enum_severity_level *,
+                        const char *) override {
     return (sql_errno == ER_UNKNOWN_COLLATION ||
             sql_errno == ER_PLUGIN_IS_NOT_LOADED);
   }
@@ -14335,7 +14333,7 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
     }
 
     KEY_PART_INFO *key_part = key_info->key_part;
-    key_parts.empty();
+    key_parts.clear();
     for (uint j = 0; j < key_info->user_defined_key_parts; j++, key_part++) {
       if (!key_part->field) continue;  // Wrong field (from UNIREG)
       const char *key_part_name = key_part->field->field_name;
@@ -17747,8 +17745,6 @@ static int copy_data_between_tables(
   */
   Field **gen_fields, **gen_fields_end;
   ulong found_count, delete_count;
-  List<Item> fields;
-  List<Item> all_fields;
   bool auto_increment_field_copied = false;
   sql_mode_t save_sql_mode;
   QEP_TAB_standalone qep_tab_st;
@@ -17853,10 +17849,9 @@ static int copy_data_between_tables(
   ORDER *order = select_lex->order_list.first;
 
   unique_ptr_destroy_only<Filesort> fsort;
-  unique_ptr_destroy_only<RowIterator> iterator = create_table_iterator(
-      thd, from, nullptr, false,
-      /*ignore_not_found_rows=*/false, /*examined_rows=*/nullptr,
-      /*using_table_scan=*/nullptr);
+  unique_ptr_destroy_only<RowIterator> iterator;
+  AccessPath *path = create_table_access_path(thd, from, nullptr,
+                                              /*count_examined_rows=*/false);
 
   if (order && to->s->primary_key != MAX_KEY &&
       to->file->primary_key_is_clustered()) {
@@ -17882,27 +17877,22 @@ static int copy_data_between_tables(
 
     if (select_lex->setup_base_ref_items(thd))
       goto err; /* purecov: inspected */
-    if (setup_order(thd, select_lex->base_ref_items, &tables, fields,
-                    all_fields, order))
+    mem_root_deque<Item *> fields(thd->mem_root);
+    if (setup_order(thd, select_lex->base_ref_items, &tables, &fields, order))
       goto err;
     fsort.reset(new (thd->mem_root) Filesort(
-        thd, from, /*keep_buffers=*/false, order, HA_POS_ERROR,
-        /*force_stable_sort=*/false,
-        /*remove_duplicates=*/false,
+        thd, {from}, /*keep_buffers=*/false, order, HA_POS_ERROR,
+        /*force_stable_sort=*/false, /*remove_duplicates=*/false,
         /*force_sort_positions=*/true, /*unwrap_rollup=*/false));
-    unique_ptr_destroy_only<RowIterator> sort =
-        NewIterator<SortingIterator>(thd, &qep_tab, fsort.get(), move(iterator),
-                                     /*examined_rows=*/nullptr);
-    if (sort->Init()) {
-      error = 1;
-      goto err;
-    }
-    iterator = move(sort);
-  } else {
-    if (iterator->Init()) {
-      error = 1;
-      goto err;
-    }
+    path = NewSortAccessPath(thd, path, fsort.get(),
+                             /*count_examined_rows=*/false);
+  }
+
+  iterator = CreateIteratorFromAccessPath(thd, path, /*join=*/nullptr,
+                                          /*eligible_for_batch_mode=*/true);
+  if (iterator == nullptr || iterator->Init()) {
+    error = 1;
+    goto err;
   }
   thd->get_stmt_da()->reset_current_row_for_condition();
 
@@ -18076,7 +18066,6 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool table_copy) {
 bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
                           HA_CHECK_OPT *check_opt) {
   TABLE_LIST *table;
-  List<Item> field_list;
   Item *item;
   Protocol *protocol = thd->get_protocol();
   DBUG_TRACE;
@@ -18087,12 +18076,13 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
   */
   DBUG_ASSERT(!thd->in_sub_stmt);
 
+  mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(item = new Item_empty_string("Table", NAME_LEN * 2));
   item->maybe_null = true;
   field_list.push_back(item = new Item_int(NAME_STRING("Checksum"), (longlong)1,
                                            MY_INT64_NUM_DECIMAL_DIGITS));
   item->maybe_null = true;
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 
@@ -18360,20 +18350,6 @@ static bool push_check_constraint_mdl_request_to_list(
   return false;
 }
 
-/**
-  Method to prepare check constraints for the CREATE operation. If name of the
-  check constraint is not specified then name is generated, check constraint
-  is pre-validated and MDL on check constraint is acquired here.
-
-  @param            thd                      Thread handle.
-  @param            db_name                  Database name.
-  @param            table_name               Table name.
-  @param            alter_info               Alter_info object with list of
-                                             check constraints to be created.
-
-  @retval           false                    Success.
-  @retval           true                     Failure.
-*/
 bool prepare_check_constraints_for_create(THD *thd, const char *db_name,
                                           const char *table_name,
                                           Alter_info *alter_info) {
@@ -18408,16 +18384,14 @@ bool prepare_check_constraints_for_create(THD *thd, const char *db_name,
   }
 
   // Make sure fields used by the check constraint exists in the create list.
-  List<Item_field> fields;
+  mem_root_deque<Item_field *> fields(thd->mem_root);
   for (auto &cc_spec : alter_info->check_constraint_spec_list) {
     cc_spec->check_expr->walk(&Item::collect_item_field_processor,
                               enum_walk::POSTFIX, (uchar *)&fields);
 
-    Item_field *cur_item_fld;
-    List_iterator<Item_field> fields_it(fields);
     Create_field *cur_fld;
     List_iterator<Create_field> create_fields_it(alter_info->create_list);
-    while ((cur_item_fld = fields_it++)) {
+    for (Item_field *cur_item_fld : fields) {
       if (cur_item_fld->type() != Item::FIELD_ITEM) continue;
 
       while ((cur_fld = create_fields_it++)) {
@@ -18433,7 +18407,7 @@ bool prepare_check_constraints_for_create(THD *thd, const char *db_name,
         return true;
       }
     }
-    fields.empty();
+    fields.clear();
   }
 
   DEBUG_SYNC(thd, "before_acquiring_lock_on_check_constraints");
@@ -19042,17 +19016,17 @@ static bool is_any_check_constraints_evaluation_required(
     if (alter_info->flags & Alter_info::ALTER_CHANGE_COLUMN) {
       for (const Create_field &fld : alter_info->create_list) {
         // Get fields used by check constraint.
-        List<Item_field> fields;
+        mem_root_deque<Item_field *> fields(current_thd->mem_root);
         cc_spec->check_expr->walk(&Item::collect_item_field_processor,
                                   enum_walk::POSTFIX, (uchar *)&fields);
-        for (auto &itm_fld : fields) {
-          if (itm_fld.type() != Item::FIELD_ITEM || itm_fld.field == nullptr)
+        for (Item_field *itm_fld : fields) {
+          if (itm_fld->type() != Item::FIELD_ITEM || itm_fld->field == nullptr)
             continue;
 
           // Check if data type is changed.
-          if (!my_strcasecmp(system_charset_info, itm_fld.field_name,
+          if (!my_strcasecmp(system_charset_info, itm_fld->field_name,
                              fld.field_name) &&
-              (itm_fld.data_type() != fld.sql_type))
+              (itm_fld->data_type() != fld.sql_type))
             return true;
         }
 

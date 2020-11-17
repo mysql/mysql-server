@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -24,11 +24,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "classic_protocol.h"
 
-#include <cstring>
-
-#include "../utils.h"
-#include "common.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/net_ts/buffer.h"  // net::stream_errc
 #include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/mysql_protocol.h"
 #include "mysqlrouter/routing.h"
@@ -40,8 +37,8 @@ bool ClassicProtocol::on_block_client_host(int server,
   const auto fake_response = mysql_protocol::HandshakeResponsePacket(
       1, {}, "ROUTER", "", "fake_router_login");
 
-  const auto write_res = routing_sock_ops_->so()->write_all(
-      server, fake_response.data(), fake_response.size());
+  const auto &msg = fake_response.message();
+  const auto write_res = sock_ops_->write_all(server, msg.data(), msg.size());
   if (!write_res) {
     log_debug("[%s] fd=%d write error: %s", log_prefix.c_str(), server,
               write_res.error().message().c_str());
@@ -52,8 +49,8 @@ bool ClassicProtocol::on_block_client_host(int server,
 
 stdx::expected<size_t, std::error_code> ClassicProtocol::copy_packets(
     int sender, int receiver, bool sender_is_readable,
-    RoutingProtocolBuffer &buffer, int *curr_pktnr, bool &handshake_done,
-    bool /*from_server*/) {
+    std::vector<uint8_t> &buffer, int *curr_pktnr, bool &handshake_done,
+    bool from_server) {
   assert(curr_pktnr);
 
   int pktnr = 0;
@@ -65,16 +62,16 @@ stdx::expected<size_t, std::error_code> ClassicProtocol::copy_packets(
     handshake_done = true;
   }
 
-  mysql_harness::SocketOperationsBase *const so = routing_sock_ops_->so();
   if (sender_is_readable) {
-    const auto read_res = so->read(sender, &buffer.front(), buffer_length);
+    const auto read_res =
+        sock_ops_->read(sender, &buffer.front(), buffer_length);
     if (!read_res) {
       log_debug("fd=%d read failed: (%d %s)", sender, read_res.error().value(),
                 read_res.error().message().c_str());
       return stdx::make_unexpected(read_res.error());
     } else if (read_res.value() == 0) {
       // the caller assumes that errno == 0 on plain connection closes.
-      return stdx::make_unexpected(std::error_code{});
+      return stdx::make_unexpected(make_error_code(net::stream_errc::eof));
     }
 
     bytes_read += read_res.value();
@@ -93,7 +90,7 @@ stdx::expected<size_t, std::error_code> ClassicProtocol::copy_packets(
         return stdx::make_unexpected(make_error_code(std::errc::bad_message));
       }
 
-      if (buffer[4] == 0xff) {
+      if (from_server && pktnr == 0 && buffer[4] == 0xff) {
         // We got error from MySQL Server while handshaking
         // We do not consider this a failed handshake
 
@@ -112,8 +109,9 @@ stdx::expected<size_t, std::error_code> ClassicProtocol::copy_packets(
           return stdx::make_unexpected(make_error_code(std::errc::bad_message));
         }
 
+        const auto &msg = server_error.message();
         const auto write_res =
-            so->write_all(receiver, server_error.data(), server_error.size());
+            sock_ops_->write_all(receiver, msg.data(), msg.size());
         if (!write_res) {
           log_debug("fd=%d write error: %s", receiver,
                     write_res.error().message().c_str());
@@ -127,7 +125,7 @@ stdx::expected<size_t, std::error_code> ClassicProtocol::copy_packets(
       }
 
       // We are dealing with the handshake response from client
-      if (pktnr == 1) {
+      if (!from_server && pktnr == 1) {
         // if client is switching to SSL, we are not continuing any checks
         mysql_protocol::Capabilities::Flags capabilities;
         try {
@@ -145,7 +143,8 @@ stdx::expected<size_t, std::error_code> ClassicProtocol::copy_packets(
       }
     }
 
-    const auto write_res = so->write_all(receiver, &buffer[0], bytes_read);
+    const auto write_res =
+        sock_ops_->write_all(receiver, &buffer[0], bytes_read);
     if (!write_res) {
       log_debug("fd=%d write error: %s", receiver,
                 write_res.error().message().c_str());
@@ -163,10 +162,10 @@ bool ClassicProtocol::send_error(int destination, unsigned short code,
                                  const std::string &log_prefix) {
   auto server_error = mysql_protocol::ErrorPacket(0, code, message, sql_state);
 
-  mysql_harness::SocketOperationsBase *const so = routing_sock_ops_->so();
+  const auto &msg = server_error.message();
 
   const auto write_res =
-      so->write_all(destination, server_error.data(), server_error.size());
+      sock_ops_->write_all(destination, msg.data(), msg.size());
   if (!write_res) {
     log_debug("[%s] fd=%d write error: %s", log_prefix.c_str(), destination,
               write_res.error().message().c_str());

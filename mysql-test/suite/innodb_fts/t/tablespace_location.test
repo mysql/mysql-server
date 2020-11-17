@@ -5,14 +5,6 @@
 
 --source include/have_innodb_max_16k.inc
 
---echo #
---echo # Restart with innodb-directories set to MYSQL_TMP_DIR.
---echo #
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-let $restart_parameters = restart: --innodb-directories=$MYSQL_TMP_DIR;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
---source include/restart_mysqld.inc
-
 # Create a table with FTS columns and make sure the auxilliary
 # table are created in the same tablespace.
 

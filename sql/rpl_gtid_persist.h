@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ class Gtid_table_access_context : public System_table_access {
   static const LEX_CSTRING TABLE_NAME;
 
   Gtid_table_access_context() : m_drop_thd_object(nullptr) {}
-  virtual ~Gtid_table_access_context() {}
+  ~Gtid_table_access_context() override {}
 
   /**
     Initialize the gtid_executed table access context as following:
@@ -85,7 +85,7 @@ class Gtid_table_access_context : public System_table_access {
 
     @param[in]  thd  Thread requesting to open the table
   */
-  void before_open(THD *thd);
+  void before_open(THD *thd) override;
   /**
     Creates a new thread in the bootstrap process or in the mysqld startup,
     a thread is created in order to be able to access a table. And reset a

@@ -90,7 +90,3 @@ SET @@GLOBAL.innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout ;
 --source include/rpl_connection_master.inc
 DROP TABLE t1;
 --source include/rpl_end.inc
-
-# The state of PFS is not reverting back to original, restart is needed if this
-# case is to be tested again.
---source include/force_restart.inc

@@ -47,7 +47,7 @@ server-relay-log-group_replication_applier.000002	#	Query	#	#	COMMIT
 #    Execute some transactions on server1.
 [connection server2]
 include/gr_stop_applier_sql_thread.inc
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 [connection server1]
 INSERT INTO t1 VALUES (2);
 

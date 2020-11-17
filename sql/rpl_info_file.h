@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ class Rpl_info_file : public Rpl_info_handler {
   friend class Rpl_info_factory;
 
  public:
-  virtual ~Rpl_info_file();
+  ~Rpl_info_file() override;
 
  private:
   /**
@@ -73,14 +73,14 @@ class Rpl_info_file : public Rpl_info_handler {
   */
   bool name_indexed;
 
-  int do_init_info();
-  int do_init_info(uint instance);
-  enum_return_check do_check_info();
-  enum_return_check do_check_info(uint instance);
-  void do_end_info();
-  int do_flush_info(const bool force);
-  int do_remove_info();
-  int do_clean_info();
+  int do_init_info() override;
+  int do_init_info(uint instance) override;
+  enum_return_check do_check_info() override;
+  enum_return_check do_check_info(uint instance) override;
+  void do_end_info() override;
+  int do_flush_info(const bool force) override;
+  int do_remove_info() override;
+  int do_clean_info() override;
   /**
     Returns the number of files that corresponds to param_info_fname.
     If param_info_fname is a regular expression, @c expression is
@@ -103,14 +103,15 @@ class Rpl_info_file : public Rpl_info_handler {
   static int do_reset_info(int const nparam, const char *param_pattern_fname,
                            bool name_indexed, MY_BITMAP const *nullable_bitmap);
 
-  int do_prepare_info_for_read();
-  int do_prepare_info_for_write();
-  bool do_set_info(const int pos, const char *value);
-  bool do_set_info(const int pos, const uchar *value, const size_t size);
-  bool do_set_info(const int pos, const int value);
-  bool do_set_info(const int pos, const ulong value);
-  bool do_set_info(const int pos, const float value);
-  bool do_set_info(const int pos, const Server_ids *value);
+  int do_prepare_info_for_read() override;
+  int do_prepare_info_for_write() override;
+  bool do_set_info(const int pos, const char *value) override;
+  bool do_set_info(const int pos, const uchar *value,
+                   const size_t size) override;
+  bool do_set_info(const int pos, const int value) override;
+  bool do_set_info(const int pos, const ulong value) override;
+  bool do_set_info(const int pos, const float value) override;
+  bool do_set_info(const int pos, const Server_ids *value) override;
   /**
     Setter needed to set nullable fields to `NULL`.
 
@@ -119,7 +120,7 @@ class Rpl_info_file : public Rpl_info_handler {
 
     @return true if there was an error and false otherwise.
    */
-  bool do_set_info(const int pos, const std::nullptr_t value);
+  bool do_set_info(const int pos, const std::nullptr_t value) override;
   /**
     Setter needed to set nullable fields to `NULL`.
 
@@ -130,7 +131,7 @@ class Rpl_info_file : public Rpl_info_handler {
     @return true if there was an error and false otherwise.
    */
   bool do_set_info(const int pos, const std::nullptr_t value,
-                   const size_t size);
+                   const size_t size) override;
   /**
     Checks if the value returned from the read function is an actual error or
     just the side-effect of a nullable field.
@@ -147,23 +148,25 @@ class Rpl_info_file : public Rpl_info_handler {
   Rpl_info_handler::enum_field_get_status check_for_error(int pos,
                                                           long n_read_bytes);
   Rpl_info_handler::enum_field_get_status do_get_info(
-      const int pos, char *value, const size_t size, const char *default_value);
+      const int pos, char *value, const size_t size,
+      const char *default_value) override;
   Rpl_info_handler::enum_field_get_status do_get_info(
       const int pos, uchar *value, const size_t size,
-      const uchar *default_value);
-  Rpl_info_handler::enum_field_get_status do_get_info(const int pos, int *value,
-                                                      const int default_value);
+      const uchar *default_value) override;
   Rpl_info_handler::enum_field_get_status do_get_info(
-      const int pos, ulong *value, const ulong default_value);
+      const int pos, int *value, const int default_value) override;
   Rpl_info_handler::enum_field_get_status do_get_info(
-      const int pos, float *value, const float default_value);
+      const int pos, ulong *value, const ulong default_value) override;
   Rpl_info_handler::enum_field_get_status do_get_info(
-      const int pos, Server_ids *value, const Server_ids *default_value);
-  char *do_get_description_info();
-  uint do_get_rpl_info_type();
+      const int pos, float *value, const float default_value) override;
+  Rpl_info_handler::enum_field_get_status do_get_info(
+      const int pos, Server_ids *value,
+      const Server_ids *default_value) override;
+  char *do_get_description_info() override;
+  uint do_get_rpl_info_type() override;
 
-  bool do_is_transactional();
-  bool do_update_is_transactional();
+  bool do_is_transactional() override;
+  bool do_update_is_transactional() override;
 
   Rpl_info_file(int const nparam, const char *param_pattern_fname,
                 const char *param_info_fname, bool name_indexed,

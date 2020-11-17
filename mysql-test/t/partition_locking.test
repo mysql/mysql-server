@@ -1404,6 +1404,7 @@ connection monitor;
 connection default;
 
 --echo # 34 locks (dictionary related)
+--sorted_result
 SELECT TABLE_NAME, CHECK_OPTION, IS_UPDATABLE, VIEW_DEFINITION
 FROM INFORMATION_SCHEMA.VIEWS
 WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME LIKE 'v1_%';

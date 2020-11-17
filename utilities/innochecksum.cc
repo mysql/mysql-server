@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -387,7 +387,7 @@ class InnocheckReporter : public BlockReporter {
 
   /** Print message if page is empty.
   @param[in]	empty		true if page is empty */
-  virtual inline void report_empty_page(bool empty) const {
+  inline void report_empty_page(bool empty) const override {
     if (empty && m_is_log_enabled) {
       fprintf(m_log_file, "Page::%" PRIuMAX " is empty and uncorrupted\n",
               m_page_no);
@@ -398,9 +398,9 @@ class InnocheckReporter : public BlockReporter {
   @param[in]	checksum_field1	Checksum in page header
   @param[in]	checksum_field2	Checksum in page trailer
   @param[in]	crc32		Calculated crc32 checksum */
-  virtual inline void print_strict_crc32(ulint checksum_field1,
-                                         ulint checksum_field2, uint32_t crc32,
-                                         srv_checksum_algorithm_t algo) const {
+  inline void print_strict_crc32(ulint checksum_field1, ulint checksum_field2,
+                                 uint32_t crc32,
+                                 srv_checksum_algorithm_t algo) const override {
     if (algo != SRV_CHECKSUM_ALGORITHM_STRICT_CRC32 || !m_is_log_enabled) {
       return;
     }
@@ -417,8 +417,8 @@ class InnocheckReporter : public BlockReporter {
   /** Print innodb checksum and the checksum fields in page.
   @param[in]	checksum_field1	Checksum in page header
   @param[in]	checksum_field2	Checksum in page trailer */
-  virtual inline void print_strict_innodb(ulint checksum_field1,
-                                          ulint checksum_field2) const {
+  inline void print_strict_innodb(ulint checksum_field1,
+                                  ulint checksum_field2) const override {
     if (!m_is_log_enabled) {
       return;
     }
@@ -440,9 +440,8 @@ class InnocheckReporter : public BlockReporter {
   /** Print none checksum and the checksum fields in page.
   @param[in]	checksum_field1	Checksum in page header
   @param[in]	checksum_field2	Checksum in page trailer */
-  virtual inline void print_strict_none(ulint checksum_field1,
-                                        ulint checksum_field2,
-                                        srv_checksum_algorithm_t algo) const {
+  inline void print_strict_none(ulint checksum_field1, ulint checksum_field2,
+                                srv_checksum_algorithm_t algo) const override {
     if (!m_is_log_enabled || algo != SRV_CHECKSUM_ALGORITHM_STRICT_NONE) {
       return;
     }
@@ -456,7 +455,7 @@ class InnocheckReporter : public BlockReporter {
   }
 
   /** Print a message that none check failed. */
-  virtual inline void print_none_fail() const {
+  inline void print_none_fail() const override {
     fprintf(m_log_file,
             "Fail; page %" PRIuMAX " invalid (fails none checksum)\n",
             m_page_no);
@@ -468,9 +467,9 @@ class InnocheckReporter : public BlockReporter {
   @param[in]	checksum_field1	Checksum in page header
   @param[in]	checksum_field2	Checksum in page trailer
   @param[in]	algo		current checksum algorithm */
-  virtual inline void print_innodb_checksum(
+  inline void print_innodb_checksum(
       ulint old_checksum, ulint new_checksum, ulint checksum_field1,
-      ulint checksum_field2, srv_checksum_algorithm_t algo) const {
+      ulint checksum_field2, srv_checksum_algorithm_t algo) const override {
     if (!m_is_log_enabled) {
       return;
     }
@@ -516,7 +515,7 @@ class InnocheckReporter : public BlockReporter {
 
   /** Print the message that checksum mismatch happened in
   page header. */
-  virtual inline void print_innodb_fail() const {
+  inline void print_innodb_fail() const override {
     if (!m_is_log_enabled) {
       return;
     }
@@ -531,8 +530,8 @@ class InnocheckReporter : public BlockReporter {
   /** Print both new-style, old-style & crc32 checksum values.
   @param[in]	checksum_field1	Checksum in page header
   @param[in]	checksum_field2	Checksum in page trailer */
-  virtual inline void print_crc32_checksum(ulint checksum_field1,
-                                           ulint checksum_field2) const {
+  inline void print_crc32_checksum(ulint checksum_field1,
+                                   ulint checksum_field2) const override {
     if (m_is_log_enabled) {
       fprintf(m_log_file,
               "page::%" PRIuMAX "; old style: calculated = " ULINTPF
@@ -549,7 +548,7 @@ class InnocheckReporter : public BlockReporter {
   }
 
   /** Print a message that crc32 check failed. */
-  virtual inline void print_crc32_fail() const {
+  inline void print_crc32_fail() const override {
     if (!m_is_log_enabled) {
       return;
     }
@@ -562,8 +561,8 @@ class InnocheckReporter : public BlockReporter {
   /** Print checksum values on a compressed page.
   @param[in]	calc	the calculated checksum value
   @param[in]	stored	the stored checksum in header. */
-  virtual inline void print_compressed_checksum(ib_uint32_t calc,
-                                                ib_uint32_t stored) const {
+  inline void print_compressed_checksum(ib_uint32_t calc,
+                                        ib_uint32_t stored) const override {
     if (!m_is_log_enabled) {
       return;
     }

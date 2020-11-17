@@ -298,15 +298,16 @@ upd_node_t *upd_node_create(mem_heap_t *heap) /*!< in: mem heap where created */
 #endif /* !UNIV_HOTBACKUP */
 
 /** Updates the trx id and roll ptr field in a clustered index record in
- database recovery. */
-void row_upd_rec_sys_fields_in_recovery(
-    rec_t *rec,               /*!< in/out: record */
-    page_zip_des_t *page_zip, /*!< in/out: compressed page, or NULL */
-    const ulint *offsets,     /*!< in: array returned by rec_get_offsets() */
-    ulint pos,                /*!< in: TRX_ID position in rec */
-    trx_id_t trx_id,          /*!< in: transaction id */
-    roll_ptr_t roll_ptr)      /*!< in: roll ptr of the undo log record */
-{
+ database recovery.
+@param[in,out] rec Record
+@param[in,out] page_zip Compressed page, or null
+@param[in] offsets Array returned by rec_get_offsets()
+@param[in] pos Trx_id position in rec
+@param[in] trx_id Transaction id
+@param[in] roll_ptr Roll ptr of the undo log record */
+void row_upd_rec_sys_fields_in_recovery(rec_t *rec, page_zip_des_t *page_zip,
+                                        const ulint *offsets, ulint pos,
+                                        trx_id_t trx_id, roll_ptr_t roll_ptr) {
   ut_ad(rec_offs_validate(rec, nullptr, offsets));
 
   if (page_zip) {
@@ -324,16 +325,14 @@ void row_upd_rec_sys_fields_in_recovery(
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Sets the trx id or roll ptr field of a clustered index entry. */
-void row_upd_index_entry_sys_field(
-    dtuple_t *entry,     /*!< in/out: index entry, where the memory
-                         buffers for sys fields are already allocated:
-                         the function just copies the new values to
-                         them */
-    dict_index_t *index, /*!< in: clustered index */
-    ulint type,          /*!< in: DATA_TRX_ID or DATA_ROLL_PTR */
-    ib_uint64_t val)     /*!< in: value to write */
-{
+/** Sets the trx id or roll ptr field of a clustered index entry.
+@param[in,out] entry Index entry, where the memory buffers for sys fields are
+already allocated: the function just copies the new values to them
+@param[in] index Clustered index
+@param[in] type Data_trx_id or data_roll_ptr
+@param[in] val Value to write */
+void row_upd_index_entry_sys_field(dtuple_t *entry, dict_index_t *index,
+                                   ulint type, ib_uint64_t val) {
   dfield_t *dfield;
   byte *field;
   ulint pos;
@@ -1116,24 +1115,20 @@ static void row_upd_index_replace_new_col_val_func(
 }
 
 /** Replaces the new column values stored in the update vector to the index
- entry given. */
-void row_upd_index_replace_new_col_vals_index_pos(
-    dtuple_t *entry,           /*!< in/out: index entry where replaced;
-                               the clustered index record must be
-                               covered by a lock or a page latch to
-                               prevent deletion (rollback or purge) */
-    const dict_index_t *index, /*!< in: index; NOTE that this may also be a
-                         non-clustered index */
-    const upd_t *update,       /*!< in: an update vector built for the index so
-                               that the field number in an upd_field is the
-                               index position */
-    ibool order_only,
-    /*!< in: if TRUE, limit the replacement to
-    ordering fields of index; note that this
-    does not work for non-clustered indexes. */
-    mem_heap_t *heap) /*!< in: memory heap for allocating and
-                      copying the new values */
-{
+ entry given.
+@param[in,out] entry Index entry where replaced; the clustered index record must
+be covered by a lock or a page latch to prevent deletion [rollback or purge]
+@param[in] index Index; note that this may also be a non-clustered index
+@param[in] update An update vector built for the index so that the field number
+in an upd_field is the index position
+@param[in] order_only If true, limit the replacement to ordering fields of
+index; note that this does not work for non-clustered indexes.
+@param[in] heap Memory heap for allocating and copying the new values */
+void row_upd_index_replace_new_col_vals_index_pos(dtuple_t *entry,
+                                                  const dict_index_t *index,
+                                                  const upd_t *update,
+                                                  ibool order_only,
+                                                  mem_heap_t *heap) {
   DBUG_TRACE;
 
   ulint i;
@@ -1180,20 +1175,16 @@ void row_upd_index_replace_new_col_vals_index_pos(
 }
 
 /** Replaces the new column values stored in the update vector to the index
- entry given. */
-void row_upd_index_replace_new_col_vals(
-    dtuple_t *entry,           /*!< in/out: index entry where replaced;
-                               the clustered index record must be
-                               covered by a lock or a page latch to
-                               prevent deletion (rollback or purge) */
-    const dict_index_t *index, /*!< in: index; NOTE that this may also be a
-                         non-clustered index */
-    const upd_t *update,       /*!< in: an update vector built for the
-                               CLUSTERED index so that the field number in
-                               an upd_field is the clustered index position */
-    mem_heap_t *heap)          /*!< in: memory heap for allocating and
-                               copying the new values */
-{
+ entry given.
+@param[in,out] entry Index entry where replaced; the clustered index record must
+be covered by a lock or a page latch to prevent deletion (rollback or purge)
+@param[in] index Index; note that this may also be a non-clustered index
+@param[in] update An update vector built for the clustered index so that the
+field number in an upd_field is the clustered index position
+@param[in] heap Memory heap for allocating and copying the new values */
+void row_upd_index_replace_new_col_vals(dtuple_t *entry,
+                                        const dict_index_t *index,
+                                        const upd_t *update, mem_heap_t *heap) {
   ulint i;
   const dict_index_t *clust_index = index->table->first_index();
   const page_size_t &page_size = dict_table_page_size(index->table);
@@ -1244,7 +1235,7 @@ static void row_upd_set_vcol_data(dtuple_t *row, const byte *field, ulint len,
 
 /** Replaces the virtual column values stored in a dtuple with that of
 a update vector.
-@param[in,out]	row	row whose column to be updated
+@param[in,out]	row	dtuple whose column to be updated
 @param[in]	table	table
 @param[in]	update	an update vector built for the clustered index
 @param[in]	upd_new	update to new or old value
@@ -1379,20 +1370,18 @@ void row_upd_replace_vcol(dtuple_t *row, const dict_table_t *table,
   }
 }
 
-/** Replaces the new column values stored in the update vector. */
-void row_upd_replace(trx_t *trx,      /*!< in: transaction object. */
-                     dtuple_t *row,   /*!< in/out: row where replaced,
-                                      indexed by col_no;
-                                      the clustered index record must be
-                                      covered by a lock or a page latch to
-                                      prevent deletion (rollback or purge) */
-                     row_ext_t **ext, /*!< out, own: NULL, or externally
-                                      stored column prefixes */
-                     const dict_index_t *index, /*!< in: clustered index */
-                     const upd_t *update, /*!< in: an update vector built for
-                                          the clustered index */
-                     mem_heap_t *heap)    /*!< in: memory heap */
-{
+/** Replaces the new column values stored in the update vector.
+@param[in] trx Current transaction.
+@param[in,out] row Row where replaced, indexed by col_no; the clustered index
+record must be covered by a lock or a page latch to prevent deletion (rollback
+or purge)
+@param[in,out] ext Null, or externally stored column prefixes
+@param[in] index Clustered index
+@param[in] update An update vector built for the clustered index
+@param[in] heap Memory heap */
+void row_upd_replace(trx_t *trx, dtuple_t *row, row_ext_t **ext,
+                     const dict_index_t *index, const upd_t *update,
+                     mem_heap_t *heap) {
   ulint col_no;
   ulint i;
   ulint n_cols;
@@ -2741,8 +2730,8 @@ ib_uint64_t row_upd_get_new_autoinc_counter(const upd_t *update,
 /** If the table has autoinc column and the counter is updated to
 some bigger value, we need to log the new autoinc counter. We will
 use the given mtr to do logging for performance reasons.
-@param[in]	node	row update node
-@param[in,out]	mtr	mini-transaction */
+@param[in]	node	Row update node
+@param[in,out]	mtr	Mini-transaction */
 static void row_upd_check_autoinc_counter(const upd_node_t *node, mtr_t *mtr) {
   dict_table_t *table = node->table;
 

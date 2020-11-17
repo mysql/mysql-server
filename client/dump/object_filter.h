@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ class Object_filter
  public:
   Object_filter(Mysql::Tools::Base::Abstract_program *program);
 
-  void create_options();
+  void create_options() override;
 
   bool is_object_included_in_dump(Abstract_data_object *object);
 

@@ -286,6 +286,7 @@ CREATE FUNCTION test_func_ts6 (f_p1 DATETIME) RETURNS TIMESTAMP(6) RETURN NULL;
 # Here return type for test_proc1 is not defined so DATETIME_PRECISION for this
 # would be NULL. But return type for test_func1 is TIME, so DATETIME_PRECISION
 # would be 0.
+--sorted_result
 SELECT ROUTINE_NAME, ROUTINE_TYPE, DATA_TYPE, DATETIME_PRECISION from 
 INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA='i_s_routines_test';
 

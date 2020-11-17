@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -109,8 +109,8 @@ NDBT_find_binary(BaseString& name, const char* binary_name,
 
 extern const char * my_progname;
 
-void
-NDBT_find_ndb_mgmd(BaseString& path)
+static void
+NDBT_find_executable_in_test_env(BaseString& path, const char *program)
 {
   char pathbuf[1024];
 
@@ -132,7 +132,7 @@ NDBT_find_ndb_mgmd(BaseString& path)
      *   => found in $PATH => search for ndb_mgmd in $PATH
      */
     NDBT_find_binary(path,
-                     "ndb_mgmd",
+                     program,
                      NdbEnv_GetEnv("PATH", pathbuf, sizeof(pathbuf)),
                      NULL);
   }
@@ -162,9 +162,20 @@ NDBT_find_ndb_mgmd(BaseString& path)
                         places[i]);
     }
     NDBT_find_binary(path,
-                     "ndb_mgmd",
+                     program,
                      searchpath.c_str(),
                      NULL);
   }
 }
 
+void
+NDBT_find_ndb_mgmd(BaseString& path)
+{
+  return NDBT_find_executable_in_test_env(path, "ndb_mgmd");
+}
+
+void
+NDBT_find_ndbd(BaseString& path)
+{
+  return NDBT_find_executable_in_test_env(path, "ndbd");
+}

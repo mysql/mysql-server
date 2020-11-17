@@ -191,6 +191,11 @@ select 4;
 -->setsession sess
 -->closesession abort
 
+# Due to race condition on the 'vio' level, we need some small delay
+# between tests. The 'valgrind' is a kind of catalyst and makes this
+# issue more probably. Bug#31593665 has been reported.
+-->sleep 1
+
 -->title -Kill a session executing query
 
 -->newsession sess	x_root
@@ -398,6 +403,7 @@ Mysqlx.Connection.Close {
 -->closesession abort
 
 EOF
+
 
 --replace_regex /([a-z]*.+localhost[ 	]+)[0-9]+/\1$SESSION/
 --exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/client_close.tmp 2>&1

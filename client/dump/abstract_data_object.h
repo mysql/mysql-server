@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@ namespace Dump {
  */
 class Abstract_data_object : public I_data_object {
  public:
-  virtual ~Abstract_data_object();
+  ~Abstract_data_object() override;
 
   /**
     Returns an unique ID of this DB object. This helps progress watching with

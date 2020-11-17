@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -103,12 +103,12 @@ class Registry_module : public Registry_module_interface {
  public:
   Registry_module() : m_registry(nullptr), m_registry_query(nullptr) {}
 
-  virtual ~Registry_module() { finalize(); }
+  ~Registry_module() override { finalize(); }
 
-  bool initialize();
-  bool finalize();
-  SERVICE_TYPE(registry) * get_registry_handle();
-  SERVICE_TYPE(registry_query) * get_registry_query_handle();
+  bool initialize() override;
+  bool finalize() override;
+  SERVICE_TYPE(registry) * get_registry_handle() override;
+  SERVICE_TYPE(registry_query) * get_registry_query_handle() override;
 };
 
 #endif

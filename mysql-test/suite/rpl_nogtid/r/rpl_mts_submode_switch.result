@@ -72,6 +72,8 @@ include/diff_tables.inc [master:db3.t, slave:db3.t]
 include/diff_tables.inc [master:db4.t, slave:db4.t]
 include/stop_slave.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 DROP DATABASE db1;
 DROP DATABASE db2;
 DROP DATABASE db3;
@@ -85,6 +87,8 @@ include/diff_tables.inc [master:db3.t, slave:db3.t]
 include/diff_tables.inc [master:db4.t, slave:db4.t]
 include/stop_slave.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 DROP DATABASE db1;
 DROP DATABASE db2;
 DROP DATABASE db3;

@@ -39,6 +39,10 @@ call mtr.add_suppression("Slave: This slave was a multisourced slave previously*
 call mtr.add_suppression("Failed to create or recover replication info repositories");
 include/rpl_restart_server.inc [server_number=2]
 SHOW SLAVE STATUS;
+Warnings:
+Level	Warning
+Code	1287
+Message	'SHOW SLAVE STATUS' is deprecated and will be removed in a future release. Please use SHOW REPLICA STATUS instead
 include/assert.inc [there shall be only 0 rows as the slave is not configured.]
 #
 #   Test that if slave server is started with TABLE, replication proceeds
@@ -66,5 +70,7 @@ include/stop_slave.inc [FOR CHANNEL 'channel_3']
 Warnings:
 Note	3084	Replication thread(s) for channel 'channel_3' are already stopped.
 RESET SLAVE ALL FOR CHANNEL 'channel_3';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/rpl_restart_server.inc [server_number=2 parameters: --master-info-repository=FILE --relay-log-info-repository=FILE]
 include/rpl_end.inc

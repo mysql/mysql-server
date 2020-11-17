@@ -46,13 +46,13 @@ const char escape[] = "\\";
 
 class ItemLikeTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     initializer.SetUp();
     it_haystack =
         new Item_string(STRING_WITH_LEN(haystack), &my_charset_latin1);
     it_escape = new Item_string(STRING_WITH_LEN(escape), &my_charset_latin1);
   }
-  virtual void TearDown() { initializer.TearDown(); }
+  void TearDown() override { initializer.TearDown(); }
 
   THD *thd() { return initializer.thd(); }
 
@@ -92,11 +92,11 @@ TEST_F(ItemLikeTest, PerfBasic) {
 
 class ItemLikeTestP : public ::testing::TestWithParam<const char *> {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     initializer.SetUp();
     m_needle = GetParam();
   }
-  virtual void TearDown() { initializer.TearDown(); }
+  void TearDown() override { initializer.TearDown(); }
 
   THD *thd() { return initializer.thd(); }
 
@@ -106,11 +106,11 @@ class ItemLikeTestP : public ::testing::TestWithParam<const char *> {
 
 class ItemFalseLikeTestP : public ::testing::TestWithParam<const char *> {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     initializer.SetUp();
     m_needle = GetParam();
   }
-  virtual void TearDown() { initializer.TearDown(); }
+  void TearDown() override { initializer.TearDown(); }
 
   THD *thd() { return initializer.thd(); }
 

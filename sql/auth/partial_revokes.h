@@ -80,7 +80,7 @@ class Abstract_restrictions {
 class DB_restrictions final : public Abstract_restrictions {
  public:
   DB_restrictions(MEM_ROOT *mem_root);
-  virtual ~DB_restrictions() override;
+  ~DB_restrictions() override;
 
   db_revocations &operator()(void) { return db_restrictions(); }
   DB_restrictions(const DB_restrictions &restrictions);

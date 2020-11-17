@@ -90,6 +90,9 @@ drop table child, parent;
 --echo #
 --echo # Bug#24666177 : PARENT TABLE'S HANDLER NOT UPDATED AFTER ADDING A FK DEPENDENCY
 --echo #
+# Note : This bug and its fix became obsolete after the introduction of MySQL DD.
+# The fix was removed as a part of fix for Bug#31356801 and the test now exists to
+# verify that parent tables are updated properly in the DD after an FK create/drop.
 
 --echo #Setup tables
 create table parent(
@@ -104,14 +107,12 @@ insert into parent values(1), (2), (3);
 insert into child  values(1), (2), (3);
 
 --echo #Show create table on parent.
---echo #This will now load the m_fk_data of parent on handler
 show create table parent;
 
 --echo #Now create a foreign key dependency
 alter table child add constraint fk1 foreign key (ref) references parent(id);
 
 --echo #Now run a alter engine query.
---echo #m_fk_data of parent should be reloaded now and the query should fail
 --error ER_FK_CANNOT_CHANGE_ENGINE
 alter table parent engine = innodb;
 

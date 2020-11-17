@@ -115,7 +115,7 @@ enum trx_dict_op_t {
 };
 
 /** Memory objects */
-/* @{ */
+/** @{ */
 /** Transaction */
 struct trx_t;
 /** The locks and state of an active transaction */
@@ -136,7 +136,7 @@ struct roll_node_t;
 struct commit_node_t;
 /** SAVEPOINT command node in a query graph */
 struct trx_named_savept_t;
-/* @} */
+/** @} */
 
 /** Row identifier (DB_ROW_ID, DATA_ROW_ID) */
 typedef ib_id_t row_id_t;
@@ -156,7 +156,7 @@ struct trx_savept_t {
 };
 
 /** File objects */
-/* @{ */
+/** @{ */
 /** Transaction system header */
 typedef byte trx_sysf_t;
 /** Rollback segment array header */
@@ -171,7 +171,7 @@ typedef byte trx_ulogf_t;
 typedef byte trx_upagef_t;
 /** Undo log record */
 typedef byte trx_undo_rec_t;
-/* @} */
+/** @} */
 
 typedef ib_mutex_t RsegMutex;
 typedef ib_mutex_t TrxMutex;

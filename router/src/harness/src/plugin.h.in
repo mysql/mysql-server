@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <string>
 
 namespace mysql_harness {
 
@@ -483,6 +484,8 @@ struct Plugin {
    */
 
   void (*stop)(PluginFuncEnv *env);  // not allowed to throw!
+
+  bool declares_readiness;
 };
 
 /**
@@ -538,6 +541,10 @@ const char *const ARCHITECTURE_DESCRIPTOR =
  */
 #define ABI_VERSION_MAJOR(VER) (((VER) >> 8) & 0xFF)
 #define ABI_VERSION_MINOR(VER) ((VER)&0xFF)
+
+void HARNESS_EXPORT on_service_ready(const std::string &name);
+void HARNESS_EXPORT on_service_ready(PluginFuncEnv *plugin_env);
+
 }  // namespace mysql_harness
 
 #endif /* MYSQL_HARNESS_PLUGIN_INCLUDED */

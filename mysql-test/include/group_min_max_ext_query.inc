@@ -4,6 +4,7 @@ let $check_query = $query $hint $cond;
 eval EXPLAIN $check_query;
 FLUSH STATUS;
 eval $check_query;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'handler_read%';
 --disable_query_log
 eval create table group_query $check_query;

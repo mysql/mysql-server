@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -781,6 +781,31 @@ static void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t sec_in_utc,
   tmp->second += hit;
 }
 
+/**
+  Converts time from a MYSQL_TIME struct to a unix timestamp-like 64 bit
+  integer. The function is guaranteed to use 64 bits on any platform.
+
+  @todo Make sec_since_epoch() call this function instead of duplicating the
+  code.
+
+  @param mt The time to convert.
+  @return A value compatible with a 64 bit Unix timestamp.
+*/
+static int64_t sec_since_epoch64(const MYSQL_TIME &mt) {
+  DBUG_ASSERT(mt.month > 0 && mt.month < 13);
+  // The year can be negative wrt to the epoch, hence the cast to signed.
+  auto year = static_cast<int64_t>(mt.year);
+  int64_t days = year * DAYS_PER_NYEAR - EPOCH_YEAR * DAYS_PER_NYEAR +
+                 LEAPS_THRU_END_OF(year - 1) -
+                 LEAPS_THRU_END_OF(EPOCH_YEAR - 1);
+  days += mon_starts[isleap(year)][mt.month - 1];
+  days += mt.day - 1;
+
+  return ((days * HOURS_PER_DAY + mt.hour) * MINS_PER_HOUR + mt.minute) *
+             SECS_PER_MIN +
+         mt.second;
+}
+
 /*
   Converts local time in broken down representation to local
   time zone analog of my_time_t represenation.
@@ -995,27 +1020,76 @@ static const String tz_SYSTEM_name("SYSTEM", 6, &my_charset_latin1);
 
 Time_zone *my_tz_find(const int64 displacement);
 
+static void raise_time_zone_conversion_error(const MYSQL_TIME &mt) {
+  char str[MAX_DATE_STRING_REP_LENGTH];
+  // TODO(mhansson) Get the correct number of decimal places into the error
+  // message.  This is non-trivial, as this is part of the meta-data, which
+  // (for some reason) is not included in a MYSQL_TIME.
+  my_datetime_to_str(mt, str, 0);
+
+  my_error(ER_TRUNCATED_WRONG_VALUE, myf(0), "temporal", str);
+}
+
+/**
+  Checks that this temporal value can be converted from its specified time
+  zone (if any) to the current time zone. Specifically, temporal values with
+  zero months or days cannot be converted between time zones.
+
+  @param mt The time to check.
+  @retval false The temporal value has no time zone or can be converted.
+  @retval true Otherwise, and an error was raised.
+*/
+bool check_time_zone_convertibility(const MYSQL_TIME &mt) {
+  if (mt.time_type == MYSQL_TIMESTAMP_DATETIME_TZ &&
+      (mt.month < 1 || mt.day < 1)) {
+    raise_time_zone_conversion_error(mt);
+    return true;
+  }
+  return false;
+}
+
 /**
   Converts a date/time value with time zone to the corresponding date/time value
-  without time zone, adjusted to be in time zone specified by argument @p tz.
+  without time zone, converted to be in time zone specified by argument @p tz.
 
-  This function is intended only for the types with time zone, and is a no-op
+  Since MySQL doesn't have a data type for temporal values with time zone
+  information, all such values are converted to a value without time zone
+  using this function.
+
+  This function is intended only for values with a time zone, and is a no-op
   for all other types.
 
-  @param tz The time zone to adjust according to.
-  @param[in,out] mt Date/Time value to be adjusted.
-*/
-void adjust_time_zone_displacement(const Time_zone *tz, MYSQL_TIME *mt) {
-  if (mt->time_type != MYSQL_TIMESTAMP_DATETIME_TZ) return;
+  The converted value may not fall outside the range of the `DATETIME` type.
+  Also some invalid values cannot be converted because the conversion result
+  would be undefined. In these cases an error is raised.
 
-  my_time_t epoch_secs_in_utc =
-      sec_since_epoch(*mt) - mt->time_zone_displacement;
+  @param tz The time zone to convert according to.
+  @param[in,out] mt Date/Time value to be converted.
+
+  @return false on success. true if an error was raised.
+*/
+bool convert_time_zone_displacement(const Time_zone *tz, MYSQL_TIME *mt) {
+  if (mt->time_type != MYSQL_TIMESTAMP_DATETIME_TZ) return false;
+
+  if (check_time_zone_convertibility(*mt)) return true;
+
+  MYSQL_TIME out;
+  std::int64_t epoch_secs_in_utc =
+      sec_since_epoch64(*mt) - mt->time_zone_displacement;
+
   ulong microseconds = mt->second_part;
 
-  tz->gmt_sec_to_TIME(mt, epoch_secs_in_utc);
-  mt->second_part = microseconds;
+  tz->gmt_sec_to_TIME(&out, epoch_secs_in_utc);
+  out.second_part = microseconds;
 
+  if (check_datetime_range(out)) {
+    raise_time_zone_conversion_error(out);
+    return true;
+  }
+
+  *mt = out;
   DBUG_ASSERT(mt->time_type == MYSQL_TIMESTAMP_DATETIME);
+  return false;
 }
 
 /*
@@ -1030,10 +1104,10 @@ void adjust_time_zone_displacement(const Time_zone *tz, MYSQL_TIME *mt) {
 */
 class Time_zone_system : public Time_zone {
  public:
-  virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
-                                    bool *in_dst_time_gap) const;
-  virtual void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const;
-  virtual const String *get_name() const;
+  my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
+                            bool *in_dst_time_gap) const override;
+  void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const override;
+  const String *get_name() const override;
 };
 
 /*
@@ -1116,10 +1190,10 @@ const String *Time_zone_system::get_name() const { return &tz_SYSTEM_name; }
 */
 class Time_zone_utc : public Time_zone {
  public:
-  virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
-                                    bool *in_dst_time_gap) const;
-  virtual void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const;
-  virtual const String *get_name() const;
+  my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
+                            bool *in_dst_time_gap) const override;
+  void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const override;
+  const String *get_name() const override;
 };
 
 /*
@@ -1190,10 +1264,10 @@ const String *Time_zone_utc::get_name() const {
 class Time_zone_db : public Time_zone {
  public:
   Time_zone_db(TIME_ZONE_INFO *tz_info_arg, const String *tz_name_arg);
-  virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
-                                    bool *in_dst_time_gap) const;
-  virtual void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const;
-  virtual const String *get_name() const;
+  my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
+                            bool *in_dst_time_gap) const override;
+  void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const override;
+  const String *get_name() const override;
 
  private:
   TIME_ZONE_INFO *tz_info;
@@ -1273,10 +1347,10 @@ const String *Time_zone_db::get_name() const { return tz_name; }
 class Time_zone_offset : public Time_zone {
  public:
   Time_zone_offset(long tz_offset_arg);
-  virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
-                                    bool *in_dst_time_gap) const;
-  virtual void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const;
-  virtual const String *get_name() const;
+  my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
+                            bool *in_dst_time_gap) const override;
+  void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const override;
+  const String *get_name() const override;
 
  private:
   /* Extra reserve because of snprintf */
@@ -1385,12 +1459,28 @@ Time_zone *my_tz_SYSTEM = &tz_SYSTEM;
 
 static MEM_ROOT tz_storage;
 
-/*
-  These mutex protects offset_tzs and tz_storage.
-  These protection needed only when we are trying to set
-  time zone which is specified as offset, and searching for existing
-  time zone in offset_tzs or creating if it didn't existed before in
-  tz_storage. So contention is low.
+/**
+  This mutex has two orthogonal purposes:
+
+  -# When the caller of my_tz_find() needs a Time_zone object
+     representing a time zone specified as a numeric displacement. The mutex is
+     then taken in order to protect the offset_tzs map and the
+     performance_schema key tz_storage. my_tz_find() uses a shared pool of
+     Time_zone objects and will search to see if there is an existing time zone,
+     and will otherwise create and insert one. So contention is low.
+
+  -# When the caller of my_tz_find() needs a Time_zone object
+     by name. First the tz_names map is searched, and if nothing is found, the
+     database tables are consulted. If nothing is found there either, an
+     error is thrown. If one is found, tz_load_from_open_tables() tries to
+     insert it in the map, and if it is already there, it fails, logging an "out
+     of memory" event. And that's the reason the whole procedure must take place
+     under a mutex, so that another session couldn't have inserted it in the
+     mean time.
+
+  It is not clear why the same mutex is used for both operations, or for that
+  matter why it is taken even before we have decided which of the two paths
+  above to take.
 */
 static mysql_mutex_t tz_LOCK;
 static bool tz_inited = false;
@@ -1709,6 +1799,7 @@ void my_tz_free() {
     tz_tables should be time_zone_name, next time_zone, then
     time_zone_transition_type and time_zone_transition should be last).
     It will also update information in hash used for time zones lookup.
+    Therefore, it is assumed that this function is called while tz_LOCK is held.
 
   RETURN VALUES
     Returns pointer to newly created Time_zone object or 0 in case of error.
@@ -1998,6 +2089,10 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
       (tmp_tzname->name.set(tz_name_buff, tz_name->length(),
                             &my_charset_latin1),
        !tz_names.emplace(to_string(tmp_tzname->name), tmp_tzname).second)) {
+    /*
+       We get here if either some new operator or String::set() returned
+       nullptr, or if *the time zone is already in the map*.
+    */
     LogErr(ERROR_LEVEL, ER_TZ_OOM_WHILE_LOADING_TIME_ZONE);
     goto end;
   }

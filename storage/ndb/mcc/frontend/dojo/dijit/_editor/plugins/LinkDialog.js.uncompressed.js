@@ -1,5 +1,6 @@
 define("dijit/_editor/plugins/LinkDialog", [
 	"require",
+	"dojo/_base/array",
 	"dojo/_base/declare", // declare
 	"dojo/dom-attr", // domAttr.get
 	"dojo/keys", // keys.ENTER
@@ -11,7 +12,7 @@ define("dijit/_editor/plugins/LinkDialog", [
 	"../_Plugin",
 	"../../form/DropDownButton",
 	"../range"
-], function(require, declare, domAttr, keys, lang, on, has, query, string,
+], function(require, array, declare, domAttr, keys, lang, on, has, query, string,
 	_Plugin, DropDownButton, rangeapi){
 
 	// module:
@@ -25,6 +26,21 @@ define("dijit/_editor/plugins/LinkDialog", [
 		//		The command provided by this plugin is:
 		//
 		//		- createLink
+
+		// allowUnsafeHtml: boolean
+		//		If false (default), the link description will be filtered to prevent HTML content.
+		//		If true no filtering is done, allowing for HTML content within the link element.
+		//		The filter can be specified with the 'linkFilter' option.
+		allowUnsafeHtml: false,
+
+		// linkFilter: function or array of replacement pairs
+		//		If 'allowUnsafeHtml' is false then this filter will be applied to the link Description value.
+		//		function: the function will be invoked with the string value of the Description field and its
+		//			return value will be used
+		//		array: each array item should be an array of two values to pass to String#replace
+		linkFilter: [
+			[/</g, "&lt;"]
+		],
 
 		// Override _Plugin.buttonClass.   This plugin is controlled by a DropDownButton
 		// (which triggers a TooltipDialog).
@@ -251,6 +267,16 @@ define("dijit/_editor/plugins/LinkDialog", [
 			//		protected
 			if(args && args.urlInput){
 				args.urlInput = args.urlInput.replace(/"/g, "&quot;");
+			}
+			if(!this.allowUnsafeHtml && args && args.textInput){
+				if(typeof this.linkFilter === 'function'){
+					args.textInput = this.linkFilter(args.textInput);
+				}
+				else{
+					array.forEach(this.linkFilter, function (currentFilter) {
+						args.textInput = args.textInput.replace(currentFilter[0], currentFilter[1]);
+					});
+				}
 			}
 			return args;
 		},
@@ -629,8 +655,15 @@ define("dijit/_editor/plugins/LinkDialog", [
 	});
 
 	// Register these plugins
-	_Plugin.registry["createLink"] = function(){
-		return new LinkDialog({command: "createLink"});
+	_Plugin.registry["createLink"] = function(args){
+		var pluginOptions = {
+			command: "createLink",
+			allowUnsafeHtml: ("allowUnsafeHtml" in args) ? args.allowUnsafeHtml : false
+		};
+		if("linkFilter" in args){
+			pluginOptions.linkFilter = args.linkFilter;
+		}
+		return new LinkDialog(pluginOptions);
 	};
 	_Plugin.registry["insertImage"] = function(){
 		return new ImgLinkDialog({command: "insertImage"});

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,9 +42,9 @@ class SetRingOrderTest : public ::testing::Test {
     latincc = &my_charset_latin1;
   }
 
-  void SetUp() { m_init.SetUp(); }
+  void SetUp() override { m_init.SetUp(); }
 
-  void TearDown() { m_init.TearDown(); }
+  void TearDown() override { m_init.TearDown(); }
 
   Geometry *geometry_from_text(const String &wkt, String *wkb,
                                Geometry_buffer *geobuf);

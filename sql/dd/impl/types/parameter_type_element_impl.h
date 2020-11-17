@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,18 +55,18 @@ class Parameter_type_element_impl : public Weak_object_impl,
   Parameter_type_element_impl(const Parameter_type_element_impl &src,
                               Parameter_impl *parent);
 
-  virtual ~Parameter_type_element_impl() {}
+  ~Parameter_type_element_impl() override {}
 
  public:
   static void register_tables(Open_dictionary_tables_ctx *otx);
 
-  virtual const Object_table &object_table() const;
+  const Object_table &object_table() const override;
 
-  virtual bool validate() const;
+  bool validate() const override;
 
-  virtual bool store_attributes(Raw_record *r);
+  bool store_attributes(Raw_record *r) override;
 
-  virtual bool restore_attributes(const Raw_record &r);
+  bool restore_attributes(const Raw_record &r) override;
 
   void set_ordinal_position(uint ordinal_position) {
     m_index = ordinal_position;
@@ -89,28 +89,28 @@ class Parameter_type_element_impl : public Weak_object_impl,
   // Name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &name() const { return m_name; }
+  const String_type &name() const override { return m_name; }
 
-  virtual void set_name(const String_type &name) { m_name = name; }
+  void set_name(const String_type &name) override { m_name = name; }
 
   /////////////////////////////////////////////////////////////////////////
   // Parameter
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Parameter &parameter() const;
+  const Parameter &parameter() const override;
 
   /////////////////////////////////////////////////////////////////////////
   // index.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint index() const { return m_index; }
+  uint index() const override { return m_index; }
 
  public:
-  virtual void debug_print(String_type &outb) const;
+  void debug_print(String_type &outb) const override;
 
  protected:
-  virtual Object_key *create_primary_key() const;
-  virtual bool has_new_primary_key() const;
+  Object_key *create_primary_key() const override;
+  bool has_new_primary_key() const override;
 
  protected:
   // Fields

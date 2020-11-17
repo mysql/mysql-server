@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,24 +33,11 @@
 #include <typeinfo>
 #include <vector>
 
-#ifdef _WIN32
-#ifdef mysql_protocol_DEFINE_STATIC
-#define MYSQL_PROTOCOL_API
-#else
-#ifdef mysql_protocol_EXPORTS
-#define MYSQL_PROTOCOL_API __declspec(dllexport)
-#else
-#define MYSQL_PROTOCOL_API __declspec(dllimport)
-#endif
-#endif
-#else
-#define MYSQL_PROTOCOL_API
-#endif
-
 #include "mysql_protocol/base_packet.h"
 #include "mysql_protocol/constants.h"
 #include "mysql_protocol/error_packet.h"
 #include "mysql_protocol/handshake_packet.h"
+#include "mysqlrouter/mysql_protocol_export.h"
 
 namespace mysql_protocol {
 
@@ -58,7 +45,7 @@ namespace mysql_protocol {
  * @brief Exception raised for any errors with MySQL packets
  *
  */
-class MYSQL_PROTOCOL_API packet_error : public std::runtime_error {
+class MYSQL_PROTOCOL_EXPORT packet_error : public std::runtime_error {
  public:
   explicit packet_error(const std::string &what_arg)
       : std::runtime_error(what_arg) {}

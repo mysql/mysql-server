@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -201,7 +201,7 @@ public:
 
 public:
   Ndbcntr(Block_context&);
-  virtual ~Ndbcntr();
+  ~Ndbcntr() override;
 
 private:
   BLOCK_DEFINES(Ndbcntr);

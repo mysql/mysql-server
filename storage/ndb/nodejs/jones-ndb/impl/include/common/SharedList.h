@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -51,18 +51,18 @@ public:
   ListNode<T>(T *t) : next(0), item(t), signalinfo(0)
   {
     note[0] = '\0';
-  };
+  }
   
   /* Methods */
   void setNote(const char *txt) {
     strncpy(note, txt, LIST_ITEM_NOTE_SIZE);
     /* If txt is too long, strncpy() leaves it unterminated */
     note[LIST_ITEM_NOTE_SIZE] = '\0';
-  };
+  }
 
   const char * getNote() const {
     return note;
-  };
+  }
 };
 
 
@@ -76,13 +76,13 @@ public:
   {
     int i = uv_mutex_init(& lock);
     assert(i == 0);
-  };
+  }
   
   
   ~SharedList<T>()
   {
     uv_mutex_destroy(& lock);
-  };
+  }
   
   
   void produce(ListNode<T> * node) {
@@ -94,7 +94,7 @@ public:
     tail->next = head;
     head = node;
     uv_mutex_unlock(& lock);
-  };
+  }
   
   
   ListNode<T> * consumeAll() {
@@ -103,7 +103,7 @@ public:
     head = 0;
     uv_mutex_unlock(& lock);
     return result;
-  };
+  }
 };
 
 

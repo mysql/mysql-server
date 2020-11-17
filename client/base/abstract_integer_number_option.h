@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,13 +56,13 @@ class Abstract_integer_number_option
     option value will be changed to this minimum value.
     Part of implementation of Abstract_number_option virtual method.
    */
-  virtual T_type *set_minimum_value(T_value minimum);
+  T_type *set_minimum_value(T_value minimum) override;
   /**
     Sets maximum value boundary for option value. Greater values passed as
     option value will be changed to this maximum value.
     Part of implementation of Abstract_number_option virtual method.
    */
-  virtual T_type *set_maximum_value(T_value maximum);
+  T_type *set_maximum_value(T_value maximum) override;
 
  protected:
   /**

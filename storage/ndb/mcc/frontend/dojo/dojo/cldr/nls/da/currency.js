@@ -5,4 +5,4 @@
 */
 
 //>>built
-define("dojo/cldr/nls/da/currency",{"HKD_displayName":"Hongkong dollar","CHF_displayName":"Schweizisk franc","JPY_symbol":"JP¥","CAD_displayName":"Canadisk dollar","HKD_symbol":"HK$","CNY_displayName":"Kinesisk yuan renminbi","USD_symbol":"$","AUD_displayName":"Australsk dollar","JPY_displayName":"Japansk yen","CAD_symbol":"CA$","USD_displayName":"Amerikansk dollar","EUR_symbol":"€","CNY_symbol":"CN¥","GBP_displayName":"Britisk pund","GBP_symbol":"£","AUD_symbol":"AU$","EUR_displayName":"Euro"});
+define("dojo/cldr/nls/da/currency",{"HKD_displayName":"Hongkong dollar","CNY_displayName":"kinesisk yuan","JPY_displayName":"japansk yen","JPY_symbol":"JP¥","USD_displayName":"amerikansk dollar","CAD_symbol":"CA$","GBP_displayName":"britisk pund","CHF_displayName":"schweizerfranc","CNY_symbol":"CN¥","EUR_displayName":"euro","GBP_symbol":"£","CAD_displayName":"canadisk dollar","USD_symbol":"$","EUR_symbol":"€","AUD_displayName":"australsk dollar","CHF_symbol":"CHF","HKD_symbol":"HK$","AUD_symbol":"AU$"});

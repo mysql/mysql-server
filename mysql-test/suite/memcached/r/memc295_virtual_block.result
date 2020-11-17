@@ -15,6 +15,8 @@ c3 INT GENERATED ALWAYS AS (c2 + c2) VIRTUAL
 INSERT INTO t1(c1, c2) VALUES("Wayne", 1);
 INSERT INTO t1(c1, c2) VALUES("Stark", 2);
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 show variables like 'daemon_memcached_option';
 Variable_name	Value
 daemon_memcached_option	-m128 -p11295

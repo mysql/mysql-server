@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -831,7 +831,8 @@ static bool analyze_timestamp_field_constant(THD *thd, const Item_field *f,
         zeros += ltime.month == 0;
         zeros += ltime.day == 0;
         if (zeros == 0 || zeros == 3) {  // Cf. NO_ZERO_DATE, NO_ZERO_IN_DATE
-          datetime_with_no_zero_in_date_to_timeval(thd, &ltime, &tm, &warnings);
+          datetime_with_no_zero_in_date_to_timeval(&ltime, *thd->time_zone(),
+                                                   &tm, &warnings);
           if ((warnings & MYSQL_TIME_WARN_OUT_OF_RANGE) != 0) {
             /*
               For RP_OUTSIDE_HIGH, this check may not catch case where field
@@ -897,7 +898,7 @@ static bool analyze_timestamp_field_constant(THD *thd, const Item_field *f,
               Item_func::DATETIME_LITERAL) {
         /* User supplied an ok literal */
       } else {
-        Item *i;
+        Item *i = nullptr;
         /*
           Make a DATETIME literal, unless the field is a DATE and the constant
           has zero time, in which case we make a DATE literal
@@ -916,7 +917,7 @@ static bool analyze_timestamp_field_constant(THD *thd, const Item_field *f,
             *place = RP_INSIDE_TRUNCATED;
           }
           i = new (thd->mem_root) Item_date_literal(&ltime);
-        } else {
+        } else if (!check_time_zone_convertibility(ltime)) {
           i = new (thd->mem_root) Item_datetime_literal(
               &ltime, actual_decimals(&ltime), thd->time_zone());
         }

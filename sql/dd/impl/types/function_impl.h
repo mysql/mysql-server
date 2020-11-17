@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,38 +52,38 @@ class Function_impl : public Routine_impl, public Function {
  public:
   Function_impl();
 
-  virtual ~Function_impl() {}
+  ~Function_impl() override {}
 
-  virtual bool update_routine_name_key(Name_key *key, Object_id schema_id,
-                                       const String_type &name) const;
+  bool update_routine_name_key(Name_key *key, Object_id schema_id,
+                               const String_type &name) const override;
 
  public:
-  virtual bool validate() const;
+  bool validate() const override;
 
-  virtual bool restore_attributes(const Raw_record &r);
+  bool restore_attributes(const Raw_record &r) override;
 
-  virtual bool store_attributes(Raw_record *r);
+  bool store_attributes(Raw_record *r) override;
 
-  virtual void debug_print(String_type &outb) const;
+  void debug_print(String_type &outb) const override;
 
  public:
   /////////////////////////////////////////////////////////////////////////
   // result data type.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual enum_column_types result_data_type() const {
+  enum_column_types result_data_type() const override {
     return m_result_data_type;
   }
 
-  virtual void set_result_data_type(enum_column_types result_data_type) {
+  void set_result_data_type(enum_column_types result_data_type) override {
     m_result_data_type = result_data_type;
   }
 
-  virtual bool is_result_data_type_null() const {
+  bool is_result_data_type_null() const override {
     return m_result_data_type_null;
   }
 
-  virtual void set_result_data_type_null(bool is_null) {
+  void set_result_data_type_null(bool is_null) override {
     m_result_data_type_null = is_null;
   }
 
@@ -91,12 +91,12 @@ class Function_impl : public Routine_impl, public Function {
   // Result display type
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &result_data_type_utf8() const {
+  const String_type &result_data_type_utf8() const override {
     return m_result_data_type_utf8;
   }
 
-  virtual void set_result_data_type_utf8(
-      const String_type &result_data_type_utf8) {
+  void set_result_data_type_utf8(
+      const String_type &result_data_type_utf8) override {
     m_result_data_type_utf8 = result_data_type_utf8;
   }
 
@@ -104,9 +104,9 @@ class Function_impl : public Routine_impl, public Function {
   // result_is_zerofill.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool result_is_zerofill() const { return m_result_is_zerofill; }
+  bool result_is_zerofill() const override { return m_result_is_zerofill; }
 
-  virtual void set_result_zerofill(bool zerofill) {
+  void set_result_zerofill(bool zerofill) override {
     m_result_is_zerofill = zerofill;
   }
 
@@ -114,9 +114,9 @@ class Function_impl : public Routine_impl, public Function {
   // result_is_unsigned.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool result_is_unsigned() const { return m_result_is_unsigned; }
+  bool result_is_unsigned() const override { return m_result_is_unsigned; }
 
-  virtual void set_result_unsigned(bool unsigned_flag) {
+  void set_result_unsigned(bool unsigned_flag) override {
     m_result_is_unsigned = unsigned_flag;
   }
 
@@ -124,9 +124,9 @@ class Function_impl : public Routine_impl, public Function {
   // result_char_length.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual size_t result_char_length() const { return m_result_char_length; }
+  size_t result_char_length() const override { return m_result_char_length; }
 
-  virtual void set_result_char_length(size_t char_length) {
+  void set_result_char_length(size_t char_length) override {
     m_result_char_length = char_length;
   }
 
@@ -134,11 +134,11 @@ class Function_impl : public Routine_impl, public Function {
   // result_numeric_precision.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint result_numeric_precision() const {
+  uint result_numeric_precision() const override {
     return m_result_numeric_precision;
   }
 
-  virtual void set_result_numeric_precision(uint result_numeric_precision) {
+  void set_result_numeric_precision(uint result_numeric_precision) override {
     m_result_numeric_precision_null = false;
     m_result_numeric_precision = result_numeric_precision;
   }
@@ -155,18 +155,18 @@ class Function_impl : public Routine_impl, public Function {
   // result_numeric_scale.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint result_numeric_scale() const { return m_result_numeric_scale; }
+  uint result_numeric_scale() const override { return m_result_numeric_scale; }
 
-  virtual void set_result_numeric_scale(uint result_numeric_scale) {
+  void set_result_numeric_scale(uint result_numeric_scale) override {
     m_result_numeric_scale_null = false;
     m_result_numeric_scale = result_numeric_scale;
   }
 
-  virtual void set_result_numeric_scale_null(bool is_null) {
+  void set_result_numeric_scale_null(bool is_null) override {
     m_result_numeric_scale_null = is_null;
   }
 
-  virtual bool is_result_numeric_scale_null() const {
+  bool is_result_numeric_scale_null() const override {
     return m_result_numeric_scale_null;
   }
 
@@ -174,11 +174,11 @@ class Function_impl : public Routine_impl, public Function {
   // result_datetime_precision.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint result_datetime_precision() const {
+  uint result_datetime_precision() const override {
     return m_result_datetime_precision;
   }
 
-  virtual void set_result_datetime_precision(uint result_datetime_precision) {
+  void set_result_datetime_precision(uint result_datetime_precision) override {
     m_result_datetime_precision_null = false;
     m_result_datetime_precision = result_datetime_precision;
   }
@@ -195,122 +195,126 @@ class Function_impl : public Routine_impl, public Function {
   // result_collation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Object_id result_collation_id() const {
+  Object_id result_collation_id() const override {
     return m_result_collation_id;
   }
 
-  virtual void set_result_collation_id(Object_id result_collation_id) {
+  void set_result_collation_id(Object_id result_collation_id) override {
     m_result_collation_id = result_collation_id;
   }
 
   // Fix "inherits ... via dominance" warnings
-  virtual Entity_object_impl *impl() { return Entity_object_impl::impl(); }
-  virtual const Entity_object_impl *impl() const {
+  Entity_object_impl *impl() override { return Entity_object_impl::impl(); }
+  const Entity_object_impl *impl() const override {
     return Entity_object_impl::impl();
   }
-  virtual Object_id id() const { return Entity_object_impl::id(); }
-  virtual bool is_persistent() const {
+  Object_id id() const override { return Entity_object_impl::id(); }
+  bool is_persistent() const override {
     return Entity_object_impl::is_persistent();
   }
-  virtual const String_type &name() const { return Entity_object_impl::name(); }
-  virtual void set_name(const String_type &name) {
+  const String_type &name() const override {
+    return Entity_object_impl::name();
+  }
+  void set_name(const String_type &name) override {
     Entity_object_impl::set_name(name);
   }
-  virtual const Object_table &object_table() const {
+  const Object_table &object_table() const override {
     return Routine_impl::object_table();
   }
-  virtual Object_id schema_id() const { return Routine_impl::schema_id(); }
-  virtual void set_schema_id(Object_id schema_id) {
+  Object_id schema_id() const override { return Routine_impl::schema_id(); }
+  void set_schema_id(Object_id schema_id) override {
     Routine_impl::set_schema_id(schema_id);
   }
-  virtual enum_routine_type type() const { return Routine_impl::type(); }
-  virtual const String_type &definition() const {
+  enum_routine_type type() const override { return Routine_impl::type(); }
+  const String_type &definition() const override {
     return Routine_impl::definition();
   }
-  virtual void set_definition(const String_type &definition) {
+  void set_definition(const String_type &definition) override {
     Routine_impl::set_definition(definition);
   }
-  virtual const String_type &definition_utf8() const {
+  const String_type &definition_utf8() const override {
     return Routine_impl::definition_utf8();
   }
-  virtual void set_definition_utf8(const String_type &definition_utf8) {
+  void set_definition_utf8(const String_type &definition_utf8) override {
     Routine_impl::set_definition_utf8(definition_utf8);
   }
-  virtual const String_type &parameter_str() const {
+  const String_type &parameter_str() const override {
     return Routine_impl::parameter_str();
   }
-  virtual void set_parameter_str(const String_type &parameter_str) {
+  void set_parameter_str(const String_type &parameter_str) override {
     Routine_impl::set_parameter_str(parameter_str);
   }
-  virtual bool is_deterministic() const {
+  bool is_deterministic() const override {
     return Routine_impl::is_deterministic();
   }
-  virtual void set_deterministic(bool deterministic) {
+  void set_deterministic(bool deterministic) override {
     Routine_impl::set_deterministic(deterministic);
   }
-  virtual enum_sql_data_access sql_data_access() const {
+  enum_sql_data_access sql_data_access() const override {
     return Routine_impl::sql_data_access();
   }
-  virtual void set_sql_data_access(enum_sql_data_access sda) {
+  void set_sql_data_access(enum_sql_data_access sda) override {
     Routine_impl::set_sql_data_access(sda);
   }
-  virtual View::enum_security_type security_type() const {
+  View::enum_security_type security_type() const override {
     return Routine_impl::security_type();
   }
-  virtual void set_security_type(View::enum_security_type security_type) {
+  void set_security_type(View::enum_security_type security_type) override {
     Routine_impl::set_security_type(security_type);
   }
-  virtual ulonglong sql_mode() const { return Routine_impl::sql_mode(); }
-  virtual void set_sql_mode(ulonglong sm) { Routine_impl::set_sql_mode(sm); }
-  virtual const String_type &definer_user() const {
+  ulonglong sql_mode() const override { return Routine_impl::sql_mode(); }
+  void set_sql_mode(ulonglong sm) override { Routine_impl::set_sql_mode(sm); }
+  const String_type &definer_user() const override {
     return Routine_impl::definer_user();
   }
-  virtual const String_type &definer_host() const {
+  const String_type &definer_host() const override {
     return Routine_impl::definer_host();
   }
-  virtual void set_definer(const String_type &username,
-                           const String_type &hostname) {
+  void set_definer(const String_type &username,
+                   const String_type &hostname) override {
     Routine_impl::set_definer(username, hostname);
   }
-  virtual Object_id client_collation_id() const {
+  Object_id client_collation_id() const override {
     return Routine_impl::client_collation_id();
   }
-  virtual void set_client_collation_id(Object_id client_collation_id) {
+  void set_client_collation_id(Object_id client_collation_id) override {
     Routine_impl::set_client_collation_id(client_collation_id);
   }
-  virtual Object_id connection_collation_id() const {
+  Object_id connection_collation_id() const override {
     return Routine_impl::connection_collation_id();
   }
-  virtual void set_connection_collation_id(Object_id connection_collation_id) {
+  void set_connection_collation_id(Object_id connection_collation_id) override {
     Routine_impl::set_connection_collation_id(connection_collation_id);
   }
-  virtual Object_id schema_collation_id() const {
+  Object_id schema_collation_id() const override {
     return Routine_impl::schema_collation_id();
   }
-  virtual void set_schema_collation_id(Object_id schema_collation_id) {
+  void set_schema_collation_id(Object_id schema_collation_id) override {
     Routine_impl::set_schema_collation_id(schema_collation_id);
   }
-  virtual ulonglong created(bool convert_time) const {
+  ulonglong created(bool convert_time) const override {
     return Routine_impl::created(convert_time);
   }
-  virtual void set_created(ulonglong created) {
+  void set_created(ulonglong created) override {
     Routine_impl::set_created(created);
   }
-  virtual ulonglong last_altered(bool convert_time) const {
+  ulonglong last_altered(bool convert_time) const override {
     return Routine_impl::last_altered(convert_time);
   }
-  virtual void set_last_altered(ulonglong last_altered) {
+  void set_last_altered(ulonglong last_altered) override {
     Routine_impl::set_last_altered(last_altered);
   }
-  virtual const String_type &comment() const { return Routine_impl::comment(); }
-  virtual void set_comment(const String_type &comment) {
+  const String_type &comment() const override {
+    return Routine_impl::comment();
+  }
+  void set_comment(const String_type &comment) override {
     Routine_impl::set_comment(comment);
   }
-  virtual Parameter *add_parameter() { return Routine_impl::add_parameter(); }
-  virtual const Parameter_collection &parameters() const {
+  Parameter *add_parameter() override { return Routine_impl::add_parameter(); }
+  const Parameter_collection &parameters() const override {
     return Routine_impl::parameters();
   }
-  virtual bool update_name_key(Name_key *key) const {
+  bool update_name_key(Name_key *key) const override {
     return Function::update_name_key(key);
   }
 
@@ -335,7 +339,7 @@ class Function_impl : public Routine_impl, public Function {
   Object_id m_result_collation_id;
 
   Function_impl(const Function_impl &src);
-  Function_impl *clone() const { return new Function_impl(*this); }
+  Function_impl *clone() const override { return new Function_impl(*this); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

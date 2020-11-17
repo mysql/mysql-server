@@ -48,18 +48,22 @@ eval EXPLAIN $query5;
 
 FLUSH STATUS;
 eval $query1;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 FLUSH STATUS;
 eval $query2;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 FLUSH STATUS;
 eval $query3;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 FLUSH STATUS;
 eval $query4;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 FLUSH STATUS;
@@ -79,6 +83,7 @@ eval EXPLAIN $query6;
 
 FLUSH STATUS;
 eval $query6;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 # Add a secondary index and notice the difference in the plan. 
@@ -89,6 +94,7 @@ eval EXPLAIN $query6;
 
 FLUSH STATUS;
 eval $query6;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 DROP TABLE t_nopk;
@@ -125,14 +131,17 @@ eval EXPLAIN $query9;
 
 FLUSH STATUS;
 eval $query7;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 FLUSH STATUS;
 eval $query8;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 FLUSH STATUS;
 eval $query9;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 DROP TABLE t_innodb_pk_nosk, t_innodb_nopk_sk, t_innodb_nopk_nosk;
@@ -158,18 +167,22 @@ eval EXPLAIN $query13;
 
 FLUSH STATUS;
 eval $query10;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 FLUSH STATUS;
 eval $query11;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 FLUSH STATUS;
 eval $query12;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 FLUSH STATUS;
 eval $query13;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 DROP TABLE t_archive, t_heap;
 
@@ -184,10 +197,12 @@ eval EXPLAIN $query15;
 
 FLUSH STATUS;
 eval $query14;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 FLUSH STATUS;
 eval $query15;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 #Testcase for specific lines of code. 

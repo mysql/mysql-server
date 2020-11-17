@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -682,7 +682,7 @@ class Proc_purge_account : public PFS_buffer_processor<PFS_account> {
  public:
   Proc_purge_account(PFS_thread *thread) : m_thread(thread) {}
 
-  virtual void operator()(PFS_account *pfs) {
+  void operator()(PFS_account *pfs) override {
     PFS_user *user = sanitize_user(pfs->m_user);
     PFS_host *host = sanitize_host(pfs->m_host);
     pfs->aggregate(true, user, host);
@@ -712,7 +712,7 @@ class Proc_update_accounts_derived_flags
  public:
   Proc_update_accounts_derived_flags(PFS_thread *thread) : m_thread(thread) {}
 
-  virtual void operator()(PFS_account *pfs) {
+  void operator()(PFS_account *pfs) override {
     if (pfs->m_username_length > 0 && pfs->m_hostname_length > 0) {
       lookup_setup_actor(m_thread, pfs->m_username, pfs->m_username_length,
                          pfs->m_hostname, pfs->m_hostname_length,

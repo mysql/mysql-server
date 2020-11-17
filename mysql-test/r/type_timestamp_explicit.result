@@ -510,12 +510,6 @@ SELECT * FROM t1 WHERE '2010-02-01 09:31:02.0' >= a;
 a
 2010-02-01 09:31:01
 2010-02-01 09:31:02
-EXPLAIN
-SELECT * FROM t1 WHERE a >= '2010-02-01 09:31:02.0';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-x	x	x	NULL	range	x	x	x	x	x	100.00	x
-Warnings:
-x	x	x
 SELECT * FROM t1 WHERE a >= '2010-02-01 09:31:02.0';
 a
 2010-02-01 09:31:02
@@ -537,12 +531,6 @@ INSERT INTO t2 VALUES( '2010-02-01 09:31:11' );
 # interval here. This reveals itself only in the number of reads 
 # performed.
 FLUSH STATUS;
-EXPLAIN
-SELECT * FROM t2 WHERE a < '2010-02-01 09:31:02.0';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-x	x	x	NULL	range	x	x	x	x	x	100.00	x
-Warnings:
-x	x	x
 SELECT * FROM t2 WHERE a < '2010-02-01 09:31:02.0';
 a
 2010-02-01 09:31:01

@@ -8,7 +8,7 @@
 #    server_N_1. server_I and server_I_1 are connections to the same
 #    server.
 #  - Verifies that @@server_id of all servers are different.
-#  - Calls RESET MASTER, RESET SLAVE, USE test, CHANGE MASTER, START SLAVE.
+#  - Calls RESET MASTER, RESET REPLICA, USE test, CHANGE MASTER, START REPLICA.
 #  - Sets the connection to server_1 before exiting.
 #  - Sets the following mtr variables for convenience:
 #    $gtid_mode: the value of @@global.gtid_mode on server 1
@@ -66,6 +66,7 @@
 #    [--let $rpl_privilege_checks_user_additional_grants= CREATE,INSERT,SELECT]
 #    [--let $rpl_require_row_format= *:0,1:0,2:1]
 #    [--let $rpl_require_table_primary_key_check= *:STREAM,1:ON,2:OFF]
+#    [--let $rpl_shallow_reset_slave= 1]
 #    --source include/rpl_init.inc
 #
 #    Parameters:
@@ -102,9 +103,9 @@
 #      guaranteed by mtr, so it is only useful for debugging.
 #
 #    $rpl_skip_reset_master_and_slave
-#      By default, this script issues RESET MASTER and RESET SLAVE
-#      before CHANGE MASTER and START SLAVE.  RESET MASTER and RESET
-#      SLAVE are suppressed if $rpl_skip_reset_master_and_slave is
+#      By default, this script issues RESET MASTER and RESET REPLICA
+#      before CHANGE MASTER and START REPLICA.  RESET MASTER and RESET
+#      REPLICA are suppressed if $rpl_skip_reset_master_and_slave is
 #      set.
 #
 #    $rpl_skip_change_master
@@ -113,8 +114,8 @@
 #      is suppressed if $rpl_skip_change_master is set.
 #
 #    $rpl_skip_start_slave
-#      By default, this script issues START SLAVE on all slaves
-#      specified by $rpl_topology. START SLAVE is suppressed if
+#      By default, this script issues START REPLICA on all slaves
+#      specified by $rpl_topology. START REPLICA is suppressed if
 #      $rpl_skip_change_master is set.
 #
 #    $rpl_debug
@@ -160,6 +161,9 @@
 #
 #   $rpl_require_table_primary_key_check
 #      See `include/rpl_change_topology.inc`.
+#
+#   $rpl_shallow_reset_slave
+#      If in the setup we shall only use RESET REPLICA and not RESET REPLICA ALL
 #
 # ==== Side effects ====
 #
@@ -330,8 +334,12 @@ while ($_rpl_server)
   }
   if (!$rpl_skip_reset_master_and_slave)
   {
+
     RESET MASTER;
-    RESET SLAVE;
+    if (!$rpl_shallow_reset_slave){
+      --let $_rpl_init_reset_slave_modifier= ALL
+    }
+    --eval RESET REPLICA $_rpl_init_reset_slave_modifier FOR CHANNEL ''
   }
   # Only way to do this in mtr :-(
   if ($_rpl_server == 1) {

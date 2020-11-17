@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -79,9 +79,11 @@ public:
   
   const char* c_str() const;         // Complete name including dirname
   const char* get_base_name() const; // Exclude fs (or backup) path
+  Uint32 get_base_path_spec() const;
 private:
   char theName[PATH_MAX];
   char * m_base_name;
+  Uint32 m_base_path_spec;
 };
 
 // inline methods
@@ -91,6 +93,11 @@ inline const char* Filename::c_str() const {
 
 inline const char* Filename::get_base_name() const {
   return m_base_name;
+}
+
+inline Uint32 Filename::get_base_path_spec() const
+{
+  return m_base_path_spec;
 }
 
 

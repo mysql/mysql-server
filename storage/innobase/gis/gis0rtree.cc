@@ -1292,24 +1292,29 @@ dberr_t rtr_ins_enlarge_mbr(btr_cur_t *btr_cur, /*!< in: btr cursor */
 }
 
 /** Copy recs from a page to new_block of rtree.
- Differs from page_copy_rec_list_end, because this function does not
- touch the lock table and max trx id on page or compress the page.
+Differs from page_copy_rec_list_end, because this function does not
+touch the lock table and max trx id on page or compress the page.
 
- IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
- if new_block is a compressed leaf page in a secondary index.
- This has to be done either within the same mini-transaction,
- or by invoking ibuf_reset_free_bits() before mtr_commit(). */
-void rtr_page_copy_rec_list_end_no_locks(
-    buf_block_t *new_block,   /*!< in: index page to copy to */
-    buf_block_t *block,       /*!< in: index page of rec */
-    rec_t *rec,               /*!< in: record on page */
-    dict_index_t *index,      /*!< in: record descriptor */
-    mem_heap_t *heap,         /*!< in/out: heap memory */
-    rtr_rec_move_t *rec_move, /*!< in: recording records moved */
-    ulint max_move,           /*!< in: num of rec to move */
-    ulint *num_moved,         /*!< out: num of rec to move */
-    mtr_t *mtr)               /*!< in: mtr */
-{
+IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+if new_block is a compressed leaf page in a secondary index.
+This has to be done either within the same mini-transaction,
+or by invoking ibuf_reset_free_bits() before mtr_commit().
+
+@param[in] new_block Index page to copy to
+@param[in] block Index page of rec
+@param[in] rec Record on page
+@param[in] index Record descriptor
+@param[in,out] heap Heap memory
+@param[in] rec_move Recording records moved
+@param[in] max_move Num of rec to move
+@param[out] num_moved Num of rec to move
+@param[in] mtr Mini-transaction */
+void rtr_page_copy_rec_list_end_no_locks(buf_block_t *new_block,
+                                         buf_block_t *block, rec_t *rec,
+                                         dict_index_t *index, mem_heap_t *heap,
+                                         rtr_rec_move_t *rec_move,
+                                         ulint max_move, ulint *num_moved,
+                                         mtr_t *mtr) {
   page_t *new_page = buf_block_get_frame(new_block);
   page_cur_t page_cur;
   page_cur_t cur1;
@@ -1418,18 +1423,20 @@ void rtr_page_copy_rec_list_end_no_locks(
   *num_moved = moved;
 }
 
-/** Copy recs till a specified rec from a page to new_block of rtree. */
+/** Copy recs till a specified rec from a page to new_block of rtree.
+@param[in] new_block Index page to copy to
+@param[in] block Index page of rec
+@param[in] rec Record on page
+@param[in] index Record descriptor
+@param[in,out] heap Heap memory
+@param[in] rec_move Recording records moved
+@param[in] max_move Num of rec to move
+@param[out] num_moved Num of rec to move
+@param[in] mtr Mini-transaction */
 void rtr_page_copy_rec_list_start_no_locks(
-    buf_block_t *new_block,   /*!< in: index page to copy to */
-    buf_block_t *block,       /*!< in: index page of rec */
-    rec_t *rec,               /*!< in: record on page */
-    dict_index_t *index,      /*!< in: record descriptor */
-    mem_heap_t *heap,         /*!< in/out: heap memory */
-    rtr_rec_move_t *rec_move, /*!< in: recording records moved */
-    ulint max_move,           /*!< in: num of rec to move */
-    ulint *num_moved,         /*!< out: num of rec to move */
-    mtr_t *mtr)               /*!< in: mtr */
-{
+    buf_block_t *new_block, buf_block_t *block, rec_t *rec, dict_index_t *index,
+    mem_heap_t *heap, rtr_rec_move_t *rec_move, ulint max_move,
+    ulint *num_moved, mtr_t *mtr) {
   page_cur_t cur1;
   rec_t *cur_rec;
   ulint offsets_1[REC_OFFS_NORMAL_SIZE];
@@ -1530,16 +1537,19 @@ void rtr_page_copy_rec_list_start_no_locks(
   *num_moved = moved;
 }
 
-/** Check two MBRs are identical or need to be merged */
-bool rtr_merge_mbr_changed(btr_cur_t *cursor,  /*!< in/out: cursor */
-                           btr_cur_t *cursor2, /*!< in: the other cursor */
-                           ulint *offsets,     /*!< in: rec offsets */
-                           ulint *offsets2,    /*!< in: rec offsets */
-                           rtr_mbr_t *new_mbr, /*!< out: MBR to update */
-                           buf_block_t *merge_block, /*!< in: page to merge */
-                           buf_block_t *block,       /*!< in: page be merged */
-                           dict_index_t *index)      /*!< in: index */
-{
+/** Check two MBRs are identical or need to be merged
+@param[in] cursor Cursor
+@param[in] cursor2 The other cursor
+@param[in] offsets Rec offsets
+@param[in] offsets2 Rec offsets
+@param[out] new_mbr Mbr to update
+@param[in] merge_block Page to merge
+@param[in] block Page be merged
+@param[in] index Index */
+bool rtr_merge_mbr_changed(btr_cur_t *cursor, btr_cur_t *cursor2,
+                           ulint *offsets, ulint *offsets2, rtr_mbr_t *new_mbr,
+                           buf_block_t *merge_block, buf_block_t *block,
+                           dict_index_t *index) {
   double *mbr;
   double mbr1[SPDIMS * 2];
   double mbr2[SPDIMS * 2];
@@ -1573,18 +1583,21 @@ bool rtr_merge_mbr_changed(btr_cur_t *cursor,  /*!< in/out: cursor */
   return (changed);
 }
 
-/** Merge 2 mbrs and update the the mbr that cursor is on. */
-dberr_t rtr_merge_and_update_mbr(
-    btr_cur_t *cursor,        /*!< in/out: cursor */
-    btr_cur_t *cursor2,       /*!< in: the other cursor */
-    ulint *offsets,           /*!< in: rec offsets */
-    ulint *offsets2,          /*!< in: rec offsets */
-    page_t *child_page,       /*!< in: the page. */
-    buf_block_t *merge_block, /*!< in: page to merge */
-    buf_block_t *block,       /*!< in: page be merged */
-    dict_index_t *index,      /*!< in: index */
-    mtr_t *mtr)               /*!< in: mtr */
-{
+/** Merge 2 mbrs and update the the mbr that cursor is on.
+@param[in,out] cursor Cursor
+@param[in] cursor2 The other cursor
+@param[in] offsets Rec offsets
+@param[in] offsets2 Rec offsets
+@param[in] child_page The child page.
+@param[in] merge_block Page to merge
+@param[in] block Page be merged
+@param[in] index Index
+@param[in] mtr Mini-transaction */
+dberr_t rtr_merge_and_update_mbr(btr_cur_t *cursor, btr_cur_t *cursor2,
+                                 ulint *offsets, ulint *offsets2,
+                                 page_t *child_page, buf_block_t *merge_block,
+                                 buf_block_t *block, dict_index_t *index,
+                                 mtr_t *mtr) {
   dberr_t err = DB_SUCCESS;
   rtr_mbr_t new_mbr;
   bool changed = false;
@@ -1608,23 +1621,24 @@ dberr_t rtr_merge_and_update_mbr(
   return (err);
 }
 
-/** Deletes on the upper level the node pointer to a page. */
-void rtr_node_ptr_delete(
-    dict_index_t *index, /*!< in: index tree */
-    btr_cur_t *cursor,   /*!< in: search cursor, contains information
-                         about parent nodes in search */
-    buf_block_t *block,  /*!< in: page whose node pointer is deleted */
-    mtr_t *mtr)          /*!< in: mtr */
-{
+/** Deletes on the upper level the node pointer to a page.
+@param[in] index Index tree
+@param[in] sea_cur Search cursor, contains information about parent nodes in
+search
+@param[in] block Page whose node pointer is deleted
+@param[in] mtr Mini-transaction
+*/
+void rtr_node_ptr_delete(dict_index_t *index, btr_cur_t *sea_cur,
+                         buf_block_t *block, mtr_t *mtr) {
   ibool compressed;
   dberr_t err;
 
-  compressed = btr_cur_pessimistic_delete(&err, TRUE, cursor, BTR_CREATE_FLAG,
+  compressed = btr_cur_pessimistic_delete(&err, TRUE, sea_cur, BTR_CREATE_FLAG,
                                           false, 0, 0, 0, mtr);
   ut_a(err == DB_SUCCESS);
 
   if (!compressed) {
-    btr_cur_compress_if_useful(cursor, FALSE, mtr);
+    btr_cur_compress_if_useful(sea_cur, FALSE, mtr);
   }
 }
 

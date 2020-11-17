@@ -8,7 +8,7 @@ connection slave;
 --let $debug_point= extra_row_ndb_info_check
 --source include/add_debug_point.inc
 connection master;
---let $debug_point= extra_row_ndb_info_set
+--let $debug_point= extra_row_ndb_info_set_618
 --source include/add_debug_point.inc
 --echo Basic insert, update, delete from Master->Slave
 --echo DBUG code will set + check transfer of extra
@@ -71,10 +71,6 @@ DROP TABLE t1;
 --let $debug_point= extra_row_ndb_info_check
 --source include/remove_debug_point.inc
 connection master;
---let $debug_point= extra_row_ndb_info_set
+--let $debug_point= extra_row_ndb_info_set_618
 --source include/remove_debug_point.inc
 --source include/rpl_end.inc
-
-# The state of binlog is not reverting back to original, restart is needed if
-# this case is to be tested again.
---source include/force_restart.inc

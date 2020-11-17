@@ -18,6 +18,8 @@ SET GLOBAL sql_slave_skip_counter= 1;
 0
 include/assert.inc [check that channel_1's Skip_Counter is 0.]
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/rpl_for_each_connection.inc [include/wait_for_slave_sql_to_stop.inc]
 #
 # Verify that START SLAVE FOR CHANNEL will copy sql_slave_skip_counter's
@@ -46,5 +48,5 @@ include/rpl_for_each_connection.inc [include/wait_for_slave_io_to_start.inc]
 include/assert.inc [All two IO threads are running after START SLAVE IO_THREAD]
 SET GLOBAL sql_slave_skip_counter= 0;
 include/rpl_end.inc
-RESET SLAVE ALL FOR CHANNEL 'channel_1';
-RESET SLAVE ALL FOR CHANNEL 'channel_3';
+RESET REPLICA ALL FOR CHANNEL 'channel_1';
+RESET REPLICA ALL FOR CHANNEL 'channel_3';

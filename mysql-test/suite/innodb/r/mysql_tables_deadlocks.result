@@ -28,22 +28,12 @@ SELECT table_name AS name
 FROM information_schema.tables
 WHERE table_schema="mysql" AND engine="InnoDB"
 AND table_name NOT IN (
-"ndb_binlog_index"
+"ndb_binlog_index", "user", "db", "tables_priv", "columns_priv",
+"procs_priv", "proxies_priv", "role_edges", "default_roles",
+"global_grants", "password_history"
 )
 ORDER BY table_name;
-Preparing deadlock scenario for mysql.columns_priv
-ROLLBACK;
-ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
-ROLLBACK;
 Preparing deadlock scenario for mysql.component
-ROLLBACK;
-ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
-ROLLBACK;
-Preparing deadlock scenario for mysql.db
-ROLLBACK;
-ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
-ROLLBACK;
-Preparing deadlock scenario for mysql.default_roles
 ROLLBACK;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 ROLLBACK;
@@ -52,10 +42,6 @@ ROLLBACK;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 ROLLBACK;
 Preparing deadlock scenario for mysql.func
-ROLLBACK;
-ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
-ROLLBACK;
-Preparing deadlock scenario for mysql.global_grants
 ROLLBACK;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 ROLLBACK;
@@ -87,23 +73,11 @@ Preparing deadlock scenario for mysql.innodb_table_stats
 ROLLBACK;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 ROLLBACK;
-Preparing deadlock scenario for mysql.password_history
-ROLLBACK;
-ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
-ROLLBACK;
 Preparing deadlock scenario for mysql.plugin
 ROLLBACK;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 ROLLBACK;
-Preparing deadlock scenario for mysql.procs_priv
-ROLLBACK;
-ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
-ROLLBACK;
-Preparing deadlock scenario for mysql.proxies_priv
-ROLLBACK;
-ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
-ROLLBACK;
-Preparing deadlock scenario for mysql.role_edges
+Preparing deadlock scenario for mysql.replication_asynchronous_connection_failover
 ROLLBACK;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 ROLLBACK;
@@ -127,10 +101,6 @@ Preparing deadlock scenario for mysql.slave_worker_info
 ROLLBACK;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 ROLLBACK;
-Preparing deadlock scenario for mysql.tables_priv
-ROLLBACK;
-ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
-ROLLBACK;
 Preparing deadlock scenario for mysql.time_zone
 ROLLBACK;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
@@ -148,10 +118,6 @@ ROLLBACK;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 ROLLBACK;
 Preparing deadlock scenario for mysql.time_zone_transition_type
-ROLLBACK;
-ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
-ROLLBACK;
-Preparing deadlock scenario for mysql.user
 ROLLBACK;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 ROLLBACK;

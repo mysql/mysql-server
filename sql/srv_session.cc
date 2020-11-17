@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,6 +60,7 @@
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/conn_handler/connection_handler_manager.h"
 #include "sql/current_thd.h"
+#include "sql/debug_sync.h"          // DEBUG_SYNC
 #include "sql/derror.h"              // ER_DEFAULT
 #include "sql/log.h"                 // Query log
 #include "sql/mysqld.h"              // current_thd
@@ -1009,13 +1010,20 @@ bool Srv_session::close() {
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
   thd.security_context()->logout();
-  thd.m_view_ctx_list.empty();
+  thd.m_view_ctx_list.clear();
   close_mysql_tables(&thd);
 
   thd.set_plugin(nullptr);
   thd.pop_diagnostics_area();
 
   thd.get_stmt_da()->reset_diagnostics_area();
+
+  // DEBUG_SYNC control block is released under call to
+  // `thd.release_resource`, thus we can't put this sync
+  // point directly before `pop_protocol`.
+  // Second constrain is that `THD::disconnect` marks
+  // this connection as killed, which disables DEBUG_SYNC.
+  DEBUG_SYNC(&thd, "srv_session_close");
 
   thd.disconnect();
 
@@ -1025,11 +1033,11 @@ bool Srv_session::close() {
 
   thd.release_resources();
 
+  Global_THD_manager::get_instance()->remove_thd(&thd);
+
   mysql_mutex_lock(&thd.LOCK_thd_protocol);
   thd.pop_protocol();
   mysql_mutex_unlock(&thd.LOCK_thd_protocol);
-
-  Global_THD_manager::get_instance()->remove_thd(&thd);
 
   Connection_handler_manager::dec_connection_count();
 
@@ -1159,7 +1167,7 @@ class Find_thd_by_id_with_callback_set : public Find_THD_Impl {
     When a thread is found the callback function passed to the constructor
     is invoked under THD::Lock_thd_data
   */
-  virtual bool operator()(THD *thd) {
+  bool operator()(THD *thd) override {
     if (thd->thread_id() == thread_id) {
       MUTEX_LOCK(lock, &thd->LOCK_thd_data);
       callback(thd, &input);

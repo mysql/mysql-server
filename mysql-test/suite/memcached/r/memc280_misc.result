@@ -18,6 +18,26 @@ INSERT INTO t1 VALUES ('B', 'Berlin', 'Mitte', 0, 0, 0);
 INSERT INTO t1 VALUES ('C', 'Cottbus', 'West', 0, 0 ,0);
 INSERT INTO t1 VALUES ('H', 'Hamburg', 'Norderstedt', 0, 0, 0);
 Testing install/uninstall 10 times.
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 DROP TABLE t1;
 DROP DATABASE innodb_memcache;
 SET @@global.transaction_isolation= @transaction_isolation;

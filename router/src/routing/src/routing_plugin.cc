@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,9 @@
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/net_ts/io_context.h"
 #include "mysql_routing.h"
+#include "mysqlrouter/io_component.h"
 #include "mysqlrouter/routing_component.h"
 #include "mysqlrouter/routing_export.h"  // ROUTING_EXPORT
 #include "plugin_config.h"
@@ -121,6 +123,15 @@ void validate_socket_info_test_proxy(
   validate_socket_info(err_prefix, section, config);
 }
 
+// work-guards to keep the io-context alive
+//
+// - one per routing instance
+// - it MUST be taken before the io-context 'starts'
+// - it MUST be released after routing is finished using it (before routing
+// 'start' ends)
+std::mutex io_context_work_guard_mtx;
+std::list<IoComponent::Workguard> io_context_work_guards;
+
 static void init(mysql_harness::PluginFuncEnv *env) {
   const mysql_harness::AppInfo *info = get_app_info(env);
 
@@ -132,7 +143,9 @@ static void init(mysql_harness::PluginFuncEnv *env) {
       for (const mysql_harness::ConfigSection *section :
            info->config->sections()) {
         if (section->name == kSectionName) {
-          string err_prefix = mysqlrouter::string_format(
+          io_context_work_guards.emplace_back(IoComponent::get_instance());
+
+          const auto err_prefix = mysqlrouter::string_format(
               "in [%s%s%s]: ", section->name.c_str(),
               section->key.empty() ? "" : ":", section->key.c_str());
           // Check the configuration
@@ -145,7 +158,7 @@ static void init(mysql_harness::PluginFuncEnv *env) {
             const TCPAddress &config_addr = config.bind_address;
 
             // Check uniqueness of bind_address and port, using IP address
-            std::vector<TCPAddress>::iterator found_addr =
+            auto found_addr =
                 std::find(bind_addresses.begin(), bind_addresses.end(),
                           config.bind_address);
             if (found_addr != bind_addresses.end()) {
@@ -195,13 +208,19 @@ static void init(mysql_harness::PluginFuncEnv *env) {
   } catch (const std::invalid_argument &exc) {
     log_error("%s", exc.what());  // TODO remove after Loader starts logging
     set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
+
+    io_context_work_guards.clear();
   } catch (const std::exception &exc) {
     log_error("%s", exc.what());  // TODO remove after Loader starts logging
     set_error(env, mysql_harness::kRuntimeError, "%s", exc.what());
+
+    io_context_work_guards.clear();
   } catch (...) {
     log_error(
         "Unexpected exception");  // TODO remove after Loader starts logging
     set_error(env, mysql_harness::kUndefinedError, "Unexpected exception");
+
+    io_context_work_guards.clear();
   }
 }
 
@@ -225,15 +244,14 @@ static void start(mysql_harness::PluginFuncEnv *env) {
     std::chrono::milliseconds client_connect_timeout(
         config.client_connect_timeout * 1000);
 
+    net::io_context &io_ctx = IoComponent::get_instance().io_context();
     auto r = std::make_shared<MySQLRouting>(
-        config.routing_strategy, config.bind_address.port, config.protocol,
-        config.mode, config.bind_address.addr, config.named_socket, name,
-        config.max_connections, destination_connect_timeout,
-        config.max_connect_errors, client_connect_timeout,
-        routing::kDefaultNetBufferLength,
-        routing::RoutingSockOps::instance(
-            mysql_harness::SocketOperations::instance()),
-        config.thread_stack_size);
+        io_ctx, config.routing_strategy, config.bind_address.port,
+        config.protocol, config.mode, config.bind_address.addr,
+        config.named_socket, name, config.max_connections,
+        destination_connect_timeout, config.max_connect_errors,
+        client_connect_timeout, config.net_buffer_length,
+        mysql_harness::SocketOperations::instance(), config.thread_stack_size);
 
     try {
       // don't allow rootless URIs as we did already in the
@@ -257,11 +275,24 @@ static void start(mysql_harness::PluginFuncEnv *env) {
         "Unexpected exception");  // TODO remove after Loader starts logging
     set_error(env, mysql_harness::kUndefinedError, "Unexpected exception");
   }
+
+  {
+    // as the r->start() shuts down all in parallel, synchronize the access to
+    std::lock_guard<std::mutex> lk(io_context_work_guard_mtx);
+
+    io_context_work_guards.erase(io_context_work_guards.begin());
+  }
 }
 
-static const std::array<const char *, 2> required = {{
+static void deinit(mysql_harness::PluginFuncEnv * /* env */) {
+  // release all that may still be taken
+  io_context_work_guards.clear();
+}
+
+static const std::array<const char *, 3> required = {{
     "logger",
     "router_protobuf",
+    "io",
 }};
 
 mysql_harness::Plugin ROUTING_EXPORT harness_plugin_routing = {
@@ -275,7 +306,8 @@ mysql_harness::Plugin ROUTING_EXPORT harness_plugin_routing = {
     // conflicts
     0, nullptr,
     init,     // init
-    nullptr,  // deinit
+    deinit,   // deinit
     start,    // start
-    nullptr   // stop
+    nullptr,  // stop
+    true,     // declares_readiness
 };

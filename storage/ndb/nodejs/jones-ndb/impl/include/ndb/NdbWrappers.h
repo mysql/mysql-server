@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@ Local<Value> Record_Wrapper(const Record *);
 Local<Value> Ndb_Wrapper(Ndb *);
 Local<Value> NdbError_Wrapper(const NdbError &);
 Local<Value> BatchImpl_Wrapper(BatchImpl *);
-Local<Value> BatchImpl_Recycle(Handle<Object>, BatchImpl *);
+Local<Value> BatchImpl_Recycle(Local<Object>, BatchImpl *);
 Local<Value> QueryOperation_Wrapper(QueryOperation *);
 
 /* Not actual wrapper functions, but functions that provide an envelope */

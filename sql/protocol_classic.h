@@ -1,7 +1,7 @@
 #ifndef PROTOCOL_CLASSIC_INCLUDED
 #define PROTOCOL_CLASSIC_INCLUDED
 
-/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -95,7 +95,7 @@ class Protocol_classic : public Protocol {
     init(thd);
   }
   void init(THD *thd_arg);
-  bool store_field(const Field *field) final override;
+  bool store_field(const Field *field) final;
   bool store_string(const char *from, size_t length,
                     const CHARSET_INFO *cs) final;
   int read_packet() override;
@@ -145,7 +145,7 @@ class Protocol_classic : public Protocol {
   // NET interaction functions
   /* Initialize NET */
   bool init_net(Vio *vio);
-  void claim_memory_ownership();
+  void claim_memory_ownership(bool claim);
   /* Deinitialize NET */
   void end_net();
   /* Write data to NET buffer */

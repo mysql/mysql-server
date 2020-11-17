@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "../utils.h"
 #include "common.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/net_ts/buffer.h"  // net::stream_errc
 #include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/routing.h"
 
@@ -51,7 +52,7 @@ static bool send_message(const std::string &log_prefix, int destination,
   using google::protobuf::io::CodedOutputStream;
 
   const size_t msg_size = message_byte_size(msg);
-  RoutingProtocolBuffer buffer(kMessageHeaderSize + msg_size);
+  std::vector<uint8_t> buffer(kMessageHeaderSize + msg_size);
 
   // first 4 bytes is the message size (plus type byte, without size bytes)
   CodedOutputStream::WriteLittleEndian32ToArray(
@@ -196,21 +197,23 @@ static bool get_next_message(int sender, RoutingProtocolBuffer &buffer,
 
 stdx::expected<size_t, std::error_code> XProtocol::copy_packets(
     int sender, int receiver, bool sender_is_readable,
-    RoutingProtocolBuffer &buffer, int * /*curr_pktnr*/, bool &handshake_done,
+    std::vector<uint8_t> &buffer, int * /*curr_pktnr*/, bool &handshake_done,
     bool from_server) {
   auto buffer_length = buffer.size();
   size_t bytes_read = 0;
 
-  mysql_harness::SocketOperationsBase *const so = routing_sock_ops_->so();
+  mysql_harness::SocketOperationsBase *const so = sock_ops_;
   if (sender_is_readable) {
     const auto read_res = so->read(sender, &buffer.front(), buffer_length);
     if (!read_res) {
-      log_error("fd=%d sender read failed: (%d %s)", sender,
-                read_res.error().value(), read_res.error().message().c_str());
+      if (read_res.error() != std::errc::resource_unavailable_try_again) {
+        log_error("fd=%d sender read failed: (%d %s)", sender,
+                  read_res.error().value(), read_res.error().message().c_str());
+      }
       return stdx::make_unexpected(read_res.error());
     } else if (read_res.value() == 0) {
       // the caller assumes that errno == 0 on plain connection closes.
-      return stdx::make_unexpected(std::error_code{});
+      return stdx::make_unexpected(make_error_code(net::stream_errc::eof));
     }
     bytes_read += read_res.value();
     if (!handshake_done) {
@@ -297,7 +300,7 @@ bool XProtocol::send_error(int destination, unsigned short code,
   error.set_msg(message);
 
   return send_message(log_prefix, destination, Mysqlx::ServerMessages::ERROR,
-                      error, routing_sock_ops_->so());
+                      error, sock_ops_);
 }
 
 bool XProtocol::on_block_client_host(int server,
@@ -315,7 +318,7 @@ bool XProtocol::on_block_client_host(int server,
 
   return send_message(log_prefix, server,
                       Mysqlx::ClientMessages::CON_CAPABILITIES_GET,
-                      capabilities_get, routing_sock_ops_->so());
+                      capabilities_get, sock_ops_);
 }
 
 size_t message_byte_size(const google::protobuf::MessageLite &msg) {

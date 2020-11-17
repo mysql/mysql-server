@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -140,7 +140,7 @@ class Object_table_definition_impl : public Object_table_definition {
         m_table_name(table_name),
         m_ddl_statement(ddl_statement) {}
 
-  virtual ~Object_table_definition_impl() {}
+  ~Object_table_definition_impl() override {}
 
   static void set_dd_tablespace_encrypted(bool is_encrypted) {
     s_dd_tablespace_encrypted = is_encrypted;
@@ -206,20 +206,20 @@ class Object_table_definition_impl : public Object_table_definition {
 
   const String_type &get_table_name() const { return m_table_name; }
 
-  void set_table_name(const String_type &name) { m_table_name = name; }
+  void set_table_name(const String_type &name) override { m_table_name = name; }
 
   void set_schema_name(const String_type &name) { m_schema_name = name; }
 
   void add_field(int field_number, const String_type &field_name,
-                 const String_type field_definition) {
+                 const String_type field_definition) override {
     add_element(field_number, field_name, field_definition, &m_field_numbers,
                 &m_field_definitions);
   }
 
   void add_sql_mode_field(int field_number, const String_type &field_name);
 
-  virtual void add_index(int index_number, const String_type &index_name,
-                         const String_type &index_definition) {
+  void add_index(int index_number, const String_type &index_name,
+                 const String_type &index_definition) override {
     add_element(index_number, index_name, index_definition, &m_index_numbers,
                 &m_index_definitions);
   }
@@ -253,20 +253,20 @@ class Object_table_definition_impl : public Object_table_definition {
     return element_number(option_name, m_option_numbers);
   }
 
-  virtual String_type get_ddl() const;
+  String_type get_ddl() const override;
 
-  virtual const std::vector<String_type> &get_dml() const {
+  const std::vector<String_type> &get_dml() const override {
     return m_dml_statements;
   }
 
-  virtual void store_into_properties(Properties *table_def_properties) const;
+  void store_into_properties(Properties *table_def_properties) const override;
 
   virtual bool restore_from_string(const String_type &ddl_statement) {
     m_ddl_statement = ddl_statement;
     return false;
   }
 
-  virtual bool restore_from_properties(const Properties &table_def_properties);
+  bool restore_from_properties(const Properties &table_def_properties) override;
 };
 
 ///////////////////////////////////////////////////////////////////////////

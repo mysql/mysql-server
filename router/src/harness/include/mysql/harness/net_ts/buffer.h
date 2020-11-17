@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,11 +25,13 @@
 #ifndef MYSQL_HARNESS_NET_TS_BUFFER_H_
 #define MYSQL_HARNESS_NET_TS_BUFFER_H_
 
+#include <algorithm>  // copy
 #include <array>
-#include <cstring>  // memcpy
-#include <limits>   // std::numeric_limits
+#include <limits>     // std::numeric_limits
+#include <stdexcept>  // length_error
 #include <string>
 #include <system_error>
+#include <type_traits>
 #include <vector>
 
 #include "mysql/harness/stdx/expected.h"
@@ -71,7 +73,7 @@ inline const std::error_category &stream_category() noexcept {
 }
 
 inline std::error_code make_error_code(net::stream_errc e) noexcept {
-  return std::error_code(static_cast<int>(e), net::stream_category());
+  return {static_cast<int>(e), net::stream_category()};
 }
 
 // 16.4 [buffer.mutable]
@@ -187,24 +189,27 @@ namespace impl {
 // const_buffer_sequence and mutable_buffer_sequence share the same
 // requirements, just with different expected BufferTypes
 template <class T, class BufferType,
-          class Begin =
-              decltype(net::buffer_sequence_begin(std::declval<T &>())),
-          class End = decltype(net::buffer_sequence_end(std::declval<T &>()))>
-using buffer_sequence_requirements = std::enable_if_t<stdx::conjunction<
-    // check if buffer_sequence_begin(T &) and buffer_sequence_end(T &) exist
-    // and return the same type
-    std::is_same<Begin, End>,
-    // check if ::value_type of the retval of buffer_sequence_begin() can be
-    // converted into a BufferType
-    std::is_convertible<typename std::iterator_traits<Begin>::value_type,
-                        BufferType>>::value>;
+          class Begin = decltype(net::buffer_sequence_begin(
+              std::declval<typename std::add_lvalue_reference<T>::type>())),
+          class End = decltype(net::buffer_sequence_end(
+              std::declval<typename std::add_lvalue_reference<T>::type>()))>
+using buffer_sequence_requirements = std::integral_constant<
+    bool,
+    stdx::conjunction<
+        // check if buffer_sequence_begin(T &) and buffer_sequence_end(T &)
+        // exist and return the same type
+        std::is_same<Begin, End>,
+        // check if ::value_type of the retval of buffer_sequence_begin() can be
+        // converted into a BufferType
+        std::is_convertible<typename std::iterator_traits<Begin>::value_type,
+                            BufferType>>::value>;
 
 template <class T, class BufferType, class = void>
 struct is_buffer_sequence : std::false_type {};
 
 template <class T, class BufferType>
-struct is_buffer_sequence<T, BufferType,
-                          buffer_sequence_requirements<T, BufferType>>
+struct is_buffer_sequence<
+    T, BufferType, stdx::void_t<buffer_sequence_requirements<T, BufferType>>>
     : std::true_type {};
 
 template <class T>
@@ -239,8 +244,8 @@ template <class T, class U = std::remove_const_t<T>>
 auto dynamic_buffer_requirements(U *__x = nullptr, const U *__const_x = nullptr,
                                  size_t __n = 0)
     -> std::enable_if_t<stdx::conjunction<
-        // is move constructible
-        std::is_move_constructible<U>,
+        // is copy constructible
+        std::is_copy_constructible<U>,
         // has a const_buffers_type that's a const_buffer_sequence
         is_const_buffer_sequence<typename T::const_buffers_type>,
         // has a mutable_buffers_type that's a mutable_buffer_sequence
@@ -251,14 +256,16 @@ auto dynamic_buffer_requirements(U *__x = nullptr, const U *__const_x = nullptr,
         std::is_same<decltype(__const_x->max_size()), size_t>,
         // has 'size_t capacity() const' member
         std::is_same<decltype(__const_x->capacity()), size_t>,
-        // has 'size_t data() const' member
-        std::is_same<decltype(__const_x->data()),
+        // has 'const_buffer_type data(size_t, size_t) const' member
+        std::is_same<decltype(__const_x->data(__n, __n)),
                      typename T::const_buffers_type>,
-        // has 'mutable_buffers_type prepare(size_t)' member
-        std::is_same<decltype(__x->prepare(__n)),
+        // has 'mutable_buffers_type data(size_t, size_t)' member
+        std::is_same<decltype(__x->data(__n, __n)),
                      typename T::mutable_buffers_type>,
-        // has 'void commit(size_t)' member
-        std::is_void<decltype(__x->commit(__n))>,
+        // has 'void grow(size_t)' member
+        std::is_void<decltype(__x->grow(__n))>,
+        // has 'void shrink(size_t)' member
+        std::is_void<decltype(__x->shrink(__n))>,
         // has 'void consume(size_t)' member
         std::is_void<decltype(__x->consume(__n))>>::value>;
 
@@ -514,38 +521,69 @@ class dynamic_buffer_base {
   using mutable_buffers_type = mutable_buffer;
 
   explicit dynamic_buffer_base(T &v) noexcept
-      : v_{v}, size_{v.size()}, max_size_{v.max_size()} {}
+      : v_{v}, max_size_{v.max_size()} {}
   dynamic_buffer_base(T &v, size_t max_size) noexcept
-      : v_{v}, size_{v.size()}, max_size_{max_size} {}
-  dynamic_buffer_base(dynamic_buffer_base &&) = default;
+      : v_{v}, max_size_{max_size} {}
 
-  size_t size() const noexcept { return size_; }
+  /**
+   * number of bytes.
+   */
+  size_t size() const noexcept { return std::min(v_.size(), max_size_); }
+
+  /**
+   * max number of bytes.
+   */
   size_t max_size() const noexcept { return max_size_; }
-  size_t capacity() const noexcept { return v_.capacity(); }
-  const_buffers_type data() const noexcept { return buffer(v_, size_); }
-  mutable_buffers_type prepare(size_t n) {
-    // check the size_ + n doesn't overrun
-    if (size_ + n > max_size()) {
-      throw std::length_error("overrun");
-    }
-    v_.resize(size_ + n);
-    return buffer(buffer(v_) + size_, n);
+
+  /**
+   * max number of bytes without requiring reallocation.
+   */
+  size_t capacity() const noexcept {
+    return std::min(v_.capacity(), max_size_);
   }
-  void commit(size_t n) { size_ += std::min(n, v_.size() - size_); }
-  void consume(size_t n) {
-    size_t m = std::min(n, size_);
-    if (m == size_) {
+
+  const_buffers_type data(size_t pos, size_t n) const noexcept {
+    return buffer(buffer(v_, max_size_) + pos, n);
+  }
+
+  mutable_buffers_type data(size_t pos, size_t n) {
+    return buffer(buffer(v_, max_size_) + pos, n);
+  }
+
+  /**
+   * append bytes at the end.
+   */
+  void grow(size_t n) {
+    if (size() > max_size() || max_size() - size() < n) {
+      throw std::length_error("overflow");
+    }
+    v_.resize(v_.size() + n);
+  }
+
+  /**
+   * remove bytes at the end.
+   */
+  void shrink(size_t n) {
+    if (n >= size()) {
       v_.clear();
-      size_ = 0;
     } else {
-      v_.erase(v_.begin(), v_.begin() + m);
-      size_ -= m;
+      v_.resize(size() - n);
+    }
+  }
+  /**
+   * remove bytes at the start.
+   */
+  void consume(size_t n) {
+    size_t m = std::min(n, size());
+    if (m == size()) {
+      v_.clear();
+    } else {
+      v_.erase(v_.begin(), std::next(v_.begin(), m));
     }
   }
 
  private:
   T &v_;
-  size_t size_;
   const size_t max_size_;
 };
 
@@ -602,7 +640,7 @@ dynamic_string_buffer<CharT, Traits, Allocator> dynamic_buffer(
 class transfer_all {
  public:
   size_t operator()(const std::error_code &ec, size_t /* unused */) const {
-    if (!ec) return 1024 * 1024;  // send in chunks of 1Mbyte, any value is fine
+    if (!ec) return std::numeric_limits<size_t>::max();
 
     return 0;
   }
@@ -614,7 +652,7 @@ class transfer_at_least {
   explicit transfer_at_least(size_t m) : minimum_{m} {}
 
   size_t operator()(const std::error_code &ec, size_t n) const {
-    if (!ec && n < minimum_) return minimum_ - n;
+    if (!ec && n < minimum_) return std::numeric_limits<size_t>::max();
 
     return 0;
   }
@@ -747,7 +785,7 @@ class consuming_buffers {
 // 17.5 [buffer.read]
 
 template <class SyncReadStream, class MutableBufferSequence>
-std::enable_if_t<is_mutable_buffer_sequence_v<MutableBufferSequence>,
+std::enable_if_t<is_mutable_buffer_sequence<MutableBufferSequence>::value,
                  stdx::expected<size_t, std::error_code>>
 read(SyncReadStream &stream, const MutableBufferSequence &buffers) {
   static_assert(net::is_mutable_buffer_sequence<MutableBufferSequence>::value,
@@ -757,7 +795,7 @@ read(SyncReadStream &stream, const MutableBufferSequence &buffers) {
 
 template <class SyncReadStream, class MutableBufferSequence,
           class CompletionCondition>
-std::enable_if_t<is_mutable_buffer_sequence_v<MutableBufferSequence>,
+std::enable_if_t<is_mutable_buffer_sequence<MutableBufferSequence>::value,
                  stdx::expected<size_t, std::error_code>>
 read(SyncReadStream &stream, const MutableBufferSequence &buffers,
      CompletionCondition cond) {
@@ -783,14 +821,14 @@ read(SyncReadStream &stream, const MutableBufferSequence &buffers,
 }
 
 template <class SyncReadStream, class DynamicBuffer>
-std::enable_if_t<is_dynamic_buffer_v<std::decay_t<DynamicBuffer>>,
+std::enable_if_t<is_dynamic_buffer<std::decay_t<DynamicBuffer>>::value,
                  stdx::expected<size_t, std::error_code>>
 read(SyncReadStream &stream, DynamicBuffer &&b) {
   return read(stream, b, transfer_all());
 }
 
 template <class SyncReadStream, class DynamicBuffer, class CompletionCondition>
-std::enable_if_t<is_dynamic_buffer_v<std::decay_t<DynamicBuffer>>,
+std::enable_if_t<is_dynamic_buffer<std::decay_t<DynamicBuffer>>::value,
                  stdx::expected<size_t, std::error_code>>
 read(SyncReadStream &stream, DynamicBuffer &&b, CompletionCondition cond) {
   std::error_code ec{};
@@ -800,13 +838,33 @@ read(SyncReadStream &stream, DynamicBuffer &&b, CompletionCondition cond) {
 
   while (0 != (to_transfer = cond(ec, transferred)) &&
          b.size() != b.max_size()) {
-    to_transfer = 16 * 1024;
-    auto res = stream.read_some(b.prepare(to_transfer));
-    if (!res) return res;
+    auto orig_size = b.size();
+    // if there is space available, use that, if not grow by 4k
+    auto avail = b.capacity() - orig_size;
+    size_t grow_size = avail ? avail : 4 * 1024;
+    size_t space_left = b.max_size() - b.size();
+    // limit grow-size by possible space-left
+    grow_size = std::min(grow_size, space_left);
+    // limit grow-size by how much data we still have to read
+    grow_size = std::min(grow_size, to_transfer);
+
+    b.grow(grow_size);
+    auto res = stream.read_some(b.data(orig_size, grow_size));
+    if (!res) {
+      b.shrink(grow_size);
+
+      // if socket was non-blocking and some bytes where already read, return
+      // the success
+      if (res.error() == std::errc::resource_unavailable_try_again &&
+          transferred != 0) {
+        return transferred;
+      }
+      return res;
+    }
 
     transferred += *res;
 
-    b.commit(*res);
+    b.shrink(grow_size - *res);
   }
 
   return {transferred};
@@ -817,20 +875,18 @@ read(SyncReadStream &stream, DynamicBuffer &&b, CompletionCondition cond) {
 // 17.7 [buffer.write]
 
 template <class SyncWriteStream, class ConstBufferSequence>
-stdx::expected<size_t, std::error_code> write(
-    SyncWriteStream &stream, const ConstBufferSequence &buffers) {
-  static_assert(net::is_const_buffer_sequence<ConstBufferSequence>::value, "");
-
+std::enable_if_t<is_const_buffer_sequence<ConstBufferSequence>::value,
+                 stdx::expected<size_t, std::error_code>>
+write(SyncWriteStream &stream, const ConstBufferSequence &buffers) {
   return write(stream, buffers, transfer_all());
 }
 
 template <class SyncWriteStream, class ConstBufferSequence,
           class CompletionCondition>
-stdx::expected<size_t, std::error_code> write(
-    SyncWriteStream &stream, const ConstBufferSequence &buffers,
-    CompletionCondition cond) {
-  static_assert(net::is_const_buffer_sequence<ConstBufferSequence>::value, "");
-
+std::enable_if_t<is_const_buffer_sequence<ConstBufferSequence>::value,
+                 stdx::expected<size_t, std::error_code>>
+write(SyncWriteStream &stream, const ConstBufferSequence &buffers,
+      CompletionCondition cond) {
   std::error_code ec{};
 
   consuming_buffers<ConstBufferSequence, const_buffer> consumable(buffers);
@@ -847,6 +903,40 @@ stdx::expected<size_t, std::error_code> write(
   }
 
   return {consumable.total_consumed()};
+}
+
+template <class SyncWriteStream, class DynamicBuffer>
+std::enable_if_t<is_dynamic_buffer<DynamicBuffer>::value,
+                 stdx::expected<size_t, std::error_code>>
+write(SyncWriteStream &stream, DynamicBuffer &&b) {
+  return write(stream, std::forward<DynamicBuffer>(b), transfer_all());
+}
+
+template <class SyncWriteStream, class DynamicBuffer, class CompletionCondition>
+std::enable_if_t<is_dynamic_buffer<DynamicBuffer>::value,
+                 stdx::expected<size_t, std::error_code>>
+write(SyncWriteStream &stream, DynamicBuffer &&b, CompletionCondition cond) {
+  std::error_code ec{};
+
+  size_t to_transfer;
+  size_t transferred{};
+
+  while (0 != (to_transfer = cond(ec, transferred)) && (b.size() != 0)) {
+    auto res = stream.write_some(b.data(0, std::min(b.size(), to_transfer)));
+    if (!res) {
+      ec = res.error();
+    } else {
+      transferred += *res;
+
+      b.consume(*res);
+    }
+  }
+
+  if (ec && ec != std::errc::resource_unavailable_try_again) {
+    return stdx::make_unexpected(ec);
+  } else {
+    return transferred;
+  }
 }
 
 // 17.8 [buffer.async.write] not-implemented-yet

@@ -55,16 +55,22 @@ CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABL
 	0	NULL	YES	STREAM
 check_pfs.inc [Require_Row_Format column in performance_schema.replication_applier_configuration is set to 1 for server '4']
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 SELECT * FROM performance_schema.replication_applier_configuration;
 CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK
 	0	NULL	YES	STREAM
 check_pfs.inc [Require_Row_Format column in performance_schema.replication_applier_configuration is set to 1 for server '2']
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 SELECT * FROM performance_schema.replication_applier_configuration;
 CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK
 	0	NULL	YES	STREAM
 check_pfs.inc [Require_Row_Format column in performance_schema.replication_applier_configuration is set to 1 for server '3']
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 SELECT * FROM performance_schema.replication_applier_configuration;
 CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK
 	0	NULL	YES	STREAM
@@ -76,27 +82,51 @@ ERROR HY000: This operation cannot be performed with running replication threads
 CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1;
 ERROR HY000: This operation cannot be performed with running replication threads; run STOP SLAVE FOR CHANNEL '' first
 STOP SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1;
 ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
 START SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 STOP SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1;
 ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
 START SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 STOP SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1;
 ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
 START SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1;
 ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1;
 ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1;
 ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_end.inc

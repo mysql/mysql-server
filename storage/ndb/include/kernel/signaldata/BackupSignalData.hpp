@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,6 +51,7 @@ public:
   STATIC_CONST( WAITCOMPLETED = 0x3 );
   STATIC_CONST( USE_UNDO_LOG = 0x4 );
   STATIC_CONST( MT_BACKUP = 0x8);
+  STATIC_CONST( ENCRYPTED_BACKUP = 0x10);
 
 private:
   Uint32 senderData;
@@ -60,6 +61,19 @@ private:
    */
   Uint32 flags;
   Uint32 inputBackupId;
+};
+
+struct EncryptionPasswordData
+{
+  Uint32 password_length;
+  // one byte extra for trailing null, but for keep alignment make it four extra
+  alignas(Uint32) char encryption_password[MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH + 4];
+
+  EncryptionPasswordData()
+  {
+    password_length = 0;
+    memset(encryption_password, 0, sizeof(encryption_password));
+  }
 };
 
 class BackupData {
@@ -145,6 +159,11 @@ private:
     SequenceFailure = 1304,
     BackupDefinitionNotImplemented = 1305,
     CannotBackupDiskless = 1306,
+    EncryptionNotSupported = 1307,
+    EncryptionPasswordMissing = 1308,
+    BadEncryptionPassword = 1309,
+    EncryptionPasswordTooLong = 1310,
+    EncryptionPasswordZeroLength = 1311,
     BackupDuringUpgradeUnsupported = 1329
   };
   Uint32 senderData;

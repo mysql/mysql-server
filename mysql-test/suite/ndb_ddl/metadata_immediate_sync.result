@@ -297,6 +297,13 @@ test	child	TABLE
 test	parent	TABLE
 test	t1	TABLE
 Rebuild indexes in NDB
+Retry sync now that the indexes have been created
+SET GLOBAL ndb_metadata_sync = true;
+SHOW TABLES;
+Tables_in_test
+child
+parent
+t1
 SELECT * FROM t1;
 a	b	c
 1	2	3

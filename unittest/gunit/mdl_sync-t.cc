@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ class MDLSyncTest : public ::testing::Test {
  protected:
   MDLSyncTest() {}
 
-  void SetUp() {
+  void SetUp() override {
     /* Set debug sync timeout of 60 seconds. */
     opt_debug_sync_timeout = 60;
     debug_sync_init();
@@ -62,7 +62,7 @@ class MDLSyncTest : public ::testing::Test {
     table_def_init();
   }
 
-  void TearDown() {
+  void TearDown() override {
     m_initializer.TearDown();
     mdl_destroy();
     debug_sync_end();

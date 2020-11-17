@@ -47,6 +47,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tcp_port_pool.h"
 
 #include <chrono>
+#include <cstdint>
 #include <fstream>
 #include <stdexcept>
 #include <thread>
@@ -68,7 +69,7 @@ using JsonDocument =
 using JsonStringBuffer =
     rapidjson::GenericStringBuffer<rapidjson::UTF8<>, rapidjson::CrtAllocator>;
 
-constexpr auto kTTL = std::chrono::milliseconds(100);
+constexpr auto kTTL = 100ms;
 }  // namespace
 
 class StateFileTest : public RouterComponentTest {
@@ -125,7 +126,8 @@ class StateFileTest : public RouterComponentTest {
                       const std::string &metadata_cache_section,
                       const std::string &routing_section,
                       const std::string &state_file_path,
-                      const int expected_errorcode = EXIT_SUCCESS) {
+                      const int expected_errorcode = EXIT_SUCCESS,
+                      std::chrono::milliseconds wait_for_notify = 5s) {
     const std::string masterkey_file =
         Path(temp_test_dir).join("master.key").str();
     const std::string keyring_file = Path(temp_test_dir).join("keyring").str();
@@ -145,14 +147,19 @@ class StateFileTest : public RouterComponentTest {
         &default_section);
     auto &router = ProcessManager::launch_router(
         {"-c", conf_file}, expected_errorcode, /*catch_stderr=*/true,
-        /*with_sudo=*/false);
+        /*with_sudo=*/false,
+        /*wait_for_notify_ready=*/wait_for_notify);
     return router;
   }
 
   bool wait_log_file_contains(ProcessWrapper &router,
                               const std::string &expected_entry,
                               std::chrono::milliseconds max_wait_time) {
-    const auto kRetrySleep = 100ms;
+    auto kRetrySleep = 100ms;
+    if (getenv("WITH_VALGRIND")) {
+      max_wait_time *= 50;
+      kRetrySleep *= 10;
+    }
     do {
       const auto log_content = router.get_full_logfile();
       if (log_content.find(expected_entry) != std::string::npos) return true;
@@ -161,71 +168,6 @@ class StateFileTest : public RouterComponentTest {
       if (max_wait_time <= kRetrySleep) return false;
       max_wait_time -= kRetrySleep;
     } while (true);
-  }
-
-  bool wait_state_file_contains(
-      const std::string &state_file, const std::string &expected_gr_name,
-      const std::vector<std::string> expected_gr_nodes,
-      std::chrono::milliseconds max_wait_time) {
-    bool result = false;
-    const auto kRetrySleep = 100ms;
-    do {
-      result =
-          check_state_file(state_file, expected_gr_name, expected_gr_nodes);
-      if (result) return true;
-
-      std::this_thread::sleep_for(kRetrySleep);
-      if (max_wait_time <= kRetrySleep) return false;
-      max_wait_time -= kRetrySleep;
-    } while (true);
-  }
-
-#define CHECK_COND(c) \
-  if (!(c)) return false
-
-  bool check_state_file(const std::string &state_file,
-                        const std::string &expected_gr_name,
-                        const std::vector<std::string> &expected_gr_nodes) {
-    const std::string state_file_content =
-        get_file_output(state_file, /*throw_on_error =*/false);
-    JsonDocument json_doc;
-    json_doc.Parse(state_file_content.c_str());
-    const std::string kExpectedVersion = "1.0.0";
-
-    CHECK_COND(json_doc.HasMember("version"));
-    CHECK_COND(json_doc["version"].IsString());
-    CHECK_COND(kExpectedVersion == json_doc["version"].GetString());
-
-    CHECK_COND(json_doc.HasMember("metadata-cache"));
-    CHECK_COND(json_doc["metadata-cache"].IsObject());
-
-    auto metadata_cache_section = json_doc["metadata-cache"].GetObject();
-
-    CHECK_COND(metadata_cache_section.HasMember("group-replication-id"));
-    CHECK_COND(metadata_cache_section["group-replication-id"].IsString());
-    CHECK_COND(expected_gr_name ==
-               metadata_cache_section["group-replication-id"].GetString());
-
-    CHECK_COND(metadata_cache_section.HasMember("cluster-metadata-servers"));
-    CHECK_COND(metadata_cache_section["cluster-metadata-servers"].IsArray());
-    auto cluster_nodes =
-        metadata_cache_section["cluster-metadata-servers"].GetArray();
-    CHECK_COND(expected_gr_nodes.size() == cluster_nodes.Size());
-    for (unsigned i = 0; i < cluster_nodes.Size(); ++i) {
-      CHECK_COND(cluster_nodes[i].IsString());
-      CHECK_COND(expected_gr_nodes[i] == cluster_nodes[i].GetString());
-    }
-
-    // check that we have write access to the file
-    // just append it with an empty line, that will not break it
-    try {
-      std::ofstream ofs(state_file, std::ios::app);
-      ofs << "\n";
-    } catch (...) {
-      return false;
-    }
-
-    return true;
   }
 
   std::string create_state_file_content(
@@ -363,11 +305,8 @@ TEST_P(StateFileMetadataServersChangedInRuntimeTest,
       "// Check our state file content, it should not change yet, there is "
       "single metadata server reported as initially");
 
-  EXPECT_TRUE(wait_state_file_contains(
-      state_file, kGroupId,
-      {"mysql://" + node_host + ":" + std::to_string(cluster_nodes_ports[0])},
-      10 * kTTL))
-      << get_file_output(state_file);
+  check_state_file(state_file, kGroupId, {cluster_nodes_ports[0]}, 0,
+                   node_host);
 
   SCOPED_TRACE(
       "// Now change the response from the metadata server to return 3 gr "
@@ -381,13 +320,10 @@ TEST_P(StateFileMetadataServersChangedInRuntimeTest,
       "// Check our state file content, it should now contain 3 metadata "
       "servers");
 
-  EXPECT_TRUE(wait_state_file_contains(
+  check_state_file(
       state_file, kGroupId,
-      {"mysql://" + node_host + ":" + std::to_string(cluster_nodes_ports[0]),
-       "mysql://" + node_host + ":" + std::to_string(cluster_nodes_ports[1]),
-       "mysql://" + node_host + ":" + std::to_string(cluster_nodes_ports[2])},
-      std::chrono::milliseconds(10 * kTTL)))
-      << get_file_output(state_file);
+      {cluster_nodes_ports[0], cluster_nodes_ports[1], cluster_nodes_ports[2]},
+      0, node_host);
 
   ///////////////////////////////////////////////////
 
@@ -419,12 +355,9 @@ TEST_P(StateFileMetadataServersChangedInRuntimeTest,
   SCOPED_TRACE(
       "// Check our state file content, it should now contain 2 metadata "
       "servers reported by the second metadata server");
-  EXPECT_TRUE(wait_state_file_contains(
-      state_file, kGroupId,
-      {"mysql://" + node_host + ":" + std::to_string(cluster_nodes_ports[1]),
-       "mysql://" + node_host + ":" + std::to_string(cluster_nodes_ports[2])},
-      10000ms))
-      << get_file_output(state_file);
+  check_state_file(state_file, kGroupId,
+                   {cluster_nodes_ports[1], cluster_nodes_ports[2]}, 0,
+                   node_host, 10000ms);
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -502,10 +435,12 @@ TEST_P(StateFileMetadataServersInaccessibleTest, MetadataServersInaccessible) {
       "// Check our state file content, it should still contain out metadata "
       "server");
 
-  EXPECT_TRUE(wait_state_file_contains(
-      state_file, kGroupId,
-      {"mysql://127.0.0.1:" + std::to_string(cluster_node_port)}, 10000ms))
-      << get_file_output(state_file);
+  check_state_file(state_file, kGroupId, {cluster_node_port}, 0, "127.0.0.1",
+                   10s);
+
+  router.send_shutdown_event();
+
+  EXPECT_EQ(0, router.wait_for_exit());
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -545,11 +480,8 @@ TEST_P(StateFileGroupReplicationIdDiffersTest, GroupReplicationIdDiffers) {
 
   SCOPED_TRACE("// Launch  server mock that will act as our metadata server");
   const auto trace_file = get_data_dir().join(param.trace_file).str();
-  auto &cluster_node = ProcessManager::launch_mysql_server_mock(
+  /*auto &cluster_node =*/ProcessManager::launch_mysql_server_mock(
       trace_file, cluster_node_port, EXIT_SUCCESS, false, cluster_http_port);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(cluster_node, cluster_node_port));
-  ASSERT_TRUE(
-      MockServerRestClient(cluster_http_port).wait_for_rest_endpoint_ready());
 
   SCOPED_TRACE(
       "// Make our metadata server to return single node as a replicaset "
@@ -578,23 +510,19 @@ TEST_P(StateFileGroupReplicationIdDiffersTest, GroupReplicationIdDiffers) {
 
   SCOPED_TRACE("// Launch ther router with the initial state file");
   auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
-                               routing_section, state_file);
+                               routing_section, state_file, EXIT_SUCCESS, -1s);
 
   SCOPED_TRACE(
       "// Check our state file content, it should not change. "
       "We did not found the data for our replication group on any of the "
       "servers so we do not update the metadata srever list.");
 
-  EXPECT_TRUE(wait_state_file_contains(
-      state_file, kStateFileGroupId,
-      {"mysql://127.0.0.1:" + std::to_string(cluster_node_port)},
-      std::chrono::milliseconds(10 * kTTL)))
-      << get_file_output(state_file);
+  check_state_file(state_file, kStateFileGroupId, {cluster_node_port});
 
   SCOPED_TRACE("// We expect an error in the logfile");
   EXPECT_TRUE(wait_log_file_contains(
       router, "Failed fetching metadata from any of the 1 metadata servers",
-      10 * kTTL));
+      5s));
 
   // now try to connect to the router port, we expect error 2003
   std::string out_port_unused;
@@ -696,16 +624,11 @@ TEST_P(StateFileSplitBrainScenarioTest, SplitBrainScenario) {
       "// Check our state file content, it should now contain only the nodes "
       "from the first group.");
 
-  std::vector<std::string> expected_gr_nodes;
+  std::vector<uint16_t> node_ports;
   for (unsigned i = 0; i < 2; ++i) {
-    expected_gr_nodes.push_back("mysql://127.0.0.1:" +
-                                std::to_string(cluster_node_ports[i].first));
+    node_ports.push_back(cluster_node_ports[i].first);
   }
-
-  EXPECT_TRUE(wait_state_file_contains(state_file, kClusterGroupId,
-                                       expected_gr_nodes,
-                                       std::chrono::milliseconds(10 * kTTL)))
-      << get_file_output(state_file);
+  check_state_file(state_file, kClusterGroupId, node_ports);
 
   SCOPED_TRACE(
       "// Try to connect to the router port, we expect first port from the "
@@ -753,7 +676,7 @@ TEST_F(StateFileDynamicChangesTest, EmptyMetadataServersList) {
 
   SCOPED_TRACE("// Launch ther router with the initial state file");
   auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
-                               routing_section, state_file, EXIT_FAILURE);
+                               routing_section, state_file, EXIT_FAILURE, -1s);
 
   wait_for_port_ready(router_port);
 
@@ -799,7 +722,7 @@ class StateFileSchemaTest
     : public StateFileTest,
       public ::testing::WithParamInterface<StateFileSchemaTestParams> {
  protected:
-  virtual void SetUp() { StateFileTest::SetUp(); }
+  void SetUp() override { StateFileTest::SetUp(); }
 };
 
 /**
@@ -830,7 +753,7 @@ TEST_P(StateFileSchemaTest, ParametrizedStateFileSchemaTest) {
           : test_params.state_file_path;
 
   auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
-                               routing_section, state_file, EXIT_FAILURE);
+                               routing_section, state_file, EXIT_FAILURE, -1s);
 
   // the router should close with non-0 return value
   check_exit_code(router, EXIT_FAILURE);
@@ -1087,7 +1010,7 @@ class StateFileAccessRightsTest
     : public StateFileTest,
       public ::testing::WithParamInterface<StateFileAccessRightsTestParams> {
  protected:
-  virtual void SetUp() { StateFileTest::SetUp(); }
+  void SetUp() override { StateFileTest::SetUp(); }
 };
 
 /**
@@ -1116,7 +1039,7 @@ TEST_P(StateFileAccessRightsTest, ParametrizedStateFileSchemaTest) {
   chmod(state_file.c_str(), file_mode);
 
   auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
-                               routing_section, state_file, EXIT_FAILURE);
+                               routing_section, state_file, EXIT_FAILURE, -1s);
 
   // the router should close with non-0 return value
   check_exit_code(router, EXIT_FAILURE);
@@ -1128,7 +1051,7 @@ TEST_P(StateFileAccessRightsTest, ParametrizedStateFileSchemaTest) {
       [&](const std::string &line) -> bool {
         return pattern_found(line, test_params.expected_error);
       },
-      std::chrono::milliseconds(1));
+      1ms);
 
   EXPECT_TRUE(found);
 }
@@ -1150,7 +1073,7 @@ INSTANTIATE_TEST_SUITE_P(
 ////////////////////////////////////////////
 
 class StateFileDirectoryBootstrapTest : public StateFileTest {
-  virtual void SetUp() { StateFileTest::SetUp(); }
+  void SetUp() override { StateFileTest::SetUp(); }
 };
 
 /**
@@ -1173,20 +1096,18 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
   std::vector<std::string> router_cmdline{
       "--bootstrap=localhost:" + std::to_string(metadata_server_port), "-d",
       temp_test_dir.name()};
-  auto &router = ProcessManager::launch_router(router_cmdline);
+  auto &router = ProcessManager::launch_router(router_cmdline, EXIT_SUCCESS,
+                                               true, false, -1s);
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
-  check_exit_code(router, EXIT_SUCCESS, 1s);
+  check_exit_code(router, EXIT_SUCCESS, 5s);
 
   // check the state file that was produced, if it constains
   // what the bootstrap server has reported
   const std::string state_file = temp_test_dir.name() + "/data/state.json";
-  EXPECT_TRUE(
-      check_state_file(state_file, "cluster-specific-id",
-                       {"mysql://localhost:5500", "mysql://localhost:5510",
-                        "mysql://localhost:5520"}))
-      << get_file_output(state_file);
+  check_state_file(state_file, "cluster-specific-id", {5500, 5510, 5520}, 0,
+                   "localhost");
 
   // check that static file has a proper reference to the dynamic file
   const std::string static_conf = temp_test_dir.name() + "/mysqlrouter.conf";
@@ -1197,7 +1118,7 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
       [&](const std::string &line) -> bool {
         return pattern_found(line, expected_entry);
       },
-      std::chrono::milliseconds(1));
+      1ms);
 
   EXPECT_TRUE(found) << "Did not found: " << expected_entry << "\n"
                      << get_file_output("mysqlrouter.conf",
@@ -1213,14 +1134,14 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
 
 class StateFileSystemBootstrapTest : public StateFileTest,
                                      public RouterSystemLayout {
-  virtual void SetUp() {
+  void SetUp() override {
     StateFileTest::SetUp();
     RouterSystemLayout::init_system_layout_dir(get_mysqlrouter_exec(),
                                                ProcessManager::get_origin());
     set_mysqlrouter_exec(Path(exec_file_));
   }
 
-  virtual void TearDown() { RouterSystemLayout::cleanup_system_layout(); }
+  void TearDown() override { RouterSystemLayout::cleanup_system_layout(); }
 };
 
 /**
@@ -1240,22 +1161,20 @@ TEST_F(StateFileSystemBootstrapTest, SystemBootstrapTest) {
   SCOPED_TRACE("// Bootstrap against our metadata server");
   std::vector<std::string> router_cmdline{"--bootstrap=localhost:" +
                                           std::to_string(metadata_server_port)};
-  auto &router = ProcessManager::launch_router(router_cmdline);
+  auto &router = ProcessManager::launch_router(router_cmdline, EXIT_SUCCESS,
+                                               true, false, -1s);
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
-  check_exit_code(router, EXIT_SUCCESS, 1s);
+  check_exit_code(router, EXIT_SUCCESS, 5s);
 
   // check the state file that was produced, if it constains
   // what the bootstrap server has reported
   const std::string state_file =
       RouterSystemLayout::tmp_dir_ + "/stage/var/lib/mysqlrouter/state.json";
 
-  EXPECT_TRUE(
-      check_state_file(state_file, "cluster-specific-id",
-                       {"mysql://localhost:5500", "mysql://localhost:5510",
-                        "mysql://localhost:5520"}))
-      << get_file_output(state_file);
+  check_state_file(state_file, "cluster-specific-id", {5500, 5510, 5520}, 0,
+                   "localhost");
 }
 
 #endif  // SKIP_BOOTSTRAP_SYSTEM_DEPLOYMENT_TESTS

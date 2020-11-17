@@ -83,12 +83,12 @@ insert into t1 values (NULL,'sdj'),(NULL,'sdj'),(NULL,"abc"),(NULL,'abc'),(NULL,
 select * from t1;
 ordid	ord
 1	abc
-2	abc
-3	abc
 1	sdj
-2	sdj
-3	sdj
 1	zzz
+2	abc
+2	sdj
+3	abc
+3	sdj
 drop table t1;
 create table t1 (sid char(5), id int(2) NOT NULL auto_increment, key(sid,  id));
 Warnings:
@@ -137,8 +137,8 @@ last_insert_id()
 insert into t1 values (NULL);
 select * from t1;
 a
-1
 -1
+1
 2
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';

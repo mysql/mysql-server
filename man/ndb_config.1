@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/01/2020
+.\"      Date: 09/04/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_CONFIG\FR" "1" "06/01/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_CONFIG\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -68,7 +68,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.257.\ \&Command\-line options for the ndb_config program
+.B Table\ \&22.258.\ \&Command\-line options for the ndb_config program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -281,7 +281,6 @@ T}
 .IP \(bu 2.3
 .\}
 \fB\-\-configinfo\fR
-.sp
 The
 \fB\-\-configinfo\fR
 option causes
@@ -393,13 +392,6 @@ option to obtain output in XML format\&.
 \fB\-\-config\-file=\fR\fB\fIpath\-to\-file\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -435,13 +427,6 @@ is invoked, then an absolute path must be used\&.
 \fB\-\-config_from_node=#\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -492,13 +477,6 @@ fails with an error\&. (To obtain configuration data from the management node in
 \fB\-\-connections\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -549,13 +527,6 @@ and
 \fB\-\-diff\-default\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -592,13 +563,6 @@ Print only configuration parameters that have non\-default values\&.
 \fIdelimiter\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -655,13 +619,6 @@ for the linefeed character), then it must be quoted\&.
 \fB\-\-host=\fR\fB\fIhostname\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -725,13 +682,6 @@ in the same fashion\&.
 \fB\-\-mycnf\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -769,13 +719,6 @@ file\&.
 \fB\-c \fR\fB\fIconnection_string\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -815,13 +758,6 @@ localhost:1186\&.
 \fB\-\-nodeid=\fR\fB\fInode_id\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -856,13 +792,6 @@ Specify the node ID of the node for which configuration information is to be obt
 \fB\-\-nodes\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -911,13 +840,6 @@ and
 \fIquery\-options\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -980,13 +902,6 @@ If a given parameter is not applicable to a certain type of node, than an empty 
 \fB\-a\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -1022,13 +937,6 @@ Returns a comma\-delimited list of all query options (node attributes; note that
 \fIseparator\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -1083,13 +991,6 @@ for the linefeed character), then it must be quoted\&.
 \fB\-\-system\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -1136,13 +1037,6 @@ and
 \fB\-\-type=\fR\fB\fInode_type\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -1194,13 +1088,6 @@ ndb_mgmd) are returned\&.
 \fB\-?\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l.
 T{
 Command-Line Format
@@ -1229,13 +1116,6 @@ to print a list of available options, and then exit\&.
 \fB\-V\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l.
 T{
 Command-Line Format
@@ -1261,13 +1141,6 @@ to print a version information string, and then exit\&.
 \fB\-\-xml\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -1298,7 +1171,7 @@ to provide output as XML by adding this option\&. A portion of such output is sh
 .\}
 .nf
 shell> \fBndb_config \-\-configinfo \-\-xml\fR
-<configvariables protocolversion="1" ndbversionstring="5\&.7\&.30\-ndb\-7\&.5\&.19"
+<configvariables protocolversion="1" ndbversionstring="5\&.7\&.31\-ndb\-7\&.5\&.20"
                     ndbversion="460032" ndbversionmajor="7" ndbversionminor="5"
                     ndbversionbuild="0">
   <section name="SYSTEM">

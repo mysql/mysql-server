@@ -80,7 +80,7 @@ Warnings:
 Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 EXPLAIN FORMAT=tree select SQL_CALC_FOUND_ROWS * from t1 limit 10 offset 100;
 EXPLAIN
--> Limit/Offset: 10/100 row(s) (no early end due to SQL_CALC_FOUND_ROWS)
+-> Limit/Offset: 10/100 row(s) (no early end due to SQL_CALC_FOUND_ROWS)  (cost=1.30 rows=8)
     -> Table scan on t1  (cost=1.30 rows=8)
 
 Warnings:

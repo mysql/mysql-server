@@ -158,6 +158,7 @@ performance_schema_max_thread_instances	0
 performance_schema_session_connect_attrs_size	0
 performance_schema_setup_actors_size	0
 performance_schema_setup_objects_size	0
+performance_schema_show_processlist	OFF
 performance_schema_users_size	0
 select * from performance_schema.setup_instruments
 order by name;

@@ -140,6 +140,20 @@ ndbd_spj_api_support_short_TRANSID_AI(Uint32 x)
 }
 
 /**
+ * Does the SPJ-block (contrary to SPJ_API above) support
+ * short TRANSID_AI signals to be received.
+ */
+#define NDBD_SPJ_SHORT_TRANSID_AI NDB_MAKE_VERSION(8,0,22)
+
+static
+inline
+int
+ndbd_spj_support_short_TRANSID_AI(Uint32 x)
+{
+  return x >= NDBD_SPJ_SHORT_TRANSID_AI;
+}
+
+/**
  * An enhanced version of the SCAN_FRAGREQ signal has been
  * introduced in 7.6.4, where multiple fragments to be scanned
  * can be specified in a single 'REQ'.
@@ -527,7 +541,7 @@ ndbd_send_started_bitmask(Uint32 x)
 // New limitations from WL#12757
 
 #define NDBD_80_PROTOCOL_ACCEPT_74 NDB_MAKE_VERSION(7,4,6)
-#define NDBD_80_PROTOCOL_ACCEPT_75 NDB_MAKE_VERSION(7,5,6)
+#define NDBD_80_PROTOCOL_ACCEPT_75 NDB_MAKE_VERSION(7,5,4)
 #define NDBD_80_PROTOCOL_ACCEPT_76 NDB_MAKE_VERSION(7,6,4)
 
 static
@@ -638,4 +652,16 @@ ndbd_send_min_api_version(Uint32 x)
   return x >= NDBD_SEND_MIN_API_VERSION;
 }
 
+
+// Backup file encryption
+
+#define NDBD_SUPPORT_BACKUP_FILE_ENCRYPTION NDB_MAKE_VERSION(8,0,22)
+
+static
+inline
+bool
+ndbd_support_backup_file_encryption(Uint32 x)
+{
+  return x >= NDBD_SUPPORT_BACKUP_FILE_ENCRYPTION;
+}
 #endif

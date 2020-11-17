@@ -1,0 +1,195 @@
+create table t1 (p int not null primary key, u int not null, o int not null,
+unique (u), key(o)) engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+create table t2 (p int not null primary key, u int not null, o int not null,
+unique (u), key(o)) engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+create table t3 (a int not null primary key, b int not null) engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+create table t4 (c int not null primary key, d int not null) engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+insert into t1 values (1,1,1),(2,2,2),(3,3,3);
+insert into t2 values (1,1,1),(2,2,2),(3,3,3), (4,4,4), (5,5,5);
+insert into t3 values (1,10), (2,10), (3,30), (4, 30);
+insert into t4 values (1,10), (2,10), (3,30), (4, 30);
+explain select * from t2 where p NOT IN (select p from t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	test.t2.p	#	#	Child of 't2' in pushed join@1; Using where; Not exists
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`p` AS `p`,`test`.`t2`.`u` AS `u`,`test`.`t2`.`o` AS `o` from `test`.`t2` anti join (`test`.`t1`) on((`test`.`t1`.`p` = `test`.`t2`.`p`)) where true
+select * from t2 where p NOT IN (select p from t1) order by p;
+p	u	o
+4	4	4
+5	5	5
+explain select * from t2 where p NOT IN (select u from t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	u	u	4	test.t2.p	#	#	Child of 't2' in pushed join@1; Using where; Not exists
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`p` AS `p`,`test`.`t2`.`u` AS `u`,`test`.`t2`.`o` AS `o` from `test`.`t2` anti join (`test`.`t1`) on((`test`.`t1`.`u` = `test`.`t2`.`p`)) where true
+select * from t2 where p NOT IN (select u from t1) order by p;
+p	u	o
+4	4	4
+5	5	5
+explain select * from t2 where p NOT IN (select o from t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	o	o	4	test.t2.p	#	#	Child of 't2' in pushed join@1; Using where; Not exists
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`p` AS `p`,`test`.`t2`.`u` AS `u`,`test`.`t2`.`o` AS `o` from `test`.`t2` anti join (`test`.`t1`) on((`test`.`t1`.`o` = `test`.`t2`.`p`)) where true
+select * from t2 where p NOT IN (select o from t1) order by p;
+p	u	o
+4	4	4
+5	5	5
+explain select * from t2 where p NOT IN (select p+0 from t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Not exists; Using join buffer (hash join)
+Warnings:
+Note	1003	Can't push table 't1' as child, 'type' must be a 'ref' access
+Note	1003	/* select#1 */ select `test`.`t2`.`p` AS `p`,`test`.`t2`.`u` AS `u`,`test`.`t2`.`o` AS `o` from `test`.`t2` anti join (`test`.`t1`) on((`test`.`t2`.`p` = (`test`.`t1`.`p` + 0))) where true
+select * from t2 where p NOT IN (select p+0 from t1) order by p;
+p	u	o
+4	4	4
+5	5	5
+drop table t1;
+drop table t2;
+create table t1 (p int not null primary key, u int not null) engine=ndb;
+insert into t1 values (1,1),(2,2),(3,3);
+create table t2 as 
+select t1.*
+from t1 as t1, t1 as t2, t1 as t3, t1 as t4, t1 as t5, t1 as t6, t1 as t7, t1 as t8
+where t1.u = t2.u
+and t2.u = t3.u
+and t3.u = t4.u
+and t4.u = t5.u
+and t5.u = t6.u
+and t6.u = t7.u
+and t7.u = t8.u;
+select * from t2 order by 1;
+p	u
+1	1
+2	2
+3	3
+select * from t3 where a = any (select c from t4 where c = 1) order by a;
+a	b
+1	10
+select * from t3 where a in (select c from t4 where c = 1) order by a;
+a	b
+1	10
+select * from t3 where a <> some (select c from t4 where c = 1) order by a;
+a	b
+2	10
+3	30
+4	30
+select * from t3 where a > all (select c from t4 where c = 1) order by a;
+a	b
+2	10
+3	30
+4	30
+select * from t3 where row(1,10) = (select c,d from t4 where c = 1) order by a;
+a	b
+1	10
+2	10
+3	30
+4	30
+select * from t3 where exists (select * from t4 where c = 1) order by a;
+a	b
+1	10
+2	10
+3	30
+4	30
+drop table if exists t1, t2, t3, t4;
+create table t (k int, uq int, unique key ix1 (uq)) engine = ndb;
+insert into t values (1,3), (3,6), (6,9), (9,1);
+select * from t where 
+k in (select uq from t as subq where subq.k>10);
+k	uq
+drop table if exists t;
+End of 5.1 tests
+CREATE TABLE `i` (
+`col_int_key` int(11) DEFAULT NULL,
+KEY `col_int_key` (`col_int_key`)
+) ENGINE=ndbcluster
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+INSERT INTO `i` VALUES
+(37), (36), 
+(8), (16), (42), (6), (8),
+(11), (21), (13), (3), (41), (44),
+(4), (4)
+;
+CREATE TABLE `v` (
+`col_varchar_10_key` varchar(10) COLLATE latin1_bin DEFAULT NULL,
+`col_datetime_key` datetime DEFAULT NULL,
+`col_varchar_256` varchar(256) COLLATE latin1_bin NOT NULL DEFAULT '',
+`col_int_unique` int(11) DEFAULT NULL,
+`pk` int(11) NOT NULL,
+`col_char_16` char(16) COLLATE latin1_bin DEFAULT NULL,
+`col_varchar_256_unique` varchar(256) COLLATE latin1_bin DEFAULT NULL,
+`col_char_16_unique` char(16) COLLATE latin1_bin DEFAULT NULL,
+`col_int` int(11) DEFAULT NULL,
+`col_datetime_unique` datetime DEFAULT NULL,
+`col_datetime` datetime DEFAULT NULL,
+`col_char_16_key` char(16) COLLATE latin1_bin DEFAULT NULL,
+`col_varchar_256_key` varchar(256) COLLATE latin1_bin DEFAULT NULL,
+`col_int_key` int(11) DEFAULT NULL,
+`col_varchar_10` varchar(10) COLLATE latin1_bin DEFAULT NULL,
+`col_varchar_10_unique` varchar(10) COLLATE latin1_bin DEFAULT NULL,
+PRIMARY KEY (`pk`,`col_varchar_256`),
+KEY `col_int_key` (`col_int_key`)
+) ENGINE=ndbcluster
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+INSERT INTO `v` VALUES
+('you\'re','2009-07-16 09:36:26','hkovsqapozumxaaufxv',4,3,'ghkovsqapozumx','well','cgh',1,'2003-12-19 20:20:58',NULL,'zcghkovsqapozumx','for',38,'ozcghkovsq','up'),
+('how','2009-04-19 21:37:41','something',16,4,'I','fozcghkovsqapozumxaaufx','ofozcghkovsqapoz',16,NULL,NULL,'to','gofozcg',50,'dgofozcghk','back'),
+('lcdytrrpqh','2000-08-25 17:23:04','jlcdytrrpqhjwzwdqfcnuiisfrmapu',18,13,'djlcdytrrpqhjwz','odjlcdytrrpqhjwzwdqfcnuiisf','of',6,NULL,'2003-12-21 02:53:21','xodjlcdytrrpqhjw','kxodjlcdytrrpqhjwzwdqfcnui',10,'xkxodjlcdy','you\'re'),
+('want','2009-06-09 21:32:42','come',25,24,'yrprhaqtqyuyryml','fyrprhaqtqyuyrymlfv','xfyrprhaqtq',27,NULL,'2007-07-26 02:41:45','nxfyrprhaqtqyuyr','really',13,'mnxfyrprha','a'),
+('pozumxaauf',NULL,'there',48,2,'a','qap','sqapozumxaaufxvm',12,NULL,'2008-08-12 14:41:31','vsqapozumxaaufxv','I\'m',45,'ovsqapozum','kovsqapozu'),
+('going','2001-11-17 21:30:28','syodnmxkxodjlcdytrr',43,16,'v','dvsyodnmxkxod','ud',46,'2000-03-19 11:23:59','2000-08-05 09:22:19','some','she',40,'iudv','all'),
+('ekzgviudvs','2009-02-26 08:37:21','nekzgviudvsyod',49,17,'inekzgviudvsyodn','cinekzgviudvsyodn','ok',12,'2007-12-04 07:42:22','2002-10-07 12:27:21','fcinekzgviudvsyo','to',6,'bfcinekz','hbfcin'),
+('a',NULL,'sfrmapuikkd',9,9,'isfrmapuikkdlzaj','he\'s','iisfrmapuikkdlza',5,NULL,NULL,'got','uiisfrmapuikkdlzajntnnwrkdgofoz',28,'nuiisfrmap','cnuiisfrma'),
+('odnmxkxo','2006-08-28 02:18:02','for',8,15,'my','hey','who',3,'2002-11-18 21:58:14',NULL,'right','yodnmxkxodjlcdytrrpqhjwz',0,'get','had'),
+('your','2000-01-02 20:39:51','can',35,20,'aqgwquyt','gaqgwquytisgdhbfcinekzgviud','cgaqgwquytisgdhb',13,'2005-05-08 17:20:27','2003-07-08 19:23:36','be','lcgaqgwquytisgdhbfcinek',13,'can\'t','like'),
+('tisgdhbfci',NULL,'ytisgdhbfcinekzgviudvsyodnmx',38,19,'uy','quytisgdhbfci','wquyti',3,'2008-06-20 00:22:51','2007-11-18 22:50:03','at','gwqu',31,'qgwquytisg','one'),
+('rpqh',NULL,'rrpqhjwzwdqfcnuiisf',10,12,'go','yes','trrpqhjwzwdqfcnu',38,'2007-10-04 05:31:37',NULL,'ytrr','dytrrpqhjwzwdqfcnuii',7,'cdytrrpqhj','say'),
+('on',NULL,'say',33,23,'about','izjphzzxquxwwrxan','I\'ll',7,'2009-02-10 20:02:17','2005-03-05 21:18:45','are','my',4,'lizjphzzxq','out'),
+('just',NULL,'with',22,8,'rmap','something','something',4,NULL,'2006-01-14 09:08:21','or','mean',31,'frmapuikkd','here'),
+('who','2000-07-21 09:51:12','or',28,10,'fcnuiisfrmapuikk','for','me',13,'2001-03-20 15:30:14','2003-09-12 10:09:54','is','qfcn',3,'when','well');
+analyze table i,v;
+Table	Op	Msg_type	Msg_text
+test.i	analyze	status	OK
+test.v	analyze	status	OK
+set ndb_join_pushdown = off;
+set optimizer_switch= 'firstmatch=off';
+set optimizer_switch= 'materialization=off';
+explain
+SELECT pk, col_int_key
+FROM v AS table1 
+WHERE table1.col_int_key IN (SELECT col_int_key AS field2 FROM i as table1s)
+;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	table1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	col_int_key	NULL	NULL	NULL	15	100.00	Using pushed condition (`test`.`table1`.`col_int_key` is not null)
+1	SIMPLE	table1s	p0,p1,p2,p3,p4,p5,p6,p7	ref	col_int_key	col_int_key	5	test.table1.col_int_key	1	100.00	Start temporary; End temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`table1`.`pk` AS `pk`,`test`.`table1`.`col_int_key` AS `col_int_key` from `test`.`v` `table1` semi join (`test`.`i` `table1s`) where (`test`.`table1s`.`col_int_key` = `test`.`table1`.`col_int_key`)
+SELECT pk, col_int_key
+FROM v AS table1 
+WHERE table1.col_int_key IN (SELECT col_int_key AS field2 FROM i as table1s)
+;
+pk	col_int_key
+10	3
+17	6
+20	13
+23	4
+24	13
+set optimizer_switch= default;
+DROP TABLE IF EXISTS i,v;
+End of 5.6 tests

@@ -524,7 +524,7 @@ DEALLOCATE PREPARE stmt;
 --echo #
 CREATE TABLE t1 (id INT, jc JSON);
 
---error ER_TF_FORBIDDEN_JOIN_TYPE
+--error ER_UNKNOWN_TABLE
 SELECT * FROM t1 RIGHT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
   (id FOR ORDINALITY)) as jt ON t1.jc=jt.id;
 
@@ -532,7 +532,6 @@ SELECT * FROM t1 RIGHT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
 SELECT * FROM JSON_TABLE(t1.jc, '$' COLUMNS
   (id FOR ORDINALITY)) as jt LEFT JOIN t1 ON t1.jc=jt.id;
 
---error ER_UNKNOWN_TABLE
 SELECT * FROM JSON_TABLE(t1.jc, '$' COLUMNS
   (id FOR ORDINALITY)) as jt RIGHT JOIN t1 ON t1.jc=jt.id;
 
@@ -550,38 +549,41 @@ EXPLAIN SELECT * FROM t1 t1o RIGHT JOIN t1 ON t1o.id=t1.id
   LEFT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
                        (id FOR ORDINALITY)) as jt ON t1.jc=jt.id;
 
---error ER_TF_FORBIDDEN_JOIN_TYPE
+# Error code can be ER_UNKNOWN_TABLE or ER_BAD_FIELD_ERROR
+# (see find_field_in_tables()), both are acceptable.
+
+--error ER_BAD_FIELD_ERROR
 SELECT * FROM t1 AS t1o RIGHT JOIN
   (t1 AS t1i JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
                             (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
   ON t1o.id=t1i.id;
 
---error ER_TF_FORBIDDEN_JOIN_TYPE
+--error ER_UNKNOWN_TABLE
 SELECT * FROM t1 AS t1o RIGHT JOIN
   (t1 AS t1i RIGHT JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
                             (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
   ON t1o.id=t1i.id;
 
---error ER_TF_FORBIDDEN_JOIN_TYPE
+--error ER_UNKNOWN_TABLE
 WITH qn AS
   (SELECT jt.* FROM t1 RIGHT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
     (id FOR ORDINALITY)) as jt ON t1.jc=jt.id)
   SELECT * from qn;
 
---error ER_TF_FORBIDDEN_JOIN_TYPE
+--error ER_UNKNOWN_TABLE
 WITH qn AS
   (SELECT 1 UNION
    SELECT jt.id FROM t1 RIGHT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
     (id FOR ORDINALITY)) as jt ON t1.jc=jt.id)
   SELECT * from qn;
 
---error ER_TF_FORBIDDEN_JOIN_TYPE
+--error ER_BAD_FIELD_ERROR
 SELECT * FROM t1 AS t1o RIGHT JOIN
   (t1 AS t1i JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
                             (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
   ON t1o.id=t1i.id;
 
---error ER_TF_FORBIDDEN_JOIN_TYPE
+--error ER_UNKNOWN_TABLE
 SELECT * FROM t1 AS t1o RIGHT JOIN
   (t1 AS t1i RIGHT JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
                             (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
@@ -597,7 +599,7 @@ SELECT * FROM t1 LEFT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
 EXPLAIN SELECT * FROM t1 LEFT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
   (id INT PATH '$')) as jt ON t1.id=jt.id;
 
---error ER_TF_FORBIDDEN_JOIN_TYPE
+--error ER_UNKNOWN_TABLE
 SELECT * FROM t1 
   LEFT JOIN
     JSON_TABLE(t1.jc, '$' COLUMNS (id FOR ORDINALITY)) as jt ON t1.jc=jt.id
@@ -1491,3 +1493,14 @@ JSON_TABLE(
            c3path INT PATH '$.c3' ERROR ON ERROR
          )
 ) as jt;
+
+--echo #
+--echo # Bug #31327187 UBSAN: JSON_TABLE: NULL POINTER PASSED AS ARGUMENT 2,
+--echo #               WHICH IS DECLARED TO NEVER BE NULL
+--echo #
+
+SELECT HEX(a) FROM JSON_TABLE(
+  '[{"E":{"e":true,"~":1,"S3":"sTa"},"r":3,"":6.7},"",6.5]',
+  '$'
+  COLUMNS(a BINARY(5) PATH '$[1]' NULL ON EMPTY)
+) e;

@@ -18,18 +18,22 @@ INSERT INTO t1 (a, b) VALUES (1,1), (1,2), (1,3), (1,4), (1,5),
 EXPLAIN SELECT max(b), a FROM t1 GROUP BY a;
 FLUSH STATUS;
 SELECT max(b), a FROM t1 GROUP BY a;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'handler_read__e%';
 --replace_column 10 X
 EXPLAIN SELECT max(b), a FROM t1 GROUP BY a;
 FLUSH STATUS;
 CREATE TABLE t2 SELECT max(b), a FROM t1 GROUP BY a;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'handler_read__e%';
 FLUSH STATUS;
 SELECT * FROM (SELECT max(b), a FROM t1 GROUP BY a) b;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'handler_read__e%';
 FLUSH STATUS;
 (SELECT max(b), a FROM t1 GROUP BY a) UNION
  (SELECT max(b), a FROM t1 GROUP BY a);
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'handler_read__e%';
 --replace_column 10 X
 EXPLAIN (SELECT max(b), a FROM t1 GROUP BY a) UNION
@@ -68,19 +72,23 @@ SHOW CREATE TABLE t3;
 --enable_query_log
 FLUSH STATUS;
 INSERT INTO t3 SELECT a,MAX(b) FROM t1 GROUP BY a;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'handler_read__e%';
 DELETE FROM t3;
 FLUSH STATUS;
 INSERT INTO t3 SELECT 1, (SELECT MAX(b) FROM t1 GROUP BY a HAVING a < 2) 
   FROM t1 LIMIT 1;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'handler_read__e%';
 FLUSH STATUS;
 DELETE FROM t3 WHERE (SELECT MAX(b) FROM t1 GROUP BY a HAVING a < 2) > 10000;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'handler_read__e%';
 FLUSH STATUS;
 --error ER_SUBQUERY_NO_1_ROW
 DELETE FROM t3 WHERE (SELECT (SELECT MAX(b) FROM t1 GROUP BY a HAVING a < 2) x 
                       FROM t1) > 10000;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'handler_read__e%';
 
 DROP TABLE t1,t2,t3;

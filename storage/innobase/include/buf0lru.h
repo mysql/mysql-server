@@ -78,7 +78,7 @@ void buf_LRU_insert_zip_clean(buf_page_t *bpage);
 /** Try to free a block.  If bpage is a descriptor of a compressed-only
 page, the descriptor object will be freed as well.
 NOTE: this function may temporarily release and relock the
-buf_page_get_get_mutex(). Furthermore, the page frame will no longer be
+buf_page_get_mutex(). Furthermore, the page frame will no longer be
 accessible via bpage. If this function returns true, it will also release
 the LRU list mutex.
 The caller must hold the LRU list and buf_page_get_mutex() mutexes.
@@ -159,6 +159,10 @@ void buf_unzip_LRU_add_block(buf_block_t *block, ibool old);
 @param[in]	bpage	control block */
 void buf_LRU_make_block_young(buf_page_t *bpage);
 
+/** Moves a block to the end of the LRU list.
+@param[in]	bpage	control block */
+void buf_LRU_make_block_old(buf_page_t *bpage);
+
 /** Updates buf_pool->LRU_old_ratio.
  @return updated old_pct */
 uint buf_LRU_old_ratio_update(
@@ -183,9 +187,10 @@ the block mutexes will be released.
                                 could be not initialized */
 void buf_LRU_free_one_page(buf_page_t *bpage, bool zip, bool ignore_content);
 
-/** Adjust LRU hazard pointers if needed. */
-void buf_LRU_adjust_hp(buf_pool_t *buf_pool, /*!< in: buffer pool instance */
-                       const buf_page_t *bpage); /*!< in: control block */
+/** Adjust LRU hazard pointers if needed.
+@param[in] buf_pool Buffer pool instance
+@param[in] bpage Control block */
+void buf_LRU_adjust_hp(buf_pool_t *buf_pool, const buf_page_t *bpage);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** Validates the LRU list.
@@ -197,7 +202,8 @@ ibool buf_LRU_validate(void);
 void buf_LRU_print(void);
 #endif /* UNIV_DEBUG_PRINT || UNIV_DEBUG || UNIV_BUF_DEBUG */
 
-/** @name Heuristics for detecting index scan @{ */
+/** @name Heuristics for detecting index scan
+@{ */
 /** The denominator of buf_pool->LRU_old_ratio. */
 #define BUF_LRU_OLD_RATIO_DIV 1024
 /** Maximum value of buf_pool->LRU_old_ratio.
@@ -221,7 +227,7 @@ The minimum must exceed
 /** Move blocks to "new" LRU list only if the first access was at
 least this many milliseconds ago.  Not protected by any mutex or latch. */
 extern uint buf_LRU_old_threshold_ms;
-/* @} */
+/** @} */
 
 /** @brief Statistics for selecting the LRU list for eviction.
 

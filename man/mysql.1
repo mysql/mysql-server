@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/01/2020
+.\"      Date: 09/04/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "06/01/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -273,7 +273,7 @@ mysql> \fBSELECT CHAR(0x41), UNHEX(\*(Aq41\*(Aq);\fR
 .IP \(bu 2.3
 .\}
 \fB\-\-binary\-as\-hex\fR
-disabled:
+enabled:
 .sp
 .if n \{\
 .RS 4
@@ -456,7 +456,10 @@ Write column names in results\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-column\-type\-info\fR
-Display result set metadata\&.
+Display result set metadata\&. This information corresponds to the contents of C API
+MYSQL_FIELD
+data structures\&. See
+\m[blue]\fBC API Data Structures\fR\m[]\&\s-2\u[2]\d\s+2\&.
 .RE
 .sp
 .RS 4
@@ -506,10 +509,10 @@ Comment stripping is deprecated\&. This feature and the options to control it wi
 \fB\-\-compress\fR,
 \fB\-C\fR
 Compress all information sent between the client and the server if possible\&. See
-Section\ \&4.2.6, \(lqConnection Compression Control\(rq\&.
+Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
 .sp
 As of MySQL 8\&.0\&.18, this option is deprecated\&. It will be removed in a future MySQL version\&. See
-the section called \(lqLegacy Connection Compression Configuration\(rq\&.
+the section called \(lqConfiguring Legacy Connection Compression\(rq\&.
 .RE
 .sp
 .RS 4
@@ -527,7 +530,7 @@ system variable\&. The default value is
 uncompressed\&.
 .sp
 For more information, see
-Section\ \&4.2.6, \(lqConnection Compression Control\(rq\&.
+Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
 .sp
 This option was added in MySQL 8\&.0\&.18\&.
 .RE
@@ -773,8 +776,8 @@ the section called \(lqMYSQL CLIENT COMMANDS\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-dns\-srv\-name=\fR\fB\fIname\fR\fR
-Specifies the name of a DNS SRV record that determines the candidate hosts to use for establishing a connection to a MySQL server\&. In high availability scenarios, data may be mirrored among multiple MySQL servers, but it is cumbersome for applications to directly manage the set of servers that defines the candidates for connection attempts\&. As an alternative, DNS SRV records enable a DNS admininstrator to map a single DNS domain to multiple servers\&. The DNS admininstrator can update this in a central location, which is convenient for changing server host names, or adding or removing servers in the group\&. Applications then can use the DNS SRV record for information about candidate MySQL servers\&. For general information about DNS SRV, see
-\m[blue]\fBRFC 2782\fR\m[]\&\s-2\u[2]\d\s+2\&.
+Specifies the name of a DNS SRV record that determines the candidate hosts to use for establishing a connection to a MySQL server\&. For information about DNS SRV support in MySQL, see
+Section\ \&4.2.6, \(lqConnecting to the Server Using DNS SRV Records\(rq\&.
 .sp
 Suppose that DNS is configured with this SRV information for the
 example\&.com
@@ -784,7 +787,7 @@ domain:
 .RS 4
 .\}
 .nf
-Record                   TTL   Class   Priority Weight Port Target
+Name                     TTL   Class   Priority Weight Port Target
 _mysql\&._tcp\&.example\&.com\&. 86400 IN SRV  0        5      3306 host1\&.example\&.com
 _mysql\&._tcp\&.example\&.com\&. 86400 IN SRV  0        10     3306 host2\&.example\&.com
 _mysql\&._tcp\&.example\&.com\&. 86400 IN SRV  10       5      3306 host3\&.example\&.com
@@ -809,12 +812,12 @@ mysql \-\-dns\-srv\-name=_mysql\&._tcp\&.example\&.com
 .\}
 .sp
 \fBmysql\fR
-then attempts a connection to each server in the group until a successful connection is established\&. Failure occurs only if a connection cannot be established to any of the servers\&. The priority and weight values in the DNS SRV record determine the order in which servers should be tried\&.
+then attempts a connection to each server in the group until a successful connection is established\&. A failure to connect occurs only if a connection cannot be established to any of the servers\&. The priority and weight values in the DNS SRV record determine the order in which servers should be tried\&.
 .sp
 When invoked with
 \fB\-\-dns\-srv\-name\fR,
 \fBmysql\fR
-attempts to establish TCP/IP connections only\&.
+attempts to establish TCP connections only\&.
 .sp
 The
 \fB\-\-dns\-srv\-name\fR
@@ -827,7 +830,7 @@ mysql_real_connect_dns_srv()
 C API function rather than
 mysql_real_connect()\&. However, if the
 connect
-command is subsequently used at runtime and specifies a host name argument, that host takes precedence over any
+command is subsequently used at runtime and specifies a host name argument, that host name takes precedence over any
 \fB\-\-dns\-srv\-name\fR
 option given at
 \fBmysql\fR
@@ -945,7 +948,7 @@ mysql_real_connect_dns_srv()
 C API function rather than
 mysql_real_connect()\&. However, if the
 connect
-command is subsequently used at runtime and specifies a host name argument, that host takes precedence over any
+command is subsequently used at runtime and specifies a host name argument, that host name takes precedence over any
 \fB\-\-dns\-srv\-name\fR
 option given at
 \fBmysql\fR
@@ -1508,8 +1511,8 @@ the section called \(lqMYSQL CLIENT COMMANDS\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
-The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally result in use of a protocol other than the one you want\&. For details on the permissible values, see
-Section\ \&4.2.4, \(lqConnecting to the MySQL Server Using Command Options\(rq\&.
+The transport protocol to use for connecting to the server\&. It is useful when the other connection parameters normally result in use of a protocol other than the one you want\&. For details on the permissible values, see
+Section\ \&4.2.7, \(lqConnection Transport Protocols\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1805,7 +1808,7 @@ Controls whether to enable FIPS mode on the client side\&. The
 option differs from other
 \fB\-\-ssl\-\fR\fB\fIxxx\fR\fR
 options in that it is not used to establish encrypted connections, but rather to affect which cryptographic operations to permit\&. See
-Section\ \&6.6, \(lqFIPS Support\(rq\&.
+Section\ \&6.8, \(lqFIPS Support\(rq\&.
 .sp
 These
 \fB\-\-ssl\-fips\-mode\fR
@@ -2127,7 +2130,7 @@ zstd
 compression\&.
 .sp
 For more information, see
-Section\ \&4.2.6, \(lqConnection Compression Control\(rq\&.
+Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
 .sp
 This option was added in MySQL 8\&.0\&.18\&.
 .RE
@@ -2332,7 +2335,7 @@ is set to something other than the default of
 ;, instances of that character are sent to the server without interpretation\&. However, the server itself still interprets
 ;
 as a statement delimiter and processes statements accordingly\&. This behavior on the server side comes into play for multiple\-statement execution (see
-Section\ \&28.7.22, \(lqC API Multiple Statement Execution Support\(rq), and for parsing the body of stored procedures and functions, triggers, and events (see
+\m[blue]\fBC API Multiple Statement Execution Support\fR\m[]\&\s-2\u[3]\d\s+2), and for parsing the body of stored procedures and functions, triggers, and events (see
 Section\ \&24.1, \(lqDefining Stored Programs\(rq)\&.
 .RE
 .sp
@@ -2575,8 +2578,8 @@ Reset the connection to clear the session state\&.
 Resetting a connection has effects similar to
 mysql_change_user()
 or an auto\-reconnect except that the connection is not closed and reopened, and re\-authentication is not done\&. See
-Section\ \&28.7.6.3, \(lqmysql_change_user()\(rq, and
-Section\ \&28.7.27, \(lqC API Automatic Reconnection Control\(rq\&.
+\m[blue]\fBmysql_change_user()\fR\m[]\&\s-2\u[4]\d\s+2, and
+\m[blue]\fBC API Automatic Reconnection Control\fR\m[]\&\s-2\u[5]\d\s+2\&.
 .sp
 This example shows how
 resetconnection
@@ -4341,7 +4344,7 @@ Section\ \&8.3.1, \(lqHow MySQL Uses Indexes\(rq)\&. Suppose that an indexed str
 c1
 is compared to a numeric value using
 WHERE c1 = 2222\&. For such comparisons, the string value is converted to a number and the operands are compared numerically (see
-Section\ \&12.2, \(lqType Conversion in Expression Evaluation\(rq), preventing use of the index\&. If safe\-updates mode is enabled, an error occurs\&.
+Section\ \&12.3, \(lqType Conversion in Expression Evaluation\(rq), preventing use of the index\&. If safe\-updates mode is enabled, an error occurs\&.
 .RE
 .PP
 As of MySQL 8\&.0\&.13, safe\-updates mode also includes these behaviors:
@@ -4436,7 +4439,7 @@ client with the
 option\&.
 .PP
 For more information about auto\-reconnect and its effect on state information when a reconnection occurs, see
-Section\ \&28.7.27, \(lqC API Automatic Reconnection Control\(rq\&.
+\m[blue]\fBC API Automatic Reconnection Control\fR\m[]\&\s-2\u[5]\d\s+2\&.
 mysql Client Parser Versus Server Parser
 .PP
 The
@@ -4524,9 +4527,24 @@ MySQL Shell 8.0 (part of MySQL 8.0)
 \%https://dev.mysql.com/doc/mysql-shell/8.0/en/
 .RE
 .IP " 2." 4
-RFC 2782
+C API Data Structures
 .RS 4
-\%https://tools.ietf.org/html/rfc2782
+\%https://dev.mysql.com/doc/c-api/8.0/en/c-api-data-structures.html
+.RE
+.IP " 3." 4
+C API Multiple Statement Execution Support
+.RS 4
+\%https://dev.mysql.com/doc/c-api/8.0/en/c-api-multiple-queries.html
+.RE
+.IP " 4." 4
+mysql_change_user()
+.RS 4
+\%https://dev.mysql.com/doc/c-api/8.0/en/mysql-change-user.html
+.RE
+.IP " 5." 4
+C API Automatic Reconnection Control
+.RS 4
+\%https://dev.mysql.com/doc/c-api/8.0/en/c-api-auto-reconnect.html
 .RE
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,

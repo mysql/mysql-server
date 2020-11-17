@@ -59,6 +59,8 @@ server2
 #
 server2
 STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 #
 # UnLock table t1: First phase of recovery can carry on.
 # Member 2 will error out as it can't wait for data execution

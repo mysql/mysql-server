@@ -27,7 +27,7 @@ test.t2	analyze	status	OK
 set optimizer_switch="firstmatch=on,materialization=off";
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=off,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=off,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=off,derived_condition_pushdown=on
 EXPLAIN SELECT 1 as a FROM dual
 WHERE NOT EXISTS (SELECT * FROM t1 AS it);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -163,7 +163,7 @@ pk
 set optimizer_switch="firstmatch=off,materialization=on";
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=off,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=off,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=off,derived_condition_pushdown=on
 EXPLAIN SELECT 1 as a FROM dual
 WHERE NOT EXISTS (SELECT * FROM t1 AS it);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -913,12 +913,12 @@ EXPLAIN
     -> Filter: (exists(select #3) is false and ((t1.col_int > (select #2)) and exists(select #3) is false))  (cost=0.35 rows=1)
         -> Table scan on t2  (cost=0.35 rows=1)
         -> Select #3 (subquery in condition; run only once)
-            -> Limit: 1 row(s)
+            -> Limit: 1 row(s)  (cost=0.35 rows=1)
                 -> Index scan on t4 using PRIMARY  (cost=0.35 rows=1)
         -> Select #2 (subquery in condition; uncacheable)
             -> Index scan on t3 using PRIMARY  (cost=0.35 rows=1)
         -> Select #3 (subquery in condition; run only once)
-            -> Limit: 1 row(s)
+            -> Limit: 1 row(s)  (cost=0.35 rows=1)
                 -> Index scan on t4 using PRIMARY  (cost=0.35 rows=1)
 
 SELECT * FROM t1 LEFT JOIN t1 AS t2
@@ -1096,3 +1096,25 @@ EXPLAIN
 select a from t where 1 not in (select 1 from t);
 a
 drop table t;
+#
+# Bug#31425664 RECENT REGRESSION: CRASH IN ITEM::SAVE_IN_FIELD
+#
+CREATE TABLE t (a TIME);
+CREATE TABLE s (b INT);
+INSERT INTO t VALUES('11:11:11.1111'),('22:22:22.2222');
+INSERT INTO t VALUES('11:11:11.1111'),('22:22:22.2222');
+INSERT INTO t VALUES('11:11:11.1111'),('22:22:22.2222');
+INSERT INTO s VALUES(1),(2),(3),(4);
+SELECT 1 FROM t WHERE NOT EXISTS
+(
+SELECT 1 FROM s
+WHERE a=FROM_UNIXTIME(1536999178)
+);
+1
+1
+1
+1
+1
+1
+1
+DROP TABLE t,s;

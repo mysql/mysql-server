@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@ class Mock_logger : public ILogger {
  public:
   MOCK_METHOD2(log, void(longlong level, const char *msg));
 
-  void log(longlong level, longlong errcode, ...) {
+  void log(longlong level, longlong errcode, ...) override {
     char buf[LOG_BUFF_MAX];
     const char *fmt = error_message_for_error_log(errcode);
 

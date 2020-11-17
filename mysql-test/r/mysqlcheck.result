@@ -23,6 +23,7 @@ mysql.password_history                             OK
 mysql.plugin                                       OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.replication_asynchronous_connection_failover OK
 mysql.role_edges                                   OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
@@ -106,6 +107,9 @@ status   : OK
 mysql.proxies_priv
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
+mysql.replication_asynchronous_connection_failover
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.role_edges
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
@@ -170,6 +174,7 @@ mysql.password_history                             OK
 mysql.plugin                                       OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.replication_asynchronous_connection_failover OK
 mysql.role_edges                                   OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
@@ -246,6 +251,9 @@ status   : OK
 mysql.proxies_priv
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
+mysql.replication_asynchronous_connection_failover
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.role_edges
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
@@ -290,10 +298,8 @@ status   : OK
 create view v1 as select * from information_schema.routines;
 check table v1, information_schema.routines;
 Table	Op	Msg_type	Msg_text
-test.v1	check	Error	Information schema queries do not support the 'FOR UPDATE' clause.
-test.v1	check	error	Corrupt
-information_schema.ROUTINES	check	Error	Information schema queries do not support the 'FOR UPDATE' clause.
-information_schema.ROUTINES	check	error	Corrupt
+test.v1	check	status	OK
+information_schema.ROUTINES	check	status	OK
 drop view v1;
 End of 5.0 tests
 End of 5.1 tests

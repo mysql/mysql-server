@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -145,13 +145,14 @@ class Table_function {
   */
   virtual bool print(String *str, enum_query_type query_type) const = 0;
   /**
-    Clean up table function
+    Clean up table function after one execution
   */
-  void cleanup() {
-    do_cleanup();
-    table = nullptr;
-    inited = false;
-  }
+  void cleanup() { do_cleanup(); }
+
+  /**
+    Destroy table function object after all executions are complete
+  */
+  void destroy() { this->~Table_function(); }
 
   virtual bool walk(Item_processor processor, enum_walk walk, uchar *arg) = 0;
 
@@ -216,7 +217,6 @@ class JT_data_source {
   bool producing_records;
 
   JT_data_source() : v(key_memory_JSON), producing_records(false) {}
-  ~JT_data_source() {}
 
   void cleanup();
 };
@@ -282,18 +282,34 @@ class Json_table_column : public Create_field {
       : m_jtc_type(enum_jt_column::JTC_NESTED_PATH),
         m_nested_columns(cols),
         m_path_string(path) {}
-  void cleanup();
+  ~Json_table_column();
+  void cleanup() {}
 
   /**
-    Process JSON_TABLE's column
+    Fill a json table column
 
-    @param table_function the JSON table function
-    @param[out] skip  whether current NESTED PATH column should be
-                      completely skipped
+    @details Fills a column with data, according to specification in
+    JSON_TABLE. This function handles all kinds of columns:
+    Ordinality)  just saves the counter into the column's field
+    Path)        extracts value, saves it to the column's field and handles
+                 ON ERROR/ON EMPTY clauses
+    Exists)      checks the path existence and saves either 1 or 0 into result
+                 field
+    Nested path) matches the path expression against data source. If there're
+                 matches, this function sets NESTED PATH's iterator over those
+                 matches and resets ordinality counter.
+
+    @param[in]   table_function the JSON table function
+    @param[out]  skip  true <=> it's a NESTED PATH node and its path
+                       expression didn't return any matches or a
+                       previous sibling NESTED PATH clause still producing
+                       records, thus all columns of this NESTED PATH node
+                       should be skipped
+
     @returns
-      true  on error
-      false on success
-  */
+      false column is filled
+      true  an error occurred, execution should be stopped
+   */
   bool fill_column(Table_function_json *table_function, jt_skip_reason *skip);
 };
 
@@ -319,6 +335,11 @@ class Table_function_json final : public Table_function {
  public:
   Table_function_json(THD *thd_arg, const char *alias, Item *a,
                       List<Json_table_column> *cols);
+
+  ~Table_function_json() override {
+    for (uint i = 0; i < m_all_columns.size(); i++)
+      m_all_columns[i]->~Json_table_column();
+  }
 
   /**
     Returns function's name
@@ -372,22 +393,32 @@ class Table_function_json final : public Table_function {
   bool fill_json_table();
 
   /**
-    Prepare lists used to create tmp table and function execution
+    Initialize columns and lists for json table
+
+    @details This function does several things:
+    1) sets up list of fields (vt_list) for result table creation
+    2) fills array of all columns (m_all_columns) for execution
+    3) for each column that has default ON EMPTY or ON ERROR clauses, checks
+      the value to be proper json and initializes column appropriately
+    4) for each column that involves path, the path is checked to be correct.
+    The function goes recursively, starting from the top NESTED PATH clause
+    and going in the depth-first way, traverses the tree of columns.
 
     @param nest_idx  index of parent's element in the nesting data array
     @param parent    Parent of the NESTED PATH clause being initialized
 
     @returns
-      true  on error
-      false on success
-  */
+      false  ok
+      true   an error occurred
+   */
   bool init_json_table_col_lists(uint *nest_idx, Json_table_column *parent);
   /**
-    Set all underlying columns of a NESTED PATH to nullptr
+    A helper function which sets all columns under given NESTED PATH column
+    to nullptr. Used to evaluate sibling NESTED PATHS.
 
     @param       root  root NESTED PATH column
     @param [out] last  last column which belongs to the given NESTED PATH
-  */
+   */
   void set_subtree_to_null(Json_table_column *root, Json_table_column **last);
 
   /**

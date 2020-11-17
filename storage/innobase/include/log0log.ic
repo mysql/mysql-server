@@ -46,7 +46,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** @name Log blocks */
 
-/* @{ */
+/** @{ */
 
 inline bool log_block_get_flush_bit(const byte *log_block) {
   if (LOG_BLOCK_FLUSH_BIT_MASK &
@@ -161,12 +161,21 @@ inline void log_block_store_checksum(byte *log_block) {
   log_block_set_checksum(log_block, log_block_calc_checksum(log_block));
 }
 
-/* @} */
+/** @} */
 
 #ifndef UNIV_HOTBACKUP
+/** @return consistent sn value for locked state */
+static inline sn_t log_get_sn(const log_t &log) {
+  const sn_t sn = log.sn.load();
+  if ((sn & SN_LOCKED) != 0) {
+    return log.sn_locked.load();
+  } else {
+    return sn;
+  }
+}
 
 inline bool log_needs_free_check(const log_t &log) {
-  const sn_t sn = log.sn.load();
+  const sn_t sn = log_get_sn(log);
   return (sn > log.free_check_limit_sn.load());
 }
 
@@ -277,7 +286,7 @@ inline uint64_t log_get_file_capacity(const log_t &log) {
 }
 
 inline lsn_t log_get_lsn(const log_t &log) {
-  return (log_translate_sn_to_lsn(log.sn.load()));
+  return log_translate_sn_to_lsn(log_get_sn(log));
 }
 
 inline lsn_t log_get_checkpoint_lsn(const log_t &log) {
@@ -359,10 +368,6 @@ inline bool log_flusher_is_active() {
 
 inline bool log_flush_notifier_is_active() {
   return (srv_thread_is_active(srv_threads.m_log_flush_notifier));
-}
-
-inline bool log_closer_is_active() {
-  return (srv_thread_is_active(srv_threads.m_log_closer));
 }
 
 inline bool log_checkpointer_is_active() {

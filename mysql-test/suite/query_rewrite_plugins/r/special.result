@@ -137,37 +137,37 @@ CALL query_rewrite.flush_rewrite_rules();
 # Should be rewritten.
 SELECT COUNT( c1 ), c2, c3 FROM test.t1 GROUP BY 2, 3;
 SUM( c1 )	c2	c3
-9	d	a
-3	c	b
 2	b	c
+3	c	b
 4	a	a
-6	d	b
 5	f	c
+6	d	b
 7	e	b
-Warnings:
+9	d	a
 Note	1105	Query 'SELECT COUNT( c1 ), c2, c3 FROM test.t1 GROUP BY 2, 3' rewritten to 'SELECT SUM( c1 ), c2, c3 FROM test.t1 GROUP BY 2, 3' by a query rewrite plugin
+Warnings:
 # Should be rewritten.
 SELECT COUNT( c1 ), c2, c3 FROM test.t1 GROUP BY 3, 2;
 SUM( c1 )	c2	c3
-9	d	a
-3	c	b
 2	b	c
+3	c	b
 4	a	a
-6	d	b
 5	f	c
+6	d	b
 7	e	b
-Warnings:
+9	d	a
 Note	1105	Query 'SELECT COUNT( c1 ), c2, c3 FROM test.t1 GROUP BY 3, 2' rewritten to 'SELECT SUM( c1 ), c2, c3 FROM test.t1 GROUP BY 3, 2' by a query rewrite plugin
+Warnings:
 # Should not be rewritten.
 SELECT COUNT( c1 ), c2, c3 FROM test.t1 GROUP BY c2, c3;
 COUNT( c1 )	c2	c3
-2	d	a
-1	c	b
-1	b	c
 1	a	a
+1	b	c
+1	c	b
 1	d	b
-1	f	c
 1	e	b
+1	f	c
+2	d	a
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT COUNT(c1) as c, c2, c3 FROM test.t1 GROUP BY ?, ? HAVING c > ?',
 'SELECT COUNT(c1) as c, c2, c3 FROM test.t1 GROUP BY ?, ? HAVING c < ?'
@@ -175,25 +175,25 @@ VALUES ( 'SELECT COUNT(c1) as c, c2, c3 FROM test.t1 GROUP BY ?, ? HAVING c > ?'
 CALL query_rewrite.flush_rewrite_rules();
 SELECT COUNT( c1 ) as c, c2, c3 FROM test.t1 GROUP BY 2, 3 HAVING c > 2;
 c	c2	c3
-1	c	b
-1	b	c
 1	a	a
+1	b	c
+1	c	b
 1	d	b
-1	f	c
 1	e	b
-Warnings:
+1	f	c
 Note	1105	Query 'SELECT COUNT( c1 ) as c, c2, c3 FROM test.t1 GROUP BY 2, 3 HAVING c > 2' rewritten to 'SELECT COUNT(c1) as c, c2, c3 FROM test.t1 GROUP BY 2, 3 HAVING c < 2' by a query rewrite plugin
+Warnings:
 SELECT COUNT( c1 ) as c, c2, c3 FROM test.t1 GROUP BY 3, 2 HAVING c > 3;
 c	c2	c3
-2	d	a
-1	c	b
-1	b	c
 1	a	a
+1	b	c
+1	c	b
 1	d	b
-1	f	c
 1	e	b
-Warnings:
+1	f	c
+2	d	a
 Note	1105	Query 'SELECT COUNT( c1 ) as c, c2, c3 FROM test.t1 GROUP BY 3, 2 HAVING c > 3' rewritten to 'SELECT COUNT(c1) as c, c2, c3 FROM test.t1 GROUP BY 3, 2 HAVING c < 3' by a query rewrite plugin
+Warnings:
 CREATE TABLE t2 ( c1 INTEGER, c2 CHAR ( 1 ), c3 CHAR ( 1 ) );
 INSERT INTO t2 VALUES ( 1, 'd', 'a' ),
 ( 2, 'b', 'c' ),

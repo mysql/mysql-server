@@ -30,3 +30,29 @@ XA ROLLBACK 'x';
 SELECT * FROM t1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #31437127 - ERROR LOG REPORTS INVALID (OLD?) TABLE OR DATABASE NAME:
+--echo # ERROR] [MY-010520] [Server] Invalid (old?) table or database name 't1#p#p1'
+--echo #
+
+call mtr.add_suppression("Found .* prepared XA transactions");
+CREATE TABLE t1(a INT PRIMARY KEY, b INT) PARTITION BY HASH(a) PARTITIONS 4;
+connect (con1,localhost,root);
+
+--connection con1
+XA BEGIN '123';
+INSERT INTO t1 VALUES(1,2);
+XA END '123';
+XA PREPARE '123';
+
+--connection default
+#restart
+--source include/restart_mysqld.inc
+
+disconnect con1;
+
+--connection default
+XA RECOVER;
+XA COMMIT '123';
+DROP TABLE t1;

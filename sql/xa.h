@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,9 +69,9 @@ class Sql_cmd_xa_start : public Sql_cmd {
   Sql_cmd_xa_start(xid_t *xid_arg, enum xa_option_words xa_option)
       : m_xid(xid_arg), m_xa_opt(xa_option) {}
 
-  virtual enum_sql_command sql_command_code() const { return SQLCOM_XA_START; }
+  enum_sql_command sql_command_code() const override { return SQLCOM_XA_START; }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
  private:
   bool trans_xa_start(THD *thd);
@@ -89,9 +89,9 @@ class Sql_cmd_xa_end : public Sql_cmd {
   Sql_cmd_xa_end(xid_t *xid_arg, enum xa_option_words xa_option)
       : m_xid(xid_arg), m_xa_opt(xa_option) {}
 
-  virtual enum_sql_command sql_command_code() const { return SQLCOM_XA_END; }
+  enum_sql_command sql_command_code() const override { return SQLCOM_XA_END; }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
  private:
   bool trans_xa_end(THD *thd);
@@ -109,11 +109,11 @@ class Sql_cmd_xa_prepare : public Sql_cmd {
  public:
   explicit Sql_cmd_xa_prepare(xid_t *xid_arg) : m_xid(xid_arg) {}
 
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_XA_PREPARE;
   }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
  private:
   bool trans_xa_prepare(THD *thd);
@@ -131,11 +131,11 @@ class Sql_cmd_xa_recover : public Sql_cmd {
   explicit Sql_cmd_xa_recover(bool print_xid_as_hex)
       : m_print_xid_as_hex(print_xid_as_hex) {}
 
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_XA_RECOVER;
   }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
  private:
   bool check_xa_recover_privilege(THD *thd) const;
@@ -155,9 +155,11 @@ class Sql_cmd_xa_commit : public Sql_cmd {
   Sql_cmd_xa_commit(xid_t *xid_arg, enum xa_option_words xa_option)
       : m_xid(xid_arg), m_xa_opt(xa_option) {}
 
-  virtual enum_sql_command sql_command_code() const { return SQLCOM_XA_COMMIT; }
+  enum_sql_command sql_command_code() const override {
+    return SQLCOM_XA_COMMIT;
+  }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
   enum xa_option_words get_xa_opt() const { return m_xa_opt; }
 
@@ -179,11 +181,11 @@ class Sql_cmd_xa_rollback : public Sql_cmd {
  public:
   explicit Sql_cmd_xa_rollback(xid_t *xid_arg) : m_xid(xid_arg) {}
 
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_XA_ROLLBACK;
   }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
  private:
   bool trans_xa_rollback(THD *thd);

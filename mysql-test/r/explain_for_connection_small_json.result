@@ -613,7 +613,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -53,4 +54,3 @@
                "col_varchar_nokey"
 -            ],
--            "attached_condition": "(`test`.`alias2`.`col_varchar_key` = `test`.`t1`.`col_varchar_nokey`)"
+-            "attached_condition": "(`alias2`.`col_varchar_key` = `test`.`t1`.`col_varchar_nokey`)"
 +            ]
            }
 @@ -66,3 +66,3 @@

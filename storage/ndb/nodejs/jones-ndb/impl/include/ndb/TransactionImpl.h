@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2014, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,9 @@ public:
      to be reused in JavaScript many times without creating a new wrapper
      each time.
   */
-  v8::Local<v8::Object> getJsWrapper() const;
+  v8::Local<v8::Object> getJsWrapper() const {
+    return jsWrapper.Get(isolate);
+  }
 
 
   /****** Executing Operations *******/
@@ -82,7 +84,7 @@ public:
   */
   int executeAsynch(BatchImpl *operations,
                     int execType, int abortOption, int forceSend,
-                    v8::Handle<v8::Function> execCompleteCallback);
+                    v8::Local<v8::Function> execCompleteCallback);
 
   /* Close the NDB Transaction.  This could happen in a worker thread.
   */
@@ -96,8 +98,9 @@ public:
   /* Fetch an empty BatchImpl that can be used for stand-alone 
      COMMIT and ROLLBACK calls.
   */
-  v8::Local<v8::Object> getWrappedEmptyOperationSet() const;
-
+  v8::Local<v8::Object> getWrappedEmptyOperationSet() const {
+    return emptyOpSetWrapper.Get(isolate);
+  }
 
   /****** Accessing operation errors *******/
 
@@ -112,7 +115,7 @@ protected:
   friend class AsyncExecCall;
 
   /* Protected constructor & destructor are used by SessionImpl */
-  TransactionImpl(SessionImpl *);
+  TransactionImpl(SessionImpl *, v8::Isolate *);
   ~TransactionImpl();
   
   /* Reset state for next user.
@@ -125,7 +128,8 @@ protected:
 private: 
   int64_t                    token;
   v8::Persistent<v8::Object> jsWrapper;
-  v8::Persistent<v8::Object> emptyOpSetWrapper;
+  v8::Persistent<v8::Object>  emptyOpSetWrapper;
+  v8::Isolate *              isolate;
   BatchImpl *                emptyOpSet;
   SessionImpl * const        parentSessionImpl;
   TransactionImpl *          next;

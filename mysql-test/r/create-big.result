@@ -152,7 +152,7 @@ select @a;
 @a
 0
 drop table t1;
-set debug_sync='create_table_select_before_check_if_exists SIGNAL parked WAIT_FOR go';
+set debug_sync='create_table_select_before_lock SIGNAL parked WAIT_FOR go';
 create table if not exists t1 select 1 as i;;
 set debug_sync='now WAIT_FOR parked';
 drop table t1;;

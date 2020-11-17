@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -74,7 +74,9 @@ Block_processor::Result Send_message_block_processor::feed(
   }
 
   if (linebuf[0] == '}') {
-    xcl::XProtocol::Client_message_type_id msg_id;
+    xcl::XProtocol::Client_message_type_id msg_id =
+        static_cast<xcl::XProtocol::Client_message_type_id>(
+            Mysqlx::ClientMessages::Type_MIN);
     std::string processed_buffer = m_buffer;
 
     m_context->m_variables->replace(&m_full_name);

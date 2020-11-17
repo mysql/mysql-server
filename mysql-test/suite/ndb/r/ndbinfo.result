@@ -1247,9 +1247,9 @@ parent_fq_name	ndbinfo/def/t1
 type	User table
 frag_count	16
 tot_key_reads	0
-tot_key_inserts	200
+tot_key_inserts	100
 tot_key_updates	0
-tot_key_writes	0
+tot_key_writes	100
 tot_key_deletes	0
 tot_key_refs	0
 log_tot_key_attrinfo_bytes	16
@@ -1412,8 +1412,6 @@ Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `ndbinfo`.`t2` `tx` join `ndbinfo`.`t2` `ty` where ((`ndbinfo`.`ty`.`a` = `ndbinfo`.`tx`.`b`) and (`ndbinfo`.`tx`.`a` in (1,3,5)))
 
 create table save_counters as select * from frag_ops;
-Warnings:
-Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 
 select count(*)
 from t2 as tx, t2 as ty

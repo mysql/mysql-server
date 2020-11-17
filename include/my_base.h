@@ -404,10 +404,9 @@ enum ha_extra_function {
   HA_EXTRA_EXPORT,
   /** Do secondary sort by handler::ref (rowid) after key sort. */
   HA_EXTRA_SECONDARY_SORT_ROWID,
-  /*
-    Skip Serializable isolation level on Views on DD tables.
-    This will make reads on DD Views non blocking */
-  HA_EXTRA_SKIP_SERIALIZABLE_DD_VIEW,
+  /** Skip acquiring locks when reading from ACL tables or views on DD
+      tables in order to make such reads non blocking. */
+  HA_EXTRA_NO_READ_LOCKING,
   /* Begin of insertion into intermediate table during copy alter operation. */
   HA_EXTRA_BEGIN_ALTER_COPY,
   /* Insertion is done in intermediate table during copy alter operation. */
@@ -989,8 +988,10 @@ Information in the data-dictionary needs to be updated. */
 #define HA_ERR_TOO_LONG_PATH 207
 /** Histogram sampling initialization failed */
 #define HA_ERR_SAMPLING_INIT_FAILED 208
+/** Too many sub-expression in search string */
+#define HA_ERR_FTS_TOO_MANY_NESTED_EXP 209
 /** Copy of last error number */
-#define HA_ERR_LAST 208
+#define HA_ERR_LAST 209
 
 /* Number of different errors */
 #define HA_ERR_ERRORS (HA_ERR_LAST - HA_ERR_FIRST + 1)

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -214,6 +214,10 @@ ParserRow<MgmApiSession> commands[] = {
     MGM_ARG("completed", Int, Optional ,"Wait until completed"),
     MGM_ARG("backupid", Int, Optional ,"User input backup id"),
     MGM_ARG("backuppoint", Int, Optional ,"backup snapshot at start time or complete time"),
+    MGM_ARG("encryption_password", LongString, Optional,
+            "Encryption password to encrypt the backup files"),
+    MGM_ARG("password_length", Int, Optional,
+            "Length of encryption password in bytes"),
 
   MGM_CMD("abort backup", &MgmApiSession::abortBackup, ""),
     MGM_ARG("id", Int, Mandatory, "Backup id"),
@@ -360,16 +364,20 @@ MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 
   m_errorInsert= 0;
   m_vMajor = m_vMinor = m_vBuild = 0;
 
-  struct sockaddr_in addr;
+  struct sockaddr_in6 addr;
   ndb_socket_len_t addrlen= sizeof(addr);
   if (ndb_getpeername(sock, (struct sockaddr*)&addr, &addrlen) == 0)
   {
     char addr_buf[NDB_ADDR_STRLEN];
-    char *addr_str = Ndb_inet_ntop(AF_INET,
-                                   static_cast<void*>(&addr.sin_addr),
+    char *addr_str = Ndb_inet_ntop(AF_INET6,
+                                   static_cast<void*>(&addr.sin6_addr),
                                    addr_buf,
                                    sizeof(addr_buf));
-    m_name.assfmt("%s:%d", addr_str, ntohs(addr.sin_port));
+    char buf[512];
+    char *sockaddr_string = Ndb_combine_address_port(buf, sizeof(buf),
+                                                     addr_str,
+                                                     ntohs(addr.sin6_port));
+    m_name.assfmt("%s", sockaddr_string);
   }
   DBUG_PRINT("info", ("new connection from: %s", m_name.c_str()));
 
@@ -546,7 +554,7 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
     return;
   }
 
-  struct sockaddr_in addr;
+  struct sockaddr_in6 addr;
   {
     ndb_socket_len_t addrlen= sizeof(addr);
     int r = ndb_getpeername(m_socket, (struct sockaddr*)&addr, &addrlen);
@@ -764,6 +772,8 @@ MgmApiSession::startBackup(Parser<MgmApiSession>::Context &,
   unsigned input_backupId= 0;
   unsigned backuppoint= 0;
   Uint32 completed= 2;
+  const char* encryption_password = nullptr;
+  Uint32 password_length = 0;
   int result;
 
   args.get("completed", &completed);
@@ -772,8 +782,15 @@ MgmApiSession::startBackup(Parser<MgmApiSession>::Context &,
     args.get("backupid", &input_backupId);
   if(args.contains("backuppoint"))
     args.get("backuppoint", &backuppoint);
-
-  result = m_mgmsrv.startBackup(backupId, completed, input_backupId, backuppoint);
+  if (args.contains("encryption_password"))
+  {
+    args.get("encryption_password", &encryption_password);
+    assert(args.contains("password_length"));
+    args.get("password_length", &password_length);
+  }
+  result = m_mgmsrv.startBackup(backupId, completed, input_backupId,
+                                backuppoint, encryption_password,
+                                password_length);
 
   m_output->println("start backup reply");
   if(result != 0)
@@ -1123,7 +1140,7 @@ MgmApiSession::getStatus(Parser<MgmApiSession>::Context &,
     if (NDB_MAKE_VERSION(m_vMajor,
                          m_vMinor,
                          m_vBuild) >=
-        NDB_MAKE_VERSION(8,0,20))
+        NDB_MAKE_VERSION(8, 0, 22))
     {
       /* Support single user mode info in client */
       include_single_user_state = true;

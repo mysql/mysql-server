@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2019 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -67,7 +67,7 @@ void NdbSpin_Init()
 void NdbSpin_Change(Uint64 spin_nanos)
 {
   (void)spin_nanos;
-#ifdef HAVE_NDB_CPU_PAUSE
+#ifdef NDB_HAVE_CPU_PAUSE
   if (spin_nanos < 300)
   {
     spin_nanos = 300;

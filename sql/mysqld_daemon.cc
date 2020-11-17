@@ -52,15 +52,6 @@ bool is_daemon_proc = false;
  */
 bool mysqld::runtime::is_daemon() { return is_daemon_proc; }
 
-/**
-  Daemonize mysqld.
-
-  This function does sysv style of daemonization of mysqld.
-
-  @retval In daemon; file descriptor for the write end of the status pipe.
-  @retval In parent; -1 if successful.
-  @retval In parent; -2 in case of errors.
-*/
 int mysqld::runtime::mysqld_daemonize() {
   int pipe_fd[2];
   if (pipe(pipe_fd) < 0) return -2;

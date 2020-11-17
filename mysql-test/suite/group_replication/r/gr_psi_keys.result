@@ -145,7 +145,7 @@ include/assert.inc ['There should be no extra psi keys added after starting the 
 #    threads after member is ONLINE.
 SELECT NAME, TYPE, INSTRUMENTED FROM performance_schema.threads WHERE NAME LIKE '%group_rpl%' ORDER BY NAME;
 NAME	TYPE	INSTRUMENTED
-thread/group_rpl/THD_applier_module_receiver	BACKGROUND	YES
+thread/group_rpl/THD_applier_module_receiver	FOREGROUND	YES
 thread/group_rpl/THD_certifier_broadcast	BACKGROUND	YES
 thread/group_rpl/THD_Gcs_ext_logger_impl::m_consumer	BACKGROUND	YES
 thread/group_rpl/THD_Gcs_xcom_control::m_suspicions_processing_thread	BACKGROUND	YES

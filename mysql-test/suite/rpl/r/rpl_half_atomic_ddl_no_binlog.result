@@ -122,6 +122,8 @@ include/sync_slave_io_with_master.inc
 include/stop_slave_io.inc
 CREATE TABLE t_2 (a int);
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_error.inc [errno=1050]
 DROP TABLE t_2;
 [connection master]
@@ -131,6 +133,8 @@ Loop: 1 out of 13; current query: 'CREATE TABLE t_2 (a int auto_increment primar
 SET @@GLOBAL.debug="+d,slave_crash_after_commit";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
@@ -141,6 +145,8 @@ Loop: 2 out of 13; current query: 'ALTER TABLE t_2 ADD COLUMN b INT NOT NULL, AL
 SET @@GLOBAL.debug="+d,slave_crash_after_commit";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
@@ -151,6 +157,8 @@ Loop: 3 out of 13; current query: 'ALTER TABLE t_2 ADD INDEX idx(b), ALGORITHM= 
 SET @@GLOBAL.debug="+d,slave_crash_after_commit";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
@@ -161,6 +169,8 @@ Loop: 4 out of 13; current query: 'ALTER TABLE t_2 RENAME t_3'; pre-binlog check
 SET @@GLOBAL.debug="+d,slave_crash_after_commit";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
@@ -171,6 +181,8 @@ Loop: 5 out of 13; current query: 'RENAME TABLE t_3 TO t_2 /* Name restored */';
 SET @@GLOBAL.debug="+d,slave_crash_after_commit";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
@@ -181,6 +193,8 @@ Loop: 6 out of 13; current query: 'INSERT INTO t_2 SET a=1,b=1'; pre-binlog chec
 SET @@GLOBAL.debug="+d,slave_crash_after_commit";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
@@ -191,6 +205,8 @@ Loop: 7 out of 13; current query: 'TRUNCATE TABLE t_2'; pre-binlog check: ''; pr
 SET @@GLOBAL.debug="+d,slave_crash_after_commit";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
@@ -201,6 +217,8 @@ Loop: 8 out of 13; current query: 'CREATE TABLESPACE ts_0 ADD DATAFILE 'ts_0.ibd
 SET @@GLOBAL.debug="+d,slave_crash_after_commit";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
@@ -211,6 +229,8 @@ Loop: 9 out of 13; current query: 'DROP TABLESPACE ts_0'; pre-binlog check: ''; 
 SET @@GLOBAL.debug="+d,slave_crash_after_commit";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
@@ -221,6 +241,8 @@ Loop: 10 out of 13; current query: 'CREATE DATABASE db_0 DEFAULT COLLATE latin1_
 SET @@GLOBAL.debug="+d,slave_crash_after_commit";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
@@ -231,6 +253,8 @@ Loop: 11 out of 13; current query: 'ALTER DATABASE db_0 DEFAULT COLLATE utf8_gen
 SET @@GLOBAL.debug="+d,slave_crash_after_commit";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
@@ -241,6 +265,8 @@ Loop: 12 out of 13; current query: 'DROP DATABASE db_0'; pre-binlog check: ''; p
 SET @@GLOBAL.debug="+d,slave_crash_after_commit";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
@@ -251,6 +277,8 @@ Loop: 13 out of 13; current query: 'DROP TABLE t_2'; pre-binlog check: ''; pre-c
 SET @@GLOBAL.debug="+d,slave_crash_after_commit";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,9 @@
 #include "sql/rpl_group_replication.h"  // is_group_replication_running
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_handler.h"  // RUN_HOOK
-#include "sql/sql_class.h"    // THD
+#include "sql/rpl_utility.h"
+#include "sql/sql_class.h"  // THD
+#include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/system_variables.h"
 #include "sql_string.h"
@@ -213,21 +215,25 @@ void unregister_slave(THD *thd, bool only_mine, bool need_lock_slave_list) {
   @retval true failure
 */
 bool show_slave_hosts(THD *thd) {
-  List<Item> field_list;
+  mem_root_deque<Item *> field_list(thd->mem_root);
   Protocol *protocol = thd->get_protocol();
   DBUG_TRACE;
 
-  field_list.push_back(new Item_return_int("Server_id", 10, MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_return_int("Server_Id", 10, MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Host", HOSTNAME_LENGTH));
   if (opt_show_slave_auth_info) {
     field_list.push_back(new Item_empty_string("User", USERNAME_CHAR_LENGTH));
     field_list.push_back(new Item_empty_string("Password", 20));
   }
   field_list.push_back(new Item_return_int("Port", 7, MYSQL_TYPE_LONG));
-  field_list.push_back(new Item_return_int("Master_id", 10, MYSQL_TYPE_LONG));
-  field_list.push_back(new Item_empty_string("Slave_UUID", UUID_LENGTH));
+  field_list.push_back(new Item_return_int("Source_Id", 10, MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_empty_string("Replica_UUID", UUID_LENGTH));
 
-  if (thd->send_result_metadata(&field_list,
+  // TODO: once the old syntax is removed, remove this as well.
+  if (thd->lex->is_replication_deprecated_syntax_used())
+    rename_fields_use_old_replica_source_terms(thd, field_list);
+
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 
@@ -1043,7 +1049,7 @@ String *get_slave_uuid(THD *thd, String *value) {
 class Find_zombie_dump_thread : public Find_THD_Impl {
  public:
   Find_zombie_dump_thread(String value) : m_slave_uuid(value) {}
-  virtual bool operator()(THD *thd) {
+  bool operator()(THD *thd) override {
     THD *cur_thd = current_thd;
     if (thd != cur_thd && (thd->get_command() == COM_BINLOG_DUMP ||
                            thd->get_command() == COM_BINLOG_DUMP_GTID)) {
@@ -1210,7 +1216,6 @@ bool show_master_status(THD *thd) {
   Protocol *protocol = thd->get_protocol();
   char *gtid_set_buffer = nullptr;
   int gtid_set_size = 0;
-  List<Item> field_list;
 
   DBUG_TRACE;
 
@@ -1224,6 +1229,7 @@ bool show_master_status(THD *thd) {
   }
   global_sid_lock->unlock();
 
+  mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(new Item_empty_string("File", FN_REFLEN));
   field_list.push_back(
       new Item_return_int("Position", 20, MYSQL_TYPE_LONGLONG));
@@ -1232,7 +1238,7 @@ bool show_master_status(THD *thd) {
   field_list.push_back(
       new Item_empty_string("Executed_Gtid_Set", gtid_set_size));
 
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)) {
     my_free(gtid_set_buffer);
     return true;
@@ -1272,7 +1278,6 @@ bool show_binlogs(THD *thd) {
   LOG_INFO cur;
   File file;
   char fname[FN_REFLEN];
-  List<Item> field_list;
   size_t length;
   size_t cur_dir_len;
   Protocol *protocol = thd->get_protocol();
@@ -1283,11 +1288,12 @@ bool show_binlogs(THD *thd) {
     return true;
   }
 
+  mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(new Item_empty_string("Log_name", 255));
   field_list.push_back(
       new Item_return_int("File_size", 20, MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_empty_string("Encrypted", 3));
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 

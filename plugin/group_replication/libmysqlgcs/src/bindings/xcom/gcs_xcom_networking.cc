@@ -479,56 +479,56 @@ bool_t Gcs_sock_probe_interface_impl::is_if_running(sock_probe *s, int count) {
 }
 
 /*
-  The default whitelist contains all locak-link and private address ranges.
+  The default allowlist contains all locak-link and private address ranges.
   Please refer to the documentation of get_local_private_addresses() to a better
   understanding of this concept.
 */
-const std::string Gcs_ip_whitelist::DEFAULT_WHITELIST =
+const std::string Gcs_ip_allowlist::DEFAULT_ALLOWLIST =
     "127.0.0.1/32,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,::1/128,fe80::/"
     "10,fd00::/8";
 
-Gcs_ip_whitelist_entry::Gcs_ip_whitelist_entry(std::string addr,
+Gcs_ip_allowlist_entry::Gcs_ip_allowlist_entry(std::string addr,
                                                std::string mask)
     : m_addr(addr), m_mask(mask) {}
 
-Gcs_ip_whitelist_entry_ip::Gcs_ip_whitelist_entry_ip(std::string addr,
+Gcs_ip_allowlist_entry_ip::Gcs_ip_allowlist_entry_ip(std::string addr,
                                                      std::string mask)
-    : Gcs_ip_whitelist_entry(addr, mask) {}
+    : Gcs_ip_allowlist_entry(addr, mask) {}
 
-bool Gcs_ip_whitelist_entry_ip::init_value() {
-  bool error = get_address_for_whitelist(get_addr(), get_mask(), m_value);
+bool Gcs_ip_allowlist_entry_ip::init_value() {
+  bool error = get_address_for_allowlist(get_addr(), get_mask(), m_value);
 
   return error;
 }
 
 std::vector<std::pair<std::vector<unsigned char>, std::vector<unsigned char>>>
-    *Gcs_ip_whitelist_entry_ip::get_value() {
+    *Gcs_ip_allowlist_entry_ip::get_value() {
   return new std::vector<
       std::pair<std::vector<unsigned char>, std::vector<unsigned char>>>(
       {m_value});
 }
 
-Gcs_ip_whitelist_entry_hostname::Gcs_ip_whitelist_entry_hostname(
+Gcs_ip_allowlist_entry_hostname::Gcs_ip_allowlist_entry_hostname(
     std::string addr, std::string mask)
-    : Gcs_ip_whitelist_entry(addr, mask) {}
+    : Gcs_ip_allowlist_entry(addr, mask) {}
 
-Gcs_ip_whitelist_entry_hostname::Gcs_ip_whitelist_entry_hostname(
+Gcs_ip_allowlist_entry_hostname::Gcs_ip_allowlist_entry_hostname(
     std::string addr)
-    : Gcs_ip_whitelist_entry(addr, "") {}
+    : Gcs_ip_allowlist_entry(addr, "") {}
 
-bool Gcs_ip_whitelist_entry_hostname::init_value() { return false; }
+bool Gcs_ip_allowlist_entry_hostname::init_value() { return false; }
 
 std::vector<std::pair<std::vector<unsigned char>, std::vector<unsigned char>>>
-    *Gcs_ip_whitelist_entry_hostname::get_value() {
+    *Gcs_ip_allowlist_entry_hostname::get_value() {
   bool error = false;
   std::pair<std::vector<unsigned char>, std::vector<unsigned char>> value;
 
   std::vector<std::pair<sa_family_t, std::string>> ips;
   if (resolve_all_ip_addr_from_hostname(get_addr(), ips)) {
     MYSQL_GCS_LOG_WARN("Hostname "
-                       << get_addr().c_str() << " in Whitelist"
+                       << get_addr().c_str() << " in Allowlist"
                        << " configuration was not resolvable. Please check your"
-                       << " Whitelist configuration.");
+                       << " Allowlist configuration.");
     return nullptr;
   }
 
@@ -555,7 +555,7 @@ std::vector<std::pair<std::vector<unsigned char>, std::vector<unsigned char>>>
         mask.append("128");
     }
 
-    error = get_address_for_whitelist(ip.second, mask, value);
+    error = get_address_for_allowlist(ip.second, mask, value);
 
     if (error) return nullptr;
 
@@ -566,11 +566,11 @@ std::vector<std::pair<std::vector<unsigned char>, std::vector<unsigned char>>>
 }
 
 /* purecov: begin deadcode */
-std::string Gcs_ip_whitelist::to_string() const {
-  std::set<Gcs_ip_whitelist_entry *>::const_iterator wl_it;
+std::string Gcs_ip_allowlist::to_string() const {
+  std::set<Gcs_ip_allowlist_entry *>::const_iterator wl_it;
   std::stringstream ss;
 
-  for (wl_it = m_ip_whitelist.begin(); wl_it != m_ip_whitelist.end(); wl_it++) {
+  for (wl_it = m_ip_allowlist.begin(); wl_it != m_ip_allowlist.end(); wl_it++) {
     ss << (*wl_it)->get_addr() << "/" << (*wl_it)->get_mask() << ",";
   }
 
@@ -580,15 +580,15 @@ std::string Gcs_ip_whitelist::to_string() const {
 }
 /* purecov: end */
 
-bool Gcs_ip_whitelist::is_valid(const std::string &the_list) const {
+bool Gcs_ip_allowlist::is_valid(const std::string &the_list) const {
   // copy the string
-  std::string whitelist = the_list;
+  std::string allowlist = the_list;
 
   // remove trailing whitespaces
-  whitelist.erase(std::remove(whitelist.begin(), whitelist.end(), ' '),
-                  whitelist.end());
+  allowlist.erase(std::remove(allowlist.begin(), allowlist.end(), ' '),
+                  allowlist.end());
 
-  std::stringstream list_ss(whitelist);
+  std::stringstream list_ss(allowlist);
   std::string list_entry;
 
   // split list by commas
@@ -621,7 +621,7 @@ bool Gcs_ip_whitelist::is_valid(const std::string &the_list) const {
         (sa.ss_family == AF_INET &&
          imask > 32))  // check that IPv4 mask is within range
     {
-      MYSQL_GCS_LOG_ERROR("Invalid IP or subnet mask in the whitelist: "
+      MYSQL_GCS_LOG_ERROR("Invalid IP or subnet mask in the allowlist: "
                           << ip << (mask.empty() ? "" : "/")
                           << (mask.empty() ? "" : mask));
       return false;
@@ -631,19 +631,19 @@ bool Gcs_ip_whitelist::is_valid(const std::string &the_list) const {
   return true;
 }
 
-bool Gcs_ip_whitelist::configure(const std::string &the_list) {
+bool Gcs_ip_allowlist::configure(const std::string &the_list) {
   // copy the list
-  std::string whitelist = the_list;
-  m_original_list.assign(whitelist);
+  std::string allowlist = the_list;
+  m_original_list.assign(allowlist);
 
   // clear the list
   this->clear();
 
   // remove whitespaces
-  whitelist.erase(std::remove(whitelist.begin(), whitelist.end(), ' '),
-                  whitelist.end());
+  allowlist.erase(std::remove(allowlist.begin(), allowlist.end(), ' '),
+                  allowlist.end());
 
-  std::stringstream list_ss(whitelist);
+  std::stringstream list_ss(allowlist);
   std::string list_entry;
 
   // parse commas
@@ -674,28 +674,28 @@ bool Gcs_ip_whitelist::configure(const std::string &the_list) {
     if (!add_address("127.0.0.1", "32")) {
       MYSQL_GCS_LOG_WARN(
           "Automatically adding IPv4 localhost address to the "
-          "whitelist. It is mandatory that it is added.");
+          "allowlist. It is mandatory that it is added.");
     } else {
       MYSQL_GCS_LOG_ERROR(
           "Error adding IPv4 localhost address automatically"
-          " to the whitelist");
+          " to the allowlist");
     }
 
     if (!add_address("::1", "128")) {
       MYSQL_GCS_LOG_WARN(
           "Automatically adding IPv6 localhost address to the "
-          "whitelist. It is mandatory that it is added.");
+          "allowlist. It is mandatory that it is added.");
     } else {
       MYSQL_GCS_LOG_ERROR(
           "Error adding IPv6 localhost address automatically"
-          " to the whitelist");
+          " to the allowlist");
     }
   }
 
   return false;
 }
 
-bool get_address_for_whitelist(
+bool get_address_for_allowlist(
     std::string addr, std::string mask,
     std::pair<std::vector<unsigned char>, std::vector<unsigned char>>
         &out_pair) {
@@ -748,33 +748,33 @@ bool get_address_for_whitelist(
   return false;
 }
 
-void Gcs_ip_whitelist::clear() {
-  std::set<Gcs_ip_whitelist_entry *>::const_iterator wl_it =
-      m_ip_whitelist.begin();
-  while (wl_it != m_ip_whitelist.end()) {
+void Gcs_ip_allowlist::clear() {
+  std::set<Gcs_ip_allowlist_entry *>::const_iterator wl_it =
+      m_ip_allowlist.begin();
+  while (wl_it != m_ip_allowlist.end()) {
     delete (*wl_it);
-    m_ip_whitelist.erase(wl_it++);
+    m_ip_allowlist.erase(wl_it++);
   }
 }
 
-Gcs_ip_whitelist::~Gcs_ip_whitelist() { this->clear(); }
+Gcs_ip_allowlist::~Gcs_ip_allowlist() { this->clear(); }
 
-bool Gcs_ip_whitelist::add_address(std::string addr, std::string mask) {
-  Gcs_ip_whitelist_entry *addr_for_wl;
+bool Gcs_ip_allowlist::add_address(std::string addr, std::string mask) {
+  Gcs_ip_allowlist_entry *addr_for_wl;
   struct sockaddr_storage sa;
   if (!string_to_sockaddr(addr, &sa)) {
-    addr_for_wl = new Gcs_ip_whitelist_entry_ip(addr, mask);
+    addr_for_wl = new Gcs_ip_allowlist_entry_ip(addr, mask);
   } else {
-    addr_for_wl = new Gcs_ip_whitelist_entry_hostname(addr, mask);
+    addr_for_wl = new Gcs_ip_allowlist_entry_hostname(addr, mask);
   }
   bool error = addr_for_wl->init_value();
 
   if (!error) {
-    std::pair<std::set<Gcs_ip_whitelist_entry *,
-                       Gcs_ip_whitelist_entry_pointer_comparator>::iterator,
+    std::pair<std::set<Gcs_ip_allowlist_entry *,
+                       Gcs_ip_allowlist_entry_pointer_comparator>::iterator,
               bool>
         result;
-    result = m_ip_whitelist.insert(addr_for_wl);
+    result = m_ip_allowlist.insert(addr_for_wl);
 
     error = !result.second;
   }
@@ -782,14 +782,14 @@ bool Gcs_ip_whitelist::add_address(std::string addr, std::string mask) {
   return error;
 }
 
-bool Gcs_ip_whitelist::do_check_block_whitelist(
+bool Gcs_ip_allowlist::do_check_block_allowlist(
     std::vector<unsigned char> const &incoming_octets) const {
   /*
-    Check if the incoming IP matches any IP-mask combination in the whitelist.
+    Check if the incoming IP matches any IP-mask combination in the allowlist.
     The check compares both IPs' bytes (octets) in network byte order.
   */
   bool block = true;
-  for (auto &wl_it : m_ip_whitelist) {
+  for (auto &wl_it : m_ip_allowlist) {
     std::unique_ptr<std::vector<
         std::pair<std::vector<unsigned char>, std::vector<unsigned char>>>>
         wl_value((*wl_it).get_value());
@@ -819,7 +819,7 @@ bool Gcs_ip_whitelist::do_check_block_whitelist(
   return block;
 }
 
-bool Gcs_ip_whitelist::do_check_block_xcom(
+bool Gcs_ip_allowlist::do_check_block_xcom(
     std::vector<unsigned char> const &incoming_octets,
     site_def const *xcom_config) const {
   /*
@@ -831,14 +831,14 @@ bool Gcs_ip_whitelist::do_check_block_xcom(
     Gcs_xcom_node_address xcom_addr(
         std::string(xcom_config->nodes.node_list_val[i].address));
     struct sockaddr_storage xcom_sa;
-    std::unique_ptr<Gcs_ip_whitelist_entry> xcom_addr_wl(nullptr);
+    std::unique_ptr<Gcs_ip_allowlist_entry> xcom_addr_wl(nullptr);
     std::unique_ptr<std::vector<
         std::pair<std::vector<unsigned char>, std::vector<unsigned char>>>>
         wl_value(nullptr);
     std::vector<unsigned char> const *xcom_octets = nullptr;
 
     /*
-      Treat the XCom member as if it is in the whitelist.
+      Treat the XCom member as if it is in the allowlist.
       The XCom member can be an IP or hostname.
       The magic-number "32" for the netmask is tied to IPv4.
 
@@ -847,7 +847,7 @@ bool Gcs_ip_whitelist::do_check_block_xcom(
     bool is_hostname = string_to_sockaddr(xcom_addr.get_member_ip(), &xcom_sa);
     if (is_hostname) {
       xcom_addr_wl.reset(
-          new Gcs_ip_whitelist_entry_hostname(xcom_addr.get_member_ip()));
+          new Gcs_ip_allowlist_entry_hostname(xcom_addr.get_member_ip()));
     } else {
       std::string xcom_entry_netmask;
 
@@ -856,7 +856,7 @@ bool Gcs_ip_whitelist::do_check_block_xcom(
       else
         xcom_entry_netmask.append("128");
 
-      xcom_addr_wl.reset(new Gcs_ip_whitelist_entry_ip(
+      xcom_addr_wl.reset(new Gcs_ip_allowlist_entry_ip(
           xcom_addr.get_member_ip(), xcom_entry_netmask));
     }
 
@@ -887,7 +887,7 @@ bool Gcs_ip_whitelist::do_check_block_xcom(
   return block;
 }
 
-bool Gcs_ip_whitelist::do_check_block(struct sockaddr_storage *sa,
+bool Gcs_ip_allowlist::do_check_block(struct sockaddr_storage *sa,
                                       site_def const *xcom_config) const {
   bool block = true;
   unsigned char *buf;
@@ -934,11 +934,11 @@ bool Gcs_ip_whitelist::do_check_block(struct sockaddr_storage *sa,
     goto end;
 
   /*
-    Allow the incoming IP if it is whitelisted *or* is an XCom member.
+    Allow the incoming IP if it is allowlisted *or* is an XCom member.
     XCom members are authorized by default so that XCom can create its
     all-to-all bidirectional network.
   */
-  if (!m_ip_whitelist.empty()) block = do_check_block_whitelist(ip);
+  if (!m_ip_allowlist.empty()) block = do_check_block_allowlist(ip);
   if (block && xcom_config != nullptr)
     block = do_check_block_xcom(ip, xcom_config);
 
@@ -946,7 +946,7 @@ end:
   return block;
 }
 
-bool Gcs_ip_whitelist::shall_block(int fd, site_def const *xcom_config) const {
+bool Gcs_ip_allowlist::shall_block(int fd, site_def const *xcom_config) const {
   bool ret = true;
   if (fd > 0) {
     struct sockaddr_storage sa;
@@ -965,12 +965,12 @@ bool Gcs_ip_whitelist::shall_block(int fd, site_def const *xcom_config) const {
     MYSQL_GCS_LOG_WARN("Connection attempt from IP address "
                        << addr
                        << " refused. Address is not in the "
-                          "IP whitelist.");
+                          "IP allowlist.");
   }
   return ret;
 }
 
-bool Gcs_ip_whitelist::shall_block(const std::string &ip_addr,
+bool Gcs_ip_allowlist::shall_block(const std::string &ip_addr,
                                    site_def const *xcom_config) const {
   bool ret = true;
   if (!ip_addr.empty()) {
@@ -989,7 +989,7 @@ bool Gcs_ip_whitelist::shall_block(const std::string &ip_addr,
     MYSQL_GCS_LOG_WARN("Connection attempt from IP address "
                        << ip_addr
                        << " refused. Address is not in the "
-                          "IP whitelist.");
+                          "IP allowlist.");
   }
   return ret;
 }

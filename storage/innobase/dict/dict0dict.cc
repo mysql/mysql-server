@@ -194,7 +194,7 @@ static table_id_t dict_sys_table_id[SYS_NUM_SYSTEM_TABLES];
 /** Tries to find column names for the index and sets the col field of the
 index.
 @param[in]	table	table
-@param[in]	index	index
+@param[in,out]	index	index
 @param[in]	add_v	new virtual columns added along with an add index call
 @return true if the column names were found */
 static ibool dict_index_find_and_set_cols(const dict_table_t *table,
@@ -483,13 +483,12 @@ static void dict_table_try_drop_aborted_and_mutex_exit(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/** Decrements the count of open handles to a table. */
-void dict_table_close(dict_table_t *table, /*!< in/out: table */
-                      ibool dict_locked, /*!< in: TRUE=data dictionary locked */
-                      ibool try_drop)    /*!< in: TRUE=try to drop any orphan
-                                         indexes after an aborted online
-                                         index creation */
-{
+/** Decrements the count of open handles to a table.
+@param[in,out] table Table
+@param[in] dict_locked True=data dictionary locked
+@param[in] try_drop True=try to drop any orphan indexes after an aborted online
+index creation */
+void dict_table_close(dict_table_t *table, ibool dict_locked, ibool try_drop) {
   ibool drop_aborted;
 
   ut_a(table->get_ref_count() > 0);
@@ -744,11 +743,10 @@ static void dict_index_zip_pad_lock(dict_index_t *index) {
   mutex_enter(index->zip_pad.mutex);
 }
 
-/** Unconditionally set the autoinc counter. */
-void dict_table_autoinc_initialize(
-    dict_table_t *table, /*!< in/out: table */
-    ib_uint64_t value)   /*!< in: next value to assign to a row */
-{
+/** Unconditionally set the autoinc counter.
+@param[in,out] table Table
+@param[in] value Next value to assign to a row */
+void dict_table_autoinc_initialize(dict_table_t *table, ib_uint64_t value) {
   ut_ad(dict_table_autoinc_own(table));
 
   table->autoinc = value;
@@ -758,7 +756,7 @@ void dict_table_autoinc_initialize(
 update some existing smaller one to bigger.
 @param[in,out]	table	InnoDB table object
 @param[in]	value	AUTOINC counter to log
-@param[in,out]	mtr	mini-transaction */
+@param[in,out]	mtr	Mini-transaction */
 void dict_table_autoinc_log(dict_table_t *table, uint64_t value, mtr_t *mtr) {
   bool log = false;
 
@@ -837,12 +835,11 @@ ib_uint64_t dict_table_autoinc_read(const dict_table_t *table) /*!< in: table */
 }
 
 /** Updates the autoinc counter if the value supplied is greater than the
- current value. */
-void dict_table_autoinc_update_if_greater(
-
-    dict_table_t *table, /*!< in/out: table */
-    ib_uint64_t value)   /*!< in: value which was assigned to a row */
-{
+ current value.
+@param[in,out] table Table
+@param[in] value Value which was assigned to a row */
+void dict_table_autoinc_update_if_greater(dict_table_t *table,
+                                          ib_uint64_t value) {
   ut_ad(dict_table_autoinc_own(table));
 
   if (value > table->autoinc) {
@@ -1132,10 +1129,10 @@ dict_table_t *dict_table_open_on_name(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/** Adds system columns to a table object. */
-void dict_table_add_system_columns(dict_table_t *table, /*!< in/out: table */
-                                   mem_heap_t *heap) /*!< in: temporary heap */
-{
+/** Adds system columns to a table object.
+@param[in,out] table Table
+@param[in] heap Temporary heap */
+void dict_table_add_system_columns(dict_table_t *table, mem_heap_t *heap) {
   ut_ad(table);
   ut_ad(table->n_def == (table->n_cols - table->get_n_sys_cols()));
   ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
@@ -2802,12 +2799,12 @@ static void dict_index_copy(dict_index_t *index1, /*!< in: index to copy to */
   }
 }
 
-/** Copies types of fields contained in index to tuple. */
-void dict_index_copy_types(dtuple_t *tuple,           /*!< in/out: data tuple */
-                           const dict_index_t *index, /*!< in: index */
-                           ulint n_fields)            /*!< in: number of
-                                                      field types to copy */
-{
+/** Copies types of fields contained in index to tuple.
+@param[in,out] tuple Data tuple
+@param[in] index Index
+@param[in] n_fields Number of field types to copy */
+void dict_index_copy_types(dtuple_t *tuple, const dict_index_t *index,
+                           ulint n_fields) {
   ulint i;
 
   if (dict_index_is_ibuf(index)) {
@@ -3684,13 +3681,14 @@ ulint dict_index_calc_min_rec_len(const dict_index_t *index) /*!< in: index */
 }
 
 /** Outputs info on a foreign key of a table in a format suitable for
- CREATE TABLE. */
-void dict_print_info_on_foreign_key_in_create_format(
-    FILE *file,              /*!< in: file where to print */
-    trx_t *trx,              /*!< in: transaction */
-    dict_foreign_t *foreign, /*!< in: foreign key constraint */
-    ibool add_newline)       /*!< in: whether to add a newline */
-{
+ CREATE TABLE.
+@param[in] file File where to print
+@param[in] trx Transaction
+@param[in] foreign Foreign key constraint
+@param[in] add_newline Whether to add a newline */
+void dict_print_info_on_foreign_key_in_create_format(FILE *file, trx_t *trx,
+                                                     dict_foreign_t *foreign,
+                                                     ibool add_newline) {
   const char *stripped_id;
   ulint i;
 
@@ -4385,13 +4383,11 @@ bool dict_foreign_replace_index(
 }
 
 #ifdef UNIV_DEBUG
-/** Check for duplicate index entries in a table [using the index name] */
-void dict_table_check_for_dup_indexes(
-    const dict_table_t *table, /*!< in: Check for dup indexes
-                               in this table */
-    enum check_name check)     /*!< in: whether and when to allow
-                               temporary index names */
-{
+/** Check for duplicate index entries in a table [using the index name]
+@param[in] table Check for dup indexes in this table
+@param[in] check Whether and when to allow temporary index names */
+void dict_table_check_for_dup_indexes(const dict_table_t *table,
+                                      enum check_name check) {
   /* Check for duplicates, ignoring indexes that are marked
   as to be dropped */
 
@@ -4891,10 +4887,11 @@ Fsp Flags are written into the tablespace header at the offset
 FSP_SPACE_FLAGS and are also stored in the fil_space_t::flags field.
 The following chart shows the translation of the low order bit.
 Other bits are the same.
-                        Low order bit
+========================= Low order bit ==========================
                     | REDUNDANT | COMPACT | COMPRESSED | DYNAMIC
 dict_table_t::flags |     0     |    1    |     1      |    1
 fil_space_t::flags  |     0     |    0    |     1      |    1
+==================================================================
 @param[in]	table_flags	dict_table_t::flags
 @return tablespace flags (fil_space_t::flags) */
 uint32_t dict_tf_to_fsp_flags(uint32_t table_flags) {
@@ -5338,7 +5335,7 @@ void DDTableBuffer::truncate() {
 has to delete the returned std::string object by UT_DELETE
 @param[in]	id	table id
 @param[out]	version	table dynamic metadata version
-@return the metadata got in a string object, if nothing, the
+@return the metadata saved in a string object, if nothing, the
 string would be of length 0 */
 std::string *DDTableBuffer::get(table_id_t id, uint64 *version) {
   btr_cur_t cursor;
@@ -5387,9 +5384,9 @@ std::string *DDTableBuffer::get(table_id_t id, uint64 *version) {
 #endif /* !UNIV_HOTBACKUP */
 
 /** Write MLOG_TABLE_DYNAMIC_META for persistent dynamic metadata of table
-@param[in]	id		table id
-@param[in]	metadata	metadata used to write the log
-@param[in,out]	mtr		mini-transaction */
+@param[in]	id		Table id
+@param[in]	metadata	Metadata used to write the log
+@param[in,out]	mtr		Mini-transaction */
 void Persister::write_log(table_id_t id,
                           const PersistentTableMetadata &metadata,
                           mtr_t *mtr) const {
@@ -5707,7 +5704,7 @@ void dict_sdi_close_table(dict_table_t *table) {
 }
 
 /** Retrieve in-memory index for SDI table.
-@param[in]	tablespace_id	innodb tablespace id
+@param[in]	tablespace_id	innodb tablespace ID
 @return dict_index_t structure or NULL*/
 dict_index_t *dict_sdi_get_index(space_id_t tablespace_id) {
   dict_table_t *table = dd_table_open_on_id(
@@ -5721,9 +5718,9 @@ dict_index_t *dict_sdi_get_index(space_id_t tablespace_id) {
 }
 
 /** Retrieve in-memory table object for SDI table.
-@param[in]	tablespace_id	innodb tablespace id
+@param[in]	tablespace_id	innodb tablespace ID
 @param[in]	dict_locked	true if dict_sys mutex is acquired
-@param[in]	is_create	true if we are creating index
+@param[in]	is_create	true when creating SDI Index
 @return dict_table_t structure */
 dict_table_t *dict_sdi_get_table(space_id_t tablespace_id, bool dict_locked,
                                  bool is_create) {
@@ -5747,7 +5744,7 @@ dict_table_t *dict_sdi_get_table(space_id_t tablespace_id, bool dict_locked,
 
 /** Remove the SDI table from table cache.
 @param[in]	space_id	InnoDB tablespace ID
-@param[in]	sdi_table	sdi table
+@param[in]	sdi_table	SDI table
 @param[in]	dict_locked	true if dict_sys mutex acquired */
 void dict_sdi_remove_from_cache(space_id_t space_id, dict_table_t *sdi_table,
                                 bool dict_locked) {
@@ -6005,5 +6002,25 @@ std::string dict_table_get_datadir(const dict_table_t *table) {
   }
 
   return (path);
+}
+
+dberr_t dict_set_compression(dict_table_t *table, const char *algorithm) {
+  ut_ad(table != nullptr);
+
+  /* We don't support Page Compression for the system tablespace,
+  the temporary tablespace, or any general tablespace because
+  COMPRESSION is set by TABLE DDL, not TABLESPACE DDL. There is
+  no other technical reason.  Also, do not use it for missing
+  tables or tables with compressed row_format. */
+  if (table->ibd_file_missing ||
+      !DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_FILE_PER_TABLE) ||
+      DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY) ||
+      page_size_t(table->flags).is_compressed()) {
+    return (DB_IO_NO_PUNCH_HOLE_TABLESPACE);
+  }
+
+  auto err = fil_set_compression(table->space, algorithm);
+
+  return err;
 }
 #endif /* !UNIV_HOTBACKUP */

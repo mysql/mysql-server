@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -139,13 +139,13 @@ class XComStateExchangeTest : public GcsBaseTest {
  protected:
   XComStateExchangeTest() {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     control_mock = new mock_gcs_control_interface();
     comm_mock = new mock_gcs_xcom_communication_interface();
     state_exchange = new Gcs_xcom_state_exchange(comm_mock);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     delete state_exchange;
     delete comm_mock;
     delete control_mock;

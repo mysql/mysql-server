@@ -71,6 +71,28 @@ struct buf_chunk_t {
   Emits a warning to the log if could not succeed.
   @return true iff succeeded, false if no OS support or failed */
   bool madvise_dont_dump();
+
+  /** Checks if this chunk contains a given block without dereferencing it
+  @param[in]  ptr   A pointer which we want to check
+  @return true iff the ptr points inside the chunk */
+  bool contains(const buf_block_t *ptr) const {
+    /* In theory comparing pointers which don't belong to the same array can
+    give unspecified results when using < and <=.
+    By using std::less(_equal) we get at least the guarantee that std::less
+    relation forms a total order, which still doesn't gives us what we really
+    need (as it could be a weird total order in which ptr seems to be inside an
+    array even though it is not), but at least it is specified and people seem
+    to use this in real world applications except for old MS-DOS real-mode.
+    Also, we might have an ABA problem here, where the memory of chunk was freed
+    and later reallocated at similar address thus the range contains the ptr
+    again. I hope this is not a problem because we require the chunk to be
+    aligned the same way both times, so the pointer should never point in the
+    middle (non-zero offset) of the buf_block_t struct.
+    The only 100% sure and compliant way to implement this function would be a
+    loop over all blocks inside the chunk, which is too slow. */
+    return std::less_equal<const buf_block_t *>{}(blocks, ptr) &&
+           std::less<const buf_block_t *>{}(ptr, blocks + size);
+  }
 };
 
 /** Gets the current size of buffer buf_pool in bytes.
@@ -895,8 +917,6 @@ UNIV_INLINE
 void buf_block_buf_fix_dec(
     buf_block_t *block) /*!< in/out: block to bufferunfix */
 {
-  buf_block_unfix(block);
-
 #ifdef UNIV_DEBUG
   /* No debug latch is acquired if block belongs to system temporary.
   Debug latch is not of much help if access to block is single
@@ -905,6 +925,8 @@ void buf_block_buf_fix_dec(
     rw_lock_s_unlock(&block->debug_latch);
   }
 #endif /* UNIV_DEBUG */
+
+  buf_block_unfix(block);
 }
 
 /** Returns the buffer pool instance given a page id.
@@ -1192,14 +1214,6 @@ buf_block_t *buf_get_nth_chunk_block(
   chunk = buf_pool->chunks + n;
   *chunk_size = chunk->size;
   return (chunk->blocks);
-}
-
-/** Verify the possibility that a stored page is not in buffer pool.
-@param[in]	withdraw_clock	withdraw clock when stored the page
-@retval true	if the page might be relocated */
-UNIV_INLINE
-bool buf_pool_is_obsolete(ulint withdraw_clock) {
-  return (buf_pool_withdrawing || buf_withdraw_clock != withdraw_clock);
 }
 
 /** Calculate aligned buffer pool size based on srv_buf_pool_chunk_unit,

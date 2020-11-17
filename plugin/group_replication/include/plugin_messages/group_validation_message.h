@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ class Group_validation_message : public Plugin_gcs_message {
   Group_validation_message(const uchar *buf, size_t len);
 
   /** Class destructor */
-  virtual ~Group_validation_message();
+  ~Group_validation_message() override;
 
   /**
     Does the member has running channels
@@ -81,14 +81,15 @@ class Group_validation_message : public Plugin_gcs_message {
 
     @param[out] buffer   the message buffer to be written
   */
-  void encode_payload(std::vector<unsigned char> *buffer) const;
+  void encode_payload(std::vector<unsigned char> *buffer) const override;
 
   /**
     Message decoding method
 
     @param[in] buffer the received data
   */
-  void decode_payload(const unsigned char *buffer, const unsigned char *);
+  void decode_payload(const unsigned char *buffer,
+                      const unsigned char *) override;
 
  private:
   /**The message type*/

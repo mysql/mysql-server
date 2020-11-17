@@ -5,17 +5,17 @@
 # $COMPRESS_ALGORITHM
 
 --echo # case1: default connection with default authentication plugin
-CREATE DATABASE wl13510;
+CREATE DATABASE testdb;
 CREATE USER caching_sha2@localhost IDENTIFIED BY 'caching';
 GRANT ALL ON *.* TO caching_sha2@localhost;
 
 --enable_async_client
 
 --echo # connect as caching_sha2
-connect(caching_con1,localhost,caching_sha2,caching,wl13510,,,SSL $COMPRESS_OPTION,,$COMPRESS_ALGORITHM);
+connect(caching_con1,localhost,caching_sha2,caching,testdb,,,SSL $COMPRESS_OPTION,,$COMPRESS_ALGORITHM);
 SELECT USER(), DATABASE();
 
-USE wl13510;
+USE testdb;
 CREATE TABLE t1(i INT, j VARCHAR(2048));
 INSERT INTO t1 VALUES(1,repeat('a',1000)),(2,repeat('def',600));
 --sorted_result
@@ -34,10 +34,10 @@ disconnect caching_con1;
 --echo # connect with wrong password
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect(caching_con2,localhost,caching_sha2,caching1,wl13510,,,SSL $COMPRESS_OPTION,,$COMPRESS_ALGORITHM);
+connect(caching_con2,localhost,caching_sha2,caching1,testdb,,,SSL $COMPRESS_OPTION,,$COMPRESS_ALGORITHM);
 
 --echo # check for timeout
-connect(caching_con3,localhost,caching_sha2,caching,wl13510,,,SSL $COMPRESS_OPTION,,$COMPRESS_ALGORITHM);
+connect(caching_con3,localhost,caching_sha2,caching,testdb,,,SSL $COMPRESS_OPTION,,$COMPRESS_ALGORITHM);
 SELECT USER();
 SET @@SESSION.wait_timeout = 2;
 SELECT SLEEP(10);
@@ -56,7 +56,7 @@ ALTER USER caching_sha2@localhost ACCOUNT LOCK;
 --echo # account is locked so connect should fail
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error 3118
-connect(caching_con3,localhost,caching_sha2,caching,wl13510,,,SSL $COMPRESS_OPTION,,$COMPRESS_ALGORITHM);
+connect(caching_con3,localhost,caching_sha2,caching,testdb,,,SSL $COMPRESS_OPTION,,$COMPRESS_ALGORITHM);
 
 connection default;
 --disable_async_client
@@ -65,7 +65,7 @@ ALTER USER caching_sha2@localhost ACCOUNT UNLOCK;
 --enable_async_client
 
 --echo # account is unlocked so connect should pass
-connect(caching_con3,localhost,caching_sha2,caching,wl13510,,,SSL $COMPRESS_OPTION,,$COMPRESS_ALGORITHM);
+connect(caching_con3,localhost,caching_sha2,caching,testdb,,,SSL $COMPRESS_OPTION,,$COMPRESS_ALGORITHM);
 SELECT "connect succeeded after account is unlocked";
 
 connection default;
@@ -78,7 +78,7 @@ disconnect caching_con3;
 --enable_async_client
 
 --echo # connect as caching_sha2 with SSL disabled
-connect(caching_con4,localhost,caching_sha2,caching,wl13510,,,$COMPRESS_OPTION,,$COMPRESS_ALGORITHM);
+connect(caching_con4,localhost,caching_sha2,caching,testdb,,,$COMPRESS_OPTION,,$COMPRESS_ALGORITHM);
 SELECT USER();
 
 connection default;
@@ -92,7 +92,7 @@ ALTER USER caching_sha2@localhost IDENTIFIED BY '';
 --enable_async_client
 
 --echo # connect as caching_sha2 with SSL disabled and empty password
-connect(caching_con5,localhost,caching_sha2,,wl13510,,,$COMPRESS_OPTION,,$COMPRESS_ALGORITHM);
+connect(caching_con5,localhost,caching_sha2,,testdb,,,$COMPRESS_OPTION,,$COMPRESS_ALGORITHM);
 SELECT USER();
 
 connection default;
@@ -164,7 +164,7 @@ disconnect native_con2;
 #cleanup
 --disable_async_client
 DROP USER sha256@localhost, native_user@localhost, caching_sha2@localhost;
-DROP DATABASE wl13510;
+DROP DATABASE testdb;
 
 # restore default options
 --let $restart_parameters = restart:

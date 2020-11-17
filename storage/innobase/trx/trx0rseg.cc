@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -47,11 +47,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** Creates a rollback segment header.
 This function is called only when a new rollback segment is created in
 the database.
-@param[in]	space_id	space id
-@param[in]	page_size	page size
-@param[in]	max_size	max size in pages
-@param[in]	rseg_slot	rseg id == slot number in RSEG_ARRAY
-@param[in,out]	mtr		mini-transaction
+@param[in]	space_id	Space id
+@param[in]	page_size	Page size
+@param[in]	max_size	Max size in pages
+@param[in]	rseg_slot	Rseg id == slot number in RSEG_ARRAY
+@param[in,out]	mtr		Mini-transaction
 @return page number of the created segment, FIL_NULL if fail */
 page_no_t trx_rseg_header_create(space_id_t space_id,
                                  const page_size_t &page_size,
@@ -166,7 +166,7 @@ static void trx_rseg_persist_gtid(trx_rseg_t *rseg, trx_id_t gtid_trx_no) {
   if (gtid_trx_no == 0) {
     return;
   }
-  /* The mini transactions used in this function should not do any
+  /* The mini-transactions used in this function should not do any
   modification/write operation. We read the undo header and send GTIDs
   to the GTID persistor. There is no impact if the server crashes
   anytime during the operation. */
@@ -738,8 +738,8 @@ bool trx_rseg_adjust_rollback_segments(ulong target_rollback_segments) {
   return (true);
 }
 
-/** Create the requested number of Rollback Segments in the undo tablespace
-and add them to the Rsegs object.
+/** Create the requested number of Rollback Segments in a newly created undo
+tablespace and add them to the Rsegs object.
 @param[in]  space_id                  undo tablespace ID
 @param[in]  target_rollback_segments  number of rollback segments per space
 @return true if all necessary rollback segments and trx_rseg_t objects

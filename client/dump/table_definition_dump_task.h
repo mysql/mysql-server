@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@ class Table_definition_dump_task : public Abstract_table_dump_task {
  public:
   Table_definition_dump_task(Table *related_table);
 
-  ~Table_definition_dump_task();
+  ~Table_definition_dump_task() override;
 };
 
 }  // namespace Dump

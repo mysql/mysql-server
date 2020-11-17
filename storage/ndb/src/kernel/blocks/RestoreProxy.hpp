@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,11 +31,11 @@
 class RestoreProxy : public LocalProxy {
 public:
   RestoreProxy(Block_context& ctx);
-  virtual ~RestoreProxy();
+  ~RestoreProxy() override;
   BLOCK_DEFINES(RestoreProxy);
 
 protected:
-  virtual SimulatedBlock* newWorker(Uint32 instanceNo);
+  SimulatedBlock* newWorker(Uint32 instanceNo) override;
 };
 
 

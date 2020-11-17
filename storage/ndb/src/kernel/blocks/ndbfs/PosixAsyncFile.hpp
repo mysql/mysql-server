@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@
  * Also does direct IO, preallocation.
  */
 
-#include <ndbzio.h>
+#include "portlib/ndb_file.h"
 
 #define JAM_FILE_ID 397
 
@@ -40,44 +40,11 @@ class PosixAsyncFile : public AsyncFile
   friend class Ndbfs;
 public:
   PosixAsyncFile(SimulatedBlock& fs);
-  virtual ~PosixAsyncFile();
 
-  virtual int init();
-  virtual bool isOpen();
+  void removeReq(Request *request) override;
+  void rmrfReq(Request *request, const char * path, bool removePath) override;
 
-  virtual void openReq(Request *request);
-  virtual void readvReq(Request *request);
-
-  virtual void closeReq(Request *request);
-  virtual void syncReq(Request *request);
-  virtual void removeReq(Request *request);
-  virtual void appendReq(Request *request);
-  virtual void rmrfReq(Request *request, const char * path, bool removePath);
-
-  virtual int readBuffer(Request*, char * buf, size_t size, off_t offset);
-  virtual int writeBuffer(const char * buf, size_t size, off_t offset);
-
-  virtual void createDirectories();
-
-  virtual Uint32 get_fileinfo() const {
-    Uint32 ft = (Uint32)m_filetype;
-    Uint32 fd = (Uint32)theFd;
-    return (ft << 16) | (fd & 0xFFFF);
-  }
-
-private:
-  int theFd;
-  int m_filetype;
-  bool m_use_o_direct_sync_flag;
-  void set_or_check_filetype(bool set);
-
-  int use_gz;
-  ndbzio_stream nzf;
-  struct ndbz_alloc_rec nz_mempool;
-  void* nzfBufferUnaligned;
-
-  int check_odirect_read(Uint32 flags, int&new_flags, int mode);
-  int check_odirect_write(Uint32 flags, int&new_flags, int mode);
+  void createDirectories() override;
 };
 
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -528,7 +528,7 @@ class Slave_worker : public Relay_log_info {
 #endif
                uint param_id, const char *param_channel);
 
-  virtual ~Slave_worker();
+  ~Slave_worker() override;
 
   Slave_jobs_queue jobs;    // assignment queue containing events to execute
   mysql_mutex_t jobs_lock;  // mutex for the jobs queue
@@ -658,7 +658,7 @@ class Slave_worker : public Relay_log_info {
     The method is a wrapper to provide uniform interface with STS and is
     to be called from Relay_log_info and Slave_worker pre_commit() methods.
   */
-  bool commit_positions() {
+  bool commit_positions() override {
     DBUG_ASSERT(current_event);
 
     return commit_positions(
@@ -668,7 +668,7 @@ class Slave_worker : public Relay_log_info {
   /**
     See the comments for STS version of this method.
   */
-  void post_commit(bool on_rollback) {
+  void post_commit(bool on_rollback) override {
     if (on_rollback) {
       if (is_transactional())
         rollback_positions(
@@ -711,7 +711,7 @@ class Slave_worker : public Relay_log_info {
 
     @return 1 if an error was encountered, 0 otherwise.
   */
-  int set_rli_description_event(Format_description_log_event *fdle) {
+  int set_rli_description_event(Format_description_log_event *fdle) override {
     DBUG_TRACE;
 
     if (fdle) {
@@ -869,20 +869,20 @@ class Slave_worker : public Relay_log_info {
   bool retry_transaction(uint start_relay_number, my_off_t start_relay_pos,
                          uint end_relay_number, my_off_t end_relay_pos);
 
-  bool set_info_search_keys(Rpl_info_handler *to);
+  bool set_info_search_keys(Rpl_info_handler *to) override;
 
   /**
     Get coordinator's RLI. Especially used get the rli from
     a slave thread, like this: thd->rli_slave->get_c_rli();
     thd could be a SQL thread or a worker thread.
   */
-  virtual Relay_log_info *get_c_rli() { return c_rli; }
+  Relay_log_info *get_c_rli() override { return c_rli; }
 
   /**
      return an extension "for channel channel_name"
      for error messages per channel
   */
-  const char *get_for_channel_str(bool upper_case = false) const;
+  const char *get_for_channel_str(bool upper_case = false) const override;
 
   longlong sequence_number() {
     Slave_job_group *ptr_g = c_rli->gaq->get_job_group(gaq_index);
@@ -915,8 +915,8 @@ class Slave_worker : public Relay_log_info {
   }
 
  protected:
-  virtual void do_report(loglevel level, int err_code, const char *msg,
-                         va_list v_args) const
+  void do_report(loglevel level, int err_code, const char *msg,
+                 va_list v_args) const override
       MY_ATTRIBUTE((format(printf, 4, 0)));
 
  private:
@@ -924,8 +924,8 @@ class Slave_worker : public Relay_log_info {
   ulonglong
       master_log_pos;  // event's cached log_pos for possibile error report
   void end_info();
-  bool read_info(Rpl_info_handler *from);
-  bool write_info(Rpl_info_handler *to);
+  bool read_info(Rpl_info_handler *from) override;
+  bool write_info(Rpl_info_handler *to) override;
   std::atomic<bool> m_commit_order_deadlock;
 
   Slave_worker &operator=(const Slave_worker &info);

@@ -1008,6 +1008,9 @@ Dblqh::define_backup(Signal* signal)
   req->backupKey[0] = 0;
   req->backupKey[1] = 0;
   req->backupDataLen = ~0;
+  req->nodes.clear(); // Use nodes in section
+  req->flags = 0;
+  req->senderData = 0;
 
   NdbNodeBitmask nodes;
   nodes.set(getOwnNodeId());
@@ -13120,7 +13123,7 @@ void Dblqh::scanLockReleasedLab(Signal* signal,
       /*
        * We came here after releasing locks after 
        * receiving SCAN_NEXTREQ from TC. We only come here 
-       * when scanHoldLock == ZTRUE
+       * when scanLockHold == ZTRUE
        */
       scanPtr->m_curr_batch_size_rows = 0;
       scanPtr->m_curr_batch_size_bytes = 0;
@@ -15267,15 +15270,19 @@ void Dblqh::scanTupkeyRefLab(Signal* signal,
     scanReleaseLocksLab(signal, tcConnectptr.p);
     return;
   }//if
-  Uint32 time_passed = cLqhTimeOutCount - tcConnectptr.p->tcTimer;
-  if (unlikely(rows && time_passed > 1))
+
+  // 'time_passed' is in slices of 10ms
+  const Uint32 time_passed = cLqhTimeOutCount - tcConnectptr.p->tcTimer;
+  if (unlikely(rows && time_passed > 1) &&
+      (refToMain(scanPtr->scanApiBlockref) != DBSPJ || time_passed > 10 ))
   {
-  /* -----------------------------------------------------------------------
-   *  WE NEED TO ENSURE THAT WE DO NOT SEARCH FOR THE NEXT TUPLE FOR A 
-   *  LONG TIME WHILE WE KEEP A LOCK ON A FOUND TUPLE. WE RATHER REPORT 
-   *  THE FOUND TUPLE IF FOUND TUPLES ARE RARE. If more than 10 ms passed we
-   *  send the found tuples to the API.
-   * ----------------------------------------------------------------------- */
+    /* -----------------------------------------------------------------------
+     *  WE NEED TO ENSURE THAT WE DO NOT SEARCH FOR THE NEXT TUPLE FOR A
+     *  LONG TIME WHILE WE KEEP A LOCK ON A FOUND TUPLE. WE RATHER REPORT
+     *  THE FOUND TUPLE IF FOUND TUPLES ARE RARE. If more than 10 ms passed we
+     *  send the found tuples to the API. For requests comming from SPJ we allow
+     *  scans to go on for an extended periode of 100ms
+     * ----------------------------------------------------------------------- */
     scanPtr->scanReleaseCounter = rows + 1;
     scanReleaseLocksLab(signal, tcConnectptr.p);
     return;
@@ -24062,6 +24069,7 @@ Dblqh::write_local_sysfile(Signal *signal, Uint32 type, Uint32 gci)
 void
 Dblqh::execWRITE_LOCAL_SYSFILE_CONF(Signal *signal)
 {
+  jam();
   WriteLocalSysfileConf *conf = (WriteLocalSysfileConf*)signal->getDataPtr();
   ndbrequire(is_first_instance());
   c_outstanding_write_local_sysfile = false;
@@ -24079,6 +24087,7 @@ Dblqh::execWRITE_LOCAL_SYSFILE_CONF(Signal *signal)
       if (c_start_phase_9_waiting)
       {
         jam();
+        GcpRecordPtr localGcpPtr;
         /**
          * We have reached phase 9 during writing of the local sysfile.
          * We proceed immediately to update the local sysfile with the
@@ -24086,6 +24095,35 @@ Dblqh::execWRITE_LOCAL_SYSFILE_CONF(Signal *signal)
          * the GCP and report GCP_SAVECONF.
          */
         c_send_gcp_saveref_needed = false;
+
+        if (ccurrentGcprec == RNIL)
+        {
+          jam();
+          /**
+           * Setup GCP record values from local record as we will
+           * send a GCP_SAVECONF later
+           */
+          localGcpPtr.i = 0;
+          ptrCheckGuard(localGcpPtr, cgcprecFileSize, gcpRecord);
+
+          localGcpPtr.p->gcpBlockref = c_local_sysfile.m_dihRef;
+          localGcpPtr.p->gcpUserptr = c_local_sysfile.m_dihPtr;
+          localGcpPtr.p->gcpId = c_local_sysfile.m_save_gci;
+          ndbrequire(refToMain(localGcpPtr.p->gcpBlockref) == DBDIH ||
+                     refToMain(localGcpPtr.p->gcpBlockref) == DBLQH);
+        }
+        else
+        {
+          jam();
+          /**
+           * Check that the GCP record is sane
+           */
+          localGcpPtr.i = ccurrentGcprec;
+          ptrCheckGuard(localGcpPtr, cgcprecFileSize, gcpRecord);
+          ndbrequire(refToMain(localGcpPtr.p->gcpBlockref) == DBDIH ||
+                     refToMain(localGcpPtr.p->gcpBlockref) == DBLQH);
+        }
+
         write_local_sysfile_restart_complete(signal);
       }
       else

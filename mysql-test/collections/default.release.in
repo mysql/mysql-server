@@ -11,8 +11,7 @@
 # include default.weekly
 
 perl mysql-test-run.pl --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=debug      --vardir=var-debug --skip-rpl --report-features --debug-server
-# Run with --non-parallel-test option so that non parallel tests are also run
-perl mysql-test-run.pl --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=normal     --vardir=var-normal --report-features --unit-tests-report --non-parallel-test
+perl mysql-test-run.pl --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=normal     --vardir=var-normal --report-features --unit-tests-report
 perl mysql-test-run.pl --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=ps         --vardir=var-ps --ps-protocol
 perl mysql-test-run.pl --force --timer  --comment=funcs2     --vardir=var-funcs2     --suite=funcs_2
 perl mysql-test-run.pl --force --timer  --comment=partitions --vardir=var-parts      --suite=parts

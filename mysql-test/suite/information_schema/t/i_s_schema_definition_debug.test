@@ -98,7 +98,7 @@
 SET debug = '+d,skip_dd_table_access_check';
 
 # Total number of system views in MySQL server.
-let $expected_system_view_count = 43;
+let $expected_system_view_count = 44;
 
 --echo ########################################################################
 --echo # PART 1
@@ -284,6 +284,12 @@ INSERT INTO I_S_published_schema
 INSERT INTO I_S_published_schema
   VALUES ('80021', '80021', 1,
     'b1359fbef2feecf8dfc688dc0716cea8686905aeee15a0115bcbfdbc0dc8f456');
+INSERT INTO I_S_published_schema
+  VALUES ('80022', '80022', 0,
+    '53555f72c6938d7a343d6b344900d52acf4ebe228bb0d70b30eb1ad1ab693a8d');
+INSERT INTO I_S_published_schema
+  VALUES ('80022', '80022', 1,
+    '6702af4a1d352b7c8a27280358b7fa95667c5b3e27d1a7f1e4ffbe791d00dffe');
 
 LET $checksum_version = `SELECT IF(ISNULL(mysqld_version), "0", i_s_version)
                   FROM I_S_published_schema i RIGHT OUTER JOIN whole_schema w

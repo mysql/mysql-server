@@ -1,7 +1,7 @@
 #ifndef PARTITION_INFO_INCLUDED
 #define PARTITION_INFO_INCLUDED
 
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -461,10 +461,10 @@ class partition_info {
         has_null_value(false),
         column_list(false),
         is_pruning_completed(false) {
-    partitions.empty();
-    temp_partitions.empty();
-    part_field_list.empty();
-    subpart_field_list.empty();
+    partitions.clear();
+    temp_partitions.clear();
+    part_field_list.clear();
+    subpart_field_list.clear();
   }
 
   partition_info *get_clone(THD *thd, bool reset = false);
@@ -508,9 +508,9 @@ class partition_info {
   void set_show_version_string(String *packet);
   partition_element *get_part_elem(const char *partition_name, uint32 *part_id);
   void report_part_expr_error(bool use_subpart_expr);
-  bool set_used_partition(List<Item> &fields, List<Item> &values,
-                          COPY_INFO &info, bool copy_default_values,
-                          MY_BITMAP *used_partitions);
+  bool set_used_partition(const mem_root_deque<Item *> &fields,
+                          const mem_root_deque<Item *> &values, COPY_INFO &info,
+                          bool copy_default_values, MY_BITMAP *used_partitions);
   /**
     PRUNE_NO - Unable to prune.
     PRUNE_DEFAULTS - Partitioning field is only set to
@@ -522,8 +522,9 @@ class partition_info {
   */
   enum enum_can_prune { PRUNE_NO = 0, PRUNE_DEFAULTS, PRUNE_YES };
   bool can_prune_insert(THD *thd, enum_duplicates duplic, COPY_INFO &update,
-                        List<Item> &update_fields, List<Item> &fields,
-                        bool empty_values, enum_can_prune *can_prune_partitions,
+                        const mem_root_deque<Item *> &update_fields,
+                        const mem_root_deque<Item *> &fields, bool empty_values,
+                        enum_can_prune *can_prune_partitions,
                         bool *prune_needs_default_values,
                         MY_BITMAP *used_partitions);
   bool has_same_partitioning(partition_info *new_part_info);
@@ -564,8 +565,8 @@ class partition_info {
   char *create_default_subpartition_name(uint subpart_no,
                                          const char *part_name);
   bool add_named_partition(const char *part_name, size_t length);
-  bool is_fields_in_part_expr(List<Item> &fields);
-  bool is_full_part_expr_in_fields(List<Item> &fields);
+  bool is_fields_in_part_expr(const mem_root_deque<Item *> &fields);
+  bool is_full_part_expr_in_fields(const mem_root_deque<Item *> &fields);
 };
 
 uint32 get_next_partition_id_range(PARTITION_ITERATOR *part_iter);

@@ -17,6 +17,9 @@ engine ndbcluster;
 # Create table
 create table t2 (a int) engine ndb;
 ERROR HY000: DDLs are disallowed on NDB SE as there is atleast one node without MySQL DD support connected to the cluster.
+# Inplace alter
+alter table t1 add index idx(a), algorithm = inplace;
+ERROR HY000: DDLs are disallowed on NDB SE as there is atleast one node without MySQL DD support connected to the cluster.
 # Copy alter
 alter table t1 add index idx(a), algorithm = copy;
 ERROR HY000: DDLs are disallowed on NDB SE as there is atleast one node without MySQL DD support connected to the cluster.

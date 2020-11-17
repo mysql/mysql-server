@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -102,14 +102,14 @@ class My_xp_mutex {
 class My_xp_mutex_server : public My_xp_mutex {
  public:
   explicit My_xp_mutex_server();
-  virtual ~My_xp_mutex_server();
+  ~My_xp_mutex_server() override;
 
-  int init(PSI_mutex_key key, const native_mutexattr_t *attr);
-  int destroy();
-  int lock();
-  int trylock();
-  int unlock();
-  mysql_mutex_t *get_native_mutex();
+  int init(PSI_mutex_key key, const native_mutexattr_t *attr) override;
+  int destroy() override;
+  int lock() override;
+  int trylock() override;
+  int unlock() override;
+  mysql_mutex_t *get_native_mutex() override;
 
  protected:
   mysql_mutex_t *m_mutex;
@@ -122,7 +122,7 @@ class My_xp_mutex_impl : public My_xp_mutex_server
 {
  public:
   explicit My_xp_mutex_impl() {}
-  ~My_xp_mutex_impl() {}
+  ~My_xp_mutex_impl() override {}
 };
 
 class My_xp_mutex_util {

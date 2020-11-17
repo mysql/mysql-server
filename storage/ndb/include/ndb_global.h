@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -211,6 +211,7 @@ extern "C" {
 #endif
 
 #define NDB_O_DIRECT_WRITE_ALIGNMENT 512
+#define NDB_O_DIRECT_WRITE_BLOCKSIZE 4096
 
 #ifndef STATIC_ASSERT
 #if defined VM_TRACE

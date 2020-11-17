@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -430,14 +430,14 @@ void PROFILING::finish_current_query() {
 bool PROFILING::show_profiles() {
   DBUG_TRACE;
   QUERY_PROFILE *prof;
-  List<Item> field_list;
+  mem_root_deque<Item *> field_list(current_thd->mem_root);
 
   field_list.push_back(new Item_return_int("Query_ID", 10, MYSQL_TYPE_LONG));
   field_list.push_back(new Item_return_int("Duration", TIME_FLOAT_DIGITS - 1,
                                            MYSQL_TYPE_DOUBLE));
   field_list.push_back(new Item_empty_string("Query", 40));
 
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 

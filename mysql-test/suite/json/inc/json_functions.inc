@@ -3048,7 +3048,6 @@ DROP TABLE t;
 --echo # JSON should work with INSERT .. ON DUPLICATE KEY UPDATE
 --echo #
 CREATE TABLE t(id INT PRIMARY KEY, j JSON);
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t VALUES (1, '[1]')
 ON DUPLICATE KEY UPDATE j = JSON_OBJECT("a", VALUES(j));
 SELECT * FROM t;
@@ -3057,7 +3056,6 @@ ON DUPLICATE KEY UPDATE j = JSON_OBJECT("ab", VALUES(j));
 SELECT * FROM t;
 INSERT INTO t VALUES (1, '[1,2,3]')
 ON DUPLICATE KEY UPDATE j = JSON_OBJECT("abc", VALUES(j));
---enable_ps_protocol
 SELECT * FROM t;
 DROP TABLE t;
 
@@ -3667,7 +3665,11 @@ let $query= UPDATE t SET j1 = JSON_SET(j1, '\$.a', 'x'),
 SET optimizer_trace="enabled=on";
 --eval $query
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+# View trace, but eliminating update_preparation block which is
+# not produced in -ps mode.
+let $show_trace=
+SELECT REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n') FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+eval $show_trace;
 --eval $dump_table
 let $query= UPDATE t SET j1 = JSON_SET(j1, '\$.a', 's'),
                          j2 = JSON_SET(j2, '\$.a', 'abcdefghi'),
@@ -3676,28 +3678,28 @@ let $query= UPDATE t SET j1 = JSON_SET(j1, '\$.a', 's'),
 SET optimizer_trace="enabled=on";
 --eval $query
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+eval $show_trace;
 --eval $dump_table
 --let $query= UPDATE t SET j1 = JSON_SET(j1, '\$.x.y.z', 'abc', '\$.b', 'X')
 --eval EXPLAIN FORMAT=JSON $query
 SET optimizer_trace="enabled=on";
 --eval $query
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+eval $show_trace;
 --eval $dump_table
 --let $query= UPDATE t SET j1 = JSON_REPLACE(j1, '\$.x', 'abc', '\$.b', 'Y')
 --eval EXPLAIN FORMAT=JSON $query
 SET optimizer_trace="enabled=on";
 --eval $query
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+eval $show_trace;
 --eval $dump_table
 --let $query= UPDATE t SET j1 = JSON_SET(j1, '\$.x', 'abc', '\$.b', 'Z')
 --eval EXPLAIN FORMAT=JSON $query
 SET optimizer_trace="enabled=on";
 --eval $query
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+eval $show_trace;
 --eval $dump_table
 # No partial update here since input column is different from target column.
 --let $query= UPDATE t SET j1 = JSON_SET(j2, '\$.a', 'ABC')
@@ -3705,7 +3707,7 @@ SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 SET optimizer_trace="enabled=on";
 --eval $query
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+eval $show_trace;
 --eval $dump_table
 # No partial update here since JSON_ARRAY doesn't support partial update.
 --let $query= UPDATE t SET j1 = JSON_ARRAY(j1, j1)
@@ -3713,7 +3715,7 @@ SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 SET optimizer_trace="enabled=on";
 --eval $query
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+eval $show_trace;
 --eval $dump_table
 # No partial update of j1, but j2 should be partially updated.
 let $query= UPDATE t SET j1 = JSON_SET(j2, '\$.a', 1),
@@ -3722,7 +3724,7 @@ let $query= UPDATE t SET j1 = JSON_SET(j2, '\$.a', 1),
 SET optimizer_trace="enabled=on";
 --eval $query
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+eval $show_trace;
 --eval $dump_table
 DROP TABLE t;
 

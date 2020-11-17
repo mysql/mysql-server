@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,8 @@ class Abstract_progress_reporter : public virtual I_progress_reporter {
   /**
     Add new Progress Watcher to report to.
   */
-  void register_progress_watcher(I_progress_watcher *new_progress_watcher);
+  void register_progress_watcher(
+      I_progress_watcher *new_progress_watcher) override;
 
  protected:
   /**

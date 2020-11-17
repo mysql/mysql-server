@@ -1,0 +1,158 @@
+############# mysql-test\t\innodb_extend_and_initialize_basic.test ############
+#                                                                             #
+# Variable Name: innodb_extend_and_initialize                                 #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: bool                                                             #
+# Default Value: false                                                        #
+# Range:                                                                      #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2020-01-27                                                   #
+# Author:  Rahul Agarkar                                                      #
+#                                                                             #
+# Description: Test Cases of Dynamic Variable innodb_extend_and_initialize    #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#                                                                             #
+###############################################################################
+
+# The option innodb_extend_and_initialize is not supported on any
+# platform other than linux
+--source include/linux.inc
+--source include/load_sysvars.inc
+
+#############################
+# Messages to be suppressed #
+#############################
+CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* ignoring option '--innodb-extend-and-initialize'");
+
+#######################################
+# START OF innodb_extend_and_initialize TESTS #
+#######################################
+
+######################
+# Save initial value #
+######################
+
+SET @start_global_value = @@global.innodb_extend_and_initialize;
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @start_session_value = @@session.innodb_extend_and_initialize;
+
+#####################################################
+# Display the DEFAULT value of innodb_extend_and_initialize #
+#####################################################
+
+SELECT @@global.innodb_extend_and_initialize;
+
+###########################################
+# Check the DEFAULT value of wait_timeout #
+###########################################
+
+SET @@global.innodb_extend_and_initialize = DEFAULT;
+SELECT @@global.innodb_extend_and_initialize;
+
+--Error ER_GLOBAL_VARIABLE
+SET @@session.innodb_extend_and_initialize = DEFAULT;
+
+################################################################
+# Change the value of innodb_extend_and_initialize to an invalid value #
+################################################################
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.innodb_extend_and_initialize = 10;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.innodb_extend_and_initialize = 'abc';
+
+SELECT @@global.innodb_extend_and_initialize;
+
+#####################################################
+# Change the value of wait_timeout to a valid value #
+#####################################################
+
+SET @@global.innodb_extend_and_initialize = false;
+SELECT @@global.innodb_extend_and_initialize;
+
+SET @@global.innodb_extend_and_initialize = true;
+SELECT @@global.innodb_extend_and_initialize;
+
+SET @@global.innodb_extend_and_initialize = OFF;
+SELECT @@global.innodb_extend_and_initialize;
+
+SET @@global.innodb_extend_and_initialize = ON;
+SELECT @@global.innodb_extend_and_initialize;
+
+SET @@global.innodb_extend_and_initialize = 0;
+SELECT @@global.innodb_extend_and_initialize;
+
+SET @@global.innodb_extend_and_initialize = 1;
+SELECT @@global.innodb_extend_and_initialize;
+
+#########################
+# Restore initial value #
+#########################
+
+SET @@global.innodb_extend_and_initialize = @start_global_value;
+
+############################################################
+# Test the server command line option innodb-extend-and-initialize #
+############################################################
+
+# Restart the server with invalid parameter values
+let $restart_parameters = restart: --innodb-extend-and-initialize=10;
+--source include/restart_mysqld.inc
+SELECT @@global.innodb_extend_and_initialize;
+
+let $restart_parameters = restart: --innodb-extend-and-initialize='xyz';
+--source include/restart_mysqld.inc
+SELECT @@global.innodb_extend_and_initialize;
+
+# Restart the server with valid parameter values
+let $restart_parameters = restart: --innodb-extend-and-initialize=false;
+--source include/restart_mysqld.inc
+SELECT @@global.innodb_extend_and_initialize;
+
+let $restart_parameters = restart: --innodb-extend-and-initialize=true;
+--source include/restart_mysqld.inc
+SELECT @@global.innodb_extend_and_initialize;
+
+let $restart_parameters = restart: --innodb-extend-and-initialize=off;
+--source include/restart_mysqld.inc
+SELECT @@global.innodb_extend_and_initialize;
+
+let $restart_parameters = restart: --innodb-extend-and-initialize=on;
+--source include/restart_mysqld.inc
+SELECT @@global.innodb_extend_and_initialize;
+
+let $restart_parameters = restart: --innodb-extend-and-initialize=0;
+--source include/restart_mysqld.inc
+SELECT @@global.innodb_extend_and_initialize;
+
+SET @@global.innodb_extend_and_initialize = on;
+SELECT @@global.innodb_extend_and_initialize;
+
+let $restart_parameters = restart: --innodb-extend-and-initialize=1;
+--source include/restart_mysqld.inc
+SELECT @@global.innodb_extend_and_initialize;
+
+let $restart_parameters = restart:;
+--source include/restart_mysqld.inc
+SELECT @@global.innodb_extend_and_initialize;
+SET PERSIST innodb_extend_and_initialize = FALSE;
+
+let $restart_parameters = restart:;
+--source include/restart_mysqld.inc
+SELECT @@global.innodb_extend_and_initialize;
+SET PERSIST innodb_extend_and_initialize = DEFAULT;
+
+let $restart_parameters = restart:;
+--source include/restart_mysqld.inc
+RESET PERSIST;
+
+#####################################
+# END OF innodb_extend_and_initialize TESTS #
+#####################################

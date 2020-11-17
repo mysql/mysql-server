@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,24 +52,24 @@ class Routine_impl : public Entity_object_impl, virtual public Routine {
  public:
   Routine_impl();
 
-  virtual ~Routine_impl();
+  ~Routine_impl() override;
 
  public:
-  virtual const Object_table &object_table() const;
+  const Object_table &object_table() const override;
 
-  virtual bool validate() const;
+  bool validate() const override;
 
-  virtual bool restore_children(Open_dictionary_tables_ctx *otx);
+  bool restore_children(Open_dictionary_tables_ctx *otx) override;
 
-  virtual bool store_children(Open_dictionary_tables_ctx *otx);
+  bool store_children(Open_dictionary_tables_ctx *otx) override;
 
-  virtual bool drop_children(Open_dictionary_tables_ctx *otx) const;
+  bool drop_children(Open_dictionary_tables_ctx *otx) const override;
 
-  virtual bool restore_attributes(const Raw_record &r);
+  bool restore_attributes(const Raw_record &r) override;
 
-  virtual bool store_attributes(Raw_record *r);
+  bool store_attributes(Raw_record *r) override;
 
-  virtual void debug_print(String_type &outb) const;
+  void debug_print(String_type &outb) const override;
 
  public:
   static void register_tables(Open_dictionary_tables_ctx *otx);
@@ -78,15 +78,15 @@ class Routine_impl : public Entity_object_impl, virtual public Routine {
   // schema.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Object_id schema_id() const { return m_schema_id; }
+  Object_id schema_id() const override { return m_schema_id; }
 
-  virtual void set_schema_id(Object_id schema_id) { m_schema_id = schema_id; }
+  void set_schema_id(Object_id schema_id) override { m_schema_id = schema_id; }
 
   /////////////////////////////////////////////////////////////////////////
   // routine Partition type
   /////////////////////////////////////////////////////////////////////////
 
-  virtual enum_routine_type type() const { return m_routine_type; }
+  enum_routine_type type() const override { return m_routine_type; }
 
   virtual void set_type(enum_routine_type routine_type) {
     m_routine_type = routine_type;
@@ -96,17 +96,17 @@ class Routine_impl : public Entity_object_impl, virtual public Routine {
   // definition/utf8.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &definition() const { return m_definition; }
+  const String_type &definition() const override { return m_definition; }
 
-  virtual void set_definition(const String_type &definition) {
+  void set_definition(const String_type &definition) override {
     m_definition = definition;
   }
 
-  virtual const String_type &definition_utf8() const {
+  const String_type &definition_utf8() const override {
     return m_definition_utf8;
   }
 
-  virtual void set_definition_utf8(const String_type &definition_utf8) {
+  void set_definition_utf8(const String_type &definition_utf8) override {
     m_definition_utf8 = definition_utf8;
   }
 
@@ -114,9 +114,9 @@ class Routine_impl : public Entity_object_impl, virtual public Routine {
   // parameter_str
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &parameter_str() const { return m_parameter_str; }
+  const String_type &parameter_str() const override { return m_parameter_str; }
 
-  virtual void set_parameter_str(const String_type &parameter_str) {
+  void set_parameter_str(const String_type &parameter_str) override {
     m_parameter_str = parameter_str;
   }
 
@@ -124,9 +124,9 @@ class Routine_impl : public Entity_object_impl, virtual public Routine {
   // is_deterministic.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool is_deterministic() const { return m_is_deterministic; }
+  bool is_deterministic() const override { return m_is_deterministic; }
 
-  virtual void set_deterministic(bool deterministic) {
+  void set_deterministic(bool deterministic) override {
     m_is_deterministic = deterministic;
   }
 
@@ -134,11 +134,11 @@ class Routine_impl : public Entity_object_impl, virtual public Routine {
   // sql data access.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual enum_sql_data_access sql_data_access() const {
+  enum_sql_data_access sql_data_access() const override {
     return m_sql_data_access;
   }
 
-  virtual void set_sql_data_access(enum_sql_data_access sda) {
+  void set_sql_data_access(enum_sql_data_access sda) override {
     m_sql_data_access = sda;
   }
 
@@ -146,11 +146,11 @@ class Routine_impl : public Entity_object_impl, virtual public Routine {
   // security_type.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual View::enum_security_type security_type() const {
+  View::enum_security_type security_type() const override {
     return m_security_type;
   }
 
-  virtual void set_security_type(View::enum_security_type security_type) {
+  void set_security_type(View::enum_security_type security_type) override {
     m_security_type = security_type;
   }
 
@@ -158,20 +158,20 @@ class Routine_impl : public Entity_object_impl, virtual public Routine {
   // sql_mode
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong sql_mode() const { return m_sql_mode; }
+  ulonglong sql_mode() const override { return m_sql_mode; }
 
-  virtual void set_sql_mode(ulonglong sm) { m_sql_mode = sm; }
+  void set_sql_mode(ulonglong sm) override { m_sql_mode = sm; }
 
   /////////////////////////////////////////////////////////////////////////
   // definer.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &definer_user() const { return m_definer_user; }
+  const String_type &definer_user() const override { return m_definer_user; }
 
-  virtual const String_type &definer_host() const { return m_definer_host; }
+  const String_type &definer_host() const override { return m_definer_host; }
 
-  virtual void set_definer(const String_type &username,
-                           const String_type &hostname) {
+  void set_definer(const String_type &username,
+                   const String_type &hostname) override {
     m_definer_user = username;
     m_definer_host = hostname;
   }
@@ -180,27 +180,27 @@ class Routine_impl : public Entity_object_impl, virtual public Routine {
   // collation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Object_id client_collation_id() const {
+  Object_id client_collation_id() const override {
     return m_client_collation_id;
   }
 
-  virtual void set_client_collation_id(Object_id client_collation_id) {
+  void set_client_collation_id(Object_id client_collation_id) override {
     m_client_collation_id = client_collation_id;
   }
 
-  virtual Object_id connection_collation_id() const {
+  Object_id connection_collation_id() const override {
     return m_connection_collation_id;
   }
 
-  virtual void set_connection_collation_id(Object_id connection_collation_id) {
+  void set_connection_collation_id(Object_id connection_collation_id) override {
     m_connection_collation_id = connection_collation_id;
   }
 
-  virtual Object_id schema_collation_id() const {
+  Object_id schema_collation_id() const override {
     return m_schema_collation_id;
   }
 
-  virtual void set_schema_collation_id(Object_id schema_collation_id) {
+  void set_schema_collation_id(Object_id schema_collation_id) override {
     m_schema_collation_id = schema_collation_id;
   }
 
@@ -208,22 +208,22 @@ class Routine_impl : public Entity_object_impl, virtual public Routine {
   // created.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong created(bool convert_time) const {
+  ulonglong created(bool convert_time) const override {
     return convert_time ? gmt_time_to_local_time(m_created) : m_created;
   }
 
-  virtual void set_created(ulonglong created) { m_created = created; }
+  void set_created(ulonglong created) override { m_created = created; }
 
   /////////////////////////////////////////////////////////////////////////
   // last altered.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong last_altered(bool convert_time) const {
+  ulonglong last_altered(bool convert_time) const override {
     return convert_time ? gmt_time_to_local_time(m_last_altered)
                         : m_last_altered;
   }
 
-  virtual void set_last_altered(ulonglong last_altered) {
+  void set_last_altered(ulonglong last_altered) override {
     m_last_altered = last_altered;
   }
 
@@ -231,31 +231,33 @@ class Routine_impl : public Entity_object_impl, virtual public Routine {
   // comment.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &comment() const { return m_comment; }
+  const String_type &comment() const override { return m_comment; }
 
-  virtual void set_comment(const String_type &comment) { m_comment = comment; }
+  void set_comment(const String_type &comment) override { m_comment = comment; }
 
   /////////////////////////////////////////////////////////////////////////
   // Parameter collection.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Parameter *add_parameter();
+  Parameter *add_parameter() override;
 
-  virtual const Parameter_collection &parameters() const {
+  const Parameter_collection &parameters() const override {
     return m_parameters;
   }
 
   // Fix "inherits ... via dominance" warnings
-  virtual Entity_object_impl *impl() { return Entity_object_impl::impl(); }
-  virtual const Entity_object_impl *impl() const {
+  Entity_object_impl *impl() override { return Entity_object_impl::impl(); }
+  const Entity_object_impl *impl() const override {
     return Entity_object_impl::impl();
   }
-  virtual Object_id id() const { return Entity_object_impl::id(); }
-  virtual bool is_persistent() const {
+  Object_id id() const override { return Entity_object_impl::id(); }
+  bool is_persistent() const override {
     return Entity_object_impl::is_persistent();
   }
-  virtual const String_type &name() const { return Entity_object_impl::name(); }
-  virtual void set_name(const String_type &name) {
+  const String_type &name() const override {
+    return Entity_object_impl::name();
+  }
+  void set_name(const String_type &name) override {
     Entity_object_impl::set_name(name);
   }
 

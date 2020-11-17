@@ -122,5 +122,5 @@ include/assert.inc [Assert that the OCT is the same on server_3 and server_2.]
 include/assert.inc [Assert that OCT is the same as ICT on server_3]
 include/assert.inc [Assert that ICT increases from server_3 to server_2]
 include/rpl_end.inc
-RESET SLAVE ALL FOR CHANNEL 'channel_1';
-RESET SLAVE ALL FOR CHANNEL 'channel_3';
+RESET REPLICA ALL FOR CHANNEL 'channel_1';
+RESET REPLICA ALL FOR CHANNEL 'channel_3';

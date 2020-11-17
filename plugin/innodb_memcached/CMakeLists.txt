@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -76,16 +76,21 @@ IF(WITH_INNODB_MEMCACHED AND UNIX)
   ENDIF()
 
   # -Werror=lto-type-mismatch for misc functions.
-  STRING(REPLACE "-flto" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-  STRING(REPLACE "-flto" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+  REMOVE_CMAKE_COMPILER_FLAGS(CMAKE_C_FLAGS "${MY_COMPILER_FLAG_FLTO}")
+  REMOVE_CMAKE_COMPILER_FLAGS(CMAKE_CXX_FLAGS "${MY_COMPILER_FLAG_FLTO}")
 
-  ADD_SUBDIRECTORY(daemon_memcached)
   ADD_SUBDIRECTORY(innodb_memcache)
-ENDIF()
 
-INSTALL(FILES
-  "innodb_memcache/scripts/innodb_memcached_config.sql"
-  COMPONENT Server
-  DESTINATION ${INSTALL_MYSQLSHAREDIR}
-  PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
-  )
+  # MYSQL_ADD_PLUGIN may have decided not to build it.
+  IF(TARGET innodb_engine)
+    ADD_SUBDIRECTORY(daemon_memcached)
+
+    INSTALL(FILES
+      "innodb_memcache/scripts/innodb_memcached_config.sql"
+      COMPONENT Server
+      DESTINATION ${INSTALL_MYSQLSHAREDIR}
+      PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
+      )
+  ENDIF()
+
+ENDIF()

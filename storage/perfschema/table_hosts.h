@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -45,9 +45,9 @@ class PFS_index_hosts_by_host : public PFS_index_hosts {
  public:
   PFS_index_hosts_by_host() : PFS_index_hosts(&m_key), m_key("HOST") {}
 
-  ~PFS_index_hosts_by_host() {}
+  ~PFS_index_hosts_by_host() override {}
 
-  virtual bool match(PFS_host *pfs);
+  bool match(PFS_host *pfs) override;
 
  private:
   PFS_key_host m_key;
@@ -73,19 +73,19 @@ class table_hosts : public cursor_by_host {
   static int delete_all_rows();
 
  protected:
-  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all);
+  int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                      bool read_all) override;
 
  protected:
   table_hosts();
 
  public:
-  ~table_hosts() {}
+  ~table_hosts() override {}
 
-  int index_init(uint idx, bool sorted);
+  int index_init(uint idx, bool sorted) override;
 
  private:
-  virtual int make_row(PFS_host *pfs);
+  int make_row(PFS_host *pfs) override;
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -368,11 +368,12 @@ ibool ha_search_and_update_if_found_func(
 }
 
 /** Removes from the chain determined by fold all nodes whose data pointer
- points to the page given. */
-void ha_remove_all_nodes_to_page(hash_table_t *table, /*!< in: hash table */
-                                 ulint fold,          /*!< in: fold value */
-                                 const page_t *page)  /*!< in: buffer page */
-{
+ points to the page given.
+@param[in] table Hash table
+@param[in] fold Fold value
+@param[in] page Buffer page */
+void ha_remove_all_nodes_to_page(hash_table_t *table, ulint fold,
+                                 const page_t *page) {
   ha_node_t *node;
 
   ut_ad(table);
@@ -449,10 +450,10 @@ ibool ha_validate(hash_table_t *table, /*!< in: hash table */
 }
 #endif /* defined UNIV_AHI_DEBUG || defined UNIV_DEBUG */
 
-/** Prints info of a hash table. */
-void ha_print_info(FILE *file,          /*!< in: file where to print */
-                   hash_table_t *table) /*!< in: hash table */
-{
+/** Prints info of a hash table.
+@param[in] file File where to print
+@param[in] table Hash table */
+void ha_print_info(FILE *file, hash_table_t *table) {
 #ifdef UNIV_DEBUG
 /* Some of the code here is disabled for performance reasons in production
 builds, see http://bugs.mysql.com/36941 */

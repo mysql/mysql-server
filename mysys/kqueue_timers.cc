@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -143,15 +143,6 @@ void my_timer_deinitialize(void) {
 
   my_thread_join(&timer_notify_thread, NULL);
 }
-
-/**
-  Create a timer object.
-
-  @param  timer   Timer object.
-
-  @return On success, 0.
-          On error, -1 is returned, and errno is set to indicate the error.
-*/
 
 int my_timer_create(my_timer_t *timer) {
   DBUG_ASSERT(kq_fd >= 0);

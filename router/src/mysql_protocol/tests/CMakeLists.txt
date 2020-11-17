@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,7 +21,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 INCLUDE_DIRECTORIES(
-  ../include
   ../../../tests/
 )
 
@@ -38,14 +37,5 @@ FOREACH(test_file
   SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS})
 ENDFOREACH()
 
-ROUTERTEST_GET_TARGET(test_target "test_base_packet.cc" ${TEST_MODULE})
-TARGET_COMPILE_DEFINITIONS(${test_target}
-                           PRIVATE -Dmysql_protocol_DEFINE_STATIC=1)
-
-ROUTERTEST_GET_TARGET(test_target "test_error_packet.cc" ${TEST_MODULE})
-TARGET_COMPILE_DEFINITIONS(${test_target}
-                           PRIVATE -Dmysql_protocol_DEFINE_STATIC=1)
-
-ROUTERTEST_GET_TARGET(test_target "test_handshake_packet.cc" ${TEST_MODULE})
-TARGET_COMPILE_DEFINITIONS(${test_target}
-                           PRIVATE -Dmysql_protocol_DEFINE_STATIC=1)
+# TODO(sgunders): Remove when all GMock tests use MOCK_METHOD().
+STRING(REPLACE "-Wsuggest-override" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")

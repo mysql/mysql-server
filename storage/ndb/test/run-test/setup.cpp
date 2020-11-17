@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,11 +35,14 @@ extern int g_mt;
 extern int g_mt_rr;
 
 static atrt_host* find(const char* hostname, Vector<atrt_host*>&);
-static bool load_process(atrt_config&, atrt_cluster&, BaseString,
-                         atrt_process::Type, unsigned idx,
-                         const char* hostname);
+static bool load_process(atrt_config&, atrt_coverage_config&,
+                         atrt_cluster&, BaseString, atrt_process::Type,
+                         unsigned idx, const char* hostname,
+                         bool clean_shutdown);
 static bool load_options(int argc, char** argv, int type, atrt_options&);
-bool load_custom_processes(atrt_config& config, atrt_cluster& cluster);
+bool load_custom_processes(atrt_config& config,
+                           atrt_coverage_config& atrt_coverage_config,
+                           atrt_cluster& cluster, bool clean_shutdown);
 bool load_deployment_options_for_process(atrt_cluster& cluster,
                                          atrt_process& proc);
 bool matches_custom_process_option(char* arg, BaseString& proc_name,
@@ -77,7 +80,9 @@ static struct proc_option f_options[] = {
     {0, 0, 0}};
 const char* ndbcs = "--ndb-connectstring=";
 
-bool setup_config(atrt_config& config, const char* atrt_mysqld) {
+bool setup_config(atrt_config& config,
+                  atrt_coverage_config& coverage_config,
+                  const char* atrt_mysqld, bool clean_shutdown) {
   config.m_site = g_site;
 
   BaseString tmp(g_clusters);
@@ -166,8 +171,9 @@ bool setup_config(atrt_config& config, const char* atrt_mysqld) {
         Vector<BaseString> list;
         tmp.split(list, ",");
         for (unsigned k = 0; k < list.size(); k++)
-          if (!load_process(config, *cluster, name, proc_args[j].type, k + 1,
-                            list[k].c_str()))
+          if (!load_process(config, coverage_config, *cluster, name,
+                            proc_args[j].type, k + 1, list[k].c_str(),
+                            clean_shutdown))
             return false;
       }
     }
@@ -175,7 +181,8 @@ bool setup_config(atrt_config& config, const char* atrt_mysqld) {
     /**
      * Load custom processes
      */
-    if (!load_custom_processes(config, *cluster)) return false;
+    if (!load_custom_processes(config, coverage_config, *cluster,
+                               clean_shutdown)) return false;
 
     {
       /**
@@ -201,7 +208,9 @@ bool setup_config(atrt_config& config, const char* atrt_mysqld) {
   return true;
 }
 
-bool load_custom_processes(atrt_config& config, atrt_cluster& cluster) {
+bool load_custom_processes(atrt_config& config,
+                           atrt_coverage_config& coverage_config,
+                           atrt_cluster& cluster, bool clean_shutdown) {
   int argc = 1;
   const char* argv[] = {"atrt", 0, 0};
 
@@ -228,8 +237,9 @@ bool load_custom_processes(atrt_config& config, atrt_cluster& cluster) {
     hosts.split(host_list, ",");
     for (unsigned int j = 0; j < host_list.size(); j++) {
       bool ok =
-          load_process(config, cluster, proc_name, atrt_process::AP_CUSTOM,
-                       j + 1, host_list[j].c_str());
+          load_process(config, coverage_config, cluster, proc_name,
+                       atrt_process::AP_CUSTOM, j + 1, host_list[j].c_str(),
+                       clean_shutdown);
       if (!ok) return false;
     }
   }
@@ -393,9 +403,11 @@ BaseString getProcGroupName(atrt_process::Type type) {
   return name;
 }
 
-static bool load_process(atrt_config& config, atrt_cluster& cluster,
-                         BaseString name, atrt_process::Type type, unsigned idx,
-                         const char* hostname) {
+static bool load_process(atrt_config& config,
+                         atrt_coverage_config& coverage_config,
+                         atrt_cluster& cluster, BaseString name,
+                         atrt_process::Type type, unsigned idx,
+                         const char* hostname, bool clean_shutdown) {
   atrt_host* host_ptr = find(hostname, config.m_hosts);
   atrt_process* proc_ptr = new atrt_process;
 
@@ -440,7 +452,21 @@ static bool load_process(atrt_config& config, atrt_cluster& cluster,
   proc.m_proc.m_env.append(mysql_home);
 
   proc.m_proc.m_env.appfmt(" ATRT_PID=%u", (unsigned)proc_no);
-  proc.m_proc.m_shutdown_options = "";
+
+  BaseString gcov_prefix = proc.m_host->m_basedir;
+  gcov_prefix.appfmt("/gcov/%s", proc.m_host->m_hostname.c_str());
+  proc.m_proc.m_env.appfmt(" GCOV_PREFIX=%s", gcov_prefix.c_str());
+
+  if (clean_shutdown) {
+    proc.m_proc.m_shutdown_options = "SIGTERM";
+  } else {
+    proc.m_proc.m_shutdown_options = "SIGKILL";
+  }
+
+  if (coverage_config.m_coverage) {
+    proc.m_proc.m_env.appfmt(" GCOV_PREFIX_STRIP=%d",
+                             coverage_config.m_coverage_prefix_strip);
+  }
 
   {
     /**
@@ -655,8 +681,9 @@ static bool load_process(atrt_config& config, atrt_cluster& cluster,
      * Add a client for each mysqld
      */
     BaseString name;
-    if (!load_process(config, cluster, name, atrt_process::AP_CLIENT, idx,
-                      hostname)) {
+    if (!load_process(config, coverage_config, cluster, name,
+                      atrt_process::AP_CLIENT, idx, hostname,
+                      clean_shutdown)) {
       return false;
     }
   }

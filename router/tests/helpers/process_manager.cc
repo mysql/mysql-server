@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #include "process_manager.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <iterator>
 #include <stdexcept>
@@ -42,6 +43,7 @@
 #include <unistd.h>
 #else
 #define USE_STD_REGEX
+#include <WinSock2.h>
 #include <direct.h>
 #include <io.h>
 #include <stdio.h>
@@ -56,6 +58,7 @@
 #include "mysqlrouter/utils.h"
 #include "process_launcher.h"
 #include "random_generator.h"
+#include "socket_operations.h"
 
 #ifdef USE_STD_REGEX
 #include <regex>
@@ -67,23 +70,197 @@
 
 using mysql_harness::Path;
 using mysql_harness::ProcessLauncher;
+using mysql_harness::socket_t;
 Path ProcessManager::origin_dir_;
 Path ProcessManager::data_dir_;
 Path ProcessManager::plugin_dir_;
 Path ProcessManager::mysqlrouter_exec_;
 Path ProcessManager::mysqlserver_mock_exec_;
 
+using namespace std::chrono_literals;
+
+#ifdef _WIN32
+
+notify_socket_t ProcessManager::create_notify_socket(const std::string &name) {
+  return CreateNamedPipe(TEXT(name.c_str()), PIPE_ACCESS_DUPLEX,
+                         PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_NOWAIT,
+                         PIPE_UNLIMITED_INSTANCES, 1024 * 16, 1024 * 16,
+                         NMPWAIT_USE_DEFAULT_WAIT, NULL);
+}
+
+void ProcessManager::close_notify_socket(notify_socket_t socket) {
+  if (socket != INVALID_HANDLE_VALUE) CloseHandle(socket);
+}
+
+bool ProcessManager::wait_for_notified(notify_socket_t sock,
+                                       const std::string &expected_notification,
+                                       std::chrono::milliseconds timeout) {
+  DWORD len{0};
+  const size_t BUFF_SIZE = 512;
+  std::array<char, BUFF_SIZE> buff;
+
+  if (!ConnectNamedPipe(sock, NULL)) {
+    if ((GetLastError() != ERROR_PIPE_LISTENING) &&
+        (GetLastError() != ERROR_NO_DATA)) {
+      return false;
+    }
+  }
+
+  std::shared_ptr<void> notify_socket_close_guard(
+      nullptr, [&](void *) { DisconnectNamedPipe(sock); });
+
+  const auto start_time = std::chrono::system_clock::now();
+  while (true) {
+    DWORD numRead = 1;
+    if (!ReadFile(sock, &buff.front(), BUFF_SIZE, &len, NULL)) {
+      if ((GetLastError() != ERROR_PIPE_LISTENING) &&
+          (GetLastError() != ERROR_NO_DATA)) {
+        return false;
+      }
+    }
+    if ((len > 0) && (strncmp(expected_notification.c_str(), buff.data(),
+                              static_cast<size_t>(len)) == 0)) {
+      return true;
+    } else {
+      const auto current_time = std::chrono::system_clock::now();
+      if (std::chrono::duration_cast<std::chrono::milliseconds>(
+              current_time - start_time) >= timeout) {
+        return false;
+      }
+    }
+  }
+
+  return false;
+}
+
+#else
+notify_socket_t ProcessManager::create_notify_socket(
+    const std::string &name, int type /*= SOCK_DGRAM */) {
+  struct sockaddr_un sock_unix;
+
+  auto *sock_ops = mysql_harness::SocketOperations::instance();
+
+  const auto socket_res = sock_ops->socket(AF_UNIX, type, 0);
+  if (!socket_res) {
+    throw std::system_error(socket_res.error(), "socket() failed");
+  }
+
+  sock_unix.sun_family = AF_UNIX;
+  std::strncpy(sock_unix.sun_path, name.c_str(), name.size() + 1);
+
+  const auto bind_res =
+      sock_ops->bind(socket_res.value(), (struct sockaddr *)&sock_unix,
+                     static_cast<socklen_t>(sizeof(sock_unix)));
+  if (!bind_res && !name.empty()) {
+    throw std::system_error(bind_res.error(), "bind() failed");
+  }
+
+  return socket_res.value();
+}
+
+void ProcessManager::close_notify_socket(notify_socket_t socket) {
+  auto *sock_ops = mysql_harness::SocketOperations::instance();
+  if (socket != mysql_harness::kInvalidSocket) {
+    sock_ops->close(socket);
+  }
+}
+
+bool ProcessManager::wait_for_notified(notify_socket_t sock,
+                                       const std::string &expected_notification,
+                                       std::chrono::milliseconds timeout) {
+  const size_t BUFF_SIZE = 512;
+  std::array<char, BUFF_SIZE> buff;
+  auto *sock_ops = mysql_harness::SocketOperations::instance();
+  if (getenv("WITH_VALGRIND")) {
+    timeout *= 10;
+  }
+
+  while (true) {
+    const auto has_data_result = sock_ops->has_data(sock, timeout);
+    if (!has_data_result) break;
+    if (!has_data_result.value()) break;
+
+    const auto read_res = sock_ops->read(sock, buff.data(), buff.size());
+    if (read_res && (strncmp(expected_notification.c_str(), buff.data(),
+                             read_res.value()) == 0)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+#endif
+
+bool ProcessManager::wait_for_notified_ready(
+    notify_socket_t sock, std::chrono::milliseconds timeout) {
+  return wait_for_notified(sock, "READY=1", timeout);
+}
+
+bool ProcessManager::wait_for_notified_stopping(
+    notify_socket_t sock, std::chrono::milliseconds timeout) {
+  return wait_for_notified(
+      sock, "STOPPING=1\nSTATUS=Router shutdown in progress\n", timeout);
+}
+
+static std::string generate_notify_socket_path(const std::string &tmp_dir) {
+  const std::string unique_id =
+      mysql_harness::RandomGenerator().generate_identifier(
+          12, mysql_harness::RandomGenerator::AlphabetLowercase);
+
+#ifdef _WIN32
+  return std::string("\\\\.\\pipe\\") + unique_id;
+#else
+  Path result(tmp_dir);
+  result.append(unique_id);
+
+  return result.str();
+#endif
+}
+
 ProcessWrapper &ProcessManager::launch_command(
     const std::string &command, const std::vector<std::string> &params,
-    int expected_exit_code, bool catch_stderr) {
-  if (command.empty())
-    throw std::logic_error("path to launchable executable must not be empty");
-
-  ProcessWrapper process(command, params, catch_stderr);
+    int expected_exit_code, bool catch_stderr,
+    std::vector<std::pair<std::string, std::string>> env_vars) {
+  ProcessWrapper process(command, params, env_vars, catch_stderr);
 
   processes_.emplace_back(std::move(process), expected_exit_code);
 
   return std::get<0>(processes_.back());
+}
+
+ProcessWrapper &ProcessManager::launch_command(
+    const std::string &command, const std::vector<std::string> &params,
+    int expected_exit_code, bool catch_stderr,
+    std::chrono::milliseconds wait_notified_ready) {
+  if (command.empty())
+    throw std::logic_error("path to launchable executable must not be empty");
+
+  std::vector<std::pair<std::string, std::string>> env_vars;
+
+#ifdef _WIN32
+  HANDLE notify_socket{INVALID_HANDLE_VALUE};
+#else
+  socket_t notify_socket{mysql_harness::kInvalidSocket};
+#endif
+  std::shared_ptr<void> notify_socket_close_guard(
+      nullptr, [&](void *) { close_notify_socket(notify_socket); });
+
+  if (wait_notified_ready >= 0ms) {
+    const std::string socket_node =
+        generate_notify_socket_path(get_test_temp_dir_name());
+    notify_socket = create_notify_socket(socket_node);
+    env_vars.emplace_back("NOTIFY_SOCKET", socket_node);
+  }
+
+  auto &result = launch_command(command, params, expected_exit_code,
+                                catch_stderr, env_vars);
+
+  if (wait_notified_ready >= 0ms) {
+    EXPECT_TRUE(wait_for_notified_ready(notify_socket, wait_notified_ready));
+  }
+
+  return result;
 }
 
 static std::vector<std::string> build_exec_args(
@@ -96,8 +273,9 @@ static std::vector<std::string> build_exec_args(
   }
 
   if (getenv("WITH_VALGRIND")) {
-    args.emplace_back("valgrind");
-    args.emplace_back("--error-exitcode=1");
+    const auto valgrind_exe = getenv("VALGRIND_EXE");
+    args.emplace_back(valgrind_exe ? valgrind_exe : "valgrind");
+    args.emplace_back("--error-exitcode=77");
     args.emplace_back("--quiet");
   }
 
@@ -107,18 +285,20 @@ static std::vector<std::string> build_exec_args(
 }
 
 ProcessWrapper &ProcessManager::launch_router(
-    const std::vector<std::string> &params, int expected_exit_code,
-    bool catch_stderr, bool with_sudo) {
+    const std::vector<std::string> &params, int expected_exit_code /*= 0*/,
+    bool catch_stderr /*= true*/, bool with_sudo /*= false*/,
+    std::chrono::milliseconds wait_for_notify_ready /*= 5s*/) {
   std::vector<std::string> args =
       build_exec_args(mysqlrouter_exec_.str(), with_sudo);
 
   // 1st argument is special - it needs to be passed as "command" to
-  // launch_router()
+  // launch_command()
   std::string cmd = args.at(0);
   args.erase(args.begin());
   std::copy(params.begin(), params.end(), std::back_inserter(args));
 
-  auto &router = launch_command(cmd, args, expected_exit_code, catch_stderr);
+  auto &router = launch_command(cmd, args, expected_exit_code, catch_stderr,
+                                wait_for_notify_ready);
   router.logging_dir_ = logging_dir_.name();
   router.logging_file_ = "mysqlrouter.log";
 
@@ -128,9 +308,9 @@ ProcessWrapper &ProcessManager::launch_router(
 ProcessWrapper &ProcessManager::launch_mysql_server_mock(
     const std::string &json_file, unsigned port, int expected_exit_code,
     bool debug_mode, uint16_t http_port, uint16_t x_port,
-    const std::string &module_prefix /* = "" */
-    ,
-    const std::string &bind_address /*= "127.0.0.1"*/) {
+    const std::string &module_prefix /* = "" */,
+    const std::string &bind_address /*= "127.0.0.1"*/,
+    std::chrono::milliseconds wait_for_notify_ready /*= 5s*/) {
   if (mysqlserver_mock_exec_.str().empty())
     throw std::logic_error("path to mysql-server-mock must not be empty");
 
@@ -150,7 +330,7 @@ ProcessWrapper &ProcessManager::launch_mysql_server_mock(
   }
 
   return launch_command(mysqlserver_mock_exec_.str(), server_params,
-                        expected_exit_code, true);
+                        expected_exit_code, true, wait_for_notify_ready);
 }
 
 std::map<std::string, std::string> ProcessManager::get_DEFAULT_defaults()
@@ -221,6 +401,7 @@ std::string ProcessManager::create_state_file(const std::string &dir_name,
   }
 
   ofs_config << content;
+  ofs_config.flush();
   ofs_config.close();
 
   return file_path.str();
@@ -263,6 +444,10 @@ void ProcessManager::ensure_clean_exit() {
 void ProcessManager::check_exit_code(ProcessWrapper &process,
                                      int expected_exit_code,
                                      std::chrono::milliseconds timeout) {
+  if (getenv("WITH_VALGRIND")) {
+    timeout *= 10;
+  }
+
   int result{0};
   try {
     result = process.wait_for_exit(timeout);
@@ -279,6 +464,8 @@ void ProcessManager::check_port(bool should_be_ready, ProcessWrapper &process,
                                 const std::string &hostname) {
   bool ready = wait_for_port_ready(port, timeout, hostname);
 
+// That creates a lot of noise in the logs so gets disabled for now.
+#if 0
   // let's collect some more info
   std::string netstat_info;
   if (ready != should_be_ready) {
@@ -286,11 +473,15 @@ void ProcessManager::check_port(bool should_be_ready, ProcessWrapper &process,
     check_exit_code(netstat);
     netstat_info = netstat.get_full_output();
   }
+#endif
 
   ASSERT_EQ(ready, should_be_ready) << process.get_full_output() << "\n"
                                     << process.get_full_logfile() << "\n"
                                     << "port: " << std::to_string(port) << "\n"
-                                    << "netstat output: " << netstat_info;
+#if 0
+                                    << "netstat output: " << netstat_info
+#endif
+      ;
 }
 
 void ProcessManager::check_port_ready(ProcessWrapper &process, uint16_t port,

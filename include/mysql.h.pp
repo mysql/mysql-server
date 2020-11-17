@@ -23,6 +23,8 @@ enum enum_field_types
   MYSQL_TYPE_DATETIME2,
   MYSQL_TYPE_TIME2,
   MYSQL_TYPE_TYPED_ARRAY,
+  MYSQL_TYPE_INVALID = 243,
+  MYSQL_TYPE_BOOL = 244,
   MYSQL_TYPE_JSON = 245,
   MYSQL_TYPE_NEWDECIMAL = 246,
   MYSQL_TYPE_ENUM = 247,
@@ -134,7 +136,7 @@ enum SERVER_STATUS_flags_enum {
 };
 struct Vio;
 typedef struct NET {
-  struct Vio * vio;
+  struct Vio *vio;
   unsigned char *buff, *buff_end, *write_pos, *read_pos;
   my_socket fd;
   unsigned long remain_in_buf, length, buf_length, where_b;
@@ -184,11 +186,11 @@ enum enum_session_state_type {
   SESSION_TRACK_TRANSACTION_CHARACTERISTICS,
   SESSION_TRACK_TRANSACTION_STATE
 };
-bool my_net_init(struct NET *net, struct Vio * vio);
+bool my_net_init(struct NET *net, struct Vio *vio);
 void my_net_local_init(struct NET *net);
 void net_end(struct NET *net);
 void net_clear(struct NET *net, bool check_buffer);
-void net_claim_memory_ownership(struct NET *net);
+void net_claim_memory_ownership(struct NET *net, bool claim);
 bool net_realloc(struct NET *net, size_t length);
 bool net_flush(struct NET *net);
 bool my_net_write(struct NET *net, const unsigned char *packet, size_t len);
@@ -274,7 +276,7 @@ bool my_thread_init(void);
 void my_thread_end(void);
 unsigned long net_field_length(unsigned char **packet);
 unsigned long net_field_length_checked(unsigned char **packet,
-                                               unsigned long max_length);
+                                       unsigned long max_length);
 uint64_t net_field_length_ll(unsigned char **packet);
 unsigned char *net_store_length(unsigned char *pkg, unsigned long long length);
 unsigned int net_length_size(unsigned long long num);
@@ -357,7 +359,7 @@ void init_client_errs(void);
 void finish_client_errs(void);
 extern const char *client_errors[];
 static inline const char *ER_CLIENT(int client_errno) {
-  if (client_errno >= 2000 && client_errno <= 2069)
+  if (client_errno >= 2000 && client_errno <= 2070)
     return client_errors[client_errno - 2000];
   return client_errors[2000];
 }
@@ -579,7 +581,7 @@ unsigned int mysql_num_fields(MYSQL_RES *res);
 bool mysql_eof(MYSQL_RES *res);
 MYSQL_FIELD * mysql_fetch_field_direct(MYSQL_RES *res,
                                               unsigned int fieldnr);
-MYSQL_FIELD * mysql_fetch_fields(MYSQL_RES *res);
+MYSQL_FIELD *mysql_fetch_fields(MYSQL_RES *res);
 MYSQL_ROW_OFFSET mysql_row_tell(MYSQL_RES *res);
 MYSQL_FIELD_OFFSET mysql_field_tell(MYSQL_RES *res);
 enum enum_resultset_metadata mysql_result_metadata(MYSQL_RES *result);
@@ -587,18 +589,18 @@ unsigned int mysql_field_count(MYSQL *mysql);
 uint64_t mysql_affected_rows(MYSQL *mysql);
 uint64_t mysql_insert_id(MYSQL *mysql);
 unsigned int mysql_errno(MYSQL *mysql);
-const char * mysql_error(MYSQL *mysql);
-const char * mysql_sqlstate(MYSQL *mysql);
+const char *mysql_error(MYSQL *mysql);
+const char *mysql_sqlstate(MYSQL *mysql);
 unsigned int mysql_warning_count(MYSQL *mysql);
-const char * mysql_info(MYSQL *mysql);
+const char *mysql_info(MYSQL *mysql);
 unsigned long mysql_thread_id(MYSQL *mysql);
-const char * mysql_character_set_name(MYSQL *mysql);
+const char *mysql_character_set_name(MYSQL *mysql);
 int mysql_set_character_set(MYSQL *mysql, const char *csname);
-MYSQL * mysql_init(MYSQL *mysql);
+MYSQL *mysql_init(MYSQL *mysql);
 bool mysql_ssl_set(MYSQL *mysql, const char *key, const char *cert,
                            const char *ca, const char *capath,
                            const char *cipher);
-const char * mysql_get_ssl_cipher(MYSQL *mysql);
+const char *mysql_get_ssl_cipher(MYSQL *mysql);
 bool mysql_change_user(MYSQL *mysql, const char *user,
                                const char *passwd, const char *db);
 MYSQL * mysql_real_connect(MYSQL *mysql, const char *host,
@@ -610,8 +612,8 @@ int mysql_select_db(MYSQL *mysql, const char *db);
 int mysql_query(MYSQL *mysql, const char *q);
 int mysql_send_query(MYSQL *mysql, const char *q, unsigned long length);
 int mysql_real_query(MYSQL *mysql, const char *q, unsigned long length);
-MYSQL_RES * mysql_store_result(MYSQL *mysql);
-MYSQL_RES * mysql_use_result(MYSQL *mysql);
+MYSQL_RES *mysql_store_result(MYSQL *mysql);
+MYSQL_RES *mysql_use_result(MYSQL *mysql);
 enum net_async_status mysql_real_connect_nonblocking(
     MYSQL *mysql, const char *host, const char *user, const char *passwd,
     const char *db, unsigned int port, const char *unix_socket,
@@ -629,11 +631,11 @@ enum net_async_status mysql_select_db_nonblocking(MYSQL *mysql,
 void mysql_get_character_set_info(MYSQL *mysql,
                                           MY_CHARSET_INFO *charset);
 int mysql_session_track_get_first(MYSQL *mysql,
-                                          enum enum_session_state_type type,
-                                          const char **data, size_t *length);
+                                  enum enum_session_state_type type,
+                                  const char **data, size_t *length);
 int mysql_session_track_get_next(MYSQL *mysql,
-                                         enum enum_session_state_type type,
-                                         const char **data, size_t *length);
+                                 enum enum_session_state_type type,
+                                 const char **data, size_t *length);
 void mysql_set_local_infile_handler(
     MYSQL *mysql, int (*local_infile_init)(void **, const char *, void *),
     int (*local_infile_read)(void *, char *, unsigned int),
@@ -648,18 +650,18 @@ int mysql_kill(MYSQL *mysql, unsigned long pid);
 int mysql_set_server_option(MYSQL *mysql,
                                     enum enum_mysql_set_option option);
 int mysql_ping(MYSQL *mysql);
-const char * mysql_stat(MYSQL *mysql);
-const char * mysql_get_server_info(MYSQL *mysql);
-const char * mysql_get_client_info(void);
+const char *mysql_stat(MYSQL *mysql);
+const char *mysql_get_server_info(MYSQL *mysql);
+const char *mysql_get_client_info(void);
 unsigned long mysql_get_client_version(void);
-const char * mysql_get_host_info(MYSQL *mysql);
+const char *mysql_get_host_info(MYSQL *mysql);
 unsigned long mysql_get_server_version(MYSQL *mysql);
 unsigned int mysql_get_proto_info(MYSQL *mysql);
-MYSQL_RES * mysql_list_dbs(MYSQL *mysql, const char *wild);
-MYSQL_RES * mysql_list_tables(MYSQL *mysql, const char *wild);
-MYSQL_RES * mysql_list_processes(MYSQL *mysql);
+MYSQL_RES *mysql_list_dbs(MYSQL *mysql, const char *wild);
+MYSQL_RES *mysql_list_tables(MYSQL *mysql, const char *wild);
+MYSQL_RES *mysql_list_processes(MYSQL *mysql);
 int mysql_options(MYSQL *mysql, enum mysql_option option,
-                          const void *arg);
+                           const void *arg);
 int mysql_options4(MYSQL *mysql, enum mysql_option option,
                            const void *arg1, const void *arg2);
 int mysql_get_option(MYSQL *mysql, enum mysql_option option,
@@ -673,15 +675,15 @@ MYSQL_FIELD_OFFSET mysql_field_seek(MYSQL_RES *result,
                                             MYSQL_FIELD_OFFSET offset);
 MYSQL_ROW mysql_fetch_row(MYSQL_RES *result);
 enum net_async_status mysql_fetch_row_nonblocking(MYSQL_RES *res,
-                                                          MYSQL_ROW *row);
-unsigned long * mysql_fetch_lengths(MYSQL_RES *result);
-MYSQL_FIELD * mysql_fetch_field(MYSQL_RES *result);
+                                                  MYSQL_ROW *row);
+unsigned long *mysql_fetch_lengths(MYSQL_RES *result);
+MYSQL_FIELD *mysql_fetch_field(MYSQL_RES *result);
 MYSQL_RES * mysql_list_fields(MYSQL *mysql, const char *table,
                                      const char *wild);
 unsigned long mysql_escape_string(char *to, const char *from,
-                                          unsigned long from_length);
+                                  unsigned long from_length);
 unsigned long mysql_hex_string(char *to, const char *from,
-                                       unsigned long from_length);
+                               unsigned long from_length);
 unsigned long mysql_real_escape_string(MYSQL *mysql, char *to,
                                                const char *from,
                                                unsigned long length);
@@ -759,13 +761,13 @@ enum enum_stmt_attr_type {
   STMT_ATTR_CURSOR_TYPE,
   STMT_ATTR_PREFETCH_ROWS
 };
-MYSQL_STMT * mysql_stmt_init(MYSQL *mysql);
+MYSQL_STMT *mysql_stmt_init(MYSQL *mysql);
 int mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query,
-                               unsigned long length);
+                       unsigned long length);
 int mysql_stmt_execute(MYSQL_STMT *stmt);
 int mysql_stmt_fetch(MYSQL_STMT *stmt);
 int mysql_stmt_fetch_column(MYSQL_STMT *stmt, MYSQL_BIND *bind_arg,
-                                    unsigned int column, unsigned long offset);
+                            unsigned int column, unsigned long offset);
 int mysql_stmt_store_result(MYSQL_STMT *stmt);
 unsigned long mysql_stmt_param_count(MYSQL_STMT *stmt);
 bool mysql_stmt_attr_set(MYSQL_STMT *stmt,
@@ -782,11 +784,11 @@ bool mysql_stmt_free_result(MYSQL_STMT *stmt);
 bool mysql_stmt_send_long_data(MYSQL_STMT *stmt,
                                        unsigned int param_number,
                                        const char *data, unsigned long length);
-MYSQL_RES * mysql_stmt_result_metadata(MYSQL_STMT *stmt);
-MYSQL_RES * mysql_stmt_param_metadata(MYSQL_STMT *stmt);
+MYSQL_RES *mysql_stmt_result_metadata(MYSQL_STMT *stmt);
+MYSQL_RES *mysql_stmt_param_metadata(MYSQL_STMT *stmt);
 unsigned int mysql_stmt_errno(MYSQL_STMT *stmt);
-const char * mysql_stmt_error(MYSQL_STMT *stmt);
-const char * mysql_stmt_sqlstate(MYSQL_STMT *stmt);
+const char *mysql_stmt_error(MYSQL_STMT *stmt);
+const char *mysql_stmt_sqlstate(MYSQL_STMT *stmt);
 MYSQL_ROW_OFFSET mysql_stmt_row_seek(MYSQL_STMT *stmt,
                                              MYSQL_ROW_OFFSET offset);
 MYSQL_ROW_OFFSET mysql_stmt_row_tell(MYSQL_STMT *stmt);
@@ -803,3 +805,8 @@ int mysql_next_result(MYSQL *mysql);
 int mysql_stmt_next_result(MYSQL_STMT *stmt);
 void mysql_close(MYSQL *sock);
 void mysql_reset_server_public_key(void);
+MYSQL * mysql_real_connect_dns_srv(MYSQL *mysql,
+                                          const char *dns_srv_name,
+                                          const char *user, const char *passwd,
+                                          const char *db,
+                                          unsigned long client_flag);

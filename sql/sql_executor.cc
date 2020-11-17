@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,13 +33,13 @@
 
 #include "sql/sql_executor.h"
 
-#include <assert.h>
-#include <inttypes.h>
-#include <stdint.h>
-
 #include <algorithm>
 #include <atomic>
+#include <cassert>
+#include <cinttypes>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <map>
 #include <memory>
@@ -55,6 +55,7 @@
 #include "mem_root_deque.h"
 #include "my_alloc.h"
 #include "my_base.h"
+#include "my_bit.h"  // Overlaps
 #include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
@@ -81,6 +82,8 @@
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
 #include "sql/item_sum.h"  // Item_sum
+#include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/bit_utils.h"
 #include "sql/json_dom.h"  // Json_wrapper
 #include "sql/key.h"       // key_cmp
 #include "sql/key_spec.h"
@@ -100,11 +103,11 @@
 #include "sql/row_iterator.h"
 #include "sql/sort_param.h"
 #include "sql/sorting_iterator.h"
-#include "sql/sql_base.h"  // fill_record
+#include "sql/sql_array.h"  // Bounds_checked_array
+#include "sql/sql_base.h"   // fill_record
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
-#include "sql/sql_executor.h"
 #include "sql/sql_join_buffer.h"
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"  // JOIN
@@ -130,13 +133,9 @@ using std::string;
 using std::unique_ptr;
 using std::vector;
 
-static void join_setup_iterator(QEP_TAB *tab);
 static int read_system(TABLE *table);
 static int read_const(TABLE *table, TABLE_REF *ref);
 static bool alloc_group_fields(JOIN *join, ORDER *group);
-static void SetCostOnTableIterator(const Cost_model_server &cost_model,
-                                   const POSITION *pos, bool is_after_filter,
-                                   RowIterator *iterator);
 static inline pair<uchar *, key_part_map> FindKeyBufferAndMap(
     const TABLE_REF *ref);
 
@@ -190,10 +189,9 @@ string RefToString(const TABLE_REF &ref, const KEY *key, bool include_nulls) {
   return ret;
 }
 
-bool JOIN::create_intermediate_table(QEP_TAB *const tab,
-                                     List<Item> *tmp_table_fields,
-                                     ORDER_with_src &tmp_table_group,
-                                     bool save_sum_fields) {
+bool JOIN::create_intermediate_table(
+    QEP_TAB *const tab, const mem_root_deque<Item *> &tmp_table_fields,
+    ORDER_with_src &tmp_table_group, bool save_sum_fields) {
   DBUG_TRACE;
   THD_STAGE_INFO(thd, stage_creating_tmp_table);
   const bool windowing = m_windows.elements > 0;
@@ -220,7 +218,7 @@ bool JOIN::create_intermediate_table(QEP_TAB *const tab,
                       tab->tmp_table_param->m_window->is_last()));
 
   TABLE *table =
-      create_tmp_table(thd, tab->tmp_table_param, *tmp_table_fields,
+      create_tmp_table(thd, tab->tmp_table_param, tmp_table_fields,
                        tmp_table_group.order, distinct_arg, save_sum_fields,
                        select_lex->active_options(), tmp_rows_limit, "");
   if (!table) return true;
@@ -240,7 +238,7 @@ bool JOIN::create_intermediate_table(QEP_TAB *const tab,
   if (!tab->tmp_table_param->m_window) {
     if (table->group)
       explain_flags.set(tmp_table_group.src, ESP_USING_TMPTABLE);
-    else if (table->is_distinct || select_distinct)
+    else if (table->s->is_distinct || select_distinct)
       explain_flags.set(ESC_DISTINCT, ESP_USING_TMPTABLE);
     else {
       /*
@@ -268,21 +266,27 @@ bool JOIN::create_intermediate_table(QEP_TAB *const tab,
       goto err;
 
     if (alloc_group_fields(this, group_list.order)) goto err;
-    if (make_sum_func_list(all_fields, true)) goto err;
+    if (make_sum_func_list(*fields, true)) goto err;
     const bool need_distinct =
         !(tab->quick() && tab->quick()->is_agg_loose_index_scan());
     if (prepare_sum_aggregators(sum_funcs, need_distinct)) goto err;
     if (setup_sum_funcs(thd, sum_funcs)) goto err;
     group_list.clean();
   } else {
-    if (make_sum_func_list(all_fields, false)) goto err;
+    if (make_sum_func_list(*fields, false)) goto err;
     const bool need_distinct =
         !(tab->quick() && tab->quick()->is_agg_loose_index_scan());
     if (prepare_sum_aggregators(sum_funcs, need_distinct)) goto err;
     if (setup_sum_funcs(thd, sum_funcs)) goto err;
 
-    if (group_list.empty() && !table->is_distinct && !order.empty() &&
-        simple_order && !m_windows_sort) {
+    // In many cases, we can resolve ORDER BY for a query, if requested, by
+    // sorting this temporary table. However, we cannot do so if the sort is
+    // disturbed by additional rows from rollup or different sorting from
+    // window functions. Also, if this temporary table is doing deduplication,
+    // sorting is not added here, but once the correct ref_slice is set up in
+    // make_tmp_tables_info().
+    if (group_list.empty() && !table->s->is_distinct && !order.empty() &&
+        simple_order && rollup_state == RollupState::NONE && !m_windows_sort) {
       DBUG_PRINT("info", ("Sorting for order"));
 
       if (m_ordered_index_usage != ORDERED_INDEX_ORDER_BY &&
@@ -297,7 +301,8 @@ bool JOIN::create_intermediate_table(QEP_TAB *const tab,
 
 err:
   if (table != nullptr) {
-    free_tmp_table(thd, table);
+    close_tmp_table(thd, table);
+    free_tmp_table(table);
     tab->set_table(nullptr);
   }
   return true;
@@ -838,22 +843,20 @@ static void ExtractConditions(Item *condition,
   conditions (if any), ANDed together. If there are no conditions, just return
   the given iterator back.
  */
-unique_ptr_destroy_only<RowIterator> PossiblyAttachFilterIterator(
-    unique_ptr_destroy_only<RowIterator> iterator,
-    const vector<Item *> &conditions, THD *thd,
-    table_map *conditions_depend_on_outer_tables) {
+AccessPath *PossiblyAttachFilter(AccessPath *path,
+                                 const vector<Item *> &conditions, THD *thd,
+                                 table_map *conditions_depend_on_outer_tables) {
   // See if any of the sub-conditions are known to be always false,
   // and filter out any conditions that are known to be always true.
   List<Item> items;
   for (Item *cond : conditions) {
     if (cond->const_item()) {
       if (cond->val_int() == 0) {
-        unique_ptr_destroy_only<RowIterator> zero_iterator =
-            NewIterator<ZeroRowsIterator>(thd, "Impossible filter",
-                                          move(iterator));
-        zero_iterator->set_expected_rows(0.0);
-        zero_iterator->set_estimated_cost(0.0);
-        return zero_iterator;
+        AccessPath *zero_path =
+            NewZeroRowsAccessPath(thd, path, "Impossible filter");
+        zero_path->num_output_rows = 0.0;
+        zero_path->cost = 0.0;
+        return zero_path;
       } else {
         // Known to be always true, so skip it.
       }
@@ -864,7 +867,7 @@ unique_ptr_destroy_only<RowIterator> PossiblyAttachFilterIterator(
 
   Item *condition = nullptr;
   if (items.size() == 0) {
-    return iterator;
+    return path;
   } else if (items.size() == 1) {
     condition = items.head();
   } else {
@@ -875,54 +878,49 @@ unique_ptr_destroy_only<RowIterator> PossiblyAttachFilterIterator(
   }
   *conditions_depend_on_outer_tables |= condition->used_tables();
 
-  RowIterator *child_iterator = iterator.get();
-  unique_ptr_destroy_only<RowIterator> filter_iterator =
-      NewIterator<FilterIterator>(thd, move(iterator), condition);
+  AccessPath *filter_path = NewFilterAccessPath(thd, path, condition);
 
-  // Copy costs (we don't care about filter_effect here, even though we
-  // should).
-  filter_iterator->set_expected_rows(child_iterator->expected_rows());
-  filter_iterator->set_estimated_cost(child_iterator->estimated_cost());
+  // NOTE: We don't care about filter_effect here, even though we should.
+  CopyCosts(*path, filter_path);
 
-  return filter_iterator;
+  return filter_path;
 }
 
-unique_ptr_destroy_only<RowIterator> CreateNestedLoopIterator(
-    THD *thd, unique_ptr_destroy_only<RowIterator> left_iterator,
-    unique_ptr_destroy_only<RowIterator> right_iterator, JoinType join_type,
-    bool pfs_batch_mode) {
+AccessPath *CreateNestedLoopAccessPath(THD *thd, AccessPath *outer,
+                                       AccessPath *inner, JoinType join_type,
+                                       bool pfs_batch_mode) {
+  AccessPath *path = new (thd->mem_root) AccessPath;
+  path->type = AccessPath::NESTED_LOOP_JOIN;
+  path->nested_loop_join().outer = outer;
+  path->nested_loop_join().inner = inner;
+  path->nested_loop_join().join_type = join_type;
   if (join_type == JoinType::ANTI || join_type == JoinType::SEMI) {
     // This does not make sense as an optimization for anti- or semijoins.
-    pfs_batch_mode = false;
+    path->nested_loop_join().pfs_batch_mode = false;
+  } else {
+    path->nested_loop_join().pfs_batch_mode = pfs_batch_mode;
   }
-
-  return NewIterator<NestedLoopIterator>(thd, move(left_iterator),
-                                         move(right_iterator), join_type,
-                                         pfs_batch_mode);
+  return path;
 }
 
-static unique_ptr_destroy_only<RowIterator> CreateInvalidatorIterator(
-    THD *thd, QEP_TAB *qep_tab, unique_ptr_destroy_only<RowIterator> iterator) {
-  RowIterator *child_iterator = iterator.get();
-
-  unique_ptr_destroy_only<RowIterator> invalidator =
-      NewIterator<CacheInvalidatorIterator>(thd, move(iterator),
-                                            qep_tab->table()->alias);
+static AccessPath *NewInvalidatorAccessPathForTable(THD *thd, AccessPath *path,
+                                                    QEP_TAB *qep_tab) {
+  AccessPath *invalidator =
+      NewInvalidatorAccessPath(thd, path, qep_tab->table()->alias);
 
   // Copy costs.
-  invalidator->set_expected_rows(child_iterator->expected_rows());
-  invalidator->set_estimated_cost(child_iterator->estimated_cost());
+  invalidator->num_output_rows = path->num_output_rows;
+  invalidator->cost = path->cost;
 
   table_map deps = qep_tab->lateral_derived_tables_depend_on_me;
   for (QEP_TAB **tab2 = qep_tab->join()->map2qep_tab; deps;
        tab2++, deps >>= 1) {
     if (!(deps & 1)) continue;
     if ((*tab2)->invalidators == nullptr) {
-      (*tab2)->invalidators = new (thd->mem_root)
-          Mem_root_array<const CacheInvalidatorIterator *>(thd->mem_root);
+      (*tab2)->invalidators =
+          new (thd->mem_root) Mem_root_array<const AccessPath *>(thd->mem_root);
     }
-    (*tab2)->invalidators->push_back(
-        down_cast<CacheInvalidatorIterator *>(invalidator->real_iterator()));
+    (*tab2)->invalidators->push_back(invalidator);
   }
   return invalidator;
 }
@@ -935,12 +933,11 @@ static table_map ConvertQepTabMapToTableMap(JOIN *join, qep_tab_map tables) {
   return map;
 }
 
-unique_ptr_destroy_only<RowIterator> CreateBKAIterator(
-    THD *thd, JOIN *join, unique_ptr_destroy_only<RowIterator> iterator,
-    qep_tab_map left_tables,
-    unique_ptr_destroy_only<RowIterator> subtree_iterator,
-    qep_tab_map right_tables, TABLE *table, TABLE_LIST *table_list,
-    TABLE_REF *ref, MultiRangeRowIterator *mrr_iterator, JoinType join_type) {
+AccessPath *CreateBKAAccessPath(THD *thd, JOIN *join, AccessPath *outer_path,
+                                qep_tab_map left_tables, AccessPath *inner_path,
+                                qep_tab_map right_tables, TABLE *table,
+                                TABLE_LIST *table_list, TABLE_REF *ref,
+                                JoinType join_type) {
   table_map left_table_map = ConvertQepTabMapToTableMap(join, left_tables);
   table_map right_table_map = ConvertQepTabMapToTableMap(join, right_tables);
 
@@ -979,24 +976,31 @@ unique_ptr_destroy_only<RowIterator> CreateBKAIterator(
     }
   }
 
-  const float rec_per_key =
+  AccessPath *path = new (thd->mem_root) AccessPath;
+  path->type = AccessPath::BKA_JOIN;
+  path->bka_join().outer = outer_path;
+  path->bka_join().inner = inner_path;
+  path->bka_join().join_type = join_type;
+  path->bka_join().mrr_length_per_rec = table->file->stats.mrr_length_per_rec;
+  path->bka_join().rec_per_key =
       table->key_info[ref->key].records_per_key(ref->key_parts - 1);
-  return NewIterator<BKAIterator>(
-      thd, join, move(iterator), left_tables, move(subtree_iterator),
-      thd->variables.join_buff_size, table->file->stats.mrr_length_per_rec,
-      rec_per_key, mrr_iterator, join_type);
+
+  // Will be set later if we get a weedout access path as parent.
+  path->bka_join().store_rowids = false;
+  path->bka_join().tables_to_get_rowid_for = 0;
+
+  return path;
 }
 
-static unique_ptr_destroy_only<RowIterator> PossiblyAttachFilterIterator(
-    unique_ptr_destroy_only<RowIterator> iterator,
-    const vector<PendingCondition> &conditions, THD *thd,
+static AccessPath *PossiblyAttachFilter(
+    AccessPath *path, const vector<PendingCondition> &conditions, THD *thd,
     table_map *conditions_depend_on_outer_tables) {
   vector<Item *> stripped_conditions;
   for (const PendingCondition &cond : conditions) {
     stripped_conditions.push_back(cond.cond);
   }
-  return PossiblyAttachFilterIterator(move(iterator), stripped_conditions, thd,
-                                      conditions_depend_on_outer_tables);
+  return PossiblyAttachFilter(path, stripped_conditions, thd,
+                              conditions_depend_on_outer_tables);
 }
 
 static Item_func_trig_cond *GetTriggerCondOrNull(Item *item) {
@@ -1034,7 +1038,7 @@ enum CallingContext {
 
   TODO: The optimizer should output just one kind of structure directly.
  */
-void ConvertItemsToCopy(List<Item> *items, Field **fields,
+void ConvertItemsToCopy(const mem_root_deque<Item *> &items, Field **fields,
                         Temp_table_param *param) {
   DBUG_ASSERT(param->items_to_copy == nullptr);
 
@@ -1042,18 +1046,18 @@ void ConvertItemsToCopy(List<Item> *items, Field **fields,
   Func_ptr_array *copy_func =
       new (current_thd->mem_root) Func_ptr_array(current_thd->mem_root);
   Field **field_ptr = fields;
-  for (Item &item : *items) {
-    Item *real_item = item.real_item();
+  for (Item *item : VisibleFields(items)) {
+    Item *real_item = item->real_item();
     if (real_item->type() == Item::FIELD_ITEM) {
       Field *from_field = (pointer_cast<Item_field *>(real_item))->field;
       Field *to_field = *field_ptr;
       param->copy_fields.emplace_back(to_field, from_field, /*save=*/true);
-    } else if (item.real_item()->is_result_field()) {
+    } else if (item->is_result_field()) {
       Field *to_field = *field_ptr;
-      item.set_result_field(to_field);
-      copy_func->push_back(Func_ptr(&item));
+      item->set_result_field(to_field);
+      copy_func->push_back(Func_ptr(item));
     } else {
-      Func_ptr ptr(&item);
+      Func_ptr ptr(item);
       ptr.set_override_result_field(*field_ptr);
       copy_func->push_back(ptr);
     }
@@ -1241,24 +1245,27 @@ static void MarkUnhandledDuplicates(SJ_TMP_TABLE *weedout,
   *unhandled_duplicates |= weedout_range;
 }
 
-static unique_ptr_destroy_only<RowIterator> CreateWeedoutIterator(
-    THD *thd, unique_ptr_destroy_only<RowIterator> iterator,
-    SJ_TMP_TABLE *weedout_table) {
+static AccessPath *CreateWeedoutOrLimitAccessPath(THD *thd, AccessPath *path,
+                                                  SJ_TMP_TABLE *weedout_table) {
   if (weedout_table->is_confluent) {
     // A “confluent” weedout is one that deduplicates on all the
     // fields. If so, we can drop the complexity of the WeedoutIterator
     // and simply insert a LIMIT 1.
-    return NewIterator<LimitOffsetIterator>(
-        thd, move(iterator), /*limit=*/1, /*offset=*/0,
-        /*count_all_rows=*/false, /*skipped_rows=*/nullptr);
+    return NewLimitOffsetAccessPath(thd, path,
+                                    /*limit=*/1, /*offset=*/0,
+                                    /*count_all_rows=*/false,
+                                    /*reject_multiple_rows=*/false,
+                                    /*send_records_override=*/nullptr);
   } else {
-    return NewIterator<WeedoutIterator>(thd, move(iterator), weedout_table);
+    AccessPath *weedout_path = NewWeedoutAccessPath(thd, path, weedout_table);
+    FindTablesToGetRowidFor(weedout_path);
+    return weedout_path;
   }
 }
 
-static unique_ptr_destroy_only<RowIterator> CreateWeedoutIteratorForTables(
+static AccessPath *NewWeedoutAccessPathForTables(
     THD *thd, const qep_tab_map tables_to_deduplicate, QEP_TAB *qep_tabs,
-    uint primary_tables, unique_ptr_destroy_only<RowIterator> iterator) {
+    uint primary_tables, AccessPath *path) {
   Prealloced_array<SJ_TMP_TABLE_TAB, MAX_TABLES> sj_tabs(PSI_NOT_INSTRUMENTED);
   for (uint i = 0; i < primary_tables; ++i) {
     if (!ContainsTable(tables_to_deduplicate, i)) {
@@ -1279,7 +1286,7 @@ static unique_ptr_destroy_only<RowIterator> CreateWeedoutIteratorForTables(
   JOIN *join = qep_tabs[0].join();
   SJ_TMP_TABLE *sjtbl =
       create_sj_tmp_table(thd, join, &sj_tabs[0], &sj_tabs[0] + sj_tabs.size());
-  return CreateWeedoutIterator(thd, move(iterator), sjtbl);
+  return CreateWeedoutOrLimitAccessPath(thd, path, sjtbl);
 }
 
 enum class Substructure { NONE, OUTER_JOIN, SEMIJOIN, WEEDOUT };
@@ -1451,19 +1458,6 @@ static Substructure FindSubstructure(
     is_semijoin = false;
   }
 
-  // If we found any unhandled duplicates, mark in the QEP_TABs that a row ID is
-  // needed. This will notify iterators (e.g., HashJoinIterator) that they need
-  // to store and restore the row ID.
-  if (*unhandled_duplicates != 0) {
-    qep_tab_map table_range =
-        TablesBetween(first_idx, last_idx) & ~*unhandled_duplicates;
-    for (QEP_TAB *tab : TablesContainedIn(qep_tab->join(), table_range)) {
-      if (tab->rowid_status == NO_ROWID_NEEDED) {
-        tab->rowid_status = NEED_TO_CALL_POSITION_FOR_ROWID;
-      }
-    }
-  }
-
   DBUG_ASSERT(is_semijoin + is_outer_join + is_weedout <= 1);
 
   if (is_semijoin) {
@@ -1482,7 +1476,7 @@ static Substructure FindSubstructure(
 }
 
 /// @cond Doxygen_is_confused
-static unique_ptr_destroy_only<RowIterator> ConnectJoins(
+static AccessPath *ConnectJoins(
     plan_idx upper_first_idx, plan_idx first_idx, plan_idx last_idx,
     QEP_TAB *qep_tabs, THD *thd, CallingContext calling_context,
     vector<PendingCondition> *pending_conditions,
@@ -1492,8 +1486,15 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     table_map *conditions_depend_on_outer_tables);
 /// @endcond
 
-unique_ptr_destroy_only<RowIterator> GetIteratorForDerivedTable(
-    THD *thd, QEP_TAB *qep_tab) {
+static bool IsTableScan(AccessPath *path) {
+  if (path->type == AccessPath::FILTER) {
+    return IsTableScan(path->filter().child);
+  }
+  return path->type == AccessPath::TABLE_SCAN;
+}
+
+AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
+                                         AccessPath *table_path) {
   SELECT_LEX_UNIT *unit = qep_tab->table_ref->derived_unit();
   JOIN *subjoin = nullptr;
   Temp_table_param *tmp_table_param;
@@ -1506,19 +1507,19 @@ unique_ptr_destroy_only<RowIterator> GetIteratorForDerivedTable(
   // disturb the materialization going on inside our own query block.
   if (unit->is_simple()) {
     subjoin = unit->first_select()->join;
-    tmp_table_param = &unit->first_select()->join->tmp_table_param;
-    select_number = subjoin->select_lex->select_number;
+    select_number = unit->first_select()->select_number;
+    tmp_table_param = &subjoin->tmp_table_param;
   } else if (unit->fake_select_lex != nullptr) {
     // NOTE: subjoin here is never used, as ConvertItemsToCopy only uses it
     // for ROLLUP, and fake_select_lex can't have ROLLUP.
     subjoin = unit->fake_select_lex->join;
-    tmp_table_param = &unit->fake_select_lex->join->tmp_table_param;
+    tmp_table_param = &subjoin->tmp_table_param;
     select_number = unit->fake_select_lex->select_number;
   } else {
     tmp_table_param = new (thd->mem_root) Temp_table_param;
     select_number = unit->first_select()->select_number;
   }
-  ConvertItemsToCopy(unit->get_field_list(),
+  ConvertItemsToCopy(*unit->get_field_list(),
                      qep_tab->table()->visible_field_ptr(), tmp_table_param);
   bool copy_fields_and_items_in_materialize = true;
   if (unit->is_simple()) {
@@ -1529,8 +1530,7 @@ unique_ptr_destroy_only<RowIterator> GetIteratorForDerivedTable(
         join->tmp_table_param.precomputed_group_by;
   }
 
-  MaterializeIterator *materialize = nullptr;
-  unique_ptr_destroy_only<RowIterator> iterator;
+  AccessPath *path;
 
   if (unit->unfinished_materialization()) {
     // The unit is a UNION capable of materializing directly into our result
@@ -1539,22 +1539,22 @@ unique_ptr_destroy_only<RowIterator> GetIteratorForDerivedTable(
     //
     // We will already have set up a unique index on the table if
     // required; see TABLE_LIST::setup_materialized_derived_tmp_table().
-    iterator = NewIterator<MaterializeIterator>(
-        thd, unit->release_query_blocks_to_materialize(), qep_tab->table(),
-        move(qep_tab->iterator), qep_tab->table_ref->common_table_expr(), unit,
-        /*subjoin=*/nullptr,
-        /*ref_slice=*/-1, qep_tab->rematerialize, unit->select_limit_cnt);
-    materialize = down_cast<MaterializeIterator *>(iterator->real_iterator());
+    path = NewMaterializeAccessPath(
+        thd, unit->release_query_blocks_to_materialize(), qep_tab->invalidators,
+        qep_tab->table(), table_path, qep_tab->table_ref->common_table_expr(),
+        unit,
+        /*ref_slice=*/-1, qep_tab->rematerialize, unit->select_limit_cnt,
+        unit->offset_limit_cnt == 0 ? unit->m_reject_multiple_rows : false);
     if (unit->offset_limit_cnt != 0) {
       // LIMIT is handled inside MaterializeIterator, but OFFSET is not.
       // SQL_CALC_FOUND_ROWS cannot occur in a derived table's definition.
-      iterator = NewIterator<LimitOffsetIterator>(
-          thd, move(iterator), unit->select_limit_cnt, unit->offset_limit_cnt,
-          /*count_all_rows=*/false,
-          /*skipped_rows=*/nullptr);
+      path = NewLimitOffsetAccessPath(
+          thd, path, unit->select_limit_cnt, unit->offset_limit_cnt,
+          /*count_all_rows=*/false, unit->m_reject_multiple_rows,
+          /*send_records_override=*/nullptr);
     }
   } else if (qep_tab->table_ref->common_table_expr() == nullptr &&
-             qep_tab->rematerialize && qep_tab->using_table_scan()) {
+             qep_tab->rematerialize && IsTableScan(table_path)) {
     // We don't actually need the materialization for anything (we would
     // just reading the rows straight out from the table, never to be used
     // again), so we can just stream records directly over to the next
@@ -1566,46 +1566,41 @@ unique_ptr_destroy_only<RowIterator> GetIteratorForDerivedTable(
     // table of the join (assuming nested loop only). The test for CTEs is
     // also conservative; if the CTEs is defined within this join and used
     // only once, we could still stream without losing performance.
-    iterator = NewIterator<StreamingIterator>(
-        thd, unit->release_root_iterator(), &subjoin->tmp_table_param,
-        qep_tab->table(), copy_fields_and_items_in_materialize);
+    path = NewStreamingAccessPath(thd, unit->root_access_path(), subjoin,
+                                  &subjoin->tmp_table_param, qep_tab->table(),
+                                  copy_fields_and_items_in_materialize);
+    CopyCosts(*unit->root_access_path(), path);
   } else {
-    iterator = NewIterator<MaterializeIterator>(
-        thd, unit->release_root_iterator(), tmp_table_param, qep_tab->table(),
-        move(qep_tab->iterator), qep_tab->table_ref->common_table_expr(),
-        select_number, unit, /*subjoin=*/nullptr,
-        /*ref_slice=*/-1, copy_fields_and_items_in_materialize,
-        qep_tab->rematerialize, tmp_table_param->end_write_records);
-    materialize = down_cast<MaterializeIterator *>(iterator->real_iterator());
+    JOIN *join = unit->is_union() ? nullptr : unit->first_select()->join;
+    path = NewMaterializeAccessPath(
+        thd,
+        SingleMaterializeQueryBlock(
+            thd, unit->root_access_path(), select_number, join,
+            copy_fields_and_items_in_materialize, tmp_table_param),
+        qep_tab->invalidators, qep_tab->table(), table_path,
+        qep_tab->table_ref->common_table_expr(), unit,
+        /*ref_slice=*/-1, qep_tab->rematerialize,
+        tmp_table_param->end_write_records, unit->m_reject_multiple_rows);
+    CopyCosts(*unit->root_access_path(), path);
   }
 
-  if (!qep_tab->rematerialize) {
-    if (qep_tab->invalidators != nullptr) {
-      for (const CacheInvalidatorIterator *invalidator :
-           *qep_tab->invalidators) {
-        materialize->AddInvalidator(invalidator);
-      }
-    }
-  }
-
-  return iterator;
+  return path;
 }
 
 /**
   Get the RowIterator used for scanning the given table, with any required
   materialization operations done first.
  */
-unique_ptr_destroy_only<RowIterator> GetTableIterator(THD *thd,
-                                                      QEP_TAB *qep_tab,
-                                                      QEP_TAB *qep_tabs) {
-  unique_ptr_destroy_only<RowIterator> table_iterator;
+AccessPath *GetTableAccessPath(THD *thd, QEP_TAB *qep_tab, QEP_TAB *qep_tabs) {
+  AccessPath *table_path;
   if (qep_tab->materialize_table == QEP_TAB::MATERIALIZE_DERIVED) {
-    table_iterator = GetIteratorForDerivedTable(thd, qep_tab);
+    table_path =
+        GetAccessPathForDerivedTable(thd, qep_tab, qep_tab->access_path());
   } else if (qep_tab->materialize_table ==
              QEP_TAB::MATERIALIZE_TABLE_FUNCTION) {
-    table_iterator = NewIterator<MaterializedTableFunctionIterator>(
-        thd, qep_tab->table_ref->table_function, qep_tab->table(),
-        move(qep_tab->iterator));
+    table_path = NewMaterializedTableFunctionAccessPath(
+        thd, qep_tab->table(), qep_tab->table_ref->table_function,
+        qep_tab->access_path());
   } else if (qep_tab->materialize_table == QEP_TAB::MATERIALIZE_SEMIJOIN) {
     Semijoin_mat_exec *sjm = qep_tab->sj_mat_exec();
 
@@ -1614,7 +1609,7 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(THD *thd,
     // join_materialize_semijoin, and don't have e.g. result fields set up
     // correctly, so we just clear it and create our own.
     sjm->table_param.items_to_copy = nullptr;
-    ConvertItemsToCopy(&sjm->sj_nest->nested_join->sj_inner_exprs,
+    ConvertItemsToCopy(sjm->sj_nest->nested_join->sj_inner_exprs,
                        qep_tab->table()->visible_field_ptr(),
                        &sjm->table_param);
 
@@ -1626,7 +1621,7 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(THD *thd,
     // (so in effect, a “virtual join”).
     qep_tab_map unhandled_duplicates = 0;
     table_map conditions_depend_on_outer_tables = 0;
-    unique_ptr_destroy_only<RowIterator> subtree_iterator = ConnectJoins(
+    AccessPath *subtree_path = ConnectJoins(
         /*upper_first_idx=*/NO_PLAN_IDX, join_start, join_end, qep_tabs, thd,
         TOP_LEVEL,
         /*pending_conditions=*/nullptr,
@@ -1638,9 +1633,9 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(THD *thd,
     // (ie., the join left some tables that were supposed to be deduplicated
     // but were not), handle them now at the end of the virtual join.
     if (unhandled_duplicates != 0) {
-      subtree_iterator = CreateWeedoutIteratorForTables(
+      subtree_path = NewWeedoutAccessPathForTables(
           thd, unhandled_duplicates, qep_tab, qep_tab->join()->primary_tables,
-          move(subtree_iterator));
+          subtree_path);
     }
 
     // Since materialized semijoins are based on ref access against the table,
@@ -1652,28 +1647,33 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(THD *thd,
     // TODO: It could be possible to join this with an existing condition,
     // and possibly also in some cases when scanning each table.
     vector<Item *> not_null_conditions;
-    for (Item &item : sjm->sj_nest->nested_join->sj_inner_exprs) {
-      if (item.maybe_null) {
-        Item *condition = new Item_func_isnotnull(&item);
+    for (Item *item : sjm->sj_nest->nested_join->sj_inner_exprs) {
+      if (item->maybe_null) {
+        Item *condition = new Item_func_isnotnull(item);
         condition->quick_fix_field();
         condition->update_used_tables();
         condition->apply_is_true();
         not_null_conditions.push_back(condition);
       }
     }
-    subtree_iterator = PossiblyAttachFilterIterator(
-        move(subtree_iterator), not_null_conditions, thd,
-        &conditions_depend_on_outer_tables);
+    subtree_path = PossiblyAttachFilter(subtree_path, not_null_conditions, thd,
+                                        &conditions_depend_on_outer_tables);
 
     bool copy_fields_and_items_in_materialize =
         true;  // We never have aggregation within semijoins.
-    table_iterator = NewIterator<MaterializeIterator>(
-        thd, move(subtree_iterator), &sjm->table_param, qep_tab->table(),
-        move(qep_tab->iterator), /*cte=*/nullptr,
-        qep_tab->join()->select_lex->select_number, /*unit=*/nullptr,
-        qep_tab->join(),
-        /*ref_slice=*/-1, copy_fields_and_items_in_materialize,
-        qep_tab->rematerialize, sjm->table_param.end_write_records);
+    table_path = NewMaterializeAccessPath(
+        thd,
+        SingleMaterializeQueryBlock(
+            thd, subtree_path, qep_tab->join()->select_lex->select_number,
+            qep_tab->join(), copy_fields_and_items_in_materialize,
+            &sjm->table_param),
+        qep_tab->invalidators, qep_tab->table(), qep_tab->access_path(),
+        /*cte=*/nullptr,
+        /*unit=*/nullptr,
+        /*ref_slice=*/-1, qep_tab->rematerialize,
+        sjm->table_param.end_write_records,
+        /*reject_multiple_rows=*/false);
+    CopyCosts(*subtree_path, table_path);
 
 #ifndef DBUG_OFF
     // Make sure we clear this table out when the join is reset,
@@ -1688,34 +1688,33 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(THD *thd,
     DBUG_ASSERT(found);
 #endif
   } else {
-    table_iterator = move(qep_tab->iterator);
+    table_path = qep_tab->access_path();
 
     POSITION *pos = qep_tab->position();
     if (pos != nullptr) {
-      SetCostOnTableIterator(*thd->cost_model(), pos, /*is_after_filter=*/false,
-                             table_iterator.get());
+      SetCostOnTableAccessPath(*thd->cost_model(), pos,
+                               /*is_after_filter=*/false, table_path);
     }
 
     // See if this is an information schema table that must be filled in before
     // we scan.
     if (qep_tab->table_ref->schema_table &&
         qep_tab->table_ref->schema_table->fill_table) {
-      table_iterator.reset(new (thd->mem_root)
-                               MaterializeInformationSchemaTableIterator(
-                                   thd, qep_tab, move(table_iterator)));
+      table_path = NewMaterializeInformationSchemaTableAccessPath(
+          thd, table_path, qep_tab->table_ref, qep_tab->condition());
     }
   }
-  return table_iterator;
+  return table_path;
 }
 
-void SetCostOnTableIterator(const Cost_model_server &cost_model,
-                            const POSITION *pos, bool is_after_filter,
-                            RowIterator *iterator) {
+void SetCostOnTableAccessPath(const Cost_model_server &cost_model,
+                              const POSITION *pos, bool is_after_filter,
+                              AccessPath *path) {
   double num_rows_after_filtering = pos->rows_fetched * pos->filter_effect;
   if (is_after_filter) {
-    iterator->set_expected_rows(num_rows_after_filtering);
+    path->num_output_rows = num_rows_after_filtering;
   } else {
-    iterator->set_expected_rows(pos->rows_fetched);
+    path->num_output_rows = pos->rows_fetched;
   }
 
   // Note that we don't try to adjust for the filtering here;
@@ -1723,68 +1722,71 @@ void SetCostOnTableIterator(const Cost_model_server &cost_model,
   double cost =
       pos->read_cost + cost_model.row_evaluate_cost(num_rows_after_filtering);
   if (pos->prefix_rowcount <= 0.0) {
-    iterator->set_estimated_cost(cost);
+    path->cost = cost;
   } else {
     // Scale the estimated cost to being for one loop only, to match the
     // measured costs.
-    iterator->set_estimated_cost(cost * num_rows_after_filtering /
-                                 pos->prefix_rowcount);
+    path->cost = cost * num_rows_after_filtering / pos->prefix_rowcount;
   }
 }
 
-void SetCostOnNestedLoopIterator(const Cost_model_server &cost_model,
-                                 const POSITION *pos_right,
-                                 RowIterator *iterator) {
-  if (pos_right == nullptr) {
+void SetCostOnNestedLoopAccessPath(const Cost_model_server &cost_model,
+                                   const POSITION *pos_inner,
+                                   AccessPath *path) {
+  if (pos_inner == nullptr) {
     // No cost information.
     return;
   }
 
-  DBUG_ASSERT(iterator->children().size() == 2);
-  RowIterator *left = iterator->children()[0].iterator;
-  RowIterator *right = iterator->children()[1].iterator;
+  AccessPath *outer, *inner;
+  if (path->type == AccessPath::NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL) {
+    outer = path->nested_loop_semijoin_with_duplicate_removal().outer;
+    inner = path->nested_loop_semijoin_with_duplicate_removal().inner;
+  } else {
+    DBUG_ASSERT(path->type == AccessPath::NESTED_LOOP_JOIN);
+    outer = path->nested_loop_join().outer;
+    inner = path->nested_loop_join().inner;
+  }
 
-  if (left->expected_rows() == -1.0 || right->expected_rows() == -1.0) {
+  if (outer->num_output_rows == -1.0 || inner->num_output_rows == -1.0) {
     // Missing cost information on at least one child.
     return;
   }
 
   // Mirrors set_prefix_join_cost(), even though the cost calculation doesn't
   // make a lot of sense.
-  double right_expected_rows_before_filter =
-      pos_right->filter_effect > 0.0
-          ? (right->expected_rows() / pos_right->filter_effect)
+  double inner_expected_rows_before_filter =
+      pos_inner->filter_effect > 0.0
+          ? (inner->num_output_rows / pos_inner->filter_effect)
           : 0.0;
   double joined_rows =
-      left->expected_rows() * right_expected_rows_before_filter;
-  iterator->set_expected_rows(joined_rows * pos_right->filter_effect);
-  iterator->set_estimated_cost(left->estimated_cost() + pos_right->read_cost +
-                               cost_model.row_evaluate_cost(joined_rows));
+      outer->num_output_rows * inner_expected_rows_before_filter;
+  path->num_output_rows = joined_rows * pos_inner->filter_effect;
+  path->cost = outer->cost + pos_inner->read_cost +
+               cost_model.row_evaluate_cost(joined_rows);
 }
 
-void SetCostOnHashJoinIterator(const Cost_model_server &cost_model,
-                               const POSITION *pos_right,
-                               RowIterator *iterator) {
-  if (pos_right == nullptr) {
+void SetCostOnHashJoinAccessPath(const Cost_model_server &cost_model,
+                                 const POSITION *pos_outer, AccessPath *path) {
+  if (pos_outer == nullptr) {
     // No cost information.
     return;
   }
 
-  DBUG_ASSERT(iterator->children().size() == 2);
-  RowIterator *left = iterator->children()[1].iterator;
-  RowIterator *right = iterator->children()[0].iterator;
+  AccessPath *outer = path->hash_join().outer;
+  AccessPath *inner = path->hash_join().inner;
 
-  if (left->expected_rows() == -1.0 || right->expected_rows() == -1.0) {
+  if (outer->num_output_rows == -1.0 || inner->num_output_rows == -1.0) {
     // Missing cost information on at least one child.
     return;
   }
 
   // Mirrors set_prefix_join_cost(), even though the cost calculation doesn't
   // make a lot of sense.
-  double joined_rows = left->expected_rows() * right->expected_rows();
-  iterator->set_expected_rows(joined_rows * pos_right->filter_effect);
-  iterator->set_estimated_cost(left->estimated_cost() + pos_right->read_cost +
-                               cost_model.row_evaluate_cost(joined_rows));
+  double joined_rows = outer->num_output_rows * inner->num_output_rows;
+  path->num_output_rows = joined_rows * pos_outer->filter_effect;
+  path->cost = inner->cost + pos_outer->read_cost +
+               cost_model.row_evaluate_cost(joined_rows);
 }
 
 static bool ConditionIsAlwaysTrue(Item *item) {
@@ -1822,13 +1824,10 @@ static bool ItemRefersToOneSideOnly(Item *item, table_map left_side,
 // The function will also determine whether hash join is allowed to spill to
 // disk. In general, we reject spill to disk if the query has a LIMIT and no
 // aggregation or grouping. See comments inside the function for justification.
-static unique_ptr_destroy_only<RowIterator> CreateHashJoinIterator(
-    THD *thd, QEP_TAB *qep_tab,
-    unique_ptr_destroy_only<RowIterator> build_iterator,
-    qep_tab_map build_tables,
-    unique_ptr_destroy_only<RowIterator> probe_iterator,
-    qep_tab_map probe_tables, JoinType join_type,
-    vector<Item *> *join_conditions,
+static AccessPath *CreateHashJoinAccessPath(
+    THD *thd, QEP_TAB *qep_tab, AccessPath *build_path,
+    qep_tab_map build_tables, AccessPath *probe_path, qep_tab_map probe_tables,
+    JoinType join_type, vector<Item *> *join_conditions,
     table_map *conditions_depend_on_outer_tables) {
   table_map left_table_map =
       ConvertQepTabMapToTableMap(qep_tab->join(), probe_tables);
@@ -1928,20 +1927,19 @@ static unique_ptr_destroy_only<RowIterator> CreateHashJoinIterator(
         ++cond_it;
       }
     }
-    build_iterator =
-        PossiblyAttachFilterIterator(move(build_iterator), build_conditions,
-                                     thd, conditions_depend_on_outer_tables);
+    build_path = PossiblyAttachFilter(build_path, build_conditions, thd,
+                                      conditions_depend_on_outer_tables);
   }
 
   // If we have a degenerate semijoin or antijoin (ie., no join conditions),
   // we only need a single row from the inner side.
   if ((join_type == JoinType::SEMI || join_type == JoinType::ANTI) &&
       hash_join_conditions.empty() && hash_join_extra_conditions.empty()) {
-    build_iterator =
-        NewIterator<LimitOffsetIterator>(thd, move(build_iterator),
-                                         /*limit=*/1, /*offset=*/0,
-                                         /*count_all_rows=*/false,
-                                         /*send_records_override=*/nullptr);
+    build_path = NewLimitOffsetAccessPath(thd, build_path,
+                                          /*limit=*/1, /*offset=*/0,
+                                          /*count_all_rows=*/false,
+                                          /*reject_multiple_rows=*/false,
+                                          /*send_records_override=*/nullptr);
   }
 
   const JOIN *join = qep_tab->join();
@@ -1969,21 +1967,66 @@ static unique_ptr_destroy_only<RowIterator> CreateHashJoinIterator(
     allow_spill_to_disk = false;
   }
 
-  auto iterator = NewIterator<HashJoinIterator>(
-      thd, move(build_iterator), build_tables, move(probe_iterator),
-      probe_tables, thd->variables.join_buff_size, hash_join_conditions,
-      allow_spill_to_disk, join_type, join, hash_join_extra_conditions);
-  SetCostOnHashJoinIterator(*thd->cost_model(), qep_tab->position(),
-                            iterator.get());
+  JoinPredicate *pred = new (thd->mem_root) JoinPredicate(thd, join_type);
+  for (Item *item : hash_join_extra_conditions) {
+    pred->join_conditions.push_back(item);
+  }
+  for (const HashJoinCondition &condition : hash_join_conditions) {
+    pred->equijoin_conditions.push_back(condition.join_condition());
+  }
 
-  return iterator;
+  // Go through the equijoin conditions and check that all of them still
+  // refer to tables that exist. If some table was pruned away due to
+  // being replaced by ZeroRowsAccessPath, but the equijoin condition still
+  // refers to it, it could become degenerate: The only rows it could ever
+  // see would be NULL-complemented rows, which would never match.
+  // In this case, we can remove the entire build path (ie., propagate the
+  // zero-row property to our own join).
+  //
+  // We also remove the join conditions, to avoid using time on extracting their
+  // hash values. (Also, Item_func_eq::append_join_key_for_hash_join has an
+  // assert that this case should never happen, so it would trigger.)
+  const table_map probe_used_tables = GetUsedTables(probe_path);
+  const table_map build_used_tables = GetUsedTables(build_path);
+  for (const HashJoinCondition &condition : hash_join_conditions) {
+    if ((!condition.left_uses_any_table(probe_used_tables) &&
+         !condition.right_uses_any_table(probe_used_tables)) ||
+        (!condition.left_uses_any_table(build_used_tables) &&
+         !condition.right_uses_any_table(build_used_tables))) {
+      if (build_path->type != AccessPath::ZERO_ROWS) {
+        string cause = "Join condition " +
+                       ItemToString(condition.join_condition()) +
+                       " requires pruned table";
+        build_path = NewZeroRowsAccessPath(
+            thd, build_path, strdup_root(thd->mem_root, cause.c_str()));
+        build_path->cost = 0.0;
+        build_path->num_output_rows = 0;
+      }
+      pred->equijoin_conditions.clear();
+      break;
+    }
+  }
+
+  AccessPath *path = new (thd->mem_root) AccessPath;
+  path->type = AccessPath::HASH_JOIN;
+  path->hash_join().outer = probe_path;
+  path->hash_join().inner = build_path;
+  path->hash_join().join_predicate = pred;
+  path->hash_join().allow_spill_to_disk = allow_spill_to_disk;
+  // Will be set later if we get a weedout access path as parent.
+  path->hash_join().store_rowids = false;
+  path->hash_join().tables_to_get_rowid_for = 0;
+
+  SetCostOnHashJoinAccessPath(*thd->cost_model(), qep_tab->position(), path);
+
+  return path;
 }
 
 // Move all the join conditions from the vector "predicates" over to the
 // vector "join_conditions", while filters are untouched. This is done so that
 // we can attach the join conditions directly to the hash join iterator. Further
 // separation into equi-join and non-equi-join conditions will be done inside
-// CreateHashJoinIterator().
+// CreateHashJoinAccessPath().
 static void ExtractJoinConditions(const QEP_TAB *current_table,
                                   vector<Item *> *predicates,
                                   vector<Item *> *join_conditions) {
@@ -2136,33 +2179,32 @@ void PickOutConditionsForTableIndex(int table_idx,
   }
 }
 
-unique_ptr_destroy_only<RowIterator> FinishPendingOperations(
-    THD *thd, unique_ptr_destroy_only<RowIterator> iterator,
-    QEP_TAB *remove_duplicates_loose_scan_qep_tab,
+AccessPath *FinishPendingOperations(
+    THD *thd, AccessPath *path, QEP_TAB *remove_duplicates_loose_scan_qep_tab,
     const vector<PendingCondition> &pending_conditions,
     const vector<PendingInvalidator> &pending_invalidators,
     table_map *conditions_depend_on_outer_tables) {
-  iterator =
-      PossiblyAttachFilterIterator(move(iterator), pending_conditions, thd,
-                                   conditions_depend_on_outer_tables);
+  path = PossiblyAttachFilter(path, pending_conditions, thd,
+                              conditions_depend_on_outer_tables);
 
   if (remove_duplicates_loose_scan_qep_tab != nullptr) {
     QEP_TAB *const qep_tab =
         remove_duplicates_loose_scan_qep_tab;  // For short.
     KEY *key = qep_tab->table()->key_info + qep_tab->index();
-    iterator = NewIterator<RemoveDuplicatesIterator>(
-        thd, move(iterator), qep_tab->table(), key, qep_tab->loosescan_key_len);
+    AccessPath *old_path = path;
+    path = NewRemoveDuplicatesAccessPath(thd, path, qep_tab->table(), key,
+                                         qep_tab->loosescan_key_len);
+    CopyCosts(*old_path, path);  // We have nothing better.
   }
 
   // It's highly unlikely that we have more than one pending QEP_TAB here
   // (the most common case will be zero), so don't bother combining them
   // into one invalidator.
   for (const PendingInvalidator &invalidator : pending_invalidators) {
-    iterator =
-        CreateInvalidatorIterator(thd, invalidator.qep_tab, move(iterator));
+    path = NewInvalidatorAccessPathForTable(thd, path, invalidator.qep_tab);
   }
 
-  return iterator;
+  return path;
 }
 
 /**
@@ -2234,7 +2276,7 @@ unique_ptr_destroy_only<RowIterator> FinishPendingOperations(
     use a hash join, since the returned iterator depends on seeing outer rows
     when evaluating its conditions.
  */
-static unique_ptr_destroy_only<RowIterator> ConnectJoins(
+static AccessPath *ConnectJoins(
     plan_idx upper_first_idx, plan_idx first_idx, plan_idx last_idx,
     QEP_TAB *qep_tabs, THD *thd, CallingContext calling_context,
     vector<PendingCondition> *pending_conditions,
@@ -2245,7 +2287,7 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
   DBUG_ASSERT(last_idx > first_idx);
   DBUG_ASSERT((pending_conditions == nullptr) ==
               (pending_invalidators == nullptr));
-  unique_ptr_destroy_only<RowIterator> iterator = nullptr;
+  AccessPath *path = nullptr;
 
   // A special case: If we are at the top but the first table is an outer
   // join, we implicitly have one or more const tables to the left side
@@ -2258,8 +2300,7 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
   vector<PendingInvalidator> top_level_pending_invalidators;
   vector<PendingCondition> top_level_pending_join_conditions;
   if (is_top_level_outer_join) {
-    iterator =
-        NewIterator<FakeSingleRowIterator>(thd, /*examined_rows=*/nullptr);
+    path = NewFakeSingleRowAccessPath(thd, /*count_examined_rows=*/false);
     pending_conditions = &top_level_pending_conditions;
     pending_invalidators = &top_level_pending_invalidators;
     pending_join_conditions = &top_level_pending_join_conditions;
@@ -2275,8 +2316,8 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
   for (plan_idx i = first_idx; i < last_idx;) {
     if (is_top_level_outer_join && i == qep_tabs[first_idx].last_inner() + 1) {
       // Finished the top level outer join.
-      iterator = FinishPendingOperations(
-          thd, move(iterator), /*remove_duplicates_loose_scan_qep_tab=*/nullptr,
+      path = FinishPendingOperations(
+          thd, path, /*remove_duplicates_loose_scan_qep_tab=*/nullptr,
           top_level_pending_conditions, top_level_pending_invalidators,
           conditions_depend_on_outer_tables);
 
@@ -2301,7 +2342,7 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       // Outer or semijoin, consisting of a subtree (possibly of only one
       // table), so we send the entire subtree down to a recursive invocation
       // and then join the returned root into our existing tree.
-      unique_ptr_destroy_only<RowIterator> subtree_iterator;
+      AccessPath *subtree_path;
       vector<PendingCondition> subtree_pending_conditions;
       vector<PendingInvalidator> subtree_pending_invalidators;
       vector<PendingCondition> subtree_pending_join_conditions;
@@ -2314,7 +2355,7 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
             !QueryMixesOuterBKAAndBNL(qep_tab->join())) {
           // We must move any join conditions inside the subtructure up to this
           // level so that they can be attached to the hash join iterator.
-          subtree_iterator = ConnectJoins(
+          subtree_path = ConnectJoins(
               first_idx, i, substructure_end, qep_tabs, thd,
               DIRECTLY_UNDER_SEMIJOIN, &subtree_pending_conditions,
               &subtree_pending_invalidators, &subtree_pending_join_conditions,
@@ -2323,7 +2364,7 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
           // Send in "subtree_pending_join_conditions", so that any semijoin
           // conditions are moved up to this level, where they will be attached
           // as conditions to the hash join iterator.
-          subtree_iterator = ConnectJoins(
+          subtree_path = ConnectJoins(
               first_idx, i, substructure_end, qep_tabs, thd,
               DIRECTLY_UNDER_SEMIJOIN, pending_conditions, pending_invalidators,
               &subtree_pending_join_conditions, unhandled_duplicates,
@@ -2332,7 +2373,7 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       } else if (pending_conditions != nullptr) {
         // We are already on the right (inner) side of an outer join,
         // so we need to keep deferring WHERE predicates.
-        subtree_iterator = ConnectJoins(
+        subtree_path = ConnectJoins(
             first_idx, i, substructure_end, qep_tabs, thd,
             DIRECTLY_UNDER_OUTER_JOIN, pending_conditions, pending_invalidators,
             pending_join_conditions, unhandled_duplicates,
@@ -2355,7 +2396,7 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       } else {
         // We can check the WHERE predicates on this table right away
         // after the join (and similarly, set up invalidators).
-        subtree_iterator = ConnectJoins(
+        subtree_path = ConnectJoins(
             first_idx, i, substructure_end, qep_tabs, thd,
             DIRECTLY_UNDER_OUTER_JOIN, &subtree_pending_conditions,
             &subtree_pending_invalidators, &subtree_pending_join_conditions,
@@ -2425,15 +2466,17 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       //
       // If the entire slice is an outer join, we've solved that in a more
       // roundabout way; see is_top_level_outer_join above.
-      if (iterator == nullptr) {
+      if (path == nullptr) {
         DBUG_ASSERT(substructure == Substructure::SEMIJOIN);
         add_limit_1 = true;
       }
 
       if (add_limit_1) {
-        subtree_iterator = NewIterator<LimitOffsetIterator>(
-            thd, move(subtree_iterator), /*limit=*/1, /*offset=*/0,
-            /*count_all_rows=*/false, /*skipped_rows=*/nullptr);
+        subtree_path = NewLimitOffsetAccessPath(
+            thd, subtree_path,
+            /*limit=*/1, /*offset=*/0,
+            /*count_all_rows=*/false, /*reject_multiple_rows=*/false,
+            /*send_records_override=*/nullptr);
       }
 
       const bool pfs_batch_mode = qep_tab->pfs_batch_update(qep_tab->join()) &&
@@ -2452,16 +2495,15 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       if (i != first_idx && qep_tabs[i - 1].do_loosescan() &&
           qep_tabs[i - 1].match_tab != i - 1) {
         QEP_TAB *prev_qep_tab = &qep_tabs[i - 1];
-        DBUG_ASSERT(iterator != nullptr);
+        DBUG_ASSERT(path != nullptr);
 
         KEY *key = prev_qep_tab->table()->key_info + prev_qep_tab->index();
         if (substructure == Substructure::SEMIJOIN) {
-          iterator =
-              NewIterator<NestedLoopSemiJoinWithDuplicateRemovalIterator>(
-                  thd, move(iterator), move(subtree_iterator),
-                  prev_qep_tab->table(), key, prev_qep_tab->loosescan_key_len);
-          SetCostOnNestedLoopIterator(*thd->cost_model(), qep_tab->position(),
-                                      iterator.get());
+          path = NewNestedLoopSemiJoinWithDuplicateRemovalAccessPath(
+              thd, path, subtree_path, prev_qep_tab->table(), key,
+              prev_qep_tab->loosescan_key_len);
+          SetCostOnNestedLoopAccessPath(*thd->cost_model(), qep_tab->position(),
+                                        path);
         } else {
           // We were originally in a semijoin, even if it didn't win in
           // FindSubstructure (LooseScan against multiple tables always puts
@@ -2473,15 +2515,14 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
           DBUG_ASSERT(substructure == Substructure::OUTER_JOIN);
           remove_duplicates_loose_scan = true;
 
-          iterator = NewIterator<NestedLoopIterator>(thd, move(iterator),
-                                                     move(subtree_iterator),
-                                                     join_type, pfs_batch_mode);
-          SetCostOnNestedLoopIterator(*thd->cost_model(), qep_tab->position(),
-                                      iterator.get());
+          path = CreateNestedLoopAccessPath(thd, path, subtree_path, join_type,
+                                            pfs_batch_mode);
+          SetCostOnNestedLoopAccessPath(*thd->cost_model(), qep_tab->position(),
+                                        path);
         }
-      } else if (iterator == nullptr) {
+      } else if (path == nullptr) {
         DBUG_ASSERT(substructure == Substructure::SEMIJOIN);
-        iterator = move(subtree_iterator);
+        path = subtree_path;
       } else if (((UseHashJoin(qep_tab) &&
                    !PushedJoinRejectsHashJoin(qep_tab->join(), left_tables,
                                               right_tables, join_type) &&
@@ -2497,21 +2538,18 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
                                        &join_conditions);
 
         if (UseBKA(qep_tab)) {
-          iterator = CreateBKAIterator(thd, qep_tab->join(), move(iterator),
-                                       left_tables, move(subtree_iterator),
-                                       right_tables, qep_tab->table(),
-                                       qep_tab->table_ref, &qep_tab->ref(),
-                                       qep_tab->mrr_iterator, join_type);
+          path = CreateBKAAccessPath(thd, qep_tab->join(), path, left_tables,
+                                     subtree_path, right_tables,
+                                     qep_tab->table(), qep_tab->table_ref,
+                                     &qep_tab->ref(), join_type);
         } else {
-          iterator = CreateHashJoinIterator(
-              thd, qep_tab, move(subtree_iterator), right_tables,
-              move(iterator), left_tables, join_type, &join_conditions,
-              conditions_depend_on_outer_tables);
+          path = CreateHashJoinAccessPath(
+              thd, qep_tab, subtree_path, right_tables, path, left_tables,
+              join_type, &join_conditions, conditions_depend_on_outer_tables);
         }
 
-        iterator =
-            PossiblyAttachFilterIterator(move(iterator), join_conditions, thd,
-                                         conditions_depend_on_outer_tables);
+        path = PossiblyAttachFilter(path, join_conditions, thd,
+                                    conditions_depend_on_outer_tables);
       } else {
         // Normally, subtree_pending_join_conditions should be empty when we
         // create a nested loop iterator. However, in the case where we thought
@@ -2522,53 +2560,50 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
         vector<Item *> join_conditions;
         PickOutConditionsForTableIndex(i, &subtree_pending_join_conditions,
                                        &join_conditions);
-        subtree_iterator = PossiblyAttachFilterIterator(
-            move(subtree_iterator), join_conditions, thd,
-            conditions_depend_on_outer_tables);
+        subtree_path = PossiblyAttachFilter(subtree_path, join_conditions, thd,
+                                            conditions_depend_on_outer_tables);
 
-        iterator = NewIterator<NestedLoopIterator>(thd, move(iterator),
-                                                   move(subtree_iterator),
-                                                   join_type, pfs_batch_mode);
-        SetCostOnNestedLoopIterator(*thd->cost_model(), qep_tab->position(),
-                                    iterator.get());
+        path = CreateNestedLoopAccessPath(thd, path, subtree_path, join_type,
+                                          pfs_batch_mode);
+        SetCostOnNestedLoopAccessPath(*thd->cost_model(), qep_tab->position(),
+                                      path);
       }
 
       QEP_TAB *remove_duplicates_loose_scan_qep_tab =
           remove_duplicates_loose_scan ? &qep_tabs[i - 1] : nullptr;
-      iterator = FinishPendingOperations(
-          thd, move(iterator), remove_duplicates_loose_scan_qep_tab,
+      path = FinishPendingOperations(
+          thd, path, remove_duplicates_loose_scan_qep_tab,
           subtree_pending_conditions, subtree_pending_invalidators,
           conditions_depend_on_outer_tables);
 
       i = substructure_end;
       continue;
     } else if (substructure == Substructure::WEEDOUT) {
-      unique_ptr_destroy_only<RowIterator> subtree_iterator = ConnectJoins(
+      AccessPath *subtree_path = ConnectJoins(
           first_idx, i, substructure_end, qep_tabs, thd, DIRECTLY_UNDER_WEEDOUT,
           pending_conditions, pending_invalidators, pending_join_conditions,
           unhandled_duplicates, conditions_depend_on_outer_tables);
-      RowIterator *child_iterator = subtree_iterator.get();
-      subtree_iterator = CreateWeedoutIterator(thd, move(subtree_iterator),
-                                               qep_tab->flush_weedout_table);
+      AccessPath *child_path = subtree_path;
+      subtree_path = CreateWeedoutOrLimitAccessPath(
+          thd, subtree_path, qep_tab->flush_weedout_table);
 
       // Copy costs (even though it makes no sense for the LIMIT 1 case).
-      subtree_iterator->set_expected_rows(child_iterator->expected_rows());
-      subtree_iterator->set_estimated_cost(child_iterator->estimated_cost());
+      CopyCosts(*child_path, subtree_path);
 
-      if (iterator == nullptr) {
-        iterator = move(subtree_iterator);
+      if (path == nullptr) {
+        path = subtree_path;
       } else {
-        iterator = NewIterator<NestedLoopIterator>(
-            thd, move(iterator), move(subtree_iterator), JoinType::INNER,
-            /*pfs_batch_mode=*/false);
-        SetCostOnNestedLoopIterator(*thd->cost_model(), qep_tab->position(),
-                                    iterator.get());
+        path =
+            CreateNestedLoopAccessPath(thd, path, subtree_path, JoinType::INNER,
+                                       /*pfs_batch_mode=*/false);
+        SetCostOnNestedLoopAccessPath(*thd->cost_model(), qep_tab->position(),
+                                      path);
       }
 
       i = substructure_end;
       continue;
     } else if (qep_tab->do_loosescan() && qep_tab->match_tab != i &&
-               iterator != nullptr) {
+               path != nullptr) {
       // Multi-table loose scan is generally handled by other parts of the code
       // (FindSubstructure() returns SEMIJOIN on the next table, since they will
       // have first match set), but we need to make sure there is only one table
@@ -2576,22 +2611,21 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       // Since we're not at the first table, we would be collecting a join
       // in “iterator” if we just kept on going, so we need to create a separate
       // tree by recursing here.
-      unique_ptr_destroy_only<RowIterator> subtree_iterator = ConnectJoins(
+      AccessPath *subtree_path = ConnectJoins(
           first_idx, i, qep_tab->match_tab + 1, qep_tabs, thd, TOP_LEVEL,
           pending_conditions, pending_invalidators, pending_join_conditions,
           unhandled_duplicates, conditions_depend_on_outer_tables);
 
-      iterator = NewIterator<NestedLoopIterator>(
-          thd, move(iterator), move(subtree_iterator), JoinType::INNER,
-          /*pfs_batch_mode=*/false);
-      SetCostOnNestedLoopIterator(*thd->cost_model(), qep_tab->position(),
-                                  iterator.get());
+      path =
+          CreateNestedLoopAccessPath(thd, path, subtree_path, JoinType::INNER,
+                                     /*pfs_batch_mode=*/false);
+      SetCostOnNestedLoopAccessPath(*thd->cost_model(), qep_tab->position(),
+                                    path);
       i = qep_tab->match_tab + 1;
       continue;
     }
 
-    unique_ptr_destroy_only<RowIterator> table_iterator =
-        GetTableIterator(thd, qep_tab, qep_tabs);
+    AccessPath *table_path = GetTableAccessPath(thd, qep_tab, qep_tabs);
 
     qep_tab_map right_tables = qep_tab->idx_map();
     qep_tab_map left_tables = 0;
@@ -2608,8 +2642,8 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     }
 
     // If this is a BNL, we should replace it with hash join. We did decide
-    // during create_iterators that we actually can replace the BNL with a hash
-    // join, so we don't bother checking any further that we actually can
+    // during create_access_paths that we actually can replace the BNL with a
+    // hash join, so we don't bother checking any further that we actually can
     // replace the BNL with a hash join.
     const bool replace_with_hash_join =
         UseHashJoin(qep_tab) && !QueryMixesOuterBKAAndBNL(qep_tab->join()) &&
@@ -2636,12 +2670,9 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     if (is_bka) {
       TABLE_REF &ref = qep_tab->ref();
 
-      table_iterator = NewIterator<MultiRangeRowIterator>(
-          thd, qep_tab->cache_idx_cond, qep_tab->table(),
-          qep_tab->copy_current_rowid, &ref,
-          qep_tab->position()->table->join_cache_flags);
-      qep_tab->mrr_iterator =
-          down_cast<MultiRangeRowIterator *>(table_iterator->real_iterator());
+      table_path =
+          NewMRRAccessPath(thd, qep_tab->cache_idx_cond, qep_tab->table(), &ref,
+                           qep_tab->position()->table->join_cache_flags);
 
       if (qep_tab->cache_idx_cond != nullptr) {
         *conditions_depend_on_outer_tables |=
@@ -2662,15 +2693,14 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     }
 
     if (!qep_tab->condition_is_pushed_to_sort()) {  // See the comment on #2.
-      double expected_rows = table_iterator->expected_rows();
-      table_iterator = PossiblyAttachFilterIterator(
-          move(table_iterator), predicates_below_join, thd,
-          conditions_depend_on_outer_tables);
+      double expected_rows = table_path->num_output_rows;
+      table_path = PossiblyAttachFilter(table_path, predicates_below_join, thd,
+                                        conditions_depend_on_outer_tables);
       POSITION *pos = qep_tab->position();
       if (expected_rows >= 0.0 && !predicates_below_join.empty() &&
           pos != nullptr) {
-        SetCostOnTableIterator(*thd->cost_model(), pos,
-                               /*is_after_filter=*/true, table_iterator.get());
+        SetCostOnTableAccessPath(*thd->cost_model(), pos,
+                                 /*is_after_filter=*/true, table_path);
       }
     } else {
       *conditions_depend_on_outer_tables |= qep_tab->condition()->used_tables();
@@ -2683,9 +2713,10 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     // RemoveDuplicatesIterator in one).
     if (qep_tab->do_loosescan() && qep_tab->match_tab == i) {
       KEY *key = qep_tab->table()->key_info + qep_tab->index();
-      table_iterator = NewIterator<RemoveDuplicatesIterator>(
-          thd, move(table_iterator), qep_tab->table(), key,
-          qep_tab->loosescan_key_len);
+      AccessPath *old_path = table_path;
+      table_path = NewRemoveDuplicatesAccessPath(
+          thd, table_path, qep_tab->table(), key, qep_tab->loosescan_key_len);
+      CopyCosts(*old_path, table_path);  // We have nothing better.
     }
 
     if (qep_tab->lateral_derived_tables_depend_on_me) {
@@ -2693,14 +2724,13 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
         pending_invalidators->push_back(
             PendingInvalidator{qep_tab, /*table_index_to_attach_to=*/i});
       } else {
-        table_iterator =
-            CreateInvalidatorIterator(thd, qep_tab, move(table_iterator));
+        table_path = NewInvalidatorAccessPathForTable(thd, table_path, qep_tab);
       }
     }
 
-    if (iterator == nullptr) {
+    if (path == nullptr) {
       // We are the first table in this join.
-      iterator = move(table_iterator);
+      path = table_path;
     } else {
       // We can only enable DISTINCT optimizations if we are not in the right
       // (inner) side of an outer join; since the filter is deferred, the limit
@@ -2729,9 +2759,11 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       if (qep_tab->not_used_in_distinct && pending_conditions == nullptr &&
           i == static_cast<plan_idx>(qep_tab->join()->primary_tables - 1) &&
           !add_limit_1 && !replace_with_hash_join && !is_bka) {
-        table_iterator = NewIterator<LimitOffsetIterator>(
-            thd, move(table_iterator), /*limit=*/1, /*offset=*/0,
-            /*count_all_rows=*/false, /*skipped_rows=*/nullptr);
+        table_path = NewLimitOffsetAccessPath(
+            thd, table_path, /*limit=*/1,
+            /*offset=*/0,
+            /*count_all_rows=*/false, /*reject_multiple_rows=*/false,
+            /*send_records_override=*/nullptr);
       }
 
       // Inner join this table to the existing tree.
@@ -2740,30 +2772,28 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       DBUG_ASSERT(qep_tab->last_inner() == NO_PLAN_IDX);
 
       if (is_bka) {
-        iterator = CreateBKAIterator(thd, qep_tab->join(), move(iterator),
-                                     left_tables, move(table_iterator),
-                                     right_tables, qep_tab->table(),
-                                     qep_tab->table_ref, &qep_tab->ref(),
-                                     qep_tab->mrr_iterator, JoinType::INNER);
+        path = CreateBKAAccessPath(thd, qep_tab->join(), path, left_tables,
+                                   table_path, right_tables, qep_tab->table(),
+                                   qep_tab->table_ref, &qep_tab->ref(),
+                                   JoinType::INNER);
       } else if (replace_with_hash_join) {
         // The numerically lower QEP_TAB is often (if not always) the smaller
         // input, so use that as the build input.
-        iterator = CreateHashJoinIterator(
-            thd, qep_tab, move(iterator), left_tables, move(table_iterator),
-            right_tables, JoinType::INNER, &join_conditions,
-            conditions_depend_on_outer_tables);
+        path = CreateHashJoinAccessPath(thd, qep_tab, path, left_tables,
+                                        table_path, right_tables,
+                                        JoinType::INNER, &join_conditions,
+                                        conditions_depend_on_outer_tables);
 
         // Attach any remaining non-equi-join conditions as a filter after the
         // join.
-        iterator =
-            PossiblyAttachFilterIterator(move(iterator), join_conditions, thd,
-                                         conditions_depend_on_outer_tables);
+        path = PossiblyAttachFilter(path, join_conditions, thd,
+                                    conditions_depend_on_outer_tables);
       } else {
-        iterator = CreateNestedLoopIterator(
-            thd, move(iterator), move(table_iterator), JoinType::INNER,
+        path = CreateNestedLoopAccessPath(
+            thd, path, table_path, JoinType::INNER,
             qep_tab->pfs_batch_update(qep_tab->join()));
-        SetCostOnNestedLoopIterator(*thd->cost_model(), qep_tab->position(),
-                                    iterator.get());
+        SetCostOnNestedLoopAccessPath(*thd->cost_model(), qep_tab->position(),
+                                      path);
       }
     }
     ++i;
@@ -2781,93 +2811,44 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     DBUG_ASSERT(top_level_pending_invalidators.empty());
 
     DBUG_ASSERT(last_idx == qep_tabs[first_idx].last_inner() + 1);
-    iterator = FinishPendingOperations(
-        thd, move(iterator), /*remove_duplicates_loose_scan_qep_tab=*/nullptr,
+    path = FinishPendingOperations(
+        thd, path, /*remove_duplicates_loose_scan_qep_tab=*/nullptr,
         top_level_pending_conditions, top_level_pending_invalidators,
         conditions_depend_on_outer_tables);
   }
-  return iterator;
+  return path;
 }
 
-void JOIN::create_iterators() {
-  DBUG_ASSERT(m_root_iterator == nullptr);
+void JOIN::create_access_paths() {
+  DBUG_ASSERT(m_root_access_path == nullptr);
 
-  // 1) Set up the basic RowIterators for accessing each specific table.
-  create_table_iterators();
+  AccessPath *path = create_root_access_path_for_join();
+  path = attach_access_paths_for_having_and_limit(path);
 
-  // 2) Create the composite iterators combining the row from each table.
-  unique_ptr_destroy_only<RowIterator> iterator =
-      create_root_iterator_for_join();
-  assert(iterator != nullptr);
-
-  iterator = attach_iterators_for_having_and_limit(move(iterator));
-  iterator->set_join_for_explain(this);
-  m_root_iterator = move(iterator);
+  m_root_access_path = path;
 }
 
-void JOIN::create_table_iterators() {
-  for (unsigned table_idx = const_tables; table_idx < tables; ++table_idx) {
-    QEP_TAB *qep_tab = &this->qep_tab[table_idx];
-    if (qep_tab->position() == nullptr) {
-      continue;
-    }
-
-    /*
-      Create the specific RowIterators, including any specific
-      RowIterator for the pushed queries.
-    */
-    qep_tab->pick_table_access_method();
-
-    if (qep_tab->filesort) {
-      unique_ptr_destroy_only<RowIterator> iterator = move(qep_tab->iterator);
-
-      // Evaluate any conditions before sorting entire row set.
-      if (qep_tab->condition()) {
-        vector<Item *> predicates_below_join;
-        vector<PendingCondition> predicates_above_join;
-        SplitConditions(qep_tab->condition(), qep_tab, &predicates_below_join,
-                        &predicates_above_join,
-                        /*join_conditions=*/nullptr);
-
-        table_map conditions_depend_on_outer_tables = 0;
-        iterator = PossiblyAttachFilterIterator(
-            move(iterator), predicates_below_join, thd,
-            &conditions_depend_on_outer_tables);
-        qep_tab->mark_condition_as_pushed_to_sort();
-      }
-
-      // Wrap the chosen RowIterator in a SortingIterator, so that we get
-      // sorted results out.
-      qep_tab->iterator = NewIterator<SortingIterator>(
-          qep_tab->join()->thd, qep_tab, qep_tab->filesort, move(iterator),
-          &qep_tab->join()->examined_rows);
-      qep_tab->table()->sorting_iterator =
-          down_cast<SortingIterator *>(qep_tab->iterator->real_iterator());
-    }
-  }
-}
-
-unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
+AccessPath *JOIN::create_root_access_path_for_join() {
   if (select_count) {
-    return NewIterator<UnqualifiedCountIterator>(thd, this);
+    return NewUnqualifiedCountAccessPath(thd);
   }
 
-  // OK, so we're good. Go through the tables and make the join iterators.
-  unique_ptr_destroy_only<RowIterator> iterator;
+  // OK, so we're good. Go through the tables and make the join access paths.
+  AccessPath *path = nullptr;
   if (select_lex->is_table_value_constructor) {
     best_rowcount = select_lex->row_value_list->size();
-    iterator = NewIterator<TableValueConstructorIterator>(
-        thd, &examined_rows, *select_lex->row_value_list, fields);
+    path = NewTableValueConstructorAccessPath(thd);
+    path->num_output_rows = select_lex->row_value_list->size();
+    path->cost = 0.0;
   } else if (const_tables == primary_tables) {
     // Only const tables, so add a fake single row to join in all
     // the const tables (only inner-joined tables are promoted to
     // const tables in the optimizer).
-    iterator = NewIterator<FakeSingleRowIterator>(thd, &examined_rows);
+    path = NewFakeSingleRowAccessPath(thd, /*count_examined_rows=*/true);
     qep_tab_map conditions_depend_on_outer_tables = 0;
     if (where_cond != nullptr) {
-      iterator = PossiblyAttachFilterIterator(
-          move(iterator), vector<Item *>{where_cond}, thd,
-          &conditions_depend_on_outer_tables);
+      path = PossiblyAttachFilter(path, vector<Item *>{where_cond}, thd,
+                                  &conditions_depend_on_outer_tables);
     }
 
     // Surprisingly enough, we can specify that the const tables are
@@ -2877,22 +2858,27 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
     if (const_tables > 0) {
       QEP_TAB *qep_tab = &this->qep_tab[const_tables];
       if (qep_tab->op_type == QEP_TAB::OT_MATERIALIZE) {
-        qep_tab->iterator.reset();
-        join_setup_iterator(qep_tab);
         qep_tab->table()->alias = "<temporary>";
-        iterator = NewIterator<MaterializeIterator>(
-            thd, move(iterator), qep_tab->tmp_table_param, qep_tab->table(),
-            move(qep_tab->iterator), /*cte=*/nullptr, select_lex->select_number,
-            unit, this, qep_tab->ref_item_slice,
-            /*copy_fields_and_items=*/true,
-            /*rematerialize=*/true,
-            qep_tab->tmp_table_param->end_write_records);
+        AccessPath *table_path =
+            create_table_access_path(thd, nullptr, qep_tab,
+                                     /*count_examined_rows=*/false);
+        AccessPath *old_path = path;
+        path = NewMaterializeAccessPath(
+            thd,
+            SingleMaterializeQueryBlock(
+                thd, path, select_lex->select_number, this,
+                /*copy_fields_and_items=*/true, qep_tab->tmp_table_param),
+            qep_tab->invalidators, qep_tab->table(), table_path,
+            /*cte=*/nullptr, unit, qep_tab->ref_item_slice,
+            /*rematerialize=*/true, qep_tab->tmp_table_param->end_write_records,
+            /*reject_multiple_rows=*/false);
+        CopyCosts(*old_path, path);
       }
     }
   } else {
     qep_tab_map unhandled_duplicates = 0;
     qep_tab_map conditions_depend_on_outer_tables = 0;
-    iterator = ConnectJoins(
+    path = ConnectJoins(
         /*upper_first_idx=*/NO_PLAN_IDX, const_tables, primary_tables, qep_tab,
         thd, TOP_LEVEL, nullptr, nullptr,
         /*pending_join_conditions=*/nullptr, &unhandled_duplicates,
@@ -2902,8 +2888,8 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
     // (ie., the join left some tables that were supposed to be deduplicated
     // but were not), handle them now at the very end.
     if (unhandled_duplicates != 0) {
-      iterator = CreateWeedoutIteratorForTables(
-          thd, unhandled_duplicates, qep_tab, primary_tables, move(iterator));
+      path = NewWeedoutAccessPathForTables(thd, unhandled_duplicates, qep_tab,
+                                           primary_tables, path);
     }
   }
 
@@ -2924,13 +2910,12 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
       // see below. We won't be aggregating twice, though.)
       if (qep_tab->tmp_table_param->precomputed_group_by) {
         DBUG_ASSERT(rollup_state == RollupState::NONE);
-        iterator = NewIterator<PrecomputedAggregateIterator>(
-            thd, move(iterator), this, qep_tab->tmp_table_param,
-            qep_tab->ref_item_slice);
+        path = NewPrecomputedAggregateAccessPath(
+            thd, path, qep_tab->tmp_table_param, qep_tab->ref_item_slice);
       } else {
-        iterator = NewIterator<AggregateIterator>(
-            thd, move(iterator), this, qep_tab->tmp_table_param,
-            qep_tab->ref_item_slice, rollup_state != RollupState::NONE);
+        path = NewAggregateAccessPath(thd, path, qep_tab->tmp_table_param,
+                                      qep_tab->ref_item_slice,
+                                      rollup_state != RollupState::NONE);
       }
     }
 
@@ -2951,8 +2936,7 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
     // and then remove the code that moves HAVING onto qep_tab->condition().
     if (qep_tab->having != nullptr &&
         qep_tab->op_type != QEP_TAB::OT_AGGREGATE_INTO_TMP_TABLE) {
-      iterator =
-          NewIterator<FilterIterator>(thd, move(iterator), qep_tab->having);
+      path = NewFilterAccessPath(thd, path, qep_tab->having);
     }
 
     // Sorting comes after the materialization (which we're about to add),
@@ -2981,7 +2965,8 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
       }
 
       ORDER *order = create_order_from_distinct(
-          thd, ref_items[qep_tab->ref_item_slice], desired_order, fields_list,
+          thd, ref_items[qep_tab->ref_item_slice], desired_order,
+          *query_block_fields,
           /*skip_aggregates=*/false, /*convert_bit_fields_to_long=*/false,
           &all_order_fields_used);
       if (order == nullptr) {
@@ -3021,7 +3006,7 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
         // correct items from order_arg.
         Switch_ref_item_slice slice_switch(this, qep_tab->ref_item_slice);
         dup_filesort = new (thd->mem_root)
-            Filesort(thd, qep_tab->table(), /*keep_buffers=*/false, order,
+            Filesort(thd, {qep_tab->table()}, /*keep_buffers=*/false, order,
                      HA_POS_ERROR, /*force_stable_sort=*/false,
                      /*remove_duplicates=*/true, force_sort_positions,
                      /*unwrap_rollup=*/false);
@@ -3031,7 +3016,7 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
           // reuse its Filesort object, as it would get the wrong slice and
           // potentially addon fields. Create a new one.
           filesort = new (thd->mem_root)
-              Filesort(thd, qep_tab->table(), /*keep_buffers=*/false,
+              Filesort(thd, {qep_tab->table()}, /*keep_buffers=*/false,
                        desired_order, HA_POS_ERROR, /*force_stable_sort=*/false,
                        /*remove_duplicates=*/false, force_sort_positions,
                        /*unwrap_rollup=*/false);
@@ -3039,36 +3024,35 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
       }
     }
 
-    qep_tab->iterator.reset();
-    join_setup_iterator(qep_tab);
-
+    AccessPath *table_path =
+        create_table_access_path(thd, nullptr, qep_tab,
+                                 /*count_examined_rows=*/false);
     qep_tab->table()->alias = "<temporary>";
 
     if (qep_tab->op_type == QEP_TAB::OT_WINDOWING_FUNCTION) {
-      if (qep_tab->tmp_table_param->m_window->needs_buffering()) {
-        iterator = NewIterator<BufferingWindowingIterator>(
-            thd, move(iterator), qep_tab->tmp_table_param, this,
-            qep_tab->ref_item_slice);
-      } else {
-        iterator = NewIterator<WindowingIterator>(
-            thd, move(iterator), qep_tab->tmp_table_param, this,
-            qep_tab->ref_item_slice);
-      }
+      path = NewWindowingAccessPath(
+          thd, path, qep_tab->tmp_table_param, qep_tab->ref_item_slice,
+          qep_tab->tmp_table_param->m_window->needs_buffering());
       if (!qep_tab->tmp_table_param->m_window_short_circuit) {
-        iterator = NewIterator<MaterializeIterator>(
-            thd, move(iterator), qep_tab->tmp_table_param, qep_tab->table(),
-            move(qep_tab->iterator), /*cte=*/nullptr, select_lex->select_number,
-            unit, this,
-            /*ref_slice=*/-1, /*copy_fields_and_items_in_materialize=*/false,
-            /*rematerialize=*/true, tmp_table_param.end_write_records);
+        AccessPath *old_path = path;
+        path = NewMaterializeAccessPath(
+            thd,
+            SingleMaterializeQueryBlock(
+                thd, path, select_lex->select_number, this,
+                /*copy_fields_and_items=*/false, qep_tab->tmp_table_param),
+            qep_tab->invalidators, qep_tab->table(), table_path,
+            /*cte=*/nullptr, unit,
+            /*ref_slice=*/-1,
+            /*rematerialize=*/true, tmp_table_param.end_write_records,
+            /*reject_multiple_rows=*/false);
+        CopyCosts(*old_path, path);
       }
     } else if (qep_tab->op_type == QEP_TAB::OT_AGGREGATE_INTO_TMP_TABLE) {
-      iterator = NewIterator<TemptableAggregateIterator>(
-          thd, move(iterator), qep_tab->tmp_table_param, qep_tab->table(),
-          move(qep_tab->iterator), select_lex, this, qep_tab->ref_item_slice);
+      path = NewTemptableAggregateAccessPath(
+          thd, path, qep_tab->tmp_table_param, qep_tab->table(), table_path,
+          qep_tab->ref_item_slice);
       if (qep_tab->having != nullptr) {
-        iterator =
-            NewIterator<FilterIterator>(thd, move(iterator), qep_tab->having);
+        path = NewFilterAccessPath(thd, path, qep_tab->having);
       }
     } else {
       DBUG_ASSERT(qep_tab->op_type == QEP_TAB::OT_MATERIALIZE ||
@@ -3092,42 +3076,44 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
       // the deduplicating responsibilities of the temporary table and activate
       // this mode even if qep_tab->temporary_table_deduplicates() is set.
       Filesort *first_sort = dup_filesort != nullptr ? dup_filesort : filesort;
+      AccessPath *old_path = path;
       if (first_sort != nullptr && first_sort->using_addon_fields() &&
           !qep_tab->temporary_table_deduplicates()) {
-        iterator = NewIterator<StreamingIterator>(
-            thd, move(iterator), qep_tab->tmp_table_param, qep_tab->table(),
-            copy_fields_and_items);
+        path = NewStreamingAccessPath(thd, path, /*join=*/this,
+                                      qep_tab->tmp_table_param,
+                                      qep_tab->table(), copy_fields_and_items);
       } else {
-        iterator = NewIterator<MaterializeIterator>(
-            thd, move(iterator), qep_tab->tmp_table_param, qep_tab->table(),
-            move(qep_tab->iterator), /*cte=*/nullptr, select_lex->select_number,
-            unit, this, qep_tab->ref_item_slice, copy_fields_and_items,
-            /*rematerialize=*/true,
-            qep_tab->tmp_table_param->end_write_records);
+        path = NewMaterializeAccessPath(
+            thd,
+            SingleMaterializeQueryBlock(thd, path, select_lex->select_number,
+                                        this, copy_fields_and_items,
+                                        qep_tab->tmp_table_param),
+            qep_tab->invalidators, qep_tab->table(), table_path,
+            /*cte=*/nullptr, unit, qep_tab->ref_item_slice,
+            /*rematerialize=*/true, qep_tab->tmp_table_param->end_write_records,
+            /*reject_multiple_rows=*/false);
       }
+      CopyCosts(*old_path, path);
     }
 
     if (qep_tab->condition() != nullptr) {
-      iterator = NewIterator<FilterIterator>(thd, move(iterator),
-                                             qep_tab->condition());
+      path = NewFilterAccessPath(thd, path, qep_tab->condition());
       qep_tab->mark_condition_as_pushed_to_sort();
     }
 
     if (limit_1_for_dup_filesort) {
-      iterator = NewIterator<LimitOffsetIterator>(
-          thd, move(iterator), /*select_limit_cnt=*/1, /*offset_limit_cnt=*/0,
-          /*count_all_rows=*/false, /*skipped_rows=*/nullptr);
+      path = NewLimitOffsetAccessPath(thd, path, /*limit=*/1,
+                                      /*offset=*/0,
+                                      /*count_all_rows=*/false,
+                                      /*reject_multiple_rows=*/false,
+                                      /*send_records_override=*/nullptr);
     } else if (dup_filesort != nullptr) {
-      iterator = NewIterator<SortingIterator>(thd, qep_tab, dup_filesort,
-                                              move(iterator), &examined_rows);
-      qep_tab->table()->duplicate_removal_iterator =
-          down_cast<SortingIterator *>(iterator->real_iterator());
+      path = NewSortAccessPath(thd, path, dup_filesort,
+                               /*count_examined_rows=*/true);
     }
     if (filesort != nullptr) {
-      iterator = NewIterator<SortingIterator>(thd, qep_tab, filesort,
-                                              move(iterator), &examined_rows);
-      qep_tab->table()->sorting_iterator =
-          down_cast<SortingIterator *>(iterator->real_iterator());
+      path = NewSortAccessPath(thd, path, filesort,
+                               /*count_examined_rows=*/true);
     }
   }
 
@@ -3159,65 +3145,59 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
     }
 #endif
     if (tmp_table_param.precomputed_group_by) {
-      iterator = NewIterator<PrecomputedAggregateIterator>(
-          thd, move(iterator), this, &tmp_table_param,
-          REF_SLICE_ORDERED_GROUP_BY);
+      path = NewPrecomputedAggregateAccessPath(thd, path, &tmp_table_param,
+                                               REF_SLICE_ORDERED_GROUP_BY);
       DBUG_ASSERT(rollup_state == RollupState::NONE);
     } else {
-      iterator = NewIterator<AggregateIterator>(
-          thd, move(iterator), this, &tmp_table_param,
-          REF_SLICE_ORDERED_GROUP_BY, rollup_state != RollupState::NONE);
+      path = NewAggregateAccessPath(thd, path, &tmp_table_param,
+                                    REF_SLICE_ORDERED_GROUP_BY,
+                                    rollup_state != RollupState::NONE);
     }
   }
 
-  return iterator;
+  return path;
 }
 
-unique_ptr_destroy_only<RowIterator>
-JOIN::attach_iterators_for_having_and_limit(
-    unique_ptr_destroy_only<RowIterator> iterator) {
+AccessPath *JOIN::attach_access_paths_for_having_and_limit(AccessPath *path) {
   // Attach HAVING and LIMIT if needed.
   // NOTE: We can have HAVING even without GROUP BY, although it's not very
   // useful.
   if (having_cond != nullptr) {
-    iterator = NewIterator<FilterIterator>(thd, move(iterator), having_cond);
+    path = NewFilterAccessPath(thd, path, having_cond);
   }
 
   // Note: For select_count, LIMIT 0 is handled in JOIN::optimize() for the
   // common case, but not for CALC_FOUND_ROWS. OFFSET also isn't handled there.
   if (unit->select_limit_cnt != HA_POS_ERROR || unit->offset_limit_cnt != 0) {
-    iterator = NewIterator<LimitOffsetIterator>(
-        thd, move(iterator), unit->select_limit_cnt, unit->offset_limit_cnt,
-        calc_found_rows, &send_records);
+    path =
+        NewLimitOffsetAccessPath(thd, path, unit->select_limit_cnt,
+                                 unit->offset_limit_cnt, calc_found_rows, false,
+                                 /*send_records_override=*/nullptr);
   }
 
-  return iterator;
+  return path;
 }
 
-void JOIN::create_iterators_for_index_subquery() {
-  create_table_iterators();
-
+void JOIN::create_access_paths_for_index_subquery() {
   QEP_TAB *first_qep_tab = &qep_tab[0];
+  AccessPath *path = first_qep_tab->access_path();
   if (first_qep_tab->condition() != nullptr) {
-    first_qep_tab->iterator = NewIterator<FilterIterator>(
-        thd, move(first_qep_tab->iterator), first_qep_tab->condition());
+    path = NewFilterAccessPath(thd, path, first_qep_tab->condition());
   }
 
   TABLE_LIST *const tl = qep_tab->table_ref;
   if (tl && tl->uses_materialization()) {
     if (tl->is_table_function()) {
-      m_root_iterator = NewIterator<MaterializedTableFunctionIterator>(
-          thd, tl->table_function, first_qep_tab->table(),
-          move(first_qep_tab->iterator));
+      path = NewMaterializedTableFunctionAccessPath(thd, first_qep_tab->table(),
+                                                    tl->table_function, path);
     } else {
-      m_root_iterator = GetIteratorForDerivedTable(thd, first_qep_tab);
+      path = GetAccessPathForDerivedTable(thd, first_qep_tab,
+                                          first_qep_tab->access_path());
     }
-  } else {
-    m_root_iterator = move(first_qep_tab->iterator);
   }
 
-  m_root_iterator =
-      attach_iterators_for_having_and_limit(move(m_root_iterator));
+  path = attach_access_paths_for_having_and_limit(path);
+  m_root_access_path = path;
 }
 
 /**
@@ -3534,12 +3514,6 @@ int ConstIterator::Read() {
   return err;
 }
 
-vector<string> ConstIterator::DebugString() const {
-  DBUG_ASSERT(table()->file->pushed_idx_cond == nullptr);
-  DBUG_ASSERT(table()->file->pushed_cond == nullptr);
-  return {string("Constant row from ") + table()->alias};
-}
-
 static int read_const(TABLE *table, TABLE_REF *ref) {
   int error;
   DBUG_TRACE;
@@ -3739,25 +3713,14 @@ void EQRefIterator::UnlockRow() {
   if (m_ref->use_count) m_ref->use_count--;
 }
 
-vector<string> EQRefIterator::DebugString() const {
-  const KEY *key = &table()->key_info[m_ref->key];
-  string str = string("Single-row index lookup on ") + table()->alias +
-               " using " + key->name + " (" +
-               RefToString(*m_ref, key, /*include_nulls=*/false) + ")";
-  if (table()->file->pushed_idx_cond != nullptr) {
-    str += ", with index condition: " +
-           ItemToString(table()->file->pushed_idx_cond);
-  }
-  str += table()->file->explain_extra();
-  return {str};
-}
-
 PushedJoinRefIterator::PushedJoinRefIterator(THD *thd, TABLE *table,
                                              TABLE_REF *ref, bool use_order,
+                                             bool is_unique,
                                              ha_rows *examined_rows)
     : TableRowIterator(thd, table),
       m_ref(ref),
       m_use_order(use_order),
+      m_is_unique(is_unique),
       m_examined_rows(examined_rows) {}
 
 bool PushedJoinRefIterator::Init() {
@@ -3800,11 +3763,15 @@ int PushedJoinRefIterator::Read() {
     if (error) {
       return HandleError(error);
     }
-  } else {
+  } else if (not m_is_unique) {
     int error = table()->file->ha_index_next_pushed(table()->record[0]);
     if (error) {
       return HandleError(error);
     }
+  } else {
+    // 'm_is_unique' can at most return a single row, which we had
+    table()->set_no_row();
+    return -1;
   }
   if (m_examined_rows != nullptr) {
     ++*m_examined_rows;
@@ -3812,37 +3779,11 @@ int PushedJoinRefIterator::Read() {
   return 0;
 }
 
-vector<string> PushedJoinRefIterator::DebugString() const {
-  DBUG_ASSERT(table()->file->pushed_idx_cond == nullptr);
-  const KEY *key = &table()->key_info[m_ref->key];
-  return {string("Index lookup on ") + table()->alias + " using " + key->name +
-          " (" + RefToString(*m_ref, key, /*include_nulls=*/false) + ")" +
-          table()->file->explain_extra()};
-}
-
 template <bool Reverse>
 bool RefIterator<Reverse>::Init() {
   m_first_record_since_init = true;
   return init_index_and_record_buffer(m_qep_tab, m_qep_tab->table()->file,
                                       m_ref->key, m_use_order);
-}
-
-template <bool Reverse>
-vector<string> RefIterator<Reverse>::DebugString() const {
-  const KEY *key = &table()->key_info[m_ref->key];
-  string str = string("Index lookup on ") + table()->alias + " using " +
-               key->name + " (" +
-               RefToString(*m_ref, key, /*include_nulls=*/false);
-  if (Reverse) {
-    str += "; iterate backwards";
-  }
-  str += ")";
-  if (table()->file->pushed_idx_cond != nullptr) {
-    str += ", with index condition: " +
-           ItemToString(table()->file->pushed_idx_cond);
-  }
-  str += table()->file->explain_extra();
-  return {str};
 }
 
 // Doxygen gets confused by the explicit specializations.
@@ -3950,6 +3891,9 @@ int RefIterator<true>::Read() {  // Reverse read.
   }
   return 0;
 }
+
+template class RefIterator<true>;
+template class RefIterator<false>;
 //! @endcond
 
 DynamicRangeIterator::DynamicRangeIterator(THD *thd, TABLE *table,
@@ -3958,8 +3902,9 @@ DynamicRangeIterator::DynamicRangeIterator(THD *thd, TABLE *table,
     : TableRowIterator(thd, table),
       m_qep_tab(qep_tab),
       m_examined_rows(examined_rows),
-      m_original_read_set(table->read_set) {
-  add_virtual_gcol_base_cols(table, thd->mem_root, &m_table_scan_read_set);
+      m_read_set_without_base_columns(table->read_set) {
+  add_virtual_gcol_base_cols(table, thd->mem_root,
+                             &m_read_set_with_base_columns);
 }
 
 bool DynamicRangeIterator::Init() {
@@ -4021,14 +3966,28 @@ bool DynamicRangeIterator::Init() {
     return false;
   }
 
+  // Create the required Iterator based on the strategy chosen. Also set the
+  // read set to be used while accessing the table. Unlike a regular range
+  // scan, as the access strategy keeps changing for a dynamic range scan,
+  // optimizer cannot know if the read set should include base columns of
+  // virtually generated columns or not. As a result, this Iterator maintains
+  // two different read sets, to be used once the access strategy is chosen
+  // here.
   if (qck) {
     m_iterator = NewIterator<IndexRangeScanIterator>(
         thd(), table(), qck, m_qep_tab, m_examined_rows);
-    table()->read_set = m_original_read_set;
+    // If the range optimizer chose index merge scan or a range scan with
+    // covering index, use the read set without base columns. Otherwise we use
+    // the read set with base columns included.
+    if (qck->index == MAX_KEY || table()->covering_keys.is_set(qck->index))
+      table()->read_set = m_read_set_without_base_columns;
+    else
+      table()->read_set = &m_read_set_with_base_columns;
   } else {
     m_iterator = NewIterator<TableScanIterator>(thd(), table(), m_qep_tab,
                                                 m_examined_rows);
-    table()->read_set = &m_table_scan_read_set;
+    // For a table scan, include base columns in read set.
+    table()->read_set = &m_read_set_with_base_columns;
   }
   return m_iterator->Init();
 }
@@ -4039,29 +3998,6 @@ int DynamicRangeIterator::Read() {
   } else {
     return m_iterator->Read();
   }
-}
-
-vector<string> DynamicRangeIterator::DebugString() const {
-  // TODO: Convert QUICK_SELECT_I to RowIterator so that we can get
-  // better outputs here (similar to dbug_dump()), although it might
-  // get tricky when there are many alternatives.
-  string str = string("Index range scan on ") + table()->alias +
-               " (re-planned for each iteration)";
-  if (table()->file->pushed_idx_cond != nullptr) {
-    str += ", with index condition: " +
-           ItemToString(table()->file->pushed_idx_cond);
-  }
-  str += table()->file->explain_extra();
-  return {str};
-}
-
-static void join_setup_iterator(QEP_TAB *tab) {
-  bool using_table_scan;
-  tab->iterator =
-      create_table_iterator(tab->join()->thd, nullptr, tab, false,
-                            /*ignore_not_found_rows=*/false,
-                            /*examined_rows=*/nullptr, &using_table_scan);
-  tab->set_using_table_scan(using_table_scan);
 }
 
 /**
@@ -4130,14 +4066,6 @@ int FullTextSearchIterator::Read() {
   return 0;
 }
 
-vector<string> FullTextSearchIterator::DebugString() const {
-  DBUG_ASSERT(table()->file->pushed_idx_cond == nullptr);
-  const KEY *key = &table()->key_info[m_ref->key];
-  return {string("Indexed full text search on ") + table()->alias + " using " +
-          key->name + " (" + RefToString(*m_ref, key, /*include_nulls=*/false) +
-          ")" + table()->file->explain_extra()};
-}
-
 /**
   Reading of key with key reference and one part that may be NULL.
 */
@@ -4203,27 +4131,12 @@ int RefOrNullIterator::Read() {
   }
 }
 
-vector<string> RefOrNullIterator::DebugString() const {
-  const KEY *key = &table()->key_info[m_ref->key];
-  string str = string("Index lookup on ") + table()->alias + " using " +
-               key->name + " (" +
-               RefToString(*m_ref, key, /*include_nulls=*/true) + ")";
-  if (table()->file->pushed_idx_cond != nullptr) {
-    str += ", with index condition: " +
-           ItemToString(table()->file->pushed_idx_cond);
-  }
-  str += table()->file->explain_extra();
-  return {str};
-}
-
 AlternativeIterator::AlternativeIterator(
-    THD *thd, TABLE *table, QEP_TAB *qep_tab, ha_rows *examined_rows,
-    unique_ptr_destroy_only<RowIterator> source, TABLE_REF *ref)
+    THD *thd, TABLE *table, unique_ptr_destroy_only<RowIterator> source,
+    unique_ptr_destroy_only<RowIterator> table_scan_iterator, TABLE_REF *ref)
     : RowIterator(thd),
-      m_ref(ref),
       m_source_iterator(std::move(source)),
-      m_table_scan_iterator(
-          NewIterator<TableScanIterator>(thd, table, qep_tab, examined_rows)),
+      m_table_scan_iterator(std::move(table_scan_iterator)),
       m_table(table),
       m_original_read_set(table->read_set) {
   for (unsigned key_part_idx = 0; key_part_idx < ref->key_parts;
@@ -4257,46 +4170,13 @@ bool AlternativeIterator::Init() {
   return m_iterator->Init();
 }
 
-vector<string> AlternativeIterator::DebugString() const {
-  const TABLE *table =
-      down_cast<TableScanIterator *>(m_table_scan_iterator->real_iterator())
-          ->table();
-  const KEY *key = &table->key_info[m_ref->key];
-  string ret = "Alternative plans for IN subquery: Index lookup unless ";
-  if (m_applicable_cond_guards.size() > 1) {
-    ret += " any of (";
-  }
-  bool first = true;
-  for (unsigned key_part_idx = 0; key_part_idx < m_ref->key_parts;
-       ++key_part_idx) {
-    if (m_ref->cond_guards[key_part_idx] == nullptr) {
-      continue;
-    }
-    if (!first) {
-      ret += ", ";
-    }
-    first = false;
-    ret += key->key_part[key_part_idx].field->field_name;
-  }
-  if (m_applicable_cond_guards.size() > 1) {
-    ret += ")";
-  }
-  ret += " IS NULL";
-  return {ret};
-}
-
-/**
-  Pick the appropriate access method functions
-
-  Sets the functions for the selected table access method
-*/
-
-void QEP_TAB::pick_table_access_method() {
+AccessPath *QEP_TAB::access_path() {
   DBUG_ASSERT(table());
   // Only some access methods support reversed access:
   DBUG_ASSERT(!m_reversed_access || type() == JT_REF ||
               type() == JT_INDEX_SCAN);
   TABLE_REF *used_ref = nullptr;
+  AccessPath *path = nullptr;
 
   const TABLE *pushed_root = table()->file->member_of_pushed_join();
   const bool is_pushed_child = (pushed_root && pushed_root != table());
@@ -4307,75 +4187,65 @@ void QEP_TAB::pick_table_access_method() {
     case JT_REF:
       if (is_pushed_child) {
         DBUG_ASSERT(!m_reversed_access);
-        iterator = NewIterator<PushedJoinRefIterator>(
-            join()->thd, table(), &ref(), use_order(), &join()->examined_rows);
-      } else if (m_reversed_access) {
-        iterator = NewIterator<RefIterator<true>>(join()->thd, table(), &ref(),
-                                                  use_order(), this,
-                                                  &join()->examined_rows);
+        path = NewPushedJoinRefAccessPath(join()->thd, table(), &ref(),
+                                          use_order(), /*is_unique=*/false,
+                                          /*count_examined_rows=*/true);
       } else {
-        iterator = NewIterator<RefIterator<false>>(join()->thd, table(), &ref(),
-                                                   use_order(), this,
-                                                   &join()->examined_rows);
+        path = NewRefAccessPath(join()->thd, table(), &ref(), use_order(),
+                                m_reversed_access, this,
+                                /*count_examined_rows=*/true);
       }
       used_ref = &ref();
       break;
 
     case JT_REF_OR_NULL:
-      iterator = NewIterator<RefOrNullIterator>(join()->thd, table(), &ref(),
-                                                use_order(), this,
-                                                &join()->examined_rows);
+      path = NewRefOrNullAccessPath(join()->thd, table(), &ref(), use_order(),
+                                    this, /*count_examined_rows=*/true);
       used_ref = &ref();
       break;
 
     case JT_CONST:
-      iterator = NewIterator<ConstIterator>(join()->thd, table(), &ref(),
-                                            &join()->examined_rows);
+      path = NewConstTableAccessPath(join()->thd, table(), &ref(),
+                                     /*count_examined_rows=*/true);
       break;
 
     case JT_EQ_REF:
       if (is_pushed_child) {
-        iterator = NewIterator<PushedJoinRefIterator>(
-            join()->thd, table(), &ref(), use_order(), &join()->examined_rows);
+        path = NewPushedJoinRefAccessPath(join()->thd, table(), &ref(),
+                                          use_order(), /*is_unique=*/true,
+                                          /*count_examined_rows=*/true);
       } else {
-        iterator = NewIterator<EQRefIterator>(
-            join()->thd, table(), &ref(), use_order(), &join()->examined_rows);
+        path = NewEQRefAccessPath(join()->thd, table(), &ref(), use_order(),
+                                  /*count_examined_rows=*/true);
       }
       used_ref = &ref();
       break;
 
     case JT_FT:
-      iterator = NewIterator<FullTextSearchIterator>(
-          join()->thd, table(), &ref(), use_order(), &join()->examined_rows);
+      path =
+          NewFullTextSearchAccessPath(join()->thd, table(), &ref(), use_order(),
+                                      /*count_examined_rows=*/true);
       used_ref = &ref();
       break;
 
     case JT_INDEX_SCAN:
-      if (m_reversed_access) {
-        iterator = NewIterator<IndexScanIterator<true>>(
-            join()->thd, table(), index(), use_order(), this,
-            &join()->examined_rows);
-      } else {
-        iterator = NewIterator<IndexScanIterator<false>>(
-            join()->thd, table(), index(), use_order(), this,
-            &join()->examined_rows);
-      }
+      path = NewIndexScanAccessPath(join()->thd, table(), index(), use_order(),
+                                    m_reversed_access, this,
+                                    /*count_examined_rows=*/true);
       break;
     case JT_ALL:
     case JT_RANGE:
     case JT_INDEX_MERGE:
       if (using_dynamic_range) {
-        iterator = NewIterator<DynamicRangeIterator>(join()->thd, table(), this,
-                                                     &join()->examined_rows);
+        path = NewDynamicIndexRangeScanAccessPath(join()->thd, table(), this,
+                                                  /*count_examined_rows=*/true);
       } else {
-        iterator =
-            create_table_iterator(join()->thd, nullptr, this, false,
-                                  /*ignore_not_found_rows=*/false,
-                                  &join()->examined_rows, &m_using_table_scan);
+        path = create_table_access_path(join()->thd, nullptr, this,
+                                        /*count_examined_rows=*/true);
       }
       break;
     default:
-      DBUG_ASSERT(0);
+      DBUG_ASSERT(false);
       break;
   }
 
@@ -4419,13 +4289,37 @@ void QEP_TAB::pick_table_access_method() {
         DBUG_ASSERT(!is_pushed_child);
         // At least one condition guard is relevant, so we need to use
         // the AlternativeIterator.
-        iterator = NewIterator<AlternativeIterator>(join()->thd, table(), this,
-                                                    &join()->examined_rows,
-                                                    move(iterator), used_ref);
+        AccessPath *table_scan_path = NewTableScanAccessPath(
+            join()->thd, table(), this, /*count_examined_rows=*/true);
+        path = NewAlternativeAccessPath(join()->thd, path, table_scan_path,
+                                        used_ref);
         break;
       }
     }
   }
+
+  if (filesort) {
+    // Evaluate any conditions before sorting entire row set.
+    if (condition()) {
+      vector<Item *> predicates_below_join;
+      vector<PendingCondition> predicates_above_join;
+      SplitConditions(condition(), this, &predicates_below_join,
+                      &predicates_above_join,
+                      /*join_conditions=*/nullptr);
+
+      table_map conditions_depend_on_outer_tables = 0;
+      path = PossiblyAttachFilter(path, predicates_below_join, join()->thd,
+                                  &conditions_depend_on_outer_tables);
+      mark_condition_as_pushed_to_sort();
+    }
+
+    // Wrap the chosen RowIterator in a SortingIterator, so that we get
+    // sorted results out.
+    path = NewSortAccessPath(join()->thd, path, filesort,
+                             /*count_examined_rows=*/true);
+  }
+
+  return path;
 }
 
 /**
@@ -5415,9 +5309,12 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
   } else {
     DBUG_ASSERT(f->m_unit == WFU_ROWS);
     bool lower_within_limits = true;
-    /* Determine lower border */
+    // Determine lower border, handle wraparound for unsigned value:
     int64 border =
         f->m_from->border() != nullptr ? f->m_from->border()->val_int() : 0;
+    if (border < 0) {
+      border = INT64_MAX;
+    }
     switch (f->m_from->m_border_type) {
       case WBT_CURRENT_ROW:
         lower_limit = current_row;
@@ -5451,8 +5348,11 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
         break;
     }
 
-    /* Determine upper border */
+    // Determine upper border, handle wraparound for unsigned value:
     border = f->m_to->border() != nullptr ? f->m_to->border()->val_int() : 0;
+    if (border < 0) {
+      border = INT64_MAX;
+    }
     {
       switch (f->m_to->m_border_type) {
         case WBT_CURRENT_ROW:
@@ -5990,6 +5890,8 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
         row. Now evaluate over any new rows within range of the current row.
       */
       const int64 first = w.last_rowno_in_range_frame() + 1;
+      const bool empty =
+          w.last_rowno_in_range_frame() < w.first_rowno_in_range_frame();
       bool row_added = false;
 
       for (rowno = first; rowno <= upper; rowno++) {
@@ -6031,6 +5933,19 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
 
         w.set_is_last_row_in_frame(false);  // undo temporary states
         row_added = true;
+      }
+
+      if (w.before_frame() && empty) {
+        DBUG_ASSERT(!row_added && !found_first);
+        // This row's value is too low to fit in frame. We already had an empty
+        // set of frame rows when evaluating for the previous row, and the set
+        // is still empty.  So, we can move the possible boundaries for the
+        // set of frame rows for the next row to be evaluated one row ahead.
+        // We need only update last_rowno_in_range_frame here, first_row
+        // no_in_range_frame will be adjusted below to be one higher, cf.
+        // "maintain invariant" comment.
+        w.set_last_rowno_in_range_frame(
+            min(w.last_rowno_in_range_frame() + 1, upper));
       }
 
       if (rowno > upper && row_added)
@@ -6228,16 +6143,14 @@ int update_item_cache_if_changed(List<Cached_item> &list) {
   Change old item_field to use a new field with points at saved fieldvalue
   This function is only called before use of send_result_set_metadata.
 
-  @param all_fields                  all fields list; should really be const,
+  @param fields                      list of all fields; should really be const,
                                        but Item does not always respect
                                        constness
-  @param num_select_elements         number of elements in select item list
   @param thd                         THD pointer
   @param [in,out] param              temporary table parameters
   @param [out] ref_item_array        array of pointers to top elements of field
                                        list
-  @param [out] res_selected_fields   new list of items of select item list
-  @param [out] res_all_fields        new list of all items
+  @param [out] res_fields            new list of items of select item list
 
   @todo
     In most cases this result will be sent to the user.
@@ -6248,16 +6161,13 @@ int update_item_cache_if_changed(List<Cached_item> &list) {
   @returns false if success, true if error
 */
 
-bool setup_copy_fields(List<Item> &all_fields, size_t num_select_elements,
-                       THD *thd, Temp_table_param *param,
-                       Ref_item_array ref_item_array,
-                       List<Item> *res_selected_fields,
-                       List<Item> *res_all_fields) {
+bool setup_copy_fields(const mem_root_deque<Item *> &fields, THD *thd,
+                       Temp_table_param *param, Ref_item_array ref_item_array,
+                       mem_root_deque<Item *> *res_fields) {
   DBUG_TRACE;
 
-  res_selected_fields->empty();
-  res_all_fields->empty();
-  size_t border = all_fields.size() - num_select_elements;
+  res_fields->clear();
+  size_t num_hidden_fields = CountHiddenFields(fields);
   Mem_root_vector<Item_copy *> extra_funcs(
       Mem_root_allocator<Item_copy *>(thd->mem_root));
 
@@ -6265,16 +6175,15 @@ bool setup_copy_fields(List<Item> &all_fields, size_t num_select_elements,
   DBUG_ASSERT(param->copy_fields.empty());
 
   try {
-    param->grouped_expressions.reserve(all_fields.size());
+    param->grouped_expressions.reserve(fields.size());
     param->copy_fields.reserve(param->field_count);
-    extra_funcs.reserve(border);
+    extra_funcs.reserve(num_hidden_fields);
   } catch (std::bad_alloc &) {
     return true;
   }
 
-  List_iterator_fast<Item> li(all_fields);
-  Item *pos;
-  for (size_t i = 0; (pos = li++); i++) {
+  for (size_t i = 0; i < fields.size(); i++) {
+    Item *pos = fields[i];
     Item *real_pos = pos->real_item();
     if (real_pos->type() == Item::FIELD_ITEM) {
       Item_field *item = new Item_field(thd, ((Item_field *)real_pos));
@@ -6327,19 +6236,17 @@ bool setup_copy_fields(List<Item> &all_fields, size_t num_select_elements,
       Item_copy *item_copy = Item_copy::create(pos);
       if (item_copy == nullptr) return true;
       pos = item_copy;
-      if (i < border)  // HAVING, ORDER and GROUP BY
+      if (fields[i]->hidden)  // HAVING, ORDER and GROUP BY
         extra_funcs.push_back(item_copy);
       else
         param->grouped_expressions.push_back(item_copy);
     }
-    res_all_fields->push_back(pos);
-    ref_item_array[((i < border) ? all_fields.size() - i - 1 : i - border)] =
-        pos;
+    pos->hidden = fields[i]->hidden;
+    res_fields->push_back(pos);
+    ref_item_array[fields[i]->hidden ? fields.size() - i - 1
+                                     : i - num_hidden_fields] = pos;
   }
 
-  List_iterator_fast<Item> itr(*res_all_fields);
-  for (size_t i = 0; i < border; i++) itr++;
-  itr.sublist(*res_selected_fields, num_select_elements);
   /*
     Put elements from HAVING, ORDER BY and GROUP BY last to ensure that any
     reference used in these will resolve to a item that is already calculated
@@ -6400,22 +6307,20 @@ bool copy_fields_and_funcs(Temp_table_param *param, const THD *thd,
   group item.
  */
 static bool replace_embedded_rollup_references_with_tmp_fields(
-    THD *thd, Item *item, List<Item> *all_fields) {
+    THD *thd, Item *item, mem_root_deque<Item *> *fields) {
   if (!item->has_rollup_expr()) {
     return false;
   }
-  const auto replace_functor = [thd, item, all_fields](
-                                   Item *sub_item, Item *,
-                                   unsigned) -> ReplaceResult {
+  const auto replace_functor = [thd, item, fields](Item *sub_item, Item *,
+                                                   unsigned) -> ReplaceResult {
     if (!is_rollup_group_wrapper(sub_item)) {
       return {ReplaceResult::KEEP_TRAVERSING, nullptr};
     }
-    for (Item &other_item : *all_fields) {
-      if (other_item.eq(sub_item, false)) {
-        Field *field = other_item.get_tmp_table_field();
+    for (Item *other_item : *fields) {
+      if (other_item->eq(sub_item, false)) {
+        Field *field = other_item->get_tmp_table_field();
         Item *item_field = new (thd->mem_root) Item_field(field);
         if (item_field == nullptr) return {ReplaceResult::ERROR, nullptr};
-        field->orig_table = nullptr;
         item_field->item_name = item->item_name;
         return {ReplaceResult::REPLACE, item_field};
       }
@@ -6430,39 +6335,37 @@ static bool replace_embedded_rollup_references_with_tmp_fields(
   Change all funcs and sum_funcs to fields in tmp table, and create
   new list of all items.
 
-  @param all_fields                  all fields list; should really be const,
+  @param fields                      list of all fields; should really be const,
                                        but Item does not always respect
                                        constness
-  @param num_select_elements         number of elements in select item list
   @param thd                         THD pointer
   @param [out] ref_item_array        array of pointers to top elements of filed
   list
-  @param [out] res_selected_fields   new list of items of select item list
-  @param [out] res_all_fields        new list of all items
+  @param [out] res_fields            new list of all items
 
   @returns false if success, true if error
 */
 
-bool change_to_use_tmp_fields(List<Item> *all_fields,
-                              size_t num_select_elements, THD *thd,
+bool change_to_use_tmp_fields(mem_root_deque<Item *> *fields, THD *thd,
                               Ref_item_array ref_item_array,
-                              List<Item> *res_selected_fields,
-                              List<Item> *res_all_fields) {
+                              mem_root_deque<Item *> *res_fields) {
   DBUG_TRACE;
 
-  res_selected_fields->empty();
-  res_all_fields->empty();
+  res_fields->clear();
 
-  List_iterator_fast<Item> li(*all_fields);
-  size_t border = all_fields->size() - num_select_elements;
-  Item *item;
-  for (size_t i = 0; (item = li++); i++) {
-    Item *item_field;
+  auto it = fields->begin();
+  size_t num_hidden_fields = CountHiddenFields(*fields);
+  for (size_t i = 0; it != fields->end(); ++i, ++it) {
+    Item *item = *it;
+    Item_field *orig_field = item->real_item()->type() == Item::FIELD_ITEM
+                                 ? down_cast<Item_field *>(item->real_item())
+                                 : nullptr;
+    Item *new_item;
     Field *field;
     if (item->has_aggregation() && item->type() != Item::SUM_FUNC_ITEM)
-      item_field = item;
+      new_item = item;
     else if (item->type() == Item::FIELD_ITEM)
-      item_field = item->get_tmp_table_item(thd);
+      new_item = item->get_tmp_table_item(thd);
     else if (item->type() == Item::FUNC_ITEM &&
              ((Item_func *)item)->functype() == Item_func::SUSERVAR_FUNC) {
       field = item->get_tmp_table_field();
@@ -6476,56 +6379,56 @@ bool change_to_use_tmp_fields(List<Item> *all_fields,
             new Item_func_set_user_var(thd, (Item_func_set_user_var *)item);
         Item_field *new_field = new Item_field(field);
         if (!suv || !new_field) return true;  // Fatal error
-        List<Item> list;
+        mem_root_deque<Item *> list(thd->mem_root);
         list.push_back(new_field);
-        suv->set_arguments(list, true);
-        item_field = suv;
+        suv->set_arguments(&list, true);
+        new_item = suv;
       } else
-        item_field = item;
+        new_item = item;
     } else if ((field = item->get_tmp_table_field())) {
       if (item->type() == Item::SUM_FUNC_ITEM && field->table->group) {
-        item_field = down_cast<Item_sum *>(item)->result_item(field);
-        DBUG_ASSERT(item_field != nullptr);
+        new_item = down_cast<Item_sum *>(item)->result_item(field);
+        DBUG_ASSERT(new_item != nullptr);
       } else {
-        item_field = new (thd->mem_root) Item_field(field);
-        if (item_field == nullptr) return true;
+        new_item = new (thd->mem_root) Item_field(field);
+        if (new_item == nullptr) return true;
       }
-      if (item->real_item()->type() != Item::FIELD_ITEM)
-        field->orig_table = nullptr;
-      item_field->item_name = item->item_name;
+      new_item->item_name = item->item_name;
       if (item->type() == Item::REF_ITEM) {
-        Item_field *ifield = (Item_field *)item_field;
-        Item_ref *iref = (Item_ref *)item;
+        Item_field *ifield = down_cast<Item_field *>(new_item);
+        Item_ref *iref = down_cast<Item_ref *>(item);
         ifield->table_name = iref->table_name;
+        ifield->set_orig_db_name(iref->orig_db_name());
         ifield->db_name = iref->db_name;
       }
+      if (orig_field != nullptr && item != new_item) {
+        down_cast<Item_field *>(new_item)->set_orig_table_name(
+            orig_field->orig_table_name());
+      }
 #ifndef DBUG_OFF
-      if (!item_field->item_name.is_set()) {
+      if (!new_item->item_name.is_set()) {
         char buff[256];
         String str(buff, sizeof(buff), &my_charset_bin);
         str.length(0);
         item->print(thd, &str, QT_ORDINARY);
-        item_field->item_name.copy(str.ptr(), str.length());
+        new_item->item_name.copy(str.ptr(), str.length());
       }
 #endif
     } else {
-      item_field = item;
-      replace_embedded_rollup_references_with_tmp_fields(thd, item, all_fields);
+      new_item = item;
+      replace_embedded_rollup_references_with_tmp_fields(thd, item, fields);
     }
 
-    res_all_fields->push_back(item_field);
+    new_item->hidden = item->hidden;
+    res_fields->push_back(new_item);
     /*
       Cf. comment explaining the reordering going on below in
       similar section of change_to_use_tmp_fields_except_sums
     */
-    ref_item_array[((i < border) ? all_fields->size() - i - 1 : i - border)] =
-        item_field;
-    item_field->set_orig_field(item->get_orig_field());
+    ref_item_array[item->hidden ? fields->size() - i - 1
+                                : i - num_hidden_fields] = new_item;
   }
 
-  List_iterator_fast<Item> itr(*res_all_fields);
-  for (size_t i = 0; i < border; i++) itr++;
-  itr.sublist(*res_selected_fields, num_select_elements);
   return false;
 }
 
@@ -6559,7 +6462,7 @@ static bool replace_contents_of_rollup_wrappers_with_tmp_fields(
             rollup_item->min_rollup_level(),
             order->rollup_item->inner_item()->get_tmp_table_item(thd));
         if (new_item == nullptr ||
-            select->rollup_group_items.push_back(new_item)) {
+            select->join->rollup_group_items.push_back(new_item)) {
           return {ReplaceResult::ERROR, nullptr};
         }
         new_item->quick_fix_field();
@@ -6576,118 +6479,115 @@ static bool replace_contents_of_rollup_wrappers_with_tmp_fields(
   sorted in the right order. (Otherwise, change_to_use_tmp_fields() would
   be used.)
 
-  @param all_fields                  all fields list; should really be const,
+  @param fields                      list of all fields; should really be const,
                                        but Item does not always respect
                                        constness
-  @param num_select_elements         number of elements in select item list
   @param select                      the query block we are doing this to
   @param thd                         THD pointer
   @param [out] ref_item_array        array of pointers to top elements of filed
   list
-  @param [out] res_selected_fields   new list of items of select item list
-  @param [out] res_all_fields        new list of all items
+  @param [out] res_fields            new list of items of select item list
 
   @returns false if success, true if error
 */
 
-bool change_to_use_tmp_fields_except_sums(List<Item> *all_fields,
-                                          size_t num_select_elements, THD *thd,
-                                          SELECT_LEX *select,
+bool change_to_use_tmp_fields_except_sums(mem_root_deque<Item *> *fields,
+                                          THD *thd, SELECT_LEX *select,
                                           Ref_item_array ref_item_array,
-                                          List<Item> *res_selected_fields,
-                                          List<Item> *res_all_fields) {
+                                          mem_root_deque<Item *> *res_fields) {
   DBUG_TRACE;
-  res_selected_fields->empty();
-  res_all_fields->empty();
+  res_fields->clear();
 
-  size_t border = all_fields->size() - num_select_elements;
+  auto it = fields->begin();
+  size_t num_hidden_fields = CountHiddenFields(*fields);
+  for (size_t i = 0; it != fields->end(); ++i, ++it) {
+    Item *item = *it;
+    /*
+      Below we create "new_item" using get_tmp_table_item
+      based on fields[i] and assign them to res_fields[i].
 
-  {
-    List_iterator<Item> li(*all_fields);
-    Item *item;
-    for (size_t i = 0; (item = li++); i++) {
-      /*
-        Below we create "new_item" using get_tmp_table_item
-        based on all_fields[i] and assign them to res_all_fields[i].
+      The new items are also put into ref_item_array, but in another order,
+      cf the diagram below.
 
-        The new items are also put into ref_item_array, but in another order,
-        cf the diagram below.
+      Example of the population of ref_item_array and res_fields
+      based on fields:
 
-        Example of the population of ref_item_array, ref_all_fields and
-        res_selected_fields based on all_fields:
+      res_fields
+         |
+         V
+       +--+   +--+   +--+   +--+   +--+   +--+          +--+
+       |0 |-->|  |-->|  |-->|3 |-->|4 |-->|  |--> .. -->|9 |
+       +--+   +--+   +--+   +--+   +--+   +--+          +--+
+                              |     |
+        ,------------->--------\----/
+        |                       |
+      +-^-+---+---+---+---+---#-^-+---+---+---+
+      |   |   |   |   |   |   #   |   |   |   | ref_item_array
+      +---+---+---+---+---+---#---+---+---+---+
+        4   5   6   7   8   9   3   2   1   0   position in fields list
+                                                similar to res_fields pos
+      all_fields.elements == 10      border == 4
+      (visible) elements == 6
 
-        res_all_fields             res_selected_fields
-           |                          |
-           V                          V
-         +--+   +--+   +--+   +--+   +--+   +--+          +--+
-         |0 |-->|  |-->|  |-->|3 |-->|4 |-->|  |--> .. -->|9 |
-         +--+   +--+   +--+   +--+   +--+   +--+          +--+
-                                |     |
-          ,------------->--------\----/
-          |                       |
-        +-^-+---+---+---+---+---#-^-+---+---+---+
-        |   |   |   |   |   |   #   |   |   |   | ref_item_array
-        +---+---+---+---+---+---#---+---+---+---+
-          4   5   6   7   8   9   3   2   1   0   position in all_fields list
-                                                  similar to ref_all_fields pos
-        all_fields.elements == 10      border == 4
-        (visible) elements == 6
+      i==0   ->   afe-0-1 == 9     i==4 -> 4-4 == 0
+      i==1   ->   afe-1-1 == 8      :
+      i==2   ->   afe-2-1 == 7
+      i==3   ->   afe-3-1 == 6     i==9 -> 9-4 == 5
+    */
+    Item *new_item;
 
-        i==0   ->   afe-0-1 == 9     i==4 -> 4-4 == 0
-        i==1   ->   afe-1-1 == 8      :
-        i==2   ->   afe-2-1 == 7
-        i==3   ->   afe-3-1 == 6     i==9 -> 9-4 == 5
-      */
-      Item *new_item;
+    if (is_rollup_group_wrapper(item)) {
+      // If we cannot evaluate aggregates at this point, we also cannot
+      // evaluate rollup NULL items, so we will need to move the wrapper out
+      // into this layer.
+      Item_rollup_group_item *rollup_item =
+          down_cast<Item_rollup_group_item *>(item);
 
-      if (is_rollup_group_wrapper(item)) {
-        // If we cannot evaluate aggregates at this point, we also cannot
-        // evaluate rollup NULL items, so we will need to move the wrapper out
-        // into this layer.
-        Item_rollup_group_item *rollup_item =
-            down_cast<Item_rollup_group_item *>(item);
+      rollup_item->inner_item()->set_result_field(item->get_result_field());
+      new_item = rollup_item->inner_item()->get_tmp_table_item(thd);
 
-        rollup_item->inner_item()->set_result_field(item->get_result_field());
-        new_item = rollup_item->inner_item()->get_tmp_table_item(thd);
+      // The group item may have been resolved to a different Item_field
+      // for the same field. Update it accordingly, for the sake of
+      // replace_contents_of_rollup_wrappers_with_tmp_fields() below.
+      ORDER *order =
+          select->find_in_group_list(rollup_item->inner_item(), nullptr);
+      down_cast<Item_rollup_group_item *>(order->rollup_item)
+          ->inner_item()
+          ->set_result_field(item->get_result_field());
 
-        // The group item may have been resolved to a different Item_field
-        // for the same field. Update it accordingly, for the sake of
-        // replace_contents_of_rollup_wrappers_with_tmp_fields() below.
-        ORDER *order =
-            select->find_in_group_list(rollup_item->inner_item(), nullptr);
-        down_cast<Item_rollup_group_item *>(order->rollup_item)
-            ->inner_item()
-            ->set_result_field(item->get_result_field());
-
-        new_item = new Item_rollup_group_item(rollup_item->min_rollup_level(),
-                                              new_item);
-        if (new_item == nullptr ||
-            select->rollup_group_items.push_back(
-                down_cast<Item_rollup_group_item *>(new_item))) {
-          return true;
-        }
-        new_item->quick_fix_field();
-
-        // Remove the rollup wrapper on the inner level; it's harmless to keep
-        // on the lower level, but also pointless.
-        thd->change_item_tree(li.ref(), unwrap_rollup_group(item));
-      } else if (item->has_rollup_expr()) {
-        // Delay processing until below; see comment.
-        new_item = item->copy_or_same(thd);
-      } else {
-        new_item = item->get_tmp_table_item(thd);
+      new_item =
+          new Item_rollup_group_item(rollup_item->min_rollup_level(), new_item);
+      if (new_item == nullptr ||
+          select->join->rollup_group_items.push_back(
+              down_cast<Item_rollup_group_item *>(new_item))) {
+        return true;
       }
+      new_item->quick_fix_field();
 
-      new_item->update_used_tables();
-
-      res_all_fields->push_back(new_item);
-      ref_item_array[((i < border) ? all_fields->size() - i - 1 : i - border)] =
-          new_item;
+      // Remove the rollup wrapper on the inner level; it's harmless to keep
+      // on the lower level, but also pointless.
+      Item *unwrapped_item = unwrap_rollup_group(item);
+      unwrapped_item->hidden = item->hidden;
+      thd->change_item_tree(&*it, unwrapped_item);
+    } else if (item->has_rollup_expr()) {
+      // Delay processing until below; see comment.
+      new_item = item->copy_or_same(thd);
+      if (new_item == nullptr) return true;
+    } else {
+      new_item = item->get_tmp_table_item(thd);
+      if (new_item == nullptr) return true;
     }
+
+    new_item->update_used_tables();
+
+    new_item->hidden = item->hidden;
+    res_fields->push_back(new_item);
+    ref_item_array[(item->hidden ? fields->size() - i - 1
+                                 : i - num_hidden_fields)] = new_item;
   }
 
-  for (Item &item : *all_fields) {
-    if (!is_rollup_group_wrapper(&item) && item.has_rollup_expr()) {
+  for (Item *item : *fields) {
+    if (!is_rollup_group_wrapper(item) && item->has_rollup_expr()) {
       // An item that isn't a rollup wrapper itself, but depends on one (or
       // multiple). We need to go into those items, find the rollup wrappers,
       // and replace them with rollup wrappers around the temporary fields,
@@ -6696,17 +6596,14 @@ bool change_to_use_tmp_fields_except_sums(List<Item> *all_fields,
       // fields for all the rollup wrappers (the function uses them to know
       // which temporary field to replace with).
       if (replace_contents_of_rollup_wrappers_with_tmp_fields(thd, select,
-                                                              &item)) {
+                                                              item)) {
         return true;
       }
     }
   }
 
-  List_iterator_fast<Item> itr(*res_all_fields);
-  for (size_t i = 0; i < border; i++) itr++;
-  itr.sublist(*res_selected_fields, num_select_elements);
-
-  return thd->is_fatal_error();
+  assert(!thd->is_error());
+  return false;
 }
 
 /**
@@ -6798,24 +6695,20 @@ bool QEP_TAB::pfs_batch_update(const JOIN *join) const {
   @} (end of group Query_Executor)
 */
 
-vector<string> UnqualifiedCountIterator::DebugString() const {
-  return {"Count rows in " + string(m_join->qep_tab->table()->alias)};
-}
-
 int UnqualifiedCountIterator::Read() {
   if (!m_has_row) {
     return -1;
   }
 
-  for (Item &item : m_join->all_fields) {
-    if (item.type() == Item::SUM_FUNC_ITEM &&
-        down_cast<Item_sum &>(item).sum_func() == Item_sum::COUNT_FUNC) {
+  for (Item *item : *m_join->fields) {
+    if (item->type() == Item::SUM_FUNC_ITEM &&
+        down_cast<Item_sum *>(item)->sum_func() == Item_sum::COUNT_FUNC) {
       int error;
       ulonglong count = get_exact_record_count(m_join->qep_tab,
                                                m_join->primary_tables, &error);
       if (error) return 1;
 
-      down_cast<Item_sum_count &>(item).make_const(
+      down_cast<Item_sum_count *>(item)->make_const(
           static_cast<longlong>(count));
     }
   }
@@ -6849,8 +6742,8 @@ int ZeroRowsAggregatedIterator::Read() {
     that will be returned) because join->having may refer to
     fields that are not part of the result columns.
    */
-  for (Item &item : m_join->all_fields) {
-    item.no_rows_in_result();
+  for (Item *item : *m_join->fields) {
+    item->no_rows_in_result();
   }
 
   m_has_row = false;
@@ -6861,12 +6754,15 @@ int ZeroRowsAggregatedIterator::Read() {
 }
 
 TableValueConstructorIterator::TableValueConstructorIterator(
-    THD *thd, ha_rows *examined_rows, const List<List<Item>> &row_value_list,
-    List<Item> *join_fields)
+    THD *thd, ha_rows *examined_rows,
+    const mem_root_deque<mem_root_deque<Item *> *> &row_value_list,
+    mem_root_deque<Item *> *join_fields)
     : RowIterator(thd),
       m_examined_rows(examined_rows),
       m_row_value_list(row_value_list),
-      m_output_refs(join_fields) {}
+      m_output_refs(join_fields) {
+  assert(examined_rows != nullptr);
+}
 
 bool TableValueConstructorIterator::Init() {
   m_row_it = m_row_value_list.begin();
@@ -6880,17 +6776,17 @@ int TableValueConstructorIterator::Read() {
   // objects during resolving. We will instead use the single row directly from
   // SELECT_LEX::item_list, such that we don't have to change references here.
   if (m_row_value_list.size() != 1) {
-    List_STL_Iterator<Item> output_refs_it = m_output_refs->begin();
-    for (const Item &value : *m_row_it) {
-      Item_values_column &ref =
-          down_cast<Item_values_column &>(*output_refs_it);
+    auto output_refs_it = m_output_refs->begin();
+    for (const Item *value : **m_row_it) {
+      Item_values_column *ref =
+          down_cast<Item_values_column *>(*output_refs_it);
       ++output_refs_it;
 
       // Ideally we would not be casting away constness here. However, as the
       // evaluation of Item objects during execution is not const (i.e. none of
       // the val methods are const), the reference contained in a
       // Item_values_column object cannot be const.
-      ref.set_value(const_cast<Item *>(&value));
+      ref->set_value(const_cast<Item *>(value));
     }
     ++m_row_it;
   }

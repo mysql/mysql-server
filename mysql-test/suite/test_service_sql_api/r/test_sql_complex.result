@@ -2882,7 +2882,7 @@ EXECUTING:[9][SELECT @a]
 			[meta][field] org table name: 
 			[meta][field] col name: @a
 			[meta][field] org col name: 
-			[meta][field] length: 20
+			[meta][field] length: 21
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 128 (BINARY )
 			[meta][field] decimals: 0
@@ -2914,7 +2914,7 @@ EXECUTING:[9][SELECT @a]
 			[meta][field] org table name: 
 			[meta][field] col name: @a
 			[meta][field] org col name: 
-			[meta][field] length: 20
+			[meta][field] length: 21
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 128 (BINARY )
 			[meta][field] decimals: 0
@@ -2988,7 +2988,7 @@ EXECUTING:[9][SELECT @b]
 			[meta][field] org table name: 
 			[meta][field] col name: @b
 			[meta][field] org col name: 
-			[meta][field] length: 20
+			[meta][field] length: 21
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 128 (BINARY )
 			[meta][field] decimals: 0
@@ -3020,7 +3020,7 @@ EXECUTING:[9][SELECT @b]
 			[meta][field] org table name: 
 			[meta][field] col name: @b
 			[meta][field] org col name: 
-			[meta][field] length: 20
+			[meta][field] length: 21
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 128 (BINARY )
 			[meta][field] decimals: 0
@@ -3054,11 +3054,11 @@ EXECUTING:[20][SELECT @non_existing]
 			[meta][field] org table name: 
 			[meta][field] col name: @non_existing
 			[meta][field] org col name: 
-			[meta][field] length: 16777216
-			[meta][field] charsetnr: 63
+			[meta][field] length: 65535
+			[meta][field] charsetnr: 33
 			[meta][field] flags: 128 (BINARY )
 			[meta][field] decimals: 31
-			[meta][field] type: LONG_BLOB (251)
+			[meta][field] type: VARCHAR (15)
 
 
 		[meta][charset result] number: 33
@@ -3086,11 +3086,11 @@ EXECUTING:[20][SELECT @non_existing]
 			[meta][field] org table name: 
 			[meta][field] col name: @non_existing
 			[meta][field] org col name: 
-			[meta][field] length: 16777216
-			[meta][field] charsetnr: 63
+			[meta][field] length: 65535
+			[meta][field] charsetnr: 33
 			[meta][field] flags: 128 (BINARY )
 			[meta][field] decimals: 31
-			[meta][field] type: LONG_BLOB (251)
+			[meta][field] type: VARCHAR (15)
 
 
 		[meta][charset result] number: 33
@@ -6091,7 +6091,7 @@ EXECUTING:[9][SELECT @a]
 			[meta][field] org table name: 
 			[meta][field] col name: @a
 			[meta][field] org col name: 
-			[meta][field] length: 20
+			[meta][field] length: 21
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 128 (BINARY )
 			[meta][field] decimals: 0
@@ -6123,7 +6123,7 @@ EXECUTING:[9][SELECT @a]
 			[meta][field] org table name: 
 			[meta][field] col name: @a
 			[meta][field] org col name: 
-			[meta][field] length: 20
+			[meta][field] length: 21
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 128 (BINARY )
 			[meta][field] decimals: 0
@@ -6197,7 +6197,7 @@ EXECUTING:[9][SELECT @b]
 			[meta][field] org table name: 
 			[meta][field] col name: @b
 			[meta][field] org col name: 
-			[meta][field] length: 20
+			[meta][field] length: 21
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 128 (BINARY )
 			[meta][field] decimals: 0
@@ -6229,7 +6229,7 @@ EXECUTING:[9][SELECT @b]
 			[meta][field] org table name: 
 			[meta][field] col name: @b
 			[meta][field] org col name: 
-			[meta][field] length: 20
+			[meta][field] length: 21
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 128 (BINARY )
 			[meta][field] decimals: 0
@@ -6263,11 +6263,11 @@ EXECUTING:[20][SELECT @non_existing]
 			[meta][field] org table name: 
 			[meta][field] col name: @non_existing
 			[meta][field] org col name: 
-			[meta][field] length: 16777216
-			[meta][field] charsetnr: 63
+			[meta][field] length: 65535
+			[meta][field] charsetnr: 33
 			[meta][field] flags: 128 (BINARY )
 			[meta][field] decimals: 31
-			[meta][field] type: LONG_BLOB (251)
+			[meta][field] type: VARCHAR (15)
 
 
 		[meta][charset result] number: 33
@@ -6295,11 +6295,11 @@ EXECUTING:[20][SELECT @non_existing]
 			[meta][field] org table name: 
 			[meta][field] col name: @non_existing
 			[meta][field] org col name: 
-			[meta][field] length: 16777216
-			[meta][field] charsetnr: 63
+			[meta][field] length: 65535
+			[meta][field] charsetnr: 33
 			[meta][field] flags: 128 (BINARY )
 			[meta][field] decimals: 31
-			[meta][field] type: LONG_BLOB (251)
+			[meta][field] type: VARCHAR (15)
 
 
 		[meta][charset result] number: 33

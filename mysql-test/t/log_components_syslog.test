@@ -1,3 +1,5 @@
+--source include/not_hypergraph.inc  # Logs extra text to stderr for now.
+
 #
 --echo #
 --echo # WL#9343:  log TNG: log writers
@@ -59,6 +61,14 @@ SELECT @@global.syseventlog.tag;
 --echo # change tag
 SET @@global.syseventlog.tag="wl9343";
 SELECT @@global.syseventlog.tag;
+
+--echo # use syslog/eventlog as only sink. this should throw a warning.
+SET @@global.log_error_services="log_sink_syseventlog";
+--echo # show that this sink can log to performance_schema.error_log.
+SELECT "log_sink_syseventlog-mark";
+SELECT error_code, data
+  FROM performance_schema.error_log
+ WHERE DATA LIKE "%log_sink_syseventlog-mark%" LIMIT 1;
 
 SET @@global.log_error_services="log_filter_internal; log_sink_internal; log_sink_syseventlog";
 SELECT "logging to syslog";

@@ -1,0 +1,18 @@
+# suite/funcs_1/t/is_schemata_extensions.test
+#
+# Check the layout of information_schema.schemata_extensions, permissions and
+# the impact of CREATE/ALTER/DROP SCHEMA on it.
+#
+# There is detailed information about this test within
+#    suite/funcs_1/datadict/is_schemata_extensions.inc
+#
+# Copied from existing tests of information_schema.schemata.
+#
+
+# Result differences depending on FS case sensitivity.
+if (!$require_case_insensitive_file_system)
+{
+  --source include/have_case_sensitive_file_system.inc
+}
+
+--source suite/funcs_1/datadict/is_schemata_extensions.inc

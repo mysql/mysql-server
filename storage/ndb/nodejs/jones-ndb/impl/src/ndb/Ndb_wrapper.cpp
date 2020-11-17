@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,6 @@
 #include "NativeCFunctionCall.h"
 #include "NdbWrapperErrors.h"
 
-using namespace v8;
 
 // FIXME: All of this should be on SessionImpl with Ndb object not directly
 // exposed to JavaScript
@@ -109,8 +108,8 @@ void getStatistics(const Arguments &args) {
 
   Local<Object> stats = Object::New(args.GetIsolate());
   for(int i = 0 ; i < Ndb::NumClientStatistics ; i ++) {
-    stats->Set(String::NewFromUtf8(args.GetIsolate(), ndb->getClientStatName(i)),
-               Number::New(args.GetIsolate(), ndb->getClientStat(i)));
+    SetProp(stats, ndb->getClientStatName(i),
+            Number::New(args.GetIsolate(), ndb->getClientStat(i)));
   }
 
   args.GetReturnValue().Set(scope.Escape(stats));
@@ -128,7 +127,7 @@ void getConnectionStatistics(const Arguments &args) {
 
   Local<Object> stats = Object::New(args.GetIsolate());
   for(int i = 0 ; i < Ndb::NumClientStatistics ; i ++) {
-    stats->Set(String::NewFromUtf8(args.GetIsolate(), ndb->getClientStatName(i)),
+    SetProp(stats, ndb->getClientStatName(i),
                Number::New(args.GetIsolate(), ndb_stats[i]));
   }
 
@@ -144,7 +143,7 @@ void closeNdb(const Arguments &args) {
 }
 
 
-void NdbWrapper_initOnLoad(Handle<Object> target) {
+void NdbWrapper_initOnLoad(Local<Object> target) {
   DEFINE_JS_FUNCTION(target, "getAutoIncrementValue", getAutoIncValue);
   DEFINE_JS_FUNCTION(target, "create_ndb", create_ndb);
 }

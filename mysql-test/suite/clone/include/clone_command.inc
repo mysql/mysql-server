@@ -136,16 +136,18 @@ if($remote_clone) {
     }
   }
 
-  # For remote replace, wait for server to restart
+  # For remote replace, wait for server to restart, unless an error was expected
   if ($clone_remote_replace) {
-    --source include/wait_until_disconnected.inc
-    --enable_reconnect
-    --source include/wait_until_connected_again.inc
-    --disable_reconnect
-    if (!$clone_recovery_error) {
-      --disable_query_log
-      use test;
-      --enable_query_log
+    if (!$clone_err) {
+      --source include/wait_until_disconnected.inc
+      --enable_reconnect
+      --source include/wait_until_connected_again.inc
+      --disable_reconnect
+      if (!$clone_recovery_error) {
+        --disable_query_log
+        use test;
+        --enable_query_log
+      }
     }
   }
 

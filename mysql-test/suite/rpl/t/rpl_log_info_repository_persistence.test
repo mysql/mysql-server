@@ -283,7 +283,7 @@ END_OF_PROCEDURE
   --let $rpl_force_stop=1
   --source include/rpl_stop_server.inc
   --let $rpl_server_parameters=--skip_slave_start --debug=d,$debug_point
-  --let $explicit_default_counter = 15000
+  --let $explicit_default_wait_counter = 15000
   --source include/rpl_start_server.inc
 END_OF_PROCEDURE
 
@@ -357,7 +357,7 @@ END_OF_PROCEDURE
   if ($debug_point == '') {
     --let $rpl_server_parameters = --relay-log-info-repository=TABLE --skip_slave_start
   }
-  --let $explicit_default_counter = 15000
+  --let $explicit_default_wait_counter = 15000
   --source include/rpl_restart_server.inc
 
   --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE CHANNEL_NAME=$channel AND PRIVILEGE_CHECKS_USER="<INVALID>"`
@@ -418,7 +418,7 @@ START SLAVE;
 --echo #
 #   1. restart the slave server.
 --let $rpl_server_number = 2
---let $explicit_default_counter = 15000
+--let $explicit_default_wait_counter = 15000
 --source include/rpl_restart_server.inc
 #   2. verify that pfs table has correct PRIVILEGE_CHECKS_USER
 --source $MYSQL_TMP_DIR/assert_default_channel_config_with_file_repo.inc
@@ -557,7 +557,7 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER=
 --echo #
 --let $rpl_server_number = 2
 --let $rpl_server_parameters = --relay-log-info-repository=TABLE --debug=d,simulate_priv_check_user_nullptr_t
---let $explicit_default_counter = 15000
+--let $explicit_default_wait_counter = 15000
 --source include/rpl_restart_server.inc
 
 # verify (privilege_checks_username, privilege_checks_hostname), and
@@ -606,7 +606,7 @@ FLUSH RELAY LOGS FOR CHANNEL "ch2";
 #   1. restart the slave server.
 --let $rpl_server_number = 2
 --let $rpl_server_parameters = --relay-log-info-repository=TABLE
---let $explicit_default_counter = 15000
+--let $explicit_default_wait_counter = 15000
 --source include/rpl_restart_server.inc
 #   2. verify that there are three channel entries in both pfs and
 #      slave_relay_log_info tables.

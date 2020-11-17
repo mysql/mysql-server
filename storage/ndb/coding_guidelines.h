@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -21,20 +21,18 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @page CPP_CODING_GUIDELINES_FOR_NDB_SE C++ Coding Guidelines for the NDB
-  Storage Engine
+  @page CPP_CODING_GUIDELINES_FOR_NDB_SE C++ Coding Guidelines for NDB Cluster
 
-  The mysqld handler part of NDB (ha_ndbcluster.cc,
-  ha_ndbcluster_binlog.cc, etc.) uses the same coding style as
-  the rest of the mysqld code.
+  The ndbcluster plugin (storage/ndb/plugin) uses the same coding
+  style as the rest of the MySQL Server code.
 
-  The non-mysqld part of NDB code has a long history, and uses
+  The rest of the NDB code has a long history, and uses
   many coding styles. When modifying and extending
   existing source files or modules, the coding style already
   used in that code should be followed in terms of
   indentation, naming conventions, etc. For completely new
-  code, the mysqld conventions (with exceptions below) should
-  probably be followed.
+  code, the MySQL Server conventions (with exceptions below)
+  should probably be followed.
 
   Do not make changes to NDB code purely for the sake of
   changing from one formatting style to another. It just causes
@@ -44,9 +42,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   style in lines that are changed for other reasons.
 
   One convention that should be followed for all new or
-  modified code, in both mysqld and non-mysqld parts of the
-  code, is that class member variables should be named with
-  lowercase words separated by underscores '_', and prefixed
+  modified code is that class member variables should be named
+  with lowercase words separated by underscores '_', and prefixed
   with 'm_'. Like this:
   ~~~~~~~~~~~~~~~~
   const char *m_my_class_member;

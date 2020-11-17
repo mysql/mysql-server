@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -84,7 +84,8 @@ class Routines : public Entity_object_table_impl {
     INDEX_K_RESULT_COLLATION_ID,
     INDEX_K_CLIENT_COLLATION_ID,
     INDEX_K_CONNECTION_COLLATION_ID,
-    INDEX_K_SCHEMA_COLLATION_ID
+    INDEX_K_SCHEMA_COLLATION_ID,
+    INDEX_K_DEFINER
   };
 
   enum enum_foreign_keys {
@@ -97,13 +98,22 @@ class Routines : public Entity_object_table_impl {
 
   Routines();
 
-  virtual Routine *create_entity_object(const Raw_record &) const;
+  Routine *create_entity_object(const Raw_record &) const override;
 
   static bool update_object_key(Routine_name_key *key, Object_id schema_id,
                                 Routine::enum_routine_type type,
                                 const String_type &routine_name);
 
   static Object_key *create_key_by_schema_id(Object_id schema_id);
+
+  /**
+    Create a key to find all routines for a given definer.
+
+    @param definer   Name of the definer.
+
+    @returns Pointer to Object_key.
+  */
+  static Object_key *create_key_by_definer(const String_type &definer);
 };
 
 ///////////////////////////////////////////////////////////////////////////

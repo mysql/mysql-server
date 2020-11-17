@@ -767,26 +767,13 @@
 # The '...' wildcards are for 'fun:inline_mysql_file_write' which *may*
 # be inlined.
 {
-   Bug#12856915 VALGRIND FAILURE IN FILESORT/CREATE_SORT_INDEX / one
+   Bug#12856915 VALGRIND FAILURE IN FILESORT/CREATE_SORT_INDEX
    Memcheck:Param
    write(buf)
    ...
    fun:_Z19my_b_flush_io_cacheP8IO_CACHEi
-   fun:_Z11_my_b_writeP8IO_CACHEPKhm
-   ...
-   fun:_Z*10write_keysP10Sort_paramP13Filesort_infojP8IO_CACHES4_
    ...
    fun:_Z8filesortP3THDP8Filesort*
-}
-
-{
-   Bug#12856915 VALGRIND FAILURE IN FILESORT/CREATE_SORT_INDEX / three
-   Memcheck:Param
-   write(buf)
-   ...
-   fun:_Z19my_b_flush_io_cacheP8IO_CACHEi
-   ...
-   fun:_Z8filesortP3THDP8FilesortP11RowIteratorP13Filesort_infoP11Sort_resultPy
 }
 
 # http://www.openldap.org/its/index.cgi/Software%20Bugs?id=9081;page=23
@@ -1154,6 +1141,15 @@
    fun:_Znwm
    ...
    fun:_ZN6Mysqlx23protobuf_mysqlx_2eproto27StaticDescriptorInitializerC1Ev
+}
+
+{
+   General protobuf globals
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:_Znwm
+   ...
+   fun:_ZN6google8protobuf8internal11InitSCCImplEPNS1_11SCCInfoBaseE
 }
 
 {
@@ -2443,6 +2439,16 @@
    fun:dlopen@@GLIBC_2.2.5
 }
 
+{
+   LDAP_28
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:tls_init
+   fun:ldap_int_tls_start
+}
+
 # Suppress all issues related to libcrypto library
 {
    Conditional jump or move in BN_bin2bn
@@ -2575,4 +2581,27 @@
    fun:_Z19my_b_flush_io_cacheP8IO_CACHEi
    ...
    fun:_ZN16HashJoinIterator4InitEv
+}
+
+# Libevent initialization
+
+{
+   MySQL Server needs global init/deinit of libevent, in case when multiple components use it
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:evthread_use_pthreads
+}
+
+# Note that libtcmalloc.so reports lots of Mismatched free()/delete/delete[]
+# So for valgrind builds, link with libtcmalloc_debug.so
+
+{
+   tcmalloc_debug
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   obj:/usr/lib64/libtcmalloc*
+   fun:_dl_init
 }

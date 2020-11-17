@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,6 +71,7 @@ BKAIterator::BKAIterator(THD *thd, JOIN *join,
                          size_t max_memory_available,
                          size_t mrr_bytes_needed_for_single_inner_row,
                          float expected_inner_rows_per_outer_row,
+                         bool store_rowids, table_map tables_to_get_rowid_for,
                          MultiRangeRowIterator *mrr_iterator,
                          JoinType join_type)
     : RowIterator(thd),
@@ -78,7 +79,8 @@ BKAIterator::BKAIterator(THD *thd, JOIN *join,
       m_inner_input(move(inner_input)),
       m_mem_root(key_memory_hash_join, 16384 /* 16 kB */),
       m_rows(&m_mem_root),
-      m_outer_input_tables(join, outer_input_tables),
+      m_outer_input_tables(join, outer_input_tables, store_rowids,
+                           tables_to_get_rowid_for),
       m_max_memory_available(max_memory_available),
       m_mrr_bytes_needed_for_single_inner_row(
           mrr_bytes_needed_for_single_inner_row),
@@ -90,18 +92,6 @@ BKAIterator::BKAIterator(THD *thd, JOIN *join,
   m_mrr_bytes_needed_per_row =
       lrint(mrr_bytes_needed_for_single_inner_row *
             std::max(expected_inner_rows_per_outer_row, 1.0f));
-
-  // Mark that this iterator will provide the row ID, so that iterators above
-  // this one does not call position(). See QEP_TAB::rowid_status for more
-  // details.
-  for (const hash_join_buffer::Table &it : m_outer_input_tables.tables()) {
-    if (it.qep_tab->rowid_status == NEED_TO_CALL_POSITION_FOR_ROWID) {
-      it.qep_tab->rowid_status = ROWID_PROVIDED_BY_ITERATOR_READ_CALL;
-    }
-  }
-
-  m_mrr_iterator->set_outer_input_tables(join, outer_input_tables);
-  m_mrr_iterator->set_join_type(join_type);
 }
 
 bool BKAIterator::Init() {
@@ -113,6 +103,8 @@ bool BKAIterator::Init() {
       return true;
     }
   }
+  PrepareForRequestRowId(m_outer_input_tables.tables(),
+                         m_outer_input_tables.tables_to_get_rowid_for());
 
   BeginNewBatch();
   m_end_of_outer_rows = false;
@@ -152,7 +144,8 @@ int BKAIterator::ReadOuterRows() {
         m_end_of_outer_rows = true;
         break;
       }
-      RequestRowId(m_outer_input_tables.tables());
+      RequestRowId(m_outer_input_tables.tables(),
+                   m_outer_input_tables.tables_to_get_rowid_for());
 
       // Save the contents of all columns marked for reading.
       if (StoreFromTableBuffers(m_outer_input_tables, &m_outer_row_buffer)) {
@@ -323,38 +316,18 @@ int BKAIterator::Read() {
   }
 }
 
-vector<string> BKAIterator::DebugString() const {
-  switch (m_join_type) {
-    case JoinType::INNER:
-      return {"Batched key access inner join"};
-    case JoinType::SEMI:
-      return {"Batched key access semijoin"};
-    case JoinType::OUTER:
-      return {"Batched key access left join"};
-    case JoinType::ANTI:
-      return {"Batched key access antijoin"};
-    default:
-      DBUG_ASSERT(false);
-      return {"Batched key access unknown join"};
-  }
-}
-
-MultiRangeRowIterator::MultiRangeRowIterator(THD *thd, Item *cache_idx_cond,
-                                             TABLE *table,
-                                             bool keep_current_rowid,
-                                             TABLE_REF *ref, int mrr_flags)
+MultiRangeRowIterator::MultiRangeRowIterator(
+    THD *thd, Item *cache_idx_cond, TABLE *table, TABLE_REF *ref, int mrr_flags,
+    JoinType join_type, JOIN *join, table_map outer_input_tables,
+    bool store_rowids, table_map tables_to_get_rowid_for)
     : TableRowIterator(thd, table),
       m_cache_idx_cond(cache_idx_cond),
-      m_keep_current_rowid(keep_current_rowid),
-      m_table(table),
       m_file(table->file),
       m_ref(ref),
-      m_mrr_flags(mrr_flags) {}
-
-void MultiRangeRowIterator::set_outer_input_tables(
-    JOIN *join, qep_tab_map outer_input_tables) {
-  m_outer_input_tables = TableCollection(join, outer_input_tables);
-}
+      m_mrr_flags(mrr_flags),
+      m_outer_input_tables(join, outer_input_tables, store_rowids,
+                           tables_to_get_rowid_for),
+      m_join_type(join_type) {}
 
 bool MultiRangeRowIterator::Init() {
   /*
@@ -495,26 +468,5 @@ int MultiRangeRowIterator::Read() {
 
   m_last_row_returned = rec_ptr;
 
-  if (m_keep_current_rowid) {
-    m_file->position(m_table->record[0]);
-  }
-
   return 0;
-}
-
-vector<string> MultiRangeRowIterator::DebugString() const {
-  const KEY *key = &table()->key_info[m_ref->key];
-  string str = string("Multi-range index lookup on ") + table()->alias +
-               " using " + key->name + " (" +
-               RefToString(*m_ref, key, /*include_nulls=*/false) + ")";
-  if (table()->file->pushed_idx_cond != nullptr) {
-    str += ", with index condition: " +
-           ItemToString(table()->file->pushed_idx_cond);
-  }
-  if (m_cache_idx_cond != nullptr) {
-    str +=
-        ", with dependent index condition: " + ItemToString(m_cache_idx_cond);
-  }
-  str += table()->file->explain_extra();
-  return {str};
 }

@@ -130,46 +130,6 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
 ))	{
   "steps": [
     {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "join_preparation": {
-              "select#": 2,
-              "steps": [
-                {
-                  "join_preparation": {
-                    "select#": 3,
-                    "steps": [
-                      {
-                        "expanded_query": "/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)"
-                      }
-                    ] /* steps */
-                  } /* join_preparation */
-                },
-                {
-                  "join_preparation": {
-                    "select#": 4,
-                    "steps": [
-                      {
-                        "expanded_query": "/* select#4 */ select `sq2_alias1`.`col_varchar_nokey` AS `sq2_field1` from `t3` `sq2_alias1` where ((`sq2_alias1`.`col_varchar_nokey` <= `alias1`.`col_varchar_key`) and (<cache>(`alias2`.`col_varchar_key`) = `sq2_alias1`.`col_varchar_nokey`))"
-                      }
-                    ] /* steps */
-                  } /* join_preparation */
-                },
-                {
-                  "expanded_query": "/* select#2 */ select (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)) AS `field1`,`alias1`.`col_varchar_nokey` AS `field2` from `t2` `alias1` join `t2` `alias2` join `t2` `alias3` where (<in_optimizer>(`alias2`.`col_varchar_key`,<exists>(/* select#4 */ select `sq2_alias1`.`col_varchar_nokey` AS `sq2_field1` from `t3` `sq2_alias1` where ((`sq2_alias1`.`col_varchar_nokey` <= `alias1`.`col_varchar_key`) and (<cache>(`alias2`.`col_varchar_key`) = `sq2_alias1`.`col_varchar_nokey`)))) and <if>(outer_field_is_not_null, ((<cache>(`where_subselect_19379`.`field1`) = (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))) or ((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)) is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`where_subselect_19379`.`field2`) = `alias1`.`col_varchar_nokey`) or (`alias1`.`col_varchar_nokey` is null)), true) and (`alias3`.`col_varchar_key` = `alias2`.`col_varchar_key`) and (`alias3`.`col_varchar_nokey` = `alias2`.`col_varchar_key`)) having (<if>(outer_field_is_not_null, <is_not_null_test>((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`alias1`.`col_varchar_nokey`), true))"
-                }
-              ] /* steps */
-            } /* join_preparation */
-          },
-          {
-            "expanded_query": "/* select#1 */ select `where_subselect_19379`.`field1` AS `field1`,`where_subselect_19379`.`field2` AS `field2` from `where_subselect_19379` where <in_optimizer>((`where_subselect_19379`.`field1`,`where_subselect_19379`.`field2`),<exists>(/* select#2 */ select (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)) AS `field1`,`alias1`.`col_varchar_nokey` AS `field2` from `t2` `alias1` join `t2` `alias2` join `t2` `alias3` where (<in_optimizer>(`alias2`.`col_varchar_key`,<exists>(/* select#4 */ select `sq2_alias1`.`col_varchar_nokey` AS `sq2_field1` from `t3` `sq2_alias1` where ((`sq2_alias1`.`col_varchar_nokey` <= `alias1`.`col_varchar_key`) and (<cache>(`alias2`.`col_varchar_key`) = `sq2_alias1`.`col_varchar_nokey`)))) and <if>(outer_field_is_not_null, ((<cache>(`where_subselect_19379`.`field1`) = (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))) or ((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)) is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`where_subselect_19379`.`field2`) = `alias1`.`col_varchar_nokey`) or (`alias1`.`col_varchar_nokey` is null)), true) and (`alias3`.`col_varchar_key` = `alias2`.`col_varchar_key`) and (`alias3`.`col_varchar_nokey` = `alias2`.`col_varchar_key`)) having (<if>(outer_field_is_not_null, <is_not_null_test>((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`alias1`.`col_varchar_nokey`), true))) is false)"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
-    {
       "join_optimization": {
         "select#": 1,
         "steps": [
@@ -295,36 +255,6 @@ WHERE field1 IN
 FROM t1
 )	{
   "steps": [
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "join_preparation": {
-              "select#": 2,
-              "steps": [
-                {
-                  "join_preparation": {
-                    "select#": 3,
-                    "steps": [
-                      {
-                        "expanded_query": "/* select#3 */ select `t2`.`col_int_key` from `t2`"
-                      }
-                    ] /* steps */
-                  } /* join_preparation */
-                },
-                {
-                  "expanded_query": "/* select#2 */ select (/* select#3 */ select `t2`.`col_int_key` from `t2`) from `t1` where (<cache>(`where_subselect_19033`.`field1`) = (/* select#3 */ select `t2`.`col_int_key` from `t2`))"
-                }
-              ] /* steps */
-            } /* join_preparation */
-          },
-          {
-            "expanded_query": "/* select#1 */ select `where_subselect_19033`.`field1` AS `field1` from `where_subselect_19033` where <in_optimizer>(`where_subselect_19033`.`field1`,<exists>(/* select#2 */ select (/* select#3 */ select `t2`.`col_int_key` from `t2`) from `t1` where (<cache>(`where_subselect_19033`.`field1`) = (/* select#3 */ select `t2`.`col_int_key` from `t2`))))"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
     {
       "join_optimization": {
         "select#": 1,
@@ -695,46 +625,6 @@ ON table2 .col_int_key = table1 .col_int_key
 )	{
   "steps": [
     {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "join_preparation": {
-              "select#": 2,
-              "steps": [
-                {
-                  "expanded_query": "/* select#2 */ select count(`t1`.`col_int_key`) from `t1`"
-                }
-              ] /* steps */
-            } /* join_preparation */
-          },
-          {
-            "join_preparation": {
-              "select#": 3,
-              "steps": [
-                {
-                  "join_preparation": {
-                    "select#": 4,
-                    "steps": [
-                      {
-                        "expanded_query": "/* select#4 */ select count(`t1`.`col_int_key`) from `t1`"
-                      }
-                    ] /* steps */
-                  } /* join_preparation */
-                },
-                {
-                  "expanded_query": "/* select#3 */ select `table2`.`col_int_key` AS `field1`,(/* select#4 */ select count(`t1`.`col_int_key`) from `t1`) from `t1` `table1` join `t1` `table2` where ((<cache>(`where_subselect_20070`.`field1`) = `table2`.`col_int_key`) and (<cache>((/* select#2 */ select count(`t1`.`col_int_key`) from `t1`)) = (/* select#4 */ select count(`t1`.`col_int_key`) from `t1`)) and (`table2`.`col_int_key` = `table1`.`col_int_key`))"
-                }
-              ] /* steps */
-            } /* join_preparation */
-          },
-          {
-            "expanded_query": "/* select#1 */ select `where_subselect_20070`.`field1` AS `field1`,`where_subselect_20070`.`( SELECT COUNT( col_int_key )\nFROM t1\n)` AS `( SELECT COUNT( col_int_key )\nFROM t1\n)` from `where_subselect_20070` where <in_optimizer>((`where_subselect_20070`.`field1`,(/* select#2 */ select count(`t1`.`col_int_key`) from `t1`)),<exists>(/* select#3 */ select `table2`.`col_int_key` AS `field1`,(/* select#4 */ select count(`t1`.`col_int_key`) from `t1`) from `t1` `table1` join `t1` `table2` where ((<cache>(`where_subselect_20070`.`field1`) = `table2`.`col_int_key`) and (<cache>((/* select#2 */ select count(`t1`.`col_int_key`) from `t1`)) = (/* select#4 */ select count(`t1`.`col_int_key`) from `t1`)) and (`table2`.`col_int_key` = `table1`.`col_int_key`))))"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
-    {
       "join_optimization": {
         "select#": 1,
         "steps": [
@@ -908,7 +798,7 @@ ON table2 .col_int_key = table1 .col_int_key
                 "table": "`t1` `table1`",
                 "field": "col_int_key",
                 "equals": "<cache>(`where_subselect_20070`.`field1`)",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`t1` `table1`",
@@ -920,7 +810,7 @@ ON table2 .col_int_key = table1 .col_int_key
                 "table": "`t1` `table2`",
                 "field": "col_int_key",
                 "equals": "<cache>(`where_subselect_20070`.`field1`)",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`t1` `table2`",
@@ -1537,26 +1427,6 @@ SELECT 1 FROM t1 WHERE 1 LIKE
 (SELECT a FROM t1 WHERE a = 1 ORDER BY c)	{
   "steps": [
     {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "join_preparation": {
-              "select#": 2,
-              "steps": [
-                {
-                  "expanded_query": "/* select#2 */ select `t1`.`a` from `t1` where (`t1`.`a` = 1)"
-                }
-              ] /* steps */
-            } /* join_preparation */
-          },
-          {
-            "expanded_query": "/* select#1 */ select 1 AS `1` from `t1` where (1 like (/* select#2 */ select `t1`.`a` from `t1` where (`t1`.`a` = 1)))"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
-    {
       "join_optimization": {
         "select#": 1,
         "steps": [
@@ -1629,13 +1499,13 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                       "table": "`t1`",
                                       "field": "a",
                                       "equals": "1",
-                                      "null_rejecting": false
+                                      "null_rejecting": true
                                     },
                                     {
                                       "table": "`t1`",
                                       "field": "a",
                                       "equals": "1",
-                                      "null_rejecting": false
+                                      "null_rejecting": true
                                     }
                                   ] /* ref_optimizer_key_uses */
                                 },
@@ -1666,7 +1536,7 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                           }
                                         ] /* potential_range_indexes */,
                                         "best_covering_index_scan": {
-                                          "index": "a",
+                                          "index": "a_2",
                                           "cost": 0.35,
                                           "chosen": true
                                         } /* best_covering_index_scan */,
@@ -1681,7 +1551,7 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                             {
                                               "index": "a",
                                               "usable": false,
-                                              "cause": "no_range_predicate"
+                                              "cause": "query_references_nonkey_column"
                                             },
                                             {
                                               "index": "a_2",
@@ -1700,9 +1570,9 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                               "index_dives_for_eq_ranges": true,
                                               "rowid_ordered": true,
                                               "using_mrr": false,
-                                              "index_only": true,
+                                              "index_only": false,
                                               "rows": 1,
-                                              "cost": 0.36,
+                                              "cost": 0.61,
                                               "chosen": false,
                                               "cause": "cost"
                                             },

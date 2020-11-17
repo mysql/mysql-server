@@ -1,0 +1,46 @@
+# SELECT
+--disable_result_log
+SELECT * FROM performance_schema.error_log
+  LIMIT 1;
+
+SELECT * FROM performance_schema.error_log
+ WHERE error_code="MY-010116"
+    OR data LIKE "% starting as process %"
+ LIMIT 1;
+--enable_result_log
+
+# INSERT
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO performance_schema.error_log
+   SET logged=0,thread_id=0,prio="System",error_code="MY-123456",
+       subsystem="Server",data="This is a test. One that should fail.";
+
+# UPDATE
+# With pfs_updatable_acl, individual columns can still be un-updatable
+# (HA_ERR_WRONG_COMMAND), in which case we throw ER_WRONG_PERFSCHEMA_USAGE.
+# With pfs_readonly_acl, we throw ER_TABLEACCESS_DENIED_ERROR instead.
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.error_log
+   SET subsystem='Server';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.error_log
+   SET subsystem='Server' WHERE prio!='System';
+
+# DELETE
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.error_log
+  WHERE subsystem='Server';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.error_log;
+
+# LOCK
+# This should fail on account of pfs_readonly_acl.
+--error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.error_log READ;
+UNLOCK TABLES;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.error_log WRITE;
+UNLOCK TABLES;

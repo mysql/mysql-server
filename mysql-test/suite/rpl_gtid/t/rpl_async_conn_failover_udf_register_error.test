@@ -1,0 +1,108 @@
+# ==== Purpose ====
+#
+# WL#12649: Automatic reconnection for Async replication between InnoDB Clusters
+#
+# It tests UDF ER_UDF_REGISTER_ERROR, ER_UDF_REGISTER_SERVICE_ERROR and
+# ER_UDF_UNREGISTER_ERROR errors.
+#
+# ==== Implementation ====
+#
+# 1. Checks for ER_UDF_REGISTER_SERVICE_ERROR error for UDF registry
+#    service failure.
+# 2. Checks for ER_UDF_REGISTER_ERROR error for UDF registration failure.
+# 3. Checks for ER_UDF_UNREGISTER_ERROR error for UDF unregister failure.
+# 4. Cleanup
+#
+--source include/big_test.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--echo #
+--echo # 1. Checks for ER_UDF_REGISTER_SERVICE_ERROR error for UDF registry
+--echo #    service failure.
+--echo #
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.user_defined_functions WHERE UDF_NAME ="asynchronous_connection_failover_add_source", count, 1] = 1
+--source include/assert.inc
+
+--let $rpl_server_number= 1
+--let $rpl_server_parameters=--debug=+d,rpl_async_udf_register_service_error
+--source include/rpl_restart_server.inc
+
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.user_defined_functions WHERE UDF_NAME ="asynchronous_connection_failover_add_source", count, 1] = 0
+--source include/assert.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/rpl_async_conn_failover_udf_register_error.1.err
+--let $assert_only_after = CURRENT_TEST: rpl_gtid.rpl_async_conn_failover_udf_register_error
+--let $assert_text = Server2 receive a message from itself when server1 was OFFLINE.
+--let $assert_select = Could not execute the installation of UDF functions. Check for other errors in the log
+--let $assert_count = 2
+--source include/assert_grep.inc
+
+
+--echo #
+--echo # 2. Checks for ER_UDF_REGISTER_ERROR error for UDF registration failure.
+--echo #
+
+--let $rpl_server_number= 1
+--let $rpl_server_parameters=--debug=+d,rpl_async_udf_register_error
+--source include/rpl_restart_server.inc
+
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.user_defined_functions WHERE UDF_NAME ="asynchronous_connection_failover_add_source", count, 1] = 0
+--source include/assert.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/rpl_async_conn_failover_udf_register_error.1.err
+--let $assert_only_after = CURRENT_TEST: rpl_gtid.rpl_async_conn_failover_udf_register_error
+--let $assert_text = Server2 receive a message from itself when server1 was OFFLINE.
+--let $assert_select = Could not execute the installation of UDF function: asynchronous_connection_failover_add_source. Check if the function is already present, if so, try to remove it
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+
+--echo #
+--echo # 3. Checks for ER_UDF_UNREGISTER_ERROR error for UDF unregister failure.
+--echo #
+
+--let $rpl_server_number= 1
+--let $rpl_server_parameters=--debug=+d,rpl_async_udf_unregister_error
+--source include/rpl_restart_server.inc
+
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.user_defined_functions WHERE UDF_NAME ="asynchronous_connection_failover_add_source", count, 1] = 1
+--source include/assert.inc
+
+--let $rpl_server_number= 1
+--let $rpl_server_parameters=
+--source include/rpl_stop_server.inc
+
+--let $grep_file= $MYSQLTEST_VARDIR/tmp/rpl_async_conn_failover_udf_register_error.1.err
+--let $grep_pattern= Could not uninstall UDF functions. Try to remove them manually if present.
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+
+--echo #
+--echo # 4. Cleanup
+--echo #
+
+--let $rpl_server_number= 1
+--let $rpl_server_parameters=
+--source include/rpl_start_server.inc
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

@@ -29,7 +29,7 @@
 
 --sleep 30
 
---let $gr_var_count= 57
+--let $gr_var_count= 58
 --echo
 --echo # Test#1: Basic check that there are $gr_var_count GR variables.
 
@@ -50,7 +50,7 @@
 --let $saved_gr_force_members = `SELECT @@GLOBAL.group_replication_force_members;`
 --let $saved_gr_group_name = `SELECT @@GLOBAL.group_replication_group_name;`
 --let $saved_gr_gtid_assignment_block_size = `SELECT @@GLOBAL.group_replication_gtid_assignment_block_size;`
---let $saved_gr_ip_whitelist = `SELECT @@GLOBAL.group_replication_ip_whitelist;`
+--let $saved_gr_ip_allowlist = `SELECT @@GLOBAL.group_replication_ip_allowlist;`
 --let $saved_gr_local_address = `SELECT @@GLOBAL.group_replication_local_address;`
 --let $saved_gr_group_seeds = `SELECT @@GLOBAL.group_replication_group_seeds;`
 --let $saved_gr_poll_spin_loops = `SELECT @@GLOBAL.group_replication_poll_spin_loops;`
@@ -110,7 +110,7 @@ SET @@SESSION.group_replication_group_name= "aaaaaaaa-cccc-bbbb-cccc-aaaaaaaaaaa
 --error ER_GLOBAL_VARIABLE
 SET @@SESSION.group_replication_gtid_assignment_block_size= 1;
 --error ER_GLOBAL_VARIABLE
-SET @@SESSION.group_replication_ip_whitelist= "AUTOMATIC";
+SET @@SESSION.group_replication_ip_allowlist= "AUTOMATIC";
 --error ER_GLOBAL_VARIABLE
 SET @@SESSION.group_replication_local_address= "";
 --error ER_GLOBAL_VARIABLE
@@ -187,7 +187,7 @@ SET GLOBAL group_replication_enforce_update_everywhere_checks= ON;
 SET GLOBAL group_replication_force_members= "";
 SET GLOBAL group_replication_group_name= "aaaaaaaa-cccc-bbbb-cccc-aaaaaaaaaaaa";
 SET GLOBAL group_replication_gtid_assignment_block_size= 2;
-SET GLOBAL group_replication_ip_whitelist= "AUTOMATIC";
+SET GLOBAL group_replication_ip_allowlist= "AUTOMATIC";
 eval SET GLOBAL group_replication_local_address= "$saved_gr_local_address";
 eval SET GLOBAL group_replication_group_seeds= "$saved_gr_group_seeds";
 SET GLOBAL group_replication_poll_spin_loops= 10;
@@ -393,21 +393,21 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 --let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_gtid_assignment_block_size\', VARIABLE_VALUE, 1]" = 2
 --source include/assert.inc
 
-# group_replication_ip_whitelist
---let $assert_text= Verify GLOBAL value of group_replication_ip_whitelist
---let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_ip_whitelist\', Value, 1]" = "AUTOMATIC"
+# group_replication_ip_allowlist
+--let $assert_text= Verify GLOBAL value of group_replication_ip_allowlist
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_ip_allowlist\', Value, 1]" = "AUTOMATIC"
 --source include/assert.inc
 
---let $assert_text= Verify GLOBAL value of group_replication_ip_whitelist
---let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_ip_whitelist\', VARIABLE_VALUE, 1]" = "AUTOMATIC"
+--let $assert_text= Verify GLOBAL value of group_replication_ip_allowlist
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_ip_allowlist\', VARIABLE_VALUE, 1]" = "AUTOMATIC"
 --source include/assert.inc
 
---let $assert_text= Verify SESSION value of group_replication_ip_whitelist
---let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_ip_whitelist\', Value, 1]" = "AUTOMATIC"
+--let $assert_text= Verify SESSION value of group_replication_ip_allowlist
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_ip_allowlist\', Value, 1]" = "AUTOMATIC"
 --source include/assert.inc
 
---let $assert_text= Verify SESSION value of group_replication_ip_whitelist
---let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_ip_whitelist\', VARIABLE_VALUE, 1]" = "AUTOMATIC"
+--let $assert_text= Verify SESSION value of group_replication_ip_allowlist
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_ip_allowlist\', VARIABLE_VALUE, 1]" = "AUTOMATIC"
 --source include/assert.inc
 
 # group_replication_local_address
@@ -987,7 +987,7 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 --eval SET @@GLOBAL.group_replication_force_members= "$saved_gr_force_members"
 --eval SET @@GLOBAL.group_replication_group_name= "$saved_gr_group_name"
 --eval SET @@GLOBAL.group_replication_gtid_assignment_block_size= $saved_gr_gtid_assignment_block_size
---eval SET @@GLOBAL.group_replication_ip_whitelist= "$saved_gr_ip_whitelist"
+--eval SET @@GLOBAL.group_replication_ip_allowlist= "$saved_gr_ip_allowlist"
 --eval SET @@GLOBAL.group_replication_local_address= "$saved_gr_local_address"
 --eval SET @@GLOBAL.group_replication_group_seeds= "$saved_gr_group_seeds"
 --eval SET @@GLOBAL.group_replication_poll_spin_loops= $saved_gr_poll_spin_loops

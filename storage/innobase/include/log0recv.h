@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -82,9 +82,9 @@ void meb_scan_log_seg(byte *buf, ulint buf_len, lsn_t *scanned_lsn,
 lsn of a log record. This can be called when a buffer page has just been
 read in, or also for a page already in the buffer pool.
 
-TODO(Bug#31173032): Remove SUPPRESS_UBSAN_CLANG10.
 
 @param[in,out]	block		buffer block */
+/* TODO(Bug#31173032): Remove SUPPRESS_UBSAN_CLANG10. */
 void recv_recover_page_func(buf_block_t *block) SUPPRESS_UBSAN_CLANG10;
 
 /** Wrapper for recv_recover_page_func().
@@ -167,11 +167,11 @@ bool log_block_checksum_is_ok(const byte *block);
 lsn of a log record. This can be called when a buffer page has just been
 read in, or also for a page already in the buffer pool.
 
-TODO(fix Bug#31173032): Remove SUPPRESS_UBSAN_CLANG10.
 
 @param[in]	just_read_in	true if the IO handler calls this for a freshly
                                 read page
 @param[in,out]	block		buffer block */
+/* TODO(fix Bug#31173032): Remove SUPPRESS_UBSAN_CLANG10. */
 void recv_recover_page_func(bool just_read_in,
                             buf_block_t *block) SUPPRESS_UBSAN_CLANG10;
 
@@ -184,13 +184,13 @@ a freshly read page)
 @param[in,out]	block	buffer block */
 #define recv_recover_page(jri, block) recv_recover_page_func(jri, block)
 
+#endif /* UNIV_HOTBACKUP */
+
 /** Frees the recovery system. */
 void recv_sys_free();
 
 /** Reset the state of the recovery system variables. */
 void recv_sys_var_init();
-
-#endif /* UNIV_HOTBACKUP */
 
 #ifdef UNIV_HOTBACKUP
 /** Get the number of bytes used by all the heaps
@@ -238,7 +238,7 @@ lsn_t recv_calc_lsn_on_data_add(lsn_t lsn, uint64_t len);
 
 /** Empties the hash table of stored log records, applying them to appropriate
 pages.
-@param[in,out]	log		redo log
+@param[in,out]	log		Redo log
 @param[in]	allow_ibuf	if true, ibuf operations are allowed during
                                 the application; if false, no ibuf operations
                                 are allowed, and after the application all
@@ -352,11 +352,11 @@ class MetadataRecover {
 
   /** Parse a dynamic metadata redo log of a table and store
   the metadata locally
-  @param[in]	id		table id
-  @param[in]	version		table dynamic metadata version
-  @param[in]	ptr		redo log start
-  @param[in]	end		end of redo log
-  @retval ptr to next redo log record, NULL if this log record
+  @param[in]	id	table id
+  @param[in]	version	table dynamic metadata version
+  @param[in]	ptr	redo log start
+  @param[in]	end	end of redo log
+  @retval ptr to next redo log record, nullptr if this log record
   was truncated */
   byte *parseMetadataLog(table_id_t id, uint64_t version, byte *ptr, byte *end);
 

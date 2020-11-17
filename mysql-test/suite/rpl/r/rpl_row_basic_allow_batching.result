@@ -722,6 +722,8 @@ include/diff_tables.inc [master:t1, slave:t1]
 drop table t1;
 include/sync_slave_sql_with_master.inc
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 set global slave_allow_batching=OFF;
 include/start_slave.inc
 include/rpl_end.inc

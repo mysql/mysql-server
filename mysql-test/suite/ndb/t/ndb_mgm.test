@@ -51,12 +51,12 @@ eval LOAD DATA INFILE '$dump_file' INTO TABLE ndb_mgm_show
 UPDATE ndb_mgm_show SET a = TRIM(TRAILING "\r" FROM a);
 
 # Show the two data nodes
---replace_result $mysql_version MYSQL_VERSION $ndb_version NDB_VERSION
+--replace_result $mysql_version MYSQL_VERSION $ndb_version NDB_VERSION @127.0.0.1 LOCALHOST @::1 LOCALHOST
 SELECT a as 'ndbd(s)' FROM ndb_mgm_show
   WHERE SUBSTR(a, 4, 3) IN (1, 2);
 
 # Show the mgm node
---replace_result $mysql_version MYSQL_VERSION $ndb_version NDB_VERSION
+--replace_result $mysql_version MYSQL_VERSION $ndb_version NDB_VERSION @127.0.0.1 LOCALHOST @::1 LOCALHOST
 SELECT a as 'ndb_mgmd(s)' FROM ndb_mgm_show
   WHERE SUBSTR(a, 4, 3) IN (3);
 
@@ -64,7 +64,7 @@ SELECT a as 'ndb_mgmd(s)' FROM ndb_mgm_show
 # as well as the 8 free slots, mask out the nodeid since those are
 # not deterministic, order the connected nodes first
 --replace_regex /id=[0-9]+/id=X/
---replace_result $mysql_version MYSQL_VERSION $ndb_version NDB_VERSION
+--replace_result $mysql_version MYSQL_VERSION $ndb_version NDB_VERSION @127.0.0.1 LOCALHOST @::1 LOCALHOST
 SELECT a as 'mysqld(s)' FROM ndb_mgm_show
   WHERE SUBSTR(a, 4, 3)
     IN (16,32,48,49,63,127,192,228,229,230,231,232,233,255)

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -242,13 +242,13 @@ public:
 class SimplePropertiesLinearReader : public SimpleProperties::Reader {
 public:
   SimplePropertiesLinearReader(const Uint32 * src, Uint32 len);
-  virtual ~SimplePropertiesLinearReader() {}
+  ~SimplePropertiesLinearReader() override {}
   
-  virtual void reset();
-  virtual bool step(Uint32 len);
-  virtual bool getWord(Uint32 * dst);
-  virtual bool peekWord(Uint32 * dst) const ;
-  virtual bool peekWords(Uint32 * dst, Uint32 len) const;
+  void reset() override;
+  bool step(Uint32 len) override;
+  bool getWord(Uint32 * dst) override;
+  bool peekWord(Uint32 * dst) const override ;
+  bool peekWords(Uint32 * dst, Uint32 len) const override;
 private:
   Uint32 m_len;
   Uint32 m_pos;
@@ -261,11 +261,11 @@ private:
 class LinearWriter : public SimpleProperties::Writer {
 public:
   LinearWriter(Uint32 * src, Uint32 len);
-  virtual ~LinearWriter() {}
+  ~LinearWriter() override {}
 
-  virtual bool reset();
-  virtual bool putWord(Uint32 val);
-  virtual bool putWords(const Uint32 * src, Uint32 len);
+  bool reset() override;
+  bool putWord(Uint32 val) override;
+  bool putWords(const Uint32 * src, Uint32 len) override;
   Uint32 getWordsUsed() const;
 private:
   Uint32 m_len;
@@ -279,11 +279,11 @@ private:
 class UtilBufferWriter : public SimpleProperties::Writer {
 public:
   UtilBufferWriter(class UtilBuffer & buf);
-  virtual ~UtilBufferWriter() {}
+  ~UtilBufferWriter() override {}
   
-  virtual bool reset();
-  virtual bool putWord(Uint32 val);
-  virtual bool putWords(const Uint32 * src, Uint32 len);
+  bool reset() override;
+  bool putWord(Uint32 val) override;
+  bool putWords(const Uint32 * src, Uint32 len) override;
   Uint32 getWordsUsed() const;
 private:
   class UtilBuffer & m_buf;
@@ -299,13 +299,13 @@ class SimplePropertiesSectionReader : public SimpleProperties::Reader {
 public:
   SimplePropertiesSectionReader(struct SegmentedSectionPtr &,
 				class SectionSegmentPool &);
-  virtual ~SimplePropertiesSectionReader() {}
+  ~SimplePropertiesSectionReader() override {}
   
-  virtual void reset();
-  virtual bool step(Uint32 len);
-  virtual bool getWord(Uint32 * dst);
-  virtual bool peekWord(Uint32 * dst) const ;
-  virtual bool peekWords(Uint32 * dst, Uint32 len) const;
+  void reset() override;
+  bool step(Uint32 len) override;
+  bool getWord(Uint32 * dst) override;
+  bool peekWord(Uint32 * dst) const override ;
+  bool peekWords(Uint32 * dst, Uint32 len) const override;
   Uint32 getSize() const;
   bool getWords(Uint32 * dst, Uint32 len);
 
@@ -332,11 +332,11 @@ Uint32 SimplePropertiesSectionReader::getSize() const
 class SimplePropertiesSectionWriter : public SimpleProperties::Writer {
 public:
   SimplePropertiesSectionWriter(class SimulatedBlock & block);
-  virtual ~SimplePropertiesSectionWriter();
+  ~SimplePropertiesSectionWriter() override;
 
-  virtual bool reset();
-  virtual bool putWord(Uint32 val);
-  virtual bool putWords(const Uint32 * src, Uint32 len);
+  bool reset() override;
+  bool putWord(Uint32 val) override;
+  bool putWords(const Uint32 * src, Uint32 len) override;
   Uint32 getWordsUsed() const;
 
   /**

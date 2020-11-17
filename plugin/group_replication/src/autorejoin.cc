@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -173,11 +173,11 @@ void Autorejoin_thread::execute_rejoin_process() {
     DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
-  while (!m_abort && num_attempts++ < m_attempts && error) {
+  while (!m_abort && num_attempts++ < m_attempts) {
     // Update the number of attempts in pfs.
     stage_handler.set_completed_work(num_attempts);
 
-    LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_STARTED_AUTO_REJOIN, num_attempts,
+    LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_STARTED_AUTO_REJOIN, num_attempts,
                  m_attempts);
 
     DBUG_EXECUTE_IF("group_replication_stop_before_rejoin", {
@@ -188,7 +188,10 @@ void Autorejoin_thread::execute_rejoin_process() {
     });
 
     // Attempt a single rejoin.
-    if (!attempt_rejoin()) break;
+    if (!attempt_rejoin()) {
+      error = 0;
+      break;
+    }
 
     /*
       Wait on m_run_cond up to 5 minutes. This is a simple way to allow the
@@ -199,7 +202,7 @@ void Autorejoin_thread::execute_rejoin_process() {
     if (num_attempts < m_attempts) {
       set_timespec(&tm, m_rejoin_timeout);
       mysql_mutex_lock(&m_run_lock);
-      error = mysql_cond_timedwait(&m_run_cond, &m_run_lock, &tm);
+      mysql_cond_timedwait(&m_run_cond, &m_run_lock, &tm);
       mysql_mutex_unlock(&m_run_lock);
     }
   }
@@ -211,8 +214,8 @@ void Autorejoin_thread::execute_rejoin_process() {
     If we didn't manage to rejoin, consider
     group_replication_exit_state_action.
   */
-  if (num_attempts > m_attempts) {
-    LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_FINISHED_AUTO_REJOIN,
+  if (error) {
+    LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_FINISHED_AUTO_REJOIN,
                  num_attempts - 1UL, m_attempts, " not");
 
     enable_server_read_mode(PSESSION_INIT_THREAD);
@@ -221,7 +224,7 @@ void Autorejoin_thread::execute_rejoin_process() {
       if someone called Autorejoin_thread::abort(), because that implies an
       explicit stop and thus we probably don't want to abort right here.
     */
-    if (error && !m_abort) {
+    if (!m_abort) {
       switch (get_exit_state_action_var()) {
         case EXIT_STATE_ACTION_ABORT_SERVER: {
           std::stringstream ss;
@@ -237,7 +240,7 @@ void Autorejoin_thread::execute_rejoin_process() {
       }
     }
   } else {
-    LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_FINISHED_AUTO_REJOIN, num_attempts,
+    LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_FINISHED_AUTO_REJOIN, num_attempts,
                  m_attempts, "");
   }
 }

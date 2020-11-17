@@ -823,7 +823,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((cast(`test`.`t1`.`a` as double) = cast((@`x`) as double)) and (0 <> (@x:=(@`x`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` = (@`x`)) and (0 <> (@x:=(@`x`))))
 explain SELECT a FROM t1 WHERE a = @x INTO @x;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
@@ -874,3 +874,211 @@ DROP TABLE t1;
 SET @c := FROM_UNIXTIME(1537002029);
 DO ((@c := (_utf32' -'))) SOUNDS LIKE(@c);
 ERROR HY000: Invalid latin1 character string: '\x00\x00\x20\x2D'
+# 'Temporal = string literal' compares as temporals, but
+# 'Temporal = string user variable' compares as DOUBLE.
+# It is a behaviour change introduced by WL#6570.
+# Note that
+# https://dev.mysql.com/doc/refman/8.0/en/type-conversion.html
+# suggests explicit casts as safer. Bug#90076 should fix this.
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY, d DATE);
+INSERT INTO t1 VALUES(1, '2017-01-01');
+SELECT d < 00010101000000.0 AS a FROM t1;
+a
+0
+set @tsn= 00010101000000.0;
+SELECT d < @tsn AS a FROM t1;
+a
+1
+DROP TABLE t1;
+CREATE TABLE numbers
+(pk INTEGER PRIMARY KEY,
+ui BIGINT UNSIGNED,
+si BIGINT
+);
+INSERT INTO numbers VALUES
+(0, 0, -9223372036854775808), (1, 18446744073709551615, 9223372036854775807);
+SET @ui_min = CAST(0 AS UNSIGNED);
+SET @ui_max = CAST(18446744073709551615 AS UNSIGNED);
+SET @si_min = CAST(-9223372036854775808 AS SIGNED);
+SET @si_max = CAST(9223372036854775807 AS SIGNED);
+PREPARE s1 FROM 'SELECT * FROM numbers WHERE ui=?';
+PREPARE s2 FROM 'SELECT * FROM numbers WHERE si=?';
+EXECUTE s1 USING @ui_min;
+pk	ui	si
+0	0	-9223372036854775808
+EXECUTE s1 USING @ui_max;
+pk	ui	si
+1	18446744073709551615	9223372036854775807
+EXECUTE s1 USING @si_min;
+pk	ui	si
+EXECUTE s1 USING @si_max;
+pk	ui	si
+EXECUTE s2 USING @ui_min;
+pk	ui	si
+EXECUTE s2 USING @ui_max;
+pk	ui	si
+EXECUTE s2 USING @si_min;
+pk	ui	si
+0	0	-9223372036854775808
+EXECUTE s2 USING @si_max;
+pk	ui	si
+1	18446744073709551615	9223372036854775807
+DEALLOCATE PREPARE s1;
+DEALLOCATE PREPARE s2;
+DROP TABLE numbers;
+CREATE TABLE strings
+(pk INTEGER PRIMARY KEY,
+vc_ascii VARCHAR(20) COLLATE ascii_general_ci,
+vc_latin1 VARCHAR(20) COLLATE latin1_general_ci,
+vc_utf8mb4 VARCHAR(20) COLLATE utf8mb4_0900_ai_ci,
+vc_utf16 VARCHAR(20) COLLATE utf16_general_ci,
+vc_utf32 VARCHAR(20) COLLATE utf32_general_ci
+);
+SET @str_ascii=_ASCII'abcxyz';
+SET @str_utf8mb4=CONVERT(x'616263C3A6C3B8C3A578797A' USING utf8mb4);
+SET @str_latin1=CONVERT(@str_utf8mb4 USING latin1);
+SET @str_utf16=CONVERT(@str_utf8mb4 USING utf16);
+SET @str_utf32=CONVERT(@str_utf8mb4 USING utf32);
+INSERT INTO strings VALUES
+(0, @str_ascii, @str_ascii, @str_ascii, @str_ascii, @str_ascii),
+(1, @str_ascii, @str_utf8mb4, @str_utf8mb4, @str_utf8mb4, @str_utf8mb4);
+PREPARE s1 FROM 'SELECT HEX(vc_utf8mb4) FROM strings WHERE vc_ascii = ?';
+PREPARE s2 FROM 'SELECT HEX(vc_utf8mb4) FROM strings WHERE vc_latin1 = ?';
+PREPARE s3 FROM 'SELECT HEX(vc_utf8mb4) FROM strings WHERE vc_utf8mb4 = ?';
+PREPARE s4 FROM 'SELECT HEX(vc_utf8mb4) FROM strings WHERE vc_utf16 = ?';
+PREPARE s5 FROM 'SELECT HEX(vc_utf8mb4) FROM strings WHERE vc_utf32 = ?';
+EXECUTE s1 USING @str_ascii;
+HEX(vc_utf8mb4)
+61626378797A
+616263C3A6C3B8C3A578797A
+EXECUTE s1 USING @str_latin1;
+ERROR HY000: Conversion from collation latin1_swedish_ci into ascii_general_ci impossible for parameter
+EXECUTE s1 USING @str_utf8mb4;
+ERROR HY000: Conversion from collation utf8mb4_0900_ai_ci into ascii_general_ci impossible for parameter
+EXECUTE s1 USING @str_utf16;
+ERROR HY000: Conversion from collation utf16_general_ci into ascii_general_ci impossible for parameter
+EXECUTE s1 USING @str_utf32;
+ERROR HY000: Conversion from collation utf32_general_ci into ascii_general_ci impossible for parameter
+EXECUTE s2 USING @str_ascii;
+HEX(vc_utf8mb4)
+61626378797A
+EXECUTE s2 USING @str_latin1;
+HEX(vc_utf8mb4)
+616263C3A6C3B8C3A578797A
+EXECUTE s2 USING @str_utf8mb4;
+HEX(vc_utf8mb4)
+616263C3A6C3B8C3A578797A
+EXECUTE s2 USING @str_utf16;
+HEX(vc_utf8mb4)
+616263C3A6C3B8C3A578797A
+EXECUTE s2 USING @str_utf32;
+HEX(vc_utf8mb4)
+616263C3A6C3B8C3A578797A
+EXECUTE s3 USING @str_ascii;
+HEX(vc_utf8mb4)
+61626378797A
+EXECUTE s3 USING @str_latin1;
+HEX(vc_utf8mb4)
+616263C3A6C3B8C3A578797A
+EXECUTE s3 USING @str_utf8mb4;
+HEX(vc_utf8mb4)
+616263C3A6C3B8C3A578797A
+EXECUTE s3 USING @str_utf16;
+HEX(vc_utf8mb4)
+616263C3A6C3B8C3A578797A
+EXECUTE s3 USING @str_utf32;
+HEX(vc_utf8mb4)
+616263C3A6C3B8C3A578797A
+EXECUTE s4 USING @str_ascii;
+HEX(vc_utf8mb4)
+61626378797A
+EXECUTE s4 USING @str_latin1;
+HEX(vc_utf8mb4)
+616263C3A6C3B8C3A578797A
+EXECUTE s4 USING @str_utf8mb4;
+HEX(vc_utf8mb4)
+616263C3A6C3B8C3A578797A
+EXECUTE s4 USING @str_utf16;
+HEX(vc_utf8mb4)
+616263C3A6C3B8C3A578797A
+EXECUTE s4 USING @str_utf32;
+HEX(vc_utf8mb4)
+616263C3A6C3B8C3A578797A
+EXECUTE s5 USING @str_ascii;
+HEX(vc_utf8mb4)
+61626378797A
+EXECUTE s5 USING @str_latin1;
+HEX(vc_utf8mb4)
+616263C3A6C3B8C3A578797A
+EXECUTE s5 USING @str_utf8mb4;
+HEX(vc_utf8mb4)
+616263C3A6C3B8C3A578797A
+EXECUTE s5 USING @str_utf16;
+HEX(vc_utf8mb4)
+616263C3A6C3B8C3A578797A
+EXECUTE s5 USING @str_utf32;
+HEX(vc_utf8mb4)
+616263C3A6C3B8C3A578797A
+DEALLOCATE PREPARE s1;
+DEALLOCATE PREPARE s2;
+DEALLOCATE PREPARE s3;
+DEALLOCATE PREPARE s4;
+DEALLOCATE PREPARE s5;
+DROP TABLE strings;
+set @maxint=18446744073709551615;
+SELECT @maxint + 0e0;
+@maxint + 0e0
+1.8446744073709552e19
+SELECT 18446744073709551615 + 0e0;
+18446744073709551615 + 0e0
+1.8446744073709552e19
+SELECT @maxint + 0.0;
+@maxint + 0.0
+18446744073709551615.0
+SELECT 18446744073709551615 + 0.0;
+18446744073709551615 + 0.0
+18446744073709551615.0
+PREPARE s FROM 'SELECT 0e0 + ?';
+EXECUTE s USING @maxint;
+0e0 + ?
+1.8446744073709552e19
+DEALLOCATE PREPARE s;
+PREPARE s FROM 'SELECT 0.0 + ?';
+EXECUTE s USING @maxint;
+0.0 + ?
+18446744073709551615.000000000000000000000000000000
+DEALLOCATE PREPARE s;
+PREPARE s FROM 'SELECT 0 + ?';
+EXECUTE s USING @maxint;
+0 + ?
+18446744073709551615
+DEALLOCATE PREPARE s;
+PREPARE s FROM 'SELECT concat(?,"")';
+EXECUTE s USING @maxint;
+concat(?,"")
+18446744073709551615
+DEALLOCATE PREPARE s;
+# Bug#31358565: Assertion `false' failed. In Item_func_get_user_var::propagate_type'
+do null not between 1 and @undefined_var;
+do null not between @undefined_var and 1;
+# Bug#28013997: Assertion failed: (slen % 4) == 0
+SET @f = _utf32 'a';
+CREATE TABLE t1 (a TIMESTAMP);
+INSERT INTO t1 VALUES ('2018-05-12 07:43:04'), ('2018-05-12 07:43:04');
+SELECT 1 FROM t1 WHERE @f<>'3761-03-28' XOR (@f:='5570-12-30') > a;
+1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+DROP TABLE t1;
+# Bug#31599885: Global-buffer-overflow in decimal_bin_size_inline
+CREATE TABLE t(a BIT(4), b INTEGER);
+SELECT AVG((@e:= a)) FROM t;
+AVG((@e:= a))
+NULL
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+SELECT AVG((@e:= a)) FROM t GROUP BY b;
+AVG((@e:= a))
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+DROP TABLE t;

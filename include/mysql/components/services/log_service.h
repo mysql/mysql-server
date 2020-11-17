@@ -70,13 +70,92 @@ typedef enum enum_log_service_chistics {
       not modify the log-event, but be READ_ONLY. */
   LOG_SERVICE_SINK = 512,
 
+  /** Service supports the performance_schema.error_log table.
+      If the caller provides a buffer, the service will write output
+      to be displayed in the performance-schema table there.
+      This can be the entirety of the log-entry, or a projection
+      thereof (usually omitting key/value pairs that are already
+      shown in other columns of said table).
+      Services flagged this must also be flagged LOG_SERVICE_SINK! */
+  LOG_SERVICE_PFS_SUPPORT = 1024,
+
+  /** Service can parse lines in the format it outputs. Services flagged
+      this must also be flagged LOG_SERVICE_SINK | LOG_SERVICE_PFS_SUPPORT! */
+  LOG_SERVICE_LOG_PARSER = 2048,
+
   /** Service is a special sink used during start-up that buffers log-events
       until the log service pipeline is fully set up, at which point we'll
       flush (that is, filter and prints) the buffered events.
       Services flagged this must also be flagged LOG_SERVICE_SINK! */
-  LOG_SERVICE_BUFFER = 1024
+  LOG_SERVICE_BUFFER = 8192
 
 } log_service_chistics;
+
+/**
+  Error codes. These are grouped (general issues, invalid data,
+  file ops, etc.). Each group has a sparsely populated range so
+  we may add entries as needed without introducing incompatibility
+  by renumbering the existing ones.
+*/
+typedef enum enum_log_service_error {
+  /// no error
+  LOG_SERVICE_SUCCESS = 0,
+
+  /// error not otherwise specified
+  LOG_SERVICE_MISC_ERROR = -1,
+
+  /// no error, but no effect either
+  LOG_SERVICE_NOTHING_DONE = -2,
+
+  /**
+    arguments are valid, we just don't have the space (either pre-allocated
+    in this function, or passed to us by the caller)
+  */
+  LOG_SERVICE_BUFFER_SIZE_INSUFFICIENT = -10,
+
+  /// we cannot allocate a (temporary or return) buffer of the required size
+  LOG_SERVICE_OUT_OF_MEMORY = -11,
+
+  /// service uninavailable (bad internal state/underlying service unavailable)
+  LOG_SERVICE_NOT_AVAILABLE = -20,
+
+  /// for a method with modes, a mode unsupported by this service was requested
+  LOG_SERVICE_UNSUPPORTED_MODE = -21,
+
+  /// argument was invalid (out of range, malformed, etc.)
+  LOG_SERVICE_INVALID_ARGUMENT = -30,
+
+  /**
+    argument too long (a special case of malformed).
+    E.g. a path longer than FN_REFLEN, or a presumed data longer than
+    specified in ISO-8601.
+    use LOG_SERVICE_INVALID_ARGUMENT, LOG_SERVICE_BUFFER_SIZE_INSUFFICIENT,
+    or LOG_SERVICE_OUT_OF_MEMORY if more appropriate.
+  */
+  LOG_SERVICE_ARGUMENT_TOO_LONG = -31,
+
+  /**
+    invalid data, but not arguments to a C++ function
+    (bad log-file to parse, filter language statement, etc.)
+  */
+  LOG_SERVICE_PARSE_ERROR = -32,
+
+  /// could not make log name
+  LOG_SERVICE_COULD_NOT_MAKE_LOG_NAME = -40,
+
+  /// lock error (could not init, or is not inited, etc.)
+  LOG_SERVICE_LOCK_ERROR = -50,
+
+  /// can not write
+  LOG_SERVICE_UNABLE_TO_WRITE = -60,
+  LOG_SERVICE_UNABLE_TO_READ = -61,
+  LOG_SERVICE_OPEN_FAILED = -62,
+  LOG_SERVICE_CLOSE_FAILED = -63,
+  LOG_SERVICE_SEEK_FAILED = -64,
+
+  /// no more instances of this service are possible.
+  LOG_SERVICE_TOO_MANY_INSTANCES = -99
+} log_service_error;
 
 BEGIN_SERVICE_DEFINITION(log_service)
 /**
@@ -102,11 +181,11 @@ DECLARE_METHOD(int, run, (void *instance, log_line *ll));
   @param   instance  State-pointer that was returned on open.
                      Value may be changed in flush.
 
-  @retval  <0        an error occurred
-  @retval  =0        no work was done
-  @retval  >0        flush completed without incident
+  @retval  LOG_SERVICE_NOTHING_DONE        no work was done
+  @retval  LOG_SERVICE_SUCCESS             flush completed without incident
+  @retval  otherwise                       an error occurred
 */
-DECLARE_METHOD(int, flush, (void **instance));
+DECLARE_METHOD(log_service_error, flush, (void **instance));
 
 /**
   Open a new instance.
@@ -123,10 +202,10 @@ DECLARE_METHOD(int, flush, (void **instance));
                      the server/logging framework. It must be released
                      on close.
 
-  @retval  <0        a new instance could not be created
-  @retval  =0        success, returned hande is valid
+  @retval  LOG_SERVICE_SUCCESS        success, returned hande is valid
+  @retval  otherwise                  a new instance could not be created
 */
-DECLARE_METHOD(int, open, (log_line * ll, void **instance));
+DECLARE_METHOD(log_service_error, open, (log_line * ll, void **instance));
 
 /**
   Close and release an instance. Flushes any buffers.
@@ -136,10 +215,10 @@ DECLARE_METHOD(int, open, (log_line * ll, void **instance));
                      it should be released, and the pointer
                      set to nullptr.
 
-  @retval  <0        an error occurred
-  @retval  =0        success
+  @retval  LOG_SERVICE_SUCCESS        success
+  @retval  otherwise                  an error occurred
 */
-DECLARE_METHOD(int, close, (void **instance));
+DECLARE_METHOD(log_service_error, close, (void **instance));
 
 /**
   Get characteristics of a log-service.
@@ -148,6 +227,47 @@ DECLARE_METHOD(int, close, (void **instance));
   @retval  >=0       characteristics (a set of log_service_chistics flags)
 */
 DECLARE_METHOD(int, characteristics, (void));
+
+/**
+  Parse a single line in an error log of this format.  (optional)
+
+  @param line_start   pointer to the beginning of the line ('{')
+  @param line_length  length of the line
+
+  @retval  0   Success
+  @retval !=0  Failure (out of memory, malformed argument, etc.)
+*/
+DECLARE_METHOD(log_service_error, parse_log_line,
+               (const char *line_start, size_t line_length));
+
+/**
+  Provide the name for a log file this service would access.
+
+  @param instance  instance info returned by open() if requesting
+                   the file-name for a specific open instance.
+                   nullptr to get the name of the default instance
+                   (even if it that log is not open). This is used
+                   to determine the name of the log-file to load on
+                   start-up.
+  @param buf       Address of a buffer allocated in the caller.
+                   The callee may return an extension starting
+                   with '.', in which case the path and file-name
+                   will be the system's default, except with the
+                   given extension.
+                   Alternatively, the callee may return a file-name
+                   which is assumed to be in the same directory
+                   as the default log.
+                   Values are C-strings.
+  @param bufsize   The size of the allocation in the caller.
+
+  @retval  0   Success
+  @retval -1   Mode not supported (only default / only instances supported)
+  @retval -2   Buffer not large enough
+  @retval -3   Misc. error
+*/
+DECLARE_METHOD(log_service_error, get_log_name,
+               (void *instance, char *buf, size_t bufsize));
+
 END_SERVICE_DEFINITION(log_service)
 
 #endif

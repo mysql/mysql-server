@@ -16,8 +16,8 @@
 #
 # Parameters:
 #   $rpl_reset_slave_all
-#     If set resets the slave using command "RESET SLAVE ALL".
-#     Otherwise reset the slave using command "RESET SLAVE".
+#     If set resets the slave using command "RESET REPLICA ALL".
+#     Otherwise reset the slave using command "RESET REPLICA".
 #   $rpl_multi_source
 #     If set resets the channel with name $rpl_channel_name
 #     Otherwise reset the default replication channel.

@@ -72,9 +72,11 @@ extern sess_t *trx_dummy_sess;
 @param[in]	observer	flush observer */
 void trx_set_flush_observer(trx_t *trx, FlushObserver *observer);
 
-/** Set detailed error message for the transaction. */
-void trx_set_detailed_error(trx_t *trx,       /*!< in: transaction struct */
-                            const char *msg); /*!< in: detailed error message */
+/** Set detailed error message for the transaction.
+@param[in] trx Transaction struct
+@param[in] msg Detailed error message */
+void trx_set_detailed_error(trx_t *trx, const char *msg);
+
 /** Set detailed error message for the transaction from a file. Note that the
  file is rewinded before reading from it. */
 void trx_set_detailed_error_from_file(
@@ -128,14 +130,15 @@ void trx_disconnect_prepared(trx_t *trx);
  undo log lists. */
 void trx_lists_init_at_db_start(void);
 
-/** Starts the transaction if it is not yet started. */
-void trx_start_if_not_started_xa_low(
-    trx_t *trx,       /*!< in/out: transaction */
-    bool read_write); /*!< in: true if read write transaction */
-/** Starts the transaction if it is not yet started. */
-void trx_start_if_not_started_low(
-    trx_t *trx,       /*!< in/out: transaction */
-    bool read_write); /*!< in: true if read write transaction */
+/** Starts the transaction if it is not yet started.
+@param[in,out] trx Transaction
+@param[in] read_write True if read write transaction */
+void trx_start_if_not_started_xa_low(trx_t *trx, bool read_write);
+
+/** Starts the transaction if it is not yet started.
+@param[in] trx Transaction
+@param[in] read_write True if read write transaction */
+void trx_start_if_not_started_low(trx_t *trx, bool read_write);
 
 /** Starts a transaction for internal processing. */
 void trx_start_internal_low(trx_t *trx); /*!< in/out: transaction */
@@ -186,11 +189,12 @@ void trx_start_internal_read_only_low(trx_t *trx);
 /** Commits a transaction. */
 void trx_commit(trx_t *trx); /*!< in/out: transaction */
 
-/** Commits a transaction and a mini-transaction. */
-void trx_commit_low(
-    trx_t *trx,  /*!< in/out: transaction */
-    mtr_t *mtr); /*!< in/out: mini-transaction (will be committed),
-                 or NULL if trx made no modifications */
+/** Commits a transaction and a mini-transaction.
+@param[in,out] trx Transaction
+@param[in,out] mtr Mini-transaction (will be committed), or null if trx made no
+modifications */
+void trx_commit_low(trx_t *trx, mtr_t *mtr);
+
 /** Cleans up a transaction at database startup. The cleanup is needed if
  the transaction already got to the middle of a commit when the database
  crashed, and we cannot roll it back. */
@@ -1090,10 +1094,10 @@ struct trx_t {
   /*------------------------------*/
 #ifdef UNIV_DEBUG
   /** The following two fields are mutually exclusive. */
-  /* @{ */
+  /** @{ */
 
   bool in_rw_trx_list; /*!< true if in trx_sys->rw_trx_list */
-                       /* @} */
+                       /** @} */
 #endif                 /* UNIV_DEBUG */
   UT_LIST_NODE_T(trx_t)
   mysql_trx_list; /*!< list of transactions created for
@@ -1223,6 +1227,12 @@ struct trx_t {
   bool api_auto_commit;        /*!< automatic commit */
   bool read_write;             /*!< if read and write operation */
 
+  /** This flag is set for trx_t objects used by the purge sys. We use the flag
+  when validating mysql_trx_list in trx_sys_before_pre_dd_shutdown_validate.
+  Purge threads can have allocated trx_t objects visible in the mysql_trx_list
+  at this point during shutdown, this is acceptable so we need a way to signal
+  this fact. */
+  bool purge_sys_trx;
   /*------------------------------*/
   char *detailed_error;          /*!< detailed error message for last
                                  error, or empty. */

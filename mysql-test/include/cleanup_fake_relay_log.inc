@@ -11,9 +11,9 @@
 
 
 --disable_query_log
-RESET SLAVE;
+RESET REPLICA;
 
-# Assert that the fake relay log files are gone (RESET SLAVE should
+# Assert that the fake relay log files are gone (RESET REPLICA should
 # have removed them).
 --let $file_does_not_exist= $_fake_relay_log
 --source include/file_does_not_exist.inc

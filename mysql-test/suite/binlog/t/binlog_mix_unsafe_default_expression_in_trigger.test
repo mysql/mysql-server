@@ -111,7 +111,7 @@ INSERT INTO t1 (b) VALUES (DEFAULT);
 # Logged in STATEMENT format when the DEFAULT expression is not used.
 --source include/save_binlog_position.inc
 INSERT INTO t1 (b) VALUES (1);
---let $event_sequence = !Gtid_or_anon # !Begin # RAND # Query # Xid
+--let $event_sequence = !Gtid_or_anon # !Begin # Query # Xid
 --source include/assert_binlog_events.inc
 
 # Clean up

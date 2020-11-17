@@ -1,7 +1,7 @@
 #ifndef SQL_SORT_INCLUDED
 #define SQL_SORT_INCLUDED
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 #include "sql/filesort_utils.h"  // Filesort_buffer
 
 class Addon_fields;
+struct TABLE;
 
 /* Defines used by filesort and uniques */
 
@@ -191,17 +192,20 @@ class Filesort_info {
   /** Sort filesort_buffer
     @return Number of records, after any deduplication
    */
-  unsigned sort_buffer(Sort_param *param, uint count) {
-    return filesort_buffer.sort_buffer(param, count);
+  size_t sort_buffer(Sort_param *param, size_t num_input_rows,
+                     size_t max_output_rows) {
+    return filesort_buffer.sort_buffer(param, num_input_rows, max_output_rows);
   }
 
   /**
     Copies (unpacks) values appended to sorted fields from a buffer back to
     their regular positions specified by the Field::ptr pointers.
-    @param buff            Buffer which to unpack the value from
+    @param tables  Tables in the join; for NULL row flags.
+    @param buff    Buffer which to unpack the value from.
   */
   template <bool Packed_addon_fields>
-  inline void unpack_addon_fields(uchar *buff);
+  inline void unpack_addon_fields(const Prealloced_array<TABLE *, 4> &tables,
+                                  uchar *buff);
 
   /**
     Reads 'count' number of chunk descriptors into the merge_chunks array.

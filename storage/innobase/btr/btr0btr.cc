@@ -391,8 +391,8 @@ static buf_block_t *btr_page_alloc_for_ibuf(
  that the caller has made the reservation for free extents!
  @retval NULL if no page could be allocated
  @retval block, rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
- (init_mtr == mtr, or the page was not previously freed in mtr)
- @retval block (not allocated or initialized) otherwise */
+ (init_mtr == mtr, or the page was not previously freed in mtr),
+ returned block is not allocated nor initialized otherwise */
 static MY_ATTRIBUTE((warn_unused_result)) buf_block_t *btr_page_alloc_low(
     dict_index_t *index,    /*!< in: index */
     page_no_t hint_page_no, /*!< in: hint of a good page */
@@ -429,24 +429,21 @@ static MY_ATTRIBUTE((warn_unused_result)) buf_block_t *btr_page_alloc_low(
 }
 
 /** Allocates a new file page to be used in an index tree. NOTE: we assume
- that the caller has made the reservation for free extents!
- @retval NULL if no page could be allocated
- @retval block, rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
- (init_mtr == mtr, or the page was not previously freed in mtr)
- @retval block (not allocated or initialized) otherwise */
-buf_block_t *btr_page_alloc(
-    dict_index_t *index,    /*!< in: index */
-    page_no_t hint_page_no, /*!< in: hint of a good page */
-    byte file_direction,    /*!< in: direction where a possible
-                            page split is made */
-    ulint level,            /*!< in: level where the page is placed
-                            in the tree */
-    mtr_t *mtr,             /*!< in/out: mini-transaction
-                            for the allocation */
-    mtr_t *init_mtr)        /*!< in/out: mini-transaction
-                            for x-latching and initializing
-                            the page */
-{
+that the caller has made the reservation for free extents!
+@param[in] index Index tree
+@param[in] hint_page_no Hint of a good page
+@param[in] file_direction Direction where a possible page split is made
+@param[in] level Level where the page is placed in the tree
+@param[in,out] mtr Mini-transaction for the allocation
+@param[in,out] init_mtr Mini-transaction for x-latching and initializing the
+page
+@retval NULL if no page could be allocated
+@retval block, rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
+(init_mtr == mtr, or the page was not previously freed in mtr),
+returned block is not allocated nor initialized otherwise */
+buf_block_t *btr_page_alloc(dict_index_t *index, page_no_t hint_page_no,
+                            byte file_direction, ulint level, mtr_t *mtr,
+                            mtr_t *init_mtr) {
   buf_block_t *new_block;
 
   if (dict_index_is_ibuf(index)) {
@@ -763,8 +760,8 @@ static void btr_page_get_father(
 have been called.
 In a persistent tablespace, the caller must invoke fsp_init_file_page()
 before mtr.commit().
-@param[in,out]	block	index root page
-@param[in,out]	mtr	mini-transaction */
+@param[in,out]	block	Index root page
+@param[in,out]	mtr	Mini-transaction */
 static void btr_free_root(buf_block_t *block, mtr_t *mtr) {
   fseg_header_t *header;
 
@@ -787,8 +784,8 @@ static const space_index_t BTR_FREED_INDEX_ID = 0;
 
 /** Invalidate an index root page so that btr_free_root_check()
 will not find it.
-@param[in,out]	block	index root page
-@param[in,out]	mtr	mini-transaction */
+@param[in,out]	block	Index root page
+@param[in,out]	mtr	Mini-transaction */
 static void btr_free_root_invalidate(buf_block_t *block, mtr_t *mtr) {
   ut_ad(page_is_root(block->frame));
 
@@ -797,10 +794,10 @@ static void btr_free_root_invalidate(buf_block_t *block, mtr_t *mtr) {
 }
 
 /** Prepare to free a B-tree.
-@param[in]	page_id		page id
-@param[in]	page_size	page size
+@param[in]	page_id		Page id
+@param[in]	page_size Page size
 @param[in]	index_id	PAGE_INDEX_ID contents
-@param[in,out]	mtr		mini-transaction
+@param[in,out]	mtr		Mini-transaction
 @return root block, to invoke btr_free_but_not_root() and btr_free_root()
 @retval NULL if the page is no longer a matching B-tree page */
 static MY_ATTRIBUTE((warn_unused_result)) buf_block_t *btr_free_root_check(
@@ -826,12 +823,12 @@ static MY_ATTRIBUTE((warn_unused_result)) buf_block_t *btr_free_root_check(
 }
 
 /** Create the root node for a new index tree.
-@param[in]	type			type of the index
-@param[in]	space			space where created
-@param[in]	page_size		page size
-@param[in]	index_id		index id
-@param[in]	index			index tree
-@param[in,out]	mtr			mini-transaction
+@param[in]	type			Type of the index
+@param[in]	space			Space where created
+@param[in]	page_size		Page size
+@param[in]	index_id		Index id
+@param[in]	index			Index tree
+@param[in,out]	mtr			Mini-transaction
 @return page number of the created root
 @retval FIL_NULL if did not succeed */
 ulint btr_create(ulint type, space_id_t space, const page_size_t &page_size,
@@ -1008,10 +1005,10 @@ top_loop:
 }
 
 /** Free a persistent index tree if it exists.
-@param[in]	page_id		root page id
-@param[in]	page_size	page size
+@param[in]	page_id		Root page id
+@param[in]	page_size	Page size
 @param[in]	index_id	PAGE_INDEX_ID contents
-@param[in,out]	mtr		mini-transaction */
+@param[in,out]	mtr		Mini-transaction */
 void btr_free_if_exists(const page_id_t &page_id, const page_size_t &page_size,
                         space_index_t index_id, mtr_t *mtr) {
   buf_block_t *root = btr_free_root_check(page_id, page_size, index_id, mtr);
@@ -1382,19 +1379,18 @@ static bool btr_page_reorganize_block(
 
 /** Reorganizes an index page.
 
- IMPORTANT: On success, the caller will have to update IBUF_BITMAP_FREE
- if this is a compressed leaf page in a secondary index. This has to
- be done either within the same mini-transaction, or by invoking
- ibuf_reset_free_bits() before mtr_commit(). On uncompressed pages,
- IBUF_BITMAP_FREE is unaffected by reorganization.
+IMPORTANT: On success, the caller will have to update IBUF_BITMAP_FREE
+if this is a compressed leaf page in a secondary index. This has to
+be done either within the same mini-transaction, or by invoking
+ibuf_reset_free_bits() before mtr_commit(). On uncompressed pages,
+IBUF_BITMAP_FREE is unaffected by reorganization.
 
- @retval true if the operation was successful
- @retval false if it is a compressed page, and recompression failed */
-bool btr_page_reorganize(
-    page_cur_t *cursor,  /*!< in/out: page cursor */
-    dict_index_t *index, /*!< in: the index tree of the page */
-    mtr_t *mtr)          /*!< in/out: mini-transaction */
-{
+@param[in,out] cursor Page cursor
+@param[in] index The index tree of the page
+@param[in,out] mtr Mini-transaction
+@retval true if the operation was successful
+@retval false if it is a compressed page, and recompression failed */
+bool btr_page_reorganize(page_cur_t *cursor, dict_index_t *index, mtr_t *mtr) {
   return (btr_page_reorganize_low(false, page_zip_level, cursor, index, mtr));
 }
 
@@ -2174,13 +2170,13 @@ static MY_ATTRIBUTE((warn_unused_result)) bool btr_page_tuple_smaller(
 
 /** Insert the tuple into the right sibling page, if the cursor is at the end
 of a page.
-@param[in]	flags	undo logging and locking flags
-@param[in,out]	cursor	cursor at which to insert; when the function succeeds,
+@param[in]	flags	Undo logging and locking flags
+@param[in,out]	cursor	Cursor at which to insert; when the function succeeds,
                         the cursor is positioned before the insert point.
-@param[out]	offsets	offsets on inserted record
-@param[in,out]	heap	memory heap for allocating offsets
-@param[in]	tuple	tuple to insert
-@param[in,out]	mtr	mini-transaction
+@param[out]	offsets	Offsets on inserted record
+@param[in,out]	heap	Memory heap for allocating offsets
+@param[in]	tuple	Tuple to insert
+@param[in,out]	mtr	Mini-transaction
 @return	inserted record (first record on the right sibling page);
         the cursor will be positioned on the page infimum
 @retval	NULL if the operation was not performed */
@@ -2670,20 +2666,20 @@ func_exit:
 }
 
 /** Removes a page from the level list of pages.
-@param[in]	space		space where removed
-@param[in]	page_size	page size
-@param[in,out]	page		page to remove
-@param[in]	index		index tree
-@param[in,out]	mtr		mini-transaction */
+@param[in]	space		Space where removed
+@param[in]	page_size	Page size
+@param[in,out]	page		Page to remove
+@param[in]	index		Index tree
+@param[in,out]	mtr		Mini-transaction */
 #define btr_level_list_remove(space, page_size, page, index, mtr) \
   btr_level_list_remove_func(space, page_size, page, index, mtr)
 
 /** Removes a page from the level list of pages.
-@param[in]	space		space where removed
-@param[in]	page_size	page size
-@param[in,out]	page		page to remove
-@param[in]	index		index tree
-@param[in,out]	mtr		mini-transaction */
+@param[in]	space		Space where removed
+@param[in]	page_size	Page size
+@param[in,out]	page		Page to remove
+@param[in]	index		Index tree
+@param[in,out]	mtr		Mini-transaction */
 static void btr_level_list_remove_func(space_id_t space,
                                        const page_size_t &page_size,
                                        page_t *page, const dict_index_t *index,
@@ -2772,10 +2768,11 @@ byte *btr_parse_set_min_rec_mark(
   return (ptr + 2);
 }
 
-/** Sets a record as the predefined minimum record. */
-void btr_set_min_rec_mark(rec_t *rec, /*!< in: record */
-                          mtr_t *mtr) /*!< in: mtr */
-{
+/** Sets a record as the predefined minimum record.
+@param[in,out] rec Record
+@param[in] mtr Mini-transaction
+*/
+void btr_set_min_rec_mark(rec_t *rec, mtr_t *mtr) {
   ulint info_bits;
 
   if (page_rec_is_comp(rec)) {
@@ -2794,12 +2791,12 @@ void btr_set_min_rec_mark(rec_t *rec, /*!< in: record */
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Deletes on the upper level the node pointer to a page. */
-void btr_node_ptr_delete(
-    dict_index_t *index, /*!< in: index tree */
-    buf_block_t *block,  /*!< in: page whose node pointer is deleted */
-    mtr_t *mtr)          /*!< in: mtr */
-{
+/** Deletes on the upper level the node pointer to a page.
+@param[in] index Index tree
+@param[in] block Page whose node pointer is deleted
+@param[in] mtr Mini-transaction
+*/
+void btr_node_ptr_delete(dict_index_t *index, buf_block_t *block, mtr_t *mtr) {
   btr_cur_t cursor;
   ibool compressed;
   dberr_t err;
@@ -4659,9 +4656,9 @@ error:
 }
 
 /** Create an SDI Index
-@param[in]	space_id	tablespace id
-@param[in]	page_size	size of page
-@param[in,out]	mtr		mini transaction
+@param[in]	space_id	Tablespace id
+@param[in]	page_size	Size of page
+@param[in,out]	mtr		Mini-transaction
 @param[in,out]	table		SDI table
 @return root page number of the SDI index created or FIL_NULL on failure */
 static page_no_t btr_sdi_create(space_id_t space_id,
@@ -4677,7 +4674,7 @@ static page_no_t btr_sdi_create(space_id_t space_id,
   return (index->page);
 }
 
-/** Creates SDI index and stores the root page number in page 1 & 2
+/** Creates SDI index and stores the root page numbers in page 1 & 2
 @param[in]	space_id	tablespace id
 @param[in]	dict_locked	true if dict_sys mutex is acquired
 @return DB_SUCCESS on success, else DB_ERROR on failure */
@@ -4729,8 +4726,7 @@ dberr_t btr_sdi_create_index(space_id_t space_id, bool dict_locked) {
   /* Space flags from memory */
   uint32_t fsp_flags = space->flags;
 
-  ut_ad(mach_read_from_4(page + FSP_HEADER_OFFSET + FSP_SPACE_FLAGS) ==
-        fsp_flags);
+  ut_ad(fsp_header_get_field(page, FSP_SPACE_FLAGS) == fsp_flags);
 
   fsp_flags_set_sdi(fsp_flags);
   mlog_write_ulint(FSP_HEADER_OFFSET + FSP_SPACE_FLAGS + page, fsp_flags,

@@ -43,6 +43,8 @@ Asserting based on SHOW SLAVE STATUS(Retrieved_Gtid_Set)
 include/stop_slave_io.inc
 SET GLOBAL GTID_MODE = ON;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
 [connection master]

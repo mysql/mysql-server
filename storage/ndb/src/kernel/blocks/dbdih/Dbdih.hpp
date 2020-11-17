@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -910,7 +910,7 @@ public:
   typedef SLFifoList<TakeOverRecord_pool> TakeOverRecord_fifo;
 
 
-  virtual bool getParam(const char * param, Uint32 * retVal) { 
+  bool getParam(const char * param, Uint32 * retVal) override { 
     if (param && strcmp(param, "ActiveMutexes") == 0)
     {
       if (retVal)
@@ -924,7 +924,7 @@ public:
   
 public:
   Dbdih(Block_context& ctx);
-  virtual ~Dbdih();
+  ~Dbdih() override;
 
   struct RWFragment {
     Uint32 pageIndex;

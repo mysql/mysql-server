@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -56,23 +56,25 @@ class Object_queue : public Abstract_object_reader_wrapper,
                std::function<void(bool)> *thread_callback,
                Mysql::Tools::Base::Abstract_program *program);
 
-  ~Object_queue();
+  ~Object_queue() override;
 
-  void read_object(Item_processing_data *item_to_process);
+  void read_object(Item_processing_data *item_to_process) override;
 
   // Fix "inherits ... via dominance" warnings
-  void register_progress_watcher(I_progress_watcher *new_progress_watcher) {
+  void register_progress_watcher(
+      I_progress_watcher *new_progress_watcher) override {
     Abstract_chain_element::register_progress_watcher(new_progress_watcher);
   }
 
   // Fix "inherits ... via dominance" warnings
-  uint64 get_id() const { return Abstract_chain_element::get_id(); }
+  uint64 get_id() const override { return Abstract_chain_element::get_id(); }
 
   void stop_queue();
 
  protected:
   // Fix "inherits ... via dominance" warnings
-  void item_completion_in_child_callback(Item_processing_data *item_processed) {
+  void item_completion_in_child_callback(
+      Item_processing_data *item_processed) override {
     Abstract_chain_element::item_completion_in_child_callback(item_processed);
   }
 

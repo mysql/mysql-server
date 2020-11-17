@@ -28,8 +28,6 @@ funcs_1.is_basics_mixed @windows : BUG#25882809 INCORRECT RESULT WHEN USING SUBQ
 innodb.analyze_table @solaris                     : BUG#22607584 Failing too often on PB2 due to timeout.
 innodb.log_corruption @darwin                     : BUG#27760219 Test fails consistently on freebsd and Mac after WL#11009.
 innodb.log_corruption @freebsd                    : BUG#27760219 Test fails consistently on freebsd and Mac after WL#11009.
-innodb.portability_tablespace_linux               : BUG#28352630 The maintainability of the zip files required by this test is not acceptable.
-innodb.portability_tablespace_windows             : BUG#28352645 The maintainability of the zip files required by this test is not acceptable.
 innodb.create_tablespace_partition                : WL#12034 Enable again once shared tablespaces are allowed in partitioned table.
 innodb.alter_tablespace_partition                 : WL#12034 Enable again once shared tablespaces are allowed in partitioned table.
 innodb.truncate                                   : WL#12034 Enable again once shared tablespaces are allowed in partitioned table.
@@ -37,7 +35,8 @@ innodb.subpartition                               : WL#12034 Enable again once s
 innodb.ddl_crash_alter_table_partition_tablespace : WL#12034 Enable again once shared tablespaces are allowed in partitioned table.
 innodb.innodb_bug14676111                         : BUG#18200831 The test has never worked correctly
 innodb.log_first_rec_group                        : Bug#29692047 Disable for now until we can find a better way to test this.
-innodb.fts_exec_interrupt                         : Bug#28534199 The test is unstable and should be rewritten 
+innodb.fts_exec_interrupt                         : Bug#28534199 The test is unstable and should be rewritten
+innodb.slow_shutdown                              : Bug#31763837 mtr hits this debug assert post test run cleanup
 
 # keyring tests
 keyring_encrypted_file.keyring_migration_bugs @darwin : Bug#31041633

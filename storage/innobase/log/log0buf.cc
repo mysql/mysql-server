@@ -66,11 +66,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  -# @ref sect_redo_log_add_dirty_pages
  -# @ref sect_redo_log_add_link_to_recent_closed
 
- Then the [log closer thread](@ref sect_redo_log_closer) advances lsn up
- to which lsn values might be available for checkpoint safely (up to which
- all dirty pages have been added to flush lists).
- [Read more about reclaiming space...](@ref sect_redo_log_reclaim_space)
-
  @section sect_redo_log_buf_reserve Reservation of space in the redo
 
  Range of lsn values is reserved for a provided number of data bytes.
@@ -252,8 +247,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
  -# User thread adds the link by setting value of slot for _tmp_start_lsn_:
 
-         to_advance = tmp_end_lsn - tmp_start_lsn
-         log.recent_written[tmp_start_lsn % S] = to_advance
+         log.recent_written[tmp_start_lsn % S] = tmp_end_lsn
 
     The value gives information about how much to advance lsn when traversing
     the link.
@@ -367,20 +361,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
  This is performed by user thread, by setting value of slot for start_lsn:
 
-         log.recent_closed[start_lsn % L] = end_lsn - start_lsn
+         log.recent_closed[start_lsn % L] = end_lsn
 
  where _L_ is size of the log recent closed buffer. The value gives information
  about how much to advance lsn when traversing the link.
-
- The [log closer thread](@ref sect_redo_log_closer) is responsible for reseting
- the entry in _log.recent_closed_ to 0, which must happen before the slot might
- be reused for larger lsn values (larger by _L_, _2L_, ...). Afterwards the log
- closer thread advances @ref subsect_redo_log_buf_dirty_pages_added_up_to_lsn,
- allowing user threads, waiting for free space in the log recent closed buffer,
- to proceed.
-
- @note Note that the increased value of _log.buf_dirty_pages_added_up_to_lsn_
- might possibly allow a newer checkpoint.
 
  @see log_buffer_write_completed_and_dirty_pages_added()
 
@@ -420,11 +404,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  That's why we need to protect from doing checkpoint at such lsn value, which
  would logically erase the just written data to the redo log, until the related
  dirty pages have been added to flush lists.
-
- The [log closer thread](@ref sect_redo_log_closer) tracks up to which lsn the
- log checkpointer thread might trust that all dirty pages have been added -
- so called @ref subsect_redo_log_buf_dirty_pages_added_up_to_lsn. Any attempts
- to make checkpoint at higher value are limited to this lsn.
 
  When user thread has added all the dirty pages related to _start_lsn_ ..
  _end_lsn_, it creates link in the log recent closed buffer, pointing from
@@ -472,18 +451,177 @@ static void log_wait_for_space_after_reserving(log_t &log,
 
  *******************************************************/
 
-/* @{ */
+/** @{ */
 
-size_t log_buffer_s_lock_enter(log_t &log) { return (log.sn_lock.s_lock()); }
+/** Waits for the start_sn unlocked and allowed to write to the buffer.
+@param[in,out] log       redo log
+@param[in]     start_sn  target sn value to start to write */
+static inline void log_buffer_s_lock_wait(log_t &log, const sn_t start_sn) {
+  int64_t signal_count = 0;
+  uint32_t i = 0;
+  uint64_t count_os_wait = 0;
 
-void log_buffer_s_lock_exit(log_t &log, size_t lock_no) {
-  log.sn_lock.s_unlock(lock_no);
+  if (log.sn_locked.load(std::memory_order_acquire) <= start_sn) {
+    rw_lock_stats.rw_s_spin_wait_count.inc();
+    do {
+      if (srv_spin_wait_delay) {
+        ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
+      }
+      if (i < srv_n_spin_wait_rounds) {
+        i++;
+      } else {
+        count_os_wait++;
+        signal_count = os_event_reset(log.sn_lock_event);
+        if ((log.sn.load(std::memory_order_acquire) & SN_LOCKED) == 0 ||
+            log.sn_locked.load(std::memory_order_acquire) > start_sn) {
+          break;
+        }
+        os_event_wait_time_low(log.sn_lock_event, 1000000, signal_count);
+      }
+    } while ((log.sn.load(std::memory_order_acquire) & SN_LOCKED) != 0 &&
+             log.sn_locked.load(std::memory_order_acquire) <= start_sn);
+
+    if (count_os_wait > 0) {
+      rw_lock_stats.rw_s_os_wait_count.add(count_os_wait);
+    }
+    rw_lock_stats.rw_s_spin_round_count.add(i);
+  }
+}
+
+/** Acquires the log buffer s-lock.
+And reserve space in the log buffer.
+The corresponding unlock operation is adding link to log.recent_closed.
+@param[in,out] log     redo log
+@param[in]     len     number of data bytes to reserve for write
+@return start sn of reserved */
+static inline sn_t log_buffer_s_lock_enter_reserve(log_t &log, size_t len) {
+#ifdef UNIV_PFS_RWLOCK
+  PSI_rwlock_locker *locker = nullptr;
+  PSI_rwlock_locker_state state;
+  if (log.pfs_psi != nullptr) {
+    /* Instrumented to inform we are aquiring a shared rwlock */
+    locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
+        &state, log.pfs_psi, PSI_RWLOCK_SHAREDLOCK, __FILE__,
+        static_cast<uint>(__LINE__));
+  }
+#endif /* UNIV_PFS_RWLOCK */
+
+  /* Reserve space in sequence of data bytes: */
+  sn_t start_sn = log.sn.fetch_add(len);
+  if (UNIV_UNLIKELY((start_sn & SN_LOCKED) != 0)) {
+    start_sn &= ~SN_LOCKED;
+    /* log.sn is locked. Should wait for unlocked. */
+    log_buffer_s_lock_wait(log, start_sn);
+  }
+
+  ut_d(rw_lock_add_debug_info(log.sn_lock_inst, 0, RW_LOCK_S, __FILE__,
+                              __LINE__));
+#ifdef UNIV_PFS_RWLOCK
+  if (locker != nullptr) {
+    PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, 0);
+  }
+#endif /* UNIV_PFS_RWLOCK */
+
+  return start_sn;
+}
+
+/** Releases the log buffer s-lock.
+@param[in,out] log       redo log
+@param[in]     start_lsn start lsn of the reservation
+@param[in]     end_lsn   end lsn of the reservation */
+static inline void log_buffer_s_lock_exit_close(log_t &log, lsn_t start_lsn,
+                                                lsn_t end_lsn) {
+#ifdef UNIV_PFS_RWLOCK
+  if (log.pfs_psi != nullptr) {
+    /* Inform performance schema we are unlocking the lock */
+    PSI_RWLOCK_CALL(unlock_rwlock)
+    (log.pfs_psi, PSI_RWLOCK_SHAREDUNLOCK);
+  }
+#endif /* UNIV_PFS_RWLOCK */
+  ut_d(rw_lock_remove_debug_info(log.sn_lock_inst, 0, RW_LOCK_S));
+
+  log.recent_closed.add_link_advance_tail(start_lsn, end_lsn);
 }
 
 void log_buffer_x_lock_enter(log_t &log) {
   LOG_SYNC_POINT("log_buffer_x_lock_enter_before_lock");
 
-  log.sn_lock.x_lock();
+#ifdef UNIV_PFS_RWLOCK
+  PSI_rwlock_locker *locker = nullptr;
+  PSI_rwlock_locker_state state;
+  if (log.pfs_psi != nullptr) {
+    /* Record the acquisition of a read-write lock in exclusive
+    mode in performance schema */
+    locker = PSI_RWLOCK_CALL(start_rwlock_wrwait)(
+        &state, log.pfs_psi, PSI_RWLOCK_EXCLUSIVELOCK, __FILE__,
+        static_cast<uint>(__LINE__));
+  }
+#endif /* UNIV_PFS_RWLOCK */
+
+  /* locks log.sn_locked value */
+  mutex_enter(&(log.sn_x_lock_mutex));
+
+  /* locks log.sn value */
+  sn_t sn = log.sn.load(std::memory_order_acquire);
+  sn_t sn_locked;
+  do {
+    ut_ad((sn & SN_LOCKED) == 0);
+    sn_locked = sn | SN_LOCKED;
+    /* needs to update log.sn_locked before log.sn */
+    /* Indicates x-locked sn value */
+    log.sn_locked.store(sn, std::memory_order_relaxed);
+  } while (
+      !log.sn.compare_exchange_weak(sn, sn_locked, std::memory_order_acq_rel));
+
+  /* Some s-lockers might wait for the new log.sn_locked value. */
+  os_event_set(log.sn_lock_event);
+
+  if (sn > 0) {
+    /* redo log system has been started */
+    const lsn_t current_lsn = log_translate_sn_to_lsn(sn);
+    lsn_t closed_lsn = log_buffer_dirty_pages_added_up_to_lsn(log);
+    uint32_t i = 0;
+    bool slept = false;
+    /* must wait for closed_lsn == current_lsn */
+    while (i < srv_n_spin_wait_rounds && closed_lsn < current_lsn) {
+      if (srv_spin_wait_delay) {
+        ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
+      }
+      i++;
+      closed_lsn = log_buffer_dirty_pages_added_up_to_lsn(log);
+    }
+    if (closed_lsn < current_lsn) {
+      log.recent_closed.advance_tail();
+      closed_lsn = log_buffer_dirty_pages_added_up_to_lsn(log);
+    }
+    if (closed_lsn < current_lsn) {
+      os_thread_yield();
+      closed_lsn = log_buffer_dirty_pages_added_up_to_lsn(log);
+    }
+    while (closed_lsn < current_lsn) {
+      os_thread_sleep(20);
+      slept = true;
+      log.recent_closed.advance_tail();
+      closed_lsn = log_buffer_dirty_pages_added_up_to_lsn(log);
+    }
+
+    if (i > 0) {
+      rw_lock_stats.rw_x_spin_wait_count.inc();
+      if (slept) {
+        /* sleep loop is counted as 1 os_wait */
+        rw_lock_stats.rw_x_os_wait_count.inc();
+      }
+      rw_lock_stats.rw_x_spin_round_count.add(i);
+    }
+  }
+
+  ut_d(rw_lock_add_debug_info(log.sn_lock_inst, 0, RW_LOCK_X, __FILE__,
+                              __LINE__));
+#ifdef UNIV_PFS_RWLOCK
+  if (locker != nullptr) {
+    PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, 0);
+  }
+#endif /* UNIV_PFS_RWLOCK */
 
   LOG_SYNC_POINT("log_buffer_x_lock_enter_after_lock");
 }
@@ -491,12 +629,33 @@ void log_buffer_x_lock_enter(log_t &log) {
 void log_buffer_x_lock_exit(log_t &log) {
   LOG_SYNC_POINT("log_buffer_x_lock_exit_before_unlock");
 
-  log.sn_lock.x_unlock();
+#ifdef UNIV_PFS_RWLOCK
+  if (log.pfs_psi != nullptr) {
+    /* Inform performance schema we are unlocking the lock */
+    PSI_RWLOCK_CALL(unlock_rwlock)
+    (log.pfs_psi, PSI_RWLOCK_EXCLUSIVEUNLOCK);
+  }
+#endif /* UNIV_PFS_RWLOCK */
+  ut_d(rw_lock_remove_debug_info(log.sn_lock_inst, 0, RW_LOCK_X));
+
+  /* unlocks log.sn */
+  sn_t sn = log.sn.load(std::memory_order_acquire);
+  ut_a((sn & SN_LOCKED) != 0);
+  sn_t sn_unlocked;
+  do {
+    sn_unlocked = sn & ~SN_LOCKED;
+    log.sn_locked.store(sn_unlocked, std::memory_order_relaxed);
+  } while (!log.sn.compare_exchange_weak(sn, sn_unlocked,
+                                         std::memory_order_acq_rel));
+  os_event_set(log.sn_lock_event);
+
+  /* unlocks log.sn_locked */
+  mutex_exit(&(log.sn_x_lock_mutex));
 
   LOG_SYNC_POINT("log_buffer_x_lock_exit_after_unlock");
 }
 
-/* @} */
+/** @} */
 
 /**************************************************/ /**
 
@@ -504,11 +663,11 @@ void log_buffer_x_lock_exit(log_t &log) {
 
  *******************************************************/
 
-/* @{ */
+/** @{ */
 
 static void log_wait_for_space_after_reserving(log_t &log,
                                                const Log_handle &handle) {
-  ut_ad(log.sn_lock.s_own(handle.lock_no));
+  ut_ad(rw_lock_own(log.sn_lock_inst, RW_LOCK_S));
 
   const sn_t start_sn = log_translate_lsn_to_sn(handle.start_lsn);
 
@@ -667,10 +826,8 @@ void log_wait_for_space_in_log_buf(log_t &log, sn_t end_sn) {
 Log_handle log_buffer_reserve(log_t &log, size_t len) {
   Log_handle handle;
 
-  handle.lock_no = log_buffer_s_lock_enter(log);
-
   /* In 5.7, we incremented log_write_requests for each single
-  write to log buffer in commit of mini transaction.
+  write to log buffer in commit of mini-transaction.
 
   However, writes which were solved by log_reserve_and_write_fast
   missed to increment the counter. Therefore it wasn't reliable.
@@ -687,7 +844,7 @@ Log_handle log_buffer_reserve(log_t &log, size_t len) {
   ut_a(len > 0);
 
   /* Reserve space in sequence of data bytes: */
-  const sn_t start_sn = log.sn.fetch_add(len);
+  const sn_t start_sn = log_buffer_s_lock_enter_reserve(log, len);
 
   /* Ensure that redo log has been initialized properly. */
   ut_a(start_sn > 0);
@@ -719,7 +876,7 @@ Log_handle log_buffer_reserve(log_t &log, size_t len) {
   return (handle);
 }
 
-/* @} */
+/** @} */
 
 /**************************************************/ /**
 
@@ -727,11 +884,11 @@ Log_handle log_buffer_reserve(log_t &log, size_t len) {
 
  *******************************************************/
 
-/* @{ */
+/** @{ */
 
 lsn_t log_buffer_write(log_t &log, const Log_handle &handle, const byte *str,
                        size_t str_len, lsn_t start_lsn) {
-  ut_ad(log.sn_lock.s_own(handle.lock_no));
+  ut_ad(rw_lock_own(log.sn_lock_inst, RW_LOCK_S));
 
   ut_a(log.buf != nullptr);
   ut_a(log.buf_size > 0);
@@ -870,7 +1027,7 @@ lsn_t log_buffer_write(log_t &log, const Log_handle &handle, const byte *str,
 
 void log_buffer_write_completed(log_t &log, const Log_handle &handle,
                                 lsn_t start_lsn, lsn_t end_lsn) {
-  ut_ad(log.sn_lock.s_own(handle.lock_no));
+  ut_ad(rw_lock_own(log.sn_lock_inst, RW_LOCK_S));
 
   ut_a(log_lsn_validate(start_lsn));
   ut_a(log_lsn_validate(end_lsn));
@@ -914,7 +1071,23 @@ void log_buffer_write_completed(log_t &log, const Log_handle &handle,
 
   /* Note that end_lsn will not point to just before footer,
   because we have already validated that end_lsn is valid. */
-  log.recent_written.add_link(start_lsn, end_lsn);
+  log.recent_written.add_link_advance_tail(start_lsn, end_lsn);
+
+  /* if someone is waiting for, set the event. (if possible) */
+  lsn_t ready_lsn = log_buffer_ready_for_write_lsn(log);
+
+  if (log.current_ready_waiting_lsn > 0 &&
+      log.current_ready_waiting_lsn <= ready_lsn &&
+      !os_event_is_set(log.closer_event) &&
+      log_closer_mutex_enter_nowait(log) == 0) {
+    if (log.current_ready_waiting_lsn > 0 &&
+        log.current_ready_waiting_lsn <= ready_lsn &&
+        !os_event_is_set(log.closer_event)) {
+      log.current_ready_waiting_lsn = 0;
+      os_event_set(log.closer_event);
+    }
+    log_closer_mutex_exit(log);
+  }
 }
 
 void log_wait_for_space_in_log_recent_closed(log_t &log, lsn_t lsn) {
@@ -925,7 +1098,6 @@ void log_wait_for_space_in_log_recent_closed(log_t &log, lsn_t lsn) {
   uint64_t wait_loops = 0;
 
   while (!log.recent_closed.has_space(lsn)) {
-    os_event_set(log.closer_event);
     ++wait_loops;
     os_thread_sleep(20);
   }
@@ -945,20 +1117,18 @@ void log_buffer_close(log_t &log, const Log_handle &handle) {
 
   ut_ad(start_lsn >= log_buffer_dirty_pages_added_up_to_lsn(log));
 
-  ut_ad(log.sn_lock.s_own(handle.lock_no));
+  ut_ad(rw_lock_own(log.sn_lock_inst, RW_LOCK_S));
 
   std::atomic_thread_fence(std::memory_order_release);
 
   LOG_SYNC_POINT("log_buffer_write_completed_dpa_before_store");
 
-  log.recent_closed.add_link(start_lsn, end_lsn);
-
-  log_buffer_s_lock_exit(log, handle.lock_no);
+  log_buffer_s_lock_exit_close(log, start_lsn, end_lsn);
 }
 
 void log_buffer_set_first_record_group(log_t &log, const Log_handle &handle,
                                        lsn_t rec_group_end_lsn) {
-  ut_ad(log.sn_lock.s_own(handle.lock_no));
+  ut_ad(rw_lock_own(log.sn_lock_inst, RW_LOCK_S));
 
   ut_a(log_lsn_validate(rec_group_end_lsn));
 
@@ -996,6 +1166,19 @@ void log_buffer_flush_to_disk(log_t &log, bool sync) {
   const lsn_t lsn = log_get_lsn(log);
 
   log_write_up_to(log, lsn, sync);
+}
+
+void log_buffer_sync_in_background() {
+  log_t &log = *log_sys;
+
+  /* Just to be sure not to miss advance */
+  log.recent_closed.advance_tail();
+
+  /* If the log flusher thread is working, no need to call. */
+  if (log.writer_threads_paused.load(std::memory_order_acquire)) {
+    log.recent_written.advance_tail();
+    log_buffer_flush_to_disk(log, true);
+  }
 }
 
 void log_buffer_get_last_block(log_t &log, lsn_t &last_lsn, byte *last_block,
@@ -1058,7 +1241,7 @@ void log_buffer_get_last_block(log_t &log, lsn_t &last_lsn, byte *last_block,
   block_len = OS_FILE_LOG_BLOCK_SIZE;
 }
 
-/* @} */
+/** @} */
 
 /**************************************************/ /**
 
@@ -1069,7 +1252,7 @@ void log_buffer_get_last_block(log_t &log, lsn_t &last_lsn, byte *last_block,
 
  *******************************************************/
 
-/* @{ */
+/** @{ */
 
 bool log_advance_ready_for_write_lsn(log_t &log) {
   ut_ad(log_writer_mutex_own(log));
@@ -1118,60 +1301,10 @@ bool log_advance_ready_for_write_lsn(log_t &log) {
     return (true);
 
   } else {
-    ut_a(log_buffer_ready_for_write_lsn(log) == previous_lsn);
-
     return (false);
   }
 }
 
-bool log_advance_dirty_pages_added_up_to_lsn(log_t &log) {
-  ut_ad(log_closer_mutex_own(log));
-
-  const lsn_t previous_lsn = log_buffer_dirty_pages_added_up_to_lsn(log);
-
-  ut_a(previous_lsn >= LOG_START_LSN);
-
-  ut_a(previous_lsn >= log_get_checkpoint_lsn(log));
-
-  ut_d(log_closer_thread_active_validate(log));
-
-  auto stop_condition = [&](lsn_t prev_lsn, lsn_t next_lsn) {
-    ut_a(log_lsn_validate(prev_lsn));
-    ut_a(log_lsn_validate(next_lsn));
-
-    ut_a(next_lsn > prev_lsn);
-
-    LOG_SYNC_POINT("log_advance_dpa_before_update");
-    return (false);
-  };
-
-  if (log.recent_closed.advance_tail_until(stop_condition)) {
-    LOG_SYNC_POINT("log_advance_dpa_before_reclaim");
-
-    /* Validation of recent_closed is optional because
-    it takes significant time (delaying the log closer). */
-    if (log_test != nullptr &&
-        log_test->enabled(Log_test::Options::VALIDATE_RECENT_CLOSED)) {
-      /* All links between ready_lsn and lsn have
-      been traversed. The slots can't be re-used
-      before we updated the tail. */
-      log.recent_closed.validate_no_links(
-          previous_lsn, log_buffer_dirty_pages_added_up_to_lsn(log));
-    }
-
-    ut_a(log_buffer_dirty_pages_added_up_to_lsn(log) > previous_lsn);
-
-    std::atomic_thread_fence(std::memory_order_acquire);
-
-    return (true);
-
-  } else {
-    ut_a(log_buffer_dirty_pages_added_up_to_lsn(log) == previous_lsn);
-
-    return (false);
-  }
-}
-
-/* @} */
+/** @} */
 
 #endif /* !UNIV_HOTBACKUP */

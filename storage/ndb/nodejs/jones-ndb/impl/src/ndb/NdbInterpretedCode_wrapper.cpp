@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,8 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <cstddef>
+
 #include <NdbApi.hpp> 
 
 #include "adapter_global.h"
@@ -29,8 +31,6 @@
 #include "NdbWrapperErrors.h"
 #include "NativeMethodCall.h"
 #include "NdbJsConverters.h"
-
-using namespace v8;
 
 
 V8WrapperFn load_const_null;
@@ -338,9 +338,9 @@ void branch_eq_null(const Arguments &args) {
 const void * getValueAddr(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
   EscapableHandleScope scope(args.GetIsolate());
-  Local<Object> buffer = args[0]->ToObject();
-  size_t offset = args[1]->Uint32Value();
-  return node::Buffer::Data(buffer) + offset;
+  Local<Object> buffer = ArgToObject(args, 0);
+  size_t offset = GetUint32Arg(args, 1);
+  return GetBufferData(buffer) + offset;
 }
 
 void branch_col_eq(const Arguments &args) {
@@ -348,7 +348,7 @@ void branch_col_eq(const Arguments &args) {
   EscapableHandleScope scope(args.GetIsolate());
   const void * val = getValueAddr(args);
   NdbInterpretedCode * code = unwrapPointer<NdbInterpretedCode *>(args.Holder());
-  int rval = code->branch_col_eq(val, 0, args[2]->Uint32Value(), args[3]->Uint32Value());
+  int rval = code->branch_col_eq(val, 0, GetUint32Arg(args, 2), GetUint32Arg(args, 3));
   args.GetReturnValue().Set(rval);
 }
 
@@ -357,7 +357,7 @@ void branch_col_ne(const Arguments &args) {
   EscapableHandleScope scope(args.GetIsolate());
   const void * val = getValueAddr(args);
   NdbInterpretedCode * code = unwrapPointer<NdbInterpretedCode *>(args.Holder());
-  int rval = code->branch_col_ne(val, 0, args[2]->Uint32Value(), args[3]->Uint32Value());
+  int rval = code->branch_col_ne(val, 0, GetUint32Arg(args, 2),GetUint32Arg(args, 3));
   args.GetReturnValue().Set(rval);
 }
 
@@ -366,7 +366,7 @@ void branch_col_lt(const Arguments &args) {
   EscapableHandleScope scope(args.GetIsolate());
   const void * val = getValueAddr(args);
   NdbInterpretedCode * code = unwrapPointer<NdbInterpretedCode *>(args.Holder());
-  int rval = code->branch_col_lt(val, 0, args[2]->Uint32Value(), args[3]->Uint32Value());
+  int rval = code->branch_col_lt(val, 0, GetUint32Arg(args, 2),GetUint32Arg(args, 3));
   args.GetReturnValue().Set(rval);
 }
 
@@ -375,7 +375,7 @@ void branch_col_le(const Arguments &args) {
   EscapableHandleScope scope(args.GetIsolate());
   const void * val = getValueAddr(args);
   NdbInterpretedCode * code = unwrapPointer<NdbInterpretedCode *>(args.Holder());
-  int rval = code->branch_col_le(val, 0, args[2]->Uint32Value(), args[3]->Uint32Value());
+  int rval = code->branch_col_le(val, 0, GetUint32Arg(args, 2),GetUint32Arg(args, 3));
   args.GetReturnValue().Set(rval);
 }
 
@@ -384,7 +384,7 @@ void branch_col_gt(const Arguments &args) {
   EscapableHandleScope scope(args.GetIsolate());
   const void * val = getValueAddr(args);
   NdbInterpretedCode * code = unwrapPointer<NdbInterpretedCode *>(args.Holder());
-  int rval = code->branch_col_gt(val, 0, args[2]->Uint32Value(), args[3]->Uint32Value());
+  int rval = code->branch_col_gt(val, 0,GetUint32Arg(args, 2),GetUint32Arg(args, 3));
   args.GetReturnValue().Set(rval);
 }
 
@@ -393,7 +393,7 @@ void branch_col_ge(const Arguments &args) {
   EscapableHandleScope scope(args.GetIsolate());
   const void * val = getValueAddr(args);
   NdbInterpretedCode * code = unwrapPointer<NdbInterpretedCode *>(args.Holder());
-  int rval = code->branch_col_ge(val, 0, args[2]->Uint32Value(), args[3]->Uint32Value());
+  int rval = code->branch_col_ge(val, 0, GetUint32Arg(args, 2),GetUint32Arg(args, 3));
   args.GetReturnValue().Set(rval);
 }
 
@@ -403,7 +403,7 @@ void branch_col_and_mask_eq_mask(const Arguments &args) {
   const void * val = getValueAddr(args);
   NdbInterpretedCode * code = unwrapPointer<NdbInterpretedCode *>(args.Holder());
   int rval = code->branch_col_and_mask_eq_mask(
-    val, 0, args[2]->Uint32Value(), args[3]->Uint32Value());
+    val, 0, GetUint32Arg(args, 2),GetUint32Arg(args, 3));
   args.GetReturnValue().Set(rval);
 }
 
@@ -413,7 +413,7 @@ void branch_col_and_mask_ne_mask(const Arguments &args) {
   const void * val = getValueAddr(args);
   NdbInterpretedCode * code = unwrapPointer<NdbInterpretedCode *>(args.Holder());
   int rval = code->branch_col_and_mask_ne_mask(
-    val, 0, args[2]->Uint32Value(), args[3]->Uint32Value());
+    val, 0,GetUint32Arg(args, 2),GetUint32Arg(args, 3));
   args.GetReturnValue().Set(rval);
 }
 
@@ -423,7 +423,7 @@ void branch_col_and_mask_eq_zero(const Arguments &args) {
   const void * val = getValueAddr(args);
   NdbInterpretedCode * code = unwrapPointer<NdbInterpretedCode *>(args.Holder());
   int rval = code->branch_col_and_mask_eq_zero(
-    val, 0, args[2]->Uint32Value(), args[3]->Uint32Value());
+    val, 0, GetUint32Arg(args, 2),GetUint32Arg(args, 3));
   args.GetReturnValue().Set(rval);
 }
 
@@ -433,7 +433,7 @@ void branch_col_and_mask_ne_zero(const Arguments &args) {
   const void * val = getValueAddr(args);
   NdbInterpretedCode * code = unwrapPointer<NdbInterpretedCode *>(args.Holder());
   int rval = code->branch_col_and_mask_ne_zero(
-    val, 0, args[2]->Uint32Value(), args[3]->Uint32Value());
+    val, 0, GetUint32Arg(args, 2),GetUint32Arg(args, 3));
   args.GetReturnValue().Set(rval);
 }
 
@@ -591,10 +591,9 @@ void getWordsUsed(const Arguments &args) {
   args.GetReturnValue().Set(scope.Escape(ncall.jsReturnVal()));
 }
 
-void NdbInterpretedCode_initOnLoad(Handle<Object> target) {
-  Local<String> ic_key = NEW_SYMBOL("NdbInterpretedCode");
-  Local<Object> ic_obj = Object::New(v8::Isolate::GetCurrent());
-  target->Set(ic_key, ic_obj);
+void NdbInterpretedCode_initOnLoad(Local<Object> target) {
+  Local<Object> ic_obj = Object::New(target->GetIsolate());
+  SetProp(target, "NdbInterpretedCode", ic_obj);
   DEFINE_JS_FUNCTION(ic_obj, "create", newNdbInterpretedCode);
 }
 

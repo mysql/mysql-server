@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,9 +75,9 @@ class Check_constraint_name_error_handler : public Internal_error_handler {
  public:
   Check_constraint_name_error_handler(const char *name) : m_name(name) {}
 
-  virtual bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *) {
+  bool handle_condition(THD *, uint sql_errno, const char *,
+                        Sql_condition::enum_severity_level *,
+                        const char *) override {
     if (sql_errno == ER_DUP_ENTRY) {
       my_error(ER_CHECK_CONSTRAINT_DUP_NAME, MYF(0), m_name);
       return true;

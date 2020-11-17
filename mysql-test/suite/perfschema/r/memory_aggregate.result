@@ -40,13 +40,15 @@ CURRENT_NUMBER_OF_BYTES_USED	0
 HIGH_NUMBER_OF_BYTES_USED	0
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	1
+localhost	2	2
 "================== con1 connected =================="
 "================== Step 2 =================="
 call dump_thread();
@@ -122,15 +124,17 @@ CURRENT_NUMBER_OF_BYTES_USED	0
 HIGH_NUMBER_OF_BYTES_USED	0
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	1	1
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	1	1
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	2	2
+localhost	3	3
 select get_lock("marker_1", 10);
 get_lock("marker_1", 10)
 1
@@ -215,15 +219,17 @@ CURRENT_NUMBER_OF_BYTES_USED	7003
 HIGH_NUMBER_OF_BYTES_USED	7003
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	1	1
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	1	1
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	2	2
+localhost	3	3
 "================== con2 connected =================="
 "================== Step 4 =================="
 call dump_thread();
@@ -334,17 +340,19 @@ CURRENT_NUMBER_OF_BYTES_USED	7003
 HIGH_NUMBER_OF_BYTES_USED	7003
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	1	1
 user2	localhost	1	1
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	1	1
 user2	1	1
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	3	3
+localhost	4	4
 select get_lock("marker_2", 10);
 get_lock("marker_2", 10)
 1
@@ -464,17 +472,19 @@ CURRENT_NUMBER_OF_BYTES_USED	14006
 HIGH_NUMBER_OF_BYTES_USED	14006
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	1	1
 user2	localhost	1	1
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	1	1
 user2	1	1
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	3	3
+localhost	4	4
 truncate table performance_schema.memory_summary_by_thread_by_event_name;
 "================== MEMORY_BY_THREAD truncated =================="
 "================== Step 5b =================="
@@ -586,17 +596,19 @@ CURRENT_NUMBER_OF_BYTES_USED	14006
 HIGH_NUMBER_OF_BYTES_USED	14006
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	1	1
 user2	localhost	1	1
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	1	1
 user2	1	1
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	3	3
+localhost	4	4
 "================== con3 connected =================="
 "================== Step 6 =================="
 call dump_thread();
@@ -742,19 +754,21 @@ CURRENT_NUMBER_OF_BYTES_USED	14006
 HIGH_NUMBER_OF_BYTES_USED	14006
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	1	1
 user2	localhost	1	1
 user3	localhost	1	1
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	1	1
 user2	1	1
 user3	1	1
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	4	4
+localhost	5	5
 select get_lock("marker_3", 10);
 get_lock("marker_3", 10)
 1
@@ -909,19 +923,21 @@ CURRENT_NUMBER_OF_BYTES_USED	21009
 HIGH_NUMBER_OF_BYTES_USED	21009
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	1	1
 user2	localhost	1	1
 user3	localhost	1	1
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	1	1
 user2	1	1
 user3	1	1
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	4	4
+localhost	5	5
 "================== con4/con5 (both user4) connected =================="
 "================== Step 8 =================="
 call dump_thread();
@@ -1102,6 +1118,7 @@ CURRENT_NUMBER_OF_BYTES_USED	21009
 HIGH_NUMBER_OF_BYTES_USED	21009
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	1	1
 user2	localhost	1	1
@@ -1109,6 +1126,7 @@ user3	localhost	1	1
 user4	localhost	2	2
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	1	1
 user2	1	1
@@ -1116,7 +1134,7 @@ user3	1	1
 user4	2	2
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	6	6
+localhost	7	7
 select get_lock("marker_4", 10);
 get_lock("marker_4", 10)
 1
@@ -1315,6 +1333,7 @@ CURRENT_NUMBER_OF_BYTES_USED	35015
 HIGH_NUMBER_OF_BYTES_USED	35015
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	1	1
 user2	localhost	1	1
@@ -1322,6 +1341,7 @@ user3	localhost	1	1
 user4	localhost	2	2
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	1	1
 user2	1	1
@@ -1329,7 +1349,7 @@ user3	1	1
 user4	2	2
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	6	6
+localhost	7	7
 "================== con1/con5 disconnected =================="
 "================== Step 10 =================="
 call dump_thread();
@@ -1500,6 +1520,7 @@ CURRENT_NUMBER_OF_BYTES_USED	21009
 HIGH_NUMBER_OF_BYTES_USED	35015
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	1	1
@@ -1507,6 +1528,7 @@ user3	localhost	1	1
 user4	localhost	1	2
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	0	1
 user2	1	1
@@ -1514,7 +1536,7 @@ user3	1	1
 user4	1	2
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	4	6
+localhost	5	7
 "================== con2 disconnected =================="
 "================== Step 11 =================="
 call dump_thread();
@@ -1675,6 +1697,7 @@ CURRENT_NUMBER_OF_BYTES_USED	14006
 HIGH_NUMBER_OF_BYTES_USED	35015
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -1682,6 +1705,7 @@ user3	localhost	1	1
 user4	localhost	1	2
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	0	1
 user2	0	1
@@ -1689,7 +1713,7 @@ user3	1	1
 user4	1	2
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	3	6
+localhost	4	7
 "================== con3 disconnected =================="
 "================== Step 12 =================="
 call dump_thread();
@@ -1840,6 +1864,7 @@ CURRENT_NUMBER_OF_BYTES_USED	7003
 HIGH_NUMBER_OF_BYTES_USED	35015
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -1847,6 +1872,7 @@ user3	localhost	0	1
 user4	localhost	1	2
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	0	1
 user2	0	1
@@ -1854,7 +1880,7 @@ user3	0	1
 user4	1	2
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	2	6
+localhost	3	7
 "================== con4 disconnected =================="
 "================== Step 13 =================="
 call dump_thread();
@@ -1995,6 +2021,7 @@ CURRENT_NUMBER_OF_BYTES_USED	0
 HIGH_NUMBER_OF_BYTES_USED	35015
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -2002,6 +2029,7 @@ user3	localhost	0	1
 user4	localhost	0	2
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	0	1
 user2	0	1
@@ -2009,7 +2037,7 @@ user3	0	1
 user4	0	2
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	6
+localhost	2	7
 truncate performance_schema.memory_summary_by_thread_by_event_name;
 "================== MEMORY_BY_THREAD truncated =================="
 "================== Step 14 =================="
@@ -2151,6 +2179,7 @@ CURRENT_NUMBER_OF_BYTES_USED	0
 HIGH_NUMBER_OF_BYTES_USED	35015
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -2158,6 +2187,7 @@ user3	localhost	0	1
 user4	localhost	0	2
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	0	1
 user2	0	1
@@ -2165,7 +2195,7 @@ user3	0	1
 user4	0	2
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	6
+localhost	2	7
 truncate performance_schema.memory_summary_by_account_by_event_name;
 "================== MEMORY_BY_ACCOUNT truncated =================="
 "================== Step 15 =================="
@@ -2307,6 +2337,7 @@ CURRENT_NUMBER_OF_BYTES_USED	0
 HIGH_NUMBER_OF_BYTES_USED	35015
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -2314,6 +2345,7 @@ user3	localhost	0	1
 user4	localhost	0	2
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	0	1
 user2	0	1
@@ -2321,7 +2353,7 @@ user3	0	1
 user4	0	2
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	6
+localhost	2	7
 truncate performance_schema.memory_summary_by_user_by_event_name;
 "================== MEMORY_BY_USER truncated =================="
 "================== Step 16 =================="
@@ -2463,6 +2495,7 @@ CURRENT_NUMBER_OF_BYTES_USED	0
 HIGH_NUMBER_OF_BYTES_USED	35015
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -2470,6 +2503,7 @@ user3	localhost	0	1
 user4	localhost	0	2
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	0	1
 user2	0	1
@@ -2477,7 +2511,7 @@ user3	0	1
 user4	0	2
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	6
+localhost	2	7
 truncate performance_schema.memory_summary_by_host_by_event_name;
 "================== MEMORY_BY_HOST truncated =================="
 "================== Step 17 =================="
@@ -2619,6 +2653,7 @@ CURRENT_NUMBER_OF_BYTES_USED	0
 HIGH_NUMBER_OF_BYTES_USED	35015
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -2626,6 +2661,7 @@ user3	localhost	0	1
 user4	localhost	0	2
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	0	1
 user2	0	1
@@ -2633,7 +2669,7 @@ user3	0	1
 user4	0	2
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	6
+localhost	2	7
 truncate performance_schema.memory_summary_global_by_event_name;
 "================== MEMORY_GLOBAL truncated =================="
 "================== Step 18 =================="
@@ -2775,6 +2811,7 @@ CURRENT_NUMBER_OF_BYTES_USED	0
 HIGH_NUMBER_OF_BYTES_USED	0
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -2782,6 +2819,7 @@ user3	localhost	0	1
 user4	localhost	0	2
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	0	1
 user2	0	1
@@ -2789,7 +2827,7 @@ user3	0	1
 user4	0	2
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	6
+localhost	2	7
 truncate performance_schema.accounts;
 "================== ACCOUNTS truncated =================="
 "================== Step 19 =================="
@@ -2879,9 +2917,11 @@ CURRENT_NUMBER_OF_BYTES_USED	0
 HIGH_NUMBER_OF_BYTES_USED	0
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	0	1
 user2	0	1
@@ -2889,7 +2929,7 @@ user3	0	1
 user4	0	2
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	6
+localhost	2	7
 truncate performance_schema.users;
 "================== USERS truncated =================="
 "================== Step 20 =================="
@@ -2931,13 +2971,15 @@ CURRENT_NUMBER_OF_BYTES_USED	0
 HIGH_NUMBER_OF_BYTES_USED	0
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	6
+localhost	2	7
 truncate performance_schema.hosts;
 "================== HOSTS truncated =================="
 "================== Step 21 =================="
@@ -2979,10 +3021,12 @@ CURRENT_NUMBER_OF_BYTES_USED	0
 HIGH_NUMBER_OF_BYTES_USED	0
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	1
+localhost	2	2

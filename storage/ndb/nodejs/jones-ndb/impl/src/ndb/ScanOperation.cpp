@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2014, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -34,8 +34,6 @@
 #include "ScanOperation.h"
 #include "TransactionImpl.h"
 
-using namespace v8;
-
 void debug_print_flags_and_options(const NdbScanOperation::ScanOptions & opts) {
   char flags[128];
   char optstring[80];
@@ -69,70 +67,70 @@ ScanOperation::ScanOperation(const Arguments &args) :
 
   Local<Value> v;
 
-  const Local<Object> spec = args[0]->ToObject();
-  opcode = args[1]->Int32Value();
-  ctx = unwrapPointer<TransactionImpl *>(args[2]->ToObject());
+  const Local<Object> spec = ArgToObject(args, 0);
+  opcode = GetInt32Arg(args, 1);
+  ctx = unwrapPointer<TransactionImpl *>(ArgToObject(args, 2));
 
   lmode = NdbOperation::LM_CommittedRead;
   scan_options.scan_flags = 0;
   scan_options.optionsPresent = 0ULL;
 
-  v = spec->Get(SCAN_TABLE_RECORD);
+  v = Get(spec, SCAN_TABLE_RECORD);
   if(! v->IsNull()) {
-    Local<Object> o = v->ToObject();
+    Local<Object> o = ToObject(args, v);
     row_record = unwrapPointer<const Record *>(o);
     createBlobReadHandles(row_record);
   }
 
-  v = spec->Get(SCAN_INDEX_RECORD);
+  v = Get(spec, SCAN_INDEX_RECORD);
   if(! v->IsNull()) {
-    Local<Object> o = v->ToObject();
+    Local<Object> o = ToObject(args, v);
     isIndexScan = true;
     key_record = unwrapPointer<const Record *>(o);
   }
   
-  v = spec->Get(SCAN_LOCK_MODE);
+  v = Get(spec, SCAN_LOCK_MODE);
   if(! v->IsNull()) {
-    int intLockMode = v->Int32Value();
+    int intLockMode = GetInt32Value(args, v);
     DEBUG_PRINT("Scan lock mode %d", intLockMode);
     lmode = static_cast<NdbOperation::LockMode>(intLockMode);
   }
 
   // SCAN_BOUNDS is an array of BoundHelpers  
-  v = spec->Get(SCAN_BOUNDS);
+  v = Get(spec, SCAN_BOUNDS);
   if(v->IsArray()) {
-    Local<Object> o = v->ToObject();
-    while(o->Has(nbounds)) {
-      nbounds++; 
+    Local<Object> o = ToObject(args, v);
+    while(HasProperty(args, o, nbounds)) {
+      nbounds++;
     }
     DEBUG_PRINT("Index Scan with %d IndexBounds", nbounds);
     bounds = new NdbIndexScanOperation::IndexBound *[nbounds];
     for(int i = 0 ; i < nbounds ; i++) {
-      Local<Object> b = o->Get(i)->ToObject();
+      Local<Object> b = ToObject(args, Get(args, o, i));
       bounds[i] = unwrapPointer<NdbIndexScanOperation::IndexBound *>(b);
     }
   }
 
-  v = spec->Get(SCAN_OPTION_FLAGS);
+  v = Get(spec, SCAN_OPTION_FLAGS);
   if(! v->IsNull()) {
-    scan_options.scan_flags = v->Uint32Value();
+    scan_options.scan_flags = GetUint32Value(args, v);
   }
   
-  v = spec->Get(SCAN_OPTION_BATCH_SIZE);
+  v = Get(spec, SCAN_OPTION_BATCH_SIZE);
   if(! v->IsNull()) {
-    scan_options.batch = v->Uint32Value();
+    scan_options.batch = GetUint32Value(args, v);
     scan_options.optionsPresent |= NdbScanOperation::ScanOptions::SO_BATCH;
   }
   
-  v = spec->Get(SCAN_OPTION_PARALLELISM);
+  v = Get(spec, SCAN_OPTION_PARALLELISM);
   if(! v->IsNull()) {
-    scan_options.parallel = v->Uint32Value();
+    scan_options.parallel = GetUint32Value(args, v);
     scan_options.optionsPresent |= NdbScanOperation::ScanOptions::SO_PARALLEL;
   }
   
-  v = spec->Get(SCAN_FILTER_CODE);
+  v = Get(spec, SCAN_FILTER_CODE);
   if(! v->IsNull()) {
-    Local<Object> o = v->ToObject();
+    Local<Object> o = ToObject(args, v);
     scan_options.interpretedCode = unwrapPointer<NdbInterpretedCode *>(o);
     scan_options.optionsPresent |= NdbScanOperation::ScanOptions::SO_INTERPRETED;
   }

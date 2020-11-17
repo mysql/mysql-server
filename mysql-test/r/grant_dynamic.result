@@ -1,5 +1,7 @@
 call mtr.add_suppression(".*The system table mysql.global_grants.*");
 call mtr.add_suppression("ACL table mysql.global_grants missing. Some operations may fail.");
+call mtr.add_suppression("An empty or illegal privilege identifier was ignored when global privileges were read from disk.");
+CREATE TABLE mysql.backup_global_grants AS SELECT * FROM mysql.global_grants;
 #
 # Bug25303916 WL8131:FLUSH DOES NOT UPDATE THE GRANT STATUS IN
 # mysql.global_grants
@@ -12,6 +14,7 @@ GRANT USAGE ON *.* TO `u1`@`localhost`
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost`
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.infoschema	localhost	SYSTEM_USER	N
 mysql.session	localhost	BACKUP_ADMIN	N
 mysql.session	localhost	CLONE_ADMIN	N
 mysql.session	localhost	CONNECTION_ADMIN	N
@@ -19,6 +22,7 @@ mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
 mysql.session	localhost	SYSTEM_VARIABLES_ADMIN	N
+mysql.sys	localhost	SYSTEM_USER	N
 root	localhost	APPLICATION_PASSWORD_ADMIN	Y
 root	localhost	AUDIT_ADMIN	Y
 root	localhost	BACKUP_ADMIN	Y
@@ -54,6 +58,7 @@ GRANT USAGE ON *.* TO `u1`@`localhost`
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.infoschema	localhost	SYSTEM_USER	N
 mysql.session	localhost	BACKUP_ADMIN	N
 mysql.session	localhost	CLONE_ADMIN	N
 mysql.session	localhost	CONNECTION_ADMIN	N
@@ -61,6 +66,7 @@ mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
 mysql.session	localhost	SYSTEM_VARIABLES_ADMIN	N
+mysql.sys	localhost	SYSTEM_USER	N
 root	localhost	APPLICATION_PASSWORD_ADMIN	Y
 root	localhost	AUDIT_ADMIN	Y
 root	localhost	BACKUP_ADMIN	Y
@@ -95,6 +101,7 @@ GRANT USAGE ON *.* TO `u1`@`localhost`
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.infoschema	localhost	SYSTEM_USER	N
 mysql.session	localhost	BACKUP_ADMIN	N
 mysql.session	localhost	CLONE_ADMIN	N
 mysql.session	localhost	CONNECTION_ADMIN	N
@@ -102,6 +109,7 @@ mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
 mysql.session	localhost	SYSTEM_VARIABLES_ADMIN	N
+mysql.sys	localhost	SYSTEM_USER	N
 root	localhost	APPLICATION_PASSWORD_ADMIN	Y
 root	localhost	AUDIT_ADMIN	Y
 root	localhost	BACKUP_ADMIN	Y
@@ -149,6 +157,7 @@ GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 ** Only one dynamic entry
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.infoschema	localhost	SYSTEM_USER	N
 mysql.session	localhost	BACKUP_ADMIN	N
 mysql.session	localhost	CLONE_ADMIN	N
 mysql.session	localhost	CONNECTION_ADMIN	N
@@ -156,6 +165,7 @@ mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
 mysql.session	localhost	SYSTEM_VARIABLES_ADMIN	N
+mysql.sys	localhost	SYSTEM_USER	N
 root	localhost	APPLICATION_PASSWORD_ADMIN	Y
 root	localhost	AUDIT_ADMIN	Y
 root	localhost	BACKUP_ADMIN	Y
@@ -195,6 +205,7 @@ GRANT USAGE ON *.* TO `u1`@`localhost`
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.infoschema	localhost	SYSTEM_USER	N
 mysql.session	localhost	BACKUP_ADMIN	N
 mysql.session	localhost	CLONE_ADMIN	N
 mysql.session	localhost	CONNECTION_ADMIN	N
@@ -202,6 +213,7 @@ mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
 mysql.session	localhost	SYSTEM_VARIABLES_ADMIN	N
+mysql.sys	localhost	SYSTEM_USER	N
 root	localhost	APPLICATION_PASSWORD_ADMIN	Y
 root	localhost	AUDIT_ADMIN	Y
 root	localhost	BACKUP_ADMIN	Y
@@ -236,6 +248,7 @@ GRANT USAGE ON *.* TO `u1`@`localhost`
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.infoschema	localhost	SYSTEM_USER	N
 mysql.session	localhost	BACKUP_ADMIN	N
 mysql.session	localhost	CLONE_ADMIN	N
 mysql.session	localhost	CONNECTION_ADMIN	N
@@ -243,6 +256,7 @@ mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
 mysql.session	localhost	SYSTEM_VARIABLES_ADMIN	N
+mysql.sys	localhost	SYSTEM_USER	N
 root	localhost	APPLICATION_PASSWORD_ADMIN	Y
 root	localhost	AUDIT_ADMIN	Y
 root	localhost	BACKUP_ADMIN	Y
@@ -300,6 +314,7 @@ GRANT RUBBISH ON *.* TO `u1`@`localhost`
 DROP USER u1@localhost;
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.infoschema	localhost	SYSTEM_USER	N
 mysql.session	localhost	BACKUP_ADMIN	N
 mysql.session	localhost	CLONE_ADMIN	N
 mysql.session	localhost	CONNECTION_ADMIN	N
@@ -307,6 +322,7 @@ mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
 mysql.session	localhost	SYSTEM_VARIABLES_ADMIN	N
+mysql.sys	localhost	SYSTEM_USER	N
 root	localhost	APPLICATION_PASSWORD_ADMIN	Y
 root	localhost	AUDIT_ADMIN	Y
 root	localhost	BACKUP_ADMIN	Y
@@ -355,6 +371,7 @@ ERROR 42000: There is no such grant defined for user 'u1' on host 'localhost'
 ** privileges are affected by RENAME
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.infoschema	localhost	SYSTEM_USER	N
 mysql.session	localhost	BACKUP_ADMIN	N
 mysql.session	localhost	CLONE_ADMIN	N
 mysql.session	localhost	CONNECTION_ADMIN	N
@@ -362,6 +379,7 @@ mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
 mysql.session	localhost	SYSTEM_VARIABLES_ADMIN	N
+mysql.sys	localhost	SYSTEM_USER	N
 root	localhost	APPLICATION_PASSWORD_ADMIN	Y
 root	localhost	AUDIT_ADMIN	Y
 root	localhost	BACKUP_ADMIN	Y
@@ -418,6 +436,7 @@ GRANT SELECT ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.infoschema	localhost	SYSTEM_USER	N
 mysql.session	localhost	BACKUP_ADMIN	N
 mysql.session	localhost	CLONE_ADMIN	N
 mysql.session	localhost	CONNECTION_ADMIN	N
@@ -425,6 +444,7 @@ mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
 mysql.session	localhost	SYSTEM_VARIABLES_ADMIN	N
+mysql.sys	localhost	SYSTEM_USER	N
 root	localhost	APPLICATION_PASSWORD_ADMIN	Y
 root	localhost	AUDIT_ADMIN	Y
 root	localhost	BACKUP_ADMIN	Y
@@ -1151,6 +1171,8 @@ binlog.000001	#	Query	#	#	use `test`; GRANT GRANT OPTION ON *.* TO 'u1'@'%' WITH
 DROP USER u1;
 RESET MASTER;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 #
 # WRITING EMPTY PRIVILEGES INTO GLOBAL_GRANTS TABLE
 #
@@ -1170,3 +1192,8 @@ INSERT INTO mysql.global_grants (user, host, priv) values ('', '', ' ');
 FLUSH PRIVILEGES;
 DELETE FROM mysql.global_grants WHERE user = '' AND host = '' AND priv = ' ';
 FLUSH PRIVILEGES;
+# restore the global_grants table
+DELETE FROM mysql.global_grants;
+INSERT INTO mysql.global_grants SELECT * FROM mysql.backup_global_grants;
+FLUSH PRIVILEGES;
+DROP TABLE mysql.backup_global_grants;
