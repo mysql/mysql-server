@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,26 +22,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifndef NDB_GLOBAL_SCHEMA_LOCK_H
-#define NDB_GLOBAL_SCHEMA_LOCK_H
+package testsuite.clusterj.tie;
 
-class THD;
+public class SessionFactoryTest extends testsuite.clusterj.SessionFactoryTest {
 
-/**
-  Locks or unlock the GSL, thus preventing concurrent
-  modification to any other object in the cluster
-
-  @param thd                Thread context.
-  @param lock               Indicates whether GSL should be locked or unlocked
-  @param record_gsl         Record and track the GSL so that it can be used to
-                            detect any possible deadlocks
-  @param victimized         'true' if locking failed as we were choosen
-                             as a victim in order to avoid possible deadlocks.
-
-  @return false ok
-  @return true  error
-*/
-
-bool ndb_gsl_lock(THD *thd, bool lock, bool record_gsl, bool *victimized);
-
-#endif
+}

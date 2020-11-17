@@ -97,13 +97,14 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     /** Connection pool size obtained from the property PROPERTY_CONNECTION_POOL_SIZE */
     int connectionPoolSize;
 
+    /** Boolean flag indicating if connection pool is disabled or not */
+    boolean connectionPoolDisabled = false;
+
     /** Map of Proxy Interfaces to Domain Class */
-    // TODO make this non-static
-    static private Map<String, Class<?>> proxyInterfacesToDomainClass = new HashMap<String, Class<?>>();
+    final private Map<String, Class<?>> proxyInterfacesToDomainClassMap = new HashMap<String, Class<?>>();
 
     /** Map of Domain Class to DomainTypeHandler. */
-    // TODO make this non-static
-    static final protected Map<Class<?>, DomainTypeHandler<?>> typeToHandlerMap =
+    final private Map<Class<?>, DomainTypeHandler<?>> typeToHandlerMap =
             new HashMap<Class<?>, DomainTypeHandler<?>>();
 
     /** DomainTypeHandlerFactory for this session factory. */
@@ -179,6 +180,12 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
         this.key = getSessionFactoryKey(props);
         this.connectionPoolSize = getIntProperty(props, 
                 PROPERTY_CONNECTION_POOL_SIZE, DEFAULT_PROPERTY_CONNECTION_POOL_SIZE);
+        if (connectionPoolSize == 0) {
+            // Connection pool is disabled. This is handled internally almost
+            // same as a SessionFactory with a connection pool of size 1.
+            connectionPoolSize = 1;
+            connectionPoolDisabled = true;
+        }
         CLUSTER_RECONNECT_TIMEOUT = getIntProperty(props,
                 PROPERTY_CONNECTION_RECONNECT_TIMEOUT, DEFAULT_PROPERTY_CONNECTION_RECONNECT_TIMEOUT);
         CLUSTER_CONNECT_STRING = getRequiredStringProperty(props, PROPERTY_CLUSTER_CONNECTSTRING);
@@ -252,7 +259,14 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
                             nodeIdsProperty, connectionPoolSize);
                     logger.warn(msg);
                     throw new ClusterJFatalUserException(msg);
-                    
+                }
+            } else if (connectionPoolDisabled) {
+                if (nodeIds.size() != 1) {
+                    // Connection pool is disabled but more than one nodeId specified
+                    msg = local.message("ERR_Multiple_Node_Ids_For_Disabled_Connection_Pool",
+                            nodeIdsProperty);
+                    logger.warn(msg);
+                    throw new ClusterJFatalUserException(msg);
                 }
             } else {
                 // only node ids are specified; make pool size match number of node ids
@@ -267,8 +281,13 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
             String[] cpuIdsStringArray = cpuIdsProperty.split("[,; \t\n\r]+", 64);
             if (cpuIdsStringArray.length != connectionPoolSize) {
                 // cpu ids property didn't match connection pool size
-                msg = local.message("ERR_CPU_Ids_Must_Match_Connection_Pool_Size",
+                if (connectionPoolDisabled) {
+                    msg = local.message("ERR_Multiple_CPU_Ids_For_Disabled_Connection_Pool",
+                        cpuIdsProperty);
+                } else {
+                    msg = local.message("ERR_CPU_Ids_Must_Match_Connection_Pool_Size",
                         cpuIdsProperty, connectionPoolSize);
+                }
                 logger.warn(msg);
                 throw new ClusterJFatalUserException(msg);
             }
@@ -439,7 +458,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     }
 
     private ClusterConnection getClusterConnectionFromPool() {
-        if (connectionPoolSize <= 1) {
+        if (connectionPoolSize == 1) {
             return pooledConnections.get(0);
         }
         // find the best pooled connection (the connection with the least active sessions)
@@ -468,7 +487,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
      * @param cls the Class for which to get domain type handler
      * @return the DomainTypeHandler or null if not available
      */
-    public static <T> DomainTypeHandler<T> getDomainTypeHandler(Class<T> cls) {
+    public <T> DomainTypeHandler<T> getDomainTypeHandler(Class<T> cls) {
         // synchronize here because the map is not synchronized
         synchronized(typeToHandlerMap) {
             @SuppressWarnings( "unchecked" )
@@ -515,7 +534,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
                 Class<?>[] proxyInterfaces = domainTypeHandler.getProxyInterfaces();
                 if (proxyInterfaces != null) {
                     String key = generateProxyInterfacesKey(proxyInterfaces);
-                    proxyInterfacesToDomainClass.put(key, cls);
+                    proxyInterfacesToDomainClassMap.put(key, cls);
                 }
             }
             return domainTypeHandler;
@@ -539,7 +558,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
      * @param object the object
      * @return the Domain class of the object
      */
-    protected static <T> Class<T> getClassForProxy(T object) {
+    protected <T> Class<T> getClassForProxy(T object) {
         Class<?> cls = object.getClass();
         if (java.lang.reflect.Proxy.isProxyClass(cls)) {
             // The underlying class is a Proxy. Retrieve the interfaces implemented
@@ -547,7 +566,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
             // proxyInterfacesToDomainClass map.
             Class<?>[] proxyInterfaces = cls.getInterfaces();
             String key = generateProxyInterfacesKey(proxyInterfaces);
-            cls = proxyInterfacesToDomainClass.get(key);
+            cls = proxyInterfacesToDomainClassMap.get(key);
         }
         return (Class<T>)cls;
     }
@@ -825,7 +844,8 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
             factory.pooledConnections.clear();
             // remove all DomainTypeHandlers, as they embed references to
             // Ndb dictionary objects which have been removed
-            typeToHandlerMap.clear();
+            factory.typeToHandlerMap.clear();
+            factory.proxyInterfacesToDomainClassMap.clear();
 
             logger.warn(local.message("WARN_Reconnect_creating"));
             factory.createClusterConnectionPool();

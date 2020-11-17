@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,11 +54,13 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.Set;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
@@ -91,6 +93,8 @@ public abstract class AbstractClusterJTest extends TestCase {
     protected Session session;
     protected SessionFactory sessionFactory;
     protected Transaction tx;
+    /** Set of all SessionFactories created by the tests */
+    private static Set<SessionFactory> existingSessionFactories = new HashSet<SessionFactory>();
 
     /**
      *
@@ -107,6 +111,7 @@ public abstract class AbstractClusterJTest extends TestCase {
      *
      * A list of registered oid instances.
      * Corresponding pc instances are deleted in <code>localTearDown</code>.
+     *
      */
     private Collection<Object> tearDownInstances = new LinkedList<Object>();
 
@@ -142,8 +147,22 @@ public abstract class AbstractClusterJTest extends TestCase {
             Properties modifiedProperties = modifyProperties();
             if (debug) System.out.println("createSessionFactory props: " + modifiedProperties);
             sessionFactory = ClusterJHelper.getSessionFactory(modifiedProperties);
+            existingSessionFactories.add(sessionFactory);
             loadSchema();
         }
+    }
+
+    /** Close any open session factories.
+     * Tests can call this function to close any open session factories,
+     * to prevent them from causing any interference with their testing.
+     */
+    protected static void closeAllExistingSessionFactories () {
+        for (SessionFactory sessionFactory : existingSessionFactories) {
+            if (sessionFactory.currentState() != SessionFactory.State.Closed) {
+                sessionFactory.close();
+            }
+        }
+        existingSessionFactories.clear();
     }
 
     protected Properties modifyProperties() {
@@ -472,6 +491,10 @@ public abstract class AbstractClusterJTest extends TestCase {
 
     /** Load properties from clusterj.properties */
     protected void loadProperties() {
+        if (props != null) {
+            // Properties have been loaded already
+            return;
+        }
         props = getProperties(PROPS_FILE_NAME);
         jdbcDriverName = props.getProperty(Constants.PROPERTY_JDBC_DRIVER_NAME);
         jdbcURL = props.getProperty(Constants.PROPERTY_JDBC_URL);

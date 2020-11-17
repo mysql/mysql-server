@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,10 +29,10 @@ package com.mysql.clusterj;
  */
 public interface Constants {
 
-	/** The name of the environment variable to set the logger factory */
-	static final String ENV_CLUSTERJ_LOGGER_FACTORY_NAME = "CLUSTERJ_LOGGER_FACTORY";
+    /** The name of the environment variable to set the logger factory */
+    static final String ENV_CLUSTERJ_LOGGER_FACTORY_NAME = "CLUSTERJ_LOGGER_FACTORY";
 
-	/** The name of the connection service property */
+    /** The name of the connection service property */
     static final String PROPERTY_CLUSTER_CONNECTION_SERVICE = "com.mysql.clusterj.connection.service";
 
     /** The name of the connection string property. For details, see
@@ -142,9 +142,11 @@ public interface Constants {
 
     /** The cpu binding of the receive threads for the connections in the
      * connection pool. The default is no cpu binding for receive threads.
-     * If this property is specified and connection pool size is not the
-     * default (1), the number of cpuids of the list must match the
-     * connection pool size.
+     * If this property is specified, the number of cpu ids in the list
+     * must be equal to :
+     * a) the connection pool size if the connection pooling is not disabled
+     *   (i.e. connection pool size > 0) (or)
+     * b) 1 if the connection pooling is disabled.
      */
     static final String PROPERTY_CONNECTION_POOL_RECV_THREAD_CPUIDS = "com.mysql.clusterj.connection.pool.recv.thread.cpuids";
 
