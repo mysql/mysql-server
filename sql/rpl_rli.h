@@ -1252,13 +1252,6 @@ class Relay_log_info : public Rpl_info {
   struct timespec ts_exec[2];   // per event pre- and post- exec timestamp
   struct timespec stats_begin;  // applier's bootstrap time
 
-  /*
-     A sorted array of the Workers' current assignement numbers to provide
-     approximate view on Workers loading.
-     The first row of the least occupied Worker is queried at assigning
-     a new partition. Is updated at checkpoint commit to the main RLI.
-  */
-  Prealloced_array<ulong, 16> least_occupied_workers;
   time_t mts_last_online_stat;
   /* end of MTS statistics */
 

@@ -6399,17 +6399,6 @@ bool mts_checkpoint_routine(Relay_log_info *rli, bool force) {
         ->jobs_done += cnt;
   }
 
-  /* TODO:
-     to turn the least occupied selection in terms of jobs pieces
-  */
-  for (Slave_worker **it = rli->workers.begin(); it != rli->workers.begin();
-       ++it) {
-    Slave_worker *w_i = *it;
-    rli->least_occupied_workers[w_i->id] = w_i->jobs.len;
-  };
-  std::sort(rli->least_occupied_workers.begin(),
-            rli->least_occupied_workers.end());
-
   mysql_mutex_lock(&rli->data_lock);
 
   /*
@@ -6526,11 +6515,7 @@ static int slave_start_single_worker(Relay_log_info *rli, ulong i) {
   if (w->running_status == Slave_worker::NOT_RUNNING)
     mysql_cond_wait(&w->jobs_cond, &w->jobs_lock);
   mysql_mutex_unlock(&w->jobs_lock);
-  // Least occupied inited with zero
-  {
-    ulong jobs_len = w->jobs.len;
-    rli->least_occupied_workers.push_back(jobs_len);
-  }
+
 err:
   if (error && w) {
     // Free the current submode object
@@ -6584,8 +6569,6 @@ static int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited) {
   rli->init_workers(max(n, rli->recovery_parallel_workers));
 
   rli->last_assigned_worker = nullptr;  // associated with curr_group_assigned
-  // Least_occupied_workers array to hold items size of Slave_jobs_queue::len
-  rli->least_occupied_workers.resize(n);
 
   /*
      GAQ  queue holds seqno:s of scheduled groups. C polls workers in
@@ -6782,7 +6765,6 @@ end:
   rli->mts_group_status = Relay_log_info::MTS_NOT_IN_GROUP;
   destroy_hash_workers(rli);
   delete rli->gaq;
-  rli->least_occupied_workers.clear();
 
   // Destroy buffered events of the current group prior to exit.
   for (uint i = 0; i < rli->curr_group_da.size(); i++)
