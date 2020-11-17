@@ -36,6 +36,7 @@
 #include "mysql/components/services/log_builtins.h"
 #include "scripts/mysql_fix_privilege_tables_sql.h"
 #include "scripts/sql_commands_system_tables_data_fix.h"
+#include "scripts/sql_firewall_stored_procedures.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd_schema.h"                // dd::Schema_MDL_locker
 #include "sql/dd/dd_table.h"  // dd::warn_on_deprecated_prefix_key_partition
@@ -388,6 +389,44 @@ bool ignore_error_and_execute(THD *thd, const char *query_ptr) {
   return false;
 }
 
+/** upgrades Firewall stored procedures */
+static bool upgrade_firewall(THD *thd) {
+  bool has_old_firewall_tables{false};
+  bool has_new_firewall_tables{false};
+
+  {
+    // lock required tables before checking their existence
+    MDL_request request1, request2;
+    MDL_REQUEST_INIT(&request1, MDL_key::TABLE, INFORMATION_SCHEMA_NAME.str,
+                     "MYSQL_FIREWALL_USERS", MDL_SHARED, MDL_TRANSACTION);
+    MDL_REQUEST_INIT(&request2, MDL_key::TABLE, PERFORMANCE_SCHEMA_DB_NAME.str,
+                     "firewall_groups", MDL_SHARED, MDL_TRANSACTION);
+
+    // check whether firewall tables exist
+    bool error =
+        (thd->mdl_context.acquire_lock(&request1,
+                                       thd->variables.lock_wait_timeout) ||
+         thd->mdl_context.acquire_lock(&request2,
+                                       thd->variables.lock_wait_timeout) ||
+         dd::table_exists(thd->dd_client(), INFORMATION_SCHEMA_NAME.str,
+                          "MYSQL_FIREWALL_USERS", &has_old_firewall_tables) ||
+         dd::table_exists(thd->dd_client(), PERFORMANCE_SCHEMA_DB_NAME.str,
+                          "firewall_groups", &has_new_firewall_tables));
+
+    // release locks, leave on error
+    thd->mdl_context.release_transactional_locks();
+    if (error) return true;
+  }
+
+  // upgrade stored procedures, leave on error
+  if (has_old_firewall_tables && !has_new_firewall_tables)
+    for (auto query = &firewall_stored_procedures[0]; *query != nullptr;
+         query++)
+      if (ignore_error_and_execute(thd, *query)) return true;
+
+  return false;
+}
+
 bool fix_sys_schema(THD *thd) {
   /*
     Re-create SYS schema if:
@@ -438,6 +477,8 @@ bool fix_mysql_tables(THD *thd) {
     LogErr(ERROR_LEVEL, ER_DD_UPGRADE_FAILED_FIND_VALID_DATA_DIR);
     return true;
   }
+
+  if (upgrade_firewall(thd)) return true;
 
   LogErr(INFORMATION_LEVEL, ER_SERVER_UPGRADE_MYSQL_TABLES);
   for (query_ptr = &mysql_fix_privilege_tables[0]; *query_ptr != nullptr;
