@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -64,10 +64,7 @@ fi
 #
 # get binary
 #
-tmp=`echo ${core}.tmp`
-gdb -c $core -x $bt -q 2>&1 | grep "Core was generated" | awk '{ print $5;}' | sed 's!`!!' | sed `echo "s/'\.//"` > $tmp
-exe=`cat $tmp`
-rm -f $tmp
+exe=`file $core | sed 's/.*execfn//' | cut -d"'" -f 2`
 
 if [ -x "$exe" ]
 then
