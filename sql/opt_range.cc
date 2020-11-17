@@ -15728,6 +15728,8 @@ static void print_multiple_key_values(KEY_PART *key_part, const uchar *key,
 
   for (; key < key_end; key += store_length, key_part++) {
     Field *field = key_part->field;
+    if (field->is_array())
+      field = (down_cast<Field_typed_array *>(field))->get_conv_field();
     store_length = key_part->store_length;
 
     if (field->is_nullable()) {
