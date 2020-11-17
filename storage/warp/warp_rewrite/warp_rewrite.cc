@@ -196,7 +196,7 @@ bool process_having_item(THD* thd,
       Item_sum* sum = dynamic_cast<Item_sum*>(item);
 
       // gather the arguments            
-      auto cnt = sum->get_arg_count();
+      auto cnt = sum->arg_count;
       for(uint i = 0; i<cnt; ++i) {
         process_having_item(thd, sum->get_arg(i), arg_clause, ll_query, coord_group, used_fields);
       }
@@ -452,7 +452,7 @@ static int warp_rewrite_query_notify(
   std::string coord_having;
   
   auto select_lex =thd->lex->select_lex;
-  auto field_list = select_lex->fields_list;
+  auto field_list = select_lex->get_fields_list();
   auto tables = select_lex->table_list;
 
   // query has no tables - do nothing
@@ -472,23 +472,25 @@ static int warp_rewrite_query_notify(
   // This list is used in processing the GROUP BY clause and HAVING clause
   std::unordered_map<std::string, uint> used_fields;
 
-  for(auto field_it = field_list.begin(); field_it != field_list.end(); ++field_it,++expr_num) {
+  for(auto field_it = field_list->begin(); field_it != field_list->end(); ++field_it,++expr_num) {
+    auto field = *field_it;
+    
     used_fields.emplace(
-      std::pair<std::string, uint>(std::string(field_it->full_name()), expr_num)
+      std::pair<std::string, uint>(std::string(field->full_name()), expr_num)
     );
     used_fields.emplace(
-      std::pair<std::string, uint>(std::string(field_it->item_name.ptr()), expr_num)
+      std::pair<std::string, uint>(std::string(field->item_name.ptr()), expr_num)
     );
     field_str.set("", 0, default_charset_info);
-    field_it->print(thd, &field_str, QT_ORDINARY);
+    field->print(thd, &field_str, QT_ORDINARY);
     used_fields.emplace(
       std::pair<std::string, uint>(std::string(field_str.ptr(), field_str.length()), expr_num)
     );
 
     field_str.set("",0,default_charset_info);
-    field_it->print(thd, &field_str, QT_ORDINARY);
+    field->print(thd, &field_str, QT_ORDINARY);
     std::string raw_field = std::string(field_str.c_ptr(), field_str.length());
-    std::string orig_alias = std::string("`") + std::string(field_it->item_name.ptr()) + std::string("`");
+    std::string orig_alias = std::string("`") + std::string(field->item_name.ptr()) + std::string("`");
     std::string alias = std::string("`expr$") + std::to_string(expr_num) + std::string("`");
 
     if(ll_query.length() > 0) {
@@ -498,7 +500,7 @@ static int warp_rewrite_query_notify(
        coord_query += ", ";
      }
 
-     switch(field_it->type()) {
+     switch(field->type()) {
        // bare field is easily handled - it gets an alias of expr$NUM where NUM is the 
        // ordinal position in the SELECT clause
        case Item::Type::FIELD_ITEM:
@@ -515,7 +517,7 @@ static int warp_rewrite_query_notify(
        
        // SUM or COUNT func
        case Item::Type::SUM_FUNC_ITEM: {
-         Item_sum* sum_item = (Item_sum*)field_it->this_item(); 
+         Item_sum* sum_item = (Item_sum*)field->this_item(); 
          std::string func_name = std::string(sum_item->func_name());
     
          if(sum_item->has_with_distinct()) {
@@ -549,14 +551,14 @@ static int warp_rewrite_query_notify(
 
        // unsupported!
        default:
-         std::cout << "UNSUPPORTED ITEM TYPE: " << field_it->type() << "\n";
+         std::cout << "UNSUPPORTED ITEM TYPE: " << field->type() << "\n";
          return 0;
      }
   }
   
   /* handle GROUP BY */
   ORDER* group_pos = select_lex->group_list.first;
-  expr_num = select_lex->fields_list.size();
+  expr_num = select_lex->get_fields_list()->size();
   for(int i=0; i < select_lex->group_list_size(); ++i, ++expr_num) {
 
     // is this group item one of the select items?
