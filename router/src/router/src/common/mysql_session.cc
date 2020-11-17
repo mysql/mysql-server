@@ -93,32 +93,20 @@ mysql_ssl_mode MySQLSession::parse_ssl_mode(std::string ssl_mode) {
 
 /*static*/
 const char *MySQLSession::ssl_mode_to_string(mysql_ssl_mode ssl_mode) noexcept {
-  const char *text = nullptr;
-
-  // The better way would be to do away with text variable and return kSslMode*
-  // directly from each case. Unfortunately, Clang 3.4 doesn't like it:
-  //   control reaches end of non-void function [-Werror=return-type]
-  // even though it knows all cases are handled (issues another warning if any
-  // one is removed).
   switch (ssl_mode) {
     case SSL_MODE_DISABLED:
-      text = kSslModeDisabled;
-      break;
+      return kSslModeDisabled;
     case SSL_MODE_PREFERRED:
-      text = kSslModePreferred;
-      break;
+      return kSslModePreferred;
     case SSL_MODE_REQUIRED:
-      text = kSslModeRequired;
-      break;
+      return kSslModeRequired;
     case SSL_MODE_VERIFY_CA:
-      text = kSslModeVerifyCa;
-      break;
+      return kSslModeVerifyCa;
     case SSL_MODE_VERIFY_IDENTITY:
-      text = kSslModeVerifyIdentity;
-      break;
+      return kSslModeVerifyIdentity;
   }
 
-  return text;
+  return nullptr;
 }
 
 bool MySQLSession::check_for_yassl(MYSQL *connection) {
