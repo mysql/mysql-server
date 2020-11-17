@@ -1356,10 +1356,13 @@ select distinct t2.fld3,period from t2,t1  where companynr=37 and fld3 like "O%"
 select distinct fld3 from t2 where companynr = 34 order by fld3;
 select distinct fld3 from t2 limit 10;
 select distinct fld3 from t2 having fld3 like "A%" limit 10;
---replace_result ann Ann
+--replace_result ann Ann abr Abr art Art ant Ant
 select distinct substring(fld3,1,3) from t2 where fld3 like "A%";
+--replace_result abr Abr
 select distinct substring(fld3,1,3) as a from t2 having a like "A%" order by a limit 10;
+--replace_result abr Abr
 select distinct substring(fld3,1,3) from t2 where fld3 like "A%" limit 10;
+--replace_result abr Abr
 select distinct substring(fld3,1,3) as a from t2 having a like "A%" limit 10;
 
 # make a big table.
