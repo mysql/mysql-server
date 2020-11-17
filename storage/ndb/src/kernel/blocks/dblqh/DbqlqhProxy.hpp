@@ -31,7 +31,7 @@ class DbqlqhProxy : public LocalProxy
 {
 public:
   DbqlqhProxy(Block_context& ctx);
-  virtual ~DbqlqhProxy();
+  ~DbqlqhProxy() override;
   BLOCK_DEFINES(DbqlqhProxy);
 
 protected:

@@ -31,7 +31,7 @@ class QRestoreProxy : public LocalProxy
 {
 public:
   QRestoreProxy(Block_context& ctx);
-  virtual ~QRestoreProxy();
+  ~QRestoreProxy() override;
   BLOCK_DEFINES(QRestoreProxy);
 
 protected:
