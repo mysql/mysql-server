@@ -787,25 +787,35 @@ void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
   @param[in]     share         Pointer to TABLE_SHARE
   @param[in]     handler_file  Pointer to handler
   @param[in,out] usable_parts  Pointer to usable_parts variable
+  @param[in]     use_extended_sk  TRUE if use_index_extensions is ON
 
   @retval                      Number of added key parts
 */
 
 uint add_pk_parts_to_sk(KEY *sk, uint sk_n, KEY *pk, uint pk_n,
                         TABLE_SHARE *share, handler *handler_file,
-                        uint *usable_parts) {
+                        uint *usable_parts, bool use_extended_sk) {
   uint max_key_length = sk->key_length;
-  bool is_unique_key = false;
+  /*
+    Secondary key becomes unique if the key does not exceed
+    key length limitation(MAX_KEY_LENGTH) and key parts
+    limitation(MAX_REF_PARTS) and PK parts are added to SK.
+  */
+  bool is_unique_key = use_extended_sk;
+  uint pk_part = 0;
   KEY_PART_INFO *current_key_part = &sk->key_part[sk->user_defined_key_parts];
 
   /*
      For each keypart in the primary key: check if the keypart is
      already part of the secondary key and add it if not.
   */
-  for (uint pk_part = 0; pk_part < pk->user_defined_key_parts; pk_part++) {
+  for (; pk_part < pk->user_defined_key_parts; pk_part++) {
     KEY_PART_INFO *pk_key_part = &pk->key_part[pk_part];
-    /* MySQL does not supports more key parts than MAX_REF_LENGTH */
-    if (sk->actual_key_parts >= MAX_REF_PARTS) goto end;
+    /* No more than MAX_REF_PARTS key parts are supported. */
+    if (sk->actual_key_parts >= MAX_REF_PARTS) {
+      is_unique_key = false;
+      break;
+    }
 
     bool pk_field_is_in_sk = false;
     for (uint j = 0; j < sk->user_defined_key_parts; j++) {
@@ -817,11 +827,19 @@ uint add_pk_parts_to_sk(KEY *sk, uint sk_n, KEY *pk, uint pk_n,
       }
     }
 
-    /* Add PK field to secondary key if it's not already  part of the key. */
+    /* Do not add key part if it's already present in SK. */
     if (!pk_field_is_in_sk) {
-      /* MySQL does not supports keys longer than MAX_KEY_LENGTH */
-      if (max_key_length + pk_key_part->length > MAX_KEY_LENGTH) goto end;
-
+      /* MySQL does not support keys longer than MAX_KEY_LENGTH. */
+      if (max_key_length + pk_key_part->length > MAX_KEY_LENGTH) {
+        is_unique_key = false;
+        break;
+      }
+      max_key_length += pk_key_part->length;
+      /*
+        Do not add key part if SK is a unique key or
+        if use_index_extensions is OFF.
+      */
+      if ((sk->flags & HA_NOSAME) || !use_extended_sk) continue;
       *current_key_part = *pk_key_part;
       setup_key_part_field(share, handler_file, pk_n, sk, sk_n,
                            sk->actual_key_parts, usable_parts, false);
@@ -830,17 +848,19 @@ uint add_pk_parts_to_sk(KEY *sk, uint sk_n, KEY *pk, uint pk_n,
       sk->rec_per_key[sk->actual_key_parts - 1] = 0;
       sk->set_records_per_key(sk->actual_key_parts - 1, REC_PER_KEY_UNKNOWN);
       current_key_part++;
-      max_key_length += pk_key_part->length;
-      /*
-        Secondary key will be unique if the key  does not exceed
-        key length limitation and key parts limitation.
-      */
-      is_unique_key = true;
     }
   }
   if (is_unique_key) sk->actual_flags |= HA_NOSAME;
 
-end:
+  /*
+    Clean key maps for those PK parts which exceed
+    MAX_KEY_LENGTH or MAX_REF_PARTS limits.
+  */
+  for (; pk_part < pk->user_defined_key_parts; pk_part++) {
+    Field *fld = pk->key_part[pk_part].field;
+    fld->part_of_key.clear_bit(sk_n);
+    fld->part_of_sortkey.clear_bit(sk_n);
+  }
   return (sk->actual_key_parts - sk->user_defined_key_parts);
 }
 
@@ -2126,11 +2146,11 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
         }
       }
 
-      if (use_extended_sk && primary_key < MAX_KEY && key &&
-          !(keyinfo->flags & HA_NOSAME))
-        key_part +=
-            add_pk_parts_to_sk(keyinfo, key, share->key_info, primary_key,
-                               share, handler_file, &usable_parts);
+      if (primary_key < MAX_KEY && key != primary_key &&
+          (ha_option & HA_PRIMARY_KEY_IN_READ_INDEX))
+        key_part += add_pk_parts_to_sk(keyinfo, key, share->key_info,
+                                       primary_key, share, handler_file,
+                                       &usable_parts, use_extended_sk);
 
       /* Skip unused key parts if they exist */
       key_part += keyinfo->unused_key_parts;
