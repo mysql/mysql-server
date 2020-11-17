@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -99,7 +99,7 @@ read_and_execute(Ndb_mgmclient* com, int try_reconnect)
   if (line_read && *line_read)
     add_history (line_read);
 #else
-  static char linebuffer[254];
+  static char linebuffer[512];
   fputs(com->get_current_prompt(), stdout);
   linebuffer[sizeof(linebuffer)-1]=0;
   line_read = fgets(linebuffer, sizeof(linebuffer)-1, stdin);
@@ -130,7 +130,7 @@ int main(int argc, char** argv){
   if(argc == 1) {
     connect_str.assfmt("%s", argv[0]);
   } else if (argc >= 2) {
-    connect_str.assfmt("%s:%s", argv[0], argv[1]);
+    connect_str.assfmt("%s %s", argv[0], argv[1]);
   }
 
   if (!isatty(0) || opt_execute_str)

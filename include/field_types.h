@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,6 +75,8 @@ enum enum_field_types
   MYSQL_TYPE_DATETIME2,   /**< Internal to MySQL. Not used in protocol */
   MYSQL_TYPE_TIME2,       /**< Internal to MySQL. Not used in protocol */
   MYSQL_TYPE_TYPED_ARRAY, /**< Used for replication only */
+  MYSQL_TYPE_INVALID = 243,
+  MYSQL_TYPE_BOOL = 244, /**< Currently just a placeholder */
   MYSQL_TYPE_JSON = 245,
   MYSQL_TYPE_NEWDECIMAL = 246,
   MYSQL_TYPE_ENUM = 247,

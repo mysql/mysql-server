@@ -7,8 +7,11 @@ CAST(CAST(1-2 AS UNSIGNED) AS SIGNED INTEGER)
 select CAST('10 ' as unsigned integer);
 CAST('10 ' as unsigned integer)
 10
+select CAST('10x' as unsigned integer);
+CAST('10x' as unsigned integer)
+10
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '10 '
+Warning	1292	Truncated incorrect INTEGER value: '10x'
 select cast(-5 as unsigned) | 1, cast(-5 as unsigned) & -1;
 cast(-5 as unsigned) | 1	cast(-5 as unsigned) & -1
 18446744073709551611	18446744073709551611
@@ -129,12 +132,12 @@ select cast('9223372036854775809' as signed);
 cast('9223372036854775809' as signed)
 -9223372036854775807
 Warnings:
-Warning	1105	Cast to signed converted positive out-of-range integer to it's negative complement
+Warning	1105	Cast to signed converted positive out-of-range integer to its negative complement
 select cast('-1' as unsigned);
 cast('-1' as unsigned)
 18446744073709551615
 Warnings:
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1105	Cast to unsigned converted negative integer to its positive complement
 select cast('abc' as signed);
 cast('abc' as signed)
 0
@@ -376,7 +379,7 @@ select cast('18446744073709551615' as signed);
 cast('18446744073709551615' as signed)
 -1
 Warnings:
-Warning	1105	Cast to signed converted positive out-of-range integer to it's negative complement
+Warning	1105	Cast to signed converted positive out-of-range integer to its negative complement
 select cast('9223372036854775807' as signed);
 cast('9223372036854775807' as signed)
 9223372036854775807
@@ -387,7 +390,7 @@ select cast(concat('184467440','73709551615') as signed);
 cast(concat('184467440','73709551615') as signed)
 -1
 Warnings:
-Warning	1105	Cast to signed converted positive out-of-range integer to it's negative complement
+Warning	1105	Cast to signed converted positive out-of-range integer to its negative complement
 select cast(repeat('1',20) as unsigned);
 cast(repeat('1',20) as unsigned)
 11111111111111111111
@@ -395,7 +398,7 @@ select cast(repeat('1',20) as signed);
 cast(repeat('1',20) as signed)
 -7335632962598440505
 Warnings:
-Warning	1105	Cast to signed converted positive out-of-range integer to it's negative complement
+Warning	1105	Cast to signed converted positive out-of-range integer to its negative complement
 select cast(1.0e+300 as signed int);
 cast(1.0e+300 as signed int)
 9223372036854775807
@@ -1613,3 +1616,309 @@ Warning	1292	Incorrect datetime value: 'X'
 Warning	1292	Incorrect datetime value: 'X'
 DROP TABLE `BB`;
 DROP TABLE `CC`;
+#
+# CAST AS YEAR
+#
+SELECT CAST(CAST(-1 AS SIGNED) AS YEAR);
+CAST(CAST(-1 AS SIGNED) AS YEAR)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect YEAR value: '-1'
+SELECT CAST(CAST(-99 AS SIGNED) AS YEAR);
+CAST(CAST(-99 AS SIGNED) AS YEAR)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect YEAR value: '-99'
+SELECT CAST(CAST(0 AS SIGNED) AS YEAR);
+CAST(CAST(0 AS SIGNED) AS YEAR)
+0
+SELECT CAST(CAST(69 AS SIGNED) AS YEAR);
+CAST(CAST(69 AS SIGNED) AS YEAR)
+2069
+SELECT CAST(CAST(70 AS SIGNED) AS YEAR);
+CAST(CAST(70 AS SIGNED) AS YEAR)
+1970
+SELECT CAST(CAST(99 AS SIGNED) AS YEAR);
+CAST(CAST(99 AS SIGNED) AS YEAR)
+1999
+SELECT CAST(CAST(100 AS SIGNED) AS YEAR);
+CAST(CAST(100 AS SIGNED) AS YEAR)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect YEAR value: '100'
+SELECT CAST(CAST(2010 AS SIGNED) AS YEAR);
+CAST(CAST(2010 AS SIGNED) AS YEAR)
+2010
+SELECT CAST(-1.1 AS YEAR);
+CAST(-1.1 AS YEAR)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect YEAR value: '-1'
+SELECT CAST(1.1 AS YEAR);
+CAST(1.1 AS YEAR)
+2001
+SELECT CAST(0.0 AS YEAR);
+CAST(0.0 AS YEAR)
+0
+SELECT CAST(69.1 AS YEAR);
+CAST(69.1 AS YEAR)
+2069
+SELECT CAST(70.1 AS YEAR);
+CAST(70.1 AS YEAR)
+1970
+SELECT CAST(100.1 AS YEAR);
+CAST(100.1 AS YEAR)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect YEAR value: '100'
+SELECT CAST(2010.9 AS YEAR);
+CAST(2010.9 AS YEAR)
+2011
+SELECT CAST(CAST(-1.1 AS DECIMAL) AS YEAR);
+CAST(CAST(-1.1 AS DECIMAL) AS YEAR)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect YEAR value: '-1'
+SELECT CAST(CAST(1.1 AS DECIMAL) AS YEAR);
+CAST(CAST(1.1 AS DECIMAL) AS YEAR)
+2001
+SELECT CAST(CAST(0.0 AS DECIMAL) AS YEAR);
+CAST(CAST(0.0 AS DECIMAL) AS YEAR)
+0
+SELECT CAST(CAST(69.1 AS DECIMAL) AS YEAR);
+CAST(CAST(69.1 AS DECIMAL) AS YEAR)
+2069
+SELECT CAST(CAST(70.1 AS DECIMAL) AS YEAR);
+CAST(CAST(70.1 AS DECIMAL) AS YEAR)
+1970
+SELECT CAST(CAST(100.1 AS DECIMAL) AS YEAR);
+CAST(CAST(100.1 AS DECIMAL) AS YEAR)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect YEAR value: '100'
+SELECT CAST(CAST(2010.9 AS DECIMAL) AS YEAR);
+CAST(CAST(2010.9 AS DECIMAL) AS YEAR)
+2011
+SELECT CAST("-1" AS YEAR);
+CAST("-1" AS YEAR)
+NULL
+Warnings:
+Warning	1525	Incorrect YEAR value: '-1'
+SELECT CAST("-99" AS YEAR);
+CAST("-99" AS YEAR)
+NULL
+Warnings:
+Warning	1525	Incorrect YEAR value: '-99'
+SELECT CAST("0" AS YEAR);
+CAST("0" AS YEAR)
+2000
+SELECT CAST("69" AS YEAR);
+CAST("69" AS YEAR)
+2069
+SELECT CAST("70" AS YEAR);
+CAST("70" AS YEAR)
+1970
+SELECT CAST("99" AS YEAR);
+CAST("99" AS YEAR)
+1999
+SELECT CAST("100" AS YEAR);
+CAST("100" AS YEAR)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect YEAR value: '100'
+SELECT CAST("2010" AS YEAR);
+CAST("2010" AS YEAR)
+2010
+SELECT CAST("extra" AS YEAR);
+CAST("extra" AS YEAR)
+NULL
+Warnings:
+Warning	1525	Incorrect YEAR value: 'extra'
+SELECT CAST("22extra" AS YEAR);
+CAST("22extra" AS YEAR)
+2022
+Warnings:
+Warning	1292	Truncated incorrect YEAR value: '22extra'
+SELECT CAST("2020extra" AS YEAR);
+CAST("2020extra" AS YEAR)
+2020
+Warnings:
+Warning	1292	Truncated incorrect YEAR value: '2020extra'
+SELECT CAST(TIMESTAMP'2010-01-01 00:00' AS YEAR);
+CAST(TIMESTAMP'2010-01-01 00:00' AS YEAR)
+2010
+SET SQL_MODE = "";
+SELECT CAST(TIMESTAMP'0000-00-00 00:00' AS YEAR);
+CAST(TIMESTAMP'0000-00-00 00:00' AS YEAR)
+0
+SET SQL_MODE = default;
+SELECT CAST(TIMESTAMP'2010-01-01 08:09:10' AS YEAR);
+CAST(TIMESTAMP'2010-01-01 08:09:10' AS YEAR)
+2010
+SELECT CAST(TIME'08:09:10' AS YEAR);
+CAST(TIME'08:09:10' AS YEAR)
+2020
+SELECT CAST(TIME'00:00:00' AS YEAR);
+CAST(TIME'00:00:00' AS YEAR)
+2020
+SELECT CAST(ST_PointFromText('POINT(10 10)') AS YEAR);
+ERROR HY000: Incorrect arguments to cast_as_year
+CREATE TABLE t AS SELECT CAST("2010" AS YEAR);
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `CAST("2010" AS YEAR)` year DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t;
+SELECT CAST(JSON_EXTRACT('{"key_year":1934}', '$.key_year') AS YEAR);
+CAST(JSON_EXTRACT('{"key_year":1934}', '$.key_year') AS YEAR)
+1934
+SELECT CAST(CAST('{"_id":"192312412512"}' AS JSON) AS YEAR);
+CAST(CAST('{"_id":"192312412512"}' AS JSON) AS YEAR)
+0
+Warnings:
+Warning	3156	Invalid JSON value for CAST to INTEGER from column cast_as_json at row 1
+CREATE TABLE t1 (i INT, j JSON) CHARSET utf8mb4;
+INSERT INTO t1 VALUES (0, NULL);
+INSERT INTO t1 VALUES (1, '"1901"');
+INSERT INTO t1 VALUES (2, 'true');
+INSERT INTO t1 VALUES (3, 'false');
+INSERT INTO t1 VALUES (4, 'null');
+INSERT INTO t1 VALUES (5, '-1');
+INSERT INTO t1 VALUES (6, CAST(CAST(1 AS UNSIGNED) AS JSON));
+INSERT INTO t1 VALUES (7, '1901');
+INSERT INTO t1 VALUES (8, '-1901');
+INSERT INTO t1 VALUES (9, '2147483647');
+INSERT INTO t1 VALUES (10, '2147483648');
+INSERT INTO t1 VALUES (11, '-2147483648');
+INSERT INTO t1 VALUES (12, '-2147483649');
+INSERT INTO t1 VALUES (13, '3.14');
+INSERT INTO t1 VALUES (14, '{}');
+INSERT INTO t1 VALUES (15, '[]');
+INSERT INTO t1 VALUES (16, CAST(CAST('2015-01-15 23:24:25' AS DATETIME) AS JSON));
+INSERT INTO t1 VALUES (17, CAST(CAST('23:24:25' AS TIME) AS JSON));
+INSERT INTO t1 VALUES (18, CAST(CAST('2015-01-15' AS DATE) AS JSON));
+INSERT INTO t1 VALUES (19, CAST(TIMESTAMP'2015-01-15 23:24:25' AS JSON));
+INSERT INTO t1 VALUES (20, CAST(ST_GeomFromText('POINT(1 1)') AS JSON));
+INSERT INTO t1 VALUES (21, CAST('1988' AS CHAR CHARACTER SET 'ascii'));
+INSERT INTO t1 VALUES (22, CAST(x'07C4' AS JSON));
+INSERT INTO t1 VALUES (23, CAST(x'07C407C4' AS JSON));
+SELECT i, CAST(j AS YEAR), CAST(j AS SIGNED) FROM t1 ORDER BY i;
+i	CAST(j AS YEAR)	CAST(j AS SIGNED)
+0	NULL	NULL
+1	1901	1901
+2	2001	1
+3	0	0
+4	0	0
+5	NULL	-1
+6	2001	1
+7	1901	1901
+8	NULL	-1901
+9	NULL	2147483647
+10	NULL	2147483648
+11	NULL	-2147483648
+12	NULL	-2147483649
+13	2003	3
+14	0	0
+15	0	0
+16	0	0
+17	0	0
+18	0	0
+19	0	0
+20	0	0
+21	1988	1988
+22	0	0
+23	0	0
+Warnings:
+Warning	3156	Invalid JSON value for CAST to INTEGER from column j at row 5
+Warning	3156	Invalid JSON value for CAST to INTEGER from column j at row 5
+Warning	1292	Truncated incorrect YEAR value: '-1'
+Warning	1292	Truncated incorrect YEAR value: '-1901'
+Warning	1292	Truncated incorrect YEAR value: '2147483647'
+Warning	1292	Truncated incorrect YEAR value: '2147483648'
+Warning	1292	Truncated incorrect YEAR value: '-2147483648'
+Warning	1292	Truncated incorrect YEAR value: '-2147483649'
+Warning	3156	Invalid JSON value for CAST to INTEGER from column j at row 15
+Warning	3156	Invalid JSON value for CAST to INTEGER from column j at row 15
+Warning	3156	Invalid JSON value for CAST to INTEGER from column j at row 16
+Warning	3156	Invalid JSON value for CAST to INTEGER from column j at row 16
+Warning	3156	Invalid JSON value for CAST to INTEGER from column j at row 17
+Warning	3156	Invalid JSON value for CAST to INTEGER from column j at row 17
+Warning	3156	Invalid JSON value for CAST to INTEGER from column j at row 18
+Warning	3156	Invalid JSON value for CAST to INTEGER from column j at row 18
+Warning	3156	Invalid JSON value for CAST to INTEGER from column j at row 19
+Warning	3156	Invalid JSON value for CAST to INTEGER from column j at row 19
+Warning	3156	Invalid JSON value for CAST to INTEGER from column j at row 20
+Warning	3156	Invalid JSON value for CAST to INTEGER from column j at row 20
+Warning	3156	Invalid JSON value for CAST to INTEGER from column j at row 21
+Warning	3156	Invalid JSON value for CAST to INTEGER from column j at row 21
+Warning	3156	Invalid JSON value for CAST to INTEGER from column j at row 23
+Warning	3156	Invalid JSON value for CAST to INTEGER from column j at row 23
+Warning	3156	Invalid JSON value for CAST to INTEGER from column j at row 24
+Warning	3156	Invalid JSON value for CAST to INTEGER from column j at row 24
+DROP TABLE t1;
+CREATE TABLE t(numbers ENUM('0','1','2020'), colors ENUM('red', 'green', 'blue'));
+INSERT INTO t values('2020', 'blue');
+SELECT CAST(numbers AS YEAR), CAST(colors AS YEAR) FROM t;
+CAST(numbers AS YEAR)	CAST(colors AS YEAR)
+2003	2003
+DROP TABLE t;
+CREATE TABLE t(y YEAR);
+INSERT INTO t values(CAST("2020extra" AS YEAR));
+ERROR 22007: Truncated incorrect YEAR value: '2020extra'
+INSERT INTO t values(CAST(20201 AS YEAR));
+ERROR 22007: Truncated incorrect YEAR value: '20201'
+SET SQL_MODE = "";
+INSERT INTO t values(CAST("2020extra" AS YEAR));
+Warnings:
+Warning	1292	Truncated incorrect YEAR value: '2020extra'
+INSERT INTO t values(CAST(20201 AS YEAR));
+Warnings:
+Warning	1292	Truncated incorrect YEAR value: '20201'
+SELECT * FROM t;
+y
+2020
+NULL
+SET SQL_MODE = default;
+DROP TABLE t;
+SELECT CAST(1988 AS YEAR), REPEAT(CAST(1988 AS YEAR), 3) AS c2;
+CAST(1988 AS YEAR)	c2
+1988	198819881988
+SELECT CONCAT('x', CAST(1988 AS YEAR));
+CONCAT('x', CAST(1988 AS YEAR))
+x1988
+SELECT CAST(1988 AS YEAR) + 1.5e0;
+CAST(1988 AS YEAR) + 1.5e0
+1989.5
+SELECT CAST(CAST(1988 AS YEAR) AS DECIMAL);
+CAST(CAST(1988 AS YEAR) AS DECIMAL)
+1988
+SELECT DATE_ADD(CAST(1988 AS YEAR), INTERVAL 1 DAY);
+DATE_ADD(CAST(1988 AS YEAR), INTERVAL 1 DAY)
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '1988'
+SELECT TIME_TO_SEC(CAST('2030' AS YEAR));
+TIME_TO_SEC(CAST('2030' AS YEAR))
+1230
+SELECT TIMESTAMPADD(MINUTE, 1, CAST(1988 AS YEAR));
+TIMESTAMPADD(MINUTE, 1, CAST(1988 AS YEAR))
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '1988'
+SELECT CAST(CAST(1988 AS YEAR) AS SIGNED);
+CAST(CAST(1988 AS YEAR) AS SIGNED)
+1988
+SELECT CAST(CAST(1988 AS YEAR) AS UNSIGNED);
+CAST(CAST(1988 AS YEAR) AS UNSIGNED)
+1988
+SELECT CAST(TIMESTAMP'579-10-10 10:10:10' AS YEAR);
+CAST(TIMESTAMP'579-10-10 10:10:10' AS YEAR)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect YEAR value: '579'
+SELECT CAST(STR_TO_DATE('nope','%d-%m-%Y') AS YEAR);
+CAST(STR_TO_DATE('nope','%d-%m-%Y') AS YEAR)
+NULL
+Warnings:
+Warning	1411	Incorrect datetime value: 'nope' for function str_to_date

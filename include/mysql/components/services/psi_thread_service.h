@@ -1,4 +1,5 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -31,23 +32,30 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   Introduced in MySQL 8.0.3
   Deprecated in MySQL 8.0.15
   Abandoned in MySQL 8.0.17
-  Status: Removed, use version 3 instead.
+  Status: Removed, use version 4 instead.
 */
 
 /*
   Version 2.
   Introduced in MySQL 8.0.15
   Abandoned in MySQL 8.0.17
-  Status: Removed, use version 3 instead.
+  Status: Removed, use version 4 instead.
 */
 
 /*
   Version 3.
   Introduced in MySQL 8.0.17
+  Abandoned in MySQL 8.0.22
+  Status: Removed, use version 4 instead.
+*/
+
+/*
+  Version 4.
+  Introduced in MySQL 8.0.22
   Status: active
 */
 
-BEGIN_SERVICE_DEFINITION(psi_thread_v3)
+BEGIN_SERVICE_DEFINITION(psi_thread_v4)
 /** @sa register_thread_v1_t. */
 register_thread_v1_t register_thread;
 /** @sa spawn_thread_v1_t. */
@@ -84,6 +92,8 @@ set_thread_start_time_v1_t set_thread_start_time;
 set_thread_info_v1_t set_thread_info;
 /** @sa set_thread_v1_t. */
 set_thread_v1_t set_thread;
+/** @sa set_thread_peer_port_v4_t. */
+set_thread_peer_port_v4_t set_thread_peer_port;
 /** @sa aggregate_thread_status_v1_t. */
 aggregate_thread_status_v2_t aggregate_thread_status;
 /** @sa delete_current_thread_v1_t. */
@@ -110,6 +120,6 @@ notify_session_connect_v1_t notify_session_connect;
 notify_session_disconnect_v1_t notify_session_disconnect;
 /** @sa notify_session_change_user_v1_t. */
 notify_session_change_user_v1_t notify_session_change_user;
-END_SERVICE_DEFINITION(psi_thread_v3)
+END_SERVICE_DEFINITION(psi_thread_v4)
 
 #endif /* COMPONENTS_SERVICES_PSI_THREAD_SERVICE_H */

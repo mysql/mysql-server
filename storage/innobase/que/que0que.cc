@@ -738,10 +738,10 @@ void que_thr_move_to_run_state_for_mysql(
 }
 
 /** A patch for MySQL used to 'stop' a dummy query thread used in MySQL
- select, when there is no error or lock wait. */
-void que_thr_stop_for_mysql_no_error(que_thr_t *thr, /*!< in: query thread */
-                                     trx_t *trx)     /*!< in: transaction */
-{
+ select, when there is no error or lock wait.
+@param[in] thr Query thread
+@param[in] trx Transaction */
+void que_thr_stop_for_mysql_no_error(que_thr_t *thr, trx_t *trx) {
   ut_ad(thr->state == QUE_THR_RUNNING);
   ut_ad(thr->is_active == TRUE);
   ut_ad(trx->lock.n_active_thrs == 1);

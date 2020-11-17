@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,8 @@ std::string Ssl_session_options::ssl_cipher() const {
 
   if (!active_tls()) return "";
 
-  ssl_wrapper_cipher(m_vio->get_vio(), result, sizeof(result));
+  ssl_wrapper_cipher(m_vio->get_vio(), result, sizeof(result) - 1);
+  result[sizeof(result) - 1] = '\0';
 
   return result;
 }

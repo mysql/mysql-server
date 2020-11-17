@@ -1,6 +1,6 @@
 
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -139,8 +139,10 @@ void set_mock_bootstrap_data(
     member.PushBack(static_cast<int>(gr_member.second), allocator);
     gr_members_json.PushBack(member, allocator);
   }
+  JsonValue cluster_instances_json{gr_members_json, allocator};
   json_doc.AddMember("gr_members", gr_members_json, allocator);
-  json_doc.AddMember("innodb_cluster_instances", gr_members_json, allocator);
+  json_doc.AddMember("innodb_cluster_instances", cluster_instances_json,
+                     allocator);
 
   JsonValue md_version(rapidjson::kArrayType);
   md_version.PushBack(static_cast<int>(metadata_version.major), allocator);
@@ -148,7 +150,7 @@ void set_mock_bootstrap_data(
   md_version.PushBack(static_cast<int>(metadata_version.patch), allocator);
   json_doc.AddMember("metadata_version", md_version, allocator);
 
-  json_doc.AddMember("cluster_specific_id",
+  json_doc.AddMember("gr_id",
                      JsonValue(cluster_specific_id.c_str(),
                                cluster_specific_id.length(), allocator),
                      allocator);

@@ -1,0 +1,37 @@
+# Tests for PERFORMANCE_SCHEMA
+
+select @@global.performance_schema_show_processlist into @save_processlist;
+set @@global.performance_schema_show_processlist = 'on';
+
+--disable_result_log
+select * from performance_schema.processlist
+  where user like 'event_scheduler';
+
+select * from performance_schema.processlist
+  where user = 'FOO';
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.processlist
+  values (12, 'foo', 'bar', 'test', null, 1000, 'state', 'info');
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.processlist
+  set id=12, user='foo';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.processlist
+  where id <> 99;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.processlist;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.processlist READ;
+UNLOCK TABLES;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.processlist WRITE;
+UNLOCK TABLES;
+
+set @@global.performance_schema_show_processlist = @save_processlist;

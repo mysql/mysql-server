@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,11 +23,14 @@
 */
 
 #include "context.h"
-#include <cstring>
 
+#include <cstring>
 #include <memory>
+#include <mutex>
+
 #include "common.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/net_ts/local.h"
 #include "mysqlrouter/routing.h"
 #include "protocol/base_protocol.h"
 #include "utils.h"
@@ -54,23 +57,43 @@ MySQLRoutingContext ::MySQLRoutingContext(
       thread_stack_size_(thread_stack_size),
       max_connect_errors_(max_connect_errors) {}
 
-bool MySQLRoutingContext::block_client_host(
-    const ClientIpArray &client_ip_array, const std::string &client_ip_str,
-    int server) {
+#ifdef NET_TS_HAS_UNIX_SOCKET
+template <>
+bool MySQLRoutingContext::is_blocked<local::stream_protocol>(
+    const local::stream_protocol::endpoint & /* endpoint */) const {
+  return false;
+}
+template <>
+bool MySQLRoutingContext::block_client_host<local::stream_protocol>(
+    const local::stream_protocol::endpoint & /* endpoint */, int /* server */) {
+  return false;
+}
+
+template <>
+void MySQLRoutingContext::clear_error_counter<local::stream_protocol>(
+    const local::stream_protocol::endpoint & /* endpoint */) {}
+#endif
+
+template <>
+bool MySQLRoutingContext::block_client_host<net::ip::tcp>(
+    const net::ip::tcp::endpoint &endpoint, int server) {
   bool blocked = false;
   {
     std::lock_guard<std::mutex> lock(mutex_conn_errors_);
 
-    if (++conn_error_counters_[client_ip_array] >= max_connect_errors_) {
+    const size_t connection_errors =
+        endpoint.address().is_v4()
+            ? ++conn_error_counters_v4_[endpoint.address().to_v4()]
+            : ++conn_error_counters_v6_[endpoint.address().to_v6()];
+
+    if (connection_errors >= max_connect_errors_) {
       log_warning("[%s] blocking client host %s", name_.c_str(),
-                  client_ip_str.c_str());
+                  endpoint.address().to_string().c_str());
       blocked = true;
     } else {
-      log_info("[%s] %lu connection errors for %s (max %llu)", name_.c_str(),
-               static_cast<unsigned long>(
-                   conn_error_counters_[client_ip_array]),  // 32bit Linux
-                                                            // requires cast
-               client_ip_str.c_str(), max_connect_errors_);
+      log_info("[%s] %zu connection errors for %s (max %llu)", name_.c_str(),
+               connection_errors, endpoint.address().to_string().c_str(),
+               max_connect_errors_);
     }
   }
 
@@ -81,27 +104,67 @@ bool MySQLRoutingContext::block_client_host(
   return blocked;
 }
 
-void MySQLRoutingContext::clear_error_counter(
-    const ClientIpArray &client_ip_array, const std::string &client_ip_str) {
-  std::lock_guard<std::mutex> lock(mutex_conn_errors_);
+template <>
+void MySQLRoutingContext::clear_error_counter<net::ip::tcp>(
+    const net::ip::tcp::endpoint &endpoint) {
+  if (endpoint.address().is_v4()) {
+    std::lock_guard<std::mutex> lock(mutex_conn_errors_);
 
-  auto it = conn_error_counters_.find(client_ip_array);
-  if (it != conn_error_counters_.end() && it->second > 0) {
-    log_info(
-        "[%s] resetting connection error counter for %s from %zu back to 0",
-        name_.c_str(), client_ip_str.c_str(), it->second);
-    it->second = 0;
+    auto it = conn_error_counters_v4_.find(endpoint.address().to_v4());
+    if (it != conn_error_counters_v4_.end() && it->second > 0) {
+      log_info(
+          "[%s] resetting connection error counter for %s from %zu back to 0",
+          name_.c_str(), endpoint.address().to_string().c_str(), it->second);
+      it->second = 0;
+    }
+  } else {
+    std::lock_guard<std::mutex> lock(mutex_conn_errors_);
+
+    auto it = conn_error_counters_v6_.find(endpoint.address().to_v6());
+    if (it != conn_error_counters_v6_.end() && it->second > 0) {
+      log_info(
+          "[%s] resetting connection error counter for %s from %zu back to 0",
+          name_.c_str(), endpoint.address().to_string().c_str(), it->second);
+      it->second = 0;
+    }
   }
 }
 
-const std::vector<ClientIpArray> MySQLRoutingContext::get_blocked_client_hosts()
-    const {
+template <>
+bool MySQLRoutingContext::is_blocked<net::ip::tcp>(
+    const net::ip::tcp::endpoint &endpoint) const {
+  size_t connect_errors{};
+  if (endpoint.address().is_v4()) {
+    std::lock_guard<std::mutex> lk(mutex_conn_errors_);
+
+    const auto it = conn_error_counters_v4_.find(endpoint.address().to_v4());
+    if (it != conn_error_counters_v4_.end()) {
+      connect_errors = it->second;
+    }
+  } else {
+    std::lock_guard<std::mutex> lk(mutex_conn_errors_);
+
+    const auto it = conn_error_counters_v6_.find(endpoint.address().to_v6());
+    if (it != conn_error_counters_v6_.end()) {
+      connect_errors = it->second;
+    }
+  }
+
+  return connect_errors >= max_connect_errors_;
+}
+
+std::vector<std::string> MySQLRoutingContext::get_blocked_client_hosts() const {
   std::lock_guard<std::mutex> lock(mutex_conn_errors_);
 
-  std::vector<ClientIpArray> result;
-  for (const auto &client_ip : conn_error_counters_) {
+  std::vector<std::string> result;
+  for (const auto &client_ip : conn_error_counters_v4_) {
     if (client_ip.second >= max_connect_errors_) {
-      result.push_back(client_ip.first);
+      result.push_back(client_ip.first.to_string());
+    }
+  }
+  for (const auto &client_ip : conn_error_counters_v6_) {
+    if (client_ip.second >= max_connect_errors_) {
+      result.push_back(client_ip.first.to_string());
     }
   }
 

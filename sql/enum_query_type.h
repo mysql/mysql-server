@@ -97,6 +97,12 @@ enum enum_query_type {
     optimization. Used when getting the canonical representation of a view.
    */
   QT_HIDE_ROLLUP_FUNCTIONS = (1 << 14),
+
+  /**
+    When printing Item_view_ref, print the reference (i.e. column name of the
+    derived table), not the referenced (underlying) expression.
+  */
+  QT_DERIVED_TABLE_ORIG_FIELD_NAMES = (1 << 15),
 };
 
 #endif  // ENUM_QUERY_TYPE_INCLUDED

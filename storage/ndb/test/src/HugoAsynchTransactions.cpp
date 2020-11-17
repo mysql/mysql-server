@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -378,27 +378,27 @@ HugoAsynchTransactions::beginNewTask(TransactionInfo* tInfo)
 }
 
 void 
-HugoAsynchTransactions::callbackFunc(int result, 
-                                        NdbConnection* pTrans, 
-                                        void* anObject) {
+HugoAsynchTransactions::callbackFunc(int result,
+                                     NdbConnection* trans,
+                                     void* anObject) {
   /* Execute callback method on passed object */
   HugoAsynchTransactions::TransactionInfo* tranInfo=
     (HugoAsynchTransactions::TransactionInfo*) anObject;
 
-  tranInfo->hugoP->callback(result, pTrans, tranInfo);
+  tranInfo->hugoP->callback(result, trans, tranInfo);
 }
 
 
 void
 HugoAsynchTransactions::callback(int result, 
-                                 NdbConnection* pTrans,
+                                 NdbConnection* trans,
                                  TransactionInfo* tInfo)
 {
   if (finished)
     return; // No point continuing here
 
   // Paranoia
-  if (pTrans != tInfo->transaction)
+  if (trans != tInfo->transaction)
   {
     g_err << "Transactions not same in callback!" << endl;
     finished= true;
@@ -406,7 +406,7 @@ HugoAsynchTransactions::callback(int result,
     return;
   }
 
-  NdbError transErr= pTrans->getNdbError();
+  NdbError transErr= trans->getNdbError();
 
   if (transErr.code == 0)
   {
@@ -461,7 +461,7 @@ HugoAsynchTransactions::callback(int result,
     /* Task completed successfully
      * Now close the transaction, and start next task, if there is one 
      */
-    pTrans->close();
+    trans ->close();
     transactionsCompleted ++;
     totalCompletedRecords+= tInfo->numRecords;
     

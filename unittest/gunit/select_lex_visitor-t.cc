@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,8 +40,8 @@ using std::vector;
 
 class SelectLexVisitorTest : public ParserTest {
  protected:
-  virtual void SetUp() { initializer.SetUp(); }
-  virtual void TearDown() { initializer.TearDown(); }
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
 };
 
 /// A visitor that remembers what it has seen.
@@ -53,17 +53,17 @@ class Remembering_visitor : public Select_lex_visitor {
   Remembering_visitor()
       : m_saw_select_lex(false), m_saw_select_lex_unit(false) {}
 
-  virtual bool visit_union(SELECT_LEX_UNIT *) {
+  bool visit_union(SELECT_LEX_UNIT *) override {
     m_saw_select_lex_unit = true;
     return false;
   }
 
-  virtual bool visit_query_block(SELECT_LEX *) {
+  bool visit_query_block(SELECT_LEX *) override {
     m_saw_select_lex = true;
     return false;
   }
 
-  virtual bool visit_item(Item *item) {
+  bool visit_item(Item *item) override {
     // Not possible to call val_XXX on item_field. So just store the name.
     if (item->type() == Item::FIELD_ITEM)
       field_names.push_back(item->full_name());
@@ -75,7 +75,7 @@ class Remembering_visitor : public Select_lex_visitor {
   bool saw_select_lex() { return m_saw_select_lex; }
   bool saw_select_lex_unit() { return m_saw_select_lex_unit; }
 
-  ~Remembering_visitor() {}
+  ~Remembering_visitor() override {}
 
  private:
   bool m_saw_select_lex, m_saw_select_lex_unit;

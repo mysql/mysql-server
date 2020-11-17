@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 
 # 1) Stop the applier for `server1`.
 include/gr_stop_applier_sql_thread.inc
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 
 # 2) Verify that is not possible to change `REQUIRE_ROW_FORMAT` option
 CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0 FOR CHANNEL "group_replication_applier";

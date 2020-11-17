@@ -1,0 +1,17 @@
+Verify that the index stat tables are not present in the Server
+SHOW TABLES IN mysql LIKE 'ndb_index_stat%';
+Tables_in_mysql (ndb_index_stat%)
+Verify that the tables can't be discovered
+SHOW CREATE TABLE mysql.ndb_index_stat_head;
+ERROR 42S02: Table 'mysql.ndb_index_stat_head' doesn't exist
+SHOW WARNINGS;
+Level	Code	Message
+Error	1146	Table 'mysql.ndb_index_stat_head' doesn't exist
+Warning	1296	NDB index statistics tables are not exposed to the MySQL Server. The tables can be accessed using NDB tools such as ndb_select_all
+Verify that the tables aren't readabale
+SELECT * FROM mysql.ndb_index_stat_sample;
+ERROR 42S02: Table 'mysql.ndb_index_stat_sample' doesn't exist
+SHOW WARNINGS;
+Level	Code	Message
+Error	1146	Table 'mysql.ndb_index_stat_sample' doesn't exist
+Warning	1296	NDB index statistics tables are not exposed to the MySQL Server. The tables can be accessed using NDB tools such as ndb_select_all

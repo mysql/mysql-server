@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,6 +52,10 @@
 using namespace std::chrono_literals;
 using namespace std::string_literals;
 
+#ifndef _WIN32
+extern char **environ;
+#endif
+
 namespace mysql_harness {
 
 // performance tweaks
@@ -60,7 +64,6 @@ constexpr auto kTerminateWaitInterval = std::chrono::seconds(10);
 /** @brief maximum number of parameters that can be passed to the launched
  * process */
 constexpr auto kWaitPidCheckInterval = std::chrono::milliseconds(10);
-constexpr size_t kMaxLaunchedProcessParams{30};
 #endif
 
 std::string SpawnedProcess::get_cmd_line() const {
@@ -220,6 +223,10 @@ void ProcessLauncher::start() {
   // as CreateProcess may/will modify the arguments (split filename and args
   // with a \0) keep a copy of it for error-reporting.
   std::string create_process_arguments = arguments;
+  for (const auto &env_var : env_vars) {
+    SetEnvironmentVariable(env_var.first.c_str(), env_var.second.c_str());
+  }
+
   BOOL bSuccess =
       CreateProcess(NULL,                               // lpApplicationName
                     &create_process_arguments.front(),  // lpCommandLine
@@ -405,19 +412,51 @@ uint64_t ProcessLauncher::get_fd_read() const { return (uint64_t)child_out_rd; }
 
 #else
 
-static std::array<const char *, kMaxLaunchedProcessParams> get_params(
+static std::vector<const char *> get_params(
     const std::string &command, const std::vector<std::string> &params_vec) {
-  std::array<const char *, kMaxLaunchedProcessParams> result;
-  result[0] = command.c_str();
+  std::vector<const char *> result;
+  result.reserve(params_vec.size() +
+                 2);  // 1 for command name and 1 for terminating NULL
+  result.push_back(command.c_str());
 
-  size_t i = 1;
   for (const auto &par : params_vec) {
-    if (i >= kMaxLaunchedProcessParams - 1) {
-      throw std::runtime_error("Too many parameters passed to the " + command);
-    }
-    result[i++] = par.c_str();
+    result.push_back(par.c_str());
   }
-  result[i] = nullptr;
+  result.push_back(nullptr);
+
+  return result;
+}
+
+// converts vector of pairs to vector of strings "first=second"
+static auto get_env_vars_vector(
+    const std::vector<std::pair<std::string, std::string>> &env_vars) {
+  std::vector<std::string> result;
+
+  for (const auto &env_var : env_vars) {
+    result.push_back(env_var.first + "=" + env_var.second);
+  }
+
+  return result;
+}
+
+static auto get_env_vars(const std::vector<std::string> &env_vars) {
+  std::vector<const char *> result;
+
+  size_t i{0};
+  for (; environ[i] != nullptr; ++i)
+    ;
+  result.reserve(env_vars.size() + i + 1);
+
+  // first copy all current process' env variables
+  for (i = 0; environ[i] != nullptr; ++i) {
+    result.push_back(environ[i]);
+  }
+
+  // now append all the env variables passed to the launcher
+  for (i = 0; i < env_vars.size(); ++i) {
+    result.push_back(env_vars[i].c_str());
+  }
+  result.push_back(nullptr);
 
   return result;
 }
@@ -480,8 +519,11 @@ void ProcessLauncher::start() {
     fcntl(fd_in[0], F_SETFD, FD_CLOEXEC);
 
     const auto params_arr = get_params(executable_path, args);
-    execvp(executable_path.c_str(),
-           const_cast<char *const *>(params_arr.data()));
+    const auto env_vars_vect = get_env_vars_vector(env_vars);
+    const auto env_vars_arr = get_env_vars(env_vars_vect);
+    execve(executable_path.c_str(),
+           const_cast<char *const *>(params_arr.data()),
+           const_cast<char *const *>(env_vars_arr.data()));
     // if exec returns, there is an error.
     auto ec = last_error_code();
     fprintf(stderr, "%s could not be executed: %s (errno %d)\n",

@@ -39,3 +39,17 @@ SHOW PROCEDURE STATUS WHERE 0;
 SHOW FUNCTION STATUS WHERE 0;
 
 DROP TABLE t1;
+
+--echo # Bug#31667061: Inconsistent behavior of @@SQL_SELECT_LIMIT
+--echo #               with prepared statements
+
+CREATE TABLE t1(a INTEGER, b INTEGER, c INTEGER, d INTEGER);
+SET @@sql_select_limit=1;
+PREPARE stmt FROM "SHOW COLUMNS FROM t1";
+EXECUTE stmt;
+set @@sql_select_limit=2;
+EXECUTE stmt;
+set @@sql_select_limit=DEFAULT;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;

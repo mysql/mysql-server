@@ -30,6 +30,7 @@ while ( $i <= 17 )
         ( 3, 3 ),
         ( 4, 4 );
 
+    --sorted_result
     SELECT * FROM t1;
     SET GLOBAL innodb_purge_stop_now = ON;
 
@@ -123,6 +124,7 @@ while ( $i <= 17 )
     WHERE object_schema='test' AND object_name = 't1';
 
     COMMIT;
+    --sorted_result
     SELECT * FROM t1;
     --disable_query_log
     --disable_result_log

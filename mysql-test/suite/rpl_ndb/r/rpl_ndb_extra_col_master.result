@@ -430,6 +430,8 @@ include/check_slave_is_running.inc
 ** Stop and Reset Slave **
 
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 
 ** create table slave side **
 CREATE TABLE t10 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
@@ -466,6 +468,8 @@ DROP TABLE t10;
 
 *** Create t11 on slave  ***
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 CREATE TABLE t11 (a INT PRIMARY KEY, b BLOB, c VARCHAR(254)
 ) ENGINE='NDB';
 
@@ -499,6 +503,8 @@ DROP TABLE t11;
 
 *** Create t12 on slave  ***
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 CREATE TABLE t12 (a INT PRIMARY KEY, b BLOB, c BLOB
 ) ENGINE='NDB';
 
@@ -540,6 +546,8 @@ DROP TABLE t12;
 
 *** Create t14 on slave  ***
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 CREATE TABLE t14 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
 ) ENGINE='NDB';
 
@@ -596,6 +604,8 @@ c1	c3	hex(c4)	c5	c6
 ************
 include/wait_for_slave_sql_error.inc [errno=1091]
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 
 *** Drop t14  ***
 DROP TABLE t14;
@@ -609,6 +619,8 @@ include/rpl_reset.inc
 
 *** Create t15 on slave  ***
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 CREATE TABLE t15 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
 ) ENGINE='NDB';
 
@@ -642,6 +654,8 @@ c1	hex(c4)	c5	c6	c7	c2
 
 include/wait_for_slave_sql_error.inc [errno=1054]
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 
 *** Drop t15  ***
 DROP TABLE t15;
@@ -655,6 +669,8 @@ include/rpl_reset.inc
 
 *** Create t16 on slave  ***
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 CREATE TABLE t16 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
 ) ENGINE='NDB';
 
@@ -686,6 +702,8 @@ c1	hex(c4)	c5	c6	c7
 
 include/wait_for_slave_sql_error.inc [errno=1072]
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 
 *** Drop t16  ***
 DROP TABLE t16;
@@ -699,6 +717,8 @@ include/rpl_reset.inc
 
 *** Create t17 on slave  ***
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 CREATE TABLE t17 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
 ) ENGINE='NDB';
 
@@ -755,6 +775,8 @@ DROP TABLE t17;
 *** Create t18 on slave  ***
 
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 CREATE TABLE t18 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
 ) ENGINE='NDB';
 
@@ -810,6 +832,8 @@ DROP TABLE t18;
 
 *** Create t5 on slave  ***
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 CREATE TABLE t5 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
 ) ENGINE='NDB';
 
@@ -1290,6 +1314,8 @@ include/check_slave_is_running.inc
 ** Stop and Reset Slave **
 
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 
 ** create table slave side **
 CREATE TABLE t10 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
@@ -1326,6 +1352,8 @@ DROP TABLE t10;
 
 *** Create t11 on slave  ***
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 CREATE TABLE t11 (a INT PRIMARY KEY, b BLOB, c VARCHAR(254)
 ) ENGINE='NDB';
 
@@ -1359,6 +1387,8 @@ DROP TABLE t11;
 
 *** Create t12 on slave  ***
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 CREATE TABLE t12 (a INT PRIMARY KEY, b BLOB, c BLOB
 ) ENGINE='NDB';
 
@@ -1400,6 +1430,8 @@ DROP TABLE t12;
 
 *** Create t14 on slave  ***
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 CREATE TABLE t14 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
 ) ENGINE='NDB';
 
@@ -1456,6 +1488,8 @@ c1	c3	hex(c4)	c5	c6
 ************
 include/wait_for_slave_sql_error.inc [errno=1091]
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 
 *** Drop t14  ***
 DROP TABLE t14;
@@ -1469,6 +1503,8 @@ include/rpl_reset.inc
 
 *** Create t15 on slave  ***
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 CREATE TABLE t15 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
 ) ENGINE='NDB';
 
@@ -1502,6 +1538,8 @@ c1	hex(c4)	c5	c6	c7	c2
 
 include/wait_for_slave_sql_error.inc [errno=1054]
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 
 *** Drop t15  ***
 DROP TABLE t15;
@@ -1515,6 +1553,8 @@ include/rpl_reset.inc
 
 *** Create t16 on slave  ***
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 CREATE TABLE t16 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
 ) ENGINE='NDB';
 
@@ -1546,6 +1586,8 @@ c1	hex(c4)	c5	c6	c7
 
 include/wait_for_slave_sql_error.inc [errno=1072]
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 
 *** Drop t16  ***
 DROP TABLE t16;
@@ -1559,6 +1601,8 @@ include/rpl_reset.inc
 
 *** Create t17 on slave  ***
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 CREATE TABLE t17 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
 ) ENGINE='NDB';
 
@@ -1615,6 +1659,8 @@ DROP TABLE t17;
 *** Create t18 on slave  ***
 
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 CREATE TABLE t18 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
 ) ENGINE='NDB';
 
@@ -1670,6 +1716,8 @@ DROP TABLE t18;
 
 *** Create t5 on slave  ***
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 CREATE TABLE t5 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
 ) ENGINE='NDB';
 

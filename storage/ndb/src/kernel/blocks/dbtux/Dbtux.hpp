@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,9 +77,9 @@ class Dbtux : public SimulatedBlock {
   friend Uint32 Dbtux_mt_buildIndexFragment_wrapper_C(void*);
 public:
   Dbtux(Block_context& ctx, Uint32 instanceNumber = 0);
-  virtual ~Dbtux();
+  ~Dbtux() override;
 
-  void prepare_scan_ctx(Uint32 scanPtrI);
+  void prepare_scan_ctx(Uint32 scanPtrI) override;
   // pointer to TUP and LQH instance in this thread
   Dbtup* c_tup;
   Dblqh* c_lqh;

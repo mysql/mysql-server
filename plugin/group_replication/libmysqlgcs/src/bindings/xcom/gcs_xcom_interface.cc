@@ -188,7 +188,7 @@ Gcs_xcom_interface::Gcs_xcom_interface()
       m_default_sink(nullptr),
       m_default_logger(nullptr),
       m_default_debugger(nullptr),
-      m_ip_whitelist(),
+      m_ip_allowlist(),
       m_ssl_init_state(-1),
       m_wait_for_ssl_init_cond(),
       m_wait_for_ssl_init_mutex() {
@@ -275,7 +275,7 @@ enum_gcs_error Gcs_xcom_interface::finalize_logging() {
 
 enum_gcs_error Gcs_xcom_interface::initialize(
     const Gcs_interface_parameters &interface_params) {
-  const std::string *ip_whitelist_str = nullptr;
+  const std::string *ip_allowlist_str = nullptr;
   Gcs_interface_parameters validated_params;
 
   if (is_initialized()) return GCS_OK;
@@ -313,10 +313,10 @@ enum_gcs_error Gcs_xcom_interface::initialize(
   */
   Gcs_xcom_utils::init_net();
 
-  // validate whitelist
-  ip_whitelist_str = validated_params.get_parameter("ip_whitelist");
+  // validate allowlist
+  ip_allowlist_str = validated_params.get_parameter("ip_allowlist");
 
-  if (ip_whitelist_str && !m_ip_whitelist.is_valid(*ip_whitelist_str)) goto err;
+  if (ip_allowlist_str && !m_ip_allowlist.is_valid(*ip_allowlist_str)) goto err;
 
   /*
     ---------------------------------------------------------------
@@ -420,23 +420,23 @@ enum_gcs_error Gcs_xcom_interface::configure(
    */
   if (!is_parameters_syntax_correct(validated_params)) return GCS_NOK;
 
-  // validate whitelist
-  std::string *ip_whitelist_reconfigure_str = const_cast<std::string *>(
-      interface_params.get_parameter("reconfigure_ip_whitelist"));
+  // validate allowlist
+  std::string *ip_allowlist_reconfigure_str = const_cast<std::string *>(
+      interface_params.get_parameter("reconfigure_ip_allowlist"));
 
-  bool should_configure_whitelist = true;
-  if (ip_whitelist_reconfigure_str) {
-    should_configure_whitelist =
-        ip_whitelist_reconfigure_str->compare("on") == 0 ||
-        ip_whitelist_reconfigure_str->compare("true") == 0;
+  bool should_configure_allowlist = true;
+  if (ip_allowlist_reconfigure_str) {
+    should_configure_allowlist =
+        ip_allowlist_reconfigure_str->compare("on") == 0 ||
+        ip_allowlist_reconfigure_str->compare("true") == 0;
   }
 
-  if (should_configure_whitelist) {
-    const std::string *ip_whitelist_str =
-        validated_params.get_parameter("ip_whitelist");
+  if (should_configure_allowlist) {
+    const std::string *ip_allowlist_str =
+        validated_params.get_parameter("ip_allowlist");
 
-    if (!ip_whitelist_str || !m_ip_whitelist.is_valid(*ip_whitelist_str)) {
-      MYSQL_GCS_LOG_ERROR("The ip_whitelist parameter is not valid")
+    if (!ip_allowlist_str || !m_ip_allowlist.is_valid(*ip_allowlist_str)) {
+      MYSQL_GCS_LOG_ERROR("The ip_allowlist parameter is not valid")
       return GCS_NOK;
     }
   }
@@ -842,8 +842,8 @@ bool Gcs_xcom_interface::initialize_xcom(
       interface_params.get_parameter("bootstrap_group");
   const std::string *poll_spin_loops_str =
       interface_params.get_parameter("poll_spin_loops");
-  const std::string *ip_whitelist_str =
-      interface_params.get_parameter("ip_whitelist");
+  const std::string *ip_allowlist_str =
+      interface_params.get_parameter("ip_allowlist");
   const std::string *xcom_cache_size_str =
       interface_params.get_parameter("xcom_cache_size");
 
@@ -877,8 +877,8 @@ bool Gcs_xcom_interface::initialize_xcom(
                         xcom_cache_size_str->c_str());
   }
 
-  // configure whitelist
-  if (ip_whitelist_str) m_ip_whitelist.configure(*ip_whitelist_str);
+  // configure allowlist
+  if (ip_allowlist_str) m_ip_allowlist.configure(*ip_allowlist_str);
 
   // Register XCom callbacks
   ::set_xcom_data_receiver(cb_xcom_receive_data);
@@ -1217,8 +1217,8 @@ enum_gcs_error Gcs_xcom_interface::configure_suspicions_mgr(
   return ret;
 }
 
-const Gcs_ip_whitelist &Gcs_xcom_interface::get_ip_whitelist() {
-  return m_ip_whitelist;
+const Gcs_ip_allowlist &Gcs_xcom_interface::get_ip_allowlist() {
+  return m_ip_allowlist;
 }
 
 void cb_xcom_receive_data(synode_no message_id, node_set nodes, u_int size,
@@ -1694,7 +1694,7 @@ int cb_xcom_socket_accept(int fd, site_def const *xcom_config) {
   Gcs_xcom_interface *intf =
       static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface());
 
-  const Gcs_ip_whitelist &wl = intf->get_ip_whitelist();
+  const Gcs_ip_allowlist &wl = intf->get_ip_allowlist();
 
   return wl.shall_block(fd, xcom_config) ? 0 : 1;
 }

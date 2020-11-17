@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -53,14 +53,14 @@ class table_plugin_table : public PFS_engine_table {
   ha_rows get_row_count();
   */
 
-  virtual void reset_position(void);
+  void reset_position(void) override;
 
-  virtual int rnd_init(bool scan);
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
+  int rnd_init(bool scan) override;
+  int rnd_next() override;
+  int rnd_pos(const void *pos) override;
 
-  virtual int index_init(uint idx, bool sorted);
-  virtual int index_next();
+  int index_init(uint idx, bool sorted) override;
+  int index_next() override;
 
   int write_row(PSI_field *field, uint index, bool finished);
 
@@ -69,17 +69,17 @@ class table_plugin_table : public PFS_engine_table {
   void deinitialize_table_share();
 
  protected:
-  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all);
+  int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                      bool read_all) override;
 
-  virtual int update_row_values(TABLE *table, const unsigned char *,
-                                unsigned char *, Field **fields);
+  int update_row_values(TABLE *table, const unsigned char *, unsigned char *,
+                        Field **fields) override;
 
-  virtual int delete_row_values(TABLE *table, const unsigned char *buf,
-                                Field **fields);
+  int delete_row_values(TABLE *table, const unsigned char *buf,
+                        Field **fields) override;
 
  public:
-  ~table_plugin_table() {
+  ~table_plugin_table() override {
     delete m_index;
     m_st_table->close_table(this->plugin_table_handle);
   }
@@ -104,14 +104,14 @@ class PFS_plugin_table_index : public PFS_engine_index_abstract {
   PFS_plugin_table_index(PFS_engine_table_proxy *st_table)
       : m_st_table(st_table), m_idx(0), m_plugin_index(nullptr) {}
 
-  ~PFS_plugin_table_index() {}
+  ~PFS_plugin_table_index() override {}
 
   int init(PSI_table_handle *table, uint idx, bool sorted);
 
   int index_next(PSI_table_handle *table);
 
-  virtual void read_key(const uchar *key, uint key_len,
-                        enum ha_rkey_function find_flag);
+  void read_key(const uchar *key, uint key_len,
+                enum ha_rkey_function find_flag) override;
 
  private:
   PFS_engine_table_proxy *m_st_table;

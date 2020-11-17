@@ -65,7 +65,7 @@ explain select COUNT(*)
 from performance_schema.socket_instances
 where THREAD_ID = @tid;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	socket_instances	NULL	ref	THREAD_ID	THREAD_ID	9	const	#	100.00	Using where
+1	SIMPLE	socket_instances	NULL	ref	THREAD_ID	THREAD_ID	9	const	#	100.00	NULL
 ############# Explain End #########################################
 flush status;
 select COUNT(*)

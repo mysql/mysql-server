@@ -97,7 +97,7 @@ static bool buf_lru_switched_on_innodb_mon = false;
  the regular LRU, we will evict the entire block (i.e.: both the
  uncompressed and compressed data), which must be clean. */
 
-/* @{ */
+/** @{ */
 
 /** Number of intervals for which we keep the history of these stats.
 Each interval is 1 second, defined by the rate at which
@@ -123,13 +123,14 @@ buf_LRU_stat_t buf_LRU_stat_cur;
 Updated by buf_LRU_stat_update().  Not Protected by any mutex. */
 buf_LRU_stat_t buf_LRU_stat_sum;
 
-/* @} */
+/** @} */
 
-/** @name Heuristics for detecting index scan @{ */
+/** @name Heuristics for detecting index scan
+@{ */
 /** Move blocks to "new" LRU list only if the first access was at
 least this many milliseconds ago.  Not protected by any mutex or latch. */
 uint buf_LRU_old_threshold_ms;
-/* @} */
+/** @} */
 
 /** Takes a block out of the LRU list and page hash table.
 If the block is compressed-only (BUF_BLOCK_ZIP_PAGE),
@@ -1442,10 +1443,10 @@ static void buf_unzip_LRU_remove_block_if_needed(buf_page_t *bpage) {
   }
 }
 
-/** Adjust LRU hazard pointers if needed. */
-void buf_LRU_adjust_hp(buf_pool_t *buf_pool,    /*!< in: buffer pool instance */
-                       const buf_page_t *bpage) /*!< in: control block */
-{
+/** Adjust LRU hazard pointers if needed.
+@param[in] buf_pool Buffer pool instance
+@param[in] bpage Control block */
+void buf_LRU_adjust_hp(buf_pool_t *buf_pool, const buf_page_t *bpage) {
   buf_pool->lru_hp.adjust(bpage);
   buf_pool->lru_scan_itr.adjust(bpage);
   buf_pool->single_scan_itr.adjust(bpage);
@@ -1634,6 +1635,17 @@ void buf_LRU_make_block_young(buf_page_t *bpage) {
 
   buf_LRU_remove_block(bpage);
   buf_LRU_add_block_low(bpage, FALSE);
+}
+
+/** Moves a block to the end of the LRU list.
+@param[in]	bpage	control block */
+void buf_LRU_make_block_old(buf_page_t *bpage) {
+  ut_d(buf_pool_t *buf_pool =) buf_pool_from_bpage(bpage);
+
+  ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+
+  buf_LRU_remove_block(bpage);
+  buf_LRU_add_block_low(bpage, TRUE);
 }
 
 /** Try to free a block.  If bpage is a descriptor of a compressed-only

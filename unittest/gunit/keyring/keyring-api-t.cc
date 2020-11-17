@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,13 +37,13 @@ using namespace keyring;
 class Keyring_api_test : public ::testing::Test {
  public:
   Keyring_api_test() {}
-  ~Keyring_api_test() {
+  ~Keyring_api_test() override {
     delete[] plugin_name;
     delete[] keyring_filename;
   }
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     plugin_name = new char[strlen("FakeKeyring") + 1];
     strcpy(plugin_name, "FakeKeyring");
     keyring_filename = new char[strlen("./keyring") + 1];
@@ -62,7 +62,7 @@ class Keyring_api_test : public ::testing::Test {
     key_LOCK_keyring = PSI_NOT_INSTRUMENTED;
     sample_key_data = "Robi";
   }
-  virtual void TearDown() {
+  void TearDown() override {
     keyring_deinit_with_mock_logger();
     remove(keyring_file_data_value);
     remove("./keyring.backup");

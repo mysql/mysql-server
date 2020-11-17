@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,57 +44,57 @@ class Raw_record;
 class Entity_object_table_impl : public Object_table_impl,
                                  public Entity_object_table {
  public:
-  virtual ~Entity_object_table_impl() {}
+  ~Entity_object_table_impl() override {}
 
-  virtual bool restore_object_from_record(Open_dictionary_tables_ctx *otx,
-                                          const Raw_record &record,
-                                          Entity_object **o) const;
+  bool restore_object_from_record(Open_dictionary_tables_ctx *otx,
+                                  const Raw_record &record,
+                                  Entity_object **o) const override;
 
   // Fix "inherits ... via dominance" warnings
 
-  virtual const String_type &name() const { return Object_table_impl::name(); }
+  const String_type &name() const override { return Object_table_impl::name(); }
 
-  virtual Object_table_definition_impl *target_table_definition() {
+  Object_table_definition_impl *target_table_definition() override {
     return Object_table_impl::target_table_definition();
   }
 
-  virtual const Object_table_definition_impl *target_table_definition() const {
+  const Object_table_definition_impl *target_table_definition() const override {
     return Object_table_impl::target_table_definition();
   }
 
-  virtual void set_abandoned(uint last_dd_version) const {
+  void set_abandoned(uint last_dd_version) const override {
     return Object_table_impl::set_abandoned(last_dd_version);
   }
 
-  virtual bool is_abandoned() const {
+  bool is_abandoned() const override {
     return Object_table_impl::is_abandoned();
   }
 
-  virtual const Object_table_definition_impl *actual_table_definition() const {
+  const Object_table_definition_impl *actual_table_definition() const override {
     return Object_table_impl::actual_table_definition();
   }
 
-  virtual bool set_actual_table_definition(
-      const Properties &table_def_properties) const {
+  bool set_actual_table_definition(
+      const Properties &table_def_properties) const override {
     return Object_table_impl::set_actual_table_definition(table_def_properties);
   }
 
-  virtual int field_number(int target_field_number,
-                           const String_type &field_label) const {
+  int field_number(int target_field_number,
+                   const String_type &field_label) const override {
     return Object_table_impl::field_number(target_field_number, field_label);
   }
 
-  virtual int field_number(const String_type &field_label) const {
+  int field_number(const String_type &field_label) const override {
     return Object_table_impl::field_number(field_label);
   }
 
-  virtual bool populate(THD *thd) const {
+  bool populate(THD *thd) const override {
     return Object_table_impl::populate(thd);
   }
 
-  virtual bool is_hidden() const { return Object_table_impl::is_hidden(); }
+  bool is_hidden() const override { return Object_table_impl::is_hidden(); }
 
-  virtual void set_hidden(bool hidden) {
+  void set_hidden(bool hidden) override {
     return Object_table_impl::set_hidden(hidden);
   }
 };

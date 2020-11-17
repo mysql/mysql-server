@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,6 @@
 #include "adapter_global.h"
 #include "js_wrapper_macros.h"
 #include "NativeMethodCall.h"
-
-using namespace v8;
 
 V8WrapperFn Ndb_cluster_connection_set_name;
 V8WrapperFn Ndb_cluster_connection_connect;
@@ -187,7 +185,7 @@ void get_latest_error_msg_wrapper(const Arguments &args) {
 }
 
 
-void Ndb_cluster_connection_initOnLoad(Handle<Object> target) {
+void Ndb_cluster_connection_initOnLoad(Local<Object> target) {
   DEFINE_JS_FUNCTION(target, "Ndb_cluster_connection", Ndb_cluster_connection_new_wrapper);
 }
   

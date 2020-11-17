@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -590,9 +590,7 @@ class Sql_cmd_common_alter_table : public Sql_cmd_ddl_table {
 
   ~Sql_cmd_common_alter_table() override = 0;  // force abstract class
 
-  enum_sql_command sql_command_code() const override final {
-    return SQLCOM_ALTER_TABLE;
-  }
+  enum_sql_command sql_command_code() const final { return SQLCOM_ALTER_TABLE; }
 };
 
 inline Sql_cmd_common_alter_table::~Sql_cmd_common_alter_table() {}

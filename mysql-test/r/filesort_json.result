@@ -32,7 +32,7 @@ j JSON
 );
 EXPLAIN FORMAT=tree SELECT j FROM t1 ORDER BY pk;
 EXPLAIN
--> Sort: t1.pk  (cost=0.35 rows=1)
+-> Sort: t1.pk
     -> Table scan on t1
 
 DROP TABLE t1;

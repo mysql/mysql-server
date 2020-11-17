@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ class Auto_THD : public Internal_error_handler {
   /**
     Deinitialize THD.
   */
-  virtual ~Auto_THD();
+  ~Auto_THD() override;
 
   /**
     Error handler that prints error message on to the error log.
@@ -55,12 +55,12 @@ class Auto_THD : public Internal_error_handler {
 
     @return This function always return false.
   */
-  virtual bool handle_condition(class THD *thd MY_ATTRIBUTE((unused)),
-                                uint sql_errno MY_ATTRIBUTE((unused)),
-                                const char *sqlstate MY_ATTRIBUTE((unused)),
-                                Sql_condition::enum_severity_level *level
-                                    MY_ATTRIBUTE((unused)),
-                                const char *msg);
+  bool handle_condition(class THD *thd MY_ATTRIBUTE((unused)),
+                        uint sql_errno MY_ATTRIBUTE((unused)),
+                        const char *sqlstate MY_ATTRIBUTE((unused)),
+                        Sql_condition::enum_severity_level *level
+                            MY_ATTRIBUTE((unused)),
+                        const char *msg) override;
 
   /** Thd associated with the object. */
   class THD *thd;

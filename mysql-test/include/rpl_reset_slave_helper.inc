@@ -13,7 +13,7 @@ if (!$rpl_reset_slave_all)
     {
       CHANGE MASTER TO REQUIRE_ROW_FORMAT=0;
     }
-    RESET SLAVE;
+    RESET REPLICA;
   }
   if ($rpl_multi_source)
   {
@@ -25,7 +25,7 @@ if (!$rpl_reset_slave_all)
     {
       eval CHANGE MASTER TO REQUIRE_ROW_FORMAT=0 FOR CHANNEL $rpl_channel_name;
     }
-    eval RESET SLAVE FOR CHANNEL $rpl_channel_name;
+    eval RESET REPLICA FOR CHANNEL $rpl_channel_name;
   }
 }
 
@@ -33,10 +33,10 @@ if ($rpl_reset_slave_all)
 {
   if (!$rpl_multi_source)
   {
-    RESET SLAVE ALL;
+    RESET REPLICA ALL;
   }
   if ($rpl_multi_source)
   {
-    eval RESET SLAVE ALL FOR CHANNEL $rpl_channel_name;
+    eval RESET REPLICA ALL FOR CHANNEL $rpl_channel_name;
   }
 }

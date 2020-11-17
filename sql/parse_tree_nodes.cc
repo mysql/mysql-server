@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,21 +22,23 @@
 
 #include "sql/parse_tree_nodes.h"
 
-#include <string.h>
 #include <algorithm>
-#include <initializer_list>
+#include <cstring>
 #include <limits>
 #include <utility>
+#include <vector>
 
 #include "field_types.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "mem_root_deque.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "sql/auth/sql_security_ctx.h"
+#include "sql/create_field.h"
 #include "sql/dd/info_schema/show.h"      // build_show_...
 #include "sql/dd/types/abstract_table.h"  // dd::enum_table_type::BASE_TABLE
 #include "sql/dd/types/column.h"
@@ -57,6 +59,7 @@
 #include "sql/parse_tree_column_attrs.h"  // PT_field_def_base
 #include "sql/parse_tree_hints.h"
 #include "sql/parse_tree_partitions.h"  // PT_partition
+#include "sql/parse_tree_window.h"      // PT_window
 #include "sql/parser_yystype.h"
 #include "sql/query_options.h"
 #include "sql/query_result.h"
@@ -77,14 +80,19 @@
 #include "sql/sql_insert.h"  // Sql_cmd_insert...
 #include "sql/sql_parse.h"
 #include "sql/sql_select.h"  // Sql_cmd_select...
-#include "sql/sql_show.h"
-#include "sql/sql_update.h"  // Sql_cmd_update...
+#include "sql/sql_show.h"    // Sql_cmd_show...
+#include "sql/sql_show_processlist.h"
+#include "sql/sql_show_status.h"  // build_show_session_status, ...
+#include "sql/sql_update.h"       // Sql_cmd_update...
 #include "sql/system_variables.h"
 #include "sql/table_function.h"
 #include "sql/thr_malloc.h"
 #include "sql/trigger_def.h"
+#include "sql/window.h"  // Window
 #include "sql_string.h"
 #include "template_utils.h"
+
+extern bool pfs_processlist_enabled;
 
 namespace {
 
@@ -92,6 +100,15 @@ template <typename Context, typename Node>
 bool contextualize_safe(Context *pc, Node node) {
   if (node == nullptr) return false;
   return node->contextualize(pc);
+}
+
+template <typename Context>
+bool contextualize_safe(Context *pc, mem_root_deque<Item *> *list) {
+  if (list == nullptr) return false;
+  for (Item *&item : *list) {
+    if (item->itemize(pc, &item)) return true;
+  }
+  return false;
 }
 
 /**
@@ -125,6 +142,38 @@ Table_ddl_parse_context::Table_ddl_parse_context(THD *thd_arg,
 PT_joined_table *PT_table_reference::add_cross_join(PT_cross_join *cj) {
   cj->add_rhs(this);
   return cj;
+}
+
+bool PT_joined_table::contextualize_tabs(Parse_context *pc) {
+  if (tr1 != nullptr) return false;  // already done
+
+  bool was_right = m_type & JTT_RIGHT;
+  if (was_right)  // rewrite to LEFT
+  {
+    m_type =
+        static_cast<PT_joined_table_type>((m_type & ~JTT_RIGHT) | JTT_LEFT);
+    std::swap(tab1_node, tab2_node);
+  }
+
+  if (tab1_node->contextualize(pc) || tab2_node->contextualize(pc)) return true;
+
+  tr1 = tab1_node->value;
+  tr2 = tab2_node->value;
+
+  if (tr1 == nullptr || tr2 == nullptr) {
+    error(pc, join_pos);
+    return true;
+  }
+
+  if (m_type & JTT_LEFT) {
+    tr2->outer_join = true;
+    if (was_right) {
+      tr2->join_order_swapped = true;
+      tr2->select_lex->set_right_joins();
+    }
+  }
+
+  return false;
 }
 
 bool PT_option_value_no_option_type_charset::contextualize(Parse_context *pc) {
@@ -748,7 +797,6 @@ Sql_cmd *PT_delete::make_cmd(THD *thd) {
       return nullptr;
     select->select_limit = opt_delete_limit_clause;
     lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
-    select->explicit_limit = true;
   }
 
   if (is_multitable() && multi_delete_link_tables(&pc, &delete_tables))
@@ -778,7 +826,7 @@ Sql_cmd *PT_update::make_cmd(THD *thd) {
   if (column_list->contextualize(&pc) || value_list->contextualize(&pc)) {
     return nullptr;
   }
-  select->fields_list = column_list->value;
+  select->fields = column_list->value;
 
   // Ensure we're resetting parsing context of the right select
   DBUG_ASSERT(select->parsing_place == CTX_UPDATE_VALUE);
@@ -789,7 +837,7 @@ Sql_cmd *PT_update::make_cmd(THD *thd) {
   /*
     In case of multi-update setting write lock for all tables may
     be too pessimistic. We will decrease lock level if possible in
-    mysql_multi_update().
+    Sql_cmd_update::prepare_inner().
   */
   select->set_lock_for_tables(opt_low_priority);
 
@@ -807,7 +855,6 @@ Sql_cmd *PT_update::make_cmd(THD *thd) {
     if (opt_limit_clause->itemize(&pc, &opt_limit_clause)) return nullptr;
     select->select_limit = opt_limit_clause;
     lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
-    select->explicit_limit = true;
   }
 
   if (opt_hints != nullptr && opt_hints->contextualize(&pc)) return nullptr;
@@ -817,14 +864,9 @@ Sql_cmd *PT_update::make_cmd(THD *thd) {
 
 bool PT_insert_values_list::contextualize(Parse_context *pc) {
   if (super::contextualize(pc)) return true;
-  List_iterator<List_item> it1(many_values);
-  List<Item> *item_list;
-  while ((item_list = it1++)) {
-    List_iterator<Item> it2(*item_list);
-    Item *item;
-    while ((item = it2++)) {
-      if (item->itemize(pc, &item)) return true;
-      it2.replace(item);
+  for (List_item *item_list : many_values) {
+    for (auto it = item_list->begin(); it != item_list->end(); ++it) {
+      if ((*it)->itemize(pc, &*it)) return true;
     }
   }
 
@@ -918,7 +960,7 @@ Sql_cmd *PT_insert::make_cmd(THD *thd) {
     DBUG_ASSERT(pc.select->parsing_place == CTX_INSERT_VALUES);
     pc.select->parsing_place = CTX_NONE;
 
-    lex->bulk_insert_row_cnt = row_value_list->get_many_values().elements;
+    lex->bulk_insert_row_cnt = row_value_list->get_many_values().size();
   }
 
   // Create a derived table to use as a table reference to the VALUES rows,
@@ -1003,7 +1045,7 @@ Sql_cmd *PT_call::make_cmd(THD *thd) {
 
   sp_add_own_used_routine(lex, thd, Sroutine_hash_entry::PROCEDURE, proc_name);
 
-  List<Item> *proc_args = nullptr;
+  mem_root_deque<Item *> *proc_args = nullptr;
   if (opt_expr_list != nullptr) proc_args = &opt_expr_list->value;
 
   return new (thd->mem_root) Sql_cmd_call(proc_name, proc_args);
@@ -1077,8 +1119,8 @@ bool PT_table_value_constructor::contextualize(Parse_context *pc) {
 
   // Some queries, such as CREATE TABLE with SELECT, require item_list to
   // contain items to call SELECT_LEX::prepare.
-  for (Item &item : *pc->select->row_value_list->head()) {
-    pc->select->fields_list.push_back(&item);
+  for (Item *item : *pc->select->row_value_list->front()) {
+    pc->select->fields.push_back(item);
   }
 
   return false;
@@ -1101,7 +1143,8 @@ bool PT_query_expression::contextualize_order_and_limit(Parse_context *pc) {
       if (unit->add_fake_select_lex(lex->thd)) {
         return true;  // OOM
       }
-    } else if (unit->fake_select_lex->has_explicit_limit_or_order()) {
+    } else if (unit->fake_select_lex->has_limit() ||
+               unit->fake_select_lex->is_ordered()) {
       /*
         Make sure that we don't silently overwrite intermediate ORDER BY
         and/or LIMIT clauses, but reject unsupported levels of nesting
@@ -1128,8 +1171,8 @@ bool PT_query_expression::contextualize_order_and_limit(Parse_context *pc) {
               e.g. equivalent derived tables to support any level of nesting.
       */
       my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-               "parenthesized query block with more than one external level "
-               "of ORDER/LIMIT operations");
+               "parenthesized query expression with more than one external "
+               "level of ORDER/LIMIT operations");
       return true;
     }
 
@@ -1891,58 +1934,68 @@ bool PT_table_locking_clause::set_lock_for_tables(Parse_context *pc) {
   return false;
 }
 
-Sql_cmd *PT_show_fields_and_keys::make_cmd(THD *thd) {
+bool PT_show_table_base::make_table_base_cmd(THD *thd, bool *temporary) {
   LEX *const lex = thd->lex;
   Parse_context pc(thd, lex->current_select());
+
+  lex->sql_command = m_sql_command;
 
   // Create empty query block and add user specfied table.
   TABLE_LIST **query_tables_last = lex->query_tables_last;
   SELECT_LEX *schema_select_lex = lex->new_empty_query_block();
-  if (schema_select_lex == nullptr) return nullptr;
+  if (schema_select_lex == nullptr) return true;
   TABLE_LIST *tbl = schema_select_lex->add_table_to_list(
       thd, m_table_ident, nullptr, 0, TL_READ, MDL_SHARED_READ);
-  if (tbl == nullptr) return nullptr;
+  if (tbl == nullptr) return true;
   lex->query_tables_last = query_tables_last;
 
-  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+  if (m_wild.str && lex->set_wild(m_wild)) return true;  // OOM
 
-  // If its a temporary table then use schema_table implementation.
-  if (find_temporary_table(thd, tbl) != nullptr) {
+  TABLE *show_table = find_temporary_table(thd, tbl);
+  *temporary = show_table != nullptr;
+
+  // If its a temporary table then use schema_table implementation,
+  // otherwise read I_S system view:
+  if (*temporary) {
     SELECT_LEX *select_lex = lex->current_select();
 
-    if (m_where_condition != nullptr) {
-      m_where_condition->itemize(&pc, &m_where_condition);
-      select_lex->set_where_cond(m_where_condition);
+    if (m_where != nullptr) {
+      if (m_where->itemize(&pc, &m_where)) return true;
+      select_lex->set_where_cond(m_where);
     }
 
-    enum enum_schema_tables schema_table =
-        (m_type == SHOW_FIELDS) ? SCH_TMP_TABLE_COLUMNS : SCH_TMP_TABLE_KEYS;
-    if (make_schema_select(thd, select_lex, schema_table)) return nullptr;
+    enum enum_schema_tables schema_table = m_sql_command == SQLCOM_SHOW_FIELDS
+                                               ? SCH_TMP_TABLE_COLUMNS
+                                               : SCH_TMP_TABLE_KEYS;
+    if (make_schema_select(thd, select_lex, schema_table)) return true;
 
     TABLE_LIST *table_list = select_lex->table_list.first;
     table_list->schema_select_lex = schema_select_lex;
     table_list->schema_table_reformed = true;
-  } else  // Use implementation of I_S as system views.
-  {
+  } else {
     SELECT_LEX *sel = nullptr;
-    switch (m_type) {
-      case SHOW_FIELDS:
+    switch (m_sql_command) {
+      case SQLCOM_SHOW_FIELDS:
         sel = dd::info_schema::build_show_columns_query(
-            m_pos, thd, m_table_ident, lex->wild, m_where_condition);
+            m_pos, thd, m_table_ident, lex->wild, m_where);
         break;
-      case SHOW_KEYS:
+      case SQLCOM_SHOW_KEYS:
         sel = dd::info_schema::build_show_keys_query(m_pos, thd, m_table_ident,
-                                                     m_where_condition);
+                                                     m_where);
+        break;
+      default:
+        assert(false);
+        sel = nullptr;
         break;
     }
 
-    if (sel == nullptr) return nullptr;
+    if (sel == nullptr) return true;
 
     TABLE_LIST *table_list = sel->table_list.first;
     table_list->schema_select_lex = schema_select_lex;
   }
 
-  return &m_sql_cmd;
+  return false;
 }
 
 static void setup_lex_show_cmd_type(THD *thd, Show_cmd_type show_cmd_type) {
@@ -1962,41 +2015,454 @@ static void setup_lex_show_cmd_type(THD *thd, Show_cmd_type show_cmd_type) {
       thd->lex->verbose = true;
       thd->lex->m_extended_show = true;
       break;
-    default:
-      DBUG_ASSERT(false);
   }
 }
 
-PT_show_fields::PT_show_fields(const POS &pos, Show_cmd_type show_cmd_type,
-                               Table_ident *table_ident, Item *where_condition)
-    : PT_show_fields_and_keys(pos, SHOW_FIELDS, table_ident, NULL_STR,
-                              where_condition),
-      m_show_cmd_type(show_cmd_type) {}
+Sql_cmd *PT_show_binlog_events::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->mi.log_file_name = m_opt_log_file_name.str;
+
+  Parse_context pc(thd, thd->lex->current_select());
+  if (contextualize_safe(&pc, m_opt_limit_clause)) return nullptr;  // OOM
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_binlogs::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_charsets::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (dd::info_schema::build_show_character_set_query(m_pos, thd, lex->wild,
+                                                      m_where) == nullptr)
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_collations::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (dd::info_schema::build_show_collation_query(m_pos, thd, lex->wild,
+                                                  m_where) == nullptr)
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_create_database::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->create_info->options = m_if_not_exists ? HA_LEX_CREATE_IF_NOT_EXISTS : 0;
+  lex->name = m_name;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_create_event::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->spname = m_spname;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_create_function::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->spname = m_spname;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_create_procedure::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->spname = m_spname;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_create_table::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->create_info->storage_media = HA_SM_DEFAULT;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_create_view::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_create_trigger::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->spname = m_spname;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_create_user::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->grant_user = m_user;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_databases::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (dd::info_schema::build_show_databases_query(m_pos, thd, lex->wild,
+                                                  m_where) == nullptr)
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_engine_logs::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (!m_all && resolve_engine(thd, to_lex_cstring(m_engine), false, true,
+                               &lex->create_info->db_type))
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_engine_mutex::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (!m_all && resolve_engine(thd, to_lex_cstring(m_engine), false, true,
+                               &lex->create_info->db_type))
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_engine_status::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (!m_all && resolve_engine(thd, to_lex_cstring(m_engine), false, true,
+                               &lex->create_info->db_type))
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_engines::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (prepare_schema_table(thd, lex, 0, SCH_ENGINES)) return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_errors::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+  // SHOW ERRORS will not clear diagnostics
+  lex->keep_diagnostics = DA_KEEP_DIAGNOSTICS;
+
+  Parse_context pc(thd, thd->lex->current_select());
+  if (contextualize_safe(&pc, m_opt_limit_clause)) return nullptr;  // OOM
+
+  return &m_sql_cmd;
+}
 
 Sql_cmd *PT_show_fields::make_cmd(THD *thd) {
   LEX *const lex = thd->lex;
-  lex->select_lex->db = nullptr;
+  assert(lex->select_lex->db == nullptr);
 
   setup_lex_show_cmd_type(thd, m_show_cmd_type);
   lex->current_select()->parsing_place = CTX_SELECT_LIST;
-  lex->sql_command = SQLCOM_SHOW_FIELDS;
-  Sql_cmd *ret = super::make_cmd(thd);
-  if (ret == nullptr) return nullptr;
+  if (make_table_base_cmd(thd, &m_sql_cmd.m_temporary)) return nullptr;
   // WL#6599 opt_describe_column is handled during prepare stage in
   // prepare_schema_dd_view instead of execution stage
   lex->current_select()->parsing_place = CTX_NONE;
 
-  return ret;
+  return &m_sql_cmd;
 }
-
-PT_show_keys::PT_show_keys(const POS &pos, bool extended_show,
-                           Table_ident *table, Item *where_condition)
-    : PT_show_fields_and_keys(pos, SHOW_KEYS, table, NULL_STR, where_condition),
-      m_extended_show(extended_show) {}
 
 Sql_cmd *PT_show_keys::make_cmd(THD *thd) {
   thd->lex->m_extended_show = m_extended_show;
-  return super::make_cmd(thd);
+
+  if (make_table_base_cmd(thd, &m_sql_cmd.m_temporary)) return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_events::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+  lex->select_lex->db = m_opt_db;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (dd::info_schema::build_show_events_query(m_pos, thd, lex->wild,
+                                               m_where) == nullptr)
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_master_status::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_open_tables::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  Parse_context pc(thd, lex->select_lex);
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+  if (m_where != nullptr) {
+    if (m_where->itemize(&pc, &m_where)) return nullptr;
+    lex->select_lex->set_where_cond(m_where);
+  }
+  lex->select_lex->db = m_opt_db;
+
+  if (prepare_schema_table(thd, lex, 0, SCH_OPEN_TABLES)) return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_plugins::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (prepare_schema_table(thd, lex, 0, SCH_PLUGINS)) return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_privileges::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_processlist::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  m_sql_cmd.set_use_pfs(pfs_processlist_enabled);
+  if (pfs_processlist_enabled) {
+    if (build_processlist_query(m_pos, thd, m_sql_cmd.verbose()))
+      return nullptr;
+  }
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_routine_code::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_profile::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->profile_options = m_opt_profile_options;
+  lex->show_profile_query_id = m_opt_query_id;
+
+  Parse_context pc(thd, thd->lex->current_select());
+  if (contextualize_safe(&pc, m_opt_limit_clause)) return nullptr;  // OOM
+
+  if (prepare_schema_table(thd, lex, 0, SCH_PROFILES)) return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_profiles::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_relaylog_events::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->mi.log_file_name = m_opt_log_file_name.str;
+  if (lex->set_channel_name(m_opt_channel_name)) return nullptr;  // OOM
+
+  Parse_context pc(thd, thd->lex->current_select());
+  if (contextualize_safe(&pc, m_opt_limit_clause)) return nullptr;  // OOM
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_replicas::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_replica_status::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (lex->set_channel_name(m_opt_channel_name)) return nullptr;  // OOM
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_status::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (m_var_type == OPT_SESSION) {
+    if (build_show_session_status(m_pos, thd, lex->wild, m_where) == nullptr)
+      return nullptr;
+  } else if (m_var_type == OPT_GLOBAL) {
+    if (build_show_global_status(m_pos, thd, lex->wild, m_where) == nullptr)
+      return nullptr;
+  }
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_status_func::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (dd::info_schema::build_show_procedures_query(m_pos, thd, lex->wild,
+                                                   m_where) == nullptr)
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_status_proc::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (dd::info_schema::build_show_procedures_query(m_pos, thd, lex->wild,
+                                                   m_where) == nullptr)
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_table_status::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->select_lex->db = m_opt_db;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (dd::info_schema::build_show_tables_query(m_pos, thd, lex->wild, m_where,
+                                               true) == nullptr)
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_tables::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+  setup_lex_show_cmd_type(thd, m_show_cmd_type);
+
+  lex->select_lex->db = m_opt_db;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (dd::info_schema::build_show_tables_query(m_pos, thd, lex->wild, m_where,
+                                               false) == nullptr)
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_triggers::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+  lex->verbose = m_full;
+  lex->select_lex->db = m_opt_db;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (dd::info_schema::build_show_triggers_query(m_pos, thd, lex->wild,
+                                                 m_where) == nullptr)
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_variables::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (m_var_type == OPT_SESSION) {
+    if (build_show_session_variables(m_pos, thd, lex->wild, m_where) == nullptr)
+      return nullptr;
+  } else if (m_var_type == OPT_GLOBAL) {
+    if (build_show_global_variables(m_pos, thd, lex->wild, m_where) == nullptr)
+      return nullptr;
+  }
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_warnings::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+  // SHOW WARNINGS will not clear diagnostics
+  lex->keep_diagnostics = DA_KEEP_DIAGNOSTICS;
+
+  Parse_context pc(thd, thd->lex->current_select());
+  if (contextualize_safe(&pc, m_opt_limit_clause)) return nullptr;  // OOM
+
+  return &m_sql_cmd;
 }
 
 bool PT_alter_table_change_column::contextualize(Table_ddl_parse_context *pc) {
@@ -2436,63 +2902,6 @@ Item *PT_border::build_addop(Item_cache *order_expr, bool prec, bool asc,
   return addop;
 }
 
-bool PT_window::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
-
-  if (m_partition_by != nullptr) {
-    if (m_partition_by->contextualize(pc)) return true;
-  }
-
-  if (m_order_by != nullptr) {
-    if (m_order_by->contextualize(pc)) return true;
-  }
-
-  if (m_frame != nullptr) {
-    for (auto bound : {m_frame->m_from, m_frame->m_to}) {
-      if (bound->m_border_type == WBT_VALUE_PRECEDING ||
-          bound->m_border_type == WBT_VALUE_FOLLOWING) {
-        auto **bound_i_ptr = bound->border_ptr();
-        if ((*bound_i_ptr)->itemize(pc, bound_i_ptr)) return true;
-      }
-    }
-  }
-
-  return false;
-}
-
-bool PT_window_list::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
-
-  uint count = pc->select->m_windows.elements;
-  List_iterator<Window> wi(m_windows);
-  Window *w;
-  while ((w = wi++)) {
-    static_cast<PT_window *>(w)->contextualize(pc);
-    w->set_def_pos(++count);
-  }
-
-  SELECT_LEX *select = pc->select;
-  select->m_windows.prepend(&m_windows);
-
-  return false;
-}
-
-Sql_cmd *PT_show_tables::make_cmd(THD *thd) {
-  LEX *lex = thd->lex;
-  lex->sql_command = SQLCOM_SHOW_TABLES;
-
-  lex->select_lex->db = m_opt_db;
-  setup_lex_show_cmd_type(thd, m_show_cmd_type);
-
-  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
-
-  SELECT_LEX *sel = dd::info_schema::build_show_tables_query(
-      m_pos, thd, lex->wild, m_where_condition, false);
-  if (sel == nullptr) return nullptr;
-
-  return &m_sql_cmd;
-}
-
 PT_json_table_column_for_ordinality::PT_json_table_column_for_ordinality(
     LEX_STRING name)
     : m_name(name.str) {}
@@ -2689,20 +3098,17 @@ Sql_cmd *PT_load_table::make_cmd(THD *thd) {
     lex->set_ignore(true);
 
   Parse_context pc(thd, select);
-  if (contextualize_safe(&pc, m_opt_fields_or_vars)) return nullptr;
-
-  if (m_opt_set_fields != nullptr) {
-    if (m_opt_set_fields->contextualize(&pc) ||
-        m_opt_set_exprs->contextualize(&pc))
-      return nullptr;
-  }
+  if (contextualize_safe(&pc, &m_cmd.m_opt_fields_or_vars) ||
+      contextualize_safe(&pc, &m_cmd.m_opt_set_fields) ||
+      contextualize_safe(&pc, &m_cmd.m_opt_set_exprs))
+    return nullptr;
 
   return &m_cmd;
 }
 
 bool PT_select_item_list::contextualize(Parse_context *pc) {
   if (super::contextualize(pc)) return true;
-  pc->select->fields_list = value;
+  pc->select->fields = value;
   return false;
 }
 
@@ -2721,7 +3127,6 @@ bool PT_limit_clause::contextualize(Parse_context *pc) {
 
   pc->select->select_limit = limit_options.limit;
   pc->select->offset_limit = limit_options.opt_offset;
-  pc->select->explicit_limit = true;
 
   pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
   return false;
@@ -2752,19 +3157,6 @@ bool PT_table_reference_list_parens::contextualize(Parse_context *pc) {
 
 bool PT_joined_table::contextualize(Parse_context *pc) {
   if (super::contextualize(pc) || contextualize_tabs(pc)) return true;
-
-  if (m_type & (JTT_LEFT | JTT_RIGHT)) {
-    if (m_type & JTT_LEFT)
-      tr2->outer_join = JOIN_TYPE_LEFT;
-    else {
-      TABLE_LIST *inner_table = pc->select->convert_right_join();
-      if (inner_table == nullptr) return true;
-      /* swap tr1 and tr2 */
-      DBUG_ASSERT(inner_table == tr1);
-      tr1 = tr2;
-      tr2 = inner_table;
-    }
-  }
 
   if (m_type & JTT_NATURAL) tr1->add_join_natural(tr2);
 
@@ -2879,8 +3271,8 @@ bool PT_option_value_no_option_type_user_var::contextualize(Parse_context *pc) {
   if (super::contextualize(pc) || expr->itemize(pc, &expr)) return true;
 
   THD *thd = pc->thd;
-  Item_func_set_user_var *item;
-  item = new (pc->mem_root) Item_func_set_user_var(name, expr, false);
+  Item_func_set_user_var *item =
+      new (pc->mem_root) Item_func_set_user_var(name, expr);
   if (item == nullptr) return true;
   set_var_user *var = new (thd->mem_root) set_var_user(item);
   if (var == nullptr) return true;
@@ -3008,7 +3400,7 @@ bool PT_set::contextualize(Parse_context *pc) {
   LEX *lex = thd->lex;
   lex->sql_command = SQLCOM_SET_OPTION;
   lex->option_type = OPT_SESSION;
-  lex->var_list.empty();
+  lex->var_list.clear();
   lex->autocommit = false;
 
   sp_create_assignment_lex(thd, set_pos.raw.end);
@@ -3599,7 +3991,7 @@ class PT_attribute : public BASE {
 
  public:
   PT_attribute(ATTRIBUTE a, CFP cfp) : m_attr{a}, m_cfp{cfp} {}
-  bool contextualize(typename BASE::context_t *pc) {
+  bool contextualize(typename BASE::context_t *pc) override {
     return BASE::contextualize(pc) || m_cfp(m_attr, pc);
   }
 };

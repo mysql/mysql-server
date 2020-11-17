@@ -351,12 +351,11 @@ static void trx_roll_savepoint_free(
   ut_free(savep);
 }
 
-/** Frees savepoint structs starting from savep. */
-void trx_roll_savepoints_free(
-    trx_t *trx,                /*!< in: transaction handle */
-    trx_named_savept_t *savep) /*!< in: free all savepoints starting
-                               with this savepoint i*/
-{
+/** Frees savepoint structs starting from savep.
+@param[in] trx Transaction handle
+@param[in] savep Free all savepoints starting with this savepoint i, if savep is
+nullptr free all save points */
+void trx_roll_savepoints_free(trx_t *trx, trx_named_savept_t *savep) {
   while (savep != nullptr) {
     trx_named_savept_t *next_savep;
 

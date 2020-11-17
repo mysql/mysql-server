@@ -43,6 +43,8 @@ SET DEBUG_SYNC= 'RESET';
 [connection slave]
 include/wait_for_slave_to_stop.inc
 [connection slave1]
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 [connection master]
 SET GLOBAL debug= $debug_save;
 include/stop_dump_threads.inc

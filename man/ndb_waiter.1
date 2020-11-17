@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_waiter\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/01/2020
+.\"      Date: 09/04/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_WAITER\FR" "1" "06/01/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_WAITER\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -141,7 +141,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.277.\ \&Command\-line options for the ndb_waiter program
+.B Table\ \&22.278.\ \&Command\-line options for the ndb_waiter program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -195,7 +195,7 @@ T{
 \fB \fR\fB-t\fR\fB \fR
 T}:T{
 Wait this many seconds, then exit whether or not cluster has reached
-              desired state; default is 2 minutes (120 seconds)
+              desired state
 T}:T{
 .PP
 (Supported in all MySQL 8.0 based releases)
@@ -246,7 +246,6 @@ Additional Options
 .\}
 \fB\-\-no\-contact\fR,
 \fB\-n\fR
-.sp
 Instead of waiting for the
 STARTED
 state,
@@ -265,7 +264,6 @@ status before exiting\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-not\-started\fR
-.sp
 Instead of waiting for the
 STARTED
 state,
@@ -285,7 +283,6 @@ status before exiting\&.
 .\}
 \fB\-\-timeout=\fR\fB\fIseconds\fR\fR,
 \fB\-t \fR\fB\fIseconds\fR\fR
-.sp
 Time to wait\&. The program exits if the desired state is not achieved within this number of seconds\&. The default is 120 seconds (1200 reporting cycles)\&.
 .RE
 .sp
@@ -298,7 +295,6 @@ Time to wait\&. The program exits if the desired state is not achieved within th
 .IP \(bu 2.3
 .\}
 \fB\-\-single\-user\fR
-.sp
 The program waits for the cluster to enter single user mode\&.
 .RE
 .sp
@@ -311,7 +307,6 @@ The program waits for the cluster to enter single user mode\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-nowait\-nodes=\fR\fB\fIlist\fR\fR
-.sp
 When this option is used, ndb_waiter does not wait for the nodes whose IDs are listed\&. The list is comma\-delimited; ranges can be indicated by dashes, as shown here:
 .sp
 .if n \{\
@@ -354,7 +349,6 @@ option\&.
 .\}
 \fB\-\-wait\-nodes=\fR\fB\fIlist\fR\fR,
 \fB\-w \fR\fB\fIlist\fR\fR
-.sp
 When this option is used,
 \fBndb_waiter\fR
 waits only for the nodes whose IDs are listed\&. The list is comma\-delimited; ranges can be indicated by dashes, as shown here:

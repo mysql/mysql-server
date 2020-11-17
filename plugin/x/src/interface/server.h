@@ -57,7 +57,7 @@ class Server {
   virtual bool prepare() = 0;
   virtual void delayed_start_tasks() = 0;
   virtual void start_tasks() = 0;
-  virtual void stop(const bool is_called_from_timeout_handler = false) = 0;
+  virtual void stop() = 0;
 
   virtual iface::Authentication_container &get_authentications() = 0;
 

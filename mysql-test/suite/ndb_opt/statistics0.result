@@ -1,0 +1,259 @@
+set @is_enable_default = @@global.ndb_index_stat_enable;
+set @is_enable = 0;
+set @is_enable = NULL;
+# is_enable_on=0 is_enable_off=1
+# ndb_index_stat_enable - before
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON
+set @@local.ndb_index_stat_enable = 0;
+set @@global.ndb_index_stat_enable = 0;
+# ndb_index_stat_enable - after
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+CREATE TABLE t10(
+K INT NOT NULL AUTO_INCREMENT,
+I INT, J INT,
+PRIMARY KEY(K),
+KEY(I,J),
+UNIQUE KEY(J,K)
+) ENGINE=ndbcluster
+partition by key (K) partitions 1;
+INSERT INTO t10(I,J) VALUES (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9),(0,0);
+CREATE TABLE t100 LIKE t10;
+INSERT INTO t100(I,J)
+SELECT X.J, X.J+(10*Y.J) FROM t10 AS X,t10 AS Y;
+CREATE TABLE t10000 LIKE t10;
+ALTER TABLE t10000 ENGINE=INNODB;
+INSERT INTO t10000(I,J)
+SELECT X.J, X.J+(100*Y.J) FROM t100 AS X,t100 AS Y;
+ALTER TABLE t10000 ENGINE=NDBCLUSTER;
+ANALYZE TABLE t10,t100,t10000;
+Table	Op	Msg_type	Msg_text
+test.t10	analyze	status	OK
+test.t100	analyze	status	OK
+test.t10000	analyze	status	OK
+SELECT COUNT(*) FROM t10;
+COUNT(*)
+10
+SELECT COUNT(*) FROM t100;
+COUNT(*)
+100
+SELECT COUNT(*) FROM t10000;
+COUNT(*)
+10000
+EXPLAIN
+SELECT * FROM t10000 WHERE k = 42;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t10000	p0	eq_ref	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where (`test`.`t10000`.`K` = 42)
+EXPLAIN
+SELECT * FROM t10000 WHERE k >= 42 and k < 10000;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t10000	p0	range	PRIMARY	PRIMARY	4	NULL	500	100.00	Using pushed condition ((`test`.`t10000`.`K` >= 42) and (`test`.`t10000`.`K` < 10000)); Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where ((`test`.`t10000`.`K` >= 42) and (`test`.`t10000`.`K` < 10000))
+EXPLAIN
+SELECT * FROM t10000 WHERE k BETWEEN 42 AND 10000;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t10000	p0	range	PRIMARY	PRIMARY	4	NULL	500	100.00	Using pushed condition (`test`.`t10000`.`K` between 42 and 10000); Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where (`test`.`t10000`.`K` between 42 and 10000)
+EXPLAIN
+SELECT * FROM t10000 WHERE k < 42;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t10000	p0	range	PRIMARY	PRIMARY	4	NULL	1000	100.00	Using pushed condition (`test`.`t10000`.`K` < 42); Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where (`test`.`t10000`.`K` < 42)
+EXPLAIN
+SELECT * FROM t10000 WHERE k > 42;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t10000	p0	range	PRIMARY	PRIMARY	4	NULL	1000	100.00	Using pushed condition (`test`.`t10000`.`K` > 42); Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where (`test`.`t10000`.`K` > 42)
+EXPLAIN
+SELECT * FROM t10000 AS x JOIN t10000 AS y
+ON y.i=x.i AND y.j = x.i;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	x	p0	ALL	I	NULL	NULL	NULL	10000	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`x`.`I` is not null)
+1	SIMPLE	y	p0	ref	J,I	I	10	test.x.I,test.x.I	11	100.00	Child of 'x' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`x`.`K` AS `K`,`test`.`x`.`I` AS `I`,`test`.`x`.`J` AS `J`,`test`.`y`.`K` AS `K`,`test`.`y`.`I` AS `I`,`test`.`y`.`J` AS `J` from `test`.`t10000` `x` join `test`.`t10000` `y` where ((`test`.`y`.`I` = `test`.`x`.`I`) and (`test`.`y`.`J` = `test`.`x`.`I`))
+EXPLAIN
+SELECT * FROM t100 WHERE k < 42;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t100	p0	range	PRIMARY	PRIMARY	4	NULL	10	100.00	Using pushed condition (`test`.`t100`.`K` < 42); Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t100`.`K` AS `K`,`test`.`t100`.`I` AS `I`,`test`.`t100`.`J` AS `J` from `test`.`t100` where (`test`.`t100`.`K` < 42)
+EXPLAIN
+SELECT * FROM t100 WHERE k > 42;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t100	p0	range	PRIMARY	PRIMARY	4	NULL	10	100.00	Using pushed condition (`test`.`t100`.`K` > 42); Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t100`.`K` AS `K`,`test`.`t100`.`I` AS `I`,`test`.`t100`.`J` AS `J` from `test`.`t100` where (`test`.`t100`.`K` > 42)
+EXPLAIN
+SELECT * FROM t10000 WHERE k < 42;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t10000	p0	range	PRIMARY	PRIMARY	4	NULL	1000	100.00	Using pushed condition (`test`.`t10000`.`K` < 42); Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where (`test`.`t10000`.`K` < 42)
+EXPLAIN
+SELECT * FROM t10000 WHERE k > 42;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t10000	p0	range	PRIMARY	PRIMARY	4	NULL	1000	100.00	Using pushed condition (`test`.`t10000`.`K` > 42); Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where (`test`.`t10000`.`K` > 42)
+EXPLAIN
+SELECT * FROM t100 WHERE k BETWEEN 42 AND 10000;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t100	p0	range	PRIMARY	PRIMARY	4	NULL	5	100.00	Using pushed condition (`test`.`t100`.`K` between 42 and 10000); Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t100`.`K` AS `K`,`test`.`t100`.`I` AS `I`,`test`.`t100`.`J` AS `J` from `test`.`t100` where (`test`.`t100`.`K` between 42 and 10000)
+EXPLAIN
+SELECT * FROM t10000 WHERE k BETWEEN 42 AND 10000;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t10000	p0	range	PRIMARY	PRIMARY	4	NULL	500	100.00	Using pushed condition (`test`.`t10000`.`K` between 42 and 10000); Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where (`test`.`t10000`.`K` between 42 and 10000)
+EXPLAIN
+SELECT * FROM t10000 WHERE I = 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t10000	p0	ref	I	I	5	const	200	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where (`test`.`t10000`.`I` = 0)
+EXPLAIN
+SELECT * FROM t10000 WHERE J = 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t10000	p0	ref	J	J	5	const	166	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where (`test`.`t10000`.`J` = 0)
+EXPLAIN
+SELECT * FROM t10000 WHERE I = 0 AND J = 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t10000	p0	ref	J,I	I	10	const,const	21	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where ((`test`.`t10000`.`J` = 0) and (`test`.`t10000`.`I` = 0))
+EXPLAIN
+SELECT * FROM t10000 WHERE I = 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t10000	p0	ref	I	I	5	const	200	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where (`test`.`t10000`.`I` = 0)
+EXPLAIN
+SELECT * FROM t10000 WHERE I = 0 AND J > 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t10000	p0	range	J,I	I	10	NULL	100	100.00	Using pushed condition ((`test`.`t10000`.`I` = 0) and (`test`.`t10000`.`J` > 1)); Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where ((`test`.`t10000`.`I` = 0) and (`test`.`t10000`.`J` > 1))
+EXPLAIN
+SELECT * FROM t10000 WHERE I = 0 AND J < 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t10000	p0	range	J,I	I	10	NULL	50	100.00	Using pushed condition ((`test`.`t10000`.`I` = 0) and (`test`.`t10000`.`J` < 1)); Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where ((`test`.`t10000`.`I` = 0) and (`test`.`t10000`.`J` < 1))
+EXPLAIN
+SELECT * FROM t10000 WHERE I = 0 AND J BETWEEN 1 AND 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t10000	p0	range	J,I	I	10	NULL	50	100.00	Using pushed condition ((`test`.`t10000`.`I` = 0) and (`test`.`t10000`.`J` between 1 and 10)); Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where ((`test`.`t10000`.`I` = 0) and (`test`.`t10000`.`J` between 1 and 10))
+EXPLAIN
+SELECT * FROM t10000 WHERE I = 0 AND J = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t10000	p0	ref	J,I	I	10	const,const	21	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where ((`test`.`t10000`.`J` = 1) and (`test`.`t10000`.`I` = 0))
+EXPLAIN
+SELECT * FROM t10000 WHERE J = 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t10000	p0	ref	J	J	5	const	166	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where (`test`.`t10000`.`J` = 0)
+EXPLAIN
+SELECT * FROM t10000 WHERE J = 0 AND K > 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t10000	p0	range	PRIMARY,J	J	9	NULL	83	100.00	Using pushed condition ((`test`.`t10000`.`J` = 0) and (`test`.`t10000`.`K` > 1)); Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where ((`test`.`t10000`.`J` = 0) and (`test`.`t10000`.`K` > 1))
+EXPLAIN
+SELECT * FROM t10000 WHERE J = 0 AND K < 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t10000	p0	range	PRIMARY,J	J	9	NULL	83	100.00	Using pushed condition ((`test`.`t10000`.`J` = 0) and (`test`.`t10000`.`K` < 1)); Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where ((`test`.`t10000`.`J` = 0) and (`test`.`t10000`.`K` < 1))
+EXPLAIN
+SELECT * FROM t10000 WHERE J = 0 AND K BETWEEN 1 AND 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t10000	p0	range	PRIMARY,J	J	9	NULL	41	100.00	Using pushed condition ((`test`.`t10000`.`J` = 0) and (`test`.`t10000`.`K` between 1 and 10)); Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where ((`test`.`t10000`.`J` = 0) and (`test`.`t10000`.`K` between 1 and 10))
+EXPLAIN
+SELECT * FROM t10000 WHERE J = 0 AND K = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t10000	p0	eq_ref	PRIMARY,J	PRIMARY	4	const	1	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where ((`test`.`t10000`.`K` = 1) and (`test`.`t10000`.`J` = 0))
+EXPLAIN
+SELECT * FROM t10000 WHERE I = 0 AND J <> 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t10000	p0	range	J,I	I	10	NULL	150	100.00	Using pushed condition ((`test`.`t10000`.`I` = 0) and (`test`.`t10000`.`J` <> 1)); Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where ((`test`.`t10000`.`I` = 0) and (`test`.`t10000`.`J` <> 1))
+EXPLAIN
+SELECT * FROM t10000 WHERE I <> 0 AND J = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t10000	p0	ref	J,I	J	5	const	166	15.00	Using pushed condition (`test`.`t10000`.`I` <> 0)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where ((`test`.`t10000`.`J` = 1) and (`test`.`t10000`.`I` <> 0))
+EXPLAIN
+SELECT * FROM t10000 WHERE I <> 0 AND J <> 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t10000	p0	range	J,I	J	5	NULL	1500	15.00	Using pushed condition ((`test`.`t10000`.`I` <> 0) and (`test`.`t10000`.`J` <> 1)); Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where ((`test`.`t10000`.`I` <> 0) and (`test`.`t10000`.`J` <> 1))
+EXPLAIN
+SELECT * FROM t10000 WHERE J <> 1 AND I = 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t10000	p0	range	J,I	I	10	NULL	150	100.00	Using pushed condition ((`test`.`t10000`.`I` = 0) and (`test`.`t10000`.`J` <> 1)); Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where ((`test`.`t10000`.`I` = 0) and (`test`.`t10000`.`J` <> 1))
+EXPLAIN
+SELECT * FROM t10000 WHERE J = 1 AND I <> 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t10000	p0	ref	J,I	J	5	const	166	15.00	Using pushed condition (`test`.`t10000`.`I` <> 0)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where ((`test`.`t10000`.`J` = 1) and (`test`.`t10000`.`I` <> 0))
+EXPLAIN
+SELECT * FROM t10000 WHERE J <> 1 AND I <> 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t10000	p0	range	J,I	J	5	NULL	1500	15.00	Using pushed condition ((`test`.`t10000`.`J` <> 1) and (`test`.`t10000`.`I` <> 0)); Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where ((`test`.`t10000`.`J` <> 1) and (`test`.`t10000`.`I` <> 0))
+DROP TABLE t10,t100,t10000;
+set @is_enable = @is_enable_default;
+set @is_enable = NULL;
+# is_enable_on=1 is_enable_off=0
+# ndb_index_stat_enable - before
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+set @@global.ndb_index_stat_enable = 1;
+set @@local.ndb_index_stat_enable = 1;
+# ndb_index_stat_enable - after
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON

@@ -18,6 +18,8 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_repl
 ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_recovery'.
 CHANGE MASTER TO MASTER_TLS_CIPHERSUITES="foo" FOR CHANNEL "group_replication_recovery";
 ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_recovery'.
+CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL "group_replication_recovery";
+ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_recovery'.
 
 # ERROR when executing STOP SLAVE on GR recovery channel
 STOP SLAVE FOR CHANNEL 'group_replication_recovery';
@@ -112,10 +114,14 @@ FLUSH RELAY LOGS FOR CHANNEL 'group_replication_recovery';
 
 # SUCCESS when executing RESET SLAVE on GR recovery channel
 RESET SLAVE FOR CHANNEL "group_replication_recovery";
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 
 # Execute RESET SLAVE ALL FOR CHANNEL to delete the recovery channel
 # and related files
 RESET SLAVE ALL FOR CHANNEL "group_replication_recovery";
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 
 # Stop GR on M2. Add data on M1. Lock table on M2 to block recovery.
 # Start GR on M2.
@@ -233,6 +239,8 @@ include/assert.inc [Relay logs are not deleted]
 # Execute RESET SLAVE ALL FOR CHANNEL to delete the recovery channel
 # and related files
 RESET SLAVE ALL FOR CHANNEL "group_replication_recovery";
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 
 # ERROR when executing RESET SLAVE on GR recovery channel
 RESET SLAVE FOR CHANNEL "group_replication_recovery";

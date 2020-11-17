@@ -31,7 +31,7 @@ SET sql_log_bin = 1;
 
 [connection server2]
 include/gr_stop_applier_sql_thread.inc
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 
 #########################################################################
 # 2) Replicate TRX from M1 to M2 but without M2 applying it.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -78,7 +78,7 @@ class Action_packet : public Packet {
   Action_packet(enum_packet_action action)
       : Packet(ACTION_PACKET_TYPE), packet_action(action) {}
 
-  ~Action_packet() {}
+  ~Action_packet() override {}
 
   enum_packet_action packet_action;
 };
@@ -97,7 +97,7 @@ class View_change_packet : public Packet {
   View_change_packet(std::string &view_id_arg)
       : Packet(VIEW_CHANGE_PACKET_TYPE), view_id(view_id_arg) {}
 
-  ~View_change_packet() {}
+  ~View_change_packet() override {}
 
   std::string view_id;
   std::vector<std::string> group_executed_set;
@@ -119,7 +119,7 @@ class Single_primary_action_packet : public Packet {
   Single_primary_action_packet(enum enum_action action_arg)
       : Packet(SINGLE_PRIMARY_PACKET_TYPE), action(action_arg) {}
 
-  virtual ~Single_primary_action_packet() {}
+  ~Single_primary_action_packet() override {}
 
   enum enum_action action;
 };
@@ -170,7 +170,7 @@ class Transaction_prepared_action_packet : public Packet {
     }
   }
 
-  virtual ~Transaction_prepared_action_packet() {}
+  ~Transaction_prepared_action_packet() override {}
 
   const bool m_sid_specified;
   const rpl_gno m_gno;
@@ -201,7 +201,7 @@ class Sync_before_execution_action_packet : public Packet {
         m_thread_id(thread_id),
         m_gcs_member_id(gcs_member_id.get_member_id()) {}
 
-  virtual ~Sync_before_execution_action_packet() {}
+  ~Sync_before_execution_action_packet() override {}
 
   const my_thread_id m_thread_id;
   const Gcs_member_identifier m_gcs_member_id;
@@ -225,7 +225,7 @@ class Leaving_members_action_packet : public Packet {
       : Packet(LEAVING_MEMBERS_PACKET_TYPE),
         m_leaving_members(leaving_members) {}
 
-  virtual ~Leaving_members_action_packet() {}
+  ~Leaving_members_action_packet() override {}
 
   const std::vector<Gcs_member_identifier> m_leaving_members;
 };
@@ -281,7 +281,7 @@ class Applier_module_interface {
 class Applier_module : public Applier_module_interface {
  public:
   Applier_module();
-  ~Applier_module();
+  ~Applier_module() override;
 
   /**
     Initializes and launches the applier thread
@@ -361,7 +361,7 @@ class Applier_module : public Applier_module_interface {
       @retval 0      OK
       @retval !=0    Error
   */
-  virtual int purge_applier_queue_and_restart_applier_module();
+  int purge_applier_queue_and_restart_applier_module() override;
 
   /**
     Runs the applier thread process, reading events and processing them.
@@ -390,7 +390,7 @@ class Applier_module : public Applier_module_interface {
   */
   int handle(const uchar *data, ulong len,
              enum_group_replication_consistency_level consistency_level,
-             std::list<Gcs_member_identifier> *online_members) {
+             std::list<Gcs_member_identifier> *online_members) override {
     this->incoming->push(
         new Data_packet(data, len, consistency_level, online_members));
     return 0;
@@ -405,7 +405,7 @@ class Applier_module : public Applier_module_interface {
       @retval 0      OK
       @retval !=0    Error executing the action
   */
-  int handle_pipeline_action(Pipeline_action *action) {
+  int handle_pipeline_action(Pipeline_action *action) override {
     return this->pipeline->handle_action(action);
   }
 
@@ -461,7 +461,7 @@ class Applier_module : public Applier_module_interface {
 
     @note This will happen only after all the previous packets are processed.
   */
-  virtual void add_suspension_packet() {
+  void add_suspension_packet() override {
     this->incoming->push(new Action_packet(SUSPENSION_PACKET));
   }
 
@@ -485,7 +485,7 @@ class Applier_module : public Applier_module_interface {
 
     @param[in]  packet              The view change packet to be queued
   */
-  virtual void add_view_change_packet(View_change_packet *packet) {
+  void add_view_change_packet(View_change_packet *packet) override {
     incoming->push(packet);
   }
 
@@ -496,7 +496,8 @@ class Applier_module : public Applier_module_interface {
 
     @param[in]  packet              The packet to be queued
   */
-  void add_single_primary_action_packet(Single_primary_action_packet *packet) {
+  void add_single_primary_action_packet(
+      Single_primary_action_packet *packet) override {
     incoming->push(packet);
   }
 
@@ -508,7 +509,7 @@ class Applier_module : public Applier_module_interface {
     @param[in]  packet              The packet to be queued
   */
   void add_transaction_prepared_action_packet(
-      Transaction_prepared_action_packet *packet) {
+      Transaction_prepared_action_packet *packet) override {
     incoming->push(packet);
   }
 
@@ -520,7 +521,7 @@ class Applier_module : public Applier_module_interface {
     @param[in]  packet              The packet to be queued
   */
   void add_sync_before_execution_action_packet(
-      Sync_before_execution_action_packet *packet) {
+      Sync_before_execution_action_packet *packet) override {
     incoming->push(packet);
   }
 
@@ -532,7 +533,7 @@ class Applier_module : public Applier_module_interface {
     @param[in]  packet              The packet to be queued
   */
   void add_leaving_members_action_packet(
-      Leaving_members_action_packet *packet) {
+      Leaving_members_action_packet *packet) override {
     incoming->push(packet);
   }
 
@@ -544,7 +545,7 @@ class Applier_module : public Applier_module_interface {
   /**
    Awakes the applier module
   */
-  virtual void awake_applier_module() {
+  void awake_applier_module() override {
     mysql_mutex_lock(&suspend_lock);
     suspended = false;
     mysql_mutex_unlock(&suspend_lock);
@@ -564,14 +565,14 @@ class Applier_module : public Applier_module_interface {
      @retval 0      OK
      @retval !=0    Error when accessing the applier module status
   */
-  virtual int wait_for_applier_complete_suspension(
-      bool *abort_flag, bool wait_for_execution = true);
+  int wait_for_applier_complete_suspension(
+      bool *abort_flag, bool wait_for_execution = true) override;
 
   /**
    Interrupts the current applier waiting process either for it's suspension
    or it's wait for the consumption of pre suspension events
   */
-  virtual void interrupt_applier_suspension_wait();
+  void interrupt_applier_suspension_wait() override;
 
   /**
     Checks if the applier, and its workers when parallel applier is
@@ -603,8 +604,8 @@ class Applier_module : public Applier_module_interface {
       @retval -1     A timeout occurred
       @retval -2     An error occurred
   */
-  virtual int wait_for_applier_event_execution(
-      double timeout, bool check_and_purge_partial_transactions);
+  int wait_for_applier_event_execution(
+      double timeout, bool check_and_purge_partial_transactions) override;
 
   /**
     Waits for the execution of all current events by part of the current SQL
@@ -628,9 +629,9 @@ class Applier_module : public Applier_module_interface {
       @retval false    All transactions were executed
       @retval true     An error occurred
   */
-  virtual bool wait_for_current_events_execution(
+  bool wait_for_current_events_execution(
       std::shared_ptr<Continuation> checkpoint_condition, bool *abort_flag,
-      bool update_THD_status = true);
+      bool update_THD_status = true) override;
 
   /**
     Returns the retrieved gtid set for the applier channel
@@ -640,7 +641,7 @@ class Applier_module : public Applier_module_interface {
     @retval true there was an error.
     @retval false the operation has succeeded.
   */
-  virtual bool get_retrieved_gtid_set(std::string &retrieved_set);
+  bool get_retrieved_gtid_set(std::string &retrieved_set) override;
 
   /**
     Waits for the execution of all events in the given set by the current SQL
@@ -657,9 +658,9 @@ class Applier_module : public Applier_module_interface {
       @retval -1     A timeout occurred
       @retval -2     An error occurred
   */
-  virtual int wait_for_applier_event_execution(std::string &retrieved_set,
-                                               double timeout,
-                                               bool update_THD_status = true);
+  int wait_for_applier_event_execution(std::string &retrieved_set,
+                                       double timeout,
+                                       bool update_THD_status = true) override;
 
   /**
     Returns the handler instance in the applier module responsible for
@@ -671,16 +672,16 @@ class Applier_module : public Applier_module_interface {
       @retval !=NULL The certification handler
       @retval NULL   No certification handler present
   */
-  virtual Certification_handler *get_certification_handler();
+  Certification_handler *get_certification_handler() override;
 
   /**
     Returns the applier module's queue size.
 
     @return the size of the queue
   */
-  virtual size_t get_message_queue_size() { return incoming->size(); }
+  size_t get_message_queue_size() override { return incoming->size(); }
 
-  virtual Member_applier_state get_applier_status() {
+  Member_applier_state get_applier_status() override {
     if (applier_thd_state.is_running())
       return APPLIER_STATE_ON;
     else if (suspended)         /* purecov: inspected */
@@ -689,20 +690,21 @@ class Applier_module : public Applier_module_interface {
       return APPLIER_ERROR; /* purecov: inspected */
   }
 
-  Pipeline_stats_member_collector *get_pipeline_stats_member_collector() {
+  Pipeline_stats_member_collector *get_pipeline_stats_member_collector()
+      override {
     return &pipeline_stats_member_collector;
   }
 
-  Flow_control_module *get_flow_control_module() {
+  Flow_control_module *get_flow_control_module() override {
     return &flow_control_module;
   }
 
-  virtual void run_flow_control_step() {
+  void run_flow_control_step() override {
     flow_control_module.flow_control_step(&pipeline_stats_member_collector);
   }
 
-  virtual bool queue_and_wait_on_queue_checkpoint(
-      std::shared_ptr<Continuation> checkpoint_condition);
+  bool queue_and_wait_on_queue_checkpoint(
+      std::shared_ptr<Continuation> checkpoint_condition) override;
 
  private:
   // Applier packet handlers

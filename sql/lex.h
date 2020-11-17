@@ -1,7 +1,7 @@
 #ifndef LEX_INCLUDED
 #define LEX_INCLUDED
 
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -382,6 +382,8 @@ static const SYMBOL symbols[] = {
     {SYM("LONGTEXT", LONGTEXT_SYM)},
     {SYM("LOOP", LOOP_SYM)},
     {SYM("LOW_PRIORITY", LOW_PRIORITY)},
+    {SYM("SOURCE_CONNECTION_AUTO_FAILOVER",
+         SOURCE_CONNECTION_AUTO_FAILOVER_SYM)},
     {SYM("MASTER", MASTER_SYM)},
     {SYM("MASTER_AUTO_POSITION", MASTER_AUTO_POSITION_SYM)},
     {SYM("MASTER_BIND", MASTER_BIND_SYM)},
@@ -561,6 +563,8 @@ static const SYMBOL symbols[] = {
     {SYM("REORGANIZE", REORGANIZE_SYM)},
     {SYM("REPAIR", REPAIR)},
     {SYM("REPEATABLE", REPEATABLE_SYM)},
+    {SYM("REPLICA", REPLICA_SYM)},
+    {SYM("REPLICAS", REPLICAS_SYM)},
     {SYM("REPLICATION", REPLICATION)},
     {SYM("REPLICATE_DO_DB", REPLICATE_DO_DB)},
     {SYM("REPLICATE_IGNORE_DB", REPLICATE_IGNORE_DB)},
@@ -774,6 +778,7 @@ static const SYMBOL symbols[] = {
     {SYM("YEAR", YEAR_SYM)},
     {SYM("YEAR_MONTH", YEAR_MONTH_SYM)},
     {SYM("ZEROFILL", ZEROFILL_SYM)},
+    {SYM("ZONE", ZONE_SYM)},
     {SYM("||", OR_OR_SYM)},
     /*
       Place keywords that accept optimizer hints below this comment.
@@ -863,6 +868,9 @@ static const SYMBOL symbols[] = {
     {SYM_H("GROUP_INDEX", GROUP_INDEX_HINT)},
     {SYM_H("NO_GROUP_INDEX", NO_GROUP_INDEX_HINT)},
     {SYM_H("ORDER_INDEX", ORDER_INDEX_HINT)},
-    {SYM_H("NO_ORDER_INDEX", NO_ORDER_INDEX_HINT)}};
+    {SYM_H("NO_ORDER_INDEX", NO_ORDER_INDEX_HINT)},
+    {SYM_H("DERIVED_CONDITION_PUSHDOWN", DERIVED_CONDITION_PUSHDOWN_HINT)},
+    {SYM_H("NO_DERIVED_CONDITION_PUSHDOWN",
+           NO_DERIVED_CONDITION_PUSHDOWN_HINT)}};
 
 #endif /* LEX_INCLUDED */

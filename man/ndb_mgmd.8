@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_mgmd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/01/2020
+.\"      Date: 09/04/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_MGMD\FR" "8" "06/01/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_MGMD\FR" "8" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -45,7 +45,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.254.\ \&Command\-line options for the ndb_mgmd program
+.B Table\ \&22.255.\ \&Command\-line options for the ndb_mgmd program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -87,7 +87,7 @@ T{
 .PP
 \fB \fR\fB--config-cache[=TRUE|FALSE]\fR\fB \fR
 T}:T{
-Enable the management server configuration cache; TRUE by default
+Enable management server configuration cache; true by default
 T}:T{
 .PP
 (Supported in all MySQL 8.0 based releases)
@@ -98,9 +98,8 @@ T{
 .PP
 \fB \fR\fB-f\fR\fB \fR
 T}:T{
-Specify the cluster configuration file; in NDB-6.4.0 and later, needs
-              --reload or --initial to override configuration cache if
-              present
+Specify cluster configuration file; also specify --reload or --initial
+              to override configuration cache if present
 T}:T{
 .PP
 (Supported in all MySQL 8.0 based releases)
@@ -111,7 +110,7 @@ T{
 .PP
 \fB \fR\fB--config-dir=directory\fR\fB \fR
 T}:T{
-Specify the cluster management server's configuration cache directory
+Specify cluster management server configuration cache directory
 T}:T{
 .PP
 (Supported in all MySQL 8.0 based releases)
@@ -131,8 +130,8 @@ T{
 .PP
 \fB \fR\fB--initial\fR\fB \fR
 T}:T{
-Causes the management server reload its configuration data from the
-              configuration file, bypassing the configuration cache
+Causes management server to reload configuration data from configuration
+              file, bypassing configuration cache
 T}:T{
 .PP
 (Supported in all MySQL 8.0 based releases)
@@ -141,8 +140,8 @@ T{
 .PP
 \fB \fR\fB--install[=name]\fR\fB \fR
 T}:T{
-Used to install the management server process as a Windows service. Does
-              not apply on non-Windows platforms
+Used to install management server process as Windows service; does not
+              apply on other platforms
 T}:T{
 .PP
 (Supported in all MySQL 8.0 based releases)
@@ -161,8 +160,7 @@ T{
 .PP
 \fB \fR\fB--log-name=name\fR\fB \fR
 T}:T{
-A name to use when writing messages applying to this node in the cluster
-              log
+Name to use when writing cluster log messages applying to this node
 T}:T{
 .PP
 (Supported in all MySQL 8.0 based releases)
@@ -171,7 +169,7 @@ T{
 .PP
 \fB \fR\fB--mycnf\fR\fB \fR
 T}:T{
-Read cluster configuration data from the my.cnf file
+Read cluster configuration data from my.cnf file
 T}:T{
 .PP
 (Supported in all MySQL 8.0 based releases)
@@ -180,7 +178,7 @@ T{
 .PP
 \fB \fR\fB--no-nodeid-checks\fR\fB \fR
 T}:T{
-Do not provide any node id checks
+Do not provide any node ID checks
 T}:T{
 .PP
 (Supported in all MySQL 8.0 based releases)
@@ -198,8 +196,8 @@ T{
 .PP
 \fB \fR\fB--nowait-nodes=list\fR\fB \fR
 T}:T{
-Do not wait for these management nodes when starting this management
-              server. Also requires --ndb-nodeid to be used
+Do not wait for management nodes specified when starting this management
+              server; requires --ndb-nodeid option
 T}:T{
 .PP
 (Supported in all MySQL 8.0 based releases)
@@ -219,7 +217,7 @@ T{
 .PP
 \fB \fR\fB--reload\fR\fB \fR
 T}:T{
-Causes the management server to compare the configuration file with its
+Causes management server to compare configuration file with
               configuration cache
 T}:T{
 .PP
@@ -229,10 +227,9 @@ T{
 .PP
 \fB \fR\fB--remove[=name]\fR\fB \fR
 T}:T{
-Used to remove a management server process that was previously installed
-              as a Windows service, optionally specifying the name of
-              the service to be removed. Does not apply on non-Windows
-              platforms
+Used to remove management server process that was previously installed
+              as Windows service, optionally specifying name of service
+              to be removed; does not apply on other platforms
 T}:T{
 .PP
 (Supported in all MySQL 8.0 based releases)
@@ -243,7 +240,7 @@ T{
 .PP
 \fB \fR\fB-v\fR\fB \fR
 T}:T{
-Write additional information to the log
+Write additional information to log
 T}:T{
 .PP
 (Supported in all MySQL 8.0 based releases)
@@ -262,13 +259,6 @@ T}
 \fB\-\-bind\-address=\fR\fB\fIhost\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -303,13 +293,6 @@ Causes the management server to bind to a specific network interface (host name 
 \fB\-\-config\-cache\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -458,13 +441,6 @@ is used\&. (Bug #13428853)
 \fB\-f \fR\fB\fIfilename\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -515,13 +491,6 @@ Section\ \&22.3.3, \(lqNDB Cluster Configuration Files\(rq, for more information
 \fB\-\-configdir=\fR\fB\fIdir_name\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -562,13 +531,6 @@ is an alias for this option\&.
 \fB\-d\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -609,13 +571,6 @@ on Windows platforms\&.
 \fB\-\-initial\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -674,13 +629,6 @@ option, the cache is cleared only if the configuration file is actually found\&.
 \fB\-\-install[=\fR\fB\fIname\fR\fR\fB]\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -743,13 +691,6 @@ option has no effect on non\-Windows platforms\&.
 \fB\-\-interactive\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -788,13 +729,6 @@ client session is started as soon as the management server is running\&. This op
 \fB\-\-log\-name=\fR\fB\fIname\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -829,13 +763,6 @@ Provides a name to be used for this node in the cluster log\&.
 \fB\-\-mycnf\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -872,13 +799,6 @@ file\&.
 \fB\-\-no\-nodeid\-checks\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -913,13 +833,6 @@ Do not perform any checks of node IDs\&.
 \fB\-\-nodaemon\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -960,13 +873,6 @@ on Windows is to run in the foreground, making this option unnecessary on Window
 \fB\-\-nowait\-nodes\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -1120,13 +1026,6 @@ management server, its configuration must match that of the management server th
 \fB\-P\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -1165,13 +1064,6 @@ process prints information about the cluster setup including an extensive list o
 \fB\-\-reload\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -1226,13 +1118,6 @@ Section\ \&22.5.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for a
 \fB\-\-remove{=name]\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -1274,13 +1159,6 @@ Remove a management server process that has been installed as a Windows service,
 \fB\-v\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.

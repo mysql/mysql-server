@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@ class Entity_object_impl : virtual public Entity_object,
   Entity_object_impl() : m_id(INVALID_OBJECT_ID), m_has_new_primary_key(true) {}
 
  public:
-  virtual Object_id id() const override { return m_id; }
+  Object_id id() const override { return m_id; }
 
   /* non-virtual */ void set_id(Object_id id) {
     m_id = id;
@@ -53,28 +53,24 @@ class Entity_object_impl : virtual public Entity_object,
   }
 
   /* purecov: begin deadcode */
-  virtual bool is_persistent() const override {
-    return (m_id != INVALID_OBJECT_ID);
-  }
+  bool is_persistent() const override { return (m_id != INVALID_OBJECT_ID); }
   /* purecov: end */
 
-  virtual const String_type &name() const override { return m_name; }
+  const String_type &name() const override { return m_name; }
 
-  virtual void set_name(const String_type &name) override { m_name = name; }
+  void set_name(const String_type &name) override { m_name = name; }
 
-  virtual Object_key *create_primary_key() const override;
+  Object_key *create_primary_key() const override;
 
-  virtual bool has_new_primary_key() const override {
-    return m_has_new_primary_key;
-  }
+  bool has_new_primary_key() const override { return m_has_new_primary_key; }
 
-  virtual Entity_object_impl *impl() override { return this; }
-  virtual const Entity_object_impl *impl() const override { return this; }
+  Entity_object_impl *impl() override { return this; }
+  const Entity_object_impl *impl() const override { return this; }
 
  protected:
-  virtual void set_primary_key_value(const Raw_new_record &r) override;
+  void set_primary_key_value(const Raw_new_record &r) override;
 
-  virtual void fix_has_new_primary_key() override {
+  void fix_has_new_primary_key() override {
     m_has_new_primary_key = (m_id == INVALID_OBJECT_ID);
   }
 

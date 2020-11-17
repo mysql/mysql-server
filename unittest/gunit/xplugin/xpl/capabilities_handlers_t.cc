@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -294,7 +294,7 @@ class Capability_hander_client_interactive_test_suite : public Test {
  public:
   Capability_hander_client_interactive_test_suite() = default;
 
-  void SetUp() {
+  void SetUp() override {
     EXPECT_CALL(mock_client, is_interactive()).WillOnce(Return(false));
     sut.reset(new Capability_client_interactive(mock_client));
   }

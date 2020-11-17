@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -32,13 +32,13 @@ protected:
   ColumnProxy();
   ~ColumnProxy();
   void setHandler(const ColumnHandler *);
-  void setBlobBuffer(v8::Isolate *, Handle<Object>);
+  void setBlobBuffer(v8::Isolate *, Local<Object>);
   bool valueIsNull();
-  BlobWriteHandler * createBlobWriteHandle(int);
+  BlobWriteHandler * createBlobWriteHandle(v8::Isolate *, int);
 
-  Handle<Value> get(v8::Isolate *, char *);
-  void          set(v8::Isolate *, Handle<Value>);
-  Handle<Value> write(v8::Isolate *, char *);
+  Local<Value> get(v8::Isolate *, char *);
+  void         set(v8::Isolate *, Local<Value>);
+  Local<Value> write(v8::Isolate *, char *);
 
 private:
   const ColumnHandler *handler;
@@ -67,6 +67,6 @@ inline bool ColumnProxy::valueIsNull() {
   return isNull;
 }
 
-inline void ColumnProxy::setBlobBuffer(v8::Isolate *isolate, Handle<Object> buffer) {
+inline void ColumnProxy::setBlobBuffer(v8::Isolate *isolate, Local<Object> buffer) {
   blobBuffer.Reset(isolate, buffer);
 }

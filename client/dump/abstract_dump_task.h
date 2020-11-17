@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -44,9 +44,9 @@ class Abstract_dump_task : public Abstract_simple_dump_task {
  public:
   Abstract_dump_task(Abstract_data_object *related_object);
 
-  virtual ~Abstract_dump_task();
+  ~Abstract_dump_task() override;
 
-  I_data_object *get_related_db_object() const;
+  I_data_object *get_related_db_object() const override;
 
   std::vector<const Abstract_dump_task *> get_dependencies() const;
 
@@ -54,9 +54,9 @@ class Abstract_dump_task : public Abstract_simple_dump_task {
 
   void add_dependency(Abstract_dump_task *dependency);
 
-  bool can_be_executed() const;
+  bool can_be_executed() const override;
 
-  void set_completed();
+  void set_completed() override;
 
   /**
     Registers callback to be called once this task is able to be executed.

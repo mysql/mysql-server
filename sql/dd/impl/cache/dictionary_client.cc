@@ -2193,6 +2193,43 @@ bool Dictionary_client::fetch_global_components(Const_ptr_vec<T> *coll) {
   return false;
 }
 
+// Check if a user is referenced as definer by some object of the given type.
+template <typename T>
+bool Dictionary_client::is_user_definer(const LEX_USER &user,
+                                        bool *is_definer) const {
+  // Start RO transaction.
+  dd::Transaction_ro trx(m_thd, ISO_READ_COMMITTED);
+
+  // Register and open tables.
+  trx.otx.register_tables<T>();
+  Raw_table *entity_table = trx.otx.get_table<T>();
+  DBUG_ASSERT(entity_table);
+
+  if (trx.otx.open_tables()) {
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
+    return true;
+  }
+
+  // Prepare object key and open the record set.
+  const String_type definer = String_type(user.user.str, user.user.length) +
+                              String_type("@") +
+                              String_type(user.host.str, user.host.length);
+
+  std::unique_ptr<Object_key> object_key(
+      T::DD_table::create_key_by_definer(definer));
+  std::unique_ptr<Raw_record_set> rs;
+  if (entity_table->open_record_set(object_key.get(), rs)) {
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
+    return true;
+  }
+
+  // If there are records in the set, then this user is definer.
+  *is_definer = (rs->current_record() != nullptr);
+  return false;
+}
+
 template <typename T>
 bool Dictionary_client::fetch_referencing_views_object_id(
     const char *schema, const char *tbl_or_sf_name,
@@ -2895,6 +2932,9 @@ template bool Dictionary_client::fetch_schema_components(
 template bool Dictionary_client::fetch_schema_components(
     const Schema *, std::vector<const Routine *> *);
 
+template bool Dictionary_client::fetch_schema_components(
+    const Schema *, std::vector<const Function *> *);
+
 template bool Dictionary_client::fetch_global_components(
     std::vector<const Charset *> *);
 
@@ -2918,6 +2958,9 @@ template bool Dictionary_client::fetch_schema_component_names<Event>(
 
 template bool Dictionary_client::fetch_schema_component_names<Trigger>(
     const Schema *, std::vector<String_type> *) const;
+
+template bool Dictionary_client::is_user_definer<Trigger>(const LEX_USER &,
+                                                          bool *) const;
 
 template bool Dictionary_client::fetch_global_component_ids<Table>(
     std::vector<Object_id> *) const;
@@ -3061,6 +3104,8 @@ template void Dictionary_client::remove_uncommitted_objects<View>(bool);
 template bool Dictionary_client::drop(const View *);
 template bool Dictionary_client::store(View *);
 template bool Dictionary_client::update(View *);
+template bool Dictionary_client::is_user_definer<View>(const LEX_USER &,
+                                                       bool *) const;
 
 template bool Dictionary_client::acquire_uncached(Object_id, Event **);
 template bool Dictionary_client::acquire(Object_id, const Event **);
@@ -3074,6 +3119,8 @@ template bool Dictionary_client::acquire_for_modification(const String_type &,
 template bool Dictionary_client::drop(const Event *);
 template bool Dictionary_client::store(Event *);
 template bool Dictionary_client::update(Event *);
+template bool Dictionary_client::is_user_definer<Event>(const LEX_USER &,
+                                                        bool *) const;
 
 template bool Dictionary_client::acquire_uncached(Object_id, Function **);
 template bool Dictionary_client::acquire(Object_id, const Function **);
@@ -3102,6 +3149,8 @@ template bool Dictionary_client::update(Procedure *);
 template bool Dictionary_client::drop(const Routine *);
 template void Dictionary_client::remove_uncommitted_objects<Routine>(bool);
 template bool Dictionary_client::update(Routine *);
+template bool Dictionary_client::is_user_definer<Routine>(const LEX_USER &,
+                                                          bool *) const;
 
 template bool Dictionary_client::acquire<Function>(
     const String_type &, const String_type &,

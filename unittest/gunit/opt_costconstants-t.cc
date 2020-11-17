@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,7 +69,7 @@ const double default_io_block_read_cost = 1.0;
 
 class CostConstantsTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     initializer.SetUp();
 
     // Initilize some storage engines
@@ -86,7 +86,7 @@ class CostConstantsTest : public ::testing::Test {
     insert_hton2plugin(7, new st_plugin_int())->name = engine_name7;
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     initializer.TearDown();
     delete remove_hton2plugin(0);
     delete remove_hton2plugin(1);

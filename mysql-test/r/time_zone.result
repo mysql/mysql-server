@@ -9,7 +9,7 @@ Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select unix_timestamp(@a);
 unix_timestamp(@a)
-1
+1.000000
 CREATE TABLE t1 (ts int);
 INSERT INTO t1 (ts) VALUES (Unix_timestamp('2002-10-27 01:00'));
 INSERT INTO t1 (ts) VALUES (Unix_timestamp('2002-10-27 02:00'));
@@ -513,3 +513,100 @@ a
 2015-01-01 04:40:10.000001
 DROP TABLE t2;
 SET time_zone = DEFAULT;
+#
+# Bug#31239157: NO BOUNDS CHECK FOR TIMESTAMPS WITH TIME ZONE
+# DISPLACEMENT
+#
+# This is needed to check the below boundary case when time zone
+# adjustment causes a value to be outside the DATETIME range.
+SET time_zone = CET;
+CREATE TABLE t1 ( a TIMESTAMP );
+CREATE TABLE t2 ( a TIMESTAMP(6) );
+INSERT INTO t1 VALUES ( TIMESTAMP'2038-01-19 03:14:08+00:00' );
+ERROR 22007: Incorrect datetime value: 'X' for column 'a' at row 1
+INSERT INTO t1 VALUES ( TIMESTAMP'2038-01-19 03:14:07+00:00' );
+INSERT INTO t1 VALUES ( TIMESTAMP'2038-01-19 03:14:07.000001+00:00' );
+INSERT INTO t1 VALUES ( TIMESTAMP'2038-01-19 03:14:07.999999+00:00' );
+ERROR 22007: Incorrect datetime value: '2038-01-19 04:14:08' for column 'a' at row 1
+INSERT INTO t1 VALUES ( TIMESTAMP'1970-01-01 00:00:00.000000+00:00' );
+ERROR 22007: Incorrect datetime value: '1970-01-01 01:00:00' for column 'a' at row 1
+INSERT INTO t1 VALUES ( TIMESTAMP'1970-01-01 01:00:00.000000+00:00' );
+INSERT INTO t1 VALUES ( TIMESTAMP'1970-01-01 00:00:01.000000+00:00' );
+INSERT INTO t1 VALUES ( TIMESTAMP'1970-01-01 00:00:00.000001+00:00' );
+ERROR 22007: Incorrect datetime value: '1970-01-01 01:00:00' for column 'a' at row 1
+INSERT INTO t1 VALUES ( TIMESTAMP'1970-01-01 00:00:00.999999+00:00' );
+INSERT INTO t1 VALUES ( '2038-01-19 03:14:08+00:00' );
+ERROR 22007: Incorrect datetime value: '2038-01-19 03:14:08+00:00' for column 'a' at row 1
+INSERT INTO t1 VALUES ( TIMESTAMP'9999-12-31 23:59:59.999999+00:00' );
+Got one of the listed errors
+INSERT INTO t1 VALUES ( '9999-12-31 23:59:59.999999+00:00' );
+Got one of the listed errors
+INSERT INTO t2 VALUES ( TIMESTAMP'2038-01-19 03:14:08+00:00' );
+ERROR 22007: Incorrect datetime value: 'X' for column 'a' at row 1
+INSERT INTO t2 VALUES ( TIMESTAMP'2038-01-19 03:14:07+00:00' );
+INSERT INTO t2 VALUES ( TIMESTAMP'2038-01-19 03:14:07.000001+00:00' );
+INSERT INTO t2 VALUES ( TIMESTAMP'2038-01-19 03:14:07.999999+00:00' );
+INSERT INTO t2 VALUES ( TIMESTAMP'1970-01-01 00:00:00.000000+00:00' );
+ERROR 22007: Incorrect datetime value: '1970-01-01 01:00:00.000000' for column 'a' at row 1
+INSERT INTO t2 VALUES ( TIMESTAMP'1970-01-01 01:00:00.000000+00:00' );
+INSERT INTO t2 VALUES ( TIMESTAMP'1970-01-01 00:00:01.000000+00:00' );
+INSERT INTO t2 VALUES ( TIMESTAMP'1970-01-01 00:00:00.000001+00:00' );
+ERROR 22007: Incorrect datetime value: '1970-01-01 01:00:00.000001' for column 'a' at row 1
+INSERT INTO t2 VALUES ( TIMESTAMP'1970-01-01 00:00:00.999999+00:00' );
+ERROR 22007: Incorrect datetime value: '1970-01-01 01:00:00.999999' for column 'a' at row 1
+INSERT INTO t2 VALUES ( '2038-01-19 03:14:08+00:00' );
+ERROR 22007: Incorrect datetime value: '2038-01-19 03:14:08+00:00' for column 'a' at row 1
+INSERT INTO t2 VALUES ( TIMESTAMP'9999-12-31 23:59:59.999999+00:00' );
+Got one of the listed errors
+INSERT INTO t2 VALUES ( '9999-12-31 23:59:59.999999+00:00' );
+Got one of the listed errors
+SET time_zone = UTC;
+INSERT INTO t1 VALUES ( '2038-01-19 03:14:08+00:00' );
+ERROR 22007: Incorrect datetime value: '2038-01-19 03:14:08+00:00' for column 'a' at row 1
+INSERT INTO t1 VALUES ( '2038-01-19 03:14:08' );
+ERROR 22007: Incorrect datetime value: '2038-01-19 03:14:08' for column 'a' at row 1
+SET sql_mode = '';
+# Tests that we can handle years which are negative wrt. the epoch.
+INSERT INTO t1 VALUES ( '1969-12-31 23:59:59' );
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+SET sql_mode = DEFAULT;
+SELECT * FROM t1;
+a
+2038-01-19 03:14:07
+2038-01-19 03:14:07
+1970-01-01 01:00:00
+1970-01-01 00:00:01
+1970-01-01 00:00:01
+0000-00-00 00:00:00
+SELECT * FROM t2;
+a
+2038-01-19 03:14:07.000000
+2038-01-19 03:14:07.000001
+2038-01-19 03:14:07.999999
+1970-01-01 01:00:00.000000
+1970-01-01 00:00:01.000000
+SET time_zone = DEFAULT;
+DROP TABLE t1, t2;
+#
+# Bug#30786762: FAILED ASSERTION FOR DATES WITH ZERO OR ABOVE TIMESTAMP
+# LIMIT
+#
+SET sql_mode = regexp_replace(@@sql_mode, 'NO_ZERO_IN_DATE', '');
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+SELECT TIMESTAMP '2020-00-01 08:00:00.123456+00:00';
+ERROR 22007: Truncated incorrect temporal value: '2020-00-01 08:00:00+0:00'
+SELECT TIMESTAMP '2020-01-00 08:00:00.123456+00:00';
+ERROR 22007: Truncated incorrect temporal value: '2020-01-00 08:00:00+0:00'
+CREATE TABLE t1 ( a DATETIME(6) );
+INSERT INTO t1 VALUES ( '2020-00-01 00:00:00.123456+00:00' );
+ERROR 22007: Truncated incorrect temporal value: '2020-00-01 00:00:00+0:00'
+INSERT INTO t1 VALUES ( '2020-01-00 00:00:00.123456+00:00' );
+ERROR 22007: Truncated incorrect temporal value: '2020-01-00 00:00:00+0:00'
+SELECT * FROM t1 WHERE a = '2020-00-01 00:00:00.123456+00:00';
+ERROR 22007: Truncated incorrect temporal value: '2020-00-01 00:00:00+0:00'
+SELECT * FROM t1 WHERE a = '2020-01-00 00:00:00.123456+00:00';
+ERROR 22007: Truncated incorrect temporal value: '2020-01-00 00:00:00+0:00'
+DROP TABLE t1;
+SET sql_mode = DEFAULT;

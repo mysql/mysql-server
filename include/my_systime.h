@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -219,7 +219,8 @@ inline unsigned long long int my_milli_time() {
   */
   while (gettimeofday(&t, nullptr) != 0) {
   }
-  return (static_cast<unsigned long long int>(t.tv_sec) * 1000 + t.tv_usec);
+  return (static_cast<unsigned long long int>(t.tv_sec) * 1000 +
+          (t.tv_usec / 1000));
 #endif /* _WIN32 */
 }
 

@@ -188,13 +188,13 @@ static ibool page_dir_slot_check(const page_dir_slot_t *slot) /*!< in: slot */
   return (TRUE);
 }
 
-/** Sets the max trx id field value. */
-void page_set_max_trx_id(
-    buf_block_t *block,       /*!< in/out: page */
-    page_zip_des_t *page_zip, /*!< in/out: compressed page, or NULL */
-    trx_id_t trx_id,          /*!< in: transaction id */
-    mtr_t *mtr)               /*!< in/out: mini-transaction, or NULL */
-{
+/** Sets the max trx id field value.
+@param[in,out] block Page
+@param[in,out] page_zip Compressed page, or NULL
+@param[in] trx_id Transaction id
+@param[in,out] mtr Mini-transaction, or NULL */
+void page_set_max_trx_id(buf_block_t *block, page_zip_des_t *page_zip,
+                         trx_id_t trx_id, mtr_t *mtr) {
   page_t *page = buf_block_get_frame(block);
 #ifndef UNIV_HOTBACKUP
   ut_ad(!mtr || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
@@ -252,10 +252,10 @@ byte *page_mem_alloc_heap(
 
 #ifndef UNIV_HOTBACKUP
 /** Writes a log record of page creation
-@param[in]	frame		a buffer frame where the page is created
-@param[in]	mtr		mini-transaction handle
+@param[in]	frame		A buffer frame where the page is created
+@param[in]	mtr		Mini-transaction handle
 @param[in]	comp		TRUE=compact page format
-@param[in]	page_type	page type */
+@param[in]	page_type	Page type */
 UNIV_INLINE
 void page_create_write_log(buf_frame_t *frame, mtr_t *mtr, ibool comp,
                            page_type_t page_type) {
@@ -367,10 +367,10 @@ void page_parse_create(buf_block_t *block, ulint comp, page_type_t page_type) {
 }
 
 /** Create an uncompressed B-tree or R-tree or SDI index page.
-@param[in]	block		a buffer block where the page is created
-@param[in]	mtr		mini-transaction handle
+@param[in]	block		A buffer block where the page is created
+@param[in]	mtr		Mini-transaction handle
 @param[in]	comp		nonzero=compact page format
-@param[in]	page_type	page type
+@param[in]	page_type	Page type
 @return pointer to the page */
 page_t *page_create(buf_block_t *block, mtr_t *mtr, ulint comp,
                     page_type_t page_type) {
@@ -379,13 +379,13 @@ page_t *page_create(buf_block_t *block, mtr_t *mtr, ulint comp,
 }
 
 /** Create a compressed B-tree index page.
-@param[in,out]	block		buffer frame where the page is created
-@param[in]	index		index of the page, or NULL when applying
+@param[in,out]	block		Buffer frame where the page is created
+@param[in]	index		Index of the page, or NULL when applying
                                 TRUNCATE log record during recovery
-@param[in]	level		the B-tree level of the page
+@param[in]	level		The B-tree level of the page
 @param[in]	max_trx_id	PAGE_MAX_TRX_ID
-@param[in]	mtr		mini-transaction handle
-@param[in]	page_type	page_type to be created. Only FIL_PAGE_INDEX,
+@param[in]	mtr		Mini-transaction handle
+@param[in]	page_type	Page type to be created. Only FIL_PAGE_INDEX,
                                 FIL_PAGE_RTREE, FIL_PAGE_SDI allowed
 @return pointer to the page */
 page_t *page_create_zip(buf_block_t *block, dict_index_t *index, ulint level,
@@ -423,11 +423,11 @@ page_t *page_create_zip(buf_block_t *block, dict_index_t *index, ulint level,
   return (page);
 }
 
-/** Empty a previously created B-tree index page. */
-void page_create_empty(buf_block_t *block,  /*!< in/out: B-tree block */
-                       dict_index_t *index, /*!< in: the index of the page */
-                       mtr_t *mtr)          /*!< in/out: mini-transaction */
-{
+/** Empty a previously created B-tree index page.
+@param[in,out] block B-tree block
+@param[in] index The index of the page
+@param[in,out] mtr Mini-transaction */
+void page_create_empty(buf_block_t *block, dict_index_t *index, mtr_t *mtr) {
   trx_id_t max_trx_id = 0;
   page_t *page = buf_block_get_frame(block);
   page_zip_des_t *page_zip = buf_block_get_page_zip(block);
@@ -1291,13 +1291,13 @@ void page_dir_add_slot(
           (n_slots - 1 - start) * PAGE_DIR_SLOT_SIZE);
 }
 
-/** Splits a directory slot which owns too many records. */
-void page_dir_split_slot(
-    page_t *page,             /*!< in/out: index page */
-    page_zip_des_t *page_zip, /*!< in/out: compressed page whose
-                             uncompressed part will be written, or NULL */
-    ulint slot_no)            /*!< in: the directory slot */
-{
+/** Splits a directory slot which owns too many records.
+@param[in,out] page Index page
+@param[in,out] page_zip Compressed page whose uncompressed part will be written,
+or null
+@param[in] slot_no The directory slot */
+void page_dir_split_slot(page_t *page, page_zip_des_t *page_zip,
+                         ulint slot_no) {
   rec_t *rec;
   page_dir_slot_t *new_slot;
   page_dir_slot_t *prev_slot;
@@ -1350,12 +1350,12 @@ void page_dir_split_slot(
 
 /** Tries to balance the given directory slot with too few records with the
  upper neighbor, so that there are at least the minimum number of records owned
- by the slot; this may result in the merging of two slots. */
-void page_dir_balance_slot(
-    page_t *page,             /*!< in/out: index page */
-    page_zip_des_t *page_zip, /*!< in/out: compressed page, or NULL */
-    ulint slot_no)            /*!< in: the directory slot */
-{
+ by the slot; this may result in the merging of two slots.
+@param[in,out] page Index page
+@param[in,out] page_zip Compressed page, or null
+@param[in] slot_no The directory slot */
+void page_dir_balance_slot(page_t *page, page_zip_des_t *page_zip,
+                           ulint slot_no) {
   page_dir_slot_t *slot;
   page_dir_slot_t *up_slot;
   ulint n_owned;
@@ -1519,10 +1519,10 @@ ulint page_rec_get_n_recs_before(
 
 #ifndef UNIV_HOTBACKUP
 /** Prints record contents including the data relevant only in
- the index page context. */
-void page_rec_print(const rec_t *rec,     /*!< in: physical record */
-                    const ulint *offsets) /*!< in: record descriptor */
-{
+ the index page context.
+@param[in] rec Physical record
+@param[in] offsets Record descriptor */
+void page_rec_print(const rec_t *rec, const ulint *offsets) {
   ut_a(!page_rec_is_comp(rec) == !rec_offs_comp(offsets));
   rec_print_new(stderr, rec, offsets);
   if (page_rec_is_comp(rec)) {

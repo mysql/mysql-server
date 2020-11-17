@@ -101,13 +101,14 @@ if(!(_d("mask-image"))){
 return;
 }
 var _1b=_8.get(this.left,"borderTopLeftRadius");
-if(_1b=="0px"){
+if(!_1b||_1b=="0px"){
 return;
 }
 var _1c=_1b.split(" ");
 var rx=parseFloat(_1c[0]),ry=(_1c.length==1)?rx:parseFloat(_1c[1]);
-var id=(this.shape+"Mask"+w+h+rx+ry).replace(/\./,"_");
+if(rx&&ry){
 _e.createRoundMask(this.switchNode,0,0,0,0,w,h,rx,ry,1);
+}
 },_onClick:function(e){
 if(e&&e.type==="keydown"&&e.keyCode!==13){
 return;

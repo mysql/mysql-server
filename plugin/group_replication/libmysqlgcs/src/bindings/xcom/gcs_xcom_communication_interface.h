@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -192,7 +192,7 @@ class Gcs_xcom_communication_interface : public Gcs_communication_interface {
   virtual void process_user_data_packet(
       Gcs_packet &&packet, std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) = 0;
 
-  virtual ~Gcs_xcom_communication_interface() {}
+  ~Gcs_xcom_communication_interface() override {}
 };
 
 /**
@@ -219,7 +219,7 @@ class Gcs_xcom_communication : public Gcs_xcom_communication_interface {
       Gcs_xcom_view_change_control_interface *view_control,
       Gcs_xcom_engine *gcs_engine, Gcs_group_identifier const &group_id);
 
-  virtual ~Gcs_xcom_communication();
+  ~Gcs_xcom_communication() override;
 
   // Implementation of the Gcs_communication_interface
 
@@ -239,50 +239,53 @@ class Gcs_xcom_communication : public Gcs_xcom_communication_interface {
                                    xcom can handle
   */
 
-  enum_gcs_error send_message(const Gcs_message &message_to_send);
+  enum_gcs_error send_message(const Gcs_message &message_to_send) override;
 
   int add_event_listener(
-      const Gcs_communication_event_listener &event_listener);
+      const Gcs_communication_event_listener &event_listener) override;
 
-  void remove_event_listener(int event_listener_handle);
+  void remove_event_listener(int event_listener_handle) override;
 
   // Implementation of the Gcs_xcom_communication_interface
   enum_gcs_error do_send_message(const Gcs_message &message_to_send,
                                  unsigned long long *message_length,
-                                 Cargo_type cargo);
+                                 Cargo_type cargo) override;
 
   // For unit testing purposes
   std::map<int, const Gcs_communication_event_listener &>
       *get_event_listeners();
 
-  virtual Gcs_message_pipeline &get_msg_pipeline() { return m_msg_pipeline; }
+  Gcs_message_pipeline &get_msg_pipeline() override { return m_msg_pipeline; }
 
-  void buffer_incoming_packet(Gcs_packet &&packet,
-                              std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes);
+  void buffer_incoming_packet(
+      Gcs_packet &&packet,
+      std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) override;
 
-  void deliver_buffered_packets();
+  void deliver_buffered_packets() override;
 
-  void cleanup_buffered_packets();
+  void cleanup_buffered_packets() override;
 
-  size_t number_buffered_packets();
+  size_t number_buffered_packets() override;
 
   void update_members_information(const Gcs_member_identifier &me,
-                                  const Gcs_xcom_nodes &members);
+                                  const Gcs_xcom_nodes &members) override;
 
-  bool recover_packets(Gcs_xcom_synode_set const &synodes);
+  bool recover_packets(Gcs_xcom_synode_set const &synodes) override;
 
   Gcs_message *convert_packet_to_message(
-      Gcs_packet &&packet, std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes);
+      Gcs_packet &&packet,
+      std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) override;
 
-  void process_user_data_packet(Gcs_packet &&packet,
-                                std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes);
+  void process_user_data_packet(
+      Gcs_packet &&packet,
+      std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) override;
 
-  Gcs_protocol_version get_protocol_version() const;
+  Gcs_protocol_version get_protocol_version() const override;
 
   std::pair<bool, std::future<void>> set_protocol_version(
-      Gcs_protocol_version new_version);
+      Gcs_protocol_version new_version) override;
 
-  Gcs_protocol_version get_maximum_supported_protocol_version() const;
+  Gcs_protocol_version get_maximum_supported_protocol_version() const override;
 
   void set_maximum_supported_protocol_version(Gcs_protocol_version version);
 

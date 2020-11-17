@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -805,31 +805,33 @@ class Gcs_xcom_proxy {
 class Gcs_xcom_proxy_base : public Gcs_xcom_proxy {
  public:
   explicit Gcs_xcom_proxy_base() {}
-  virtual ~Gcs_xcom_proxy_base() {}
+  ~Gcs_xcom_proxy_base() override {}
 
-  bool xcom_boot_node(Gcs_xcom_node_information &node, uint32_t group_id_hash);
-  bool xcom_remove_nodes(Gcs_xcom_nodes &nodes, uint32_t group_id_hash);
+  bool xcom_boot_node(Gcs_xcom_node_information &node,
+                      uint32_t group_id_hash) override;
+  bool xcom_remove_nodes(Gcs_xcom_nodes &nodes,
+                         uint32_t group_id_hash) override;
   bool xcom_remove_nodes(connection_descriptor &con, Gcs_xcom_nodes &nodes,
-                         uint32_t group_id_hash);
+                         uint32_t group_id_hash) override;
   bool xcom_remove_node(const Gcs_xcom_node_information &node,
-                        uint32_t group_id_hash);
+                        uint32_t group_id_hash) override;
   bool xcom_add_nodes(connection_descriptor &con, Gcs_xcom_nodes &nodes,
-                      uint32_t group_id_hash);
+                      uint32_t group_id_hash) override;
   bool xcom_add_node(connection_descriptor &con,
                      const Gcs_xcom_node_information &node,
-                     uint32_t group_id_hash);
-  xcom_event_horizon xcom_get_minimum_event_horizon();
-  xcom_event_horizon xcom_get_maximum_event_horizon();
+                     uint32_t group_id_hash) override;
+  xcom_event_horizon xcom_get_minimum_event_horizon() override;
+  xcom_event_horizon xcom_get_maximum_event_horizon() override;
   bool xcom_get_event_horizon(uint32_t group_id_hash,
-                              xcom_event_horizon &event_horizon);
+                              xcom_event_horizon &event_horizon) override;
   bool xcom_set_event_horizon(uint32_t group_id_hash,
-                              xcom_event_horizon event_horizon);
+                              xcom_event_horizon event_horizon) override;
   bool xcom_get_synode_app_data(
       Gcs_xcom_node_information const &xcom_instance, uint32_t group_id_hash,
       const std::unordered_set<Gcs_xcom_synode> &synode_set,
-      synode_app_data_array &reply);
-  bool xcom_set_cache_size(uint64_t size);
-  bool xcom_force_nodes(Gcs_xcom_nodes &nodes, uint32_t group_id_hash);
+      synode_app_data_array &reply) override;
+  bool xcom_set_cache_size(uint64_t size) override;
+  bool xcom_force_nodes(Gcs_xcom_nodes &nodes, uint32_t group_id_hash) override;
 
  private:
   /* Serialize information on nodes to be sent to XCOM */
@@ -837,7 +839,7 @@ class Gcs_xcom_proxy_base : public Gcs_xcom_proxy {
 
   /* Free information on nodes sent to XCOM */
   void free_nodes_information(node_list &nl);
-  bool test_xcom_tcp_connection(std::string &host, xcom_port port);
+  bool test_xcom_tcp_connection(std::string &host, xcom_port port) override;
 };
 
 /**
@@ -851,70 +853,70 @@ class Gcs_xcom_proxy_impl : public Gcs_xcom_proxy_base {
  public:
   explicit Gcs_xcom_proxy_impl();
   Gcs_xcom_proxy_impl(unsigned int wt);
-  virtual ~Gcs_xcom_proxy_impl();
+  ~Gcs_xcom_proxy_impl() override;
 
   node_address *new_node_address_uuid(unsigned int n, char *names[],
-                                      blob uuids[]);
-  void delete_node_address(unsigned int n, node_address *na);
+                                      blob uuids[]) override;
+  void delete_node_address(unsigned int n, node_address *na) override;
   bool xcom_client_add_node(connection_descriptor *fd, node_list *nl,
-                            uint32_t group_id);
-  bool xcom_client_remove_node(node_list *nl, uint32_t group_id);
+                            uint32_t group_id) override;
+  bool xcom_client_remove_node(node_list *nl, uint32_t group_id) override;
   bool xcom_client_remove_node(connection_descriptor *fd, node_list *nl,
-                               uint32_t group_id);
-  bool xcom_client_get_event_horizon(uint32_t group_id,
-                                     xcom_event_horizon &event_horizon);
+                               uint32_t group_id) override;
+  bool xcom_client_get_event_horizon(
+      uint32_t group_id, xcom_event_horizon &event_horizon) override;
   bool xcom_client_set_event_horizon(uint32_t group_id,
-                                     xcom_event_horizon event_horizon);
+                                     xcom_event_horizon event_horizon) override;
   bool xcom_client_get_synode_app_data(connection_descriptor *con,
                                        uint32_t group_id_hash,
                                        synode_no_array &synodes,
-                                       synode_app_data_array &reply);
+                                       synode_app_data_array &reply) override;
 
-  bool xcom_client_set_cache_size(uint64_t size);
-  bool xcom_client_boot(node_list *nl, uint32_t group_id);
+  bool xcom_client_set_cache_size(uint64_t size) override;
+  bool xcom_client_boot(node_list *nl, uint32_t group_id) override;
   connection_descriptor *xcom_client_open_connection(std::string,
-                                                     xcom_port port);
-  bool xcom_client_close_connection(connection_descriptor *fd);
-  bool xcom_client_send_data(unsigned long long size, char *data);
-  void xcom_init(xcom_port listen_port);
-  void xcom_exit();
-  int xcom_get_ssl_mode(const char *mode);
-  int xcom_get_ssl_fips_mode(const char *mode);
-  int xcom_set_ssl_fips_mode(int mode);
-  int xcom_set_ssl_mode(int mode);
-  bool xcom_init_ssl();
-  void xcom_destroy_ssl();
-  bool xcom_use_ssl();
-  void xcom_set_ssl_parameters(ssl_parameters ssl, tls_parameters tls);
-  site_def const *find_site_def(synode_no synode);
+                                                     xcom_port port) override;
+  bool xcom_client_close_connection(connection_descriptor *fd) override;
+  bool xcom_client_send_data(unsigned long long size, char *data) override;
+  void xcom_init(xcom_port listen_port) override;
+  void xcom_exit() override;
+  int xcom_get_ssl_mode(const char *mode) override;
+  int xcom_get_ssl_fips_mode(const char *mode) override;
+  int xcom_set_ssl_fips_mode(int mode) override;
+  int xcom_set_ssl_mode(int mode) override;
+  bool xcom_init_ssl() override;
+  void xcom_destroy_ssl() override;
+  bool xcom_use_ssl() override;
+  void xcom_set_ssl_parameters(ssl_parameters ssl, tls_parameters tls) override;
+  site_def const *find_site_def(synode_no synode) override;
 
-  enum_gcs_error xcom_wait_ready();
-  bool xcom_is_ready();
-  void xcom_set_ready(bool value);
-  void xcom_signal_ready();
+  enum_gcs_error xcom_wait_ready() override;
+  bool xcom_is_ready() override;
+  void xcom_set_ready(bool value) override;
+  void xcom_signal_ready() override;
 
-  void xcom_wait_for_xcom_comms_status_change(int &status);
-  bool xcom_has_comms_status_changed();
-  void xcom_set_comms_status(int status);
-  void xcom_signal_comms_status_changed(int status);
+  void xcom_wait_for_xcom_comms_status_change(int &status) override;
+  bool xcom_has_comms_status_changed() override;
+  void xcom_set_comms_status(int status) override;
+  void xcom_signal_comms_status_changed(int status) override;
 
-  enum_gcs_error xcom_wait_exit();
-  bool xcom_is_exit();
-  void xcom_set_exit(bool value);
-  void xcom_signal_exit();
+  enum_gcs_error xcom_wait_exit() override;
+  bool xcom_is_exit() override;
+  void xcom_set_exit(bool value) override;
+  void xcom_signal_exit() override;
 
-  void xcom_set_cleanup();
+  void xcom_set_cleanup() override;
 
-  bool xcom_client_force_config(node_list *nl, uint32_t group_id);
-  bool get_should_exit();
-  void set_should_exit(bool should_exit);
+  bool xcom_client_force_config(node_list *nl, uint32_t group_id) override;
+  bool get_should_exit() override;
+  void set_should_exit(bool should_exit) override;
 
-  bool xcom_input_connect(std::string const &address, xcom_port port);
-  void xcom_input_disconnect();
-  bool xcom_input_try_push(app_data_ptr data);
+  bool xcom_input_connect(std::string const &address, xcom_port port) override;
+  void xcom_input_disconnect() override;
+  bool xcom_input_try_push(app_data_ptr data) override;
   Gcs_xcom_input_queue::future_reply xcom_input_try_push_and_get_reply(
-      app_data_ptr data);
-  xcom_input_request_ptr xcom_input_try_pop();
+      app_data_ptr data) override;
+  xcom_input_request_ptr xcom_input_try_pop() override;
 
  private:
   /*

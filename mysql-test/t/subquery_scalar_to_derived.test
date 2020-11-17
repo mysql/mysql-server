@@ -12,7 +12,6 @@ CREATE TABLE t0 AS SELECT * FROM t1;
 CREATE TABLE t3(a INT, b INT);
 INSERT INTO t3 VALUES (1,3), (2,3);
 ANALYZE TABLE t1, t2, t0, t3;
-
 --echo #
 --echo # 1. W H E R E  clause subqueries
 --echo #
@@ -89,17 +88,79 @@ eval $query;
 eval explain $query;
 
 
---echo # We only transform when we have implicit grouping for now, i.e.
---echo # we know that cardinality of result set is one.
-
+--echo # If we have an implicit grouping we we know that cardinality
+--echo # of result set is one, so no need for runtime checking of the
+--echo # cardinality of the derived tables
 let $query = SELECT * FROM t1
-             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t3 GROUP BY b);
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t3);
 eval $query;
 eval explain $query;
 
---echo # Don't try transform if we see UNION.
+--echo # If not, detect if we see more than one row in subquery
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t3 GROUP BY a);
+--error ER_SUBQUERY_NO_1_ROW
+eval $query;
+eval explain $query;
+
 let $query = SELECT * FROM t1
              WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1);
+--error ER_SUBQUERY_NO_1_ROW
+eval $query;
+eval explain $query;
+
+--echo # Empty scalar subquery
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT a from t1 WHERE false);
+eval $query;
+eval explain $query;
+
+let $query = SELECT a + (SELECT a from t1 WHERE false) FROM t1;
+eval $query;
+eval explain $query;
+
+--echo # If we limit the cardinality, it should work:
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 1);
+eval $query;
+eval explain $query;
+
+--echo # Check that offset/limit doesn't fool us:
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 1 OFFSET 1);
+eval $query;
+eval explain $query;
+
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 1 OFFSET 0);
+eval $query;
+eval explain $query;
+
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 2 OFFSET 0);
+--error ER_SUBQUERY_NO_1_ROW
+eval $query;
+eval explain $query;
+
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 2 OFFSET 1);
+eval $query;
+eval explain $query;
+
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION (SELECT 1 LIMIT 1));
+--error ER_SUBQUERY_NO_1_ROW
+eval $query;
+eval explain $query;
+
+--echo Without aggregation
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT a FROM t2 LIMIT 1);
+eval $query;
+eval explain $query;
+
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT a FROM t2);
 --error ER_SUBQUERY_NO_1_ROW
 eval $query;
 eval explain $query;
@@ -210,6 +271,7 @@ let $query = SELECT a + derived.cnt
              FROM t2
                   LEFT OUTER JOIN (SELECT -SUM(a) AS cnt FROM t1) AS derived
                   ON TRUE;
+--sorted_result
 eval $query;
 eval explain $query;
 
@@ -239,6 +301,7 @@ FROM t2
                 ON TRUE) derived_1_0
      ON TRUE;
 
+--sorted_result
 eval $query;
 eval explain $query;
 
@@ -632,7 +695,7 @@ FROM (SELECT a AS i FROM t) q;
 DROP TABLE t;
 
 --echo
---echo # IN to EXISTS transformation is not allowed with subquery_to_derived.
+--echo # IN to EXISTS transformation makes us skip subquery_to_derived.
 --echo
 CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL);
 CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL);
@@ -643,12 +706,15 @@ INSERT INTO t2 VALUES (2,10), (2,20), (4,10), (5,10), (3,20), (2,40);
 INSERT INTO t3 VALUES (10), (30), (10), (20);
 ANALYZE TABLE t1, t2, t3;
 
---error ER_SUBQUERY_TRANSFORM_REJECTED
+let $query =
 SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
                WHERE (SELECT MIN(e) FROM t3 as tc
                       WHERE tc.e IS NOT NULL) < SOME(SELECT e FROM t3 as tc
                                                      WHERE ta.b=tc.e));
+eval $query;
+eval EXPLAIN $query;
+
 --echo #
 --echo # Two parallel scalar subqueries + grouping to derived table
 --echo #
@@ -1095,9 +1161,8 @@ PREPARE s FROM
 SET optimizer_switch='subquery_to_derived=off';
 EXECUTE s;
 
---echo Try the other way too, should work. Transform will still happen
---echo even if not performed on PREPARE, but this will change after
---echo WL#6570.
+--echo Try the other way too. Transform will not happen on EXECUTE
+--echo as it can be performed only on PREPARE.
 PREPARE s FROM
   'SELECT a FROM t1 WHERE a=(SELECT MAX(a) FROM t1) AND (a="20060606155555")';
 SET optimizer_switch='subquery_to_derived=on';
@@ -1156,9 +1221,8 @@ DROP TABLE tab1;
 --echo #
 --echo # Bug#30617216 WL#12885 SIG6 IN JOIN::ADD_HAVING_AS_TMP_TABLE_COND() AT SQL/SQL_SELECT.CC
 --echo #
---echo # This is an example where the "> SOME" is transformed to a scalar
---echo # subquery internally (> MIN), and then later transformed to a derived
---echo # table. Update: ANY/ALL/SOME rejected.
+--echo # ANY/ALL/SOME transformation makes us skip subquery to derived
+--echo # transformation
 --echo #
 CREATE TABLE c2 (col_varchar_key VARCHAR(1));
 
@@ -1168,14 +1232,14 @@ FROM c2 AS alias1
 HAVING   alias1.col_varchar_key > SOME (SELECT col_varchar_key FROM c2)
 ORDER BY alias1.col_varchar_key;
 
---error ER_SUBQUERY_TRANSFORM_REJECTED
 eval $query;
+eval EXPLAIN $query;
 
 DROP TABLE c2;
 
 --echo #
 --echo # Bug#30622834 WL#12885: ASSERTION `SELECT_LEX->IS_RECURSIVE()' FAILED
---echo #
+--echo # Update: these are no longer transformed after Bug#31566339
 CREATE TABLE t1(col_int INT);
 
 let $query =
@@ -1184,6 +1248,19 @@ FROM ((t1 AS a2
        LEFT JOIN
        t1 AS a1
        ON  1 <= SOME (SELECT COUNT(*) FROM t1))
+     LEFT JOIN
+     t1
+     ON true);
+
+eval $query;
+eval EXPLAIN $query;
+
+let $query =
+SELECT *
+FROM ((t1 AS a2
+       LEFT JOIN
+       t1 AS a1
+       ON  1 <= ALL (SELECT COUNT(*) FROM t1))
      LEFT JOIN
      t1
      ON true);
@@ -1250,8 +1327,8 @@ FROM t1 AS alias1 LEFT JOIN
        ON TRUE
      ON TRUE;
 
---error ER_SUBQUERY_TRANSFORM_REJECTED
 eval $query;
+eval EXPLAIN $query;
 
 
 
@@ -1396,8 +1473,8 @@ FROM (n AS table1
       ON (table1.i <= ANY (SELECT i FROM n)))
 WHERE (EXISTS ((SELECT i FROM n)));
 
---error ER_SUBQUERY_TRANSFORM_REJECTED
 eval $query;
+eval EXPLAIN $query;
 
 --echo These (manually transformed the ANY) trigger the error as
 --echo well. Semi-join complication.
@@ -1583,6 +1660,7 @@ ANALYZE TABLE a, bb, cc;
 --echo Without the patch this plan would use an index scan on cc, but this
 --echo is not covering.
 
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=tree
 SELECT
   AVG(cc.col_varchar_key),
@@ -1680,6 +1758,7 @@ ORDER BY table1.col_varchar ASC, field2, field1
 LIMIT 1000 OFFSET 2;
 
 eval $query;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 
 DROP VIEW view_cc;
@@ -1980,6 +2059,7 @@ eval EXPLAIN $query;
 set sql_mode='';
 let $query =
 SELECT a,c FROM v1 GROUP BY b HAVING c > 0;
+--sorted_result
 eval $query;
 eval EXPLAIN $query;
 set sql_mode=default;
@@ -2041,5 +2121,74 @@ eval EXPLAIN $query;
 
 DROP VIEW view_c;
 DROP TABLE c;
+
+--echo #
+--echo # Bug#31535523 WL#13686: SIG6 HEADER::NUMBER_OF_USED_CHUNKS() == 0 AT TEMPTABLE/BLOCK.H
+--echo # This query used to fail during server shutdown, cf. bug issue for how to run.
+--echo # In a single mtr run, look in var/log/mysqld.1.err for the stack trace before the fix.
+CREATE TABLE t1 (i int);
+CREATE TABLE t2 (i int);
+
+SELECT t2.i FROM t2
+WHERE ( false ) AND
+      ( t2.i  IN ( SELECT t1.i FROM t1
+                  WHERE t1.i <= SOME ( SELECT 8 UNION  SELECT 3 ) ) );
+DROP TABLE t1, t2;
+
+--echo #
+--echo # WL#13686 Transformation of constant scalar subquery with DUAL causes
+--echo #          assert.
+--echo #
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (1), (2);
+ANALYZE TABLE t1;
+let $query =
+SELECT a FROM t1 WHERE (SELECT 1 FROM DUAL WHERE 1=0) IS NULL;
+
+--sorted_result
+eval $query;
+eval EXPLAIN $query;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#31462120 ASSERTION `NESTED_JOIN_LIST->SIZE() == 2' FAILED AT SQL/SQL_RESOLVER.CC
+--echo #
+
+CREATE TABLE a (col_varchar_key varchar(1));
+
+let $query=
+SELECT table1.col_varchar_key
+FROM ( SELECT sub1_t2.*
+       FROM (a
+            JOIN
+            (a AS sub1_t2)
+            ON sub1_t2.col_varchar_key IN (SELECT col_varchar_key FROM a))
+       WHERE EXISTS (SELECT sub2_t1.col_varchar_key
+                     FROM a AS sub2_t1))  AS table1
+     JOIN
+     (a AS table2
+       JOIN
+       a
+       ON 1 >= (SELECT MIN( col_varchar_key) FROM a))
+     ON true;
+
+eval $query;
+eval EXPLAIN $query;
+
+DROP TABLE a;
+
+
+--echo #
+--echo # Bug#31566339 WRONG RESULT WITH OPTIMIZER_SWITCH SUBQUERY_TO_DERIVED ON: ANY
+--echo #
+
+CREATE TABLE t1(pk int primary key);
+INSERT INTO t1 VALUES(1),(2),(3),(4),(5);
+ANALYZE TABLE t1;
+--echo # Used to return NULL
+SELECT SUM(pk) FROM t1 WHERE ( pk >= ANY ( SELECT MAX(1) FROM DUAL) );
+DROP TABLE t1;
 
 SET optimizer_switch='subquery_to_derived=default';

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,43 +86,43 @@ class Object_table_impl : virtual public Object_table {
   */
   Object_table_impl();
 
-  virtual const String_type &name() const {
+  const String_type &name() const override {
     return m_target_def.get_table_name();
   }
 
-  virtual Object_table_definition_impl *target_table_definition() {
+  Object_table_definition_impl *target_table_definition() override {
     return (m_last_dd_version != 0 ? nullptr : &m_target_def);
   }
 
-  virtual const Object_table_definition_impl *target_table_definition() const {
+  const Object_table_definition_impl *target_table_definition() const override {
     return (m_last_dd_version != 0 ? nullptr : &m_target_def);
   }
 
-  virtual void set_abandoned(uint last_dd_version) const {
+  void set_abandoned(uint last_dd_version) const override {
     m_last_dd_version = last_dd_version;
   }
 
-  virtual bool is_abandoned() const { return (m_last_dd_version != 0); }
+  bool is_abandoned() const override { return (m_last_dd_version != 0); }
 
-  virtual const Object_table_definition_impl *actual_table_definition() const {
+  const Object_table_definition_impl *actual_table_definition() const override {
     return (m_actual_present ? &m_actual_def : nullptr);
   }
 
-  virtual bool set_actual_table_definition(
-      const Properties &table_def_properties) const;
+  bool set_actual_table_definition(
+      const Properties &table_def_properties) const override;
 
   virtual int field_number(int target_field_number,
                            const String_type &field_label) const;
 
-  virtual int field_number(const String_type &field_label) const;
+  int field_number(const String_type &field_label) const override;
 
-  virtual bool populate(THD *) const { return false; }
+  bool populate(THD *) const override { return false; }
 
-  virtual bool is_hidden() const { return m_hidden; }
+  bool is_hidden() const override { return m_hidden; }
 
-  virtual void set_hidden(bool hidden) { m_hidden = hidden; }
+  void set_hidden(bool hidden) override { m_hidden = hidden; }
 
-  virtual ~Object_table_impl() {}
+  ~Object_table_impl() override {}
 };
 
 ///////////////////////////////////////////////////////////////////////////

@@ -114,6 +114,7 @@ const char *client_errors[] = {
     "LOAD DATA LOCAL INFILE file request rejected due to restrictions on "
     "access.",
     "Determining the real path for '%s' failed with error (%d): %s",
+    "DNS SRV lookup failed with error : %d",
     ""};
 
 static const char *get_client_errmsg(int nr) {

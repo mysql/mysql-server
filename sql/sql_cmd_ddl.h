@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,7 @@
 
 class Sql_cmd_ddl : public Sql_cmd {
  public:
-  bool is_dml() const override final { return false; }
+  bool is_dml() const final { return false; }
 };
 
 #endif  // SQL_CMD_DDL_INCLUDED

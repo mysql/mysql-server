@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,9 +24,13 @@
 
 #include <gmock/gmock.h>
 
+#include <fstream>
+#include <sstream>
+
 #include "common.h"
 #include "gtest_consoleoutput.h"
 #include "mysql/harness/filesystem.h"
+#include "router_test_helpers.h"
 
 /** @file
  * Stuff here could be considered an extension of stuff in
@@ -185,4 +189,24 @@ void check_config_file_access_rights(const std::string &file_name,
            << ") has file permissions that are not strict enough"
               " (only RW for file's owner is allowed).";
 #endif
+}
+
+bool file_contains_regex(const mysql_harness::Path &file_path,
+                         const std::string &needle) {
+  std::ifstream stream(file_path.str());
+  if (!stream)
+    throw std::runtime_error{std::string{"Could not open file "} +
+                             file_path.str()};
+
+  std::string file_contents((std::istreambuf_iterator<char>(stream)),
+                            std::istreambuf_iterator<char>());
+
+  return pattern_found(file_contents, needle);
+}
+
+std::string read_file(const std::string &filename) {
+  std::ifstream file_stream(filename);
+  std::stringstream buffer;
+  buffer << file_stream.rdbuf();
+  return buffer.str();
 }

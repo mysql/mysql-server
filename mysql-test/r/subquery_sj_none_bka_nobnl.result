@@ -342,6 +342,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -372,6 +373,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -456,6 +458,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -486,6 +489,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -570,6 +574,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -600,6 +605,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -687,6 +693,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -717,6 +724,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -801,6 +809,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -831,6 +840,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -915,6 +925,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -945,6 +956,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -1033,6 +1045,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -1063,6 +1076,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -1148,6 +1162,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -1178,6 +1193,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -1263,6 +1279,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -1293,6 +1310,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -1384,6 +1402,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -1414,6 +1433,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -1498,6 +1518,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -1528,6 +1549,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -1535,8 +1557,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 2	DEPENDENT SUBQUERY	t3	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
 Note	1003	/* select#1 */ select '2' AS `i` from dual where true
 SELECT * FROM t1 WHERE (t1.i) IN 
@@ -1614,6 +1636,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -1644,6 +1667,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -1733,6 +1757,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -1763,6 +1788,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -1850,6 +1876,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 EXECUTE stmt;
 i
 2
+
 EXECUTE stmt;
 i
 2
@@ -1886,6 +1913,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 EXECUTE stmt;
 i
 2
+
 EXECUTE stmt;
 i
 2
@@ -1978,6 +2006,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 EXECUTE stmt;
 i
 2
+
 EXECUTE stmt;
 i
 2
@@ -2014,6 +2043,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 EXECUTE stmt;
 i
 2
+
 EXECUTE stmt;
 i
 2
@@ -2107,6 +2137,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -2137,6 +2168,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -2226,6 +2258,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 EXECUTE stmt;
 i
 2
+
 EXECUTE stmt;
 i
 2
@@ -2262,6 +2295,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 EXECUTE stmt;
 i
 2
+
 EXECUTE stmt;
 i
 2
@@ -2355,6 +2389,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 EXECUTE stmt;
 i
 2
+
 EXECUTE stmt;
 i
 2
@@ -2391,6 +2426,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 EXECUTE stmt;
 i
 2
+
 EXECUTE stmt;
 i
 2
@@ -2488,6 +2524,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -2518,6 +2555,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -2602,6 +2640,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -2632,6 +2671,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -2639,8 +2679,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 2	DEPENDENT SUBQUERY	t3	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select '2' from dual where (<cache>(`test`.`t1`.`i`) = '2')))
 SELECT * FROM t1 WHERE (t1.i) IN 
@@ -2718,6 +2758,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -2748,6 +2789,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -2838,6 +2880,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -2868,6 +2911,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -2955,6 +2999,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 EXECUTE stmt;
 i
 2
+
 EXECUTE stmt;
 i
 2
@@ -2991,6 +3036,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 EXECUTE stmt;
 i
 2
+
 EXECUTE stmt;
 i
 2
@@ -3083,6 +3129,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 EXECUTE stmt;
 i
 2
+
 EXECUTE stmt;
 i
 2
@@ -3119,6 +3166,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 EXECUTE stmt;
 i
 2
+
 EXECUTE stmt;
 i
 2
@@ -3214,6 +3262,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -3244,6 +3293,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -3333,6 +3383,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 EXECUTE stmt;
 i
 2
+
 EXECUTE stmt;
 i
 2
@@ -3369,6 +3420,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 EXECUTE stmt;
 i
 2
+
 EXECUTE stmt;
 i
 2
@@ -3464,6 +3516,7 @@ EXECUTE stmt;
 i
 1
 2
+
 EXECUTE stmt;
 i
 1
@@ -3504,6 +3557,7 @@ EXECUTE stmt;
 i
 1
 2
+
 EXECUTE stmt;
 i
 1
@@ -3996,7 +4050,7 @@ EXPLAIN
 -> Filter: <in_optimizer>(t3.a,<exists>(select #2))  (cost=10.54 rows=100)
     -> Table scan on t3  (cost=10.54 rows=100)
     -> Select #2 (subquery in condition; dependent)
-        -> Limit: 1 row(s)
+        -> Limit: 1 row(s)  (cost=0.70 rows=1)
             -> Nested loop inner join  (cost=0.70 rows=1)
                 -> Filter: ((t1.kp1 < 20) and (t1.c is not null))  (cost=0.35 rows=1)
                     -> Index lookup on t1 using kp1 (kp1=<cache>(t3.a))  (cost=0.35 rows=1)
@@ -5530,13 +5584,13 @@ EXPLAIN
         -> Filter: ((ot2.a = ot1.a) and <in_optimizer>(ot1.a,<exists>(select #2)))  (cost=0.55 rows=4)
             -> Table scan on ot2  (cost=0.55 rows=4)
             -> Select #2 (subquery in condition; dependent)
-                -> Limit: 1 row(s)
+                -> Limit: 1 row(s)  (cost=0.60 rows=1)
                     -> Filter: (<cache>(ot1.a) = it3.a)  (cost=0.60 rows=1)
                         -> Table scan on it3  (cost=0.60 rows=3)
     -> Filter: ((ot3.a = ot2.a) and <in_optimizer>(ot2.a,<exists>(select #3)))  (cost=0.51 rows=3)
         -> Table scan on ot3  (cost=0.51 rows=3)
         -> Select #3 (subquery in condition; dependent)
-            -> Limit: 1 row(s)
+            -> Limit: 1 row(s)  (cost=0.60 rows=1)
                 -> Filter: (<cache>(ot3.a) = it3.a)  (cost=0.60 rows=1)
                     -> Table scan on it3  (cost=0.60 rows=3)
 
@@ -6526,6 +6580,7 @@ EXECUTE stmt;
 t1field
 1
 2
+
 EXECUTE stmt;
 t1field
 1
@@ -6545,6 +6600,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`t1field` AS `t1field` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`t1field`,<exists>(<primary_index_lookup>(<cache>(`test`.`t1`.`t1field`) in t2 on PRIMARY))) and <in_optimizer>(`test`.`t1`.`t1field`,<exists>(<primary_index_lookup>(<cache>(`test`.`t1`.`t1field`) in t3 on PRIMARY))))
+
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
@@ -6762,6 +6818,7 @@ EXECUTE stmt;
 t1field
 1
 2
+
 EXECUTE stmt;
 t1field
 1
@@ -7140,6 +7197,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`EMPNUM`,<exists>(/* select#2 */ select `test`.`t3`.`EMPNUM` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`PNUM`,<exists>(/* select#3 */ select `test`.`t2`.`PNUM` from `test`.`t2` where ((`test`.`t2`.`PTYPE` = 'Design') and (<cache>(`test`.`t3`.`PNUM`) = `test`.`t2`.`PNUM`)))) and (<cache>(`test`.`t1`.`EMPNUM`) = `test`.`t3`.`EMPNUM`))))
+
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
@@ -7181,6 +7239,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`EMPNUM`,<exists>(/* select#2 */ select `test`.`t3`.`EMPNUM` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`PNUM`,<exists>(/* select#3 */ select `test`.`t2`.`PNUM` from `test`.`t2` where ((`test`.`t2`.`PTYPE` = 'Design') and (<cache>(`test`.`t3`.`PNUM`) = `test`.`t2`.`PNUM`)))) and (<cache>(`test`.`t1`.`EMPNUM`) = `test`.`t3`.`EMPNUM`))))
+
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
@@ -7221,6 +7280,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`EMPNUM`,<exists>(/* select#2 */ select `test`.`t3`.`EMPNUM` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`PNUM`,<exists>(/* select#3 */ select `test`.`t2`.`PNUM` from `test`.`t2` where ((`test`.`t2`.`PTYPE` = 'Design') and (<cache>(`test`.`t3`.`PNUM`) = `test`.`t2`.`PNUM`)))) and (<cache>(`test`.`t1`.`EMPNUM`) = `test`.`t3`.`EMPNUM`))))
+
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
@@ -8191,6 +8251,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	t3	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`partner_id` AS `partner_id` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`id`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`id`) in t2 on PRIMARY where <in_optimizer>(`test`.`t2`.`article_id`,<exists>(/* select#3 */ select 'imp' from dual where ((<cache>(`test`.`t2`.`article_id`) = 'imp')))))))
+
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
@@ -8212,6 +8273,7 @@ WHERE t1.id IN (
 EXECUTE stmt;
 partner_id
 partner2
+
 EXECUTE stmt;
 partner_id
 partner2
@@ -8265,6 +8327,7 @@ Algeria	2
 Batna	2
 Bchar	2
 Skikda	2
+
 EXECUTE stmt;
 city	country_id
 Algeria	2
@@ -10431,6 +10494,7 @@ FROM t2 AS alias1
 ';
 EXECUTE stmt;
 field1
+
 EXECUTE stmt;
 field1
 DEALLOCATE prepare stmt;
@@ -10895,6 +10959,7 @@ WHERE EXISTS
 EXECUTE stmt;
 field1
 NULL
+
 EXECUTE stmt;
 field1
 NULL
@@ -10965,7 +11030,7 @@ NULL	UNION RESULT	<union7,8>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using tempor
 2	DERIVED	<derived5>	NULL	ALL	NULL	NULL	NULL	NULL	15	100.00	NULL
 5	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select sum(`alias1`.`col_varchar_nokey`) AS `field2` from `test`.`t2` `alias2` join (/* select#2 */ select `view_inline_0`.`pk` AS `pk`,`view_inline_0`.`col_varchar_key` AS `col_varchar_key`,`view_inline_0`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`view_inline_0`) `alias1` where ((`alias1`.`col_varchar_key` = `test`.`alias2`.`col_varchar_key`) and <in_optimizer>((`alias1`.`col_varchar_key`,`alias1`.`col_varchar_nokey`),<exists>(<primary_index_lookup>(<cache>(`alias1`.`col_varchar_key`) in view_inline_2 on <auto_distinct_key>))) and <in_optimizer>((`test`.`alias2`.`col_varchar_nokey`,`test`.`alias2`.`col_varchar_key`),<exists>(<index_lookup>(<cache>(`test`.`alias2`.`col_varchar_nokey`) in view_inline_1 on <auto_key0>))))
+Note	1003	/* select#1 */ select sum(`alias1`.`col_varchar_nokey`) AS `field2` from `test`.`t2` `alias2` join (/* select#2 */ select `test`.`view_inline_0`.`pk` AS `pk`,`test`.`view_inline_0`.`col_varchar_key` AS `col_varchar_key`,`test`.`view_inline_0`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`view_inline_0`) `alias1` where ((`alias1`.`col_varchar_key` = `test`.`alias2`.`col_varchar_key`) and <in_optimizer>((`alias1`.`col_varchar_key`,`alias1`.`col_varchar_nokey`),<exists>(<primary_index_lookup>(<cache>(`alias1`.`col_varchar_key`) in view_inline_2 on <auto_distinct_key>))) and <in_optimizer>((`test`.`alias2`.`col_varchar_nokey`,`test`.`alias2`.`col_varchar_key`),<exists>(<index_lookup>(<cache>(`test`.`alias2`.`col_varchar_nokey`) in view_inline_1 on <auto_key0>))))
 SELECT SUM(alias1.col_varchar_nokey) AS field2
 FROM t2 AS alias2
 LEFT JOIN (SELECT * FROM view_inline_0) AS alias1
@@ -11349,6 +11414,7 @@ col_int
 0
 1
 1
+
 EXECUTE stmt;
 col_int
 0
@@ -12480,10 +12546,10 @@ ORDER BY col_int_key
 ;
 EXPLAIN
 -> Sort: t4.col_int_key  (cost=0.85 rows=6)
-    -> Filter: <in_optimizer>(t4.col_int_key,<exists>(select #2))
-        -> Table scan on t4
+    -> Filter: <in_optimizer>(t4.col_int_key,<exists>(select #2))  (cost=0.85 rows=6)
+        -> Table scan on t4  (cost=0.85 rows=6)
         -> Select #2 (subquery in condition; dependent)
-            -> Limit: 1 row(s)
+            -> Limit: 1 row(s)  (cost=0.78 rows=1)
                 -> Filter: (t3.col_int is null)  (cost=0.78 rows=1)
                     -> Nested loop left join  (cost=0.78 rows=1)
                         -> Index lookup on t1 using col_int_key (col_int_key=<cache>(t4.col_int_key))  (cost=0.37 rows=1)
@@ -12621,6 +12687,8 @@ WHERE t1.uid IN (SELECT t4.uid FROM t4, t3 WHERE t3.uid=1 AND t4.uid=t3.fid)
 AND t2.uid=t1.fid;
 name
 A
+A
+B
 B
 C
 D
@@ -12628,8 +12696,6 @@ E
 F
 G
 H
-A
-B
 I
 SHOW STATUS LIKE '%handler_read%';
 Variable_name	Value

@@ -10628,12 +10628,13 @@ define([
 			this._hasMaskImage = true;
 			if(!(has("mask-image"))){ return; }
 			var rDef = domStyle.get(this.left, "borderTopLeftRadius");
-			if(rDef == "0px"){ return; }
+			if(!rDef || rDef == "0px"){ return; }
 			var rDefs = rDef.split(" ");
 			var rx = parseFloat(rDefs[0]), ry = (rDefs.length == 1) ? rx : parseFloat(rDefs[1]);
-			var id = (this.shape+"Mask"+w+h+rx+ry).replace(/\./,"_");
 
-			maskUtils.createRoundMask(this.switchNode, 0, 0, 0, 0, w, h, rx, ry, 1);
+			if(rx && ry){
+				maskUtils.createRoundMask(this.switchNode, 0, 0, 0, 0, w, h, rx, ry, 1);
+			}
 		},
 
 		_onClick: function(e){

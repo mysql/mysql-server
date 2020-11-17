@@ -87,7 +87,6 @@
 #include "sql/sql_list.h"
 #include "sql/sql_parse.h"      // check_table_access
 #include "sql/sql_partition.h"  // set_part_state
-#include "sql/sql_prepare.h"    // mysql_test_show
 #include "sql/sql_table.h"      // mysql_recreate_table
 #include "sql/ssl_acceptor_context_operator.h"
 #include "sql/ssl_init_callback.h"
@@ -346,7 +345,7 @@ static bool send_analyze_table_errors(THD *thd, const char *operator_name,
 bool Sql_cmd_analyze_table::send_histogram_results(
     THD *thd, const histograms::results_map &results, const TABLE_LIST *table) {
   Item *item;
-  List<Item> field_list;
+  mem_root_deque<Item *> field_list(thd->mem_root);
 
   field_list.push_back(item =
                            new Item_empty_string("Table", NAME_CHAR_LEN * 2));
@@ -358,7 +357,7 @@ bool Sql_cmd_analyze_table::send_histogram_results(
   field_list.push_back(
       item = new Item_empty_string("Msg_text", SQL_ADMIN_MSG_TEXT_SIZE));
   item->maybe_null = true;
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)) {
     return true; /* purecov: deadcode */
   }
@@ -553,7 +552,6 @@ static bool mysql_admin_table(
 
   TABLE_LIST *table;
   SELECT_LEX *select = thd->lex->select_lex;
-  List<Item> field_list;
   Item *item;
   Protocol *protocol = thd->get_protocol();
   LEX *lex = thd->lex;
@@ -565,6 +563,7 @@ static bool mysql_admin_table(
   bool ignore_grl_on_analyze = operator_func == &handler::ha_analyze;
   DBUG_TRACE;
 
+  mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(item =
                            new Item_empty_string("Table", NAME_CHAR_LEN * 2));
   item->maybe_null = true;
@@ -575,7 +574,7 @@ static bool mysql_admin_table(
   field_list.push_back(
       item = new Item_empty_string("Msg_text", SQL_ADMIN_MSG_TEXT_SIZE));
   item->maybe_null = true;
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 
@@ -1162,8 +1161,8 @@ static bool mysql_admin_table(
                 (table->table = open_n_lock_single_table(
                      thd, table, TL_READ_NO_INSERT, 0))) {
               /*
-             Reset the ALTER_ADMIN_PARTITION bit in alter_info->flags
-             to force analyze on all partitions.
+                Reset the ALTER_ADMIN_PARTITION bit in alter_info->flags
+                to force analyze on all partitions.
                */
               alter_info->flags &= ~(Alter_info::ALTER_ADMIN_PARTITION);
               result_code = table->table->file->ha_analyze(thd, check_opt);
@@ -1654,7 +1653,7 @@ class Alter_instance_reload_tls : public Alter_instance {
                                      bool force = false)
       : Alter_instance(thd), channel_name_(channel_name), force_(force) {}
 
-  bool execute() {
+  bool execute() override {
     if (match_channel_name() == false) {
       my_error(ER_SYNTAX_ERROR, MYF(0));
       return true;
@@ -1699,7 +1698,7 @@ class Alter_instance_reload_tls : public Alter_instance {
     if (!res) my_ok(m_thd);
     return res;
   }
-  ~Alter_instance_reload_tls() {}
+  ~Alter_instance_reload_tls() override {}
 
  protected:
   bool match_channel_name() {
@@ -2137,65 +2136,4 @@ bool Sql_cmd_alter_user_default_role::execute(THD *thd) {
   if (!ret) my_ok(thd);
 
   return ret;
-}
-
-bool Sql_cmd_show_grants::execute(THD *thd) {
-  DBUG_TRACE;
-  bool show_mandatory_roles = (for_user == nullptr);
-  bool have_using_clause =
-      (using_users != nullptr && using_users->elements > 0);
-
-  if (for_user == nullptr || for_user->user.str == nullptr) {
-    /* SHOW PRIVILEGE FOR CURRENT_USER */
-    LEX_USER current_user;
-    get_default_definer(thd, &current_user);
-    if (!have_using_clause) {
-      const List_of_auth_id_refs *active_list =
-          thd->security_context()->get_active_roles();
-      return mysql_show_grants(thd, &current_user, *active_list,
-                               show_mandatory_roles, have_using_clause);
-    }
-  } else if (strcmp(thd->security_context()->priv_user().str,
-                    for_user->user.str) != 0) {
-    TABLE_LIST table("mysql", "user", nullptr, TL_READ);
-    if (!is_granted_table_access(thd, SELECT_ACL, &table)) {
-      char command[128];
-      get_privilege_desc(command, sizeof(command), SELECT_ACL);
-      my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0), command,
-               thd->security_context()->priv_user().str,
-               thd->security_context()->host_or_ip().str, "user");
-      return false;
-    }
-  }
-  List_of_auth_id_refs authid_list;
-  if (have_using_clause) {
-    for (const LEX_USER &user : *using_users) {
-      authid_list.emplace_back(user.user, user.host);
-    }
-  }
-
-  LEX_USER *tmp_user = const_cast<LEX_USER *>(for_user);
-  tmp_user = get_current_user(thd, tmp_user);
-  return mysql_show_grants(thd, tmp_user, authid_list, show_mandatory_roles,
-                           have_using_clause);
-}
-
-bool Sql_cmd_show::execute(THD *thd) {
-  DBUG_TRACE;
-
-  thd->clear_current_query_costs();
-  bool res = show_precheck(thd, thd->lex, true);
-  if (!res) res = execute_show(thd, thd->lex->query_tables);
-  thd->save_current_query_costs();
-
-  return res;
-}
-
-bool Sql_cmd_show::prepare(THD *thd) {
-  DBUG_TRACE;
-
-  if (Sql_cmd::prepare(thd)) return true;
-
-  bool rc = mysql_test_show(get_owner(), thd->lex->query_tables);
-  return rc;
 }

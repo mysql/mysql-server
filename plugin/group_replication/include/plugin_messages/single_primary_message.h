@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -93,7 +93,7 @@ class Single_primary_message : public Plugin_gcs_message {
   /**
     Message destructor
    */
-  virtual ~Single_primary_message();
+  ~Single_primary_message() override;
 
   /**
     Message constructor for raw data
@@ -128,7 +128,7 @@ class Single_primary_message : public Plugin_gcs_message {
 
     @param[out] buffer   the message buffer to be written
   */
-  void encode_payload(std::vector<unsigned char> *buffer) const;
+  void encode_payload(std::vector<unsigned char> *buffer) const override;
 
   /**
     Message decoding method
@@ -136,7 +136,8 @@ class Single_primary_message : public Plugin_gcs_message {
     @param[in] buffer the received data
     @param[in] end    the end of the buffer.
   */
-  void decode_payload(const unsigned char *buffer, const unsigned char *end);
+  void decode_payload(const unsigned char *buffer,
+                      const unsigned char *end) override;
 
  private:
   /**The message type*/

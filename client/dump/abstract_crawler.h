@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -45,17 +45,18 @@ class Abstract_crawler : public Abstract_chain_element,
   /**
     Adds new Chain Maker to ask for chains for found objects.
    */
-  virtual void register_chain_maker(I_chain_maker *new_chain_maker);
+  void register_chain_maker(I_chain_maker *new_chain_maker) override;
 
   // Fix "inherits ... via dominance" warnings
-  void register_progress_watcher(I_progress_watcher *new_progress_watcher) {
+  void register_progress_watcher(
+      I_progress_watcher *new_progress_watcher) override {
     Abstract_chain_element::register_progress_watcher(new_progress_watcher);
   }
 
   // Fix "inherits ... via dominance" warnings
-  uint64 get_id() const { return Abstract_chain_element::get_id(); }
+  uint64 get_id() const override { return Abstract_chain_element::get_id(); }
 
-  ~Abstract_crawler();
+  ~Abstract_crawler() override;
 
  protected:
   Abstract_crawler(std::function<bool(const Mysql::Tools::Base::Message_data &)>
@@ -69,10 +70,11 @@ class Abstract_crawler : public Abstract_chain_element,
 
   void wait_for_tasks_completion();
 
-  bool need_callbacks_in_child();
+  bool need_callbacks_in_child() override;
 
   // Fix "inherits ... via dominance" warnings
-  void item_completion_in_child_callback(Item_processing_data *item_processed) {
+  void item_completion_in_child_callback(
+      Item_processing_data *item_processed) override {
     Abstract_chain_element::item_completion_in_child_callback(item_processed);
   }
 

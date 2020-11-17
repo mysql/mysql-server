@@ -1202,7 +1202,7 @@ pk
 EXPLAIN FORMAT=tree SELECT DISTINCT table1.pk FROM t1 AS table1 LEFT JOIN t1 AS table2 ON table1.f2=table2.f3 WHERE table2.f1 IS NULL;
 EXPLAIN
 -> Table scan on <temporary>
-    -> Temporary table with deduplication
+    -> Temporary table with deduplication  (cost=3.81 rows=3)
         -> Filter: (table2.f1 is null)  (cost=3.81 rows=3)
             -> Nested loop left join  (cost=3.81 rows=3)
                 -> Table scan on table1  (cost=0.80 rows=3)
@@ -1231,9 +1231,9 @@ pk
 12
 EXPLAIN FORMAT=tree SELECT /*+JOIN_ORDER(t2,t3,t1) */ DISTINCT t2.pk FROM t1 LEFT JOIN t2 RIGHT OUTER JOIN t3 ON t2.f1 = t3.f3 ON t1.pk = t3.f2 WHERE t3.pk <> t2.pk;
 EXPLAIN
--> Limit: 1 row(s)
+-> Limit: 1 row(s)  (cost=0.70 rows=1)
     -> Table scan on <temporary>
-        -> Temporary table
+        -> Temporary table  (cost=0.70 rows=1)
             -> Filter: ((t3.f2 = '3') and (t3.f3 = '4') and (t3.pk <> '12'))  (cost=0.70 rows=1)
                 -> Table scan on t3  (cost=0.70 rows=2)
 
@@ -1290,7 +1290,7 @@ EXPLAIN
         -> Stream results
             -> Group (no aggregates)
                 -> Sort: t1.a DESC, t1.b  (cost=0.80 rows=3)
-                    -> Table scan on t1
+                    -> Table scan on t1  (cost=0.80 rows=3)
 
 SELECT DISTINCT SQL_BIG_RESULT a FROM t1 GROUP BY a,b ORDER BY a DESC;
 a

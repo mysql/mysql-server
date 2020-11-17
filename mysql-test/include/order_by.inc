@@ -242,10 +242,13 @@ explain select * from t1 where (a = 1 and b is null and c = 'b') or (a > 2) orde
 select * from t1 where (a = 1 and b is null and c = 'b') or (a > 2) order by a desc;
 explain select * from t1 where a >= 1 and a < 3 order by a desc;
 explain format=json select * from t1 where a >= 1 and a < 3 order by a desc;
+--partially_sorted_result 1
 select * from t1 where a >= 1 and a < 3 order by a desc;
 explain select * from t1 where a = 1 order by a desc, b desc;
+--partially_sorted_result 2
 select * from t1 where a = 1 order by a desc, b desc;
 explain select * from t1 where a = 1 and b is null order by a desc, b desc;
+--partially_sorted_result 2
 select * from t1 where a = 1 and b is null order by a desc, b desc;
 explain select * from t1 where a >= 1 and a < 3 and b >0 order by a desc,b desc;
 explain select * from t1 where a = 2 and b >0 order by a desc,b desc;
@@ -255,6 +258,7 @@ desc,b desc;
 explain select * from t1 where a = 2 and b > 0 order by a desc,b desc;
 explain select * from t1 where a = 2 and b < 2 order by a desc,b desc;
 explain select * from t1 where a = 1 order by b desc;
+--partially_sorted_result 2
 select * from t1 where a = 1 order by b desc;
 #
 # Test things when we don't have NULL keys
@@ -270,14 +274,18 @@ explain select * from t1 where (a = 1 and b = 1 and c = 'b') or (a > 2) order by
 select * from t1 where (a = 1 and b = 1 and c = 'b') or (a > 2) order by a desc;
 # test NEAR_MAX, NO_MIN_RANGE
 explain select * from t1 where a < 2 and b <= 1 order by a desc, b desc;
+--partially_sorted_result 2
 select * from t1 where a < 2 and b <= 1 order by a desc, b desc;
 select count(*) from t1 where a < 5 and b > 0;
+--partially_sorted_result 2
 select * from t1 where a < 5 and b > 0 order by a desc,b desc;
 # test HA_READ_AFTER_KEY (at the end of the file), NEAR_MIN
 explain select * from t1 where a between 1 and 3 and b <= 1 order by a desc, b desc;
+--partially_sorted_result 2
 select * from t1 where a between 1 and 3 and b <= 1 order by a desc, b desc;
 # test HA_READ_AFTER_KEY (in the middle of the file)
 explain select * from t1 where a between 0 and 1 order by a desc, b desc;
+--partially_sorted_result 2
 select * from t1 where a between 0 and 1 order by a desc, b desc;
 drop table t1;
 
@@ -439,6 +447,7 @@ drop table t1;
 create table t1(a int, b int, index(b));
 insert into t1 values (2, 1), (1, 1), (4, NULL), (3, NULL), (6, 2), (5, 2);
 explain select * from t1 where b=1 or b is null order by a;
+--skip_if_hypergraph  # Depends on the query plan.
 explain format=tree select * from t1 where b=1 or b is null order by a;
 select * from t1 where b=1 or b is null order by a;
 explain select * from t1 where b=2 or b is null order by a;
@@ -467,6 +476,7 @@ optimize table t1;
 set @row=10;
 insert into t1 select 1, b, c + (@row:=@row - 1) * 10, d - @row from t2 limit 10;
 select * from t1 where a=1 and b in (1) order by c, b, a;
+--sorted_result
 select * from t1 where a=1 and b in (1);
 drop table t1, t2;
 
@@ -592,11 +602,14 @@ CREATE TABLE t1 (a INT); INSERT INTO t1 VALUES (1),(2);
 SELECT a + 1 AS num FROM t1 ORDER BY 30 - num;
 SELECT CONCAT('test', a) AS str FROM t1 ORDER BY UPPER(str);
 --source include/turn_off_only_full_group_by.inc
+--sorted_result
 SELECT a + 1 AS num FROM t1 GROUP BY 30 - num;
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
+--sorted_result
 SELECT a + 1 AS num FROM t1 HAVING 30 - num;
 --error ER_BAD_FIELD_ERROR
 SELECT a + 1 AS num, num + 1 FROM t1;
+--sorted_result
 SELECT a + 1 AS num, (select num + 2 FROM t1 LIMIT 1) FROM t1;
 --error ER_BAD_FIELD_ERROR
 SELECT a.a + 1 AS num FROM t1 a JOIN t1 b ON num = b.a;
@@ -667,8 +680,10 @@ SELECT a, IF(a NOT BETWEEN 2 AND 3, a, a+10) FROM t1
 SELECT a, IF(a BETWEEN 2 AND 3, a, a+10) FROM t1 
   ORDER BY IF(a NOT BETWEEN 2 AND 3, a, a+10);
 
+--sorted_result
 SELECT IF(a IN (1,2), a, '') as x1, IF(a NOT IN (1,2), a, '') as x2
   FROM t1 GROUP BY x1, x2;
+--sorted_result
 SELECT IF(a IN (1,2), a, '') as x1, IF(a NOT IN (1,2), a, '') as x2
   FROM t1 GROUP BY x1, IF(a NOT IN (1,2), a, '');
 
@@ -815,7 +830,9 @@ SELECT a FROM t1 IGNORE INDEX FOR GROUP BY (PRIMARY, ab) GROUP BY a;
 
 eval EXPLAIN $query;
 flush status;
+--sorted_result
 eval $query;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'Created_tmp_tables';
 
 let $query=
@@ -824,18 +841,21 @@ SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY, ab) ORDER BY a;
 eval EXPLAIN $query;
 flush status;
 eval $query;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'Created_tmp_tables';
 
 flush status;
 let $query=
 SELECT a FROM t1 IGNORE INDEX (PRIMARY, ab) GROUP BY a;
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 let $query=
 SELECT a FROM t1 IGNORE INDEX (PRIMARY, ab) ORDER BY a;
 eval EXPLAIN $query;
 eval $query;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'Created_tmp_tables';
 
 DROP TABLE t1;
@@ -1551,6 +1571,7 @@ CREATE TABLE where_subselect
   GROUP BY field1, field2
 ;
 
+--sorted_result
 SELECT * 
 FROM where_subselect
 WHERE (field1, field2) IN (  

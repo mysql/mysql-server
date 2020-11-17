@@ -432,6 +432,7 @@ insert into t1 values (_utf16 0xD800DC00);
 insert into t1 values (_utf16 0xD800DCFF);
 insert into t1 values (_utf16 0xDBFFDC00);
 insert into t1 values (_utf16 0xDBFFDCFF);
+--sorted_result
 select hex(a) from t1;
 drop table t1;
 
@@ -574,6 +575,7 @@ create table t1 (a varchar(334) character set utf16 primary key) ROW_FORMAT=COMP
 create table t1 (a char(1) character set utf16);
 insert into t1 values (0xD800DC00),(0xD800DCFF),(0xDB7FDC00),(0xDB7FDCFF);
 insert into t1 values (0x00C0), (0x00FF),(0xE000), (0xFFFF);
+--sorted_result
 select hex(a), hex(@a:=convert(a using utf8mb4)), hex(convert(@a using utf16)) from t1;
 drop table t1;
 

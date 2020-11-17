@@ -4,6 +4,8 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 CREATE DATABASE ndbsynctest;
 USE ndbsynctest;
 CREATE DATABASE ndbsynctest;
@@ -62,6 +64,8 @@ CHANGE MASTER TO
 master_log_file = 'master-bin.000001',
 master_log_pos = <the_pos> ;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/check_slave_is_running.inc
 SELECT hex(c1),hex(c2),c3 FROM t1 ORDER BY c3;
 hex(c1)	hex(c2)	c3
@@ -77,10 +81,14 @@ hex(c2)	hex(c3)	c1
 0	0	DEFGHIJKL
 DROP DATABASE ndbsynctest;
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 reset master;
 select * from mysql.ndb_binlog_index;
 Position	File	epoch	inserts	updates	deletes	schemaops	orig_server_id	orig_epoch	gci	next_position	next_file
 reset slave;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 select * from mysql.ndb_apply_status;
 server_id	epoch	log_name	start_pos	end_pos
 include/rpl_end.inc

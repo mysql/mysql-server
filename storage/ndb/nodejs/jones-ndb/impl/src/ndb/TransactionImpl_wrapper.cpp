@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2014, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,6 @@
 #include "NativeMethodCall.h"
 #include "NdbWrapperErrors.h"
 
-using namespace v8;
 
 V8WrapperFn getEmptyOperationSet;
 
@@ -46,8 +45,8 @@ public:
 TransactionImplEnvelopeClass TransactionImplEnvelope;
 
 void setJsWrapper(TransactionImpl *ctx) {
-  Local<Object> localObj = TransactionImplEnvelope.wrap(ctx)->ToObject();
-  ctx->jsWrapper.Reset(v8::Isolate::GetCurrent(), localObj);
+  Local<Object> localObj = ToObject(TransactionImplEnvelope.wrap(ctx));
+  ctx->jsWrapper.Reset(ctx->isolate, localObj);
 }
 
 
@@ -58,7 +57,7 @@ void getEmptyOperationSet(const Arguments &args) {
 }
 
 
-void NdbTransaction_initOnLoad(Handle<Object> target) {
+void NdbTransaction_initOnLoad(Local<Object> target) {
   DEFINE_JS_INT(target, "NoCommit", NdbTransaction::NoCommit);
   DEFINE_JS_INT(target, "Commit", NdbTransaction::Commit);
   DEFINE_JS_INT(target, "Rollback", NdbTransaction::Rollback);

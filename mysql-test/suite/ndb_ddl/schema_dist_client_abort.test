@@ -32,28 +32,120 @@ set GLOBAL debug="-d,ndb_schema_dist_client_not_ready";
 # Wait until ready again
 --source include/ndb_not_readonly.inc
 
+--echo # Verify that there are no leftover entries in
+--echo # mysql.ndb_schema_result table
+--exec $NDB_SELECT_ALL --no-defaults -d mysql ndb_schema_result
+
+--echo # Cleanup
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#30684839 SCHEMA DISTRIBUTION ABORT IS NOT HANDLED PROPERLY SOMETIMES
+--echo #
+
+--echo # Setup
+CREATE TABLE t1 (
+  a int primary key
+) engine NDB;
+
+--echo # Setup to trigger the client to detect that it was killed before
+--echo # starting the schema distribution
+set GLOBAL debug="+d,ndb_schema_dist_client_killed_before_write";
+
+# Supress warning which is written to log when distribution is aborted
+--disable_query_log ONCE
+call mtr.add_suppression("Distribution of .* aborted!");
+
+# Do schema operations which will cause the client to detect it
+# has been killed before the distribution starts and thus
+# aborting the distribution
+
+--echo # CREATE TABLE should abort the distribution and fail
+--error ER_CANT_CREATE_TABLE
+CREATE TABLE t2 (
+  a int primary key
+) engine NDB;
+
+--echo # ALTER TABLE should abort the distribution but succeed with warnings
+
+# Supress error which is written to log when distribution is aborted
+--disable_query_log ONCE
+call mtr.add_suppression("Failed to distribute 'ALTER TABLE t1'");
+
+ALTER TABLE t1 ADD COLUMN b int, algorithm = COPY;
+
+--echo # Remove debug setup
+set GLOBAL debug="-d,ndb_schema_dist_client_killed_before_write";
+
+DROP TABLE t1;
 
 --echo # Setup to trigger the client to detect that it was killed while
 --echo # waiting for schema distribuiton to complete
-set GLOBAL debug="+d,ndb_schema_dist_client_killed";
+set GLOBAL debug="+d,ndb_schema_dist_client_killed_after_write";
 
 # Supress warning which is written to log when client is killed
 --disable_query_log ONCE
-call mtr.add_suppression("Distribution of .* killed!");
+call mtr.add_suppression("Distribution of .* client killed .*!");
 
 --echo # Do schema operation which will cause the client to detect it
---echo # has been killed
---replace_regex /Node [0-9]+:/Node <nodeid>/
+--echo # has been killed but will proceed to completion nevertheless
 CREATE TABLE t1(
   a int primary key
 ) engine = NDB;
 
 # Remove debug setup
-set GLOBAL debug="-d,ndb_schema_dist_client_killed";
+set GLOBAL debug="-d,ndb_schema_dist_client_killed_after_write";
+
+DROP TABLE t1;
+
+--echo # Shutdown the MySQL Server when the coordinator is waiting on the
+--echo # participants and verify that they are handled smoothly
+
+--echo # Skip sending ack from participant mysqld2 to make the coordinator wait
+--connection mysqld2
+set GLOBAL debug="+d,ndb_skip_participant_ack";
+--connection mysqld1
+
+--echo # Send the CREATE TABLE query to mysqld1
+# Create an alternate connection and send the DDL for execution, as the
+# connection will be blocked until the DDL returns. The original connection
+# is needed for shutting down the server. Also note that 'reap' is never
+# called for this 'send' as this connection will be lost after restart.
+--connect(mysqld1_alt,127.0.0.1,root,,test,$MYSQLD_PORT_1)
+--send
+CREATE TABLE t1 (
+  a INT PRIMARY KEY
+) ENGINE = NDB;
+
+--echo # Wait for the DDL to be logged in ndb_schema table
+# This is ensured by waiting for the table to appear in
+# another mysqld that is not the coordinator
+--connection mysqld3
+let $wait_condition= SELECT COUNT(*)
+                       FROM INFORMATION_SCHEMA.TABLES
+                       WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+--source include/wait_condition_or_abort.inc
+--connection mysqld1
+
+--echo # The coordinator is now waiting for the participants
+--echo # Restart it and verify that it shuts down without any issues
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
+# Remove debug setup
+--connection mysqld2
+set GLOBAL debug="-d,ndb_skip_participant_ack";
+--connection mysqld1
 
 # Wait until ready again
 --source include/ndb_not_readonly.inc
 
+--echo # Verify that there are no leftover entries in
+--echo # mysql.ndb_schema_result table
+--exec $NDB_SELECT_ALL --no-defaults -d mysql ndb_schema_result
+
+--echo # Verify table exists
+show create table t1;
+
+--echo # Cleanup
 DROP TABLE t1;

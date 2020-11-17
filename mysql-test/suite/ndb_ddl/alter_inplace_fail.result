@@ -73,3 +73,11 @@ PRIMARY KEY($PK) - UniqueHashIndex
 
 NDBT_ProgramExit: 0 - OK
 
+#
+# Bug#31419144 FIX MEMORY LEAK OF NDB_ALTER_DATA IN PREPARE_INPLACE_ALTER_TABLE
+#
+set @save_debug = @@global.debug;
+set global debug='+d,ndb_schema_dist_not_ready_early';
+ALTER TABLE t1 ADD INDEX idx(a), ALGORITHM = INPLACE;
+ERROR HY000: Got error 4009 'Cluster Failure' from NDBCLUSTER
+set global debug=@save_debug;

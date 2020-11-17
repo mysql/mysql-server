@@ -27,6 +27,7 @@
 #include <thread>
 
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
 // if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
@@ -309,8 +310,10 @@ class RouterRoutingConnectionCommonTest : public RouterComponentTest {
   }
 
   auto &launch_router(uint16_t /* router_port */,
-                      const std::string &config_file) {
-    return ProcessManager::launch_router({"-c", config_file});
+                      const std::string &config_file,
+                      std::chrono::milliseconds wait_for_ready = 5s) {
+    return ProcessManager::launch_router({"-c", config_file}, EXIT_SUCCESS,
+                                         true, false, wait_for_ready);
   }
 
   auto &launch_server(uint16_t cluster_port, const std::string &json_file,
@@ -464,14 +467,11 @@ TEST_F(RouterRoutingConnectionTest, OldSchemaVersion) {
                                           "metadata_old_schema.js",
                                           cluster_nodes_http_ports_[0]));
 
-  SCOPED_TRACE("// [prep] wait until mock-servers are started");
-  ASSERT_NO_FATAL_FAILURE(
-      check_port_ready(*cluster_nodes_[0], cluster_nodes_ports_[0]));
-
   SCOPED_TRACE("// [prep] launching router");
   auto &router = launch_router(router_rw_port_,
                                config_generator_->build_config_file(
-                                   temp_test_dir_.name(), ClusterType::GR_V2));
+                                   temp_test_dir_.name(), ClusterType::GR_V2),
+                               -1s);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_rw_port_));
 
   SCOPED_TRACE("// [prep] waiting " +
@@ -527,7 +527,7 @@ TEST_F(RouterRoutingConnectionTest,
   auto &router = ProcessManager::launch_router(
       {"-c", config_generator_->build_config_file(temp_test_dir_.name(),
                                                   ClusterType::GR_V2)},
-      EXIT_FAILURE);
+      EXIT_FAILURE, true, false, -1s);
   check_port_not_ready(router, router_ro_port_);
 }
 
@@ -543,7 +543,7 @@ TEST_F(RouterRoutingConnectionTest,
   auto &router = ProcessManager::launch_router(
       {"-c", config_generator_->build_config_file(temp_test_dir_.name(),
                                                   ClusterType::GR_V2)},
-      EXIT_FAILURE);
+      EXIT_FAILURE, true, false, -1s);
   check_port_not_ready(router, router_ro_port_);
 }
 
@@ -596,12 +596,6 @@ TEST_P(IsConnectionsClosedWhenPrimaryRemovedFromClusterTest,
                        cluster_nodes_http_ports_[port], 4));
   }
 
-  SCOPED_TRACE("// wait until mock-servers are started");
-  for (unsigned ndx = 0; ndx < 4; ndx++) {
-    ASSERT_NO_FATAL_FAILURE(
-        check_port_ready(*cluster_nodes_.at(ndx), cluster_nodes_ports_[ndx]));
-  }
-
   SCOPED_TRACE("// launching router");
   auto &router = launch_router(
       router_rw_port_, config_generator_->build_config_file(
@@ -614,9 +608,6 @@ TEST_P(IsConnectionsClosedWhenPrimaryRemovedFromClusterTest,
   RestMetadataClient::MetadataStatus metadata_status;
   RestMetadataClient rest_metadata_client(mock_http_hostname_, monitoring_port_,
                                           kRestApiUsername, kRestApiPassword);
-
-  ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_ready(
-      wait_for_cache_ready_timeout, metadata_status));
 
   SCOPED_TRACE("// connecting clients");
   std::vector<std::pair<MySQLSession, uint16_t>> clients(2);
@@ -670,23 +661,11 @@ TEST_P(IsConnectionsClosedWhenSecondaryRemovedFromClusterTest,
   const std::string tracefile = GetParam().tracefile;
   ASSERT_NO_FATAL_FAILURE(setup_cluster(tracefile, 4));
 
-  auto &router = launch_router(
-      router_rw_port_, config_generator_->build_config_file(
-                           temp_test_dir_.name(), GetParam().cluster_type));
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_rw_port_));
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_ro_port_));
+  launch_router(router_rw_port_,
+                config_generator_->build_config_file(temp_test_dir_.name(),
+                                                     GetParam().cluster_type));
 
-  /*
-   * wait until metadata is initialized
-   */
-  RestMetadataClient::MetadataStatus metadata_status;
-  RestMetadataClient rest_metadata_client(mock_http_hostname_, monitoring_port_,
-                                          kRestApiUsername, kRestApiPassword);
-
-  ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_ready(
-      wait_for_cache_ready_timeout, metadata_status));
-
-  // connect clients
+  SCOPED_TRACE("// connect clients");
   std::vector<std::pair<MySQLSession, uint16_t>> clients(6);
 
   for (auto &client_and_port : clients) {
@@ -699,22 +678,37 @@ TEST_P(IsConnectionsClosedWhenSecondaryRemovedFromClusterTest,
         static_cast<uint16_t>(std::stoul(std::string((*result)[0])));
   }
 
+  SCOPED_TRACE("// removed secondary from mock-server on port " +
+               std::to_string(cluster_nodes_http_ports_[0]));
   set_additional_globals(cluster_nodes_http_ports_[0],
                          server_globals().set_secondary_removed());
+
+  // wait for metadata refresh
+  RestMetadataClient rest_metadata_client(mock_http_hostname_, monitoring_port_,
+                                          kRestApiUsername, kRestApiPassword);
+  RestMetadataClient::MetadataStatus metadata_status;
 
   ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_updated(
       wait_for_cache_update_timeout, metadata_status));
 
-  // verify that connections to SECONDARY_1 are broken
+  SCOPED_TRACE("// verify that connections to SECONDARY_1 are broken");
   for (auto &client_and_port : clients) {
     auto &client = client_and_port.first;
     uint16_t port = client_and_port.second;
 
-    if (port == cluster_nodes_ports_[1])
+    if (port == cluster_nodes_ports_[1]) {
+      SCOPED_TRACE("// connections to aborted server fails");
       EXPECT_TRUE(wait_connection_dropped(client));
-    else
-      ASSERT_NO_THROW(std::unique_ptr<MySQLSession::ResultRow> result{
-          client.query_one("select @@port")});
+    } else {
+      SCOPED_TRACE("// connection to server on port " + std::to_string(port) +
+                   " still succeeds");
+      try {
+        std::unique_ptr<MySQLSession::ResultRow> result{
+            client.query_one("select @@port")};
+      } catch (const std::exception &e) {
+        FAIL() << e.what();
+      }
+    }
   }
 }
 
@@ -743,21 +737,9 @@ TEST_P(IsRWConnectionsClosedWhenPrimaryFailoverTest,
   const std::string tracefile = GetParam().tracefile;
 
   ASSERT_NO_FATAL_FAILURE(setup_cluster(tracefile, 4));
-  auto &router = launch_router(
-      router_ro_port_, config_generator_->build_config_file(
-                           temp_test_dir_.name(), GetParam().cluster_type));
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_rw_port_));
-
-  /*
-   * wait until metadata is initialized
-   */
-  RestMetadataClient::MetadataStatus metadata_status;
-  RestMetadataClient rest_metadata_client(mock_http_hostname_, monitoring_port_,
-                                          kRestApiUsername, kRestApiPassword);
-
-  ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_ready(
-      wait_for_cache_ready_timeout, metadata_status));
-
+  launch_router(router_ro_port_,
+                config_generator_->build_config_file(temp_test_dir_.name(),
+                                                     GetParam().cluster_type));
   // connect clients
   std::vector<std::pair<MySQLSession, uint16_t>> clients(2);
 
@@ -774,6 +756,9 @@ TEST_P(IsRWConnectionsClosedWhenPrimaryFailoverTest,
   set_additional_globals(cluster_nodes_http_ports_[0],
                          server_globals().set_primary_failover());
 
+  RestMetadataClient::MetadataStatus metadata_status;
+  RestMetadataClient rest_metadata_client(mock_http_hostname_, monitoring_port_,
+                                          kRestApiUsername, kRestApiPassword);
   ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_updated(
       wait_for_cache_update_timeout, metadata_status));
 
@@ -810,23 +795,9 @@ TEST_P(IsROConnectionsKeptWhenPrimaryFailoverTest,
 
   config_generator_->disconnect_on_promoted_to_primary("");
 
-  auto &router =
-      launch_router(router_ro_port_,
-                    config_generator_->build_config_file(
-                        temp_test_dir_.name(), GetParam().cluster_type, true));
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_rw_port_));
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_ro_port_));
-
-  /*
-   * wait until metadata is initialized
-   */
-  RestMetadataClient::MetadataStatus metadata_status;
-  RestMetadataClient rest_metadata_client(mock_http_hostname_, monitoring_port_,
-                                          kRestApiUsername, kRestApiPassword);
-
-  ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_ready(
-      wait_for_cache_ready_timeout, metadata_status));
-
+  launch_router(router_ro_port_,
+                config_generator_->build_config_file(
+                    temp_test_dir_.name(), GetParam().cluster_type, true));
   // connect clients
   std::vector<std::pair<MySQLSession, uint16_t>> clients(4);
 
@@ -843,6 +814,9 @@ TEST_P(IsROConnectionsKeptWhenPrimaryFailoverTest,
   set_additional_globals(cluster_nodes_http_ports_[0],
                          server_globals().set_primary_failover());
 
+  RestMetadataClient::MetadataStatus metadata_status;
+  RestMetadataClient rest_metadata_client(mock_http_hostname_, monitoring_port_,
+                                          kRestApiUsername, kRestApiPassword);
   ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_updated(
       wait_for_cache_update_timeout, metadata_status));
 
@@ -882,22 +856,9 @@ TEST_P(RouterRoutingConnectionPromotedTest,
 
   config_generator_->disconnect_on_promoted_to_primary(param);
 
-  auto &router = launch_router(
-      router_ro_port_, config_generator_->build_config_file(
-                           temp_test_dir_.name(), GetParam().cluster_type));
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_rw_port_));
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_ro_port_));
-
-  /*
-   * wait until metadata is initialized
-   */
-  RestMetadataClient::MetadataStatus metadata_status;
-  RestMetadataClient rest_metadata_client(mock_http_hostname_, monitoring_port_,
-                                          kRestApiUsername, kRestApiPassword);
-
-  ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_ready(
-      wait_for_cache_ready_timeout, metadata_status));
-
+  launch_router(router_ro_port_,
+                config_generator_->build_config_file(temp_test_dir_.name(),
+                                                     GetParam().cluster_type));
   // connect clients
   std::vector<std::pair<MySQLSession, uint16_t>> clients(6);
 
@@ -914,6 +875,9 @@ TEST_P(RouterRoutingConnectionPromotedTest,
   server_globals globals;
   globals.primary_failover = true;
   set_additional_globals(cluster_nodes_http_ports_[0], globals);
+  RestMetadataClient::MetadataStatus metadata_status;
+  RestMetadataClient rest_metadata_client(mock_http_hostname_, monitoring_port_,
+                                          kRestApiUsername, kRestApiPassword);
   ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_updated(
       wait_for_cache_update_timeout, metadata_status));
 
@@ -960,21 +924,9 @@ TEST_P(IsConnectionToSecondaryClosedWhenPromotedToPrimaryTest,
   config_generator_->disconnect_on_promoted_to_primary(
       "&disconnect_on_promoted_to_primary=yes");
 
-  auto &router = launch_router(
-      router_ro_port_, config_generator_->build_config_file(
-                           temp_test_dir_.name(), GetParam().cluster_type));
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_ro_port_));
-
-  /*
-   * wait until metadata is initialized
-   */
-  RestMetadataClient::MetadataStatus metadata_status;
-  RestMetadataClient rest_metadata_client(mock_http_hostname_, monitoring_port_,
-                                          kRestApiUsername, kRestApiPassword);
-
-  ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_ready(
-      wait_for_cache_ready_timeout, metadata_status));
-
+  launch_router(router_ro_port_,
+                config_generator_->build_config_file(temp_test_dir_.name(),
+                                                     GetParam().cluster_type));
   // connect clients
   std::vector<std::pair<MySQLSession, uint16_t>> clients(6);
 
@@ -990,6 +942,9 @@ TEST_P(IsConnectionToSecondaryClosedWhenPromotedToPrimaryTest,
 
   set_additional_globals(cluster_nodes_http_ports_[0],
                          server_globals().set_primary_failover());
+  RestMetadataClient::MetadataStatus metadata_status;
+  RestMetadataClient rest_metadata_client(mock_http_hostname_, monitoring_port_,
+                                          kRestApiUsername, kRestApiPassword);
   ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_updated(
       wait_for_cache_update_timeout, metadata_status));
 
@@ -1033,20 +988,9 @@ TEST_P(IsConnectionToMinorityClosedWhenClusterPartitionTest,
    */
   ASSERT_NO_FATAL_FAILURE(setup_cluster(tracefile, 5));
 
-  auto &router = launch_router(
-      router_ro_port_, config_generator_->build_config_file(
-                           temp_test_dir_.name(), GetParam().cluster_type));
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_ro_port_));
-
-  /*
-   * wait until metadata is initialized
-   */
-  RestMetadataClient::MetadataStatus metadata_status;
-  RestMetadataClient rest_metadata_client(mock_http_hostname_, monitoring_port_,
-                                          kRestApiUsername, kRestApiPassword);
-
-  ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_ready(
-      wait_for_cache_ready_timeout, metadata_status));
+  launch_router(router_ro_port_,
+                config_generator_->build_config_file(temp_test_dir_.name(),
+                                                     GetParam().cluster_type));
 
   // connect clients
   std::vector<std::pair<MySQLSession, uint16_t>> clients(10);
@@ -1085,6 +1029,9 @@ TEST_P(IsConnectionToMinorityClosedWhenClusterPartitionTest,
   set_additional_globals(cluster_nodes_http_ports_[0],
                          server_globals().set_cluster_partition());
 
+  RestMetadataClient::MetadataStatus metadata_status;
+  RestMetadataClient rest_metadata_client(mock_http_hostname_, monitoring_port_,
+                                          kRestApiUsername, kRestApiPassword);
   ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_changed(
       wait_for_cache_update_timeout, metadata_status));
 
@@ -1126,21 +1073,9 @@ TEST_P(IsConnectionClosedWhenClusterOverloadedTest,
   config_generator_->disconnect_on_metadata_unavailable(
       "&disconnect_on_metadata_unavailable=yes");
 
-  auto &router = launch_router(
-      router_ro_port_, config_generator_->build_config_file(
-                           temp_test_dir_.name(), GetParam().cluster_type));
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_ro_port_));
-
-  /*
-   * wait until metadata is initialized
-   */
-  RestMetadataClient::MetadataStatus metadata_status;
-  RestMetadataClient rest_metadata_client(mock_http_hostname_, monitoring_port_,
-                                          kRestApiUsername, kRestApiPassword);
-
-  ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_ready(
-      wait_for_cache_ready_timeout, metadata_status));
-
+  launch_router(router_ro_port_,
+                config_generator_->build_config_file(temp_test_dir_.name(),
+                                                     GetParam().cluster_type));
   // connect clients
   std::vector<std::pair<MySQLSession, uint16_t>> clients(6);
 
@@ -1162,6 +1097,9 @@ TEST_P(IsConnectionClosedWhenClusterOverloadedTest,
   MockServerRestClient(cluster_nodes_http_ports_[0])
       .send_delete(kMockServerConnectionsUri);
   cluster_nodes_[0]->kill();
+  RestMetadataClient::MetadataStatus metadata_status;
+  RestMetadataClient rest_metadata_client(mock_http_hostname_, monitoring_port_,
+                                          kRestApiUsername, kRestApiPassword);
   ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_changed(
       wait_for_cache_update_timeout, metadata_status));
 
@@ -1198,22 +1136,9 @@ TEST_P(RouterRoutingConnectionMDUnavailableTest,
   ASSERT_NO_FATAL_FAILURE(setup_cluster(tracefile, 4));
 
   config_generator_->disconnect_on_promoted_to_primary(param);
-  auto &router = launch_router(
-      router_ro_port_, config_generator_->build_config_file(
-                           temp_test_dir_.name(), GetParam().cluster_type));
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_rw_port_));
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_ro_port_));
-
-  /*
-   * wait until metadata is initialized
-   */
-  RestMetadataClient::MetadataStatus metadata_status;
-  RestMetadataClient rest_metadata_client(mock_http_hostname_, monitoring_port_,
-                                          kRestApiUsername, kRestApiPassword);
-
-  ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_ready(
-      wait_for_cache_ready_timeout, metadata_status));
-
+  launch_router(router_ro_port_,
+                config_generator_->build_config_file(temp_test_dir_.name(),
+                                                     GetParam().cluster_type));
   // connect clients
   std::vector<std::pair<MySQLSession, uint16_t>> clients(6);
 
@@ -1234,6 +1159,9 @@ TEST_P(RouterRoutingConnectionMDUnavailableTest,
   MockServerRestClient(cluster_nodes_http_ports_[0])
       .send_delete(kMockServerConnectionsUri);
   cluster_nodes_[0]->kill();
+  RestMetadataClient::MetadataStatus metadata_status;
+  RestMetadataClient rest_metadata_client(mock_http_hostname_, monitoring_port_,
+                                          kRestApiUsername, kRestApiPassword);
   ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_changed(
       wait_for_cache_update_timeout, metadata_status));
 
@@ -1321,21 +1249,9 @@ TEST_P(RouterRoutingConnectionMDRefreshTest,
 
   config_generator_->disconnect_on_metadata_unavailable(
       "&disconnect_on_metadata_unavailable=yes");
-  auto &router = launch_router(
-      router_ro_port_, config_generator_->build_config_file(
-                           temp_test_dir_.name(), GetParam().cluster_type));
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_rw_port_));
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_ro_port_));
-
-  /*
-   * wait until metadata is initialized
-   */
-  RestMetadataClient::MetadataStatus metadata_status;
-  RestMetadataClient rest_metadata_client(mock_http_hostname_, monitoring_port_,
-                                          kRestApiUsername, kRestApiPassword);
-
-  ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_ready(
-      wait_for_cache_ready_timeout, metadata_status));
+  launch_router(router_ro_port_,
+                config_generator_->build_config_file(temp_test_dir_.name(),
+                                                     GetParam().cluster_type));
 
   // connect clients
   std::vector<std::pair<MySQLSession, uint16_t>> clients(10);
@@ -1363,6 +1279,9 @@ TEST_P(RouterRoutingConnectionMDRefreshTest,
   ASSERT_TRUE(MockServerRestClient(cluster_nodes_http_ports_[0])
                   .wait_for_rest_endpoint_ready());
   set_additional_globals(cluster_nodes_http_ports_[0], GetParam().globals);
+  RestMetadataClient::MetadataStatus metadata_status;
+  RestMetadataClient rest_metadata_client(mock_http_hostname_, monitoring_port_,
+                                          kRestApiUsername, kRestApiPassword);
   ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_updated(
       wait_for_cache_update_timeout, metadata_status));
 

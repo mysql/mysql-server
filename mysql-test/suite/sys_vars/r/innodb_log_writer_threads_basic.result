@@ -1,0 +1,34 @@
+SET @orig = @@global.innodb_log_writer_threads;
+SET GLOBAL innodb_log_writer_threads = OFF;
+SELECT @@global.innodb_log_writer_threads;
+@@global.innodb_log_writer_threads
+0
+SET GLOBAL innodb_log_writer_threads = default;
+SELECT @@global.innodb_log_writer_threads;
+@@global.innodb_log_writer_threads
+1
+SET GLOBAL innodb_log_writer_threads = ON;
+SELECT @@global.innodb_log_writer_threads;
+@@global.innodb_log_writer_threads
+1
+SET GLOBAL innodb_log_writer_threads = 2;
+ERROR 42000: Variable 'innodb_log_writer_threads' can't be set to the value of '2'
+SELECT @@global.innodb_log_writer_threads;
+@@global.innodb_log_writer_threads
+1
+SET GLOBAL innodb_log_writer_threads = 1e2;
+ERROR 42000: Incorrect argument type to variable 'innodb_log_writer_threads'
+SELECT @@global.innodb_log_writer_threads;
+@@global.innodb_log_writer_threads
+1
+SET GLOBAL innodb_log_writer_threads = 1.0;
+ERROR 42000: Incorrect argument type to variable 'innodb_log_writer_threads'
+SELECT @@global.innodb_log_writer_threads;
+@@global.innodb_log_writer_threads
+1
+SET innodb_log_writer_threads = OFF;
+ERROR HY000: Variable 'innodb_log_writer_threads' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@global.innodb_log_writer_threads;
+@@global.innodb_log_writer_threads
+1
+SET GLOBAL innodb_log_writer_threads = @orig;

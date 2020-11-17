@@ -34,6 +34,8 @@ include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 DROP TABLE t2, t1;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 [connection master]
 Restore binary log from the master into the slave

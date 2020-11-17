@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@ class View : virtual public Abstract_table {
   enum enum_security_type { ST_DEFAULT = 1, ST_INVOKER, ST_DEFINER };
 
  public:
-  virtual ~View() {}
+  ~View() override {}
 
   /////////////////////////////////////////////////////////////////////////
   // regular/system view flag.
@@ -158,7 +158,7 @@ class View : virtual public Abstract_table {
 
     @return pointer to dynamically allocated copy
   */
-  virtual View *clone() const = 0;
+  View *clone() const override = 0;
 
   /**
     Clear View columns, View_tables and View_routines collections.

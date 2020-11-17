@@ -55,6 +55,12 @@ lookup("localhost")
 127.0.0.1
 select reverse_lookup();
 ERROR HY000: Can't initialize function 'reverse_lookup'; Wrong number of arguments to reverse_lookup;  Use the source
+prepare s from "select myfunc_double(?)";
+set @one = 1;
+execute s using @one;
+myfunc_double(?)
+49.00
+deallocate prepare s;
 select reverse_lookup("127.0.0.1");
 select reverse_lookup(127,0,0,1);
 select reverse_lookup("localhost");
@@ -629,4 +635,30 @@ avgcost(T.TABLE_ROWS, 0e0)
 NULL
 DROP TABLE t1;
 DROP FUNCTION avgcost;
+#
+# WL#8084: Condition pushdown to materialized derived table
+#
+CREATE AGGREGATE FUNCTION my_median RETURNS INTEGER
+SONAME "UDF_EXAMPLE_LIB";
+CREATE TABLE t1(f1 INTEGER, f2 INTEGER);
+INSERT INTO t1 VALUES (1,100),(1,2),(2,100),(2,3);
+EXPLAIN FORMAT=tree SELECT * FROM (SELECT f1, my_median(f2) as median
+FROM t1 GROUP BY f1) as dt
+WHERE median != 1;
+EXPLAIN
+-> Table scan on dt  (cost=*** rows=***)
+    -> Materialize
+        -> Filter: (my_median(t1.f2) <> 1)
+            -> Group aggregate: my_median(t1.f2)
+                -> Sort: t1.f1  (cost=*** rows=***)
+                    -> Table scan on t1  (cost=*** rows=***)
+
+SELECT * FROM (SELECT f1, my_median(f2) as median
+FROM t1 GROUP BY f1) as dt
+WHERE median != 1;
+f1	median
+1	100
+2	100
+DROP TABLE t1;
+DROP FUNCTION my_median;
 # End of the 8.0 tests

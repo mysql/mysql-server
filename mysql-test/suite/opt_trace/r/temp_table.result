@@ -978,7 +978,7 @@ ORDER BY cc	{
                 {
                   "table_dependencies": [
                     {
-                      "table": "``.``",
+                      "table": "``",
                       "row_may_be_null": false,
                       "map_bit": 0,
                       "depends_on_map_bits": [
@@ -989,7 +989,7 @@ ORDER BY cc	{
                 {
                   "rows_estimation": [
                     {
-                      "table": "``.``",
+                      "table": "``",
                       "table_scan": {
                         "rows": 0,
                         "cost": 2.5
@@ -1002,7 +1002,7 @@ ORDER BY cc	{
                     {
                       "plan_prefix": [
                       ] /* plan_prefix */,
-                      "table": "``.``",
+                      "table": "``",
                       "best_access_path": {
                         "considered_access_paths": [
                           {
@@ -1028,7 +1028,7 @@ ORDER BY cc	{
                     ] /* attached_conditions_computation */,
                     "attached_conditions_summary": [
                       {
-                        "table": "``.``",
+                        "table": "``",
                         "attached": null
                       }
                     ] /* attached_conditions_summary */
@@ -1041,7 +1041,7 @@ ORDER BY cc	{
                 {
                   "refine_plan": [
                     {
-                      "table": "``.``"
+                      "table": "``"
                     }
                   ] /* refine_plan */
                 }
@@ -1247,8 +1247,8 @@ ORDER BY cc	{
               "memory_available": 262144,
               "key_size": 8,
               "row_size": 769,
-              "max_rows_per_buffer": 337,
-              "num_rows_estimate": 1820,
+              "max_rows_per_buffer": 132,
+              "num_rows_estimate": 132,
               "num_rows_found": 132,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",

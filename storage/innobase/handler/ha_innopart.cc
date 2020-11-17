@@ -123,8 +123,8 @@ inline void ha_innopart::copy_cached_row(uchar *buf, const uchar *cached_row) {
 @param[in]	dd_part		dd::Partition
 @param[in]	part_name	Table name of this partition
 @param[out]	part_dict_table	InnoDB table for partition
-@retval	false on success
-@retval	true on failure */
+@retval	false	On success
+@retval	true	On failure */
 bool Ha_innopart_share::open_one_table_part(
     dd::cache::Dictionary_client *client, THD *thd, const TABLE *table,
     const dd::Partition *dd_part, const char *part_name,
@@ -167,7 +167,7 @@ bool Ha_innopart_share::open_one_table_part(
 
   if (part_table != nullptr) {
     /* Set compression type like ha_innobase::open() does */
-    dberr_t err = fil_set_compression(part_table, table->s->compress.str);
+    dberr_t err = dict_set_compression(part_table, table->s->compress.str);
     switch (err) {
       case DB_NOT_FOUND:
       case DB_UNSUPPORTED:
@@ -488,11 +488,10 @@ void Ha_innopart_share::close_table_parts(void) {
   auto_inc_initialized = false;
 }
 
-/** Get index.
-Find the index of the specified partition and key number.
+/** Return innodb index for given partition and key number.
 @param[in]	part_id	Partition number.
 @param[in]	keynr	Key number.
-@return	Index pointer or NULL. */
+@return	InnoDB index. */
 inline dict_index_t *Ha_innopart_share::get_index(uint part_id, uint keynr) {
   if (part_id >= m_tot_parts) {
     /* purecov: begin inspected */
@@ -791,8 +790,10 @@ done:
   return (error);
 }
 
-/** Open a partitioned InnoDB table.
-@param[in]	name	table name
+/** Open an InnoDB table.
+@param[in]	name		table name
+@param[in]	mode		access mode
+@param[in]	test_if_locked	test if the file to be opened is locked
 @param[in]	table_def	dd::Table describing table to be opened
 @retval 1 if error
 @retval 0 if success */
@@ -1154,10 +1155,11 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
   return 0;
 }
 
-/** Get a cloned ha_innopart handler.
+/** Clone this handler, used when needing more than one cursor
+to the same table.
 @param[in]	name		Table name.
-@param[in]	mem_root	MySQL mem_root to use.
-@return	new ha_innopart handler. */
+@param[in]	mem_root	mem_root to allocate from.
+@retval	Pointer to clone or NULL if error. */
 handler *ha_innopart::clone(const char *name, MEM_ROOT *mem_root) {
   ha_innopart *new_handler;
 
@@ -1416,12 +1418,12 @@ void ha_innopart::unlock_row() {
   update_partition(m_last_part);
 }
 
-/** Write a row in partition.
+/** Write a row in specific partition.
 Stores a row in an InnoDB database, to the table specified in this
 handle.
 @param[in]	part_id	Partition to write to.
 @param[in]	record	A row in MySQL format.
-@return	0 or error code. */
+@return error code. */
 int ha_innopart::write_row_in_part(uint part_id, uchar *record) {
   int error;
   Field *saved_next_number_field = table->next_number_field;
@@ -1550,7 +1552,7 @@ int ha_innopart::index_end() {
 
 /** Setup the ordered record buffer and the priority queue.
 @param[in]	used_parts	Number of used partitions in query.
-@return	false for success else true. */
+@return false for success, else true. */
 int ha_innopart::init_record_priority_queue_for_parts(uint used_parts) {
   size_t alloc_size;
   void *buf;
@@ -2029,17 +2031,6 @@ int ha_innopart::sample_init(void *&scan_ctx, double sampling_percentage,
     return (0);
   }
 
-  auto trx = m_prebuilt->trx;
-
-  /* Since histogram sampling does not have any correlation to transactions
-  we're setting the isolation level to read uncommitted to avoid unnecessarily
-  looking up old versions of a record as the version list can be very long. */
-  trx->isolation_level = TRX_ISO_READ_UNCOMMITTED;
-
-  innobase_register_trx(ht, ha_thd(), trx);
-  trx_start_if_not_started_xa(trx, false);
-  trx_assign_read_view(trx);
-
   /* Parallel read is not currently supported for sampling. */
   size_t n_threads = Parallel_reader::available_threads(1);
 
@@ -2074,7 +2065,7 @@ int ha_innopart::sample_init(void *&scan_ctx, double sampling_percentage,
 
     auto index = m_prebuilt->table->first_index();
 
-    auto success = sampler->init(trx, index, m_prebuilt);
+    auto success = sampler->init(nullptr, index, m_prebuilt);
 
     if (!success) {
       return (HA_ERR_SAMPLING_INIT_FAILED);
@@ -2111,13 +2102,13 @@ int ha_innopart::sample_end(void *scan_ctx) {
   auto sampler = static_cast<Histogram_sampler *>(scan_ctx);
   UT_DELETE(sampler);
 
-  return (0);
+  return 0;
 }
 
-/** Initialize a table scan in a specific partition.
-@param[in]	part_id	Partition to initialize.
-@param[in]	scan	True if table/index scan false otherwise (for rnd_pos)
-@return	0 or error number. */
+/** Initialize random read/scan of a specific partition.
+@param[in]	part_id		Partition to initialize.
+@param[in]	scan		True for scan else random access.
+@return error number or 0. */
 int ha_innopart::rnd_init_in_part(uint part_id, bool scan) {
   DBUG_TRACE;
   DBUG_ASSERT(table_share->is_missing_primary_key() ==
@@ -2136,20 +2127,19 @@ int ha_innopart::rnd_init_in_part(uint part_id, bool scan) {
   return err;
 }
 
-/** Ends a table scan.
-@param[in]	part_id	Partition to end table scan in.
-@param[in]	scan	True for scan else random access.
-@return	0 or error number. */
+/** End random read/scan of a specific partition.
+@param[in]	part_id		Partition to end random read/scan.
+@param[in]	scan		True for scan else random access.
+@return error number or 0. */
 int ha_innopart::rnd_end_in_part(uint part_id, bool scan) {
   return (index_end());
 }
 
-/** Read next row in partition.
-Reads the next row in a table scan (also used to read the FIRST row
-in a table scan).
-@param[in]	part_id	Partition to end table scan in.
-@param[out]	buf	Returns the row in this buffer, in MySQL format.
-@return	0, HA_ERR_END_OF_FILE or error number. */
+/** Get next row during scan of a specific partition.
+Also used to read the FIRST row in a table scan.
+@param[in]	part_id	Partition to read from.
+@param[out]	buf	Next row.
+@return error number or 0. */
 int ha_innopart::rnd_next_in_part(uint part_id, uchar *buf) {
   int error;
 
@@ -2633,6 +2623,7 @@ int ha_innopart::create(const char *name, TABLE *form,
 int ha_innopart::delete_table(const char *name, const dd::Table *dd_table) {
   THD *thd = ha_thd();
   trx_t *trx = check_trx_exists(thd);
+  char norm_name[FN_REFLEN];
   int error = 0;
 
   DBUG_TRACE;
@@ -2645,7 +2636,22 @@ int ha_innopart::delete_table(const char *name, const dd::Table *dd_table) {
     return HA_ERR_TABLE_READONLY;
   }
 
+  if (!normalize_table_name(norm_name, name)) {
+    return (HA_ERR_TOO_LONG_PATH);
+  }
+
   innobase_register_trx(ht, thd, trx);
+  TrxInInnoDB trx_in_innodb(trx);
+
+  dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
+  TABLE_SHARE ts;
+  TABLE td;
+  error = acquire_uncached_table(thd, client, dd_table, norm_name, &ts, &td);
+  if (error != 0) {
+    return (error);
+  }
 
   for (const dd::Partition *dd_part : dd_table->leaf_partitions()) {
     std::string partition;
@@ -2658,19 +2664,19 @@ int ha_innopart::delete_table(const char *name, const dd::Table *dd_table) {
 
     if (part_table.length() >= FN_REFLEN) {
       ut_ad(false);
+      release_uncached_table(&ts, &td);
       return HA_ERR_INTERNAL_ERROR;
     }
 
     const char *partition_name = part_table.c_str();
 
-    error = innobase_basic_ddl::delete_impl<dd::Partition>(thd, partition_name,
-                                                           dd_part);
+    error = innobase_basic_ddl::delete_impl(thd, partition_name, dd_part, &td);
 
     if (error != 0) {
       break;
     }
   }
-
+  release_uncached_table(&ts, &td);
   return error;
 }
 
@@ -2685,6 +2691,8 @@ int ha_innopart::rename_table(const char *from, const char *to,
                               const dd::Table *from_table,
                               dd::Table *to_table) {
   THD *thd = ha_thd();
+  char norm_from[FN_REFLEN];
+  char norm_to[FN_REFLEN];
   int error = 0;
 
   DBUG_TRACE;
@@ -2701,6 +2709,11 @@ int ha_innopart::rename_table(const char *from, const char *to,
     return HA_ERR_TABLE_READONLY;
   }
 
+  if (!normalize_table_name(norm_from, from) ||
+      !normalize_table_name(norm_to, to)) {
+    return (HA_ERR_TOO_LONG_PATH);
+  }
+
   /* Get the transaction associated with the current thd, or create one
   if not yet created */
   trx_t *trx = check_trx_exists(thd);
@@ -2709,6 +2722,15 @@ int ha_innopart::rename_table(const char *from, const char *to,
   innobase_register_trx(ht, thd, trx);
 
   TrxInInnoDB trx_in_innodb(trx);
+  dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
+  TABLE_SHARE ts;
+  TABLE td;
+  error = acquire_uncached_table(thd, client, from_table, norm_from, &ts, &td);
+  if (error != 0) {
+    return (error);
+  }
 
   auto to_part = to_table->leaf_partitions()->begin();
 
@@ -2734,17 +2756,15 @@ int ha_innopart::rename_table(const char *from, const char *to,
       ut_ad(false);
       return HA_ERR_INTERNAL_ERROR;
     }
-
-    error = innobase_basic_ddl::rename_impl<dd::Partition>(
-        thd, from_name.c_str(), to_name.c_str(), from_part, *to_part);
-
+    error = innobase_basic_ddl::rename_impl(
+        thd, from_name.c_str(), to_name.c_str(), from_part, *to_part, &td);
     if (error != 0) {
       break;
     }
 
     ++to_part;
   }
-
+  release_uncached_table(&ts, &td);
   return error;
 }
 
@@ -4187,14 +4207,12 @@ int ha_innopart::reset() {
   return ha_innobase::reset();
 }
 
-/**
- Read row using position using given record to find.
-
+/** Read row using position using given record to find.
 This works as position()+rnd_pos() functions, but does some
 extra work,calculating m_last_part - the partition to where
-the 'record' should go.	Only useful when position is based
-on primary key (HA_PRIMARY_KEY_REQUIRED_FOR_POSITION).
-
+the 'record' should go.
+Only useful when position is based on primary key
+(HA_PRIMARY_KEY_REQUIRED_FOR_POSITION).
 @param[in]	record	Current record in MySQL Row Format.
 @return	0 for success else error code. */
 int ha_innopart::rnd_pos_by_record(uchar *record) {

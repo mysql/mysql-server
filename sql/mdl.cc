@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -294,10 +294,10 @@ class Deadlock_detection_visitor : public MDL_wait_for_graph_visitor {
         m_victim(nullptr),
         m_current_search_depth(0),
         m_found_deadlock(false) {}
-  virtual bool enter_node(MDL_context *node);
-  virtual void leave_node(MDL_context *node);
+  bool enter_node(MDL_context *node) override;
+  void leave_node(MDL_context *node) override;
 
-  virtual bool inspect_edge(MDL_context *dest);
+  bool inspect_edge(MDL_context *dest) override;
 
   MDL_context *get_victim() const { return m_victim; }
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -113,7 +113,7 @@ class PFS_index_rpl_connection_status : public PFS_engine_index {
   PFS_index_rpl_connection_status(PFS_engine_key *key)
       : PFS_engine_index(key) {}
 
-  ~PFS_index_rpl_connection_status() {}
+  ~PFS_index_rpl_connection_status() override {}
 
   virtual bool match(Master_info *mi) = 0;
 };
@@ -124,9 +124,9 @@ class PFS_index_rpl_connection_status_by_channel
   PFS_index_rpl_connection_status_by_channel()
       : PFS_index_rpl_connection_status(&m_key), m_key("CHANNEL_NAME") {}
 
-  ~PFS_index_rpl_connection_status_by_channel() {}
+  ~PFS_index_rpl_connection_status_by_channel() override {}
 
-  virtual bool match(Master_info *mi);
+  bool match(Master_info *mi) override;
 
  private:
   PFS_key_name m_key;
@@ -138,9 +138,9 @@ class PFS_index_rpl_connection_status_by_thread
   PFS_index_rpl_connection_status_by_thread()
       : PFS_index_rpl_connection_status(&m_key), m_key("THREAD_ID") {}
 
-  ~PFS_index_rpl_connection_status_by_thread() {}
+  ~PFS_index_rpl_connection_status_by_thread() override {}
 
-  virtual bool match(Master_info *mi);
+  bool match(Master_info *mi) override;
 
  private:
   PFS_key_thread_id m_key;
@@ -174,25 +174,25 @@ class table_replication_connection_status : public PFS_engine_table {
     @param read_all         true if all columns are read.
   */
 
-  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all);
+  int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                      bool read_all) override;
 
   table_replication_connection_status();
 
  public:
-  ~table_replication_connection_status();
+  ~table_replication_connection_status() override;
 
   /** Table share. */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
-  virtual void reset_position(void);
+  void reset_position(void) override;
 
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
+  int rnd_next() override;
+  int rnd_pos(const void *pos) override;
 
-  virtual int index_init(uint idx, bool sorted);
-  virtual int index_next();
+  int index_init(uint idx, bool sorted) override;
+  int index_next() override;
 
  private:
   PFS_index_rpl_connection_status *m_opened_index;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,7 @@ class Example_share : public Handler_share {
  public:
   THR_LOCK lock;
   Example_share();
-  ~Example_share() { thr_lock_delete(&lock); }
+  ~Example_share() override { thr_lock_delete(&lock); }
 };
 
 /** @brief
@@ -67,12 +67,12 @@ class ha_example : public handler {
 
  public:
   ha_example(handlerton *hton, TABLE_SHARE *table_arg);
-  ~ha_example() {}
+  ~ha_example() override {}
 
   /** @brief
     The name that will be used for display purposes.
    */
-  const char *table_type() const { return "EXAMPLE"; }
+  const char *table_type() const override { return "EXAMPLE"; }
 
   /**
     Replace key algorithm with one supported by SE, return the default key
@@ -80,10 +80,10 @@ class ha_example : public handler {
 
     @sa handler::adjust_index_algorithm().
   */
-  virtual enum ha_key_alg get_default_index_algorithm() const {
+  enum ha_key_alg get_default_index_algorithm() const override {
     return HA_KEY_ALG_HASH;
   }
-  virtual bool is_index_algorithm_supported(enum ha_key_alg key_alg) const {
+  bool is_index_algorithm_supported(enum ha_key_alg key_alg) const override {
     return key_alg == HA_KEY_ALG_HASH;
   }
 
@@ -91,7 +91,7 @@ class ha_example : public handler {
     This is a list of flags that indicate what functionality the storage engine
     implements. The current table flags are documented in handler.h
   */
-  ulonglong table_flags() const {
+  ulonglong table_flags() const override {
     /*
       We are saying that this engine is just statement capable to have
       an engine that can only handle statement-based logging. This is
@@ -112,7 +112,7 @@ class ha_example : public handler {
   */
   ulong index_flags(uint inx MY_ATTRIBUTE((unused)),
                     uint part MY_ATTRIBUTE((unused)),
-                    bool all_parts MY_ATTRIBUTE((unused))) const {
+                    bool all_parts MY_ATTRIBUTE((unused))) const override {
     return 0;
   }
 
@@ -123,7 +123,9 @@ class ha_example : public handler {
     send. Return *real* limits of your storage engine here; MySQL will do
     min(your_limits, MySQL_limits) automatically.
    */
-  uint max_supported_record_length() const { return HA_MAX_REC_LENGTH; }
+  uint max_supported_record_length() const override {
+    return HA_MAX_REC_LENGTH;
+  }
 
   /** @brief
     unireg.cc will call this to make sure that the storage engine can handle
@@ -134,7 +136,7 @@ class ha_example : public handler {
     There is no need to implement ..._key_... methods if your engine doesn't
     support indexes.
    */
-  uint max_supported_keys() const { return 0; }
+  uint max_supported_keys() const override { return 0; }
 
   /** @brief
     unireg.cc will call this to make sure that the storage engine can handle
@@ -145,7 +147,7 @@ class ha_example : public handler {
     There is no need to implement ..._key_... methods if your engine doesn't
     support indexes.
    */
-  uint max_supported_key_parts() const { return 0; }
+  uint max_supported_key_parts() const override { return 0; }
 
   /** @brief
     unireg.cc will call this to make sure that the storage engine can handle
@@ -156,19 +158,19 @@ class ha_example : public handler {
     There is no need to implement ..._key_... methods if your engine doesn't
     support indexes.
    */
-  uint max_supported_key_length() const { return 0; }
+  uint max_supported_key_length() const override { return 0; }
 
   /** @brief
     Called in test_quick_select to determine if indexes should be used.
   */
-  virtual double scan_time() {
+  double scan_time() override {
     return (double)(stats.records + stats.deleted) / 20.0 + 10;
   }
 
   /** @brief
     This method will never be called if you do not implement indexes.
   */
-  virtual double read_time(uint, uint, ha_rows rows) {
+  double read_time(uint, uint, ha_rows rows) override {
     return (double)rows / 20.0 + 1;
   }
 
@@ -182,61 +184,61 @@ class ha_example : public handler {
     We implement this in ha_example.cc; it's a required method.
   */
   int open(const char *name, int mode, uint test_if_locked,
-           const dd::Table *table_def);  // required
+           const dd::Table *table_def) override;  // required
 
   /** @brief
     We implement this in ha_example.cc; it's a required method.
   */
-  int close(void);  // required
+  int close(void) override;  // required
 
   /** @brief
     We implement this in ha_example.cc. It's not an obligatory method;
     skip it and and MySQL will treat it as not implemented.
   */
-  int write_row(uchar *buf);
+  int write_row(uchar *buf) override;
 
   /** @brief
     We implement this in ha_example.cc. It's not an obligatory method;
     skip it and and MySQL will treat it as not implemented.
   */
-  int update_row(const uchar *old_data, uchar *new_data);
+  int update_row(const uchar *old_data, uchar *new_data) override;
 
   /** @brief
     We implement this in ha_example.cc. It's not an obligatory method;
     skip it and and MySQL will treat it as not implemented.
   */
-  int delete_row(const uchar *buf);
+  int delete_row(const uchar *buf) override;
 
   /** @brief
     We implement this in ha_example.cc. It's not an obligatory method;
     skip it and and MySQL will treat it as not implemented.
   */
   int index_read_map(uchar *buf, const uchar *key, key_part_map keypart_map,
-                     enum ha_rkey_function find_flag);
+                     enum ha_rkey_function find_flag) override;
 
   /** @brief
     We implement this in ha_example.cc. It's not an obligatory method;
     skip it and and MySQL will treat it as not implemented.
   */
-  int index_next(uchar *buf);
+  int index_next(uchar *buf) override;
 
   /** @brief
     We implement this in ha_example.cc. It's not an obligatory method;
     skip it and and MySQL will treat it as not implemented.
   */
-  int index_prev(uchar *buf);
+  int index_prev(uchar *buf) override;
 
   /** @brief
     We implement this in ha_example.cc. It's not an obligatory method;
     skip it and and MySQL will treat it as not implemented.
   */
-  int index_first(uchar *buf);
+  int index_first(uchar *buf) override;
 
   /** @brief
     We implement this in ha_example.cc. It's not an obligatory method;
     skip it and and MySQL will treat it as not implemented.
   */
-  int index_last(uchar *buf);
+  int index_last(uchar *buf) override;
 
   /** @brief
     Unlike index_init(), rnd_init() can be called two consecutive times
@@ -246,22 +248,25 @@ class ha_example : public handler {
     cursor to the start of the table; no need to deallocate and allocate
     it again. This is a required method.
   */
-  int rnd_init(bool scan);  // required
-  int rnd_end();
-  int rnd_next(uchar *buf);             ///< required
-  int rnd_pos(uchar *buf, uchar *pos);  ///< required
-  void position(const uchar *record);   ///< required
-  int info(uint);                       ///< required
-  int extra(enum ha_extra_function operation);
-  int external_lock(THD *thd, int lock_type);  ///< required
-  int delete_all_rows(void);
-  ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
-  int delete_table(const char *from, const dd::Table *table_def);
+  int rnd_init(bool scan) override;  // required
+  int rnd_end() override;
+  int rnd_next(uchar *buf) override;             ///< required
+  int rnd_pos(uchar *buf, uchar *pos) override;  ///< required
+  void position(const uchar *record) override;   ///< required
+  int info(uint) override;                       ///< required
+  int extra(enum ha_extra_function operation) override;
+  int external_lock(THD *thd, int lock_type) override;  ///< required
+  int delete_all_rows(void) override;
+  ha_rows records_in_range(uint inx, key_range *min_key,
+                           key_range *max_key) override;
+  int delete_table(const char *from, const dd::Table *table_def) override;
   int rename_table(const char *from, const char *to,
-                   const dd::Table *from_table_def, dd::Table *to_table_def);
+                   const dd::Table *from_table_def,
+                   dd::Table *to_table_def) override;
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
-             dd::Table *table_def);  ///< required
+             dd::Table *table_def) override;  ///< required
 
-  THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
-                             enum thr_lock_type lock_type);  ///< required
+  THR_LOCK_DATA **store_lock(
+      THD *thd, THR_LOCK_DATA **to,
+      enum thr_lock_type lock_type) override;  ///< required
 };

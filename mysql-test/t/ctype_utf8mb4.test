@@ -739,6 +739,7 @@ CREATE TABLE t1 (
 ) DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_general_ci;
 insert into t1 values (_utf8mb4 0xe880bd);
 insert into t1 values (_utf8mb4 0x5b);
+--sorted_result
 select hex(a) from t1;
 drop table t1;
 SET sql_mode = default;
@@ -864,8 +865,10 @@ INSERT INTO t1(id, a, b) VALUES
   (7, 'dddd', 30), (8, 'aaaa', 10), (9, 'aaaa', 50),
   (10, 'eeeee', 40), (11, 'bbbbbb', 60);
 
+--sorted_result
 SELECT id, a, b FROM t1;
 
+--sorted_result
 SELECT id, a, b FROM t1 WHERE a BETWEEN 'aaaa' AND 'bbbbbb';
 
 SELECT id, a FROM t1 WHERE a='bbbbbb';
@@ -1259,15 +1262,20 @@ CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL);
 INSERT INTO t1 VALUES (70000, 1092), (70001, 1085), (70002, 1065);
 
 --source include/turn_off_only_full_group_by.inc
+--sorted_result
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) FROM t1 GROUP BY b;
+--sorted_result
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) FROM t1;
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 ALTER TABLE t1 ADD UNIQUE (b);
+--sorted_result
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) FROM t1 GROUP BY b;
 DROP INDEX b ON t1;
 --source include/turn_off_only_full_group_by.inc
+--sorted_result
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) FROM t1 GROUP BY b;
 ALTER TABLE t1 ADD INDEX (b);
+--sorted_result
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) from t1 GROUP BY b;
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 

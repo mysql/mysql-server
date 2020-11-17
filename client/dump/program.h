@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,27 +39,27 @@ class Program : public Mysql::Tools::Base::Abstract_connection_program {
  public:
   Program();
 
-  ~Program();
+  ~Program() override;
 
-  std::string get_version();
+  std::string get_version() override;
 
-  int get_first_release_year();
+  int get_first_release_year() override;
 
-  std::string get_description();
+  std::string get_description() override;
 
-  int execute(const std::vector<std::string> &positional_options);
+  int execute(const std::vector<std::string> &positional_options) override;
 
-  void create_options();
+  void create_options() override;
 
-  void error(const Mysql::Tools::Base::Message_data &message);
+  void error(const Mysql::Tools::Base::Message_data &message) override;
 
-  void short_usage();
+  void short_usage() override;
 
   void check_mutually_exclusive_options();
 
   int get_total_connections();
 
-  int get_error_code();
+  int get_error_code() override;
 
  private:
   bool message_handler(const Mysql::Tools::Base::Message_data &message);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #include <ndb_global.h>
 
 #include <ConfigRetriever.hpp>
+#include <NdbOut.hpp>
 
 #include <SocketServer.hpp>
 #include <NdbSleep.h>
@@ -34,7 +35,7 @@
 #include <mgmapi_configuration.hpp>
 #include <mgmapi_internal.h>
 #include <ConfigValues.hpp>
-
+#include <DnsCache.hpp>
 
 //****************************************************************************
 //****************************************************************************
@@ -333,6 +334,7 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf,
   /**
    * Check hostnames
    */
+  LocalDnsCache dnsCache;
   ndb_mgm_configuration_iterator iter(* conf, CFG_SECTION_CONNECTION);
   for(iter.first(); iter.valid(); iter.next()){
 
@@ -347,26 +349,31 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf,
     if(nodeId1 != nodeid && nodeId2 != nodeid) continue;
     remoteNodeId = (nodeid == nodeId1 ? nodeId2 : nodeId1);
 
+    Uint32 allow_unresolved = false;
+    iter.get(CFG_CONNECTION_UNRES_HOSTS, & allow_unresolved);
+
     const char * name;
-    struct in_addr addr;
+    struct in6_addr addr;
     BaseString tmp;
     if(!iter.get(CFG_CONNECTION_HOSTNAME_1, &name) && strlen(name)){
-      if(Ndb_getInAddr(&addr, name) != 0){
-	tmp.assfmt("Unable to lookup/illegal hostname %s, "
-		   "connection from node %d to node %d",
-		   name, nodeid, remoteNodeId);
-	setError(CR_ERROR, tmp.c_str());
-	return false;
+      if(dnsCache.getAddress(&addr, name) != 0){
+	tmp.assfmt("Could not resolve hostname [node %d]: %s", nodeId1, name);
+        if(! allow_unresolved) {
+          setError(CR_ERROR, tmp.c_str());
+          return false;
+        }
+        ndbout << "Warning: " << tmp << endl;
       }
     }
 
     if(!iter.get(CFG_CONNECTION_HOSTNAME_2, &name) && strlen(name)){
-      if(Ndb_getInAddr(&addr, name) != 0){
-	tmp.assfmt("Unable to lookup/illegal hostname %s, "
-		   "connection from node %d to node %d",
-		   name, nodeid, remoteNodeId);
-	setError(CR_ERROR, tmp.c_str());
-	return false;
+      if(dnsCache.getAddress(&addr, name) != 0){
+        tmp.assfmt("Could not resolve hostname [node %d]: %s", nodeId2, name);
+        if(! allow_unresolved) {
+          setError(CR_ERROR, tmp.c_str());
+          return false;
+        }
+        ndbout << "Warning: " << tmp << endl;
       }
     }
   }

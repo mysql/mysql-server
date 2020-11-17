@@ -1,9 +1,9 @@
 # ==== Purpose ====
 #
-# Issues STOP SLAVE on the current connection. Then waits until both
+# Issues STOP REPLICA on the current connection. Then waits until both
 # the IO and SQL threads have stopped, or until a timeout is reached.
 #
-# Please use this instead of 'STOP SLAVE', to reduce the risk of races
+# Please use this instead of 'STOP REPLICA', to reduce the risk of races
 # in test cases.
 #
 # This will fail if the slave IO or SQL thread has an error. If you
@@ -21,11 +21,11 @@
 #
 # Parameters:
 #   $rpl_only_running_threads
-#     By default, this script executes STOP SLAVE unconditionally.
+#     By default, this script executes STOP REPLICA unconditionally.
 #     This generates a warnings if one or both slave threads are
 #     already stopped.  If $rpl_only_running_threads is set, this
 #     script checks which slave threads are running, and issues either
-#     STOP SLAVE, STOP SLAVE SQL_THREAD, STOP SLAVE IO_THREAD, or
+#     STOP REPLICA, STOP REPLICA SQL_THREAD, STOP REPLICA IO_THREAD, or
 #     nothing.
 #
 #   $rpl_channel_name
@@ -87,14 +87,14 @@ if ($rpl_only_running_threads)
     # $_slave_running_bits=2: both threads running
     if (!$_slave_running_bits)
     {
-      eval STOP SLAVE $_for_channel_clause;
+      eval STOP REPLICA $_for_channel_clause;
       --source include/wait_for_slave_to_stop.inc
     }
   }
 }
 if (!$rpl_only_running_threads)
 {
-  eval STOP SLAVE $_for_channel_clause;
+  eval STOP REPLICA $_for_channel_clause;
   --source include/wait_for_slave_to_stop.inc
 }
 

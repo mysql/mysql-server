@@ -54,12 +54,21 @@ as my_error generated. */
 // To use a test fixture, derive a class from testing::Test.
 class Handler_test : public testing::Test {
  protected:
-  void SetUp() override {
+  static void SetUpTestCase() {
+    // LOCK_plugin is initialized in setup_server_for_unit_tests().
+    // Destroy it here, before re-initializing in plugin_early_load_one().
+    mysql_mutex_destroy(&LOCK_plugin);
     plugin_early_load_one(
         nullptr, nullptr,
         nullptr);  // a hack which is needed to at least get
                    // LOCK_plugin_xxx mutexes initialized in order make this
                    // test-suite up and running again.
+  }
+  static void TearDownTestCase() {
+    plugin_shutdown();  // see a comment in SetUpTestCase() for a reason why
+                        // this is needed
+  }
+  void SetUp() override {
     init_handlerton();
     m_server_initializer.SetUp();
   }
@@ -67,8 +76,6 @@ class Handler_test : public testing::Test {
   void TearDown() override {
     m_server_initializer.TearDown();
     delete remove_hton2plugin(m_temptable_handlerton.slot);
-    plugin_shutdown();  // see a comment in SetUp() for a reason why is this
-                        // needed
   }
 
   THD *thd() { return m_server_initializer.thd(); }

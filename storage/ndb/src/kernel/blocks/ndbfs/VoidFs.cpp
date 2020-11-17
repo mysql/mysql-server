@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -117,6 +117,9 @@ VoidFs::execFSOPENREQ(Signal* signal)
   const FsOpenReq * const fsOpenReq = (FsOpenReq *)&signal->theData[0];
   const BlockReference userRef = fsOpenReq->userReference;
   const Uint32 userPointer = fsOpenReq->userPointer;
+
+  SectionHandle handle(this, signal);
+  releaseSections(handle);
 
   Uint32 flags = fsOpenReq->fileFlags;
   if(flags == FsOpenReq::OM_READONLY){

@@ -69,7 +69,7 @@ constexpr uint32_t LOG_CHECKPOINT_EXTRA_FREE = 8;
 
 /** Per thread margin for the free space in the log, before a new query step
 which modifies the database, is started. It's multiplied by maximum number
-of threads, that can concurrently enter mini transactions. Expressed in
+of threads, that can concurrently enter mini-transactions. Expressed in
 number of pages. */
 constexpr uint32_t LOG_CHECKPOINT_FREE_PER_THREAD = 4;
 
@@ -149,6 +149,9 @@ static_assert(LOG_BLOCK_HDR_SIZE + LOG_BLOCK_TRL_SIZE < LOG_BLOCK_DATA_SIZE,
 
 /** Maximum possible sn value. */
 constexpr sn_t SN_MAX = (1ULL << 62) - 1;
+
+/** The sn bit to express locked state. */
+constexpr sn_t SN_LOCKED = 1ULL << 63;
 
 /** Maximum possible lsn value is slightly higher than the maximum sn value,
 because lsn sequence enumerates also bytes used for headers and footers of
@@ -332,12 +335,6 @@ constexpr ulong INNODB_LOG_FLUSH_NOTIFIER_SPIN_DELAY_DEFAULT = 0;
 
 /** Default value of innodb_log_flush_notifier_timeout (in microseconds). */
 constexpr ulong INNODB_LOG_FLUSH_NOTIFIER_TIMEOUT_DEFAULT = 10;
-
-/** Default value of innodb_log_closer_spin_delay (in spin rounds). */
-constexpr ulong INNODB_LOG_CLOSER_SPIN_DELAY_DEFAULT = 0;
-
-/** Default value of innodb_log_closer_timeout (in microseconds). */
-constexpr ulong INNODB_LOG_CLOSER_TIMEOUT_DEFAULT = 1000;
 
 /** Default value of innodb_log_buffer_size (in bytes). */
 constexpr ulong INNODB_LOG_BUFFER_SIZE_DEFAULT = 16 * 1024 * 1024UL;
@@ -713,6 +710,7 @@ MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
 */
 MY_COMPILER_DIAGNOSTIC_POP()
 /**
+
 @param[in,out]	log		redo log
 @param[in]	handle		handle for the reservation of space */
 void log_buffer_close(log_t &log, const Log_handle &handle);
@@ -722,6 +720,11 @@ void log_buffer_close(log_t &log, const Log_handle &handle);
 @param[in]	sync	whether we want the written log
 also to be flushed to disk. */
 void log_buffer_flush_to_disk(log_t &log, bool sync = true);
+
+/** Writes the log buffer to the log file. It is intended to be called from
+background master thread periodically. If the log writer threads are active,
+this function writes nothing. */
+void log_buffer_sync_in_background();
 
 /** Requests flush of the log buffer.
 @param[in]	sync	true: wait until the flush is done */
@@ -751,12 +754,6 @@ buffer. It's used by the log writer thread only.
 @param[in]	log	redo log
 @return true if and only if the lsn has been advanced */
 bool log_advance_ready_for_write_lsn(log_t &log);
-
-/** Advances log.buf_dirty_pages_added_up_to_lsn using links in the recent
-closed buffer. It's used by the log closer thread only.
-@param[in]	log	redo log
-@return true if and only if the lsn has been advanced */
-bool log_advance_dirty_pages_added_up_to_lsn(log_t &log);
 
 /** Validates that all slots in log recent written buffer for lsn values
 in range between begin and end, are empty. Used during tests, crashes the
@@ -957,16 +954,6 @@ initialized to correspond to some lsn, for instance, a checkpoint lsn.
 @param[in]	lsn	log sequence number to set files_start_lsn at */
 void log_files_update_offsets(log_t &log, lsn_t lsn);
 
-/** Acquires the log buffer s-lock.
-@param[in,out]	log	redo log
-@return lock no, must be passed to s_lock_exit() */
-size_t log_buffer_s_lock_enter(log_t &log);
-
-/** Releases the log buffer s-lock.
-@param[in,out]	log	redo log
-@param[in]	lock_no	lock no received from s_lock_enter() */
-void log_buffer_s_lock_exit(log_t &log, size_t lock_no);
-
 /** Acquires the log buffer x-lock.
 @param[in,out]	log	redo log */
 void log_buffer_x_lock_enter(log_t &log);
@@ -1093,11 +1080,6 @@ Used only to assert, that the state is correct.
 @param[in]	log	redo log */
 void log_writer_thread_active_validate(const log_t &log);
 
-/** Validates that the log closer thread is active.
-Used only to assert, that the state is correct.
-@param[in]	log	redo log */
-void log_closer_thread_active_validate(const log_t &log);
-
 /** Validates that the log writer, flusher threads are active.
 Used only to assert, that the state is correct.
 @param[in]	log	redo log */
@@ -1132,6 +1114,13 @@ void log_stop_background_threads_nowait(log_t &log);
 
 /** Wakes up all log threads which are alive. */
 void log_wake_threads(log_t &log);
+
+/** Pause/Resume the log writer threads based on innodb_log_writer_threads
+value.
+NOTE: These pause/resume functions should be protected by mutex while serving.
+The caller innodb_log_writer_threads_update() is protected
+by LOCK_global_system_variables in mysqld. */
+void log_control_writer_threads(log_t &log);
 
 /** Free the log system data structures. Deallocate all the related memory. */
 void log_sys_close();
@@ -1184,18 +1173,6 @@ MY_COMPILER_DIAGNOSTIC_POP()
 @param[in,out]	log_ptr		pointer to redo log */
 void log_write_notifier(log_t *log_ptr);
 
-/** The log closer thread co-routine.
- */
-MY_COMPILER_DIAGNOSTIC_PUSH()
-MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
-/**
-@see @ref sect_redo_log_closer
-*/
-MY_COMPILER_DIAGNOSTIC_POP()
-/**
-@param[in,out]	log_ptr		pointer to redo log */
-void log_closer(log_t *log_ptr);
-
 /** The log checkpointer thread co-routine.
  */
 MY_COMPILER_DIAGNOSTIC_PUSH()
@@ -1208,8 +1185,6 @@ MY_COMPILER_DIAGNOSTIC_POP()
 @param[in,out]	log_ptr		pointer to redo log */
 void log_checkpointer(log_t *log_ptr);
 
-#define log_buffer_x_lock_own(log) log.sn_lock.x_own()
-
 #define log_checkpointer_mutex_enter(log) \
   mutex_enter(&((log).checkpointer_mutex))
 
@@ -1220,10 +1195,10 @@ void log_checkpointer(log_t *log_ptr);
 
 #define log_closer_mutex_enter(log) mutex_enter(&((log).closer_mutex))
 
-#define log_closer_mutex_exit(log) mutex_exit(&((log).closer_mutex))
+#define log_closer_mutex_enter_nowait(log) \
+  mutex_enter_nowait(&((log).closer_mutex))
 
-#define log_closer_mutex_own(log) \
-  (mutex_own(&((log).closer_mutex)) || !log_closer_is_active())
+#define log_closer_mutex_exit(log) mutex_exit(&((log).closer_mutex))
 
 #define log_flusher_mutex_enter(log) mutex_enter(&((log).flusher_mutex))
 
@@ -1309,10 +1284,6 @@ inline bool log_flusher_is_active();
 /** Checks if log flush notifier thread is active.
 @return true if and only if the log flush notifier thread is active */
 inline bool log_flush_notifier_is_active();
-
-/** Checks if log closer thread is active.
-@return true if and only if the log closer thread is active */
-inline bool log_closer_is_active();
 
 /** Checks if log checkpointer thread is active.
 @return true if and only if the log checkpointer thread is active */

@@ -931,8 +931,7 @@
   Test cases which use <b>not_parallel.inc</b> are run at the end with
   a parallel value of <b>1</b> overriding the <b>`--parallel`</b>
   option value. Such test cases will be executed at the end of the test
-  run one at a time. These tests also require
-  <b>`--non-parallel-test`</b> option to be ON.
+  run one at a time.
 */
 
 ###############################################################################
@@ -4844,15 +4843,6 @@
     </li>
 
     <li>
-      <tt>`--non-parallel-test`</tt>
-
-      Allow tests marked as "non-parallel" to run. Tests can be thus
-      marked by including the line
-      <b>`--source` include/not_parallel.inc</b>, and they will only
-      be run if this option is enabled.
-    </li>
-
-    <li>
       <tt>`--sanitize`</tt>
 
       Scan the server log files for warnings from various sanitizers.
@@ -5815,6 +5805,22 @@
   append_file $MYSQL_TMP_DIR/data02 END_OF_FILE;
   line three for the file
   END_OF_FILE
+      @endverbatim
+    </li>
+
+     <li>
+       <tt>assert (<b>expr</b>)</tt>
+
+       Assert that <b>expr</b> is true; otherwise terminate the test program
+       with an error message indicating that <b>expr</b> failed.
+       <b>expr</b> is parsed as it is for <tt>if()</tt> and <tt>while()</tt>,
+       as described at @ref PAGE_MYSQL_TEST_FLOW_CONTROL.
+
+       @verbatim
+         assert(1);
+         assert($x);
+         assert(!$x);
+         assert(`select count(*) from t1`);
       @endverbatim
     </li>
 

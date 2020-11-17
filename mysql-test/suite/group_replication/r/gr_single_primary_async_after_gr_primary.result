@@ -44,7 +44,11 @@ include/assert.inc [Verify test.t2 is synced]
 # 6. Clean Up
 [connection server1]
 STOP SLAVE FOR CHANNEL 'ch3_1';
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 RESET SLAVE ALL FOR CHANNEL 'ch3_1';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 DROP TABLE test.t1;
 DROP TABLE test.t2;
 [connection server3]

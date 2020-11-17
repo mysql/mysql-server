@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -113,6 +113,9 @@ enum enum_rpl_slave_debug_point {
 
   /** reached_heart_beat_queue_event */
   DBUG_RPL_S_HEARTBEAT_EV,
+
+  /** handle_slave_io */
+  DBUG_RPL_S_RETRY_COUNT_EXCEED,
 };
 
 /**
@@ -257,6 +260,13 @@ void rpl_slave_debug_point(enum_rpl_slave_debug_point point_id,
     case DBUG_RPL_S_HEARTBEAT_EV: {
       debug_point_string.assign(
           "now SIGNAL check_slave_master_info WAIT_FOR proceed_write_rotate");
+      break;
+    }
+    /* handle_slave_io */
+    case DBUG_RPL_S_RETRY_COUNT_EXCEED: {
+      debug_point_string.assign(
+          "now SIGNAL wait_for_retry_count_exceed WAIT_FOR "
+          "continue_retry_count_exceed");
       break;
     }
   }

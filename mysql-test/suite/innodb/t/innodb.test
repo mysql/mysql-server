@@ -100,8 +100,10 @@ select * from t1 where parent_id=102;
 update t1 set id=id+1000;
 -- error ER_DUP_ENTRY,1022
 update t1 set id=1024 where id=1009;
+--sorted_result
 select * from t1;
 update ignore t1 set id=id+1; # This will change all rows
+--sorted_result
 select * from t1;
 update ignore t1 set id=1023 where id=1010;
 select * from t1 where parent_id=102;
@@ -131,6 +133,7 @@ CREATE TABLE t1 (
 replace into t1 (gesuchnr,benutzer_id) values (2,1);
 replace into t1 (gesuchnr,benutzer_id) values (1,1);
 replace into t1 (gesuchnr,benutzer_id) values (1,1);
+--sorted_result
 select * from t1;
 drop table t1;
 
@@ -142,6 +145,7 @@ create table t1 (a int) engine=innodb;
 insert into t1 values (1), (2);
 optimize table t1;
 delete from t1 where a = 1;
+--sorted_result
 select * from t1;
 check table t1;
 drop table t1;
@@ -149,6 +153,7 @@ drop table t1;
 create table t1 (a int,b varchar(20)) engine=innodb;
 insert into t1 values (1,""), (2,"testing");
 delete from t1 where a = 1;
+--sorted_result
 select * from t1;
 create index skr on t1 (a);
 insert into t1 values (3,""), (4,"testing");
@@ -232,6 +237,7 @@ flush tables with read lock;
 commit;
 unlock tables;
 commit;
+--sorted_result
 select * from t1;
 drop table t1;
 
@@ -263,15 +269,18 @@ insert into t1 values ('pippo', 12);
 insert into t1 values ('pippo', 12); # Gives error
 delete from t1;
 delete from t1 where id = 'pippo';
+--sorted_result
 select * from t1;
 
 insert into t1 values ('pippo', 12);
 set autocommit=0;
 delete from t1;
 rollback;
+--sorted_result
 select * from t1;
 delete from t1;
 commit;
+--sorted_result
 select * from t1;
 drop table t1;
 
@@ -296,6 +305,7 @@ set autocommit=1;
 
 CREATE TABLE t1 (ID INTEGER NOT NULL PRIMARY KEY, NAME VARCHAR(64)) ENGINE=innodb;
 INSERT INTO t1 VALUES (1, 'Jochen');
+--sorted_result
 select * from t1;
 drop table t1;
 
@@ -303,6 +313,7 @@ CREATE TABLE t1 ( _userid VARCHAR(60) NOT NULL PRIMARY KEY) ENGINE=innodb;
 set autocommit=0;
 INSERT INTO t1  SET _userid='marc@anyware.co.uk';
 COMMIT;
+--sorted_result
 SELECT * FROM t1;
 SELECT _userid FROM t1 WHERE _userid='marc@anyware.co.uk';
 drop table t1;
@@ -346,12 +357,16 @@ drop table t1;
 create table t1 (col1 int not null, col2 char(4) not null, primary key(col1));
 alter table t1 engine=innodb;
 insert into t1 values ('1','1'),('5','2'),('2','3'),('3','4'),('4','4');
+--sorted_result
 select * from t1;
 update t1 set col2='7' where col1='4';
+--sorted_result
 select * from t1;
 alter table t1 add co3 int not null;
+--sorted_result
 select * from t1;
 update t1 set col2='9' where col1='2';
+--sorted_result
 select * from t1;
 drop table t1;
 
@@ -362,13 +377,18 @@ drop table t1;
 create table t1 (a int not null , b int, primary key (a)) engine = innodb;
 create table t2 (a int not null , b int, primary key (a)) engine = myisam;
 insert into t1 VALUES (1,3) , (2,3), (3,3);
+--sorted_result
 select * from t1;
 insert into t2 select * from t1;
+--sorted_result
 select * from t2;
 delete from t1 where b = 3;
+--sorted_result
 select * from t1;
 insert into t1 select * from t2;
+--sorted_result
 select * from t1;
+--sorted_result
 select * from t2;
 drop table t1,t2;
 
@@ -415,17 +435,23 @@ update t1 set parent_id=parent_id+100;
 select * from t1 where parent_id=102;
 update t1 set id=id+1000;
 update t1 set id=1024 where id=1009;
+--sorted_result
 select * from t1;
 update ignore t1 set id=id+1; # This will change all rows
+--sorted_result
 select * from t1;
 update ignore t1 set id=1023 where id=1010;
 select * from t1 where parent_id=102;
 --replace_column 10 #
 explain select level from t1 where level=1;
+--sorted_result
 select level,id from t1 where level=1;
+--sorted_result
 select level,id,parent_id from t1 where level=1;
+--sorted_result
 select level,id from t1 where level=1 order by id;
 delete from t1 where level=1;
+--sorted_result
 select * from t1;
 drop table t1;
 
@@ -563,8 +589,10 @@ create temporary table t1 (a int not null auto_increment, primary key(a)) engine
 insert into t1 values (NULL),(NULL),(NULL);
 delete from t1 where a=3;
 insert into t1 values (NULL);
+--sorted_result
 select * from t1;
 alter table t1 add b int;
+--sorted_result
 select * from t1;
 drop table t1;
 
@@ -586,6 +614,7 @@ set insert_id=5;
 replace into t1 (value,name,uid) values ('other value','two',102);
 set insert_id=6;
 replace into t1 (value,name,uid) values ('other value','two',102);
+--sorted_result
 select * from t1;
 drop table t1;
 
@@ -617,9 +646,11 @@ truncate table t1;
 commit;
 truncate table t1;
 truncate table t1;
+--sorted_result
 select * from t1;
 insert into t1 values(1),(2);
 delete from t1;
+--sorted_result
 select * from t1;
 commit;
 drop table t1;
@@ -629,10 +660,12 @@ create table t1 (a int not null) engine= innodb;
 insert into t1 values(1),(2);
 truncate table t1;
 insert into t1 values(1),(2);
+--sorted_result
 select * from t1;
 truncate table t1;
 insert into t1 values(1),(2);
 delete from t1;
+--sorted_result
 select * from t1;
 drop table t1;
 
@@ -712,11 +745,15 @@ INSERT INTO t2 VALUES (4077711111,'SeanWheeler',0,2,20020111112853,500,000000000
 INSERT INTO t2 VALUES (9197722223,'berry',90,3,20020111112818,500,20020102114532,501,4,10,0);
 INSERT INTO t2 VALUES (650,'San Francisco',90,0,20020109113158,342,00000000000000,-1,1,24,1);
 INSERT INTO t2 VALUES (333,'tubs',99,2,20020109113453,501,20020109113453,500,3,10,0);
+--sorted_result
 select * from t1;
+--sorted_result
 select * from t2;
 delete t1, t2 from t1 left join t2 on t1.number=t2.number where (t1.carrier_id=90 and t1.number=t2.number) or (t2.carrier_id=90 and t1.number=t2.number) or  (t1.carrier_id=90 and t2.number is null);
 select * from t1;
+--sorted_result
 select * from t2;
+--sorted_result
 select * from t2;
 drop table t1,t2;
 SET sql_mode = default;
@@ -758,7 +795,9 @@ create table t2 (n int(10), d int(10)) engine=innodb;
 insert into t1 values(1,1),(1,2);
 insert into t2 values(1,10),(2,20);
 UPDATE t1,t2 SET t1.d=t2.d,t2.d=30 WHERE t1.n=t2.n;
+--sorted_result
 select * from t1;
+--sorted_result
 select * from t2;
 drop table t1,t2;
 
@@ -864,17 +903,22 @@ CREATE TABLE t2 (id INT PRIMARY KEY, t1_id INT, INDEX par_ind (t1_id), FOREIGN K
 insert into t1 set id=1;
 insert into t2 set id=1, t1_id=1;
 delete t1,t2 from t1,t2 where t1.id=t2.t1_id;
+--sorted_result
 select * from t1;
+--sorted_result
 select * from t2;
 drop table t2,t1;
 CREATE TABLE t1(id INT NOT NULL,  PRIMARY KEY (id)) ENGINE=INNODB;
 CREATE TABLE t2(id  INT PRIMARY KEY, t1_id INT, INDEX par_ind (t1_id)  ) ENGINE=INNODB;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t2 VALUES(1, 1);
+--sorted_result
 SELECT * from t1;
 UPDATE t1,t2 SET t1.id=t1.id+1, t2.t1_id=t1.id+1;
+--sorted_result
 SELECT * from t1;
 UPDATE t1,t2 SET t1.id=t1.id+1 where t1.id!=t2.id;
+--sorted_result
 SELECT * from t1;
 DROP TABLE t1,t2;
 
@@ -897,14 +941,21 @@ INSERT INTO t1 VALUES("this-key", "will disappear");
 INSERT INTO t2 VALUES("this-key", "will also disappear");
 DELETE FROM t3 WHERE id1="my-test-1";
 
+--sorted_result
 SELECT * FROM t1;
+--sorted_result
 SELECT * FROM t2;
+--sorted_result
 SELECT * FROM t3;
 ROLLBACK;
 
+--sorted_result
 SELECT * FROM t1;
+--sorted_result
 SELECT * FROM t2;
+--sorted_result
 SELECT * FROM t3;
+--sorted_result
 SELECT * FROM t3 WHERE id1="my-test-1" LOCK IN SHARE MODE;
 COMMIT;
 set autocommit=1;
@@ -918,6 +969,7 @@ CREATE TABLE t1 (a int not null primary key, b int not null, unique (b)) engine=
 INSERT INTO t1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
 # We need the a < 1000 test here to quard against the halloween problems
 UPDATE t1 set a=a+100 where b between 2 and 3 and a < 1000;
+--sorted_result
 SELECT * from t1;
 drop table t1;
 
@@ -966,6 +1018,7 @@ create table t1 (id int primary key auto_increment, fk int, index index_fk (fk))
 
 insert into t1 (id) values (null),(null),(null),(null),(null);
 update t1 set fk=69 where fk is null order by id limit 1;
+--sorted_result
 SELECT * from t1;
 drop table t1;
 
@@ -1438,12 +1491,14 @@ drop table t1;
 CREATE TABLE t1 ( `a` int(11) NOT NULL auto_increment, `b` int(11) default NULL,PRIMARY KEY  (`a`),UNIQUE KEY `b` (`b`)) ENGINE=innodb;
 insert into t1 (b) values (1);
 replace into t1 (b) values (2), (1), (3);
+--sorted_result
 select * from t1;
 truncate table t1;
 insert into t1 (b) values (1);
 replace into t1 (b) values (2);
 replace into t1 (b) values (1);
 replace into t1 (b) values (3);
+--sorted_result
 select * from t1;
 drop table t1;
 
@@ -2499,8 +2554,10 @@ show create table t1;
 --enable_result_log
 --enable_query_log
 flush status;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like "handler_read_key";
 select f1 from t1;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like "handler_read_key";
 drop table t1;
 
@@ -2517,7 +2574,9 @@ INSERT INTO t2 VALUES(0);
 INSERT INTO t1 VALUES(0);
 ROLLBACK;
 
+--sorted_result
 SELECT * FROM t1;
+--sorted_result
 SELECT * FROM t2;
 
 START TRANSACTION READ ONLY;
@@ -2533,7 +2592,9 @@ INSERT INTO t2 VALUES(3);
 INSERT INTO t1 VALUES(0);
 COMMIT;
 
+--sorted_result
 SELECT * FROM t1;
+--sorted_result
 SELECT * FROM t2;
 
 DROP TABLE t2;
@@ -2552,7 +2613,9 @@ INSERT INTO t2 VALUES(NULL,1),(NULL,2),(NULL,3);
 INSERT INTO t1 VALUES(0);
 ROLLBACK;
 
+--sorted_result
 SELECT * FROM t1;
+--sorted_result
 SELECT * FROM t2;
 
 START TRANSACTION READ ONLY;
@@ -2569,7 +2632,9 @@ INSERT INTO t1 VALUES(0);
 COMMIT;
 
 SHOW CREATE TABLE t2;
+--sorted_result
 SELECT * FROM t1;
+--sorted_result
 SELECT * FROM t2;
 
 DROP TABLE t1;

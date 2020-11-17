@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,168 +24,218 @@
 
 #include "dest_first_available.h"
 
+#include <memory>  // unique_ptr
+
 #include "routing_mocks.h"
 #include "test/helpers.h"  // init_test_logger
 
-using namespace std::chrono_literals;
-
 class FirstAvailableTest : public ::testing::Test {
- public:
-  using result = stdx::expected<mysql_harness::socket_t, std::error_code>;
-  FirstAvailableTest()
-      : routing_sock_ops_(new MockRoutingSockOps()),
-        dest_(Protocol::Type::kClassicProtocol, routing_sock_ops_.get()) {
-    dest_.add("41", 1);
-    dest_.add("42", 2);
-    dest_.add("43", 3);
-  }
-
-  DestFirstAvailable &dest() { return dest_; }
-
  protected:
-  std::unique_ptr<MockRoutingSockOps> routing_sock_ops_;
-
- private:
-  DestFirstAvailable dest_;  // this is the class we're testing
+  MockSocketOperations sock_ops_;
 };
 
-/**
- * @test The idea behind these tests is to test
- * DestFirstAvailable::get_server_socket() server selection strategy. That
- * method is responsible for returning the new connection to the active server.
- *       The active server should be switched in such fashion:
- *
- *         A -> B -> C -> A -> B -> C -> ...
- *
- *       The switch should occur only when the current active server becomes
- * unavailable. DestFirstAvailable::get_server_socket() relies on
- * RoutingSockOpsInterface::get_mysql_socket() to return the actual file
- * descriptor, which we mock in this test to simulate connection success or
- * failure.
- */
-TEST_F(FirstAvailableTest, TypicalFailoverSequence) {
-  // talk to 1st server
-  ASSERT_EQ(dest().get_server_socket(0ms), result{41});
-  ASSERT_EQ(dest().get_server_socket(0ms), result{41});
-  ASSERT_EQ(dest().get_server_socket(0ms), result{41});
-  ASSERT_EQ(dest().get_server_socket(0ms), result{41});
-  ASSERT_EQ(dest().get_server_socket(0ms), result{41});
-  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(),
-            5);  // 5 good connections
-
-  // fail 1st server -> failover to 2nd
-  routing_sock_ops_->get_mysql_socket_fail(1);
-  ASSERT_EQ(dest().get_server_socket(0s), result{42});
-  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(),
-            2);  // 1 failed + 1 good conn
-  ASSERT_EQ(dest().get_server_socket(0s), result{42});
-  ASSERT_EQ(dest().get_server_socket(0s), result{42});
-  ASSERT_EQ(dest().get_server_socket(0s), result{42});
-  ASSERT_EQ(dest().get_server_socket(0s), result{42});
-  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(),
-            4);  // 4 more good conns
-
-  // fail 2nd server -> failover to 3rd
-  routing_sock_ops_->get_mysql_socket_fail(1);
-  ASSERT_EQ(dest().get_server_socket(0s), result{43});
-  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(),
-            2);  // 1 failed + 1 good conn
-  ASSERT_EQ(dest().get_server_socket(0s), result{43});
-  ASSERT_EQ(dest().get_server_socket(0s), result{43});
-  ASSERT_EQ(dest().get_server_socket(0s), result{43});
-  ASSERT_EQ(dest().get_server_socket(0s), result{43});
-  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(),
-            4);  // 4 more good conns
-
-  // fail 3rd server -> back to 1st
-  routing_sock_ops_->get_mysql_socket_fail(1);
-  ASSERT_EQ(dest().get_server_socket(0s), result{41});
-  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(), 2);  // 1 failed
-  ASSERT_EQ(dest().get_server_socket(0s), result{41});
-  ASSERT_EQ(dest().get_server_socket(0s), result{41});
-  ASSERT_EQ(dest().get_server_socket(0s), result{41});
-  ASSERT_EQ(dest().get_server_socket(0s), result{41});
-  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(),
-            4);  // 4 more good conns
+bool operator==(const std::unique_ptr<Destination> &a, const Destination &b) {
+  return a->hostname() == b.hostname() && a->port() == b.port();
 }
 
-TEST_F(FirstAvailableTest, StartWith1stDown) {
-  // fail 1st server -> failover to 2nd
-  routing_sock_ops_->get_mysql_socket_fail(1);
-  ASSERT_EQ(dest().get_server_socket(0s), result{42});
-  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(),
-            2);  // 1 failed + 1 good conn
-  ASSERT_EQ(dest().get_server_socket(0s), result{42});
-  ASSERT_EQ(dest().get_server_socket(0s), result{42});
-  ASSERT_EQ(dest().get_server_socket(0s), result{42});
-  ASSERT_EQ(dest().get_server_socket(0s), result{42});
-  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(),
-            4);  // 4 more good conns
-
-  // fail 2nd server -> failover to 3rd
-  routing_sock_ops_->get_mysql_socket_fail(1);
-  ASSERT_EQ(dest().get_server_socket(0s), result{43});
-  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(),
-            2);  // 1 failed + 1 good conn
-  ASSERT_EQ(dest().get_server_socket(0s), result{43});
-  ASSERT_EQ(dest().get_server_socket(0s), result{43});
-  ASSERT_EQ(dest().get_server_socket(0s), result{43});
-  ASSERT_EQ(dest().get_server_socket(0s), result{43});
-  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(),
-            4);  // 4 more good conns
-
-  // fail 3rd server -> back to 1st
-  routing_sock_ops_->get_mysql_socket_fail(1);
-  ASSERT_EQ(dest().get_server_socket(0s), result{41});
-  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(),
-            2);  // 1 failed + 1 good conn
-  ASSERT_EQ(dest().get_server_socket(0s), result{41});
-  ASSERT_EQ(dest().get_server_socket(0s), result{41});
-  ASSERT_EQ(dest().get_server_socket(0s), result{41});
-  ASSERT_EQ(dest().get_server_socket(0s), result{41});
-  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(),
-            4);  // 4 more good conns
+std::ostream &operator<<(std::ostream &os, const Destination &v) {
+  os << "(host: " << v.hostname() << ", port: " << v.port() << ")";
+  return os;
 }
 
-TEST_F(FirstAvailableTest, StartWith2ndDown) {
-  // fail 1st and 2nd server -> failover to 3rd
-  routing_sock_ops_->get_mysql_socket_fail(2);
-  ASSERT_EQ(dest().get_server_socket(0s), result{43});
-  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(),
-            3);  // 2 failed + 1 good conn
-  ASSERT_EQ(dest().get_server_socket(0s), result{43});
-  ASSERT_EQ(dest().get_server_socket(0s), result{43});
-  ASSERT_EQ(dest().get_server_socket(0s), result{43});
-  ASSERT_EQ(dest().get_server_socket(0s), result{43});
-  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(),
-            4);  // 4 more good conns
-
-  // fail 3rd server -> no more servers
-  routing_sock_ops_->get_mysql_socket_fail(1);
-  ASSERT_EQ(dest().get_server_socket(0s), result{41});
-  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(),
-            2);  // 1 failed + 1 good conn
-  ASSERT_EQ(dest().get_server_socket(0s), result{41});
-  ASSERT_EQ(dest().get_server_socket(0s), result{41});
-  ASSERT_EQ(dest().get_server_socket(0s), result{41});
-  ASSERT_EQ(dest().get_server_socket(0s), result{41});
-  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(),
-            4);  // 4 more good conns
+std::ostream &operator<<(std::ostream &os,
+                         const std::unique_ptr<Destination> &v) {
+  os << *(v.get());
+  return os;
 }
 
-TEST_F(FirstAvailableTest, StartWithAllDown) {
-  // fail 1st, 2nd and 3rd server -> no more servers
-  routing_sock_ops_->get_mysql_socket_fail(3);
-  ASSERT_FALSE(dest().get_server_socket(0s));
-  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(),
-            3);  // 3 failed, no more servers
-  ASSERT_EQ(dest().get_server_socket(0s), result{41});  // back to first
-  ASSERT_EQ(dest().get_server_socket(0s), result{41});
-  ASSERT_EQ(dest().get_server_socket(0s), result{41});
-  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(),
-            3);  // 3 more good conns
+std::ostream &operator<<(std::ostream &os, const Destinations &v) {
+  for (const auto &dest : v) {
+    os << dest;
+  }
+  return os;
 }
 
+MATCHER(IsGoodEq, "") {
+  return ::testing::ExplainMatchResult(
+      ::testing::Property(&Destination::good, std::get<1>(arg)),
+      std::get<0>(arg).get(), result_listener);
+}
+
+TEST_F(FirstAvailableTest, RepeatedFetch) {
+  DestFirstAvailable dest(Protocol::Type::kClassicProtocol, &sock_ops_);
+  dest.add("41", 41);
+  dest.add("42", 42);
+  dest.add("43", 43);
+
+  SCOPED_TRACE("// destination in order");
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual, ::testing::SizeIs(3));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", "41", 41),
+                                               Destination("42", "42", 42),
+                                               Destination("43", "43", 43)));
+  }
+
+  SCOPED_TRACE("// fetching it twice, no change");
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual, ::testing::SizeIs(3));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", "41", 41),
+                                               Destination("42", "42", 42),
+                                               Destination("43", "43", 43)));
+  }
+}
+
+TEST_F(FirstAvailableTest, FailOne) {
+  DestFirstAvailable balancer(Protocol::Type::kClassicProtocol, &sock_ops_);
+  balancer.add("41", 41);
+  balancer.add("42", 42);
+  balancer.add("43", 43);
+
+  {
+    SCOPED_TRACE("// destination in order");
+    auto actual = balancer.destinations();
+    EXPECT_THAT(actual, ::testing::SizeIs(3));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", "41", 41),
+                                               Destination("42", "42", 42),
+                                               Destination("43", "43", 43)));
+
+    EXPECT_THAT(actual, ::testing::Pointwise(IsGoodEq(), {true, true, true}));
+
+    SCOPED_TRACE("// report a connection-error for the first node");
+    size_t n{};
+    for (auto const &d : actual) {
+      d->connect_status(make_error_code(std::errc::connection_refused));
+
+      if (++n >= 1) break;
+    }
+  }
+
+  {
+    SCOPED_TRACE("// fetching after first is failed");
+    auto actual = balancer.destinations();
+    EXPECT_THAT(actual, ::testing::SizeIs(3));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("42", "42", 42),
+                                               Destination("43", "43", 43),
+                                               Destination("41", "41", 41)));
+  }
+
+  {
+    SCOPED_TRACE("// fetching it twice, no change");
+    auto actual = balancer.destinations();
+    EXPECT_THAT(actual, ::testing::SizeIs(3));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("42", "42", 42),
+                                               Destination("43", "43", 43),
+                                               Destination("41", "41", 41)));
+  }
+}
+
+TEST_F(FirstAvailableTest, FailTwo) {
+  DestFirstAvailable balancer(Protocol::Type::kClassicProtocol, &sock_ops_);
+  balancer.add("41", 41);
+  balancer.add("42", 42);
+  balancer.add("43", 43);
+
+  {
+    SCOPED_TRACE("// destination in order");
+    auto actual = balancer.destinations();
+    EXPECT_THAT(actual, ::testing::SizeIs(3));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", "41", 41),
+                                               Destination("42", "42", 42),
+                                               Destination("43", "43", 43)));
+
+    EXPECT_THAT(actual, ::testing::Pointwise(IsGoodEq(), {true, true, true}));
+
+    SCOPED_TRACE("// report a connection-error for the first node");
+    size_t n{};
+    for (auto const &d : actual) {
+      d->connect_status(make_error_code(std::errc::connection_refused));
+
+      if (++n >= 2) break;
+    }
+  }
+
+  {
+    SCOPED_TRACE("// fetching after some dead nodes");
+    auto actual = balancer.destinations();
+
+    EXPECT_THAT(actual, ::testing::SizeIs(3));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("43", "43", 43),
+                                               Destination("41", "41", 41),
+                                               Destination("42", "42", 42)));
+
+    // 'good' state isn't permanent.
+    EXPECT_THAT(actual, ::testing::Pointwise(IsGoodEq(), {true, true, true}));
+  }
+
+  {
+    SCOPED_TRACE("// fetching it twice, no change");
+    auto actual = balancer.destinations();
+    EXPECT_THAT(actual, ::testing::SizeIs(3));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("43", "43", 43),
+                                               Destination("41", "41", 41),
+                                               Destination("42", "42", 42)));
+
+    // 'good' state isn't permanent.
+    EXPECT_THAT(actual, ::testing::Pointwise(IsGoodEq(), {true, true, true}));
+  }
+}
+
+TEST_F(FirstAvailableTest, FailAll) {
+  DestFirstAvailable balancer(Protocol::Type::kClassicProtocol, &sock_ops_);
+  balancer.add("41", 41);
+  balancer.add("42", 42);
+  balancer.add("43", 43);
+
+  {
+    SCOPED_TRACE("// destination in order");
+    auto actual = balancer.destinations();
+    EXPECT_THAT(actual, ::testing::SizeIs(3));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", "41", 41),
+                                               Destination("42", "42", 42),
+                                               Destination("43", "43", 43)));
+
+    EXPECT_THAT(actual, ::testing::Pointwise(IsGoodEq(), {true, true, true}));
+
+    SCOPED_TRACE("// report a connection-error for all nodes");
+    for (auto const &d : actual) {
+      d->connect_status(make_error_code(std::errc::connection_refused));
+    }
+  }
+
+  {
+    SCOPED_TRACE("// fetching after first is failed");
+    auto actual = balancer.destinations();
+    EXPECT_THAT(actual, ::testing::SizeIs(3));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", "41", 41),
+                                               Destination("42", "42", 42),
+                                               Destination("43", "43", 43)));
+    // 'good' state isn't permanent.
+    EXPECT_THAT(actual, ::testing::Pointwise(IsGoodEq(), {true, true, true}));
+  }
+
+  {
+    SCOPED_TRACE("// fetching it twice, no change");
+    auto actual = balancer.destinations();
+    EXPECT_THAT(actual, ::testing::SizeIs(3));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", "41", 41),
+                                               Destination("42", "42", 42),
+                                               Destination("43", "43", 43)));
+    // 'good' state isn't permanent.
+    EXPECT_THAT(actual, ::testing::Pointwise(IsGoodEq(), {true, true, true}));
+  }
+}
+
+// should just return an empty set and not crash/fail.
+TEST_F(FirstAvailableTest, Empty) {
+  DestFirstAvailable balancer(Protocol::Type::kClassicProtocol, &sock_ops_);
+
+  {
+    auto actual = balancer.destinations();
+    EXPECT_THAT(actual, ::testing::SizeIs(0));
+  }
+}
 int main(int argc, char *argv[]) {
   init_test_logger();
   ::testing::InitGoogleTest(&argc, argv);

@@ -1901,12 +1901,8 @@ show create view v1;
 select * from v1;
 drop view v1;
 
+--error ER_VIEW_WRONG_LIST
 prepare stmt from "create view v1 (a,b,c) as select * from t1";
---error ER_VIEW_WRONG_LIST
-execute stmt;
---error ER_VIEW_WRONG_LIST
-execute stmt;
-deallocate prepare stmt;
 
 drop table t1;
 create temporary table t1 (a int, b int);
@@ -2894,8 +2890,10 @@ CREATE TABLE t1 (a TIME NOT NULL, b TINYINT);
 INSERT IGNORE INTO t1 VALUES (0, 0),(0, 0);
 PREPARE stmt FROM "SELECT 1 FROM t1 WHERE
 ROW(a, b) >= ROW('1', (SELECT 1 FROM t1 WHERE a > '1234abc'))";
+--disable_warnings
 EXECUTE stmt;
 EXECUTE stmt;
+--enable_warnings
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 
@@ -3423,12 +3421,45 @@ INSERT INTO bug19894382(f2, f3, f4, f5, f6, f7)
 SELECT * FROM bug19894382 ORDER BY f2;
 
 --echo # Cleanup
-DROP DATABASE client_test_db;
 DROP TABLE bug19894382;
 --remove_file $MYSQLTEST_VARDIR/log/bug19894382.out.log
 --remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug19894382.binlog
 --rmdir $MYSQLTEST_VARDIR/tmp/test
 
+--echo # Test parameter string longer than 65k
+SET @a=repeat('a', 100000);
+prepare s from "select length(?)";
+execute s using @a;
+
+DROP DATABASE client_test_db;
+
+--echo # Bug#28929657: Assertion !is_temporal() at Item::get_time_from_int()
+
+CREATE TABLE t1 (t time DEFAULT NULL);
+INSERT INTO t1 VALUES ('16:07:44');
+SET @var1 = 5;
+PREPARE s FROM "DELETE FROM t1 WHERE t = ?";
+EXECUTE s USING @var1;
+DEALLOCATE PREPARE s;
+DROP TABLE t1;
+
+CREATE TABLE t1 (dt datetime DEFAULT NULL);
+INSERT INTO t1 VALUES ('2018-11-11 16:07:44');
+SET @var1 = 5;
+PREPARE s FROM "DELETE FROM t1 WHERE dt = ?";
+--error ER_TRUNCATED_WRONG_VALUE
+EXECUTE s USING @var1;
+DEALLOCATE PREPARE s;
+DROP TABLE t1;
+
+CREATE TABLE t1 (d date DEFAULT NULL);
+INSERT INTO t1 VALUES ('2018-11-11');
+SET @var1 = 5;
+PREPARE s FROM "DELETE FROM t1 WHERE d = ?";
+--error ER_TRUNCATED_WRONG_VALUE
+EXECUTE s USING @var1;
+DEALLOCATE PREPARE s;
+DROP TABLE t1;
 --echo #
 --echo # Bug#30438038: MAIN.LOCK_MULTI_BUG38499 FAILS ON PB2
 --echo #
@@ -3440,3 +3471,18 @@ EXECUTE ps;
 EXECUTE ps;  # The second execution used to fail.
 DROP PREPARE ps;
 DROP TABLE t;
+
+--echo # Bug#31437028: SIG11 AT FIELD::HIDDEN() IN SQL/FIELD.H WITH PREPARED SHOW CREATE VIEW
+
+CREATE TABLE t1(c1 int);
+INSERT INTO t1 VALUES(1),(2);
+CREATE FUNCTION f1() returns INT deterministic return 1;
+CREATE VIEW v1 AS SELECT c1 FROM t1 WHERE c1 = f1();
+DROP FUNCTION f1;
+PREPARE stmt FROM "SHOW CREATE VIEW v1";
+EXECUTE stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+DROP VIEW v1;
+DROP TABLE t1;
+

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,32 +64,32 @@ class Program : public Base::Abstract_connection_program {
         m_mysql_connection(nullptr),
         m_temporary_verbose(false) {}
 
-  string get_version() { return "2.0"; }
+  string get_version() override { return "2.0"; }
 
-  int get_first_release_year() { return 2000; }
+  int get_first_release_year() override { return 2000; }
 
-  string get_description() {
+  string get_description() override {
     return "MySQL utility for upgrading databases to new MySQL versions "
            "(deprecated).\n" +
            deprecation_msg;
   }
 
-  void short_usage() {
+  void short_usage() override {
     std::cout << "Usage: " << get_name() << " [OPTIONS]" << std::endl;
   }
 
-  int get_error_code() { return 0; }
+  int get_error_code() override { return 0; }
 
   /**
     Returns 0 (success) unconditionally, along with a deprecation message.
 
     @return 0 (success)
    */
-  int execute(const vector<string> &) {
+  int execute(const vector<string> &) override {
     return this->print_message(0, deprecation_msg);
   }
 
-  void create_options() {
+  void create_options() override {
     this->create_new_option(
             &this->m_check_version, "version-check",
             "Run this program only if its \'server version\' "
@@ -127,7 +127,7 @@ class Program : public Base::Abstract_connection_program {
         ->set_value(false);
   }
 
-  void error(const Message_data &message) {
+  void error(const Message_data &message) override {
     std::cerr << "Upgrade process encountered error and will not continue."
               << std::endl;
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,14 @@
 /**
   @file include/my_loglevel.h
   Definition of the global "loglevel" enumeration.
+
+  The values defined here have a fixed relationship
+  with enum_prio in storage/perfschema/table_error_log.h
+  and should not be changed.
+
+  If changing them is inevitable, make sure that that
+  relationship is maintained and performance_schema.error_log
+  not broken.
 */
 
 enum loglevel {

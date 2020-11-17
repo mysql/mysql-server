@@ -3,9 +3,9 @@
 # Reset all replication servers to a clean state:
 #
 #  - sync all slaves,
-#  - stop all slaves (STOP SLAVE),
-#  - remove all binlogs and relay logs (RESET MASTER and RESET SLAVE),
-#  - start all slaves again (START SLAVE).
+#  - stop all slaves (STOP REPLICA),
+#  - remove all binlogs and relay logs (RESET MASTER and RESET REPLICA),
+#  - start all slaves again (START REPLICA).
 #
 # It does not execute CHANGE MASTER, so the replication topology is
 # kept intact.
@@ -16,7 +16,7 @@
 # [--let $rpl_only_running_threads= 1]
 # [--let $rpl_debug= 1]
 # [--let $slave_timeout= NUMBER]
-# --source include/rpl_end.inc
+# --source include/rpl_reset.inc
 #
 # Parameters:
 #   $rpl_only_running_threads
@@ -34,7 +34,7 @@
 #     See include/rpl_init.inc
 #
 #   $rpl_no_start_slave
-#     Don't execute START SLAVE.
+#     Don't execute START REPLICA.
 #
 #   $slave_timeout
 #     Set the timeout when waiting for slave threads to stop and
@@ -47,7 +47,7 @@
 #
 #     --source include/wait_for_slave_sql_error.inc
 #     --source include/stop_slave_io.inc
-#     RESET SLAVE;
+#     RESET REPLICA;
 
 --let $include_filename= rpl_reset.inc
 --source include/begin_include_file.inc
@@ -63,10 +63,10 @@ if (!$rpl_skip_sync)
   --source include/rpl_sync.inc
 }
 
-# STOP SLAVE
+# STOP REPLICA
 --source include/rpl_stop_slaves.inc
 
-# RESET SLAVE
+# RESET REPLICA
 --let $rpl_source_file= include/rpl_reset_slave_helper.inc
 --source include/rpl_for_each_connection.inc
 
@@ -74,7 +74,7 @@ if (!$rpl_skip_sync)
 --let $rpl_sql= RESET MASTER
 --source include/rpl_for_each_server_stmt.inc
 
-# START SLAVE
+# START REPLICA
 if (!$rpl_no_start_slave)
 {
   --source include/rpl_start_slaves.inc

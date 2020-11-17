@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -29,122 +29,142 @@ import "mysqlx.proto"; // comment_out_if PROTOBUF_LITE
 
 // ifdef PROTOBUF_LITE: option optimize_for = LITE_RUNTIME;
 
-// Notices
-//
-// A notice
-//
-// * is sent from the server to the client
-// * may be global or relate to the current message sequence
+/**
+@namespace Mysqlx::Notice
+@brief A notice
+- is sent from the server to the client
+- may be global or relate to the current message sequence
+
+The server may send notices @ref Mysqlx::Notice::Frame
+to the client at any time.
+
+A notice can be:
+-  global (``.scope == GLOBAL``) or
+-  belong to the currently executed @ref messages_Message_Sequence
+   (``.scope == LOCAL + message sequence is active``):
+
+@note
+    If the Server sends a ``LOCAL`` notice while no message sequence is
+    active, the Notice should be ignored.
+
+@par Tip
+    For more information, see @ref mysqlx_protocol_notices "Notices".
+*/
+
 package Mysqlx.Notice;
 option java_package = "com.mysql.cj.x.protobuf";
 
 import "mysqlx_datatypes.proto";
 
-// Common Frame for all Notices
-//
-// ===================================================== =====
-// .type                                                 value
-// ===================================================== =====
-// :protobuf:msg:`Mysqlx.Notice::Warning`                1
-// :protobuf:msg:`Mysqlx.Notice::SessionVariableChanged` 2
-// :protobuf:msg:`Mysqlx.Notice::SessionStateChanged`    3
-// ===================================================== =====
-//
-// :param type: the type of the payload
-// :param payload: the payload of the notification
-// :param scope: global or local notification
-//
+/**
+Common frame for all notices
+
+| ``.type``                                         | Value |
+|---------------------------------------------------|------ |
+| @ref Mysqlx::Notice::Warning                      | 1     |
+| @ref Mysqlx::Notice::SessionVariableChanged       | 2     |
+| @ref Mysqlx::Notice::SessionStateChanged          | 3     |
+| @ref Mysqlx::Notice::GroupReplicationStateChanged | 4     |
+| @ref Mysqlx::Notice::ServerHello                  | 5     |
+*/
 message Frame {
+  /** scope of notice */
   enum Scope {
     GLOBAL = 1;
     LOCAL = 2;
-  };
+  }
+
+  /** type of notice payload*/
   enum Type {
     WARNING = 1;
     SESSION_VARIABLE_CHANGED = 2;
     SESSION_STATE_CHANGED = 3;
     GROUP_REPLICATION_STATE_CHANGED = 4;
     SERVER_HELLO = 5;
-  };
+  }
+
+  /** the type of the payload */
   required uint32 type = 1;
+
+  /** global or local notification */
   optional Scope  scope = 2 [ default = GLOBAL ];
+
+  /** the payload of the notification */
   optional bytes payload = 3;
 
   option (server_message_id) = NOTICE; // comment_out_if PROTOBUF_LITE
 }
 
-// Server-side warnings and notes
-//
-// ``.scope`` == ``local``
-//   ``.level``, ``.code`` and ``.msg`` map the content of
-//
-//   .. code-block:: sql
-//
-//     SHOW WARNINGS
-//
-// ``.scope`` == ``global``
-//   (undefined) will be used for global, unstructured messages like:
-//
-//   * server is shutting down
-//   * a node disconnected from group
-//   * schema or table dropped
-//
-// ========================================== =======================
-// :protobuf:msg:`Mysqlx.Notice::Frame` field value
-// ========================================== =======================
-// ``.type``                                  1
-// ``.scope``                                 ``local`` or ``global``
-// ========================================== =======================
-//
-// :param level: warning level: Note or Warning
-// :param code: warning code
-// :param msg: warning message
+/**
+Server-side warnings and notes
+
+@par ``.scope`` == ``local``
+     ``.level``, ``.code`` and ``.msg`` map the content of:
+@code{sql}
+        SHOW WARNINGS
+@endcode
+
+@par ``.scope`` == ``global``
+    (undefined) Will be used for global, unstructured messages like:
+    -  server is shutting down
+    -  a node disconnected from group
+    -  schema or table dropped
+
+| @ref Mysqlx::Notice::Frame Field  | Value                   |
+|-----------------------------------|-------------------------|
+| ``.type``                         | 1                       |
+| ``.scope``                        | ``local`` or ``global`` |
+*/
 message Warning {
   enum Level {
     NOTE = 1;
     WARNING = 2;
     ERROR = 3;
-  };
-  optional Level  level = 1 [ default = WARNING ];
+  }
+
+  /** Note or Warning */
+  optional Level level = 1 [ default = WARNING ];
+
+  /** warning code */
   required uint32 code = 2;
+
+  /** warning message */
   required string msg = 3;
 }
 
-// Notify clients about changes to the current session variables
-//
-// Every change to a variable that is accessible through:
-//
-// .. code-block:: sql
-//
-//   SHOW SESSION VARIABLES
-//
-// ========================================== =========
-// :protobuf:msg:`Mysqlx.Notice::Frame` field value
-// ========================================== =========
-// ``.type``                                  2
-// ``.scope``                                 ``local``
-// ========================================== =========
-//
-// :param namespace: namespace that param belongs to
-// :param param: name of the variable
-// :param value: the changed value of param
+/**
+Notify clients about changes to the current session variables.
+
+Every change to a variable that is accessible through:
+
+@code{sql}
+    SHOW SESSION VARIABLES
+@endcode
+
+| @ref Mysqlx::Notice::Frame  Field | Value    |
+|-----------------------------------|----------|
+| ``.type``                         | 2        |
+| ``.scope``                        | ``local``|
+*/
 message SessionVariableChanged {
+  /** name of the variable */
   required string param = 1;
+
+  /** the changed value of param */
   optional Mysqlx.Datatypes.Scalar value = 2;
 }
 
 
-// Notify clients about changes to the internal session state
-//
-// ========================================== =========
-// :protobuf:msg:`Mysqlx.Notice::Frame` field value
-// ========================================== =========
-// ``.type``                                  3
-// ``.scope``                                 ``local``
-// ========================================== =========
-//
-// :param param: parameter key
-// :param value: updated value
+/**
+Notify clients about changes to the internal session state.
+
+| @ref Mysqlx::Notice::Frame Field  | Value    |
+|-----------------------------------|----------|
+| ``.type``                         | 3        |
+| ``.scope``                        | ``local``|
+
+*/
+
 message SessionStateChanged {
   enum Parameter {
      CURRENT_SCHEMA = 1;
@@ -160,21 +180,22 @@ message SessionStateChanged {
      GENERATED_DOCUMENT_IDS = 12;
      // .. more to be added
   }
+
+  /** parameter key */
   required Parameter param = 1;
+
+  /** updated value */
   repeated Mysqlx.Datatypes.Scalar value = 2;
 }
 
-// Notify clients about group replication state changes
-//
-// ========================================== ==========
-// :protobuf:msg:`Mysqlx.Notice::Frame` field value
-// ========================================== ==========
-// ``.type``                                  4
-// ``.scope``                                 ``global``
-// ========================================== ==========
-//
-// :param type: type of group replication event
-// :param view_id: view identifier
+/**
+Notify clients about group replication state changes
+
+| @ref Mysqlx::Notice::Frame Field  | Value      |
+|-----------------------------------|------------|
+|``.type``                          | 4          |
+|``.scope``                         | ``global`` |
+*/
 message GroupReplicationStateChanged {
   enum Type {
     MEMBERSHIP_QUORUM_LOSS = 1;
@@ -182,20 +203,21 @@ message GroupReplicationStateChanged {
     MEMBER_ROLE_CHANGE = 3;
     MEMBER_STATE_CHANGE = 4;
   }
+  /** type of group replication event */
   required uint32 type = 1;
 
+  /** view identifier */
   optional string view_id = 2;
 }
 
-// Notify clients about connection to X Protocol server
-//
-// ========================================== ==========
-// :protobuf:msg:`Mysqlx.Notice::Frame` field value
-// ========================================== ==========
-// ``.type``                                  5
-// ``.scope``                                 ``global``
-// ========================================== ==========
-//
+/**
+Notify clients about connection to X Protocol server
+
+| @ref Mysqlx::Notice::Frame Field  | Value      |
+|-----------------------------------|------------|
+|``.type``                          | 5          |
+|``.scope``                         | ``global`` |
+*/
 message ServerHello {
 }
 

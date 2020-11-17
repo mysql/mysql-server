@@ -20,6 +20,7 @@
 CREATE TABLE t1 (a int, b int, PRIMARY KEY (a), KEY (b));
 INSERT INTO t1 VALUES (1, 1);
 INSERT INTO t1 VALUES (2, 2);
+--sorted_result
 SELECT * FROM t1;
 SELECT * FROM t1 order by a;
 SELECT * FROM t1 order by b;
@@ -57,6 +58,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (a int, b int, PRIMARY KEY (a), KEY (b DESC));
 INSERT INTO t1 VALUES (1, 1);
 INSERT INTO t1 VALUES (2, 2);
+--sorted_result
 SELECT * FROM t1;
 SELECT * FROM t1 order by a;
 SELECT * FROM t1 order by b;
@@ -125,11 +127,13 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 ALTER TABLE t1 IMPORT TABLESPACE;
 
 --echo # Show that column b is sorted correctly.
+--sorted_result
 SELECT * FROM t1;
 SELECT * FROM t1 order by a;
 SELECT * FROM t1 order by b;
 INSERT INTO t1 VALUES (3, 3);
 INSERT INTO t1 VALUES (4, 4);
+--sorted_result
 SELECT * FROM t1;
 SELECT * FROM t1 order by a;
 SELECT * FROM t1 order by b;
@@ -155,11 +159,13 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 ALTER TABLE t1 IMPORT TABLESPACE;
 
 --echo # Show that column b is sorted correctly.
+--sorted_result
 SELECT * FROM t1;
 SELECT * FROM t1 order by a;
 SELECT * FROM t1 order by b;
 INSERT INTO t1 VALUES (3, 3);
 INSERT INTO t1 VALUES (4, 4);
+--sorted_result
 SELECT * FROM t1;
 SELECT * FROM t1 order by a;
 SELECT * FROM t1 order by b;
@@ -234,13 +240,17 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 ALTER TABLE t1 IMPORT TABLESPACE;
 
 --echo # Show that column b is sorted inconsistently.
+--sorted_result
 SELECT * FROM t1;
 SELECT * FROM t1 order by a;
+--skip_if_hypergraph  # Does not use the index leading to the error.
 SELECT * FROM t1 order by b;
 INSERT INTO t1 VALUES (3, 3);
 INSERT INTO t1 VALUES (4, 4);
+--sorted_result
 SELECT * FROM t1;
 SELECT * FROM t1 order by a;
+--skip_if_hypergraph  # Does not use the index leading to the error.
 SELECT * FROM t1 order by b;
 DROP TABLE t1;
 
@@ -309,11 +319,13 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 ALTER TABLE t1 IMPORT TABLESPACE;
 
 --echo # Show that column b is descending.
+--sorted_result
 SELECT * FROM t1;
 SELECT * FROM t1 order by a;
 SELECT * FROM t1 order by b;
 INSERT INTO t1 VALUES (3, 3);
 INSERT INTO t1 VALUES (4, 4);
+--sorted_result
 SELECT * FROM t1;
 SELECT * FROM t1 order by a;
 SELECT * FROM t1 order by b;

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,11 +27,13 @@
 #include <array>
 #include <cstdlib>
 #include <cstring>
+#include <sstream>
 #include <stdexcept>
 
 #ifndef _WIN32
 #include <arpa/inet.h>
 #include <fcntl.h>
+#include <netinet/in.h>  // sockaddr_in
 #include <sys/socket.h>
 #include <sys/un.h>
 #else
@@ -40,14 +42,6 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #endif
-
-void *get_in_addr(struct sockaddr *addr) {
-  if (addr->sa_family == AF_INET) {
-    return &(((struct sockaddr_in *)addr)->sin_addr);
-  }
-
-  return &(((struct sockaddr_in6 *)addr)->sin6_addr);
-}
 
 std::pair<std::string, int> get_peer_name(
     const struct sockaddr_storage *addr,

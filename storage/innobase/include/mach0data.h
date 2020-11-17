@@ -218,6 +218,7 @@ advanced by the number of bytes consumed, or set NULL if out of space
 @param[in]	end_ptr	end of the buffer
 @return unsigned value */
 ib_uint32_t mach_parse_compressed(const byte **ptr, const byte *end_ptr);
+
 /** Read a 64-bit integer in a compressed form.
 @param[in,out]	ptr	pointer to memory from where to read;
 advanced by the number of bytes consumed, or set NULL if out of space

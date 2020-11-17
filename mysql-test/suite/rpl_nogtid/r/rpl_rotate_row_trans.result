@@ -20,6 +20,8 @@ COMMIT;
 [connection slave]
 include/wait_for_slave_io_to_stop.inc
 START SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_stop.inc
 # Stop the SQL thread (it should be in the middle of the transaction/group)
 include/stop_slave_sql.inc

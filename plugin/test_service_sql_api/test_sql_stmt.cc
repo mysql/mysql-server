@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -625,10 +625,14 @@ static const char *fieldtype2str(enum enum_field_types type) {
       return "BIT";
     case MYSQL_TYPE_BLOB:
       return "BLOB";
+    case MYSQL_TYPE_BOOL:
+      return "BOOL";
     case MYSQL_TYPE_DATE:
       return "DATE";
     case MYSQL_TYPE_DATETIME:
       return "DATETIME";
+    case MYSQL_TYPE_INVALID:
+      return "?-invalid-?";
     case MYSQL_TYPE_NEWDECIMAL:
       return "NEWDECIMAL";
     case MYSQL_TYPE_DECIMAL:
@@ -1678,6 +1682,46 @@ static void test_10(MYSQL_SESSION session, void *p) {
   run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
 }
 
+static void test_11(MYSQL_SESSION session, void *p) {
+  DBUG_ENTER("test_11");
+  char buffer[STRING_BUFFER_SIZE];
+
+  Server_context ctx;
+  COM_DATA cmd;
+
+  WRITE_STR("CREATE PREPARED STATEMENT\n");
+  cmd.com_stmt_prepare.query = "SELECT * from t1 where a = ?";
+  cmd.com_stmt_prepare.length = strlen(cmd.com_stmt_prepare.query);
+  run_cmd(session, COM_STMT_PREPARE, &cmd, &ctx, false, p);
+
+  PS_PARAM params[1];
+  params[0].type = MYSQL_TYPE_INVALID;
+  params[0].unsigned_type = false;
+  params[0].null_bit = false;
+  params[0].value = (const unsigned char *)"invalid";
+  params[0].length = 1;
+
+  cmd.com_stmt_execute.stmt_id = ctx.stmt_id;
+  cmd.com_stmt_execute.parameter_count = 1;
+  cmd.com_stmt_execute.parameters = params;
+  cmd.com_stmt_execute.open_cursor = false;
+  cmd.com_stmt_execute.has_new_types = true;
+
+  WRITE_STR("EXECUTE THE PS WITH INVALID PARAMETER TYPE\n");
+  run_cmd(session, COM_STMT_EXECUTE, &cmd, &ctx, false, p);
+
+  params[0].type = MYSQL_TYPE_BOOL;
+  params[0].unsigned_type = false;
+  params[0].null_bit = false;
+  params[0].value = (const unsigned char *)"bool";
+  params[0].length = 1;
+
+  WRITE_STR("EXECUTE THE PS WITH BOOL PARAMETER TYPE\n");
+  run_cmd(session, COM_STMT_EXECUTE, &cmd, &ctx, false, p);
+
+  DBUG_VOID_RETURN;
+}
+
 static void tear_down_test(MYSQL_SESSION session, void *p) {
   DBUG_TRACE;
 
@@ -1734,6 +1778,7 @@ static struct my_stmt_tests_st my_tests[] = {
     {"Test COM_STMT_EXECUTE with out-params as placeholders", test_8},
     {"Test COM_STMT_EXECUTE with out-params as variables", test_9},
     {"Test COM_QUERY with out-params as placeholders", test_10},
+    {"Test COM_STMT_EXECUTE with wrong parameters", test_11},
     {nullptr, nullptr}};
 
 static void test_sql(void *p) {

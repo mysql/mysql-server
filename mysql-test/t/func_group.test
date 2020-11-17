@@ -40,8 +40,10 @@ insert into t1 values (null,null,'');
 select count(distinct a),count(distinct grp) from t1;
 
 select sum(all a),count(all a),avg(all a),std(all a),variance(all a),bit_or(all a),bit_and(all a),min(all a),max(all a),min(all c),max(all c) from t1;
+--sorted_result
 select grp, sum(a),count(a),avg(a),std(a),variance(a),bit_or(a),bit_and(a),min(a),max(a),min(c),max(c) from t1 group by grp;
 --disable_warnings
+--sorted_result
 select grp, sum(a)+count(a)+avg(a)+std(a)+variance(a)+bit_or(a)+bit_and(a)+min(a)+max(a)+min(c)+max(c) as sum from t1 group by grp;
 --enable_warnings
 
@@ -126,6 +128,7 @@ insert into t1 values (10.3,'nem'),(20.53,'monty'),(30.23,'sinisa');
 insert into t1 values (30.13,'nem'),(20.98,'monty'),(10.45,'sinisa');
 insert into t1 values (5.2,'nem'),(8.64,'monty'),(11.12,'sinisa');
 select sum(num) from t1;
+--sorted_result
 select sum(num) from t1 group by user;
 drop table t1;
 
@@ -648,6 +651,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (col1 decimal(16,12));
 INSERT INTO t1 VALUES (-5.00000000001),(-5.00000000002),(-5.00000000003),(-5.00000000000),(-5.00000000001),(-5.00000000002);
 insert into t1 select * from t1;
+--sorted_result
 select col1,count(col1),sum(col1),avg(col1) from t1 group by col1;
 DROP TABLE t1;
 
@@ -658,10 +662,12 @@ DROP TABLE t1;
 create table t1 (col1 decimal(16,12));
 insert into t1 values (-5.00000000001);
 insert into t1 values (-5.00000000001);
+--sorted_result
 select col1,sum(col1),max(col1),min(col1) from t1 group by col1;
 delete from t1;
 insert into t1 values (5.00000000001);
 insert into t1 values (5.00000000001);
+--sorted_result
 select col1,sum(col1),max(col1),min(col1) from t1 group by col1;
 DROP TABLE t1;
 
@@ -692,7 +698,9 @@ INSERT INTO t1 (a, b, c) VALUES
   (3,3,1), (3,3,2), (3,3,3);
 
 SELECT b/c as v, a FROM t1 ORDER BY v, a;
+--sorted_result
 SELECT b/c as v, SUM(a) FROM t1 GROUP BY v;
+--sorted_result
 SELECT SUM(a) FROM t1 GROUP BY b/c;
 
 DROP TABLE t1;

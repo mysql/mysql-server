@@ -808,10 +808,10 @@ EXPLAIN with t2 as
 SELECT /*+ no_merge(t2) */ * FROM t2
 WHERE (a = a OR b <= 6) AND (a IS NULL);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	NULL	ref	<auto_key1>	<auto_key1>	5	const	1	100.00	Using where
-2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	with `t2` as (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1`) /* select#1 */ select /*+ NO_MERGE(`t2`@`select#1`) */ `t2`.`a` AS `a`,`t2`.`b` AS `b` from `t2` where (((`t2`.`a` = `t2`.`a`) or (`t2`.`b` <= 6)) and (`t2`.`a` is null))
+Note	1003	with `t2` as (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (((`test`.`t1`.`a` = `test`.`t1`.`a`) or (`test`.`t1`.`b` <= 6)) and (`test`.`t1`.`a` is null))) /* select#1 */ select /*+ NO_MERGE(`t2`@`select#1`) */ `t2`.`a` AS `a`,`t2`.`b` AS `b` from `t2`
 with t2 as
 (select * from t1)
 SELECT /*+ no_merge(t2) */ * FROM t2
@@ -855,7 +855,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `v1`.`a` AS `a` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`a` AS `a` from `test`.`v1`
 drop view v1;
 drop table t1;
 # CTE referenced four times, including in subqueries in other CTEs
@@ -1919,10 +1919,10 @@ EXPLAIN with t2 as
 SELECT /*+ no_merge(t2) */ * FROM t2
 WHERE (a = a OR b <= 6) AND (a IS NULL);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	NULL	ref	<auto_key1>	<auto_key1>	5	const	1	100.00	Using where
-2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	with `t2` as (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1`) /* select#1 */ select /*+ NO_MERGE(`t2`@`select#1`) */ `t2`.`a` AS `a`,`t2`.`b` AS `b` from `t2` where (((`t2`.`a` = `t2`.`a`) or (`t2`.`b` <= 6)) and (`t2`.`a` is null))
+Note	1003	with `t2` as (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (((`test`.`t1`.`a` = `test`.`t1`.`a`) or (`test`.`t1`.`b` <= 6)) and (`test`.`t1`.`a` is null))) /* select#1 */ select /*+ NO_MERGE(`t2`@`select#1`) */ `t2`.`a` AS `a`,`t2`.`b` AS `b` from `t2`
 with t2 as
 (select * from t1)
 SELECT /*+ no_merge(t2) */ * FROM t2
@@ -1966,7 +1966,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `v1`.`a` AS `a` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`a` AS `a` from `test`.`v1`
 drop view v1;
 drop table t1;
 # CTE referenced four times, including in subqueries in other CTEs

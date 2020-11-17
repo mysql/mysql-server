@@ -34,7 +34,10 @@ explain SELECT /*+ SET_VAR(max_allowed_packet = 1M) */ * FROM t1;
 # Testing warning messages for the variables with incorrect values
 explain SELECT /*+ SET_VAR(optimizer_switch = 'batched_key_acces=off') SET_VAR(range_alloc_block_size=amba)*/ * FROM t1;
 # Testing warning message for the variables with truncated value
+--disable_warnings
 SELECT /*+ SET_VAR(range_alloc_block_size=7000) */ 1;
+SHOW WARNINGS LIMIT 1;
+--enable_warnings
 
 DROP TABLE t1;
 
@@ -276,11 +279,13 @@ set optimizer_switch='mrr=on,mrr_cost_based=off';
 --echo # Check statistics without hint
 FLUSH STATUS;
 SELECT * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+--skip_if_hypergraph  # Does not support hints yet.
 SHOW STATUS LIKE 'handler_read%';
 
 --echo # Check statistics with hint
 FLUSH STATUS;
 SELECT /*+ SET_VAR(optimizer_switch='mrr=off') */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+--skip_if_hypergraph  # Does not support hints yet.
 SHOW STATUS LIKE 'handler_read%';
 
 set optimizer_switch=default;
@@ -321,11 +326,13 @@ FLUSH STATUS;
 --disable_result_log
 SELECT /*+ SET_VAR(sort_buffer_size=32768) */f1 FROM t1 ORDER BY f1;
 --enable_result_log
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Sort_merge_passes';
 FLUSH STATUS;
 --disable_result_log
 SELECT f1 FROM t1 ORDER BY f1;
 --enable_result_log
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Sort_merge_passes';
 DROP TABLE t1;
 CALL test_hint("SET_VAR(sort_buffer_size=32768)", "sort_buffer_size");
@@ -346,6 +353,7 @@ INSERT INTO t1 VALUES (1, 'string');
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
+--skip_if_hypergraph  # Does not support these hints.
 --error ER_TOO_BIG_SELECT
 SELECT /*+ SET_VAR(sql_big_selects=0) SET_VAR(max_join_size=1) */ * FROM t1 a, t1 b;
 DROP TABLE t1;

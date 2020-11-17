@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -152,7 +152,7 @@ class Number_option<double>
     Sets minimum value boundary for option value. Smaller values passed as
     option value will be changed to this minimum value.
    */
-  virtual Number_option<double> *set_minimum_value(double minimum) {
+  Number_option<double> *set_minimum_value(double minimum) override {
     this->m_option_structure.min_value = getopt_double2ulonglong(minimum);
     return this;
   }
@@ -161,7 +161,7 @@ class Number_option<double>
     Sets maximum value boundary for option value. Greater values passed as
     option value will be changed to this maximum value.
    */
-  virtual Number_option<double> *set_maximum_value(double maximum) {
+  Number_option<double> *set_maximum_value(double maximum) override {
     this->m_option_structure.max_value = getopt_double2ulonglong(maximum);
     return this;
   }

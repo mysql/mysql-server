@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,7 @@ public:
   void setUriScheme(const char *);
   void setProcessName(const char *);
   void setHostAddress(const struct sockaddr *, socklen_t);
-  void setHostAddress(const struct in_addr *);
+  void setHostAddress(const struct in6_addr *);
   void setHostAddress(Uint32 *signal_data);
   void setHostAddress(const char *);
   void setPid();

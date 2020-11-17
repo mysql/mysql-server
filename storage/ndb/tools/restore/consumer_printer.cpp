@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ BackupPrinter::table(const TableS & tab)
   return true;
 }
 
-void
+bool
 BackupPrinter::tuple(const TupleS & tup, Uint32 fragId)
 {
   m_dataCount++;
@@ -53,12 +53,13 @@ BackupPrinter::tuple(const TupleS & tup, Uint32 fragId)
     }
     const TableS * table = tup.getTable();
     if ((!ga_dont_ignore_systab_0) &&  table->isSYSTAB_0())
-      return;
+      return true;
     m_ndbout << tup << g_ndbrecord_print_format.lines_terminated_by;  
   }
+  return true;
 }
 
-void
+bool
 BackupPrinter::logEntry(const LogEntry & logE)
 {
   if (m_print || m_print_log)
@@ -69,6 +70,7 @@ BackupPrinter::logEntry(const LogEntry & logE)
     ndbout << endl;
   }
   m_logCount++;
+  return true;
 }
 
 void

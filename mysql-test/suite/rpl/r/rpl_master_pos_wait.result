@@ -17,10 +17,16 @@ Warnings:
 Note	1003	/* select#1 */ select master_pos_wait('master-bin.999999',0,2) AS `master_pos_wait('master-bin.999999',0,2)`
 select master_pos_wait('master-bin.999999',0);
 stop slave sql_thread;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 master_pos_wait('master-bin.999999',0)
 NULL
 "*** must be empty ***"
 show slave status;
+Warnings:
+Level	Warning
+Code	1287
+Message	'SHOW SLAVE STATUS' is deprecated and will be removed in a future release. Please use SHOW REPLICA STATUS instead
 "*** must be NULL ***"
 select master_pos_wait('foo', 98);
 master_pos_wait('foo', 98)

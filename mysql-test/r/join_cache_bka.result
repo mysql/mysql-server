@@ -1832,9 +1832,9 @@ Note	1003	/* select#1 */ select `test`.`t1`.`id1` AS `id1`,sum(`test`.`t2`.`id2`
 select t1.id1, sum(t2.id2) from t1 join t2 on t1.id1=t2.id1 
 where t1.d=3 group by t1.id1;
 id1	sum(t2.id2)
+10	900
 20	2000
 30	900
-10	900
 explain
 select t1.id1  from t1 join t2 on t1.id1=t2.id1 
 where t1.d=3 and t2.id2 > 200 order by t1.id1;
@@ -2114,12 +2114,12 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` fr
 SELECT t1.* FROM t1,t2,t3;
 a	b
 1	1
-2	2
+1	1
+1	1
 1	1
 2	2
-1	1
 2	2
-1	1
+2	2
 2	2
 DROP TABLE t1,t2,t3;
 #
@@ -2465,8 +2465,8 @@ SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b = t1.t1b;
 t1a	t1b	t2a	t2b
 99	0	100	0
 99	0	999	0
-99	NULL	NULL	NULL
 99	3	NULL	NULL
+99	NULL	NULL	NULL
 
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b <=> t1.t1b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2478,8 +2478,8 @@ SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b <=> t1.t1b;
 t1a	t1b	t2a	t2b
 99	0	100	0
 99	0	999	0
-99	NULL	999	NULL
 99	3	NULL	NULL
+99	NULL	999	NULL
 
 DROP TABLE t2;
 CREATE TABLE t2 (t2a int, t2b int NOT NULL, KEY idx (t2b));
@@ -2497,8 +2497,8 @@ SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b = t1.t1b;
 t1a	t1b	t2a	t2b
 99	0	100	0
 99	0	999	0
-99	NULL	NULL	NULL
 99	3	NULL	NULL
+99	NULL	NULL	NULL
 
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b <=> t1.t1b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2510,8 +2510,8 @@ SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b <=> t1.t1b;
 t1a	t1b	t2a	t2b
 99	0	100	0
 99	0	999	0
-99	NULL	NULL	NULL
 99	3	NULL	NULL
+99	NULL	NULL	NULL
 
 DROP TABLE t1,t2;
 #
@@ -2542,7 +2542,7 @@ EXPLAIN
 -> Filter: (<in_optimizer>(t3.c1,<exists>(select #2)) xor true)  (cost=0.45 rows=2)
     -> Index scan on t3 using k1  (cost=0.45 rows=2)
     -> Select #2 (subquery in condition; dependent)
-        -> Limit: 1 row(s)
+        -> Limit: 1 row(s)  (cost=0.72 rows=1)
             -> Nested loop inner join  (cost=0.72 rows=1)
                 -> Filter: <if>(outer_field_is_not_null, (<cache>(t3.c1) = t1.c2_key), true)  (cost=0.35 rows=1)
                     -> Alternative plans for IN subquery: Index lookup unless c2_key IS NULL  (cost=0.35 rows=1)
@@ -2654,8 +2654,8 @@ ON t1.col_varchar_key = t2.col_varchar_key
 GROUP BY field2
 ORDER BY field1;
 field1	field2
-NULL	0
 2003-08-21 00:00:00	4
+NULL	0
 DROP TABLE t1,t2;
 
 # BUG#12619510 "JCL: MORE ROWS AND DIFFERENT OUTPUT WITH JCL>=5"

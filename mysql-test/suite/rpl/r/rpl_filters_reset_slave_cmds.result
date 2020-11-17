@@ -46,7 +46,11 @@ REPLICATE_WILD_IGNORE_TABLE	test.i%	CHANGE_REPLICATION_FILTER	0
 #
 RESET MASTER;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET SLAVE FOR CHANNEL 'ch1';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 
 SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters ORDER BY FILTER_NAME;
 FILTER_NAME	FILTER_RULE	CONFIGURED_BY
@@ -74,6 +78,8 @@ REPLICATE_WILD_IGNORE_TABLE	test.i%	CHANGE_REPLICATION_FILTER	0
 # after "RESET SLAVE [ALL] [FOR CHANNEL 'ch1']" command.
 #
 RESET SLAVE ALL FOR CHANNEL 'ch1';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 
 SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters ORDER BY FILTER_NAME;
 FILTER_NAME	FILTER_RULE	CONFIGURED_BY
@@ -90,6 +96,8 @@ COUNT(*)
 SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters WHERE CHANNEL_NAME='ch1' ORDER BY FILTER_NAME;
 FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 
 SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters ORDER BY FILTER_NAME;
 FILTER_NAME	FILTER_RULE	CONFIGURED_BY

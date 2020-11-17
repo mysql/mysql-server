@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -82,13 +82,14 @@ static BaseString path(const char* first, ...)
 
 class Mgmd
 {
+protected:
   NdbProcess* m_proc;
   int m_nodeid;
   BaseString m_name;
   BaseString m_exe;
   NdbMgmd m_mgmd_client;
 
-  Mgmd(const Mgmd& other); // Not implemented
+  Mgmd(const Mgmd& other) = delete;
 public:
 
   Mgmd(int nodeid) :
@@ -361,6 +362,24 @@ public:
   }
 };
 
+class Ndbd : public Mgmd
+{
+public:
+  Ndbd(int nodeid) : Mgmd(nodeid)
+  {
+    m_name.assfmt("ndbd_%d", nodeid);
+    NDBT_find_ndbd(m_exe);
+  }
+
+  bool start(const char *working_dir, BaseString connect_string)
+  {
+    NdbProcess::Args args;
+    args.add("-c");
+    args.add(connect_string.c_str());
+    args.add("--ndb-nodeid=", m_nodeid);
+    return Mgmd::start(working_dir, args);
+  }
+};
 
 #define CHECK(x)                                            \
   if (!(x)) {                                               \
@@ -1119,7 +1138,8 @@ int runTestBug12352191(NDBT_Context* ctx, NDBT_Step* step)
   version.assfmt("%u", NDB_VERSION_D);
   BaseString mysql_version;
   mysql_version.assfmt("%u", NDB_MYSQL_VERSION_D);
-  BaseString address("127.0.0.1");
+  BaseString address_ipv4("127.0.0.1");
+  BaseString address_ipv6("::1");
 
   NDBT_Workingdir wd("test_mgmd"); // temporary working directory
 
@@ -1151,7 +1171,8 @@ int runTestBug12352191(NDBT_Context* ctx, NDBT_Step* step)
   CHECK(value_equal(status1, nodeid1, "status", "CONNECTED"));
   CHECK(value_equal(status1, nodeid1, "version", version.c_str()));
   CHECK(value_equal(status1, nodeid1, "mysql_version", mysql_version.c_str()));
-  CHECK(value_equal(status1, nodeid1, "address", address.c_str()));
+  CHECK(value_equal(status1, nodeid1, "address", address_ipv4.c_str()) ||
+        value_equal(status1, nodeid1, "address", address_ipv6.c_str()));
   CHECK(value_equal(status1, nodeid1, "startphase", "0"));
   CHECK(value_equal(status1, nodeid1, "dynamic_id", "0"));
   CHECK(value_equal(status1, nodeid1, "node_group", "0"));
@@ -1185,7 +1206,8 @@ int runTestBug12352191(NDBT_Context* ctx, NDBT_Step* step)
   CHECK(value_equal(status2, nodeid2, "status", "CONNECTED"));
   CHECK(value_equal(status2, nodeid2, "version", version.c_str()));
   CHECK(value_equal(status2, nodeid2, "mysql_version", mysql_version.c_str()));
-  CHECK(value_equal(status2, nodeid2, "address", address.c_str()));
+  CHECK(value_equal(status2, nodeid2, "address", address_ipv4.c_str()) ||
+        value_equal(status2, nodeid2, "address", address_ipv6.c_str()));
   CHECK(value_equal(status2, nodeid2, "startphase", "0"));
   CHECK(value_equal(status2, nodeid2, "dynamic_id", "0"));
   CHECK(value_equal(status2, nodeid2, "node_group", "0"));
@@ -1197,7 +1219,8 @@ int runTestBug12352191(NDBT_Context* ctx, NDBT_Step* step)
   CHECK(value_equal(status2, nodeid1, "status", "CONNECTED"));
   CHECK(value_equal(status2, nodeid1, "version", version.c_str()));
   CHECK(value_equal(status2, nodeid1, "mysql_version", mysql_version.c_str()));
-  CHECK(value_equal(status2, nodeid1, "address", address.c_str()));
+  CHECK(value_equal(status2, nodeid1, "address", address_ipv4.c_str()) ||
+        value_equal(status2, nodeid1, "address", address_ipv6.c_str()));
   CHECK(value_equal(status2, nodeid1, "startphase", "0"));
   CHECK(value_equal(status2, nodeid1, "dynamic_id", "0"));
   CHECK(value_equal(status2, nodeid1, "node_group", "0"));
@@ -1211,7 +1234,8 @@ int runTestBug12352191(NDBT_Context* ctx, NDBT_Step* step)
   CHECK(value_equal(status3, nodeid1, "status", "CONNECTED"));
   CHECK(value_equal(status3, nodeid1, "version", version.c_str()));
   CHECK(value_equal(status3, nodeid1, "mysql_version", mysql_version.c_str()));
-  CHECK(value_equal(status3, nodeid1, "address", address.c_str()));
+  CHECK(value_equal(status3, nodeid1, "address", address_ipv4.c_str()) ||
+        value_equal(status3, nodeid1, "address", address_ipv6.c_str()));
   CHECK(value_equal(status3, nodeid1, "startphase", "0"));
   CHECK(value_equal(status3, nodeid1, "dynamic_id", "0"));
   CHECK(value_equal(status3, nodeid1, "node_group", "0"));
@@ -1223,7 +1247,8 @@ int runTestBug12352191(NDBT_Context* ctx, NDBT_Step* step)
   CHECK(value_equal(status3, nodeid2, "status", "CONNECTED"));
   CHECK(value_equal(status3, nodeid2, "version", version.c_str()));
   CHECK(value_equal(status3, nodeid2, "mysql_version", mysql_version.c_str()));
-  CHECK(value_equal(status3, nodeid2, "address", address.c_str()));
+  CHECK(value_equal(status3, nodeid2, "address", address_ipv4.c_str()) ||
+        value_equal(status3, nodeid2, "address", address_ipv6.c_str()));
   CHECK(value_equal(status3, nodeid2, "startphase", "0"));
   CHECK(value_equal(status3, nodeid2, "dynamic_id", "0"));
   CHECK(value_equal(status3, nodeid2, "node_group", "0"));
@@ -1364,6 +1389,113 @@ runStopDuringStart(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+/* WL#13860: AllowUnresolvedHostnames=false (the default)
+   Check that MGM will not start up with unresolved hostname in configuration.
+*/
+int
+runTestUnresolvedHosts1(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NDBT_Workingdir wd("test_mgmd");
+
+  char hostname[200];
+  CHECK(gethostname(hostname, sizeof(hostname)) == 0);
+
+  Properties config, mgm, ndb, api;
+  mgm.put("NodeId", 1);
+  mgm.put("HostName", hostname);
+  mgm.put("PortNumber", ConfigFactory::get_ndbt_base_port() + /* mysqld */ 1);
+  ndb.put("NodeId", 2);
+  ndb.put("HostName", "xx-no-such-host.no.oracle.com.");
+  ndb.put("NoOfReplicas", 1);
+  api.put("NodeId", 3);
+  config.put("ndb_mgmd", 1, &mgm);
+  config.put("ndbd", 2, &ndb);
+  config.put("mysqld", 3, &api);
+
+  CHECK(ConfigFactory::write_config_ini(config,
+                                        path(wd.path(),
+                                             "config.ini",
+                                             NULL).c_str()));
+
+  Mgmd mgmd(1);
+  int exit_value;
+  CHECK(mgmd.start_from_config_ini(wd.path()));
+  CHECK(mgmd.wait(exit_value, 50));
+  CHECK(exit_value == 1);
+  return NDBT_OK;
+}
+
+/* WL#13860: AllowUnresolvedHostnames=true
+   This test uses a configuration with 144 data nodes, of which 143 have
+   unresolvable hostnames, and shows that the one data node with a usable
+   hostname succesfully connects, while a second data node with a bad hostname
+   times out (within 40 seconds) with failure to allocate node id.
+*/
+int
+runTestUnresolvedHosts2(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NDBT_Workingdir wd("test_mgmd");
+
+  char hostname[200];
+  CHECK(gethostname(hostname, sizeof(hostname)) == 0);
+
+  /* Create a configuration with AllowUnresolvedHostnames=true  */
+  Properties config, mgm, tcp, api;
+  mgm.put("NodeId", 145);
+  mgm.put("HostName", hostname);
+  mgm.put("PortNumber", ConfigFactory::get_ndbt_base_port() + /* mysqld */ 1);
+  tcp.put("AllowUnresolvedHostnames", "true");
+  api.put("NodeId", 151);
+  config.put("ndb_mgmd", 145, &mgm);
+  config.put("mysqld", 151, &api);
+  config.put("TCP DEFAULT", &tcp);
+
+  /* 144 data nodes. Node 1 has a good hostname.
+     The other 143 data nodes have unresolvable hostnames.
+  */
+  for(int i = 1 ; i <= 144 ; i++) {
+    Properties ndb;
+    ndb.put("NodeId", i);
+    ndb.put("NoOfReplicas", 4);
+    if(i == 1)
+      ndb.put("HostName", hostname);
+    else
+      ndb.put("HostName", "xx-no-such-host.no.oracle.com.");
+    config.put("ndbd", i, &ndb);
+  }
+
+  CHECK(ConfigFactory::write_config_ini(config,
+                                        path(wd.path(),
+                                             "config.ini",
+                                             NULL).c_str()));
+
+  /* Start the management node and data node 1 together, and expect this to
+     succeed despite the unresolvable host names and large configuration.
+  */
+  Mgmd mgmd(145);
+  Ndbd ndb1(1);
+  int ndbd_exit_code;
+
+  CHECK(ndb1.start(wd.path(), mgmd.connectstring(config))); // Start data node 1
+  CHECK(mgmd.start_from_config_ini(wd.path()));    // Start management node
+  CHECK(mgmd.connect(config));                     // Connect to management node
+  CHECK(mgmd.wait_confirmed_config());             // Wait for configuration
+
+  /* Start data node 2.
+     Expect it to run for at least 20 seconds, trying to allocate a node id.
+     But in the second 20-second interval, it will time out and shut down.
+  */
+  Ndbd ndb2(2);
+  CHECK(ndb2.start(wd.path(), mgmd.connectstring(config)));
+  CHECK(ndb2.wait(ndbd_exit_code, 200) == 0);   // first 20-second wait
+  CHECK(ndb2.wait(ndbd_exit_code, 200) == 1);   // second 20-second wait
+
+  /* Shut down the cluster */
+  ndb_mgm_stop2(mgmd.handle(), -1, 0, 0);
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testMgmd);
 DRIVER(DummyDriver); /* turn off use of NdbApi */
 
@@ -1436,6 +1568,14 @@ TESTCASE("Bug61607",
 TESTCASE("StopDuringStart", "")
 {
   INITIALIZER(runStopDuringStart);
+}
+TESTCASE("UnresolvedHosts1","Test mgmd failure due to unresolvable hostname")
+{
+  INITIALIZER(runTestUnresolvedHosts1);
+}
+TESTCASE("UnresolvedHosts2","Test mgmd with AllowUnresolvedHostnames=true")
+{
+  INITIALIZER(runTestUnresolvedHosts2);
 }
 
 NDBT_TESTSUITE_END(testMgmd)

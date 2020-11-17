@@ -33,6 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef trx0purge_h
 #define trx0purge_h
 
+#include <unordered_set>
 #include "fil0fil.h"
 #include "mtr0mtr.h"
 #include "page0page.h"
@@ -170,7 +171,7 @@ undo number.
 inline space_id_t num2id(space_id_t space_num, size_t ndx) {
   ut_ad(space_num > 0);
   ut_ad(space_num <= FSP_MAX_UNDO_TABLESPACES);
-  ut_ad(ndx < dict_sys_t::undo_space_id_range);
+  ut_ad(ndx < dict_sys_t::s_undo_space_id_range);
 
   space_id_t space_id = dict_sys_t::s_max_undo_space_id + 1 - space_num -
                         static_cast<space_id_t>(ndx * FSP_MAX_UNDO_TABLESPACES);
@@ -207,7 +208,7 @@ In addition, the first space IDs for each undo number occur sequentionally
 and descending before the second space_id.
 
 Since s_max_undo_space_id = 0xFFFFFFEF, FSP_MAX_UNDO_TABLESPACES = 127
-and undo_space_id_range = 512:
+and s_undo_space_id_range = 400,000:
   Space ID   Space Num    Space ID   Space Num   ...  Space ID   Space Num
   0xFFFFFFEF      1       0xFFFFFFEe       2     ...  0xFFFFFF71    127
   0xFFFFFF70      1       0xFFFFFF6F       2     ...  0xFFFFFEF2    127
@@ -237,7 +238,7 @@ inline space_id_t id2next_id(space_id_t space_id) {
   space_id_t space_num = id2num(space_id);
   space_id_t first_id = dict_sys_t::s_max_undo_space_id + 1 - space_num;
   space_id_t last_id = first_id - (FSP_MAX_UNDO_TABLESPACES *
-                                   (dict_sys_t::undo_space_id_range - 1));
+                                   (dict_sys_t::s_undo_space_id_range - 1));
 
   return (space_id == SPACE_UNKNOWN || space_id == last_id
               ? first_id
@@ -282,9 +283,9 @@ space number.
 space_id_t next_space_id(space_id_t space_id);
 
 /** Return the next available undo space ID to be used for a new explicit
-undo tablespaces.
-@retval if success, next available undo space number.
-@retval if failure, SPACE_UNKNOWN */
+undo tablespaces. The slot will be marked as in-use.
+@return next available undo space number if successful.
+@return SPACE_UNKNOWN if failed */
 space_id_t get_next_available_space_num();
 
 /** Build a standard undo tablespace name from a space_id.
@@ -293,6 +294,8 @@ space_id_t get_next_available_space_num();
 char *make_space_name(space_id_t space_id);
 
 /** Build a standard undo tablespace file name from a space_id.
+This will create a name like 'undo_001' if the space_id is in the
+reserved range, else it will be like 'undo001'.
 @param[in]	space_id	id of the undo tablespace.
 @return file_name of the undo tablespace file */
 char *make_file_name(space_id_t space_id);
@@ -1045,6 +1048,9 @@ struct trx_purge_t {
 
   /** Heap for reading the undo log records */
   mem_heap_t *heap;
+
+  /** Set of all THDs allocated by the purge system. */
+  ut::unordered_set<THD *> thds;
 };
 
 /** Choose the rollback segment with the smallest trx_no. */

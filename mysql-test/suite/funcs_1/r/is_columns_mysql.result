@@ -114,6 +114,11 @@ def	mysql	proxies_priv	Proxied_user	4		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bi
 def	mysql	proxies_priv	With_grant	5	0	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)			select,insert,update,references			NULL
 def	mysql	proxies_priv	Grantor	6		NO	varchar	288	864	NULL	NULL	NULL	utf8	utf8_bin	varchar(288)	MUL		select,insert,update,references			NULL
 def	mysql	proxies_priv	Timestamp	7	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		DEFAULT_GENERATED on update CURRENT_TIMESTAMP	select,insert,update,references			NULL
+def	mysql	replication_asynchronous_connection_failover	Channel_name	1	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references	The replication channel name that connects source and replica.		NULL
+def	mysql	replication_asynchronous_connection_failover	Host	2	NULL	NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references	The source hostname that the replica will attempt to switch over the replication connection to in case of a failure.		NULL
+def	mysql	replication_asynchronous_connection_failover	Port	3	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned	PRI		select,insert,update,references	The source port that the replica will attempt to switch over the replication connection to in case of a failure.		NULL
+def	mysql	replication_asynchronous_connection_failover	Network_namespace	4	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references	The source network namespace that the replica will attempt to switch over the replication connection to in case of a failure. If its value is empty, connections use the default (global) namespace.		NULL
+def	mysql	replication_asynchronous_connection_failover	Weight	5	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint unsigned			select,insert,update,references	The order in which the replica shall try to switch the connection over to when there are failures. Weight can be set to a number between 1 and 100, where 100 is the highest weight and 1 the lowest.		NULL
 def	mysql	role_edges	FROM_HOST	1		NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references			NULL
 def	mysql	role_edges	FROM_USER	2		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)	PRI		select,insert,update,references			NULL
 def	mysql	role_edges	TO_HOST	3		NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references			NULL
@@ -164,6 +169,7 @@ def	mysql	slave_master_info	Network_namespace	28	NULL	YES	text	65535	65535	NULL	
 def	mysql	slave_master_info	Master_compression_algorithm	29	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)			select,insert,update,references	Compression algorithm supported for data transfer between master and slave.		NULL
 def	mysql	slave_master_info	Master_zstd_compression_level	30	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select,insert,update,references	Compression level associated with zstd compression algorithm.		NULL
 def	mysql	slave_master_info	Tls_ciphersuites	31	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	Ciphersuites used for TLS 1.3 communication with the master server.		NULL
+def	mysql	slave_master_info	Source_connection_auto_failover	32	0	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)			select,insert,update,references	Indicates whether the channel connection failover is enabled.		NULL
 def	mysql	slave_relay_log_info	Number_of_lines	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select,insert,update,references	Number of lines in the file or rows in the table. Used to version table definitions.		NULL
 def	mysql	slave_relay_log_info	Relay_log_name	2	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	The name of the current relay log file.		NULL
 def	mysql	slave_relay_log_info	Relay_log_pos	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references	The relay log position of the last executed event.		NULL
@@ -455,6 +461,11 @@ NULL	mysql	procs_priv	Timestamp	timestamp	NULL	NULL	NULL	NULL	timestamp
 NULL	mysql	proxies_priv	With_grant	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
 3.0000	mysql	proxies_priv	Grantor	varchar	288	864	utf8	utf8_bin	varchar(288)
 NULL	mysql	proxies_priv	Timestamp	timestamp	NULL	NULL	NULL	NULL	timestamp
+3.0000	mysql	replication_asynchronous_connection_failover	Channel_name	char	64	192	utf8	utf8_general_ci	char(64)
+1.0000	mysql	replication_asynchronous_connection_failover	Host	char	255	255	ascii	ascii_general_ci	char(255)
+NULL	mysql	replication_asynchronous_connection_failover	Port	int	NULL	NULL	NULL	NULL	int unsigned
+3.0000	mysql	replication_asynchronous_connection_failover	Network_namespace	char	64	192	utf8	utf8_general_ci	char(64)
+NULL	mysql	replication_asynchronous_connection_failover	Weight	tinyint	NULL	NULL	NULL	NULL	tinyint unsigned
 1.0000	mysql	role_edges	FROM_HOST	char	255	255	ascii	ascii_general_ci	char(255)
 3.0000	mysql	role_edges	FROM_USER	char	32	96	utf8	utf8_bin	char(32)
 1.0000	mysql	role_edges	TO_HOST	char	255	255	ascii	ascii_general_ci	char(255)
@@ -505,6 +516,7 @@ NULL	mysql	slave_master_info	Get_public_key	tinyint	NULL	NULL	NULL	NULL	tinyint(
 3.0000	mysql	slave_master_info	Master_compression_algorithm	char	64	192	utf8	utf8_bin	char(64)
 NULL	mysql	slave_master_info	Master_zstd_compression_level	int	NULL	NULL	NULL	NULL	int unsigned
 1.0000	mysql	slave_master_info	Tls_ciphersuites	text	65535	65535	utf8	utf8_bin	text
+NULL	mysql	slave_master_info	Source_connection_auto_failover	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
 NULL	mysql	slave_relay_log_info	Number_of_lines	int	NULL	NULL	NULL	NULL	int unsigned
 1.0000	mysql	slave_relay_log_info	Relay_log_name	text	65535	65535	utf8	utf8_bin	text
 NULL	mysql	slave_relay_log_info	Relay_log_pos	bigint	NULL	NULL	NULL	NULL	bigint unsigned

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,13 +43,13 @@ class LoggingDebuggingSystemTest : public GcsBaseTestNoLogging {
   LoggingDebuggingSystemTest()
       : common_sink(nullptr), logger(nullptr), debugger(nullptr) {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     common_sink = new Gcs_async_buffer(new Mock_gcs_log_sink());
     logger = new Gcs_default_logger(common_sink);
     debugger = new Gcs_default_debugger(common_sink);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     Gcs_log_manager::finalize();
 
     delete logger;
@@ -119,8 +119,8 @@ TEST_F(LoggingDebuggingSystemTest, DefaultLifecycle) {
 
   // just to make the log entries count below deterministic, otherwise,
   // there would be additional info messages due to automatically adding
-  // addresses to the whitelist
-  if_params.add_parameter("ip_whitelist", Gcs_ip_whitelist::DEFAULT_WHITELIST);
+  // addresses to the allowlist
+  if_params.add_parameter("ip_allowlist", Gcs_ip_allowlist::DEFAULT_ALLOWLIST);
 
   Gcs_interface *xcom_if = Gcs_xcom_interface::get_interface();
   enum_gcs_error initialized = xcom_if->initialize(if_params);

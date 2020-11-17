@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,7 @@
 #include <ConfigRetriever.hpp>
 
 #include <EventLogger.hpp>
+#include <NdbTCP.h>
 extern EventLogger * g_eventLogger;
 
 static void
@@ -107,7 +108,7 @@ reportShutdown(const ndb_mgm_configuration* config,
       continue;
 
     BaseString connect_str;
-    connect_str.assfmt("%s:%d", hostname, port);
+    connect_str.assfmt("%s %d", hostname, port);
 
 
     NdbMgmHandle h = ndb_mgm_create_handle();
@@ -587,9 +588,11 @@ angel_run(const char* progname,
                          "error: '%s'", retriever.getErrorString());
     angel_exit(1);
   }
-  g_eventLogger->info("Angel connected to '%s:%d'",
-                      retriever.get_mgmd_host(),
-                      retriever.get_mgmd_port());
+
+  char buf[512];
+  char* sockaddr_string = Ndb_combine_address_port(buf, sizeof(buf), retriever.get_mgmd_host(),
+                           retriever.get_mgmd_port());
+  g_eventLogger->info("Angel connected to '%s'", sockaddr_string);
 
   const int alloc_retries = 10;
   const int alloc_delay = 3;

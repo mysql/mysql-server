@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -82,7 +82,7 @@ class Dictionary_impl : public Dictionary {
   Dictionary_impl() {}
 
  public:
-  virtual ~Dictionary_impl() {}
+  ~Dictionary_impl() override {}
 
  public:
   static uint get_target_dd_version();
@@ -105,34 +105,34 @@ class Dictionary_impl : public Dictionary {
 
   uint set_ndbinfo_schema_version(THD *thd, uint version);
 
-  virtual const Object_table *get_dd_table(const String_type &schema_name,
-                                           const String_type &table_name) const;
+  const Object_table *get_dd_table(
+      const String_type &schema_name,
+      const String_type &table_name) const override;
 
  public:
-  virtual bool is_dd_schema_name(const String_type &schema_name) const {
+  bool is_dd_schema_name(const String_type &schema_name) const override {
     return (schema_name == MYSQL_SCHEMA_NAME.str);
   }
 
-  virtual bool is_dd_table_name(const String_type &schema_name,
-                                const String_type &table_name) const;
+  bool is_dd_table_name(const String_type &schema_name,
+                        const String_type &table_name) const override;
 
-  virtual bool is_system_table_name(const String_type &schema_name,
-                                    const String_type &table_name) const;
+  bool is_system_table_name(const String_type &schema_name,
+                            const String_type &table_name) const override;
 
-  virtual int table_type_error_code(const String_type &schema_name,
-                                    const String_type &table_name) const;
+  int table_type_error_code(const String_type &schema_name,
+                            const String_type &table_name) const override;
 
-  virtual bool is_dd_table_access_allowed(bool is_dd_internal_thread,
-                                          bool is_ddl_statement,
-                                          const char *schema_name,
-                                          size_t schema_length,
-                                          const char *table_name) const;
+  bool is_dd_table_access_allowed(bool is_dd_internal_thread,
+                                  bool is_ddl_statement,
+                                  const char *schema_name, size_t schema_length,
+                                  const char *table_name) const override;
 
-  virtual bool is_system_view_name(const char *schema_name,
-                                   const char *table_name, bool *hidden) const;
+  bool is_system_view_name(const char *schema_name, const char *table_name,
+                           bool *hidden) const override;
 
-  virtual bool is_system_view_name(const char *schema_name,
-                                   const char *table_name) const {
+  bool is_system_view_name(const char *schema_name,
+                           const char *table_name) const override {
     bool hidden;
     return is_system_view_name(schema_name, table_name, &hidden);
   }

@@ -14,7 +14,7 @@ EXPLAIN FORMAT=tree
 SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
 EXPLAIN
 -> Sort: t1.col1
-    -> Stream results
+    -> Stream results  (cost=2.50 rows=4)
         -> Inner hash join (t2.col1 = t1.col1)  (cost=2.50 rows=4)
             -> Table scan on t2  (cost=0.09 rows=4)
             -> Hash
@@ -38,7 +38,7 @@ EXPLAIN FORMAT=tree
 SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
 EXPLAIN
 -> Sort: t1.col1
-    -> Stream results
+    -> Stream results  (cost=2.50 rows=4)
         -> Inner hash join (cast(t1.col1 as double) = cast(t2.col1 as double))  (cost=2.50 rows=4)
             -> Table scan on t2  (cost=0.09 rows=4)
             -> Hash
@@ -571,8 +571,8 @@ test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree
 SELECT * FROM t1 WHERE (t1.i) IN  (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 EXPLAIN
--> Constant row from <subquery2>
-    -> Materialize with deduplication
+-> Constant row from <subquery2>  (cost=0.00 rows=1)
+    -> Materialize with deduplication  (cost=1.10 rows=0)
         -> Filter: (t3.i is not null)  (cost=1.10 rows=0)
             -> Inner hash join (no condition)  (cost=1.10 rows=0)
                 -> Filter: (t3.i = '2')  (cost=0.50 rows=0)
@@ -762,7 +762,7 @@ GROUP BY
 field1;
 EXPLAIN
 -> Table scan on <temporary>
-    -> Temporary table with deduplication
+    -> Temporary table with deduplication  (cost=4.65 rows=27)
         -> Inner hash join (no condition)  (cost=4.65 rows=27)
             -> Index scan on alias1 using idx_CC_col_varchar_key  (cost=0.18 rows=3)
             -> Hash
@@ -812,8 +812,8 @@ EXPLAIN
 -> Inner hash join (no condition)  (cost=*** rows=5)
     -> Table scan on t2  (cost=*** rows=5)
     -> Hash
-        -> Filter: json'"1"' member of (cast(json_extract(t1.col_json,_utf8mb4'$[*]') as char(40) array))  (cost=*** rows=1)
-            -> Index lookup on t1 using mv_idx (cast(json_extract(t1.col_json,_utf8mb4'$[*]') as char(40) array)=json'"1"')  (cost=*** rows=1)
+        -> Filter: json'"1"' member of (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array))  (cost=*** rows=1)
+            -> Index lookup on t1 using mv_idx (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array)=json'"1"')  (cost=*** rows=1)
 
 SELECT t1.col_int_key AS field1, t2.col_int AS field2 FROM t2
 JOIN t1 ON 1 WHERE (CAST("1" AS JSON) MEMBER OF( t1.col_json->'$[*]'));
@@ -1219,17 +1219,17 @@ sq2_alias1.col_varchar_key != alias2.col_varchar
 AND sq2_alias1.col_int > alias2.pk
 );
 EXPLAIN
--> Remove duplicate (alias2, alias3, alias1) rows using temporary table (weedout)
-    -> Nested loop inner join
-        -> Filter: ((sq2_alias1.col_varchar_key <> alias2.col_varchar) and (sq2_alias1.col_int > alias2.pk))
-            -> Inner hash join (no condition)
+-> Remove duplicate (alias2, alias3, alias1) rows using temporary table (weedout)  (cost=5.06 rows=3)
+    -> Nested loop inner join  (cost=5.06 rows=3)
+        -> Filter: ((sq2_alias1.col_varchar_key <> alias2.col_varchar) and (sq2_alias1.col_int > alias2.pk))  (cost=1.80 rows=2)
+            -> Inner hash join (no condition)  (cost=1.80 rows=2)
                 -> Filter: (sq2_alias1.col_varchar is not null)  (cost=0.43 rows=6)
                     -> Table scan on sq2_alias1  (cost=0.43 rows=20)
                 -> Hash
-                    -> Nested loop inner join
+                    -> Nested loop inner join  (cost=0.95 rows=1)
                         -> Table scan on alias2  (cost=0.35 rows=1)
                         -> Index lookup on alias3 using <auto_key0> (col_int_key=alias2.col_int_key, col_varchar_key=alias2.col_varchar_key)
-                            -> Materialize
+                            -> Materialize  (cost=0.35 rows=1)
                                 -> Table scan on sq1_alias1  (cost=0.35 rows=1)
         -> Index lookup on alias1 using idx (col_varchar_key=sq2_alias1.col_varchar)  (cost=0.26 rows=1)
 
@@ -1509,18 +1509,18 @@ EXPLAIN
     -> Sort: alias1.col_int_key DESC, alias1.pk
         -> Filter: (field1 <> 0)
             -> Table scan on <temporary>
-                -> Temporary table with deduplication
-                    -> Remove duplicate alias1 rows using temporary table (weedout)
-                        -> Inner hash join (no condition)
+                -> Temporary table with deduplication  (cost=114.30 rows=936)
+                    -> Remove duplicate alias1 rows using temporary table (weedout)  (cost=114.30 rows=936)
+                        -> Inner hash join (no condition)  (cost=114.30 rows=936)
                             -> Index scan on sq2_alias2 using col_date_key  (cost=1.93 rows=20)
                             -> Hash
-                                -> Nested loop inner join
+                                -> Nested loop inner join  (cost=20.45 rows=47)
                                     -> Filter: (sq2_alias1.col_varchar_key is not null)  (cost=2.25 rows=20)
                                         -> Index scan on sq2_alias1 using col_varchar_key  (cost=2.25 rows=20)
-                                    -> Filter: (sq2_alias1.col_varchar_key <> alias1.col_varchar)
+                                    -> Filter: (sq2_alias1.col_varchar_key <> alias1.col_varchar)  (cost=0.66 rows=2)
                                         -> Index lookup on alias1 using <auto_key0> (col_varchar_key=sq2_alias1.col_varchar_key)
-                                            -> Materialize
-                                                -> Limit: 100 row(s)
+                                            -> Materialize  (cost=9.92 rows=27)
+                                                -> Limit: 100 row(s)  (cost=9.92 rows=27)
                                                     -> Nested loop left join  (cost=9.92 rows=27)
                                                         -> Table scan on sq1_alias2  (cost=2.25 rows=20)
                                                         -> Index lookup on sq1_alias1 using col_varchar_key (col_varchar_key=sq1_alias2.col_varchar_key)  (cost=0.26 rows=1)
@@ -1628,16 +1628,16 @@ FROM
 b AS subquery3_t1
 );
 EXPLAIN
--> Nested loop left join
+-> Nested loop left join  (cost=1.50 rows=2)
     -> Inner hash join (subquery1_t2.col_varchar = subquery1_t1.col_varchar)  (cost=0.80 rows=1)
         -> Table scan on subquery1_t2  (cost=0.35 rows=2)
         -> Hash
             -> Table scan on subquery1_t1  (cost=0.35 rows=1)
-    -> Nested loop semijoin
+    -> Nested loop semijoin  (cost=0.90 rows=2)
         -> Index lookup on table2 using <auto_key0> (col_varchar=subquery1_t1.col_varchar)
-            -> Materialize
+            -> Materialize  (cost=0.45 rows=2)
                 -> Table scan on <temporary>
-                    -> Temporary table with deduplication
+                    -> Temporary table with deduplication  (cost=0.45 rows=2)
                         -> Table scan on subquery2_t1  (cost=0.45 rows=2)
         -> Filter: (subquery1_t1.col_varchar = lower(subquery3_t1.pk))  (cost=0.18 rows=1)
             -> Index scan on subquery3_t1 using PRIMARY  (cost=0.18 rows=1)
@@ -1762,7 +1762,7 @@ FROM t1
 JOIN t2 ON t1.col1 = t2.col1
 WHERE t2.col2 > 0 OR t2.col3 > 0 LIMIT 10;
 EXPLAIN
--> Limit: 10 row(s)
+-> Limit: 10 row(s)  (cost=1.86 rows=1)
     -> Inner hash join (t1.col1 = t2.col1)  (cost=1.86 rows=1)
         -> Table scan on t1  (cost=0.35 rows=1)
         -> Hash
@@ -1799,15 +1799,8 @@ t1
 WHERE table1.col1 = 1
 LIMIT 50;
 EXPLAIN
--> Limit: 50 row(s)
-    -> Inner hash join (no condition)
-        -> Table scan on t2  (cost=0.35 rows=1)
-        -> Hash
-            -> Index lookup on table1 using <auto_key0> (col1=1)
-                -> Materialize
-                    -> Table scan on <temporary>
-                        -> Temporary table with deduplication
-                            -> Table scan on t1  (cost=0.35 rows=1)
+-> Limit: 50 row(s)  (cost=0.35 rows=1)
+    -> Table scan on t2  (cost=0.35 rows=1)
 
 SELECT /*+ JOIN_ORDER(table1, t2) */
 *
@@ -1948,15 +1941,15 @@ INNER JOIN t1 AS t1_2 ON t1_2.col1 = t1.col1
 WHERE t1.col1 <> t2.col1
 ) AND t2.col1 < 49;
 EXPLAIN
--> Nested loop antijoin
-    -> Inner hash join (no condition)
+-> Nested loop antijoin  (cost=7.30 rows=34)
+    -> Inner hash join (no condition)  (cost=3.65 rows=34)
         -> Filter: (t2.col1 < 49)  (cost=0.98 rows=17)
             -> Index scan on t2 using idx  (cost=0.98 rows=17)
         -> Hash
-            -> Table scan on const_table
-                -> Materialize
-                    -> Rows fetched before execution
-    -> Limit: 1 row(s)
+            -> Table scan on const_table  (cost=2.73 rows=2)
+                -> Materialize  (cost=0.00 rows=2)
+                    -> Rows fetched before execution  (cost=0.00 rows=2)
+    -> Limit: 1 row(s)  (cost=8.61 rows=1)
         -> Nested loop inner join  (cost=8.61 rows=1)
             -> Filter: (t1.col1 <> t2.col1)  (cost=0.01 rows=1)
                 -> Index scan on t1 using idx  (cost=0.01 rows=1)
@@ -2038,12 +2031,12 @@ WHERE t2.pk = 9
 EXPLAIN
 -> Table scan on t1  (cost=0.45 rows=2)
 -> Select #2 (subquery in projection; dependent)
-    -> Inner hash join (no condition)
+    -> Inner hash join (no condition)  (cost=0.70 rows=1)
         -> Filter: (t4.pk = 9)  (cost=0.35 rows=1)
             -> Table scan on t4  (cost=0.35 rows=1)
         -> Hash
-            -> Nested loop left join
-                -> Rows fetched before execution
+            -> Nested loop left join  (cost=0.35 rows=1)
+                -> Rows fetched before execution  (cost=0.00 rows=1)
                 -> Filter: (t3.pk = 9)  (cost=0.35 rows=1)
                     -> Table scan on t3  (cost=0.35 rows=1)
 
@@ -2850,7 +2843,7 @@ test.t2	analyze	status	OK
 SET join_buffer_size = 128;
 EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1 LIMIT 1000;
 EXPLAIN
--> Limit: 1000 row(s)
+-> Limit: 1000 row(s)  (cost=1907.45 rows=1000)
     -> Filter: (t1.col1 = convert(t2.col1 using utf8mb4))  (cost=1907.45 rows=16384)
         -> Inner hash join (<hash>(t1.col1)=<hash>(convert(t2.col1 using utf8mb4)))  (cost=1907.45 rows=16384)
             -> Table scan on t2  (cost=2.10 rows=128)
@@ -3063,7 +3056,7 @@ ON t2.col1 = t1.col1
 ORDER BY t1.col1, t2.col1, t3.col1;
 EXPLAIN
 -> Sort: t1.col1, t2.col1, t3.col1
-    -> Stream results
+    -> Stream results  (cost=1.36 rows=6)
         -> Left hash join (t2.col1 = t1.col1)  (cost=1.36 rows=6)
             -> Table scan on t1  (cost=0.55 rows=3)
             -> Hash
@@ -3204,7 +3197,7 @@ LEFT JOIN t1 ON tt.t = 'crash2' AND tt.f2 = t1.f2
 WHERE
 tt.t = 'crash1';
 EXPLAIN
--> Left hash join (t1.f2 = t1.f2)  (cost=0.25 rows=0)
+-> Left hash join (no condition)  (cost=0.25 rows=0)
     -> Table scan on t1  (cost=0.45 rows=2)
     -> Hash
         -> Zero rows (Impossible filter)  (cost=0.00 rows=0)
@@ -3365,7 +3358,7 @@ test.t2	analyze	status	OK
 SET join_buffer_size = 128;
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1 LIMIT 1000;
 EXPLAIN
--> Limit: 1000 row(s)
+-> Limit: 1000 row(s)  (cost=1896.50 rows=1000)
     -> Left hash join (<hash>(t1.col1)=<hash>(convert(t2.col1 using utf8mb4))), extra conditions: (t1.col1 = convert(t2.col1 using utf8mb4))  (cost=1896.50 rows=16384)
         -> Table scan on t1  (cost=13.05 rows=128)
         -> Hash
@@ -3386,12 +3379,12 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON NOT EXISTS (
 SELECT * FROM t1 WHERE alias1.pk NOT IN ( 20 ) );
 EXPLAIN
--> Nested loop left join
+-> Nested loop left join  (cost=42.50 rows=400)
     -> Index scan on alias1 using PRIMARY  (cost=2.25 rows=20)
-    -> Hash antijoin (no condition)
+    -> Hash antijoin (no condition)  (cost=2.37 rows=20)
         -> Index scan on alias2 using PRIMARY  (cost=0.11 rows=20)
         -> Hash
-            -> Limit: 1 row(s)
+            -> Limit: 1 row(s)  (cost=0.11 rows=1)
                 -> Filter: (alias1.pk <> 20)  (cost=0.11 rows=20)
                     -> Index scan on t1 using PRIMARY  (cost=0.11 rows=20)
 
@@ -3448,13 +3441,13 @@ INSERT INTO t1 VALUES ( 100 ), ( 200 );
 EXPLAIN FORMAT=tree SELECT * FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON alias2.f1 = alias1.f1
 AND NOT EXISTS ( SELECT * FROM t1 AS alias3 WHERE alias1.f1 <= 1 );
 EXPLAIN
--> Nested loop left join
+-> Nested loop left join  (cost=1.10 rows=4)
     -> Table scan on alias1  (cost=0.45 rows=2)
-    -> Filter: (alias2.f1 = alias1.f1)
-        -> Hash antijoin (no condition)
+    -> Filter: (alias2.f1 = alias1.f1)  (cost=0.68 rows=2)
+        -> Hash antijoin (no condition)  (cost=0.68 rows=2)
             -> Table scan on alias2  (cost=0.23 rows=2)
             -> Hash
-                -> Limit: 1 row(s)
+                -> Limit: 1 row(s)  (cost=0.23 rows=1)
                     -> Filter: (alias1.f1 <= 1)  (cost=0.23 rows=2)
                         -> Table scan on alias3  (cost=0.23 rows=2)
 
@@ -3696,7 +3689,7 @@ RIGHT JOIN t AS d ON 1
 ) AS z
 NATURAL RIGHT JOIN t;
 EXPLAIN
--> Left hash join (1 = t.c)  (cost=1.83 rows=1)
+-> Left hash join (t.c = 1)  (cost=1.83 rows=1)
     -> Table scan on t  (cost=0.35 rows=1)
     -> Hash
         -> Left hash join (no condition)  (cost=1.46 rows=1)
@@ -3802,11 +3795,42 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN ANALYZE SELECT t1.a FROM t1 LEFT JOIN t1 AS t2 ON TRUE WHERE t2.a IS NULL;
 EXPLAIN
--> Filter: (t2.a is null)  (actual time=N.NNN..N.NNN rows=0 loops=1)
-    -> Hash antijoin (no condition)  (actual time=N.NNN..N.NNN rows=0 loops=1)
+-> Filter: (t2.a is null)  (cost=1.30 rows=1) (actual time=N.NNN..N.NNN rows=0 loops=1)
+    -> Hash antijoin (no condition)  (cost=1.30 rows=1) (actual time=N.NNN..N.NNN rows=0 loops=1)
         -> Table scan on t1  (cost=0.75 rows=5) (never executed)
         -> Hash
-            -> Limit: 1 row(s)  (actual time=N.NNN..N.NNN rows=1 loops=1)
+            -> Limit: 1 row(s)  (cost=0.15 rows=1) (actual time=N.NNN..N.NNN rows=1 loops=1)
                 -> Table scan on t2  (cost=0.15 rows=5) (actual time=N.NNN..N.NNN rows=1 loops=1)
 
+DROP TABLE t1;
+#
+# Bug #31563414: REGRESSION: ITEM_FUNC_EQ::APPEND_JOIN_KEY_FOR_HASH_JOIN CONST: ASSERTION `FALSE' FAILED.
+#
+CREATE TABLE t1 (a INTEGER NOT NULL);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT *
+FROM t1 AS a
+LEFT JOIN t1 AS b ON FALSE
+LEFT JOIN t1 AS c ON b.a=c.a;
+EXPLAIN
+-> Left hash join (no condition)  (cost=0.25 rows=0)
+    -> Left hash join (no condition)  (cost=0.25 rows=0)
+        -> Table scan on a  (cost=0.65 rows=4)
+        -> Hash
+            -> Zero rows (Impossible filter)  (cost=0.00 rows=0)
+    -> Hash
+        -> Zero rows (Join condition (c.a = b.a) requires pruned table)  (cost=0.00 rows=0)
+
+SELECT *
+FROM t1 AS a
+LEFT JOIN t1 AS b ON FALSE
+LEFT JOIN t1 AS c ON b.a=c.a;
+a	a	a
+1	NULL	NULL
+2	NULL	NULL
+3	NULL	NULL
+4	NULL	NULL
 DROP TABLE t1;

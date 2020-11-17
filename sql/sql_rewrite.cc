@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1219,18 +1219,10 @@ bool Rewriter_grant::rewrite(String &rlb) const {
     user_name = get_current_user(m_thd, tmp_user_name);
     if (user_name) append_auth_id(m_thd, user_name, comma, &rlb);
   } else if (first_table) {
-    if (first_table->is_view()) {
-      append_identifier(m_thd, &rlb, first_table->view_db.str,
-                        first_table->view_db.length);
-      rlb.append(STRING_WITH_LEN("."));
-      append_identifier(m_thd, &rlb, first_table->view_name.str,
-                        first_table->view_name.length);
-    } else {
-      append_identifier(m_thd, &rlb, first_table->db, strlen(first_table->db));
-      rlb.append(STRING_WITH_LEN("."));
-      append_identifier(m_thd, &rlb, first_table->table_name,
-                        strlen(first_table->table_name));
-    }
+    append_identifier(m_thd, &rlb, first_table->db, strlen(first_table->db));
+    rlb.append(STRING_WITH_LEN("."));
+    append_identifier(m_thd, &rlb, first_table->table_name,
+                      strlen(first_table->table_name));
   } else {
     if (lex->current_select()->db)
       append_identifier(m_thd, &rlb, lex->current_select()->db,
@@ -1410,6 +1402,16 @@ bool Rewriter_change_master::rewrite(String &rlb) const {
   comma = append_int(
       &rlb, comma, STRING_WITH_LEN("MASTER_ZSTD_COMPRESSION_LEVEL = "),
       lex->mi.zstd_compression_level, lex->mi.zstd_compression_level != 0);
+
+  // SOURCE_CONNECTION_AUTO_FAILOVER
+  comma = append_int(&rlb, comma,
+                     STRING_WITH_LEN("SOURCE_CONNECTION_AUTO_FAILOVER ="),
+                     (lex->mi.m_source_connection_auto_failover ==
+                      LEX_MASTER_INFO::LEX_MI_ENABLE)
+                         ? 1
+                         : 0,
+                     lex->mi.m_source_connection_auto_failover !=
+                         LEX_MASTER_INFO::LEX_MI_UNCHANGED);
 
   /* channel options -- no preceding comma here! */
   if (lex->mi.for_channel)

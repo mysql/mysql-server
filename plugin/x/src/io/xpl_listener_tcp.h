@@ -48,7 +48,6 @@ class Listener_tcp : public iface::Listener {
                const uint32_t backlog);
   ~Listener_tcp() override;
 
-  void set_state(const State state) override;
   const Sync_variable_state &get_state() const override;
   std::string get_configuration_variable() const override;
 

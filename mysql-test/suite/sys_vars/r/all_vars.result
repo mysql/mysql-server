@@ -53,6 +53,12 @@ regexp_stack_limit
 regexp_time_limit
 regexp_time_limit
 resultset_metadata
+select_into_buffer_size
+select_into_buffer_size
+select_into_disk_sync
+select_into_disk_sync
+select_into_disk_sync_delay
+select_into_disk_sync_delay
 sql_require_primary_key
 sql_require_primary_key
 temptable_use_mmap

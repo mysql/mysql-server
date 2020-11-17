@@ -1,3 +1,4 @@
+RESET MASTER;
 #
 # 1. Add some data to be present in the binlog and flush it.
 CREATE TABLE t1 (c01 BIT);

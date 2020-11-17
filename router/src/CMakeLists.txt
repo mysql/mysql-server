@@ -22,6 +22,7 @@
 
 ADD_SUBDIRECTORY(harness)
 ADD_SUBDIRECTORY(http)
+ADD_SUBDIRECTORY(io)
 ADD_SUBDIRECTORY(json_schema_embedder)
 ADD_SUBDIRECTORY(keepalive)
 ADD_SUBDIRECTORY(metadata_cache)

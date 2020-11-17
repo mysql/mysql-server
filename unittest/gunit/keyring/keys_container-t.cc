@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,7 @@ class Keys_container_test : public ::testing::Test {
   Keys_container_test() : file_name("./keyring") {}
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     sample_key_data = "Robi";
     sample_key = new Key("Roberts_key", "AES", "Robert",
                          sample_key_data.c_str(), sample_key_data.length() + 1);
@@ -76,7 +76,7 @@ class Keys_container_test : public ::testing::Test {
     logger = new Mock_logger();
     keys_container = new Keys_container(logger);
   }
-  virtual void TearDown() {
+  void TearDown() override {
     remove(file_name.c_str());
     delete keys_container;
     delete logger;
@@ -433,7 +433,7 @@ class Keys_container_test_dont_close : public ::testing::Test {
   Keys_container_test_dont_close() : file_name("./keyring") {}
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     sample_key_data = "Robi";
     sample_key = new Key("Roberts_key", "AES", "Robert",
                          sample_key_data.c_str(), sample_key_data.length() + 1);
@@ -447,7 +447,7 @@ class Keys_container_test_dont_close : public ::testing::Test {
     remove("./keyring.backup");
     remove("./keyring.backup.backup");
   }
-  virtual void TearDown() { remove(file_name.c_str()); }
+  void TearDown() override { remove(file_name.c_str()); }
   void generate_malformed_keyring_file_without_tag(const char *file_name);
 
  protected:
@@ -851,14 +851,14 @@ class Mock_serializer : public ISerializer {
 
 class Keys_container_with_mocked_io_test : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     std::string sample_key_data("Robi");
     sample_key = new Key("Roberts_key", "AES", "Robert",
                          sample_key_data.c_str(), sample_key_data.length() + 1);
 
     file_name = "/home/rob/write_key";
   }
-  virtual void TearDown() {
+  void TearDown() override {
     remove(file_name.c_str());
     delete keys_container;
   }

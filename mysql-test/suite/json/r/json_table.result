@@ -906,13 +906,13 @@ DEALLOCATE PREPARE stmt;
 CREATE TABLE t1 (id INT, jc JSON);
 SELECT * FROM t1 RIGHT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt ON t1.jc=jt.id;
-ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'jt'
+ERROR 42S02: Unknown table 't1' in a table function argument
 SELECT * FROM JSON_TABLE(t1.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt LEFT JOIN t1 ON t1.jc=jt.id;
 ERROR 42S02: Unknown table 't1' in a table function argument
 SELECT * FROM JSON_TABLE(t1.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt RIGHT JOIN t1 ON t1.jc=jt.id;
-ERROR 42S02: Unknown table 't1' in a table function argument
+id	id	jc
 SELECT * FROM t1 LEFT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt ON t1.jc=jt.id;
 id	jc	id
@@ -940,33 +940,33 @@ SELECT * FROM t1 AS t1o RIGHT JOIN
 (t1 AS t1i JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
 ON t1o.id=t1i.id;
-ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'jt'
+ERROR 42S22: Unknown column 't1o.jc' in 'a table function argument'
 SELECT * FROM t1 AS t1o RIGHT JOIN
 (t1 AS t1i RIGHT JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
 ON t1o.id=t1i.id;
-ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'jt'
+ERROR 42S02: Unknown table 't1o' in a table function argument
 WITH qn AS
 (SELECT jt.* FROM t1 RIGHT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt ON t1.jc=jt.id)
 SELECT * from qn;
-ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'jt'
+ERROR 42S02: Unknown table 't1' in a table function argument
 WITH qn AS
 (SELECT 1 UNION
 SELECT jt.id FROM t1 RIGHT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt ON t1.jc=jt.id)
 SELECT * from qn;
-ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'jt'
+ERROR 42S02: Unknown table 't1' in a table function argument
 SELECT * FROM t1 AS t1o RIGHT JOIN
 (t1 AS t1i JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
 ON t1o.id=t1i.id;
-ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'jt'
+ERROR 42S22: Unknown column 't1o.jc' in 'a table function argument'
 SELECT * FROM t1 AS t1o RIGHT JOIN
 (t1 AS t1i RIGHT JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
 ON t1o.id=t1i.id;
-ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'jt'
+ERROR 42S02: Unknown table 't1o' in a table function argument
 INSERT INTO t1 VALUES(1,"1"),(2,"4"),(3,"3");
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -989,7 +989,7 @@ LEFT JOIN
 JSON_TABLE(t1.jc, '$' COLUMNS (id FOR ORDINALITY)) as jt ON t1.jc=jt.id
 RIGHT JOIN
 JSON_TABLE(jt.id, '$' COLUMNS (id FOR ORDINALITY)) as jt1 ON jt.id=jt1.id;
-ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'jt1'
+ERROR 42S02: Unknown table 'jt' in a table function argument
 DROP TABLE t1;
 set @save_mem_se= @@internal_tmp_mem_storage_engine;
 set @@internal_tmp_mem_storage_engine=MEMORY;
@@ -2160,3 +2160,14 @@ top_ord	c1path	c2path	ord	lpath_c	lpath_i	c3path
 2	true	c_val	2	false	0	1
 3	false	NULL	1	true	1	0
 3	false	c_val	2	NULL	NULL	0
+#
+# Bug #31327187 UBSAN: JSON_TABLE: NULL POINTER PASSED AS ARGUMENT 2,
+#               WHICH IS DECLARED TO NEVER BE NULL
+#
+SELECT HEX(a) FROM JSON_TABLE(
+'[{"E":{"e":true,"~":1,"S3":"sTa"},"r":3,"":6.7},"",6.5]',
+'$'
+  COLUMNS(a BINARY(5) PATH '$[1]' NULL ON EMPTY)
+) e;
+HEX(a)
+0000000000

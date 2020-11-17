@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@
 
 #include "gmock/gmock.h"
 
+using namespace std::chrono_literals;
 using namespace metadata_cache;
 
 constexpr unsigned kRouterId = 1;
@@ -49,7 +50,7 @@ class FailoverTest : public ::testing::Test {
   FailoverTest() {}
 
   // per-test setup
-  virtual void SetUp() override {
+  void SetUp() override {
     session.reset(new MySQLSessionReplayer(true));
 
     // setup DI for MySQLSession
@@ -233,7 +234,7 @@ TEST_F(FailoverTest, basics) {
 
   // this should succeed right away
   DelayCheck t;
-  EXPECT_TRUE(cache->wait_primary_failover("default", 2));
+  EXPECT_TRUE(cache->wait_primary_failover("default", 2s));
   EXPECT_LE(t.time_elapsed(), 1);
 
   // ensure no expected queries leftover
@@ -267,7 +268,7 @@ TEST_F(FailoverTest, primary_failover) {
   // this should succeed right away
   {
     DelayCheck t;
-    EXPECT_TRUE(cache->wait_primary_failover("default", 2));
+    EXPECT_TRUE(cache->wait_primary_failover("default", 2s));
     EXPECT_LE(t.time_elapsed(), 1);
   }
 
@@ -286,7 +287,7 @@ TEST_F(FailoverTest, primary_failover) {
   // this should fail with timeout b/c no primary yet
   {
     DelayCheck t;
-    EXPECT_FALSE(cache->wait_primary_failover("default", 1));
+    EXPECT_FALSE(cache->wait_primary_failover("default", 1s));
     EXPECT_GE(t.time_elapsed(), 1);
   }
 
@@ -315,7 +316,7 @@ TEST_F(FailoverTest, primary_failover) {
   // this should succeed
   {
     DelayCheck t;
-    EXPECT_TRUE(cache->wait_primary_failover("default", 2));
+    EXPECT_TRUE(cache->wait_primary_failover("default", 2s));
     EXPECT_LE(t.time_elapsed(), 1);
   }
 
@@ -331,6 +332,30 @@ TEST_F(FailoverTest, primary_failover) {
   EXPECT_EQ("f0a2079f-8b90-4324-9eec-a0496c4338e0",
             instances[2].mysql_server_uuid);
   EXPECT_EQ(ServerMode::ReadOnly, instances[2].mode);
+}
+
+TEST_F(FailoverTest, primary_failover_shutdown) {
+  ASSERT_NO_THROW(init_cache());
+  expect_metadata_1();
+  expect_group_members_1();
+  ASSERT_NO_THROW(cache->refresh());
+
+  cache->mark_instance_reachability(
+      "3c85a47b-7cc1-4fa8-bb4c-8f2dbf1c3c39",
+      metadata_cache::InstanceStatus::Unreachable);
+
+  auto wait_failover_thread = std::thread([&] {
+    DelayCheck t;
+    // even though we wait for 10s for the primary failover the function should
+    // return promptly when the catche->stop() gets called (mimicking terminate
+    // request)
+    EXPECT_FALSE(cache->wait_primary_failover("default", 10s));
+    EXPECT_LE(t.time_elapsed(), 1);
+  });
+
+  cache->stop();
+
+  wait_failover_thread.join();
 }
 
 int main(int argc, char *argv[]) {

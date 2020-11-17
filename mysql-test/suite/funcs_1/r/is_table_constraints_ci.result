@@ -75,6 +75,7 @@ def	mysql	PRIMARY	mysql	password_history
 def	mysql	PRIMARY	mysql	plugin
 def	mysql	PRIMARY	mysql	procs_priv
 def	mysql	PRIMARY	mysql	proxies_priv
+def	mysql	PRIMARY	mysql	replication_asynchronous_connection_failover
 def	mysql	PRIMARY	mysql	role_edges
 def	mysql	PRIMARY	mysql	server_cost
 def	mysql	PRIMARY	mysql	servers
@@ -91,6 +92,7 @@ def	mysql	PRIMARY	mysql	user
 def	performance_schema	ACCOUNT	performance_schema	accounts
 def	performance_schema	PRIMARY	performance_schema	cond_instances
 def	performance_schema	PRIMARY	performance_schema	data_locks
+def	performance_schema	PRIMARY	performance_schema	error_log
 def	performance_schema	ACCOUNT	performance_schema	events_errors_summary_by_account_by_error
 def	performance_schema	HOST	performance_schema	events_errors_summary_by_host_by_error
 def	performance_schema	THREAD_ID	performance_schema	events_errors_summary_by_thread_by_error
@@ -147,10 +149,12 @@ def	performance_schema	OBJECT	performance_schema	objects_summary_global_by_type
 def	performance_schema	PRIMARY	performance_schema	persisted_variables
 def	performance_schema	OWNER_THREAD_ID	performance_schema	prepared_statements_instances
 def	performance_schema	PRIMARY	performance_schema	prepared_statements_instances
+def	performance_schema	PRIMARY	performance_schema	processlist
 def	performance_schema	PRIMARY	performance_schema	replication_applier_configuration
 def	performance_schema	PRIMARY	performance_schema	replication_applier_status
 def	performance_schema	PRIMARY	performance_schema	replication_applier_status_by_coordinator
 def	performance_schema	PRIMARY	performance_schema	replication_applier_status_by_worker
+def	performance_schema	PRIMARY	performance_schema	replication_asynchronous_connection_failover
 def	performance_schema	PRIMARY	performance_schema	replication_connection_configuration
 def	performance_schema	PRIMARY	performance_schema	replication_connection_status
 def	performance_schema	PRIMARY	performance_schema	rwlock_instances

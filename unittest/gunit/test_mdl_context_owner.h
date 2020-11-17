@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,16 +28,15 @@
 class Test_MDL_context_owner : public MDL_context_owner {
  public:
   Test_MDL_context_owner() {}
-  virtual void enter_cond(mysql_cond_t *, mysql_mutex_t *,
-                          const PSI_stage_info *, PSI_stage_info *,
-                          const char *, const char *, int) {}
+  void enter_cond(mysql_cond_t *, mysql_mutex_t *, const PSI_stage_info *,
+                  PSI_stage_info *, const char *, const char *, int) override {}
 
-  virtual void exit_cond(const PSI_stage_info *, const char *, const char *,
-                         int) {}
+  void exit_cond(const PSI_stage_info *, const char *, const char *,
+                 int) override {}
 
-  virtual int is_killed() const final { return 0; }
-  virtual bool is_connected() { return true; }
-  virtual THD *get_thd() {
+  int is_killed() const final { return 0; }
+  bool is_connected() override { return true; }
+  THD *get_thd() override {
     /*
       MDL_lock::object_lock_notify_conflicting_locks() checks THD of
       conflicting lock on nullptr value and doesn't call the virtual
@@ -47,12 +46,12 @@ class Test_MDL_context_owner : public MDL_context_owner {
     return (THD *)1;
   }
 
-  virtual bool notify_hton_pre_acquire_exclusive(const MDL_key *, bool *) {
+  bool notify_hton_pre_acquire_exclusive(const MDL_key *, bool *) override {
     return false;
   }
-  virtual void notify_hton_post_release_exclusive(const MDL_key *) {}
+  void notify_hton_post_release_exclusive(const MDL_key *) override {}
 
-  virtual uint get_rand_seed() const { return 0; }
+  uint get_rand_seed() const override { return 0; }
 };
 
 #endif  // TEST_MDL_CONTEXT_OWNER_INCLUDED

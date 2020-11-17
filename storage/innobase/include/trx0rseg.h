@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -40,20 +40,20 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "univ.i"
 
 /** Gets a rollback segment header.
-@param[in]	space		space where placed
-@param[in]	page_no		page number of the header
-@param[in]	page_size	page size
-@param[in,out]	mtr		mini-transaction
+@param[in]	space		Space where placed
+@param[in]	page_no		Page number of the header
+@param[in]	page_size	Page size
+@param[in,out]	mtr		Mini-transaction
 @return rollback segment header, page x-latched */
 UNIV_INLINE
 trx_rsegf_t *trx_rsegf_get(space_id_t space, page_no_t page_no,
                            const page_size_t &page_size, mtr_t *mtr);
 
 /** Gets a newly created rollback segment header.
-@param[in]	space		space where placed
-@param[in]	page_no		page number of the header
-@param[in]	page_size	page size
-@param[in,out]	mtr		mini-transaction
+@param[in]	space		Space where placed
+@param[in]	page_no		Page number of the header
+@param[in]	page_size	Page size
+@param[in,out]	mtr		Mini-transaction
 @return rollback segment header, page x-latched */
 UNIV_INLINE
 trx_rsegf_t *trx_rsegf_get_new(space_id_t space, page_no_t page_no,
@@ -86,11 +86,11 @@ ulint trx_rsegf_undo_find_free(trx_rsegf_t *rsegf, mtr_t *mtr);
 /** Creates a rollback segment header.
 This function is called only when a new rollback segment is created in
 the database.
-@param[in]	space_id		space id
-@param[in]	page_size	page size
-@param[in]	max_size	max size in pages
-@param[in]	rseg_slot	rseg id == slot number in trx sys
-@param[in,out]	mtr		mini-transaction
+@param[in]	space_id	Space id
+@param[in]	page_size	Page size
+@param[in]	max_size	Max size in pages
+@param[in]	rseg_slot	Rseg id == slot number in RSEG_ARRAY
+@param[in,out]	mtr		Mini-transaction
 @return page number of the created segment, FIL_NULL if fail */
 page_no_t trx_rseg_header_create(space_id_t space_id,
                                  const page_size_t &page_size,
@@ -118,21 +118,29 @@ were created. */
 bool trx_rseg_init_rollback_segments(space_id_t space_id,
                                      ulong target_rollback_segments);
 
-/** Create the memory copies for rollback segments and initialize the
-rseg array in trx_sys at a database startup.
+/** Read each rollback segment slot in the TRX_SYS page and the RSEG_ARRAY
+page of each undo tablespace. Create trx_rseg_t objects for all rollback
+segments found.  This runs at database startup and initializes the in-memory
+lists of trx_rseg_t objects.  We need to look at all slots in TRX_SYS and
+each RSEG_ARRAY page because we need to look for any existing undo log that
+may need to be recovered by purge.  No latch is needed since this is still
+single-threaded startup.  If we find existing rseg slots in TRX_SYS page
+that reference undo tablespaces and have active undo logs, then quit.
+They require an upgrade of undo tablespaces and that cannot happen with
+active undo logs.
 @param[in]	purge_queue	queue of rsegs to purge */
 void trx_rsegs_init(purge_pq_t *purge_queue);
 
 /** Create and initialize a rollback segment object.  Some of
 the values for the fields are read from the segment header page.
 The caller must insert it into the correct list.
-@param[in]	id		rollback segment id
-@param[in]	space_id	space where the segment is placed
-@param[in]	page_no		page number of the segment header
-@param[in]	page_size	page size
-@param[in]      gtid_trx_no     trx number up to which GTID is persisted
-@param[in,out]	purge_queue	rseg queue
-@param[in,out]	mtr		mini-transaction
+@param[in]	id		Rollback segment id
+@param[in]	space_id	Space where the segment is placed
+@param[in]	page_no		Page number of the segment header
+@param[in]	page_size	Page size
+@param[in]      gtid_trx_no     Trx number up to which GTID is persisted
+@param[in,out]	purge_queue	Rseg queue
+@param[in,out]	mtr		Mini-transaction
 @return own: rollback segment object */
 trx_rseg_t *trx_rseg_mem_create(ulint id, space_id_t space_id,
                                 page_no_t page_no, const page_size_t &page_size,

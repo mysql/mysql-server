@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1693,7 +1693,7 @@ NdbTableImpl::getColumnByHash(const char * name) const
     if(hashValue == (tmp & ColNameHashMask))
     {
       NdbColumnImpl* col = cols[tmp >> ColShift];
-      if(strncmp(name, col->m_name.c_str(), col->m_name.length()) == 0)
+      if(strcmp(name, col->m_name.c_str()) == 0)
       {
         return col;
       }

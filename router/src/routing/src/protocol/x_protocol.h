@@ -32,8 +32,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 class XProtocol : public BaseProtocol {
  public:
-  XProtocol(routing::RoutingSockOpsInterface *routing_sock_ops)
-      : BaseProtocol(routing_sock_ops) {}
+  XProtocol(mysql_harness::SocketOperationsBase *sock_ops)
+      : BaseProtocol(sock_ops) {}
 
   /** @brief Function that gets called when the client is being blocked
    *

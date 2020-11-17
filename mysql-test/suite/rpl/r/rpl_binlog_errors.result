@@ -144,7 +144,7 @@ include/rpl_restart_server.inc [server_number=1]
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
 SET @xxx = REPEAT('xxx', 1000);
 SET @yyy = REPEAT('yyy', 1000);
-DELETE FROM t4 WHERE a IN (@xxx, @yyy) or a != '1';
+DELETE FROM t4 WHERE a IN (@xxx, @yyy) or a <> '1';
 ERROR HY000: Can't generate a unique log-filename master-bin.(1-999)
 
 include/rpl_restart_server.inc [server_number=1]
@@ -244,7 +244,7 @@ SET GLOBAL binlog_error_action= IGNORE_ERROR;
 SET @old_debug=@@global.debug;
 include/stop_slave.inc
 SET GLOBAL debug="+d,error_unique_log_filename";
-START SLAVE io_thread;
+START REPLICA io_thread;
 include/wait_for_slave_io_error.inc [errno=13122]
 Last_IO_Error = 'Relay log write failure: could not queue event from master'
 SET GLOBAL debug="-d,error_unique_log_filename";
@@ -255,7 +255,7 @@ SET GLOBAL binlog_error_action= IGNORE_ERROR;
 SET @old_debug=@@global.debug;
 include/stop_slave.inc
 SET GLOBAL debug="+d,fault_injection_new_file_rotate_event";
-START SLAVE io_thread;
+START REPLICA io_thread;
 include/wait_for_slave_io_error.inc [errno=13122]
 Last_IO_Error = 'Relay log write failure: could not queue event from master'
 SET GLOBAL debug="-d,fault_injection_new_file_rotate_event";
@@ -266,7 +266,7 @@ SET GLOBAL binlog_error_action= IGNORE_ERROR;
 SET @old_debug=@@global.debug;
 include/stop_slave.inc
 SET GLOBAL debug="+d,fault_injection_registering_index";
-START SLAVE io_thread;
+START REPLICA io_thread;
 include/wait_for_slave_io_error.inc [errno=13122]
 Last_IO_Error = 'Relay log write failure: could not queue event from master'
 SET GLOBAL debug="-d,fault_injection_registering_index";
@@ -277,7 +277,7 @@ SET GLOBAL binlog_error_action= IGNORE_ERROR;
 SET @old_debug=@@global.debug;
 include/stop_slave.inc
 SET GLOBAL debug="+d,fault_injection_openning_index";
-START SLAVE io_thread;
+START REPLICA io_thread;
 include/wait_for_slave_io_error.inc [errno=13122]
 Last_IO_Error = 'Relay log write failure: could not queue event from master'
 SET GLOBAL debug="-d,fault_injection_openning_index";
@@ -287,5 +287,7 @@ include/stop_slave_sql.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 include/rpl_end.inc

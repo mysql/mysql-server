@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -387,7 +387,7 @@ class Gcs_async_buffer {
 class Gcs_output_sink : public Sink_interface {
  public:
   explicit Gcs_output_sink();
-  virtual ~Gcs_output_sink() {}
+  ~Gcs_output_sink() override {}
 
   /**
     Output sink initialization method.
@@ -396,7 +396,7 @@ class Gcs_output_sink : public Sink_interface {
               gcs_error in case of error
   */
 
-  enum_gcs_error initialize();
+  enum_gcs_error initialize() override;
 
   /**
     Output sink finalization method.
@@ -405,7 +405,7 @@ class Gcs_output_sink : public Sink_interface {
               gcs_error in case of error.
   */
 
-  enum_gcs_error finalize();
+  enum_gcs_error finalize() override;
 
   /**
     Print the received message to the standard output stream.
@@ -413,7 +413,7 @@ class Gcs_output_sink : public Sink_interface {
     @param message rendered stream of the logging message
   */
 
-  void log_event(const std::string &message);
+  void log_event(const std::string &message) override;
 
   /**
     Print the received message to the standard output stream.
@@ -422,13 +422,13 @@ class Gcs_output_sink : public Sink_interface {
     @param message_size logging message size
   */
 
-  void log_event(const char *message, size_t message_size);
+  void log_event(const char *message, size_t message_size) override;
 
   /**
      Return information on the sink such as its location.
   */
 
-  const std::string get_information() const;
+  const std::string get_information() const override;
 
  private:
   /*
@@ -450,7 +450,7 @@ class Gcs_output_sink : public Sink_interface {
 class Gcs_default_logger : public Logger_interface {
  public:
   explicit Gcs_default_logger(Gcs_async_buffer *sink);
-  virtual ~Gcs_default_logger() {}
+  ~Gcs_default_logger() override {}
 
   /**
     Default logger initialization method.
@@ -458,7 +458,7 @@ class Gcs_default_logger : public Logger_interface {
     @retval GCS_OK
   */
 
-  enum_gcs_error initialize();
+  enum_gcs_error initialize() override;
 
   /**
     Default logger finalization method.
@@ -466,7 +466,7 @@ class Gcs_default_logger : public Logger_interface {
     @retval GCS_OK
   */
 
-  enum_gcs_error finalize();
+  enum_gcs_error finalize() override;
 
   /**
     Asynchronously forwards the received message to a sink.
@@ -486,7 +486,8 @@ class Gcs_default_logger : public Logger_interface {
     @param message rendered string of the logging message
   */
 
-  void log_event(const gcs_log_level_t level, const std::string &message);
+  void log_event(const gcs_log_level_t level,
+                 const std::string &message) override;
 
  private:
   /**
@@ -746,7 +747,7 @@ class Gcs_debug_manager : public Gcs_debug_options {
 class Gcs_file_sink : public Sink_interface {
  public:
   Gcs_file_sink(const std::string &file_name, const std::string &dir_name);
-  virtual ~Gcs_file_sink() {}
+  ~Gcs_file_sink() override {}
 
   /**
     File sink initialization method.
@@ -755,7 +756,7 @@ class Gcs_file_sink : public Sink_interface {
             gcs_error in case of error.
   */
 
-  enum_gcs_error initialize();
+  enum_gcs_error initialize() override;
 
   /**
     File sink finalization method.
@@ -764,14 +765,14 @@ class Gcs_file_sink : public Sink_interface {
             gcs_error in case of error.
   */
 
-  enum_gcs_error finalize();
+  enum_gcs_error finalize() override;
 
   /**
     Print the received message to a log file.
     @param message rendered stream of the logging message
   */
 
-  void log_event(const std::string &message);
+  void log_event(const std::string &message) override;
 
   /**
     Print the received message to a log file.
@@ -780,14 +781,14 @@ class Gcs_file_sink : public Sink_interface {
     @param message_size logging message size
   */
 
-  void log_event(const char *message, size_t message_size);
+  void log_event(const char *message, size_t message_size) override;
 
   /**
     The purpose of this method is to return information on the sink such
     as its location.
   */
 
-  const std::string get_information() const;
+  const std::string get_information() const override;
 
   /**
     Return the full path of the file that shall be created. If the path is

@@ -61,6 +61,7 @@ ALTER TABLE `表格` ADD UNIQUE (`新字段三`);
 ALTER TABLE `表格` CHANGE `新字段二` `䑃䑃一` CHAR(1);
 ALTER TABLE `表格` MODIFY `新字段三` CHAR(6);
 
+--sorted_result
 SELECT * FROM `表格`;
 DESC `表格`;
 SHOW CREATE TABLE `表格`;
@@ -72,6 +73,7 @@ ALTER TABLE `表格` DROP `䑃䑃一`;
 ALTER TABLE `表格` DROP `新字段一`;
 ALTER TABLE `表格` DROP `新字段三`;
 
+--sorted_result
 SELECT * FROM `表格`;
 DESC `表格`;
 SHOW CREATE TABLE `表格`;
@@ -112,15 +114,19 @@ SELECT INSERT(`字段一`, 4, 2, '𠀂𠀂') FROM `表一`;
 SELECT INSERT(`字段一`, 5, 1, '𠀂') FROM `表一`;
 
 UPDATE `表一` SET `字段一` = ('坐阼座岝𠀂');
+--sorted_result
 SELECT * FROM `表一`;
 DELETE FROM `表一` WHERE `字段一` = '繓𠻟作𤈼阼';
+--sorted_result
 SELECT * FROM `表一`;
 DELETE FROM `表一`;
+--sorted_result
 SELECT * FROM `表一`;
 
 --echo 'Test for CHAR, VARCHAR, TEXT'
 CREATE TABLE `表二` (c CHAR(5), v VARCHAR(10), t TEXT) DEFAULT CHARSET = utf8mb4;
 INSERT INTO `表二` VALUES ('定长𤈼𠻜字', '变长𠀂𨡃𤈼字符串字段', '文本大对象𠻞𠻟𠻠字段');
+--sorted_result
 SELECT * FROM `表二`;
 TRUNCATE `表二`;
 
@@ -129,6 +135,7 @@ DROP TABLE `表一`, `表二`;
 --echo 'Test for ENUM'
 CREATE TABLE `表二` (e ENUM('口', '日', '目', '田', '晶'), INDEX(e)) DEFAULT CHARSET = utf8mb4;
 INSERT INTO `表二` VALUES('田'), ('日'), ('目'), ('晶'), ('口');
+--sorted_result
 SELECT * FROM `表二`;
 ALTER TABLE `表二` ADD c CHAR(1) NOT NULL FIRST;
 SHOW CREATE TABLE `表二`;
@@ -171,24 +178,40 @@ INSERT INTO `表一` VALUES ('齗齘齚齝齞齨齩齭齮齯齰齱齳齵齺齽�
 INSERT INTO `表一` VALUES ('龔龖龗龞龡龢龣龥・・・・・・・・・・・・');
 INSERT INTO `表一` VALUES ('龔龖龗龞龡龢龣龥𠀀𠀂𨡃𤈼𠻜𠻝𠻞𠻟𠻠𠻟𠻠');
 
+--sorted_result
 SELECT * FROM `表一`;
+--sorted_result
 SELECT * FROM `表一` WHERE c1 LIKE ' %';
+--sorted_result
 SELECT * FROM `表一` WHERE c1 LIKE '% %';
+--sorted_result
 SELECT * FROM `表一` WHERE c1 LIKE '% ';
+--sorted_result
 SELECT * FROM `表一` WHERE c1 LIKE '仡%';
+--sorted_result
 SELECT * FROM `表一` WHERE c1 LIKE '%乹乿%';
+--sorted_result
 SELECT * FROM `表一` WHERE c1 LIKE '%佘';
+--sorted_result
 SELECT * FROM `表一` WHERE c1 LIKE '鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖%';
+--sorted_result
 SELECT * FROM `表一` WHERE c1 LIKE '%鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖%';
+--sorted_result
 SELECT * FROM `表一` WHERE c1 LIKE '%鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖';
 
+--sorted_result
 SELECT * FROM `表一` WHERE c1 = 'ĴĶĹĽĻŃŇŅÑÓÒÖÔǑŐŌÕŔŘŖ';
+--sorted_result
 SELECT * FROM `表一` WHERE c1 = '乚乜乣乨乩乴乵乹乿亍亖亗亝亯亹仃仐仚仛仠';
+--sorted_result
 SELECT * FROM `表一` WHERE c1 = '齗齘齚齝齞齨齩齭齮齯齰齱齳齵齺齽龏龐龑龒';
+--sorted_result
 SELECT * FROM `表一` WHERE c1 = '龔龖龗龞龡龢龣龥𠀀𠀂𨡃𤈼𠻜𠻝𠻞𠻟𠻠𠻟𠻠';
 
 --echo 'Test for CONVERT'
+--sorted_result
 SELECT c1, CONVERT(c1 USING gb18030) FROM `表一`;
+--sorted_result
 SELECT c1, CONVERT(c1 USING utf8mb4), CONVERT(CONVERT(c1 USING utf8mb4) USING gb18030) FROM `表一`;
 
 DROP TABLE `表一`;
@@ -215,24 +238,42 @@ SELECT c FROM t2a WHERE EXISTS (SELECT c FROM t2b WHERE t2a.c = t2b.c);
 SELECT c FROM t2a WHERE NOT EXISTS (SELECT c FROM t2b WHERE t2a.c = t2b.c);
 
 --echo 'Test for JOIN'
+--sorted_result
 SELECT * FROM t1a JOIN t1b;
+--sorted_result
 SELECT * FROM t1a INNER JOIN t1b;
+--sorted_result
 SELECT * FROM t1a JOIN t1b USING (c);
+--sorted_result
 SELECT * FROM t1a INNER JOIN t1b USING (c);
+--sorted_result
 SELECT * FROM t1a CROSS JOIN t1b;
+--sorted_result
 SELECT * FROM t1a LEFT JOIN t1b USING (c);
+--sorted_result
 SELECT * FROM t1a LEFT JOIN t1b ON (t1a.c = t1b.c);
+--sorted_result
 SELECT * FROM t1b RIGHT JOIN t1a USING (c);
+--sorted_result
 SELECT * FROM t1b RIGHT JOIN t1a ON (t1a.c = t1b.c);
 
+--sorted_result
 SELECT * FROM t2a JOIN t2b;
+--sorted_result
 SELECT * FROM t2a INNER JOIN t2b;
+--sorted_result
 SELECT * FROM t2a JOIN t2b USING (c);
+--sorted_result
 SELECT * FROM t2a INNER JOIN t2b USING (c);
+--sorted_result
 SELECT * FROM t2a CROSS JOIN t2b;
+--sorted_result
 SELECT * FROM t2a LEFT JOIN t2b USING (c);
+--sorted_result
 SELECT * FROM t2a LEFT JOIN t2b ON (t2a.c = t2b.c);
+--sorted_result
 SELECT * FROM t2b RIGHT JOIN t2a USING (c);
+--sorted_result
 SELECT * FROM t2b RIGHT JOIN t2a ON (t2a.c = t2b.c);
 
 DROP TABLE t1a, t1b, t2a, t2b;
@@ -308,6 +349,7 @@ DROP TABLE `表一`;
 --echo 'Test for 'GROUP BY''
 CREATE TABLE t1 (c VARCHAR(10)) DEFAULT CHARSET = utf8mb4;
 INSERT INTO t1 VALUES ('嬽仛砻'), ('櫶'), ('怑橷'), ('獣厘濸氻'), ('嚏'), ('𠻠'), ('怑橷');
+--sorted_result
 SELECT c, COUNT(c) FROM t1 GROUP BY c;
 DROP TABLE t1;
 
@@ -343,59 +385,107 @@ PREPARE stmt13 FROM 'UPDATE t4 SET c1=\'x\' WHERE c1=?';
 PREPARE stmt14 FROM 'UPDATE t4 SET c1=? WHERE c1=\'x\'';
 
 SET @arg = '𠻜';
+--sorted_result
 EXECUTE stmt1 USING @arg;
+--sorted_result
 EXECUTE stmt2 USING @arg;
+--sorted_result
 EXECUTE stmt3 USING @arg;
+--sorted_result
 EXECUTE stmt4 USING @arg;
+--sorted_result
 EXECUTE stmt5 USING @arg;
+--sorted_result
 EXECUTE stmt6 USING @arg;
+--sorted_result
 EXECUTE stmt7 USING @arg;
+--sorted_result
 EXECUTE stmt8 USING @arg;
+--sorted_result
 EXECUTE stmt9 USING @arg;
+--sorted_result
 EXECUTE stmt10 USING @arg;
+--sorted_result
 EXECUTE stmt11 USING @arg;
+--sorted_result
 EXECUTE stmt12 USING @arg;
+--sorted_result
 EXECUTE stmt13 USING @arg;
+--sorted_result
 SELECT * FROM t4;
+--sorted_result
 EXECUTE stmt14 USING @arg;
+--sorted_result
 SELECT * FROM t4;
 
 
 SET @arg = '㐉';
+--sorted_result
 EXECUTE stmt1 USING @arg;
+--sorted_result
 EXECUTE stmt2 USING @arg;
+--sorted_result
 EXECUTE stmt3 USING @arg;
+--sorted_result
 EXECUTE stmt4 USING @arg;
+--sorted_result
 EXECUTE stmt5 USING @arg;
+--sorted_result
 EXECUTE stmt6 USING @arg;
+--sorted_result
 EXECUTE stmt7 USING @arg;
+--sorted_result
 EXECUTE stmt8 USING @arg;
+--sorted_result
 EXECUTE stmt9 USING @arg;
+--sorted_result
 EXECUTE stmt10 USING @arg;
+--sorted_result
 EXECUTE stmt11 USING @arg;
+--sorted_result
 EXECUTE stmt12 USING @arg;
+--sorted_result
 EXECUTE stmt13 USING @arg;
+--sorted_result
 SELECT * FROM t4;
+--sorted_result
 EXECUTE stmt14 USING @arg;
+--sorted_result
 SELECT * FROM t4;
 
 
 SET @arg = '列';
+--sorted_result
 EXECUTE stmt1 USING @arg;
+--sorted_result
 EXECUTE stmt2 USING @arg;
+--sorted_result
 EXECUTE stmt3 USING @arg;
+--sorted_result
 EXECUTE stmt4 USING @arg;
+--sorted_result
 EXECUTE stmt5 USING @arg;
+--sorted_result
 EXECUTE stmt6 USING @arg;
+--sorted_result
 EXECUTE stmt7 USING @arg;
+--sorted_result
 EXECUTE stmt8 USING @arg;
+--sorted_result
 EXECUTE stmt9 USING @arg;
+--sorted_result
 EXECUTE stmt10 USING @arg;
+--sorted_result
 EXECUTE stmt11 USING @arg;
+--sorted_result
 EXECUTE stmt12 USING @arg;
+--sorted_result
 EXECUTE stmt13 USING @arg;
+--sorted_result
 SELECT * FROM t4;
+--sorted_result
 EXECUTE stmt14 USING @arg;
+--sorted_result
 SELECT * FROM t4;
 
 
@@ -422,6 +512,7 @@ DROP TABLE t4;
 --echo 'Test for INTO OUTFILE/INFILE'
 CREATE TABLE `表格一` (id INT PRIMARY KEY, c CHAR(5), b BINARY(50), v VARBINARY(100)) DEFAULT CHARSET = utf8mb4;
 INSERT INTO `表格一` VALUES(1, 'ab䶩匼串', '123345', '字符䶩匼串'), (2, '僜𠀀𠀂刓', '乗俓僜刓5C', '㐄㐅㐈㐉㐁'), (3, '𨡃𤈼𠻜', '𠀀𠀂𨡃𤈼𠻜', '𠻝𠻞𠻟𠻠');
+--sorted_result
 SELECT * FROM `表格一`;
 
 --let $fields=*

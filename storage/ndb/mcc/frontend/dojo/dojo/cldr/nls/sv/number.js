@@ -5,4 +5,4 @@
 */
 
 //>>built
-define("dojo/cldr/nls/sv/number",{"group":" ","percentSign":"%","exponential":"×10^","scientificFormat":"#E0","percentFormat":"#,##0 %","list":";","infinity":"∞","minusSign":"−","decimal":",","superscriptingExponent":"·","nan":"¤¤¤","perMille":"‰","decimalFormat":"#,##0.###","currencyFormat":"#,##0.00 ¤","plusSign":"+","decimalFormat-long":"000 biljoner","decimalFormat-short":"000 bn"});
+define("dojo/cldr/nls/sv/number",{"scientificFormat":"#E0","infinity":"∞","superscriptingExponent":"×","list":";","percentSign":"%","minusSign":"−","decimalFormat-short":"000 bn","nan":"¤¤¤","plusSign":"+","currencyFormat":"#,##0.00 ¤","perMille":"‰","group":" ","percentFormat":"#,##0 %","decimalFormat-long":"000 biljoner","decimalFormat":"#,##0.###","currencyFormat-short":"000 bn ¤","timeSeparator":".","decimal":",","exponential":"×10^"});

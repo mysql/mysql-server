@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -91,8 +91,10 @@ IF(MSVC AND NOT WIN32_CLANG)
   STRING_APPEND(CMAKE_CXX_FLAGS " /wd4229")
 ENDIF()
 
-STRING(REPLACE "-flto" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-STRING(REPLACE "-flto" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+IF(WITH_ICU STREQUAL "bundled")
+  REMOVE_CMAKE_COMPILER_FLAGS(CMAKE_C_FLAGS "${MY_COMPILER_FLAG_FLTO}")
+  REMOVE_CMAKE_COMPILER_FLAGS(CMAKE_CXX_FLAGS "${MY_COMPILER_FLAG_FLTO}")
+ENDIF()
 
 ADD_SUBDIRECTORY(source/common)
 ADD_SUBDIRECTORY(source/i18n)

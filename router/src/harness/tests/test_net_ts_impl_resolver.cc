@@ -150,7 +150,7 @@ TEST(NetTS_impl_resolver, getnameinfo_badflags) {
 #endif
 
 TEST(NetTS_impl_resolver, getnameinfo_overflow) {
-  std::array<char, 1> name;
+  std::array<char, 1> name;  // buffer too small to resolve the address
   struct sockaddr_in saddr {};
 
   saddr.sin_family = AF_INET;
@@ -162,6 +162,7 @@ TEST(NetTS_impl_resolver, getnameinfo_overflow) {
 
   // glibc-2.12 (EL6): ENOSPC
   // glibc-2.27 (U18.04): EAI_OVERFLOW
+  // glibc-2.31 (U20.04): EAI_AGAIN
   // freebsd: EAI_MEMORY
   // macosx: EAI_OVERFLOW
   // solaris: ENOSPC
@@ -175,7 +176,9 @@ TEST(NetTS_impl_resolver, getnameinfo_overflow) {
       ::testing::AnyOf(
           stdx::make_unexpected(make_error_code(std::errc::no_space_on_device)),
           stdx::make_unexpected(
-              make_error_code(net::ip::resolver_errc::out_of_memory))
+              make_error_code(net::ip::resolver_errc::out_of_memory)),
+          stdx::make_unexpected(
+              make_error_code(net::ip::resolver_errc::try_again))
 #if defined(EAI_OVERFLOW)
               ,
           stdx::make_unexpected(

@@ -52,6 +52,8 @@ include/assert.inc [Rows until T3 in d2.t must be replicated now]
 include/assert.inc [Rows until 2 in d1.t must be replicated now]
 include/start_slave.inc
 [connection slave1]
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 [connection slave]
 SET @@global.innodb_lock_wait_timeout= @save.innodb_lock_wait_timeout;
 [connection master]

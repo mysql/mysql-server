@@ -208,9 +208,7 @@ create table t1 (a int, b int);
 insert into t1 (a,b) values (a,b);
 insert into t1 SET a=1, b=a+1;
 insert into t1 (a,b) select 1,2;
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 ( a ) SELECT 0 ON DUPLICATE KEY UPDATE a = a + VALUES (a);
---enable_ps_protocol
 --error ER_FIELD_SPECIFIED_TWICE
 prepare stmt1 from ' replace into t1 (a,a) select 100, ''hundred'' ';
 --error ER_WRONG_VALUE_COUNT_ON_ROW
@@ -939,11 +937,51 @@ DROP TABLE t1, t2;
 --echo # WL#13325: Deprecate VALUES syntax in INSERT ... ON DUPLICATE KEY UPDATE
 --echo #
 CREATE TABLE t(id INT PRIMARY KEY, x INT);
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t VALUES (0, 0) ON DUPLICATE KEY UPDATE x = VALUES(x) + 1;
---enable_ps_protocol
 INSERT INTO t VALUES (0, 0)
        ON DUPLICATE KEY UPDATE x = (SELECT VALUES(x)+1 FROM t t1);
 SELECT VALUES(x) FROM t;
 INSERT INTO t VALUES (1, VALUES(x));
 DROP TABLE t;
+
+--echo # Bug#31417951: Assert `!bulk_insert_started' in sql/sql_insert.cc
+--echo #               on reexecuting prepared stmt
+
+CREATE TABLE t1 (
+  pk INTEGER NOT NULL,
+  col_varchar VARCHAR(64) DEFAULT NULL,
+  col_blob BLOB,
+  PRIMARY KEY (pk)
+);
+
+CREATE VIEW v1 AS
+SELECT col_blob, pk, col_varchar
+FROM t1
+WHERE pk between 4 and 5;
+
+CREATE TABLE t2 (
+  pk INTEGER NOT NULL,
+  col_int INTEGER DEFAULT NULL,
+  col_blob BLOB,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t2 VALUES (7,8, 0xEFBFBDEFBFBDEFBFBDEFBFBD004A);
+
+PREPARE stmt FROM
+"INSERT INTO v1 (col_blob, pk, col_varchar)
+ SELECT col_blob, col_int, col_blob
+ FROM t2
+ WHERE pk BETWEEN 7 AND 8
+ LIMIT 1";
+
+EXECUTE stmt;
+--error ER_DUP_ENTRY
+EXECUTE stmt;
+--error ER_DUP_ENTRY
+EXECUTE stmt;
+
+DEALLOCATE PREPARE stmt;
+DROP VIEW v1;
+DROP TABLE t1, t2;
+

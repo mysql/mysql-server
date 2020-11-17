@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -139,11 +139,11 @@ compressed leaf page in a secondary index.
 This has to be done either within the same mini-transaction, or by invoking
 ibuf_reset_free_bits() before mtr_commit().
 
-@param[in,out]	cursor	a page cursor
-@param[in]	rec	record to insert
-@param[in]	index	record descriptor
+@param[in,out]	cursor	A page cursor
+@param[in]	rec	record To insert
+@param[in]	index	Record descriptor
 @param[in,out]	offsets	rec_get_offsets(rec, index)
-@param[in]	mtr	mini-transaction handle, or NULL
+@param[in]	mtr	Mini-transaction handle, or NULL
 @return pointer to record if succeed, NULL otherwise */
 UNIV_INLINE
 rec_t *page_cur_rec_insert(page_cur_t *cursor, const rec_t *rec,
@@ -163,11 +163,11 @@ rec_t *page_cur_insert_rec_low(
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Inserts a record next to page cursor on an uncompressed page.
-@param[in]	current_rec	pointer to current record after which
+@param[in]	current_rec	Pointer to current record after which
                                 the new record is inserted.
-@param[in]	index		record descriptor
-@param[in]	tuple		pointer to a data tuple
-@param[in]	mtr		mini-transaction handle, or NULL
+@param[in]	index		Record descriptor
+@param[in]	tuple		Pointer to a data tuple
+@param[in]	mtr		Mini-transaction handle, or NULL
 
 @return pointer to record if succeed, NULL otherwise */
 rec_t *page_cur_direct_insert_rec_low(rec_t *current_rec, dict_index_t *index,
@@ -233,22 +233,24 @@ UNIV_INLINE
 ulint page_cur_search(const buf_block_t *block, const dict_index_t *index,
                       const dtuple_t *tuple, page_cur_t *cursor);
 
-/** Searches the right position for a page cursor. */
-void page_cur_search_with_match(
-    const buf_block_t *block,  /*!< in: buffer block */
-    const dict_index_t *index, /*!< in: record descriptor */
-    const dtuple_t *tuple,     /*!< in: data tuple */
-    page_cur_mode_t mode,      /*!< in: PAGE_CUR_L,
-                               PAGE_CUR_LE, PAGE_CUR_G, or
-                               PAGE_CUR_GE */
-    ulint *iup_matched_fields,
-    /*!< in/out: already matched
-    fields in upper limit record */
-    ulint *ilow_matched_fields,
-    /*!< in/out: already matched
-    fields in lower limit record */
-    page_cur_t *cursor,    /*!< out: page cursor */
-    rtr_info_t *rtr_info); /*!< in/out: rtree search stack */
+/** Searches the right position for a page cursor.
+@param[in] block Buffer block
+@param[in] index Record descriptor
+@param[in] tuple Data tuple
+@param[in] mode PAGE_CUR_L, PAGE_CUR_LE, PAGE_CUR_G, or PAGE_CUR_GE
+@param[in,out] iup_matched_fields Already matched fields in upper limit record
+@param[in,out] ilow_matched_fields Already matched fields in lower limit record
+@param[out] cursor Page cursor
+@param[in,out] rtr_info Rtree search stack */
+void page_cur_search_with_match(const buf_block_t *block,
+                                const dict_index_t *index,
+                                const dtuple_t *tuple, page_cur_mode_t mode,
+                                ulint *iup_matched_fields,
+
+                                ulint *ilow_matched_fields,
+
+                                page_cur_t *cursor, rtr_info_t *rtr_info);
+
 /** Search the right position for a page cursor.
 @param[in]	block			buffer block
 @param[in]	index			index tree

@@ -295,6 +295,8 @@ Rpl_semi_sync_master_yes_tx	0
 [connection slave]
 include/stop_slave.inc
 reset slave;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 reset master;
 [connection master]
 include/stop_dump_threads.inc

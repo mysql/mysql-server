@@ -12,8 +12,8 @@ create table t1 (a int not null) engine=heap;
 insert into t1 values (869751),(736494),(226312),(802616),(728912);
 select * from t1 where a > 736494;
 a
-869751
 802616
+869751
 alter table t1 add unique uniq_id using BTREE (a);
 select * from t1 where a > 736494;
 a

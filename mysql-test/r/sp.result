@@ -1188,14 +1188,6 @@ call ifac(20)|
 select * from t3|
 n	f
 1	1
-2	2
-3	6
-4	24
-5	120
-6	720
-7	5040
-8	40320
-9	362880
 10	3628800
 11	39916800
 12	479001600
@@ -1206,7 +1198,15 @@ n	f
 17	355687428096000
 18	6402373705728000
 19	121645100408832000
+2	2
 20	2432902008176640000
+3	6
+4	24
+5	120
+6	720
+7	5040
+8	40320
+9	362880
 drop table t3|
 show function status like '%fac'|
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
@@ -7116,16 +7116,16 @@ DROP PROCEDURE IF EXISTS p1;
 CREATE PROCEDURE p1(a CHAR)
 BEGIN
 SELECT 1;
-SELECT CAST('10 ' as UNSIGNED INTEGER);
+SELECT CAST('10x' as UNSIGNED INTEGER);
 END|
 CALL p1('data truncated parameter');
 1
 1
-CAST('10 ' as UNSIGNED INTEGER)
+CAST('10x' as UNSIGNED INTEGER)
 10
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
-Warning	1292	Truncated incorrect INTEGER value: '10 '
+Warning	1292	Truncated incorrect INTEGER value: '10x'
 DROP PROCEDURE p1;
 DROP PROCEDURE IF EXISTS p1;
 DROP PROCEDURE IF EXISTS p2;
@@ -7140,15 +7140,15 @@ CALL p4()|
 CREATE PROCEDURE p4()
 BEGIN
 SELECT 1;
-SELECT CAST('10 ' as UNSIGNED INTEGER);
+SELECT CAST('10x' as UNSIGNED INTEGER);
 END|
 CALL p1();
 1
 1
-CAST('10 ' as UNSIGNED INTEGER)
+CAST('10x' as UNSIGNED INTEGER)
 10
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '10 '
+Warning	1292	Truncated incorrect INTEGER value: '10x'
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
 DROP PROCEDURE p3;
@@ -7291,17 +7291,17 @@ ERROR 42000: Undeclared variable: a
 # Try to use data types not allowed in LIMIT 
 #
 create procedure p1(p1 date, p2 date) select * from t1 limit p1, p2;
-ERROR HY000: A variable of a non-integer based type in LIMIT clause
+ERROR 42000: The variable "p1" has a non-integer based type near 'p1, p2' at line 1
 create procedure p1(p1 integer, p2 float) select * from t1 limit p1, p2;
-ERROR HY000: A variable of a non-integer based type in LIMIT clause
+ERROR 42000: The variable "p2" has a non-integer based type near 'p2' at line 1
 create procedure p1(p1 integer, p2 char(1)) select * from t1 limit p1, p2;
-ERROR HY000: A variable of a non-integer based type in LIMIT clause
+ERROR 42000: The variable "p2" has a non-integer based type near 'p2' at line 1
 create procedure p1(p1 varchar(5), p2 char(1)) select * from t1 limit p1, p2;
-ERROR HY000: A variable of a non-integer based type in LIMIT clause
+ERROR 42000: The variable "p1" has a non-integer based type near 'p1, p2' at line 1
 create procedure p1(p1 decimal, p2 decimal) select * from t1 limit p1, p2;
-ERROR HY000: A variable of a non-integer based type in LIMIT clause
+ERROR 42000: The variable "p1" has a non-integer based type near 'p1, p2' at line 1
 create procedure p1(p1 double, p2 double) select * from t1 limit p1, p2;
-ERROR HY000: A variable of a non-integer based type in LIMIT clause
+ERROR 42000: The variable "p1" has a non-integer based type near 'p1, p2' at line 1
 #
 # Finally, test the valid case.
 #
@@ -7369,7 +7369,9 @@ declare a int;
 set a = (select count(*) from t1 limit p1, p2);
 return a;
 end|
-ERROR HY000: A variable of a non-integer based type in LIMIT clause
+ERROR 42000: The variable "p1" has a non-integer based type near 'p1, p2);
+return a;
+end' at line 5
 create function f1(p1 integer, p2 float)
 returns int
 begin
@@ -7377,7 +7379,9 @@ declare a int;
 set a = (select count(*) from t1 limit p1, p2);
 return a;
 end|
-ERROR HY000: A variable of a non-integer based type in LIMIT clause
+ERROR 42000: The variable "p2" has a non-integer based type near 'p2);
+return a;
+end' at line 5
 create function f1(p1 integer, p2 char(1))
 returns int
 begin
@@ -7385,7 +7389,9 @@ declare a int;
 set a = (select count(*) from t1 limit p1, p2);
 return a;
 end|
-ERROR HY000: A variable of a non-integer based type in LIMIT clause
+ERROR 42000: The variable "p2" has a non-integer based type near 'p2);
+return a;
+end' at line 5
 create function f1(p1 varchar(5), p2 char(1))
 returns int
 begin
@@ -7393,7 +7399,9 @@ declare a int;
 set a = (select count(*) from t1 limit p1, p2);
 return a;
 end|
-ERROR HY000: A variable of a non-integer based type in LIMIT clause
+ERROR 42000: The variable "p1" has a non-integer based type near 'p1, p2);
+return a;
+end' at line 5
 create function f1(p1 decimal, p2 decimal)
 returns int
 begin
@@ -7401,7 +7409,9 @@ declare a int;
 set a = (select count(*) from t1 limit p1, p2);
 return a;
 end|
-ERROR HY000: A variable of a non-integer based type in LIMIT clause
+ERROR 42000: The variable "p1" has a non-integer based type near 'p1, p2);
+return a;
+end' at line 5
 create function f1(p1 double, p2 double)
 returns int
 begin
@@ -7409,7 +7419,9 @@ declare a int;
 set a = (select count(*) from t1 limit p1, p2);
 return a;
 end|
-ERROR HY000: A variable of a non-integer based type in LIMIT clause
+ERROR 42000: The variable "p1" has a non-integer based type near 'p1, p2);
+return a;
+end' at line 5
 #
 # Finally, test the valid case.
 #
@@ -8385,6 +8397,55 @@ y
 15
 DROP PROCEDURE v1;
 DROP TABLE t1;
+# Cursor over union of two tables
+CREATE TABLE t1(a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES(1, 10);
+CREATE TABLE t2(c INTEGER, d INTEGER);
+INSERT INTO t2 VALUES(2, 20);
+CREATE PROCEDURE cursor_over_union(OUT sum_a INTEGER, OUT sum_b INTEGER)
+BEGIN
+DECLARE a INTEGER;
+DECLARE b INTEGER;
+DECLARE done INTEGER DEFAULT 0;
+DECLARE c1 CURSOR FOR
+SELECT t1.a, t1.b FROM t1
+UNION DISTINCT
+SELECT t2.c, t2.d FROM t2;
+DECLARE c2 CURSOR FOR
+SELECT t1.a, t1.b FROM t1
+UNION ALL
+SELECT t2.c, t2.d FROM t2;
+DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done = 1;
+SET sum_a = 0;
+SET sum_b = 0;
+OPEN c1;
+REPEAT
+FETCH c1 INTO a, b;
+if NOT done THEN
+SET sum_a = sum_a + a;
+SET sum_b = sum_b + b;
+END IF;
+UNTIL done END REPEAT;
+CLOSE c1;
+SET done = 0;
+OPEN c2;
+REPEAT
+FETCH c2 INTO a, b;
+if NOT done THEN
+SET sum_a = sum_a + a;
+SET sum_b = sum_b + b;
+END IF;
+UNTIL done END REPEAT;
+CLOSE c2;
+end //
+SET @sa = 0;
+SET @sb = 0;
+CALL cursor_over_union(@sa, @sb);
+SELECT @sa, @sb;
+@sa	@sb
+6	60
+DROP PROCEDURE cursor_over_union;
+DROP TABLE t1, t2;
 #
 # Bug#30520714 - MYSQL SERVER RETURNS UNEXPECTED ROWS WHEN USING STORED
 #                FUNCTIONS IN WHERE CLAUSE
@@ -8404,3 +8465,79 @@ IF (COUNT(*) > 0, 'affected', 'not affected')
 not affected
 DROP FUNCTION ReturnFalse;
 DROP TABLE t1;
+# Bug#31691060: Assertion `!is_open()' in Materialized_cursor::~Materialized_cursor
+CREATE TABLE t1(a INTEGER);
+CREATE TABLE t2(a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES(0), (1), (2);
+INSERT INTO t2 VALUES(1, 10), (2, 20), (2, 21);
+CREATE PROCEDURE pc(val INTEGER)
+BEGIN
+DECLARE finished, col_a, col_b INTEGER DEFAULT 0;
+DECLARE c CURSOR FOR
+SELECT a, (SELECT b FROM t2 WHERE t1.a=t2.a) FROM t1 WHERE a = val;
+DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
+SET finished = 0;
+OPEN c;
+loop1: LOOP
+FETCH c INTO col_a, col_b;
+IF finished = 1 THEN
+LEAVE loop1;
+END IF;
+END LOOP loop1;
+CLOSE c;
+END //
+CREATE PROCEDURE pc_with_flush()
+BEGIN
+DECLARE finished, col_a, col_b INTEGER DEFAULT 0;
+DECLARE val INTEGER DEFAULT 0;
+DECLARE c CURSOR FOR
+SELECT a, (SELECT b FROM t2 WHERE t1.a=t2.a) FROM t1 WHERE a = val;
+DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
+SET finished = 0;
+OPEN c;
+loop1: LOOP
+FETCH c INTO col_a, col_b;
+IF finished = 1 THEN
+LEAVE loop1;
+END IF;
+END LOOP loop1;
+CLOSE c;
+FLUSH TABLES;
+SET finished = 0;
+SET val = 1;
+OPEN c;
+loop2: LOOP
+FETCH c INTO col_a, col_b;
+IF finished = 1 THEN
+LEAVE loop2;
+END IF;
+END LOOP loop2;
+CLOSE c;
+FLUSH TABLES;
+SET val = 2;
+SET finished = 0;
+OPEN c;
+loop3: LOOP
+FETCH c INTO col_a, col_b;
+IF finished = 1 THEN
+LEAVE loop3;
+END IF;
+END LOOP loop3;
+CLOSE c;
+END //
+CALL pc(1);
+CALL pc(2);
+ERROR 21000: Subquery returns more than 1 row
+FLUSH TABLES;
+CALL pc(1);
+CALL pc(2);
+ERROR 21000: Subquery returns more than 1 row
+FLUSH TABLES;
+CALL pc(2);
+ERROR 21000: Subquery returns more than 1 row
+CALL pc(1);
+CALL pc_with_flush();
+ERROR 21000: Subquery returns more than 1 row
+DROP PROCEDURE pc;
+DROP PROCEDURE pc_with_flush;
+DROP TABLE t1, t2;

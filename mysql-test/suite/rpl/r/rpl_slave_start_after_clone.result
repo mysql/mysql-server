@@ -37,7 +37,11 @@ include/rpl_sync.inc
 UNINSTALL PLUGIN clone;
 [connection server_3]
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 UNINSTALL PLUGIN clone;
 include/rpl_clear_priv_checks_user_configuration.inc
 include/clean_monitoring_process.inc

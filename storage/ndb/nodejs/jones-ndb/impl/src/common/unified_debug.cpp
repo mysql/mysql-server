@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2012, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
 #include "adapter_global.h"
 #include "JsWrapper.h"
 #include "js_wrapper_macros.h"
+#include "JsValueAccess.h"
 
 /* Undefine UNIFIED_DEBUG here so macros are not expanded 
    and uni_debug is not declared as an extern
@@ -45,8 +46,6 @@ int udeb_per_file    = 0;
 
 #undef UNIFIED_DEBUG
 #include "unified_debug.h"
-
-using namespace v8;
 
 Persistent<Object> JSLoggerFunction;
 
@@ -164,7 +163,9 @@ void udeb_setLogger(const Arguments &args) {
   EscapableHandleScope scope(args.GetIsolate());
 
   if(! udeb_initialized) {
-    JSLoggerFunction.Reset(args.GetIsolate(), args[0]->ToObject());
+    Isolate * iso = args.GetIsolate();
+    Local<Context> ctx = iso->GetCurrentContext();
+    JSLoggerFunction.Reset(iso, args[0]->ToObject(ctx).ToLocalChecked());
     // JSLoggerFunction.Reset(Function::Cast(* (args[0])));
     // Local<Function> f = Function::Cast(* (args[0]));
     // JSLoggerFunction = Persistent<Function>::New(f);
@@ -178,7 +179,7 @@ void udeb_setLogger(const Arguments &args) {
 
 
 void udeb_setLevel(const Arguments &args) {
-  udeb_level = args[0]->Int32Value();
+  udeb_level = GetInt32Arg(args, 0);
   // C code cannot log below UDEB_INFO
   uni_debug = (udeb_per_file || (udeb_level > UDEB_NOTICE)) ? 1 : 0;
   
@@ -190,15 +191,16 @@ void udeb_setLevel(const Arguments &args) {
 
 void udeb_setFileLevel(const Arguments &args) {
   unsigned char filename[250];
-  
-  args[0]->ToString()->WriteOneByte(filename, 0, 250);
+  Isolate * iso = args.GetIsolate();
+  Local<Context> ctx = iso->GetCurrentContext();
+  args[0]->ToString(ctx).ToLocalChecked()->WriteOneByte(iso, filename, 0, 250);
   index_set(udeb_hash(udeb_basename((const char *) filename)));
   uni_debug = udeb_per_file = 1;
 
   args.GetReturnValue().Set(true);
 }
 
-void udebug_initOnLoad(Handle<Object> target) {
+void udebug_initOnLoad(Local<Object> target) {
   DEFINE_JS_FUNCTION(target, "setLogger", udeb_setLogger);
   DEFINE_JS_FUNCTION(target, "setLevel" , udeb_setLevel );
   DEFINE_JS_FUNCTION(target, "setFileLevel", udeb_setFileLevel);

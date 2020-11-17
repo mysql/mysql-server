@@ -168,9 +168,6 @@ struct Srv_threads {
   /** Error monitor thread. */
   IB_thread m_error_monitor;
 
-  /** Redo closer thread. */
-  IB_thread m_log_closer;
-
   /** Redo checkpointer thread. */
   IB_thread m_log_checkpointer;
 
@@ -268,6 +265,9 @@ struct Srv_threads {
 /** Check if given thread is still active. */
 bool srv_thread_is_active(const IB_thread &thread);
 
+/** Check if given thread is cleaned-up and stopped. */
+bool srv_thread_is_stopped(const IB_thread &thread);
+
 /** Delay the thread after it discovered that the shutdown_state
 is greater or equal to SRV_SHUTDOWN_CLEANUP, before it proceeds
 with further clean up. This is used in the tests to see if such
@@ -325,6 +325,12 @@ extern bool srv_buffer_pool_load_at_startup;
 
 /* Whether to disable file system cache if it is defined */
 extern bool srv_disable_sort_file_cache;
+
+/** Enable or disable writing of NULLs while extending a tablespace.
+If this is FALSE, then the server will just allocate the space without
+actually initializing it with NULLs. If the variable is true, the
+server will allocate and initialize the space by writing NULLs in it. */
+extern bool tbsp_extend_and_initialize;
 
 /* If the last data file is auto-extended, we add this many pages to it
 at a time */
@@ -473,6 +479,9 @@ for total order of dirty pages, when they are added to flush lists.
 The slots are addressed by LSN values modulo number of the slots. */
 extern ulong srv_log_recent_closed_size;
 
+/** Whether to activate/pause the log writer threads. */
+extern bool srv_log_writer_threads;
+
 /** Minimum absolute value of cpu time for which spin-delay is used. */
 extern uint srv_log_spin_cpu_abs_lwm;
 
@@ -530,13 +539,6 @@ extern ulong srv_log_flush_notifier_spin_delay;
 
 /** Initial timeout used to wait on flush_notifier_event. */
 extern ulong srv_log_flush_notifier_timeout;
-
-/** Number of spin iterations, for which log closerr thread is waiting
-for a reachable untraversed link in recent_closed. */
-extern ulong srv_log_closer_spin_delay;
-
-/** Initial sleep used in log closer after spin delay is finished. */
-extern ulong srv_log_closer_timeout;
 
 /** Whether to generate and require checksums on the redo log pages. */
 extern bool srv_log_checksums;
@@ -689,7 +691,6 @@ extern bool srv_print_innodb_lock_monitor;
 
 extern ulong srv_n_spin_wait_rounds;
 extern ulong srv_n_free_tickets_to_enter;
-extern ulong srv_thread_sleep_delay;
 extern ulong srv_spin_wait_delay;
 extern ibool srv_priority_boost;
 
@@ -769,7 +770,6 @@ extern mysql_pfs_key_t io_log_thread_key;
 extern mysql_pfs_key_t io_read_thread_key;
 extern mysql_pfs_key_t io_write_thread_key;
 extern mysql_pfs_key_t log_writer_thread_key;
-extern mysql_pfs_key_t log_closer_thread_key;
 extern mysql_pfs_key_t log_checkpointer_thread_key;
 extern mysql_pfs_key_t log_flusher_thread_key;
 extern mysql_pfs_key_t log_write_notifier_thread_key;
@@ -786,7 +786,6 @@ extern mysql_pfs_key_t srv_worker_thread_key;
 extern mysql_pfs_key_t trx_recovery_rollback_thread_key;
 extern mysql_pfs_key_t srv_ts_alter_encrypt_thread_key;
 extern mysql_pfs_key_t parallel_read_thread_key;
-extern mysql_pfs_key_t parallel_read_ahead_thread_key;
 #endif /* UNIV_PFS_THREAD */
 #endif /* !UNIV_HOTBACKUP */
 
@@ -940,11 +939,12 @@ enum srv_thread_type {
 void srv_boot(void);
 /** Frees the data structures created in srv_init(). */
 void srv_free(void);
-/** Sets the info describing an i/o thread current state. */
-void srv_set_io_thread_op_info(
-    ulint i,          /*!< in: the 'segment' of the i/o thread */
-    const char *str); /*!< in: constant char string describing the
-                      state */
+
+/** Sets the info describing an i/o thread current state.
+@param[in] i The 'segment' of the i/o thread
+@param[in] str Constant char string describing the state */
+void srv_set_io_thread_op_info(ulint i, const char *str);
+
 /** Resets the info describing an i/o thread current state. */
 void srv_reset_io_thread_op_info();
 /** Tells the purge thread that there has been activity in the database
@@ -1016,8 +1016,8 @@ void srv_worker_thread();
 void undo_rotate_default_master_key();
 
 /** Set encryption for UNDO tablespace with given space id.
-@param[in] space_id     undo tablespace id
-@param[in] mtr          mini-transaction
+@param[in] space_id     Undo tablespace id
+@param[in] mtr          Mini-transaction
 @param[in] is_boot	true if it is called during server start up.
 @return false for success, true otherwise */
 bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr,
@@ -1065,9 +1065,10 @@ void srv_purge_wakeup(void);
 bool srv_purge_threads_active();
 
 /** Create an undo tablespace with an explicit file name
-@param[in]	space_name	tablespace name
-@param[in]	file_name	file name
-@param[out]	space_id	Tablespace ID chosen
+This is called during CREATE UNDO TABLESPACE.
+@param[in]  space_name  tablespace name
+@param[in]  file_name   file name
+@param[in]  space_id    Tablespace ID
 @return DB_SUCCESS or error code */
 dberr_t srv_undo_tablespace_create(const char *space_name,
                                    const char *file_name, space_id_t space_id);

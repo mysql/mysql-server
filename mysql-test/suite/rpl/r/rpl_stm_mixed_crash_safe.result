@@ -191,6 +191,8 @@ END|
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
@@ -211,13 +213,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
@@ -238,13 +246,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
@@ -267,13 +281,19 @@ master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(9,1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
@@ -300,13 +320,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
@@ -341,13 +367,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
@@ -384,13 +416,19 @@ master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(12,4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
@@ -427,13 +465,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
@@ -468,13 +512,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
@@ -511,13 +561,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
@@ -554,13 +610,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
@@ -581,13 +643,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
@@ -608,13 +676,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
@@ -637,13 +711,19 @@ master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(19,1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
@@ -670,13 +750,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
@@ -711,13 +797,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
@@ -754,13 +846,19 @@ master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(22,4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
@@ -797,13 +895,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
@@ -838,13 +942,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
@@ -881,13 +991,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
@@ -924,13 +1040,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
@@ -951,13 +1073,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
@@ -978,13 +1106,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
@@ -1007,13 +1141,19 @@ master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(29,1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
@@ -1040,13 +1180,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
@@ -1081,13 +1227,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
@@ -1124,13 +1276,19 @@ master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(32,4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
@@ -1167,13 +1325,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
@@ -1208,13 +1372,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
@@ -1251,13 +1421,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
@@ -1294,13 +1470,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
 FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
@@ -1321,13 +1503,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
 FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
@@ -1348,13 +1536,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
 FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
@@ -1377,13 +1571,19 @@ master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(39,1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
 FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
@@ -1410,13 +1610,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
 FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
@@ -1451,13 +1657,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
 FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
@@ -1494,13 +1706,19 @@ master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(42,4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
 FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
@@ -1537,13 +1755,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
 FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
@@ -1578,13 +1802,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
 FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
@@ -1621,13 +1851,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
 FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
@@ -1664,8 +1900,12 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VA
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 ###################################################################################
 #                      EXECUTE CASES CRASHING THE BEGIN/COMMIT
@@ -1674,6 +1914,8 @@ include/wait_for_slave_to_start.inc
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_commit_and_update_pos";;
 FAILURE d,crash_after_commit_and_update_pos and OUTCOME O2
@@ -1694,13 +1936,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VA
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_commit_and_update_pos";;
 FAILURE d,crash_after_commit_and_update_pos and OUTCOME O2
@@ -1721,13 +1969,19 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VA
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 
 
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_commit_and_update_pos";;
 FAILURE d,crash_after_commit_and_update_pos and OUTCOME O2
@@ -1750,8 +2004,12 @@ master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(49,1)
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reconnect.inc
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 ###################################################################################
 #                               CHECK CONSISTENCY

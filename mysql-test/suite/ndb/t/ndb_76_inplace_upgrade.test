@@ -51,14 +51,14 @@
 --echo # Stop MySQL server 1
 --let $restart_file1 = $MYSQLTEST_VARDIR/tmp/mysqld.1.1.expect
 --exec echo "wait" > $restart_file1
---shutdown_server 30
+--shutdown_server
 --source include/wait_until_disconnected.inc
 
 --connection server2
 --echo # Stop MySQL server 2
 --let $restart_file2 = $MYSQLTEST_VARDIR/tmp/mysqld.2.1.expect
 --exec echo "wait" > $restart_file2
---shutdown_server 30
+--shutdown_server
 --source include/wait_until_disconnected.inc
 
 --connection server1
@@ -149,7 +149,7 @@ DROP LOGFILE GROUP lg1
   ENGINE NDB;
 
 --exec echo "wait" > $restart_file1
---shutdown_server 30
+--shutdown_server
 --source include/wait_until_disconnected.inc
 
 --exec echo "restart" > $restart_file1
@@ -159,7 +159,7 @@ DROP LOGFILE GROUP lg1
 
 --connection server2
 --exec echo "wait" > $restart_file2
---shutdown_server 30
+--shutdown_server
 --source include/wait_until_disconnected.inc
 
 --exec echo "restart" > $restart_file2

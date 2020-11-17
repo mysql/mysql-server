@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,14 +34,14 @@
 class BackupProxy : public LocalProxy {
 public:
   BackupProxy(Block_context& ctx);
-  virtual ~BackupProxy();
+  ~BackupProxy() override;
   BLOCK_DEFINES(BackupProxy);
 
 protected:
-  virtual SimulatedBlock* newWorker(Uint32 instanceNo);
+  SimulatedBlock* newWorker(Uint32 instanceNo) override;
 
   // GSN_STTOR
-  virtual void callSTTOR(Signal*);
+  void callSTTOR(Signal*) override;
   void sendUTIL_SEQUENCE_REQ(Signal*);
   void execUTIL_SEQUENCE_CONF(Signal*);
   void execUTIL_SEQUENCE_REF(Signal*);

@@ -698,24 +698,31 @@ uint8_t rec_set_n_fields(rec_t *rec, ulint n_fields);
 ibool rec_validate(
     const rec_t *rec,      /*!< in: physical record */
     const ulint *offsets); /*!< in: array returned by rec_get_offsets() */
-/** Prints an old-style physical record. */
-void rec_print_old(FILE *file,        /*!< in: file where to print */
-                   const rec_t *rec); /*!< in: physical record */
+
+/** Prints an old-style physical record.
+@param[in] file File where to print
+@param[in] rec Physical record */
+void rec_print_old(FILE *file, const rec_t *rec);
+
 #ifndef UNIV_HOTBACKUP
-/** Prints a spatial index record. */
-void rec_print_mbr_rec(
-    FILE *file,            /*!< in: file where to print */
-    const rec_t *rec,      /*!< in: physical record */
-    const ulint *offsets); /*!< in: array returned by rec_get_offsets() */
+
+/** Prints a spatial index record.
+@param[in] file File where to print
+@param[in] rec Physical record
+@param[in] offsets Array returned by rec_get_offsets() */
+void rec_print_mbr_rec(FILE *file, const rec_t *rec, const ulint *offsets);
+
 /** Prints a physical record. */
 void rec_print_new(
     FILE *file,            /*!< in: file where to print */
     const rec_t *rec,      /*!< in: physical record */
     const ulint *offsets); /*!< in: array returned by rec_get_offsets() */
-/** Prints a physical record. */
-void rec_print(FILE *file,                 /*!< in: file where to print */
-               const rec_t *rec,           /*!< in: physical record */
-               const dict_index_t *index); /*!< in: record descriptor */
+
+/** Prints a physical record.
+@param[in] file File where to print
+@param[in] rec Physical record
+@param[in] index Record descriptor */
+void rec_print(FILE *file, const rec_t *rec, const dict_index_t *index);
 
 /** Pretty-print a record.
 @param[in,out]	o	output stream

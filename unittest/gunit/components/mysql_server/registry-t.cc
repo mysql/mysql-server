@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,9 +31,9 @@ using service_type_t = SERVICE_TYPE_NO_CONST(registry);
 
 class registry : public ::testing::Test {
  protected:
-  virtual void SetUp() { ASSERT_FALSE(minimal_chassis_init(&reg, NULL)); }
+  void SetUp() override { ASSERT_FALSE(minimal_chassis_init(&reg, NULL)); }
 
-  virtual void TearDown() {
+  void TearDown() override {
     ASSERT_FALSE(reg->release(
         reinterpret_cast<my_h_service>(const_cast<service_type_t *>(reg))));
     ASSERT_FALSE(minimal_chassis_deinit(reg, NULL));
@@ -242,10 +242,7 @@ TEST_F(registry, acquire_related) {
 
     my_service<SERVICE_TYPE(registry)> another_service3("another_service",
                                                         service3, reg);
-    ASSERT_FALSE(another_service3);
-    ASSERT_EQ(static_cast<my_h_service_imp *>(
-                  static_cast<my_h_service>(another_service3)),
-              reinterpret_cast<my_h_service_imp *>(11));
+    ASSERT_TRUE(another_service3);
   }
 
   ASSERT_FALSE(registration_service->unregister("test.component1"));

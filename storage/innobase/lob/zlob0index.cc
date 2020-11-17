@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -59,12 +59,15 @@ fil_addr_t z_index_entry_t::purge_version(dict_index_t *index, trx_id_t trxid,
   return (next_loc);
 }
 
-/** The current index entry points to a latest LOB page.  It may or may
-not have older versions.  If older version is there, bring it back to the
-index list from the versions list.  Then remove the current entry from
-the index list.  Move the versions list from current entry to older entry.
-@param[in]  trxid  The transaction identifier.
-@param[in]  first  The first lob page containing index list and free list. */
+/** The current index entry points to a latest LOB page.  It may or
+may not have older versions.  If older version is there, bring it
+back to the index list from the versions list.  Then remove the
+current entry from the index list.  Move the versions list from
+current entry to older entry.
+@param[in]	index	the index in which LOB exists.
+@param[in]	trxid	The transaction identifier.
+@param[in]	first	The first lob page containing index list and free
+list. */
 fil_addr_t z_index_entry_t::make_old_version_current(dict_index_t *index,
                                                      trx_id_t trxid,
                                                      z_first_page_t &first) {

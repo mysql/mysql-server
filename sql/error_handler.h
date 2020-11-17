@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -97,9 +97,9 @@ class Internal_error_handler {
 
 class Dummy_error_handler : public Internal_error_handler {
  public:
-  virtual bool handle_condition(THD *, uint, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *) {
+  bool handle_condition(THD *, uint, const char *,
+                        Sql_condition::enum_severity_level *,
+                        const char *) override {
     /* Ignore error */
     return true;
   }
@@ -120,9 +120,9 @@ class Set_var_error_handler : public Internal_error_handler {
         ignore_warn(ignore_warn_arg),
         ignore_subsequent_messages(false) {}
 
-  virtual bool handle_condition(THD *, uint, const char *,
-                                Sql_condition::enum_severity_level *level,
-                                const char *) {
+  bool handle_condition(THD *, uint, const char *,
+                        Sql_condition::enum_severity_level *level,
+                        const char *) override {
     if (*level == Sql_condition::SL_ERROR) (*level) = Sql_condition::SL_WARNING;
 
     if (ignore_subsequent_messages) return true;
@@ -147,9 +147,9 @@ class Set_var_error_handler : public Internal_error_handler {
 
 class Drop_table_error_handler : public Internal_error_handler {
  public:
-  virtual bool handle_condition(THD *thd, uint sql_errno, const char *sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char *msg);
+  bool handle_condition(THD *thd, uint sql_errno, const char *sqlstate,
+                        Sql_condition::enum_severity_level *level,
+                        const char *msg) override;
 };
 
 /**
@@ -161,9 +161,9 @@ class Drop_table_error_handler : public Internal_error_handler {
 class MDL_deadlock_and_lock_abort_error_handler
     : public Internal_error_handler {
  public:
-  virtual bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *) {
+  bool handle_condition(THD *, uint sql_errno, const char *,
+                        Sql_condition::enum_severity_level *,
+                        const char *) override {
     if (sql_errno == ER_LOCK_ABORTED || sql_errno == ER_LOCK_DEADLOCK)
       m_need_reopen = true;
 
@@ -203,9 +203,9 @@ class View_error_handler : public Internal_error_handler {
 
  public:
   View_error_handler(TABLE_LIST *top_view) : m_top_view(top_view) {}
-  virtual bool handle_condition(THD *thd, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *level,
-                                const char *message);
+  bool handle_condition(THD *thd, uint sql_errno, const char *,
+                        Sql_condition::enum_severity_level *level,
+                        const char *message) override;
 };
 
 /**
@@ -216,9 +216,9 @@ class No_such_table_error_handler : public Internal_error_handler {
  public:
   No_such_table_error_handler() : m_handled_errors(0), m_unhandled_errors(0) {}
 
-  virtual bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *) {
+  bool handle_condition(THD *, uint sql_errno, const char *,
+                        Sql_condition::enum_severity_level *,
+                        const char *) override {
     if (sql_errno == ER_BAD_DB_ERROR || sql_errno == ER_NO_SUCH_TABLE) {
       m_handled_errors++;
       return true;
@@ -254,9 +254,9 @@ class No_such_table_error_handler : public Internal_error_handler {
 
 class Ignore_error_handler : public Internal_error_handler {
  public:
-  virtual bool handle_condition(THD *thd, uint sql_errno, const char *sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char *msg);
+  bool handle_condition(THD *thd, uint sql_errno, const char *sqlstate,
+                        Sql_condition::enum_severity_level *level,
+                        const char *msg) override;
 };
 
 /**
@@ -278,9 +278,9 @@ class Strict_error_handler : public Internal_error_handler {
   Strict_error_handler(enum_set_select_behavior param)
       : m_set_select_behavior(param) {}
 
-  virtual bool handle_condition(THD *thd, uint sql_errno, const char *sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char *msg);
+  bool handle_condition(THD *thd, uint sql_errno, const char *sqlstate,
+                        Sql_condition::enum_severity_level *level,
+                        const char *msg) override;
 
  private:
   /*
@@ -343,7 +343,8 @@ class Functional_index_error_handler : public Internal_error_handler {
 class Tablespace_name_error_handler : public Internal_error_handler {
  public:
   bool handle_condition(THD *, uint sql_errno, const char *,
-                        Sql_condition::enum_severity_level *, const char *) {
+                        Sql_condition::enum_severity_level *,
+                        const char *) override {
     return (sql_errno == ER_WRONG_TABLESPACE_NAME ||
             sql_errno == ER_TOO_LONG_IDENT);
   }
@@ -356,9 +357,9 @@ class Tablespace_name_error_handler : public Internal_error_handler {
 */
 class Key_length_error_handler : public Internal_error_handler {
  public:
-  virtual bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *) {
+  bool handle_condition(THD *, uint sql_errno, const char *,
+                        Sql_condition::enum_severity_level *,
+                        const char *) override {
     return (sql_errno == ER_TOO_LONG_KEY);
   }
 };
@@ -377,9 +378,9 @@ class Info_schema_error_handler : public Internal_error_handler {
 
   Info_schema_error_handler(THD *thd, const String *tablespace_name);
 
-  virtual bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *);
+  bool handle_condition(THD *, uint sql_errno, const char *,
+                        Sql_condition::enum_severity_level *,
+                        const char *) override;
 
   bool is_error_handled() const { return m_error_handled; }
 
@@ -417,9 +418,9 @@ class Foreign_key_error_handler : public Internal_error_handler {
  public:
   Foreign_key_error_handler(THD *thd, handler *table_handler)
       : m_table_handler(table_handler), m_thd(thd) {}
-  virtual bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *level,
-                                const char *message);
+  bool handle_condition(THD *, uint sql_errno, const char *,
+                        Sql_condition::enum_severity_level *level,
+                        const char *message) override;
 };
 
 /// An error handler that silences all warnings.

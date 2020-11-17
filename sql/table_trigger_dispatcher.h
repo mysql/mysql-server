@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,7 +75,7 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
   Table_trigger_dispatcher(TABLE *subject_table);
 
  public:
-  ~Table_trigger_dispatcher();
+  ~Table_trigger_dispatcher() override;
 
   /**
     Checks if there is a broken trigger for this table.
@@ -169,10 +169,10 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
    * Table_trigger_field_support interface implementation.
    ***********************************************************************/
 
-  virtual TABLE *get_subject_table() { return m_subject_table; }
+  TABLE *get_subject_table() override { return m_subject_table; }
 
-  virtual Field *get_trigger_variable_field(enum_trigger_variable_type v,
-                                            int field_index) {
+  Field *get_trigger_variable_field(enum_trigger_variable_type v,
+                                    int field_index) override {
     return (v == TRG_OLD_ROW) ? m_old_field[field_index]
                               : m_new_field[field_index];
   }

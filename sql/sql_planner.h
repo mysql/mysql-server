@@ -120,6 +120,9 @@ class Optimize_table_order {
   */
   bool got_final_plan;
 
+  /// Set true when we have decided to return with a "good enough" plan.
+  bool use_best_so_far{false};
+
   inline Key_use *find_best_ref(const JOIN_TAB *tab,
                                 const table_map remaining_tables,
                                 const uint idx, const double prefix_rowcount,

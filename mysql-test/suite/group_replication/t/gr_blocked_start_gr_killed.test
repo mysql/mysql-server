@@ -31,6 +31,12 @@
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
+# We RESET the channel here due to Bug#31541607. By executing this command
+# here, we avoid a internal failure on START GROUP_REPLICATION that would
+# fail while reseting this channel leading to a unclean channel state.
+  --error 0, ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+RESET REPLICA FOR CHANNEL "group_replication_applier";
+
 # Suppression of error messages
 SET sql_log_bin=0;
 CALL mtr.add_suppression("Error writing file.*(errno: 28 - No space left on device)");

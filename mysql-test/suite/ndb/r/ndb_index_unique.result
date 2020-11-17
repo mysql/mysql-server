@@ -1,4 +1,3 @@
-drop table if exists t1, t2, t3, t4, t5, t6, t7, t8;
 CREATE TABLE t1 (
 a int NOT NULL PRIMARY KEY,
 b int not null,
@@ -1126,3 +1125,32 @@ insert into t2 values (4);
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 #cleanup
 drop table t2, t1;
+#
+# Bug#24444899 MYSQLD CRASHED WHILE DROPPING UNIQUE KEY ...
+#  - test read using unique key where keys are specified in
+#    different order than in the NDB table, thus testing
+#    the NDB_INDEX_DATA::Attrid_map mapping
+CREATE TABLE t1 (
+a int PRIMARY KEY,
+b int, c int, d int, e int, f int, g int, h int, i int,
+UNIQUE INDEX unique_hgfedcb (h,f,d,e,g,c,b)
+) engine = ndb;
+CREATE TABLE t2 (
+a int PRIMARY KEY,
+b int
+) engine = ndb;
+INSERT INTO t1 VALUES
+(1,2,3,4,5,6,7,8,40),
+(2,2,4,4,5,6,7,9,41),
+(3,2,5,4,5,6,7,10,42);
+INSERT INTO t2 VALUES
+(1,2);
+# Read with pushed join through unique index and use mapping
+SELECT t1.i FROM t1, t2
+WHERE t2.a = t1.a /* join with t2 to trigger pushed join */ AND
+t1.b = 2 AND t1.c = 3 AND t1.d = 4 AND
+t1.e = 5 AND t1.f = 6 AND t1.g = 7 AND
+t1.h = 8 /* use unique index on t1 */;
+i
+40
+DROP TABLE t1, t2;

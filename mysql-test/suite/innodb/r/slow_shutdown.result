@@ -1,0 +1,19 @@
+# SETUP
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES(1);
+# Start a transaction but don't commit it.
+BEGIN;
+INSERT INTO t1 VALUES(2);
+SET GLOBAL innodb_log_flush_now = ON;
+# Kill the server
+# Start MySQL after crash with different LCTN value and slow shutdown.
+# Verifying that recovery found transaction which needs rollback
+Pattern "MY-013023" found
+# Restart server with correct LCTN
+# restart: --innodb-fast-shutdown=0 --lower_case_table_names=0 --log-error=/export/home/tmp/mayank/mysql-tree/source_2/build/mysql-test/var/log/my_restart.err
+# Verifying that transaction was rollbacked
+Pattern "MY-013012" found
+# CLEANUP
+# Restart server to restore server state.
+# restart:
+DROP TABLE t1;

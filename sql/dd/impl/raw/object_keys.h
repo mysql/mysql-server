@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,11 +56,11 @@ class Void_key : public Object_key {
 
  public:
   /* purecov: begin inspected */
-  virtual Raw_key *create_access_key(Raw_table *) const { return nullptr; }
+  Raw_key *create_access_key(Raw_table *) const override { return nullptr; }
   /* purecov: end */
 
   /* purecov: begin inspected */
-  virtual String_type str() const { return ""; }
+  String_type str() const override { return ""; }
   /* purecov: end */
 
   // We need a comparison operator since the type will be used
@@ -83,9 +83,9 @@ class Primary_id_key : public Object_key {
   void update(Object_id object_id) { m_object_id = object_id; }
 
  public:
-  virtual Raw_key *create_access_key(Raw_table *db_table) const;
+  Raw_key *create_access_key(Raw_table *db_table) const override;
 
-  virtual String_type str() const;
+  String_type str() const override;
 
   bool operator<(const Primary_id_key &rhs) const {
     return m_object_id < rhs.m_object_id;
@@ -106,9 +106,9 @@ class Parent_id_range_key : public Object_key {
         m_object_id(object_id) {}
 
  public:
-  virtual Raw_key *create_access_key(Raw_table *db_table) const;
+  Raw_key *create_access_key(Raw_table *db_table) const override;
 
-  virtual String_type str() const;
+  String_type str() const override;
 
  private:
   int m_id_index_no;
@@ -138,10 +138,10 @@ class Global_name_key : public Object_key {
   }
 
  public:
-  virtual Raw_key *create_access_key(Raw_table *db_table) const;
+  Raw_key *create_access_key(Raw_table *db_table) const override;
 
   /* purecov: begin inspected */
-  virtual String_type str() const { return m_object_name; }
+  String_type str() const override { return m_object_name; }
   /* purecov: end */
 
   bool operator<(const Global_name_key &rhs) const {
@@ -187,9 +187,9 @@ class Item_name_key : public Object_key {
   }
 
  public:
-  virtual Raw_key *create_access_key(Raw_table *db_table) const;
+  Raw_key *create_access_key(Raw_table *db_table) const override;
 
-  virtual String_type str() const;
+  String_type str() const override;
 
   bool operator<(const Item_name_key &rhs) const {
     if (m_container_id != rhs.m_container_id)
@@ -241,9 +241,9 @@ class Se_private_id_key : public Object_key {
   }
 
  public:
-  virtual Raw_key *create_access_key(Raw_table *db_table) const;
+  Raw_key *create_access_key(Raw_table *db_table) const override;
 
-  virtual String_type str() const;
+  String_type str() const override;
 
   bool operator<(const Se_private_id_key &rhs) const {
     return m_private_id < rhs.m_private_id
@@ -275,9 +275,9 @@ class Composite_pk : public Object_key {
         m_second_id(second_id) {}
 
  public:
-  virtual Raw_key *create_access_key(Raw_table *db_table) const;
+  Raw_key *create_access_key(Raw_table *db_table) const override;
 
-  virtual String_type str() const;
+  String_type str() const override;
 
  private:
   int m_index_no;
@@ -303,9 +303,9 @@ class Composite_char_key : public Object_key {
         m_second_name(second_name) {}
 
  public:
-  virtual Raw_key *create_access_key(Raw_table *db_table) const;
+  Raw_key *create_access_key(Raw_table *db_table) const override;
 
-  virtual String_type str() const;
+  String_type str() const override;
 
  private:
   int m_index_no;
@@ -337,9 +337,9 @@ class Composite_4char_key : public Object_key {
         m_fourth_name(fourth_name) {}
 
  public:
-  virtual Raw_key *create_access_key(Raw_table *db_table) const;
+  Raw_key *create_access_key(Raw_table *db_table) const override;
 
-  virtual String_type str() const;
+  String_type str() const override;
 
  private:
   int m_index_no;
@@ -379,9 +379,9 @@ class Composite_obj_id_3char_key : public Object_key {
         m_third_name(third_name) {}
 
  public:
-  virtual Raw_key *create_access_key(Raw_table *db_table) const;
+  Raw_key *create_access_key(Raw_table *db_table) const override;
 
-  virtual String_type str() const;
+  String_type str() const override;
 
  private:
   int m_index_no;
@@ -415,9 +415,9 @@ class Index_stat_range_key : public Object_key {
         m_table_name(table_name) {}
 
  public:
-  virtual Raw_key *create_access_key(Raw_table *db_table) const;
+  Raw_key *create_access_key(Raw_table *db_table) const override;
 
-  virtual String_type str() const;
+  String_type str() const override;
 
  private:
   int m_index_no;
@@ -463,9 +463,9 @@ class Routine_name_key : public Object_key {
   }
 
  public:
-  virtual Raw_key *create_access_key(Raw_table *db_table) const;
+  Raw_key *create_access_key(Raw_table *db_table) const override;
 
-  virtual String_type str() const;
+  String_type str() const override;
 
   bool operator<(const Routine_name_key &rhs) const;
 
@@ -502,9 +502,9 @@ class Table_reference_range_key : public Object_key {
         m_table_name(table_name) {}
 
  public:
-  virtual Raw_key *create_access_key(Raw_table *db_table) const;
+  Raw_key *create_access_key(Raw_table *db_table) const override;
 
-  virtual String_type str() const;
+  String_type str() const override;
 
  private:
   int m_index_no;
@@ -536,9 +536,9 @@ class Sub_partition_range_key : public Object_key {
         m_parent_partition_id(parent_partition_id) {}
 
  public:
-  virtual Raw_key *create_access_key(Raw_table *db_table) const;
+  Raw_key *create_access_key(Raw_table *db_table) const override;
 
-  virtual String_type str() const;
+  String_type str() const override;
 
  private:
   int m_index_no;
@@ -551,5 +551,55 @@ class Sub_partition_range_key : public Object_key {
 };
 
 ///////////////////////////////////////////////////////////////////////////
+
+// Range key to find rows using definer name.
+class Definer_reference_range_key : public Object_key {
+ public:
+  Definer_reference_range_key(int index_no, int definer_column_no,
+                              const String_type &definer)
+      : m_index_no(index_no),
+        m_definer_column_no(definer_column_no),
+        m_definer(definer) {}
+
+ public:
+  Raw_key *create_access_key(Raw_table *db_table) const override;
+
+  String_type str() const override;
+
+ private:
+  int m_index_no;
+  int m_definer_column_no;
+  String_type m_definer;
+};
+
+///////////////////////////////////////////////////////////////////////////
+
+// Range key to find rows using table type and definer name.
+class View_definer_reference_range_key : public Object_key {
+ public:
+  View_definer_reference_range_key(int index_no, int table_type_column_no,
+                                   uint table_type, int definer_column_no,
+                                   const String_type &definer)
+      : m_index_no(index_no),
+        m_table_type_column_no(table_type_column_no),
+        m_table_type(table_type),
+        m_definer_column_no(definer_column_no),
+        m_definer(definer) {}
+
+ public:
+  Raw_key *create_access_key(Raw_table *db_table) const override;
+
+  String_type str() const override;
+
+ private:
+  int m_index_no;
+  int m_table_type_column_no;
+  uint m_table_type;
+  int m_definer_column_no;
+  String_type m_definer;
+};
+
+//////////////////////////////////////////////////////////////////////////////
+
 }  // namespace dd
 #endif  // DD__OBJECT_KEYS_INCLUDED

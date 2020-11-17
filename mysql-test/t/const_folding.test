@@ -59,6 +59,25 @@ let $nullness=;
 let $nullval=NULL;
 --source include/const_folding_int_int.inc
 
+# Try with strings containing decimals
+
+let $minint='0.0';
+let $minint_plus_1='1.0';
+let $minint_minus_1='-1.1';
+let $maxint='255.0';
+let $maxint_plus_1='256.1';
+let $maxint_minus_1='254.0';
+let $signedness=UNSIGNED;
+let $nullness=;
+let $nullval=NULL;
+let $dec_max_plus_delta='255.00001';
+let $dec_max_minus_delta='254.99999';
+let $dec_min_plus_delta='0.00001';
+let $dec_min_minus_delta='-0.99999';
+
+--source include/const_folding_int_int.inc
+--source include/const_folding_int_dec.inc
+
 # Try with reals
 let $minint=0.0E+00;
 let $minint_plus_1=1.0E00;
@@ -263,6 +282,25 @@ let $maxint_minus_1='18446744073709551614';
 let $nullness=NOT NULL;
 let $nullval=0;
 --source include/const_folding_int_int.inc
+
+# Try with strings containing decimals
+
+let $minint='0.0';
+let $minint_plus_1='1.0';
+let $minint_minus_1='-1.1';
+let $maxint='18446744073709551615.0';
+let $maxint_plus_1='18446744073709551616.1';
+let $maxint_minus_1='18446744073709551614.0';
+let $signedness=UNSIGNED;
+let $nullness=;
+let $nullval=NULL;
+let $dec_max_plus_delta='18446744073709551615.00001';
+let $dec_max_minus_delta='18446744073709551614.99999';
+let $dec_min_plus_delta='0.00001';
+let $dec_min_minus_delta='-0.99999';
+
+--source include/const_folding_int_int.inc
+--source include/const_folding_int_dec.inc
 
 let $table_name=inttbls;
 let $minint=-9223372036854775808;

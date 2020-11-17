@@ -32,6 +32,8 @@
 #include <gmock/gmock.h>
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
+
+#include <chrono>
 #include <fstream>
 #include <thread>
 
@@ -89,7 +91,9 @@ bool check_state_file_helper(const std::string &state_file_content,
                              const unsigned expected_view_id /*= 0*/,
                              const std::string node_address /*= "127.0.0.1"*/) {
   JsonDocument json_doc;
-  json_doc.Parse(state_file_content.c_str());
+  if (json_doc.Parse<0>(state_file_content.c_str()).HasParseError())
+    return false;
+
   const std::string kExpectedVersion = "1.0.0";
 
   CHECK_TRUE(json_doc.HasMember("version"));
@@ -134,19 +138,25 @@ void check_state_file(const std::string &state_file,
                       const std::string &expected_group_replication_id,
                       const std::vector<uint16_t> expected_cluster_nodes,
                       const unsigned expected_view_id /*= 0*/,
-                      const std::string node_address /*= "127.0.0.1"*/) {
+                      const std::string node_address /*= "127.0.0.1"*/,
+                      std::chrono::milliseconds max_wait_time /*= 5000*/) {
   bool result = false;
-  size_t steps = 0;
   std::string state_file_content;
+  auto kRetryStep = 50ms;
+  if (getenv("WITH_VALGRIND")) {
+    max_wait_time *= 10;
+    kRetryStep *= 10;
+  }
   do {
     state_file_content = get_file_output(state_file);
     result = check_state_file_helper(
         state_file_content, expected_group_replication_id,
         expected_cluster_nodes, expected_view_id, node_address);
     if (!result) {
-      std::this_thread::sleep_for(50ms);
+      std::this_thread::sleep_for(kRetryStep);
+      max_wait_time -= kRetryStep;
     }
-  } while ((!result) && (steps++ < 20));
+  } while ((!result) && (max_wait_time > kRetryStep));
 
   if (!result) {
     std::string expected_cluster_nodes_str;
@@ -213,6 +223,9 @@ bool wait_for_transaction_count(const uint16_t http_port,
 bool wait_for_transaction_count_increase(const uint16_t http_port,
                                          const int increment_by,
                                          std::chrono::milliseconds timeout) {
+  if (getenv("WITH_VALGRIND")) {
+    timeout *= 10;
+  }
   std::string server_globals =
       MockServerRestClient(http_port).get_globals_as_json_string();
   int expected_queries_count =
@@ -223,7 +236,12 @@ bool wait_for_transaction_count_increase(const uint16_t http_port,
 
 bool wait_connection_dropped(mysqlrouter::MySQLSession &session,
                              std::chrono::milliseconds timeout) {
-  const auto kStep = 50ms;
+  auto kStep = 50ms;
+  if (getenv("WITH_VALGRIND")) {
+    timeout *= 10;
+    kStep *= 5;
+  }
+
   do {
     try {
       session.query_one("select @@@port");

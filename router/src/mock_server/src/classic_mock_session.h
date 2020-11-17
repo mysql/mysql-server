@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,19 +26,63 @@
 #define MYSQLD_MOCK_CLASSIC_MOCK_SESSION_INCLUDED
 
 #include "mock_session.h"
+#include "mysql/harness/net_ts/buffer.h"
+#include "mysql/harness/net_ts/impl/socket_constants.h"
 #include "mysql_protocol_decoder.h"
 #include "mysql_protocol_encoder.h"
 
 namespace server_mock {
 
+class MySQLClassicProtocol : public ProtocolBase {
+ public:
+  using ProtocolBase::ProtocolBase;
+
+  void read_packet(std::vector<uint8_t> &payload);
+
+  void send_packet(const std::vector<uint8_t> &payload);
+
+  // throws std::system_error
+  void send_error(const uint16_t error_code, const std::string &error_msg,
+                  const std::string &sql_state = "HY000") override;
+
+  // throws std::system_error
+  void send_ok(const uint64_t affected_rows = 0,
+               const uint64_t last_insert_id = 0,
+               const uint16_t server_status = 0,
+               const uint16_t warning_count = 0) override;
+
+  // throws std::system_error
+  void send_resultset(const ResultsetResponse &response,
+                      const std::chrono::microseconds delay_ms) override;
+
+  void send_greeting(const Greeting *greeting_resp);
+
+  void send_auth_fast_message();
+
+  void send_auth_switch_message(const AuthSwitch *auth_switch_resp);
+
+  MySQLProtocolDecoder &protocol_decoder() { return protocol_decoder_; }
+
+  void seq_no(uint8_t no) { seq_no_ = no; }
+
+  uint8_t seq_no() const { return seq_no_; }
+
+ private:
+  uint8_t seq_no_{0};
+
+  MySQLProtocolEncoder protocol_encoder_;
+  MySQLProtocolDecoder protocol_decoder_;
+};
+
 class MySQLServerMockSessionClassic : public MySQLServerMockSession {
  public:
   MySQLServerMockSessionClassic(
-      const socket_t client_sock,
+      MySQLClassicProtocol *protocol,
       std::unique_ptr<StatementReaderBase> statement_processor,
-      const bool debug_mode);
-
-  ~MySQLServerMockSessionClassic() override {}
+      const bool debug_mode)
+      : MySQLServerMockSession(protocol, std::move(statement_processor),
+                               debug_mode),
+        protocol_{protocol} {}
 
   /**
    * process the handshake of the current connection.
@@ -62,20 +106,6 @@ class MySQLServerMockSessionClassic : public MySQLServerMockSession {
    */
   bool process_statements() override;
 
-  // throws std::system_error
-  void send_error(const uint16_t error_code, const std::string &error_msg,
-                  const std::string &sql_state = "HY000") override;
-
-  // throws std::system_error
-  void send_ok(const uint64_t affected_rows = 0,
-               const uint64_t last_insert_id = 0,
-               const uint16_t server_status = 0,
-               const uint16_t warning_count = 0) override;
-
-  // throws std::system_error
-  void send_resultset(const ResultsetResponse &response,
-                      const std::chrono::microseconds delay_ms) override;
-
  private:
   // throws std::system_error, std::runtime_error
   bool handle_handshake(const HandshakeResponse &response);
@@ -84,10 +114,8 @@ class MySQLServerMockSessionClassic : public MySQLServerMockSession {
       const socket_t client_socket,
       const mysql_protocol::Capabilities::Flags our_capabilities);
 
-  uint8_t seq_no_{0};
-
-  MySQLProtocolEncoder protocol_encoder_;
-  MySQLProtocolDecoder protocol_decoder_;
+ private:
+  MySQLClassicProtocol *protocol_;
 };
 
 }  // namespace server_mock

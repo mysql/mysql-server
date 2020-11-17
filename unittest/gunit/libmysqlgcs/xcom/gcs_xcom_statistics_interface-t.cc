@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,9 +32,9 @@ class XcomStatisticsTest : public GcsBaseTest {
  protected:
   XcomStatisticsTest() {}
 
-  virtual void SetUp() { xcom_stats_if = new Gcs_xcom_statistics(); }
+  void SetUp() override { xcom_stats_if = new Gcs_xcom_statistics(); }
 
-  virtual void TearDown() { delete xcom_stats_if; }
+  void TearDown() override { delete xcom_stats_if; }
 
   Gcs_xcom_statistics *xcom_stats_if;
 };

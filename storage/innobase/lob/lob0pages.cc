@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -49,11 +49,11 @@ void data_page_t::replace_inline(trx_t *trx, ulint offset, const byte *&ptr,
 
 /** Create a new data page and replace some or all parts of the old data
 with data.
-@param[in]	trx	the current transaction.
-@param[in]	offset	the offset where replace begins.
-@param[in,out]	ptr	pointer to new data.
-@param[in]	want	amount of data the caller wants to replace.
-@param[in]	mtr	the mini transaction context.
+@param[in]      trx     Current transaction.
+@param[in]      offset  Offset where replace begins.
+@param[in,out]  ptr     Pointer to new data.
+@param[in]      want    Amount of data the caller wants to replace.
+@param[in]      mtr     Mini-transaction context.
 @return the buffer block of the new data page. */
 buf_block_t *data_page_t::replace(trx_t *trx, ulint offset, const byte *&ptr,
                                   ulint &want, mtr_t *mtr) {
@@ -167,10 +167,10 @@ buf_block_t *data_page_t::alloc(mtr_t *alloc_mtr, bool is_bulk) {
 }
 
 /** Write data into a data page.
-@param[in]      trxid  the transaction identifier of the session writing data.
-@param[in,out]  data   the data to be written.  it will be updated to point
-                       to the byte not yet written.
-@param[in,out]  len    length of data available to be written.
+@param[in]	trxid	the transaction identifier of the session writing data.
+@param[in,out]	data	the data to be written.  it will be updated to point
+to the byte not yet written.
+@param[in,out]	len	length of data to be written.
 @return amount of data actually written into the page. */
 ulint data_page_t::write(trx_id_t trxid, const byte *&data, ulint &len) {
   byte *ptr = data_begin();

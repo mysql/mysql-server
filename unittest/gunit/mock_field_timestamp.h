@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -72,13 +72,13 @@ class Mock_field_timestamp : public Field_timestamp {
   void make_writable() { bitmap_set_bit(table->write_set, field_index()); }
   void make_readable() { bitmap_set_bit(table->read_set, field_index()); }
 
-  void store_timestamp(const timeval *tm) {
+  void store_timestamp(const timeval *tm) override {
     make_writable();
     Field_temporal_with_date_and_time::store_timestamp(tm);
     store_timestamp_called = true;
   }
 
-  ~Mock_field_timestamp() { delete static_cast<Fake_TABLE *>(table); }
+  ~Mock_field_timestamp() override { delete static_cast<Fake_TABLE *>(table); }
 };
 
 #endif  // MOCK_FIELD_TIMESTAMP_H

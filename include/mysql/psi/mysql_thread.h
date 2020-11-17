@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -155,6 +155,24 @@ static inline void inline_mysql_thread_set_psi_THD(THD *thd) {
 #endif /* __cplusplus */
 
 #endif
+
+/**
+  @def mysql_thread_set_peer_port()
+  Set the remote (peer) port for the thread instrumentation.
+  @param port peer port number
+*/
+static inline void mysql_thread_set_peer_port(
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    uint port
+#else
+    uint port MY_ATTRIBUTE((unused))
+#endif
+) {
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  struct PSI_thread *psi = PSI_THREAD_CALL(get_thread)();
+  PSI_THREAD_CALL(set_thread_peer_port)(psi, port);
+#endif
+}
 
 /** @} (end of group psi_api_thread) */
 

@@ -36,7 +36,11 @@ ERROR HY000: The function 'group_replication_set_as_primary' failed. There is a 
 # 6. Cleanup
 [connection server1]
 STOP SLAVE FOR CHANNEL 'ch3_1';
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 RESET SLAVE ALL FOR CHANNEL 'ch3_1';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 set session sql_log_bin=0;
 call mtr.add_suppression("Error while executing a group configuration operation: The requested primary is not valid as a slave channel is running on member*");
 call mtr.add_suppression("Error while executing a group configuration operation: There is a slave channel running in the group's current primary member.");

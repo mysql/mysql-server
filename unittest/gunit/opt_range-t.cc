@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,13 +94,13 @@ class OptRangeTest : public ::testing::Test {
  protected:
   OptRangeTest() : m_opt_param(nullptr) {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     initializer.SetUp();
     init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_alloc,
                    thd()->variables.range_alloc_block_size, 0);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     delete m_opt_param;
 
     initializer.TearDown();
@@ -1579,8 +1579,8 @@ static Item_row *new_Item_row(int a, int b) {
     The Item_row CTOR doesn't store the reference to the list, hence
     it can live on the stack.
   */
-  List<Item> items;
-  items.push_front(new Item_int(b));
+  mem_root_deque<Item *> items(*THR_MALLOC);
+  items.push_back(new Item_int(b));
   return new Item_row(POS(), new Item_int(a), items);
 }
 
@@ -1589,9 +1589,9 @@ static Item_row *new_Item_row(int a, int b, int c) {
     The Item_row CTOR doesn't store the reference to the list, hence
     it can live on the stack.
   */
-  List<Item> items;
-  items.push_front(new Item_int(c));
-  items.push_front(new Item_int(b));
+  mem_root_deque<Item *> items(*THR_MALLOC);
+  items.push_back(new Item_int(b));
+  items.push_back(new Item_int(c));
   return new Item_row(POS(), new Item_int(a), items);
 }
 
@@ -1601,7 +1601,7 @@ static Item_row *new_Item_row(Field **fields, int count) {
     The Item_row CTOR doesn't store the reference to the list, hence
     it can live on the stack.
   */
-  List<Item> items;
+  mem_root_deque<Item *> items(*THR_MALLOC);
   for (int i = count - 1; i > 0; --i)
     items.push_front(new Item_field(fields[i]));
   return new Item_row(POS(), new Item_field(fields[0]), items);

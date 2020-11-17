@@ -169,12 +169,12 @@ static void btr_cur_add_path_info(btr_cur_t *cursor, ulint height,
 /*==================== B-TREE SEARCH =========================*/
 
 /** Latches the leaf page or pages requested.
-@param[in]	block		leaf page where the search converged
-@param[in]	page_id		page id of the leaf
-@param[in]	page_size	page size
+@param[in]	block		Leaf page where the search converged
+@param[in]	page_id		Page id of the leaf
+@param[in]	page_size	Page size
 @param[in]	latch_mode	BTR_SEARCH_LEAF, ...
-@param[in]	cursor		cursor
-@param[in]	mtr		mini-transaction
+@param[in]	cursor		Cursor
+@param[in]	mtr		Mini-transaction
 @return	blocks and savepoints which actually latched. */
 btr_latch_leaves_t btr_cur_latch_leaves(buf_block_t *block,
                                         const page_id_t &page_id,
@@ -322,13 +322,13 @@ btr_latch_leaves_t btr_cur_latch_leaves(buf_block_t *block,
 }
 
 /** Optimistically latches the leaf page or pages requested.
-@param[in]	block		guessed buffer block
-@param[in]	modify_clock	modify clock value
+@param[in]	block		Guessed buffer block
+@param[in]	modify_clock	Modify clock value
 @param[in,out]	latch_mode	BTR_SEARCH_LEAF, ...
-@param[in,out]	cursor		cursor
-@param[in]	file		file name
-@param[in]	line		line where called
-@param[in]	mtr		mini-transaction
+@param[in,out]	cursor		Cursor
+@param[in]	file		File name
+@param[in]	line		Line where called
+@param[in]	mtr		Mini-transaction
 @return true if success */
 bool btr_cur_optimistic_latch_leaves(buf_block_t *block,
                                      ib_uint64_t modify_clock,
@@ -336,6 +336,8 @@ bool btr_cur_optimistic_latch_leaves(buf_block_t *block,
                                      const char *file, ulint line, mtr_t *mtr) {
   ulint mode;
   page_no_t left_page_no;
+  ut_ad(block->page.buf_fix_count > 0);
+  ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
   switch (*latch_mode) {
     case BTR_SEARCH_LEAF:
@@ -346,20 +348,10 @@ bool btr_cur_optimistic_latch_leaves(buf_block_t *block,
     case BTR_MODIFY_PREV:
       mode = *latch_mode == BTR_SEARCH_PREV ? RW_S_LATCH : RW_X_LATCH;
 
-      buf_page_mutex_enter(block);
-      if (buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE) {
-        buf_page_mutex_exit(block);
-        return (false);
-      }
-      /* pin the block not to be relocated */
-      buf_block_buf_fix_inc(block, file, line);
-      buf_page_mutex_exit(block);
-
       rw_lock_s_lock(&block->lock);
       if (block->modify_clock != modify_clock) {
         rw_lock_s_unlock(&block->lock);
-
-        goto unpin_failed;
+        return false;
       }
       left_page_no = btr_page_get_prev(buf_block_get_frame(block), mtr);
       rw_lock_s_unlock(&block->lock);
@@ -374,30 +366,31 @@ bool btr_cur_optimistic_latch_leaves(buf_block_t *block,
       } else {
         cursor->left_block = nullptr;
       }
-
       if (buf_page_optimistic_get(mode, block, modify_clock,
                                   cursor->m_fetch_mode, file, line, mtr)) {
         if (btr_page_get_prev(buf_block_get_frame(block), mtr) ==
             left_page_no) {
-          /* adjust buf_fix_count */
-          buf_block_buf_fix_dec(block);
+          /* We've entered this function with the block already buffer-fixed,
+          and buf_page_optimistic_get() buffer-fixes it again. The caller should
+          unfix the block once (to undo their buffer-fixing). */
+          ut_ad(2 <= block->page.buf_fix_count);
           *latch_mode = mode;
-          return (true);
+          return true;
         } else {
-          /* release the block */
+          /* release the block, which will also decrement the buf_fix_count once
+          undoing the increment in successful buf_page_optimistic_get() */
           btr_leaf_page_release(block, mode, mtr);
         }
       }
-
+      /* If we are still here then buf_page_optimistic_get() did not buffer-fix
+      the page, but it should still be buffer-fixed as it was before the call.*/
+      ut_ad(0 < block->page.buf_fix_count);
       /* release the left block */
       if (cursor->left_block != nullptr) {
         btr_leaf_page_release(cursor->left_block, mode, mtr);
       }
-    unpin_failed:
-      /* unpin the block */
-      buf_block_buf_fix_dec(block);
 
-      return (false);
+      return false;
 
     default:
       ut_error;
@@ -647,7 +640,6 @@ void btr_cur_search_to_nth_level(
 {
   page_t *page = nullptr; /* remove warning */
   buf_block_t *block;
-  buf_block_t *guess;
   ulint height;
   ulint up_match;
   ulint up_bytes;
@@ -685,9 +677,7 @@ void btr_cur_search_to_nth_level(
 
   DBUG_TRACE;
 
-#ifdef BTR_CUR_ADAPT
   btr_search_t *info;
-#endif /* BTR_CUR_ADAPT */
   mem_heap_t *heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
@@ -770,18 +760,7 @@ void btr_cur_search_to_nth_level(
   cursor->flag = BTR_CUR_BINARY;
   cursor->index = index;
 
-#ifndef BTR_CUR_ADAPT
-  guess = NULL;
-#else
   info = btr_search_get_info(index);
-
-  if (!buf_pool_is_obsolete(info->withdraw_clock)) {
-    guess = info->root_guess;
-  } else {
-    guess = nullptr;
-  }
-
-#ifdef BTR_CUR_HASH_ADAPT
 
 #ifdef UNIV_SEARCH_PERF_STAT
   info->n_searches++;
@@ -811,8 +790,6 @@ void btr_cur_search_to_nth_level(
 
     return;
   }
-#endif /* BTR_CUR_HASH_ADAPT */
-#endif /* BTR_CUR_ADAPT */
   btr_cur_n_non_sea++;
   DBUG_EXECUTE_IF("non_ahi_search",
                   DBUG_ASSERT(!strcmp(index->table->name.m_name, "test/t1")););
@@ -973,8 +950,11 @@ search_loop:
 retry_page_get:
   ut_ad(n_blocks < BTR_MAX_LEVELS);
   tree_savepoints[n_blocks] = mtr_set_savepoint(mtr);
-  block = buf_page_get_gen(page_id, page_size, rw_latch, guess, fetch, file,
-                           line, mtr);
+  block =
+      buf_page_get_gen(page_id, page_size, rw_latch,
+                       (height == ULINT_UNDEFINED ? info->root_guess : nullptr),
+                       fetch, file, line, mtr);
+
   tree_blocks[n_blocks] = block;
 
   if (block == nullptr) {
@@ -1142,12 +1122,7 @@ retry_page_get:
       rtr_get_mbr_from_tuple(tuple, &cursor->rtr_info->mbr);
     }
 
-#ifdef BTR_CUR_ADAPT
-    if (block != guess) {
-      info->root_guess = block;
-      info->withdraw_clock = buf_withdraw_clock;
-    }
-#endif
+    info->root_guess = block;
   }
 
   if (height == 0) {
@@ -1317,7 +1292,6 @@ retry_page_get:
     ut_ad(height > 0);
 
     height--;
-    guess = nullptr;
 
     node_ptr = page_cur_get_rec(page_cursor);
 
@@ -1612,8 +1586,6 @@ retry_page_get:
     /* btr_insert_into_right_sibling() might cause
     deleting node_ptr at upper level */
 
-    guess = nullptr;
-
     if (height == 0) {
       /* release the leaf pages if latched */
       for (uint i = 0; i < 3; i++) {
@@ -1671,7 +1643,6 @@ retry_page_get:
     cursor->up_match = up_match;
     cursor->up_bytes = up_bytes;
 
-#ifdef BTR_CUR_ADAPT
     /* We do a dirty read of btr_search_enabled here.  We
     will properly check btr_search_enabled again in
     btr_search_build_page_hash_index() before building a
@@ -1679,7 +1650,6 @@ retry_page_get:
     if (btr_search_enabled && !index->disable_ahi) {
       btr_search_info_update(index, cursor);
     }
-#endif
     ut_ad(cursor->up_match != ULINT_UNDEFINED || mode != PAGE_CUR_GE);
     ut_ad(cursor->up_match != ULINT_UNDEFINED || mode != PAGE_CUR_LE);
     ut_ad(cursor->low_match != ULINT_UNDEFINED || mode != PAGE_CUR_LE);
@@ -1721,22 +1691,21 @@ func_exit:
 }
 
 /** Searches an index tree and positions a tree cursor on a given level.
-This function will avoid latching the traversal path and so should be
-used only for cases where-in latching is not needed.
+This function will avoid placing latches while traversing the path and so
+should be used only for cases where-in latching is not needed.
 
-@param[in,out]	index	index
-@param[in]	level	the tree level of search
-@param[in]	tuple	data tuple; Note: n_fields_cmp in compared
+@param[in]	index	Index
+@param[in]	level	The tree level of search
+@param[in]	tuple	Data tuple; Note: n_fields_cmp in compared
                         to the node ptr page node field
 @param[in]	mode	PAGE_CUR_L, ....
                         Insert should always be made using PAGE_CUR_LE
                         to search the position.
-@param[in,out]	cursor	tree cursor; points to record of interest.
-@param[in]	file	file name
-@param[in]	line	line where called from
-@param[in,out]	mtr	mtr
-@param[in]	mark_dirty
-                        if true then mark the block as dirty */
+@param[in,out]	cursor	Tree cursor; points to record of interest.
+@param[in]	file	File name
+@param[in]	line	Line where called from
+@param[in,out]	mtr	Mini-transaction
+@param[in]	mark_dirty if true then mark the block as dirty */
 void btr_cur_search_to_nth_level_with_no_latch(dict_index_t *index, ulint level,
                                                const dtuple_t *tuple,
                                                page_cur_mode_t mode,
@@ -1864,19 +1833,19 @@ void btr_cur_search_to_nth_level_with_no_latch(dict_index_t *index, ulint level,
   }
 }
 
-/** Opens a cursor at either end of an index. */
-void btr_cur_open_at_index_side_func(
-    bool from_left,      /*!< in: true if open to the low end,
-                         false if to the high end */
-    dict_index_t *index, /*!< in: index */
-    ulint latch_mode,    /*!< in: latch mode */
-    btr_cur_t *cursor,   /*!< in/out: cursor */
-    ulint level,         /*!< in: level to search for
-                         (0=leaf). */
-    const char *file,    /*!< in: file name */
-    ulint line,          /*!< in: line where called */
-    mtr_t *mtr)          /*!< in/out: mini-transaction */
-{
+/** Opens a cursor at either end of an index.
+@param[in] from_left True if open to the low end, false if to the high end
+@param[in] index Index
+@param[in] latch_mode Latch mode
+@param[in,out] cursor Cursor
+@param[in] level Level to search for (0=leaf)
+@param[in] file File name
+@param[in] line Line where called
+@param[in,out] mtr Mini-transaction */
+void btr_cur_open_at_index_side_func(bool from_left, dict_index_t *index,
+                                     ulint latch_mode, btr_cur_t *cursor,
+                                     ulint level, const char *file, ulint line,
+                                     mtr_t *mtr) {
   page_cur_t *page_cursor;
   ulint node_ptr_max_size = UNIV_PAGE_SIZE / 2;
   ulint height;
@@ -2182,14 +2151,15 @@ void btr_cur_open_at_index_side_func(
 Avoid taking latches on buffer, just pin (by incrementing fix_count)
 to keep them in buffer pool. This mode is used by intrinsic table
 as they are not shared and so there is no need of latching.
+
 @param[in]	from_left	true if open to low end, false if open to high
-                                end.
-@param[in]	index		index
-@param[in,out]	cursor		cursor
-@param[in]	level		level to search for (0=leaf)
-@param[in]	file		file name
-@param[in]	line		line where called
-@param[in,out]	mtr		mini transaction */
+end.
+@param[in]	index	Index
+@param[in,out]	cursor	Cursor
+@param[in]	level	Level to search for (0=leaf)
+@param[in]	file	File name
+@param[in]	line	Line where called
+@param[in,out]	mtr	Mini-transaction */
 void btr_cur_open_at_index_side_with_no_latch_func(
     bool from_left, dict_index_t *index, btr_cur_t *cursor, ulint level,
     const char *file, ulint line, mtr_t *mtr) {
@@ -2906,7 +2876,6 @@ dberr_t btr_cur_optimistic_insert(
     }
   }
 
-#ifdef BTR_CUR_HASH_ADAPT
   if (!index->disable_ahi) {
     if (!reorg && leaf && (cursor->flag == BTR_CUR_HASH)) {
       btr_search_update_hash_node_on_insert(cursor);
@@ -2914,7 +2883,6 @@ dberr_t btr_cur_optimistic_insert(
       btr_search_update_hash_on_insert(cursor);
     }
   }
-#endif /* BTR_CUR_HASH_ADAPT */
 
   if (!(flags & BTR_NO_LOCKING_FLAG) && inherit) {
     lock_update_insert(block, *rec);
@@ -3078,11 +3046,9 @@ dberr_t btr_cur_pessimistic_insert(
     }
   }
 
-#ifdef BTR_CUR_ADAPT
   if (!index->disable_ahi) {
     btr_search_update_hash_on_insert(cursor);
   }
-#endif
   if (inherit && !(flags & BTR_NO_LOCKING_FLAG)) {
     lock_update_insert(btr_cur_get_block(cursor), *rec);
   }
@@ -3151,16 +3117,18 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) dberr_t
                                         offsets, roll_ptr));
 }
 
-/** Writes a redo log record of updating a record in-place. */
-void btr_cur_update_in_place_log(
-    ulint flags,         /*!< in: flags */
-    const rec_t *rec,    /*!< in: record */
-    dict_index_t *index, /*!< in: index of the record */
-    const upd_t *update, /*!< in: update vector */
-    trx_id_t trx_id,     /*!< in: transaction id */
-    roll_ptr_t roll_ptr, /*!< in: roll ptr */
-    mtr_t *mtr)          /*!< in: mtr */
-{
+/** Writes a redo log record of updating a record in-place.
+@param[in] flags Undo logging and locking flags
+@param[in] rec Record
+@param[in] index Index of the record
+@param[in] update Update vector
+@param[in] trx_id Transaction id
+@param[in] roll_ptr Roll ptr
+@param[in] mtr Mini-transaction */
+void btr_cur_update_in_place_log(ulint flags, const rec_t *rec,
+                                 dict_index_t *index, const upd_t *update,
+                                 trx_id_t trx_id, roll_ptr_t roll_ptr,
+                                 mtr_t *mtr) {
   byte *log_ptr = nullptr;
   const page_t *page = page_align(rec);
   ut_ad(flags < 256);
@@ -3357,31 +3325,24 @@ out_of_space:
 }
 
 /** Updates a record when the update causes no size changes in its fields.
- We assume here that the ordering fields of the record do not change.
- @return locking or undo log related error code, or
- @retval DB_SUCCESS on success
- @retval DB_ZIP_OVERFLOW if there is not enough space left
- on the compressed page (IBUF_BITMAP_FREE was reset outside mtr) */
-dberr_t btr_cur_update_in_place(
-    ulint flags,         /*!< in: undo logging and locking flags */
-    btr_cur_t *cursor,   /*!< in: cursor on the record to update;
-                         cursor stays valid and positioned on the
-                         same record */
-    ulint *offsets,      /*!< in/out: offsets on cursor->page_cur.rec */
-    const upd_t *update, /*!< in: update vector */
-    ulint cmpl_info,     /*!< in: compiler info on secondary index
-                       updates */
-    que_thr_t *thr,      /*!< in: query thread, or NULL if
-                         flags & (BTR_NO_LOCKING_FLAG
-                         | BTR_NO_UNDO_LOG_FLAG
-                         | BTR_CREATE_FLAG
-                         | BTR_KEEP_SYS_FLAG) */
-    trx_id_t trx_id,     /*!< in: transaction id */
-    mtr_t *mtr)          /*!< in/out: mini-transaction; if this
-                         is a secondary index, the caller must
-                         mtr_commit(mtr) before latching any
-                         further pages */
-{
+@param[in] flags Undo logging and locking flags
+@param[in] cursor Cursor on the record to update; cursor stays valid and
+positioned on the same record
+@param[in,out] offsets Offsets on cursor->page_cur.rec
+@param[in] update Update vector
+@param[in] cmpl_info Compiler info on secondary index updates
+@param[in] thr Query thread, or null if flags & (btr_no_locking_flag |
+btr_no_undo_log_flag | btr_create_flag | btr_keep_sys_flag)
+@param[in] trx_id Transaction id
+@param[in,out] mtr Mini-transaction; if this is a secondary index, the caller
+must mtr_commit(mtr) before latching any further pages
+@return locking or undo log related error code, or
+@retval DB_SUCCESS on success
+@retval DB_ZIP_OVERFLOW if there is not enough space left
+on the compressed page (IBUF_BITMAP_FREE was reset outside mtr) */
+dberr_t btr_cur_update_in_place(ulint flags, btr_cur_t *cursor, ulint *offsets,
+                                const upd_t *update, ulint cmpl_info,
+                                que_thr_t *thr, trx_id_t trx_id, mtr_t *mtr) {
   dict_index_t *index;
   buf_block_t *block;
   page_zip_des_t *page_zip;
@@ -4672,7 +4633,6 @@ ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
   bool success;
   ibool ret = FALSE;
   ulint level;
-  mem_heap_t *heap;
   ulint *offsets;
 #ifdef UNIV_DEBUG
   bool parent_latched = false;
@@ -4690,23 +4650,10 @@ ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
         index->table->is_intrinsic());
   ut_ad(mtr_is_block_fix(mtr, block, MTR_MEMO_PAGE_X_FIX, index->table));
 
-  if (!has_reserved_extents) {
-    /* First reserve enough free space for the file segments
-    of the index tree, so that the node pointer updates will
-    not fail because of lack of space */
+  std::unique_ptr<mem_heap_t, decltype(&mem_heap_free)> heap_ptr(
+      mem_heap_create(1024), mem_heap_free);
+  mem_heap_t *heap = heap_ptr.get();
 
-    ulint n_extents = cursor->tree_height / 32 + 1;
-
-    success = fsp_reserve_free_extents(&n_reserved, index->space, n_extents,
-                                       FSP_CLEANING, mtr);
-    if (!success) {
-      *err = DB_OUT_OF_FILE_SPACE;
-
-      return FALSE;
-    }
-  }
-
-  heap = mem_heap_create(1024);
   rec = btr_cur_get_rec(cursor);
 #ifdef UNIV_ZIP_DEBUG
   page_zip_des_t *page_zip = buf_block_get_page_zip(block);
@@ -4745,8 +4692,24 @@ ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
         !rec_get_deleted_flag(rec, rec_offs_comp(offsets))) {
       /* This is the purge thread.  For the purge thread, rec_type will have a
        * valid value. */
-      ret = TRUE;
-      goto return_after_reservations;
+      *err = DB_SUCCESS;
+      return TRUE;
+    }
+  }
+
+  if (!has_reserved_extents) {
+    /* First reserve enough free space for the file segments
+    of the index tree, so that the node pointer updates will
+    not fail because of lack of space */
+
+    ulint n_extents = cursor->tree_height / 32 + 1;
+
+    success = fsp_reserve_free_extents(&n_reserved, index->space, n_extents,
+                                       FSP_CLEANING, mtr);
+    if (!success) {
+      *err = DB_OUT_OF_FILE_SPACE;
+
+      return FALSE;
     }
   }
 
@@ -4808,7 +4771,6 @@ ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
       if (!upd_ret) {
         *err = DB_ERROR;
 
-        mem_heap_free(heap);
         return FALSE;
       }
 
@@ -4843,8 +4805,6 @@ ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
 return_after_reservations:
   *err = DB_SUCCESS;
 
-  mem_heap_free(heap);
-
   if (ret == FALSE) {
     ret = btr_cur_compress_if_useful(cursor, FALSE, mtr);
   }
@@ -4861,6 +4821,8 @@ return_after_reservations:
   if (n_reserved > 0) {
     fil_space_release_free_extents(index->space, n_reserved);
   }
+
+  ut_ad(heap == heap_ptr.get());
 
   return ret;
 }

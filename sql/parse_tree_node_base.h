@@ -23,22 +23,21 @@
 #ifndef PARSE_TREE_NODE_BASE_INCLUDED
 #define PARSE_TREE_NODE_BASE_INCLUDED
 
-#include <stdarg.h>
+#include <cstdarg>
 #include <cstdlib>
 #include <new>
 
 #include "memory_debugging.h"
+#include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_inttypes.h"
+#include "my_inttypes.h"  // TODO: replace with cstdint
 #include "sql/check_stack.h"
-#include "sql/mem_root_array.h"
 #include "sql/parse_location.h"
 #include "sql/sql_const.h"
 
 class SELECT_LEX;
 class THD;
-struct MEM_ROOT;
 
 // uncachable cause
 #define UNCACHEABLE_DEPENDENT 1
@@ -83,15 +82,6 @@ enum enum_parsing_context {
   CTX_UNION_RESULT,  ///< Pseudo-table context for UNION result
   CTX_QUERY_SPEC     ///< Inner SELECTs of UNION expression
 };
-
-/*
-  Note: YYLTYPE doesn't overload a default constructor (as well an underlying
-  Symbol_location).
-  OTOH if we need a zero-initialized POS, YYLTYPE or Symbol_location object,
-  we can simply call POS(), YYLTYPE() or Symbol_location(): C++ does
-  value-initialization in that case.
-*/
-typedef YYLTYPE POS;
 
 /**
   Environment data for the contextualization phase

@@ -7931,12 +7931,17 @@ t	CREATE TABLE `t` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT IGNORE INTO t (a) VALUES ("{}");
 Warnings:
-Warning	1366	Incorrect integer value: '{}' for column 'b' at row 1
+Warning	3156	Invalid JSON value for CAST to INTEGER from column a at row 1
 SELECT * FROM t;
 a	b
 {}	0000
+Warnings:
+Warning	3156	Invalid JSON value for CAST to INTEGER from column a at row 1
 DELETE FROM t;
 DELETE IGNORE FROM t;
+Warnings:
+Warning	3156	Invalid JSON value for CAST to INTEGER from column a at row 1
+Warning	3156	Invalid JSON value for CAST to INTEGER from column a at row 1
 CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
@@ -7951,12 +7956,17 @@ t	CREATE TABLE `t` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT IGNORE INTO t (a) VALUES ('["hello beautiful world"]');
 Warnings:
-Warning	1366	Incorrect integer value: '["hello beautiful world"]' for column 'b' at row 1
+Warning	3156	Invalid JSON value for CAST to INTEGER from column a at row 1
 SELECT * FROM t;
 a	b
 ["hello beautiful world"]	0000
+Warnings:
+Warning	3156	Invalid JSON value for CAST to INTEGER from column a at row 1
 DELETE FROM t;
 DELETE IGNORE FROM t;
+Warnings:
+Warning	3156	Invalid JSON value for CAST to INTEGER from column a at row 1
+Warning	3156	Invalid JSON value for CAST to INTEGER from column a at row 1
 CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK

@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -82,4 +82,13 @@ FUNCTION(ADD_COMPILE_DEFINITIONS)
     SET_SOURCE_FILES_PROPERTIES(
       ${FILE} PROPERTIES COMPILE_DEFINITIONS "${DEFS}")
   ENDFOREACH()
+ENDFUNCTION()
+
+# -flto[=n] or -flto=auto or -flto=jobserver
+SET(MY_COMPILER_FLAG_FLTO " -flto(=[0-9a-z]+)?")
+
+# Remove compiler flag/pattern from CMAKE_C_FLAGS or CMAKE_CXX_FLAGS
+FUNCTION(REMOVE_CMAKE_COMPILER_FLAGS FLAG_VAR PATTERN)
+  STRING(REGEX REPLACE "${PATTERN}" "" ${FLAG_VAR} "${${FLAG_VAR}}")
+  SET(${FLAG_VAR} "${${FLAG_VAR}}" PARENT_SCOPE)
 ENDFUNCTION()

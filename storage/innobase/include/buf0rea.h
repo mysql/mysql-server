@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -162,11 +162,12 @@ void buf_read_recv_pages(bool sync, space_id_t space_id,
 invoked */
 #define BUF_READ_AHEAD_AREA(b) ((b)->read_ahead_area)
 
-/** @name Modes used in read-ahead @{ */
+/** @name Modes used in read-ahead
+@{ */
 /** read only pages belonging to the insert buffer tree */
 #define BUF_READ_IBUF_PAGES_ONLY 131
 /** read any page */
 #define BUF_READ_ANY_PAGE 132
-/* @} */
+/** @} */
 
 #endif

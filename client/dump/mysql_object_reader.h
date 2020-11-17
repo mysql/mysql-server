@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -55,22 +55,24 @@ class Mysql_object_reader : public Abstract_data_formatter_wrapper,
       Simple_id_generator *object_id_generator,
       const Mysql_object_reader_options *options);
 
-  void read_object(Item_processing_data *item_to_process);
+  void read_object(Item_processing_data *item_to_process) override;
 
   void format_rows(Item_processing_data *item_to_process,
                    Row_group_dump_task *row_group);
 
   // Fix "inherits ... via dominance" warnings
-  void register_progress_watcher(I_progress_watcher *new_progress_watcher) {
+  void register_progress_watcher(
+      I_progress_watcher *new_progress_watcher) override {
     Abstract_chain_element::register_progress_watcher(new_progress_watcher);
   }
 
   // Fix "inherits ... via dominance" warnings
-  uint64 get_id() const { return Abstract_chain_element::get_id(); }
+  uint64 get_id() const override { return Abstract_chain_element::get_id(); }
 
  protected:
   // Fix "inherits ... via dominance" warnings
-  void item_completion_in_child_callback(Item_processing_data *item_processed) {
+  void item_completion_in_child_callback(
+      Item_processing_data *item_processed) override {
     Abstract_chain_element::item_completion_in_child_callback(item_processed);
   }
 

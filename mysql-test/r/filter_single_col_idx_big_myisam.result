@@ -1186,30 +1186,30 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.col3, t1.col4) IN ((5,5),(6,6),(7,7));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	3.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where ((`test`.`t1`.`col3`,`test`.`t1`.`col4`) in (<cache>((5,5)),<cache>((6,6)),<cache>((7,7))))
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where ((`test`.`t1`.`col3`,`test`.`t1`.`col4`) in ((5,5),(6,6),(7,7)))
 EXPLAIN 
 SELECT * FROM t1 WHERE (t1.col3, t1.col4) IN ((5,5),(6,6),(7,7),(8,8),(9,9),(10,10));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	6.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where ((`test`.`t1`.`col3`,`test`.`t1`.`col4`) in (<cache>((5,5)),<cache>((6,6)),<cache>((7,7)),<cache>((8,8)),<cache>((9,9)),<cache>((10,10))))
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where ((`test`.`t1`.`col3`,`test`.`t1`.`col4`) in ((5,5),(6,6),(7,7),(8,8),(9,9),(10,10)))
 EXPLAIN SELECT * FROM t1 WHERE (t1.col3, 1) IN ((5,5),(6,6),(7,7));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	30.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where ((`test`.`t1`.`col3`,1) in (<cache>((5,5)),<cache>((6,6)),<cache>((7,7))))
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where ((`test`.`t1`.`col3`,1) in ((5,5),(6,6),(7,7)))
 
 # <row_value> NOT IN
 EXPLAIN SELECT * FROM t1 WHERE (t1.col3, t1.col4) NOT IN ((5,5),(6,6),(7,7));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	97.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where ((`test`.`t1`.`col3`,`test`.`t1`.`col4`) not in (<cache>((5,5)),<cache>((6,6)),<cache>((7,7))))
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where ((`test`.`t1`.`col3`,`test`.`t1`.`col4`) not in ((5,5),(6,6),(7,7)))
 EXPLAIN SELECT * FROM t1 WHERE (t1.col3, 1) NOT IN ((5,5),(6,6),(7,7));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	70.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where ((`test`.`t1`.`col3`,1) not in (<cache>((5,5)),<cache>((6,6)),<cache>((7,7))))
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where ((`test`.`t1`.`col3`,1) not in ((5,5),(6,6),(7,7)))
 
 # NULL
 EXPLAIN SELECT * FROM t1 WHERE t1.col3 IS NULL;

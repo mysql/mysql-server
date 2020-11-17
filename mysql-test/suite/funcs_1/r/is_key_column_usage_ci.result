@@ -113,6 +113,10 @@ def	mysql	PRIMARY	def	mysql	proxies_priv	Host
 def	mysql	PRIMARY	def	mysql	proxies_priv	Proxied_host
 def	mysql	PRIMARY	def	mysql	proxies_priv	Proxied_user
 def	mysql	PRIMARY	def	mysql	proxies_priv	User
+def	mysql	PRIMARY	def	mysql	replication_asynchronous_connection_failover	Channel_name
+def	mysql	PRIMARY	def	mysql	replication_asynchronous_connection_failover	Host
+def	mysql	PRIMARY	def	mysql	replication_asynchronous_connection_failover	Network_namespace
+def	mysql	PRIMARY	def	mysql	replication_asynchronous_connection_failover	Port
 def	mysql	PRIMARY	def	mysql	role_edges	FROM_HOST
 def	mysql	PRIMARY	def	mysql	role_edges	FROM_USER
 def	mysql	PRIMARY	def	mysql	role_edges	TO_HOST
@@ -196,6 +200,7 @@ def	performance_schema	OWNER_THREAD_ID	def	performance_schema	prepared_statement
 def	performance_schema	PRIMARY	def	performance_schema	cond_instances	OBJECT_INSTANCE_BEGIN
 def	performance_schema	PRIMARY	def	performance_schema	data_locks	ENGINE
 def	performance_schema	PRIMARY	def	performance_schema	data_locks	ENGINE_LOCK_ID
+def	performance_schema	PRIMARY	def	performance_schema	error_log	LOGGED
 def	performance_schema	PRIMARY	def	performance_schema	events_stages_current	EVENT_ID
 def	performance_schema	PRIMARY	def	performance_schema	events_stages_current	THREAD_ID
 def	performance_schema	PRIMARY	def	performance_schema	events_stages_history	EVENT_ID
@@ -242,11 +247,16 @@ def	performance_schema	PRIMARY	def	performance_schema	metadata_locks	OBJECT_INST
 def	performance_schema	PRIMARY	def	performance_schema	mutex_instances	OBJECT_INSTANCE_BEGIN
 def	performance_schema	PRIMARY	def	performance_schema	persisted_variables	VARIABLE_NAME
 def	performance_schema	PRIMARY	def	performance_schema	prepared_statements_instances	OBJECT_INSTANCE_BEGIN
+def	performance_schema	PRIMARY	def	performance_schema	processlist	ID
 def	performance_schema	PRIMARY	def	performance_schema	replication_applier_configuration	CHANNEL_NAME
 def	performance_schema	PRIMARY	def	performance_schema	replication_applier_status	CHANNEL_NAME
 def	performance_schema	PRIMARY	def	performance_schema	replication_applier_status_by_coordinator	CHANNEL_NAME
 def	performance_schema	PRIMARY	def	performance_schema	replication_applier_status_by_worker	CHANNEL_NAME
 def	performance_schema	PRIMARY	def	performance_schema	replication_applier_status_by_worker	WORKER_ID
+def	performance_schema	PRIMARY	def	performance_schema	replication_asynchronous_connection_failover	CHANNEL_NAME
+def	performance_schema	PRIMARY	def	performance_schema	replication_asynchronous_connection_failover	HOST
+def	performance_schema	PRIMARY	def	performance_schema	replication_asynchronous_connection_failover	NETWORK_NAMESPACE
+def	performance_schema	PRIMARY	def	performance_schema	replication_asynchronous_connection_failover	PORT
 def	performance_schema	PRIMARY	def	performance_schema	replication_connection_configuration	CHANNEL_NAME
 def	performance_schema	PRIMARY	def	performance_schema	replication_connection_status	CHANNEL_NAME
 def	performance_schema	PRIMARY	def	performance_schema	rwlock_instances	OBJECT_INSTANCE_BEGIN

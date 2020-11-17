@@ -77,6 +77,11 @@
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_replication_applier";
 
 --echo
+--echo # CHANGE MASTER command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
+--error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL "group_replication_applier";
+
+--echo
 --echo # CHANGE MASTER command is blocked for option `PRIVILEGE_CHECKS_USER` when GR is running
 --error ER_GRP_OPERATION_NOT_ALLOWED_GR_MUST_STOP
 CHANGE MASTER TO PRIVILEGE_CHECKS_USER='user' FOR CHANNEL "group_replication_applier";
@@ -158,6 +163,11 @@ START SLAVE SQL_THREAD UNTIL RELAY_LOG_FILE = 'server-relay-log-group_replicatio
 --echo # CHANGE MASTER command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
 --error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_replication_applier";
+
+--echo
+--echo # CHANGE MASTER command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
+--error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL "group_replication_applier";
 
 --echo
 --echo # CHANGE MASTER command allows option `PRIVILEGE_CHECKS_USER` when GR is stopped

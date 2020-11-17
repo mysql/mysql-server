@@ -209,9 +209,14 @@
 #define REFRESH_HOSTS 8    /**< Flush host cache, FLUSH HOSTS */
 #define REFRESH_STATUS 16  /**< Flush status variables, FLUSH STATUS */
 #define REFRESH_THREADS 32 /**< Flush thread cache */
-#define REFRESH_SLAVE                         \
-  64 /**< Reset master info and restart slave \
-        thread, RESET SLAVE */
+#define REFRESH_REPLICA                         \
+  64 /**< Reset master info and restart replica \
+        thread, RESET REPLICA */
+#define REFRESH_SLAVE                                        \
+  REFRESH_REPLICA /**< Reset master info and restart replica \
+        thread, RESET REPLICA. This is deprecated,           \
+        use REFRESH_REPLICA instead. */
+
 #define REFRESH_MASTER                                                 \
   128                            /**< Remove all bin logs in the index \
                                     and truncate the index, RESET MASTER */
@@ -840,13 +845,15 @@ struct Vio;
 #define MYSQL_VIO struct Vio *
 #endif
 
-#define MAX_TINYINT_WIDTH 3     /**< Max width for a TINY w.o. sign */
-#define MAX_SMALLINT_WIDTH 5    /**< Max width for a SHORT w.o. sign */
-#define MAX_MEDIUMINT_WIDTH 8   /**< Max width for a INT24 w.o. sign */
-#define MAX_INT_WIDTH 10        /**< Max width for a LONG w.o. sign */
-#define MAX_BIGINT_WIDTH 20     /**< Max width for a LONGLONG */
-#define MAX_CHAR_WIDTH 255      /**< Max length for a CHAR colum */
-#define MAX_BLOB_WIDTH 16777216 /**< Default width for blob */
+#define MAX_TINYINT_WIDTH 3   /**< Max width for a TINY w.o. sign */
+#define MAX_SMALLINT_WIDTH 5  /**< Max width for a SHORT w.o. sign */
+#define MAX_MEDIUMINT_WIDTH 8 /**< Max width for a INT24 w.o. sign */
+#define MAX_INT_WIDTH 10      /**< Max width for a LONG w.o. sign */
+#define MAX_BIGINT_WIDTH 20   /**< Max width for a LONGLONG */
+/// Max width for a CHAR column, in number of characters
+#define MAX_CHAR_WIDTH 255
+/// Default width for blob in bytes @todo - align this with sizes from field.h
+#define MAX_BLOB_WIDTH 16777216
 
 typedef struct NET {
   MYSQL_VIO vio;
@@ -1011,7 +1018,7 @@ bool my_net_init(struct NET *net, MYSQL_VIO vio);
 void my_net_local_init(struct NET *net);
 void net_end(struct NET *net);
 void net_clear(struct NET *net, bool check_buffer);
-void net_claim_memory_ownership(struct NET *net);
+void net_claim_memory_ownership(struct NET *net, bool claim);
 bool net_realloc(struct NET *net, size_t length);
 bool net_flush(struct NET *net);
 bool my_net_write(struct NET *net, const unsigned char *packet, size_t len);

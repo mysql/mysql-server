@@ -420,6 +420,15 @@ bool fix_sys_schema(THD *thd) {
 bool fix_mysql_tables(THD *thd) {
   const char **query_ptr;
 
+  DBUG_EXECUTE_IF(
+      "schema_read_only",
+      if (dd::execute_query(thd, "CREATE SCHEMA schema_read_only") ||
+          dd::execute_query(thd, "ALTER SCHEMA schema_read_only READ ONLY=1") ||
+          dd::execute_query(thd, "CREATE TABLE schema_read_only.t(i INT)") ||
+          dd::execute_query(thd, "DROP SCHEMA schema_read_only") ||
+          dd::execute_query(thd, "CREATE TABLE IF NOT EXISTS S.upgrade(i INT)"))
+          DBUG_ASSERT(false););
+
   if (ignore_error_and_execute(thd, "USE mysql")) {
     LogErr(ERROR_LEVEL, ER_DD_UPGRADE_FAILED_FIND_VALID_DATA_DIR);
     return true;

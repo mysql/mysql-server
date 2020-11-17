@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -686,7 +686,7 @@ struct buff_event_info {
   which stores such an event and the corresponding log position.
 */
 typedef Prealloced_array<buff_event_info, 16> Buff_ev;
-Buff_ev *buff_ev(PSI_NOT_INSTRUMENTED);
+Buff_ev *buff_ev{nullptr};
 
 // needed by net_serv.c
 ulong bytes_sent = 0L, bytes_received = 0L;

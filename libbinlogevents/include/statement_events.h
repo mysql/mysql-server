@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -688,11 +688,11 @@ class Query_event : public Binary_log_event {
     to the log.
   */
   Query_event(Log_event_type type_arg = QUERY_EVENT);
-  virtual ~Query_event() {}
+  ~Query_event() override {}
 
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream &info);
-  void print_long_info(std::ostream &info);
+  void print_event_info(std::ostream &info) override;
+  void print_long_info(std::ostream &info) override;
 #endif
 };
 
@@ -848,7 +848,7 @@ class User_var_event : public Binary_log_event {
     @param fde  An FDE event (see Rotate_event constructor for more info).
   */
   User_var_event(const char *buf, const Format_description_event *fde);
-  virtual ~User_var_event();
+  ~User_var_event() override;
   const char *name;
   unsigned int name_len;
   char *val;
@@ -858,8 +858,8 @@ class User_var_event : public Binary_log_event {
   bool is_null;
   unsigned char flags;
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream &info);
-  void print_long_info(std::ostream &info);
+  void print_event_info(std::ostream &info) override;
+  void print_long_info(std::ostream &info) override;
   const char *get_value_type_string(Value_type type_arg) const {
     switch (type_arg) {
       case STRING_RESULT:
@@ -983,11 +983,11 @@ class Intvar_event : public Binary_log_event {
   Intvar_event(uint8_t type_arg, uint64_t val_arg)
       : Binary_log_event(INTVAR_EVENT), type(type_arg), val(val_arg) {}
 
-  ~Intvar_event() {}
+  ~Intvar_event() override {}
 
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream &info);
-  void print_long_info(std::ostream &info);
+  void print_event_info(std::ostream &info) override;
+  void print_long_info(std::ostream &info) override;
 #endif
 };
 
@@ -1063,8 +1063,8 @@ type_code as RAND_EVENT in the header object in Binary_log_event
   */
   Rand_event(const char *buf, const Format_description_event *fde);
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream &info);
-  void print_long_info(std::ostream &info);
+  void print_event_info(std::ostream &info) override;
+  void print_long_info(std::ostream &info) override;
 #endif
 };
 }  // end namespace binary_log

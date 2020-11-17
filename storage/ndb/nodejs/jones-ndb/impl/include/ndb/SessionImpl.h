@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2014, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -95,7 +95,7 @@ public:
      If null, the caller should queue the request and retry it after
      releasing a TransactionImpl.
   */
-  TransactionImpl * seizeTransaction();
+  TransactionImpl * seizeTransaction(v8::Isolate *);
 
   /* Release a previously seized transaction. 
      Returns 0 on success.
@@ -117,6 +117,7 @@ private:
   friend class TransactionImpl;
   friend class ListTablesCall;
   friend class GetTableCall;
+  friend class QueryOperation;
 
   int maxNdbTransactions;
   int nContexts;

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -120,7 +120,7 @@ class ReplayerWithMockSSL : public MySQLSessionReplayer {
 
 class ConfigGeneratorTest : public ConsoleOutputTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     init_test_logger();
 
     mysql_harness::DIM::instance().set_RandomGenerator(
@@ -148,6 +148,7 @@ class ConfigGeneratorTest : public ConsoleOutputTest {
     config_path->append("Bug24570426.conf");
 
     default_paths["logging_folder"] = "";
+    default_paths["data_folder"] = tmp_dir();
   }
 
   std::unique_ptr<Path> config_path;
@@ -201,7 +202,8 @@ static void common_pass_metadata_supported(MySQLSessionReplayer *m) {
 static void common_pass_group_replication_online(MySQLSessionReplayer *m) {
   m->expect_query_one(
       "SELECT member_state FROM performance_schema.replication_group_members "
-      "WHERE member_id = @@server_uuid");
+      "WHERE CAST(member_id AS char ascii) = CAST(@@server_uuid AS char "
+      "ascii)");
   m->then_return(1, {// member_state
                      {m->string_or_null("ONLINE")}});
 }
@@ -358,7 +360,8 @@ TEST_F(ConfigGeneratorTest, metadata_checks_invalid_data) {
 
     mock_mysql->expect_query_one(
         "SELECT member_state FROM performance_schema.replication_group_members "
-        "WHERE member_id = @@server_uuid");
+        "WHERE CAST(member_id AS char ascii) = CAST(@@server_uuid AS char "
+        "ascii)");
     mock_mysql->then_return(0, {
                                    // [state field missing]
                                });
@@ -1448,487 +1451,614 @@ TEST_F(ConfigGeneratorTest, create_router_accounts) {
   }    // for (TestType tt : {NATIVE, FALLBACK})
 }
 
-TEST_F(ConfigGeneratorTest, create_config) {
-  std::map<std::string, std::string> user_options;
+class CreateConfigGeneratorTest : public ConfigGeneratorTest {
+ public:
+  void SetUp() override {
+    ConfigGeneratorTest::SetUp();
 
+    cluster_info = {
+        {"server1", "server2", "server3"}, "", "mycluster", "myreplicaset"};
+
+    common_pass_metadata_checks(mock_mysql.get());
+    config_gen.init(kServerUrl, {});
+  }
+
+ protected:
+  std::map<std::string, std::string> user_options;
   ConfigGenerator config_gen;
-  common_pass_metadata_checks(mock_mysql.get());
-  config_gen.init(kServerUrl, {});
+  mysqlrouter::ClusterInfo cluster_info;
+  std::stringstream conf_output, state_output;
+
+  const mysql_harness::Path tmp_path =
+      mysql_harness::Path{tmp_dir()}.real_path();
+
+  const std::string rest_config{
+      "[http_server]\n"
+      "port=8443\n"
+      "ssl=1\n"
+      "ssl_cert=" +
+      tmp_path.join("router-cert.pem").str() +
+      "\n"
+      "ssl_key=" +
+      tmp_path.join("router-key.pem").str() +
+      "\n"
+      "\n"
+      "[http_auth_realm:default_auth_realm]\n"
+      "backend=default_auth_backend\n"
+      "method=basic\n"
+      "name=default_realm\n"
+      "\n"
+      "[rest_router]\n"
+      "require_realm=default_auth_realm\n"
+      "\n"
+      "[rest_api]\n"
+      "\n"
+      "[http_auth_backend:default_auth_backend]\n"
+      "backend=metadata_cache\n"
+      "\n"
+      "[rest_routing]\n"
+      "require_realm=default_auth_realm\n"
+      "\n"
+      "[rest_metadata_cache]\n"
+      "require_realm=default_auth_realm\n"};
+};
+
+TEST_F(CreateConfigGeneratorTest, create_config_basic) {
   ConfigGenerator::Options options = config_gen.fill_options(user_options);
 
-  {
-    std::stringstream conf_output, state_output;
-    config_gen.create_config(conf_output, state_output, 123, "myrouter",
-                             "mysqlrouter", {"server1", "server2", "server3"},
-                             "mycluster", "myreplicaset", "cluster_user",
-                             options, "state_file_name.json");
-    ASSERT_THAT(
-        conf_output.str(),
-        Eq("# File automatically generated during MySQL Router bootstrap\n"
-           "[DEFAULT]\n"
-           "name=myrouter\n"
-           "user=mysqlrouter\n"
-           "connect_timeout=" +
-           kDefaultConnectTimeout + "\n" +
-           "read_timeout=" + kDefaultReadTimeout + "\n" +
-           "dynamic_state=state_file_name.json\n"
-           "\n"
-           "[logger]\n"
-           "level = INFO\n"
-           "\n"
-           "[metadata_cache:mycluster]\n"
-           "cluster_type=gr\n"
-           "router_id=123\n"
-           "user=cluster_user\n"
-           "metadata_cluster=mycluster\n"
-           "ttl=0.5\n"
-           "auth_cache_ttl=-1\n"
-           "auth_cache_refresh_interval=2\n"
-           "use_gr_notifications=0\n"
-           "\n"
-           "[routing:mycluster_myreplicaset_rw]\n"
-           "bind_address=0.0.0.0\n"
-           "bind_port=6446\n"
-           "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
-           "routing_strategy=first-available\n"
-           "protocol=classic\n"
-           "\n"
-           "[routing:mycluster_myreplicaset_ro]\n"
-           "bind_address=0.0.0.0\n"
-           "bind_port=6447\n"
-           "destinations=metadata-cache://mycluster/"
-           "myreplicaset?role=SECONDARY\n"
-           "routing_strategy=round-robin-with-fallback\n"
-           "protocol=classic\n"
-           "\n"
-           "[routing:mycluster_myreplicaset_x_rw]\n"
-           "bind_address=0.0.0.0\n"
-           "bind_port=64460\n"
-           "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
-           "routing_strategy=first-available\n"
-           "protocol=x\n"
-           "\n"
-           "[routing:mycluster_myreplicaset_x_ro]\n"
-           "bind_address=0.0.0.0\n"
-           "bind_port=64470\n"
-           "destinations=metadata-cache://mycluster/"
-           "myreplicaset?role=SECONDARY\n"
-           "routing_strategy=round-robin-with-fallback\n"
-           "protocol=x\n"
-           "\n"));
+  config_gen.create_config(conf_output, state_output, 123, "myrouter",
+                           "mysqlrouter", cluster_info, "cluster_user", options,
+                           default_paths, "state_file_name.json");
+  ASSERT_THAT(
+      conf_output.str(),
+      Eq("# File automatically generated during MySQL Router bootstrap\n"
+         "[DEFAULT]\n"
+         "name=myrouter\n"
+         "user=mysqlrouter\n"
+         "connect_timeout=" +
+         kDefaultConnectTimeout + "\n" + "read_timeout=" + kDefaultReadTimeout +
+         "\n" +
+         "dynamic_state=state_file_name.json\n"
+         "\n"
+         "[logger]\n"
+         "level = INFO\n"
+         "\n"
+         "[metadata_cache:mycluster]\n"
+         "cluster_type=gr\n"
+         "router_id=123\n"
+         "user=cluster_user\n"
+         "metadata_cluster=mycluster\n"
+         "ttl=0.5\n"
+         "auth_cache_ttl=-1\n"
+         "auth_cache_refresh_interval=2\n"
+         "use_gr_notifications=0\n"
+         "\n"
+         "[routing:mycluster_myreplicaset_rw]\n"
+         "bind_address=0.0.0.0\n"
+         "bind_port=6446\n"
+         "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
+         "routing_strategy=first-available\n"
+         "protocol=classic\n"
+         "\n"
+         "[routing:mycluster_myreplicaset_ro]\n"
+         "bind_address=0.0.0.0\n"
+         "bind_port=6447\n"
+         "destinations=metadata-cache://mycluster/"
+         "myreplicaset?role=SECONDARY\n"
+         "routing_strategy=round-robin-with-fallback\n"
+         "protocol=classic\n"
+         "\n"
+         "[routing:mycluster_myreplicaset_x_rw]\n"
+         "bind_address=0.0.0.0\n"
+         "bind_port=64460\n"
+         "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
+         "routing_strategy=first-available\n"
+         "protocol=x\n"
+         "\n"
+         "[routing:mycluster_myreplicaset_x_ro]\n"
+         "bind_address=0.0.0.0\n"
+         "bind_port=64470\n"
+         "destinations=metadata-cache://mycluster/"
+         "myreplicaset?role=SECONDARY\n"
+         "routing_strategy=round-robin-with-fallback\n"
+         "protocol=x\n"
+         "\n" +
+         rest_config + "\n"));
 
-    ASSERT_THAT(state_output.str(),
-                Eq("{\n"
-                   "    \"metadata-cache\": {\n"
-                   "        \"group-replication-id\": \"replication-1\",\n"
-                   "        \"cluster-metadata-servers\": [\n"
-                   "            \"server1\",\n"
-                   "            \"server2\",\n"
-                   "            \"server3\"\n"
-                   "        ]\n"
-                   "    },\n"
-                   "    \"version\": \"1.0.0\"\n"
-                   "}"));
-  }
-  {
-    std::stringstream conf_output, state_output;
-    // system instance (no key)
-    config_gen.create_config(conf_output, state_output, 123, "", "",
-                             {"server1", "server2", "server3"}, "mycluster",
-                             "myreplicaset", "cluster_user", options,
-                             "state_file_name.json");
-    ASSERT_THAT(
-        conf_output.str(),
-        Eq("# File automatically generated during MySQL Router bootstrap\n"
-           "[DEFAULT]\n"
-           "connect_timeout=" +
-           kDefaultConnectTimeout + "\n" +
-           "read_timeout=" + kDefaultReadTimeout + "\n" +
-           "dynamic_state=state_file_name.json\n"
-           "\n"
-           "[logger]\n"
-           "level = INFO\n"
-           "\n"
-           "[metadata_cache:mycluster]\n"
-           "cluster_type=gr\n"
-           "router_id=123\n"
-           "user=cluster_user\n"
-           "metadata_cluster=mycluster\n"
-           "ttl=0.5\n"
-           "auth_cache_ttl=-1\n"
-           "auth_cache_refresh_interval=2\n"
-           "use_gr_notifications=0\n"
-           "\n"
-           "[routing:mycluster_myreplicaset_rw]\n"
-           "bind_address=0.0.0.0\n"
-           "bind_port=6446\n"
-           "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
-           "routing_strategy=first-available\n"
-           "protocol=classic\n"
-           "\n"
-           "[routing:mycluster_myreplicaset_ro]\n"
-           "bind_address=0.0.0.0\n"
-           "bind_port=6447\n"
-           "destinations=metadata-cache://mycluster/"
-           "myreplicaset?role=SECONDARY\n"
-           "routing_strategy=round-robin-with-fallback\n"
-           "protocol=classic\n"
-           "\n"
-           "[routing:mycluster_myreplicaset_x_rw]\n"
-           "bind_address=0.0.0.0\n"
-           "bind_port=64460\n"
-           "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
-           "routing_strategy=first-available\n"
-           "protocol=x\n"
-           "\n"
-           "[routing:mycluster_myreplicaset_x_ro]\n"
-           "bind_address=0.0.0.0\n"
-           "bind_port=64470\n"
-           "destinations=metadata-cache://mycluster/"
-           "myreplicaset?role=SECONDARY\n"
-           "routing_strategy=round-robin-with-fallback\n"
-           "protocol=x\n"
-           "\n"));
+  ASSERT_THAT(state_output.str(),
+              Eq("{\n"
+                 "    \"metadata-cache\": {\n"
+                 "        \"group-replication-id\": \"replication-1\",\n"
+                 "        \"cluster-metadata-servers\": [\n"
+                 "            \"server1\",\n"
+                 "            \"server2\",\n"
+                 "            \"server3\"\n"
+                 "        ]\n"
+                 "    },\n"
+                 "    \"version\": \"1.0.0\"\n"
+                 "}"));
+}
 
-    ASSERT_THAT(state_output.str(),
-                Eq("{\n"
-                   "    \"metadata-cache\": {\n"
-                   "        \"group-replication-id\": \"replication-1\",\n"
-                   "        \"cluster-metadata-servers\": [\n"
-                   "            \"server1\",\n"
-                   "            \"server2\",\n"
-                   "            \"server3\"\n"
-                   "        ]\n"
-                   "    },\n"
-                   "    \"version\": \"1.0.0\"\n"
-                   "}"));
-  }
-  {
-    std::stringstream conf_output, state_output;
-    auto opts = user_options;
-    opts["base-port"] = "1234";
-    options = config_gen.fill_options(opts);
+TEST_F(CreateConfigGeneratorTest, create_config_system_instance) {
+  ConfigGenerator::Options options = config_gen.fill_options(user_options);
+  config_gen.create_config(conf_output, state_output, 123, "", "", cluster_info,
+                           "cluster_user", options, default_paths,
+                           "state_file_name.json");
+  ASSERT_THAT(
+      conf_output.str(),
+      Eq("# File automatically generated during MySQL Router bootstrap\n"
+         "[DEFAULT]\n"
+         "connect_timeout=" +
+         kDefaultConnectTimeout + "\n" + "read_timeout=" + kDefaultReadTimeout +
+         "\n" +
+         "dynamic_state=state_file_name.json\n"
+         "\n"
+         "[logger]\n"
+         "level = INFO\n"
+         "\n"
+         "[metadata_cache:mycluster]\n"
+         "cluster_type=gr\n"
+         "router_id=123\n"
+         "user=cluster_user\n"
+         "metadata_cluster=mycluster\n"
+         "ttl=0.5\n"
+         "auth_cache_ttl=-1\n"
+         "auth_cache_refresh_interval=2\n"
+         "use_gr_notifications=0\n"
+         "\n"
+         "[routing:mycluster_myreplicaset_rw]\n"
+         "bind_address=0.0.0.0\n"
+         "bind_port=6446\n"
+         "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
+         "routing_strategy=first-available\n"
+         "protocol=classic\n"
+         "\n"
+         "[routing:mycluster_myreplicaset_ro]\n"
+         "bind_address=0.0.0.0\n"
+         "bind_port=6447\n"
+         "destinations=metadata-cache://mycluster/"
+         "myreplicaset?role=SECONDARY\n"
+         "routing_strategy=round-robin-with-fallback\n"
+         "protocol=classic\n"
+         "\n"
+         "[routing:mycluster_myreplicaset_x_rw]\n"
+         "bind_address=0.0.0.0\n"
+         "bind_port=64460\n"
+         "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
+         "routing_strategy=first-available\n"
+         "protocol=x\n"
+         "\n"
+         "[routing:mycluster_myreplicaset_x_ro]\n"
+         "bind_address=0.0.0.0\n"
+         "bind_port=64470\n"
+         "destinations=metadata-cache://mycluster/"
+         "myreplicaset?role=SECONDARY\n"
+         "routing_strategy=round-robin-with-fallback\n"
+         "protocol=x\n"
+         "\n" +
+         rest_config + "\n"));
 
-    config_gen.create_config(conf_output, state_output, 123, "", "",
-                             {"server1", "server2", "server3"}, "mycluster",
-                             "myreplicaset", "cluster_user", options,
-                             "state_file_name.json");
-    ASSERT_THAT(
-        conf_output.str(),
-        Eq("# File automatically generated during MySQL Router bootstrap\n"
-           "[DEFAULT]\n"
-           "connect_timeout=" +
-           kDefaultConnectTimeout + "\n" +
-           "read_timeout=" + kDefaultReadTimeout + "\n" +
-           "dynamic_state=state_file_name.json\n"
-           "\n"
-           "[logger]\n"
-           "level = INFO\n"
-           "\n"
-           "[metadata_cache:mycluster]\n"
-           "cluster_type=gr\n"
-           "router_id=123\n"
-           "user=cluster_user\n"
-           "metadata_cluster=mycluster\n"
-           "ttl=0.5\n"
-           "auth_cache_ttl=-1\n"
-           "auth_cache_refresh_interval=2\n"
-           "use_gr_notifications=0\n"
-           "\n"
-           "[routing:mycluster_myreplicaset_rw]\n"
-           "bind_address=0.0.0.0\n"
-           "bind_port=1234\n"
-           "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
-           "routing_strategy=first-available\n"
-           "protocol=classic\n"
-           "\n"
-           "[routing:mycluster_myreplicaset_ro]\n"
-           "bind_address=0.0.0.0\n"
-           "bind_port=1235\n"
-           "destinations=metadata-cache://mycluster/"
-           "myreplicaset?role=SECONDARY\n"
-           "routing_strategy=round-robin-with-fallback\n"
-           "protocol=classic\n"
-           "\n"
-           "[routing:mycluster_myreplicaset_x_rw]\n"
-           "bind_address=0.0.0.0\n"
-           "bind_port=1236\n"
-           "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
-           "routing_strategy=first-available\n"
-           "protocol=x\n"
-           "\n"
-           "[routing:mycluster_myreplicaset_x_ro]\n"
-           "bind_address=0.0.0.0\n"
-           "bind_port=1237\n"
-           "destinations=metadata-cache://mycluster/"
-           "myreplicaset?role=SECONDARY\n"
-           "routing_strategy=round-robin-with-fallback\n"
-           "protocol=x\n"
-           "\n"));
+  ASSERT_THAT(state_output.str(),
+              Eq("{\n"
+                 "    \"metadata-cache\": {\n"
+                 "        \"group-replication-id\": \"replication-1\",\n"
+                 "        \"cluster-metadata-servers\": [\n"
+                 "            \"server1\",\n"
+                 "            \"server2\",\n"
+                 "            \"server3\"\n"
+                 "        ]\n"
+                 "    },\n"
+                 "    \"version\": \"1.0.0\"\n"
+                 "}"));
+}
 
-    ASSERT_THAT(state_output.str(),
-                Eq("{\n"
-                   "    \"metadata-cache\": {\n"
-                   "        \"group-replication-id\": \"replication-1\",\n"
-                   "        \"cluster-metadata-servers\": [\n"
-                   "            \"server1\",\n"
-                   "            \"server2\",\n"
-                   "            \"server3\"\n"
-                   "        ]\n"
-                   "    },\n"
-                   "    \"version\": \"1.0.0\"\n"
-                   "}"));
-  }
-  {
-    std::stringstream conf_output, state_output;
-    auto opts = user_options;
-    opts["base-port"] = "123";
-    opts["use-sockets"] = "1";
-    opts["skip-tcp"] = "1";
-    opts["socketsdir"] = tmp_dir();
-    options = config_gen.fill_options(opts);
+TEST_F(CreateConfigGeneratorTest, create_config_base_port) {
+  ConfigGenerator::Options options = config_gen.fill_options(user_options);
+  auto opts = user_options;
+  opts["base-port"] = "1234";
+  options = config_gen.fill_options(opts);
 
-    config_gen.create_config(conf_output, state_output, 123, "", "",
-                             {"server1", "server2", "server3"}, "mycluster",
-                             "myreplicaset", "cluster_user", options,
-                             "state_file_name.json");
-    ASSERT_THAT(
-        conf_output.str(),
-        Eq("# File automatically generated during MySQL Router bootstrap\n"
-           "[DEFAULT]\n"
-           "connect_timeout=" +
-           kDefaultConnectTimeout + "\n" +
-           "read_timeout=" + kDefaultReadTimeout + "\n" +
-           "dynamic_state=state_file_name.json\n"
-           "\n"
-           "[logger]\n"
-           "level = INFO\n"
-           "\n"
-           "[metadata_cache:mycluster]\n"
-           "cluster_type=gr\n"
-           "router_id=123\n"
-           "user=cluster_user\n"
-           "metadata_cluster=mycluster\n"
-           "ttl=0.5\n"
-           "auth_cache_ttl=-1\n"
-           "auth_cache_refresh_interval=2\n"
-           "use_gr_notifications=0\n"
-           "\n"
-           "[routing:mycluster_myreplicaset_rw]\n"
-           "socket=" +
-           tmp_dir() +
-           "/mysql.sock\n"
-           "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
-           "routing_strategy=first-available\n"
-           "protocol=classic\n"
-           "\n"
-           "[routing:mycluster_myreplicaset_ro]\n"
-           "socket=" +
-           tmp_dir() +
-           "/mysqlro.sock\n"
-           "destinations=metadata-cache://mycluster/"
-           "myreplicaset?role=SECONDARY\n"
-           "routing_strategy=round-robin-with-fallback\n"
-           "protocol=classic\n"
-           "\n"
-           "[routing:mycluster_myreplicaset_x_rw]\n"
-           "socket=" +
-           tmp_dir() +
-           "/mysqlx.sock\n"
-           "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
-           "routing_strategy=first-available\n"
-           "protocol=x\n"
-           "\n"
-           "[routing:mycluster_myreplicaset_x_ro]\n"
-           "socket=" +
-           tmp_dir() +
-           "/mysqlxro.sock\n"
-           "destinations=metadata-cache://mycluster/"
-           "myreplicaset?role=SECONDARY\n"
-           "routing_strategy=round-robin-with-fallback\n"
-           "protocol=x\n"
-           "\n"));
+  config_gen.create_config(conf_output, state_output, 123, "", "", cluster_info,
+                           "cluster_user", options, default_paths,
+                           "state_file_name.json");
+  ASSERT_THAT(
+      conf_output.str(),
+      Eq("# File automatically generated during MySQL Router bootstrap\n"
+         "[DEFAULT]\n"
+         "connect_timeout=" +
+         kDefaultConnectTimeout + "\n" + "read_timeout=" + kDefaultReadTimeout +
+         "\n" +
+         "dynamic_state=state_file_name.json\n"
+         "\n"
+         "[logger]\n"
+         "level = INFO\n"
+         "\n"
+         "[metadata_cache:mycluster]\n"
+         "cluster_type=gr\n"
+         "router_id=123\n"
+         "user=cluster_user\n"
+         "metadata_cluster=mycluster\n"
+         "ttl=0.5\n"
+         "auth_cache_ttl=-1\n"
+         "auth_cache_refresh_interval=2\n"
+         "use_gr_notifications=0\n"
+         "\n"
+         "[routing:mycluster_myreplicaset_rw]\n"
+         "bind_address=0.0.0.0\n"
+         "bind_port=1234\n"
+         "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
+         "routing_strategy=first-available\n"
+         "protocol=classic\n"
+         "\n"
+         "[routing:mycluster_myreplicaset_ro]\n"
+         "bind_address=0.0.0.0\n"
+         "bind_port=1235\n"
+         "destinations=metadata-cache://mycluster/"
+         "myreplicaset?role=SECONDARY\n"
+         "routing_strategy=round-robin-with-fallback\n"
+         "protocol=classic\n"
+         "\n"
+         "[routing:mycluster_myreplicaset_x_rw]\n"
+         "bind_address=0.0.0.0\n"
+         "bind_port=1236\n"
+         "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
+         "routing_strategy=first-available\n"
+         "protocol=x\n"
+         "\n"
+         "[routing:mycluster_myreplicaset_x_ro]\n"
+         "bind_address=0.0.0.0\n"
+         "bind_port=1237\n"
+         "destinations=metadata-cache://mycluster/"
+         "myreplicaset?role=SECONDARY\n"
+         "routing_strategy=round-robin-with-fallback\n"
+         "protocol=x\n"
+         "\n" +
+         rest_config + "\n"));
 
-    ASSERT_THAT(state_output.str(),
-                Eq("{\n"
-                   "    \"metadata-cache\": {\n"
-                   "        \"group-replication-id\": \"replication-1\",\n"
-                   "        \"cluster-metadata-servers\": [\n"
-                   "            \"server1\",\n"
-                   "            \"server2\",\n"
-                   "            \"server3\"\n"
-                   "        ]\n"
-                   "    },\n"
-                   "    \"version\": \"1.0.0\"\n"
-                   "}"));
-  }
-  {
-    std::stringstream conf_output, state_output;
-    auto opts = user_options;
-    opts["use-sockets"] = "1";
-    opts["socketsdir"] = tmp_dir();
-    options = config_gen.fill_options(opts);
+  ASSERT_THAT(state_output.str(),
+              Eq("{\n"
+                 "    \"metadata-cache\": {\n"
+                 "        \"group-replication-id\": \"replication-1\",\n"
+                 "        \"cluster-metadata-servers\": [\n"
+                 "            \"server1\",\n"
+                 "            \"server2\",\n"
+                 "            \"server3\"\n"
+                 "        ]\n"
+                 "    },\n"
+                 "    \"version\": \"1.0.0\"\n"
+                 "}"));
+}
 
-    config_gen.create_config(conf_output, state_output, 123, "", "",
-                             {"server1", "server2", "server3"}, "mycluster",
-                             "myreplicaset", "cluster_user", options,
-                             "state_file_name.json");
-    ASSERT_THAT(
-        conf_output.str(),
-        Eq("# File automatically generated during MySQL Router bootstrap\n"
-           "[DEFAULT]\n"
-           "connect_timeout=" +
-           kDefaultConnectTimeout + "\n" +
-           "read_timeout=" + kDefaultReadTimeout + "\n" +
-           "dynamic_state=state_file_name.json\n"
-           "\n"
-           "[logger]\n"
-           "level = INFO\n"
-           "\n"
-           "[metadata_cache:mycluster]\n"
-           "cluster_type=gr\n"
-           "router_id=123\n"
-           "user=cluster_user\n"
-           "metadata_cluster=mycluster\n"
-           "ttl=0.5\n"
-           "auth_cache_ttl=-1\n"
-           "auth_cache_refresh_interval=2\n"
-           "use_gr_notifications=0\n"
-           "\n"
-           "[routing:mycluster_myreplicaset_rw]\n"
-           "bind_address=0.0.0.0\n"
-           "bind_port=6446\n"
-           "socket=" +
-           tmp_dir() +
-           "/mysql.sock\n"
-           "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
-           "routing_strategy=first-available\n"
-           "protocol=classic\n"
-           "\n"
-           "[routing:mycluster_myreplicaset_ro]\n"
-           "bind_address=0.0.0.0\n"
-           "bind_port=6447\n"
-           "socket=" +
-           tmp_dir() +
-           "/mysqlro.sock\n"
-           "destinations=metadata-cache://mycluster/"
-           "myreplicaset?role=SECONDARY\n"
-           "routing_strategy=round-robin-with-fallback\n"
-           "protocol=classic\n"
-           "\n"
-           "[routing:mycluster_myreplicaset_x_rw]\n"
-           "bind_address=0.0.0.0\n"
-           "bind_port=64460\n"
-           "socket=" +
-           tmp_dir() +
-           "/mysqlx.sock\n"
-           "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
-           "routing_strategy=first-available\n"
-           "protocol=x\n"
-           "\n"
-           "[routing:mycluster_myreplicaset_x_ro]\n"
-           "bind_address=0.0.0.0\n"
-           "bind_port=64470\n"
-           "socket=" +
-           tmp_dir() +
-           "/mysqlxro.sock\n"
-           "destinations=metadata-cache://mycluster/"
-           "myreplicaset?role=SECONDARY\n"
-           "routing_strategy=round-robin-with-fallback\n"
-           "protocol=x\n"
-           "\n"));
+TEST_F(CreateConfigGeneratorTest, create_config_skip_tcp) {
+  ConfigGenerator::Options options = config_gen.fill_options(user_options);
+  auto opts = user_options;
+  opts["base-port"] = "123";
+  opts["use-sockets"] = "1";
+  opts["skip-tcp"] = "1";
+  opts["socketsdir"] = tmp_dir();
+  options = config_gen.fill_options(opts);
 
-    ASSERT_THAT(state_output.str(),
-                Eq("{\n"
-                   "    \"metadata-cache\": {\n"
-                   "        \"group-replication-id\": \"replication-1\",\n"
-                   "        \"cluster-metadata-servers\": [\n"
-                   "            \"server1\",\n"
-                   "            \"server2\",\n"
-                   "            \"server3\"\n"
-                   "        ]\n"
-                   "    },\n"
-                   "    \"version\": \"1.0.0\"\n"
-                   "}"));
-  }
-  {
-    std::stringstream conf_output, state_output;
-    auto opts = user_options;
-    opts["bind-address"] = "127.0.0.1";
-    options = config_gen.fill_options(opts);
+  config_gen.create_config(conf_output, state_output, 123, "", "", cluster_info,
+                           "cluster_user", options, default_paths,
+                           "state_file_name.json");
+  ASSERT_THAT(
+      conf_output.str(),
+      Eq("# File automatically generated during MySQL Router bootstrap\n"
+         "[DEFAULT]\n"
+         "connect_timeout=" +
+         kDefaultConnectTimeout + "\n" + "read_timeout=" + kDefaultReadTimeout +
+         "\n" +
+         "dynamic_state=state_file_name.json\n"
+         "\n"
+         "[logger]\n"
+         "level = INFO\n"
+         "\n"
+         "[metadata_cache:mycluster]\n"
+         "cluster_type=gr\n"
+         "router_id=123\n"
+         "user=cluster_user\n"
+         "metadata_cluster=mycluster\n"
+         "ttl=0.5\n"
+         "auth_cache_ttl=-1\n"
+         "auth_cache_refresh_interval=2\n"
+         "use_gr_notifications=0\n"
+         "\n"
+         "[routing:mycluster_myreplicaset_rw]\n"
+         "socket=" +
+         tmp_dir() +
+         "/mysql.sock\n"
+         "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
+         "routing_strategy=first-available\n"
+         "protocol=classic\n"
+         "\n"
+         "[routing:mycluster_myreplicaset_ro]\n"
+         "socket=" +
+         tmp_dir() +
+         "/mysqlro.sock\n"
+         "destinations=metadata-cache://mycluster/"
+         "myreplicaset?role=SECONDARY\n"
+         "routing_strategy=round-robin-with-fallback\n"
+         "protocol=classic\n"
+         "\n"
+         "[routing:mycluster_myreplicaset_x_rw]\n"
+         "socket=" +
+         tmp_dir() +
+         "/mysqlx.sock\n"
+         "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
+         "routing_strategy=first-available\n"
+         "protocol=x\n"
+         "\n"
+         "[routing:mycluster_myreplicaset_x_ro]\n"
+         "socket=" +
+         tmp_dir() +
+         "/mysqlxro.sock\n"
+         "destinations=metadata-cache://mycluster/"
+         "myreplicaset?role=SECONDARY\n"
+         "routing_strategy=round-robin-with-fallback\n"
+         "protocol=x\n"
+         "\n" +
+         rest_config + "\n"));
 
-    config_gen.create_config(conf_output, state_output, 123, "myrouter",
-                             "mysqlrouter", {"server1", "server2", "server3"},
-                             "mycluster", "myreplicaset", "cluster_user",
-                             options, "state_file_name.json");
-    ASSERT_THAT(
-        conf_output.str(),
-        Eq("# File automatically generated during MySQL Router bootstrap\n"
-           "[DEFAULT]\n"
-           "name=myrouter\n"
-           "user=mysqlrouter\n"
-           "connect_timeout=" +
-           kDefaultConnectTimeout + "\n" +
-           "read_timeout=" + kDefaultReadTimeout + "\n" +
-           "dynamic_state=state_file_name.json\n"
-           "\n"
-           "[logger]\n"
-           "level = INFO\n"
-           "\n"
-           "[metadata_cache:mycluster]\n"
-           "cluster_type=gr\n"
-           "router_id=123\n"
-           "user=cluster_user\n"
-           "metadata_cluster=mycluster\n"
-           "ttl=0.5\n"
-           "auth_cache_ttl=-1\n"
-           "auth_cache_refresh_interval=2\n"
-           "use_gr_notifications=0\n"
-           "\n"
-           "[routing:mycluster_myreplicaset_rw]\n"
-           "bind_address=127.0.0.1\n"
-           "bind_port=6446\n"
-           "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
-           "routing_strategy=first-available\n"
-           "protocol=classic\n"
-           "\n"
-           "[routing:mycluster_myreplicaset_ro]\n"
-           "bind_address=127.0.0.1\n"
-           "bind_port=6447\n"
-           "destinations=metadata-cache://mycluster/"
-           "myreplicaset?role=SECONDARY\n"
-           "routing_strategy=round-robin-with-fallback\n"
-           "protocol=classic\n"
-           "\n"
-           "[routing:mycluster_myreplicaset_x_rw]\n"
-           "bind_address=127.0.0.1\n"
-           "bind_port=64460\n"
-           "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
-           "routing_strategy=first-available\n"
-           "protocol=x\n"
-           "\n"
-           "[routing:mycluster_myreplicaset_x_ro]\n"
-           "bind_address=127.0.0.1\n"
-           "bind_port=64470\n"
-           "destinations=metadata-cache://mycluster/"
-           "myreplicaset?role=SECONDARY\n"
-           "routing_strategy=round-robin-with-fallback\n"
-           "protocol=x\n"
-           "\n"));
+  ASSERT_THAT(state_output.str(),
+              Eq("{\n"
+                 "    \"metadata-cache\": {\n"
+                 "        \"group-replication-id\": \"replication-1\",\n"
+                 "        \"cluster-metadata-servers\": [\n"
+                 "            \"server1\",\n"
+                 "            \"server2\",\n"
+                 "            \"server3\"\n"
+                 "        ]\n"
+                 "    },\n"
+                 "    \"version\": \"1.0.0\"\n"
+                 "}"));
+}
 
-    ASSERT_THAT(state_output.str(),
-                Eq("{\n"
-                   "    \"metadata-cache\": {\n"
-                   "        \"group-replication-id\": \"replication-1\",\n"
-                   "        \"cluster-metadata-servers\": [\n"
-                   "            \"server1\",\n"
-                   "            \"server2\",\n"
-                   "            \"server3\"\n"
-                   "        ]\n"
-                   "    },\n"
-                   "    \"version\": \"1.0.0\"\n"
-                   "}"));
-  }
+TEST_F(CreateConfigGeneratorTest, create_config_use_sockets) {
+  ConfigGenerator::Options options = config_gen.fill_options(user_options);
+  auto opts = user_options;
+  opts["use-sockets"] = "1";
+  opts["socketsdir"] = tmp_dir();
+  options = config_gen.fill_options(opts);
+
+  config_gen.create_config(conf_output, state_output, 123, "", "", cluster_info,
+                           "cluster_user", options, default_paths,
+                           "state_file_name.json");
+  ASSERT_THAT(
+      conf_output.str(),
+      Eq("# File automatically generated during MySQL Router bootstrap\n"
+         "[DEFAULT]\n"
+         "connect_timeout=" +
+         kDefaultConnectTimeout + "\n" + "read_timeout=" + kDefaultReadTimeout +
+         "\n" +
+         "dynamic_state=state_file_name.json\n"
+         "\n"
+         "[logger]\n"
+         "level = INFO\n"
+         "\n"
+         "[metadata_cache:mycluster]\n"
+         "cluster_type=gr\n"
+         "router_id=123\n"
+         "user=cluster_user\n"
+         "metadata_cluster=mycluster\n"
+         "ttl=0.5\n"
+         "auth_cache_ttl=-1\n"
+         "auth_cache_refresh_interval=2\n"
+         "use_gr_notifications=0\n"
+         "\n"
+         "[routing:mycluster_myreplicaset_rw]\n"
+         "bind_address=0.0.0.0\n"
+         "bind_port=6446\n"
+         "socket=" +
+         tmp_dir() +
+         "/mysql.sock\n"
+         "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
+         "routing_strategy=first-available\n"
+         "protocol=classic\n"
+         "\n"
+         "[routing:mycluster_myreplicaset_ro]\n"
+         "bind_address=0.0.0.0\n"
+         "bind_port=6447\n"
+         "socket=" +
+         tmp_dir() +
+         "/mysqlro.sock\n"
+         "destinations=metadata-cache://mycluster/"
+         "myreplicaset?role=SECONDARY\n"
+         "routing_strategy=round-robin-with-fallback\n"
+         "protocol=classic\n"
+         "\n"
+         "[routing:mycluster_myreplicaset_x_rw]\n"
+         "bind_address=0.0.0.0\n"
+         "bind_port=64460\n"
+         "socket=" +
+         tmp_dir() +
+         "/mysqlx.sock\n"
+         "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
+         "routing_strategy=first-available\n"
+         "protocol=x\n"
+         "\n"
+         "[routing:mycluster_myreplicaset_x_ro]\n"
+         "bind_address=0.0.0.0\n"
+         "bind_port=64470\n"
+         "socket=" +
+         tmp_dir() +
+         "/mysqlxro.sock\n"
+         "destinations=metadata-cache://mycluster/"
+         "myreplicaset?role=SECONDARY\n"
+         "routing_strategy=round-robin-with-fallback\n"
+         "protocol=x\n"
+         "\n" +
+         rest_config + "\n"));
+
+  ASSERT_THAT(state_output.str(),
+              Eq("{\n"
+                 "    \"metadata-cache\": {\n"
+                 "        \"group-replication-id\": \"replication-1\",\n"
+                 "        \"cluster-metadata-servers\": [\n"
+                 "            \"server1\",\n"
+                 "            \"server2\",\n"
+                 "            \"server3\"\n"
+                 "        ]\n"
+                 "    },\n"
+                 "    \"version\": \"1.0.0\"\n"
+                 "}"));
+}
+
+TEST_F(CreateConfigGeneratorTest, create_config_bind_address) {
+  ConfigGenerator::Options options = config_gen.fill_options(user_options);
+  auto opts = user_options;
+  opts["bind-address"] = "127.0.0.1";
+  options = config_gen.fill_options(opts);
+
+  config_gen.create_config(conf_output, state_output, 123, "myrouter",
+                           "mysqlrouter", cluster_info, "cluster_user", options,
+                           default_paths, "state_file_name.json");
+  ASSERT_THAT(
+      conf_output.str(),
+      Eq("# File automatically generated during MySQL Router bootstrap\n"
+         "[DEFAULT]\n"
+         "name=myrouter\n"
+         "user=mysqlrouter\n"
+         "connect_timeout=" +
+         kDefaultConnectTimeout + "\n" + "read_timeout=" + kDefaultReadTimeout +
+         "\n" +
+         "dynamic_state=state_file_name.json\n"
+         "\n"
+         "[logger]\n"
+         "level = INFO\n"
+         "\n"
+         "[metadata_cache:mycluster]\n"
+         "cluster_type=gr\n"
+         "router_id=123\n"
+         "user=cluster_user\n"
+         "metadata_cluster=mycluster\n"
+         "ttl=0.5\n"
+         "auth_cache_ttl=-1\n"
+         "auth_cache_refresh_interval=2\n"
+         "use_gr_notifications=0\n"
+         "\n"
+         "[routing:mycluster_myreplicaset_rw]\n"
+         "bind_address=127.0.0.1\n"
+         "bind_port=6446\n"
+         "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
+         "routing_strategy=first-available\n"
+         "protocol=classic\n"
+         "\n"
+         "[routing:mycluster_myreplicaset_ro]\n"
+         "bind_address=127.0.0.1\n"
+         "bind_port=6447\n"
+         "destinations=metadata-cache://mycluster/"
+         "myreplicaset?role=SECONDARY\n"
+         "routing_strategy=round-robin-with-fallback\n"
+         "protocol=classic\n"
+         "\n"
+         "[routing:mycluster_myreplicaset_x_rw]\n"
+         "bind_address=127.0.0.1\n"
+         "bind_port=64460\n"
+         "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
+         "routing_strategy=first-available\n"
+         "protocol=x\n"
+         "\n"
+         "[routing:mycluster_myreplicaset_x_ro]\n"
+         "bind_address=127.0.0.1\n"
+         "bind_port=64470\n"
+         "destinations=metadata-cache://mycluster/"
+         "myreplicaset?role=SECONDARY\n"
+         "routing_strategy=round-robin-with-fallback\n"
+         "protocol=x\n"
+         "\n" +
+         rest_config + "\n"));
+
+  ASSERT_THAT(state_output.str(),
+              Eq("{\n"
+                 "    \"metadata-cache\": {\n"
+                 "        \"group-replication-id\": \"replication-1\",\n"
+                 "        \"cluster-metadata-servers\": [\n"
+                 "            \"server1\",\n"
+                 "            \"server2\",\n"
+                 "            \"server3\"\n"
+                 "        ]\n"
+                 "    },\n"
+                 "    \"version\": \"1.0.0\"\n"
+                 "}"));
+}
+
+TEST_F(CreateConfigGeneratorTest, create_config_disable_rest) {
+  ConfigGenerator::Options options = config_gen.fill_options(user_options);
+  auto opts = user_options;
+  opts["disable-rest"] = "";
+  options = config_gen.fill_options(opts);
+
+  config_gen.create_config(conf_output, state_output, 123, "myrouter",
+                           "mysqlrouter", cluster_info, "cluster_user", options,
+                           default_paths, "state_file_name.json");
+
+  ASSERT_THAT(
+      conf_output.str(),
+      Eq("# File automatically generated during MySQL Router bootstrap\n"
+         "[DEFAULT]\n"
+         "name=myrouter\n"
+         "user=mysqlrouter\n"
+         "connect_timeout=" +
+         kDefaultConnectTimeout + "\n" + "read_timeout=" + kDefaultReadTimeout +
+         "\n" +
+         "dynamic_state=state_file_name.json\n"
+         "\n"
+         "[logger]\n"
+         "level = INFO\n"
+         "\n"
+         "[metadata_cache:mycluster]\n"
+         "cluster_type=gr\n"
+         "router_id=123\n"
+         "user=cluster_user\n"
+         "metadata_cluster=mycluster\n"
+         "ttl=0.5\n"
+         "auth_cache_ttl=-1\n"
+         "auth_cache_refresh_interval=2\n"
+         "use_gr_notifications=0\n"
+         "\n"
+         "[routing:mycluster_myreplicaset_rw]\n"
+         "bind_address=0.0.0.0\n"
+         "bind_port=6446\n"
+         "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
+         "routing_strategy=first-available\n"
+         "protocol=classic\n"
+         "\n"
+         "[routing:mycluster_myreplicaset_ro]\n"
+         "bind_address=0.0.0.0\n"
+         "bind_port=6447\n"
+         "destinations=metadata-cache://mycluster/"
+         "myreplicaset?role=SECONDARY\n"
+         "routing_strategy=round-robin-with-fallback\n"
+         "protocol=classic\n"
+         "\n"
+         "[routing:mycluster_myreplicaset_x_rw]\n"
+         "bind_address=0.0.0.0\n"
+         "bind_port=64460\n"
+         "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
+         "routing_strategy=first-available\n"
+         "protocol=x\n"
+         "\n"
+         "[routing:mycluster_myreplicaset_x_ro]\n"
+         "bind_address=0.0.0.0\n"
+         "bind_port=64470\n"
+         "destinations=metadata-cache://mycluster/"
+         "myreplicaset?role=SECONDARY\n"
+         "routing_strategy=round-robin-with-fallback\n"
+         "protocol=x\n"
+         "\n"));
+
+  ASSERT_THAT(state_output.str(),
+              Eq("{\n"
+                 "    \"metadata-cache\": {\n"
+                 "        \"group-replication-id\": \"replication-1\",\n"
+                 "        \"cluster-metadata-servers\": [\n"
+                 "            \"server1\",\n"
+                 "            \"server2\",\n"
+                 "            \"server3\"\n"
+                 "        ]\n"
+                 "    },\n"
+                 "    \"version\": \"1.0.0\"\n"
+                 "}"));
 }
 
 TEST_F(ConfigGeneratorTest, fill_options) {
@@ -3042,15 +3172,17 @@ TEST_F(ConfigGeneratorTest, ssl_stage3_create_config) {
   config_gen.init(kServerUrl, {});
 
   auto test_config_output =
-      [&config_gen](const std::map<std::string, std::string> &user_options,
-                    const char *result) {
+      [&config_gen, this](
+          const std::map<std::string, std::string> &user_options,
+          const char *result) {
         ConfigGenerator::Options options =
             config_gen.fill_options(user_options);
         std::stringstream conf_output, state_output;
+        mysqlrouter::ClusterInfo cluster_info{
+            {"server1", "server2", "server3"}, "", "mycluster", "myreplicaset"};
         config_gen.create_config(conf_output, state_output, 123, "myrouter",
-                                 "user", {"server1", "server2", "server3"},
-                                 "mycluster", "myreplicaset", "cluster_user",
-                                 options);
+                                 "user", cluster_info, "cluster_user", options,
+                                 default_paths);
         EXPECT_THAT(conf_output.str(), HasSubstr(result));
       };
 
@@ -3820,6 +3952,8 @@ class MockSocketOperations : public mysql_harness::SocketOperationsBase {
                result<void>(mysql_harness::socket_t sock));
   MOCK_METHOD2(set_socket_blocking,
                result<void>(mysql_harness::socket_t, bool));
+  MOCK_METHOD2(has_data, result<bool>(mysql_harness::socket_t,
+                                      std::chrono::milliseconds));
 };
 
 /**

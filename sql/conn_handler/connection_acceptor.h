@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,6 +64,16 @@ class Connection_acceptor {
       Channel_info *channel_info = m_listener->listen_for_connection_event();
       if (channel_info != nullptr) mgr->process_new_connection(channel_info);
     }
+  }
+
+  /**
+     Spawn admin connection handler to accept admin connections from clients if
+     create-admin-listener-thread is specified by user on commandline.
+
+    @return true unable to spawn admin connection handler thread else false.
+  */
+  bool check_and_spawn_admin_connection_handler_thread() const {
+    return m_listener->check_and_spawn_admin_connection_handler_thread();
   }
 
   /**

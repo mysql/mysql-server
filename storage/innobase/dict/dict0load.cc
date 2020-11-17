@@ -2001,7 +2001,7 @@ func_exit:
 Does not load any columns or indexes.
 @param[in]	name	Table name
 @param[in]	rec	SYS_TABLES record
-@param[out]	table	table, or NULL
+@param[out]	table	Table, or NULL
 @return error message, or NULL on success */
 static const char *dict_load_table_low(table_name_t &name, const rec_t *rec,
                                        dict_table_t **table) {

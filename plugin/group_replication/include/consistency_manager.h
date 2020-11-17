@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -211,7 +211,7 @@ class Transaction_consistency_manager : public Group_transaction_listener {
   */
   Transaction_consistency_manager();
 
-  virtual ~Transaction_consistency_manager();
+  ~Transaction_consistency_manager() override;
 
   /**
     Clear all information.
@@ -293,8 +293,8 @@ class Transaction_consistency_manager : public Group_transaction_listener {
       @retval 0      OK
       @retval !=0    error
   */
-  virtual int after_commit(my_thread_id thread_id, rpl_sidno sidno,
-                           rpl_gno gno);
+  int after_commit(my_thread_id thread_id, rpl_sidno sidno,
+                   rpl_gno gno) override;
 
   /**
     Call action before a transaction starts.
@@ -314,10 +314,9 @@ class Transaction_consistency_manager : public Group_transaction_listener {
       @retval 0      OK
       @retval !=0    error
   */
-  virtual int before_transaction_begin(my_thread_id thread_id,
-                                       ulong gr_consistency_level,
-                                       ulong timeout,
-                                       enum_rpl_channel_type rpl_channel_type);
+  int before_transaction_begin(my_thread_id thread_id,
+                               ulong gr_consistency_level, ulong timeout,
+                               enum_rpl_channel_type rpl_channel_type) override;
 
   /**
     Call action once a Sync_before_execution_message is received,
@@ -382,15 +381,15 @@ class Transaction_consistency_manager : public Group_transaction_listener {
   */
   void unregister_transaction_observer();
 
-  virtual int before_commit(
+  int before_commit(
       my_thread_id thread_id,
-      Group_transaction_listener::enum_transaction_origin origin);
+      Group_transaction_listener::enum_transaction_origin origin) override;
 
-  virtual int before_rollback(
+  int before_rollback(
       my_thread_id thread_id,
-      Group_transaction_listener::enum_transaction_origin origin);
+      Group_transaction_listener::enum_transaction_origin origin) override;
 
-  virtual int after_rollback(my_thread_id thread_id);
+  int after_rollback(my_thread_id thread_id) override;
 
   /**
     Tells the consistency manager that a primary election is running so it

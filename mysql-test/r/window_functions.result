@@ -629,6 +629,12 @@ SET @p1= -1;
 EXECUTE p USING @p1;
 ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 DROP PREPARE p;
+Negative floating-point bounds not ok
+PREPARE p FROM "SELECT sex, COUNT(id) OVER (ORDER BY id RANGE ? PRECEDING) FROM t1";
+SET @p1= -0.1;
+EXECUTE p USING @p1;
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
+DROP PREPARE p;
 PREPARE p FROM "SELECT sex, COUNT(id) OVER (ORDER BY id ROWS BETWEEN CURRENT ROW AND ? FOLLOWING) FROM t1";
 SET @p1= -1;
 EXECUTE p USING @p1;
@@ -2539,14 +2545,14 @@ DROP TABLE td;
 SELECT id, NTILE(0) OVER w FROM t1 WINDOW w AS ();
 ERROR HY000: Incorrect arguments to ntile
 SELECT id, NTILE(NULL) OVER w FROM t1 WINDOW w AS (ORDER BY id);
-id	NTILE(NULL) OVER w
-1	NULL
-2	NULL
-3	NULL
-4	NULL
-5	NULL
-10	NULL
-11	NULL
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NULL) OVER w FROM t1 WINDOW w AS (ORDER BY id)' at line 1
+PREPARE s FROM
+'SELECT id, NTILE(?) OVER w FROM t1 WINDOW w AS (ORDER BY id)';
+SET @a=NULL;
+EXECUTE s USING @a;
+ERROR HY000: Incorrect arguments to ntile
+SELECT id, NTILE(@s) OVER w FROM t1 WINDOW w AS (ORDER BY id);
+ERROR HY000: Incorrect arguments to ntile
 SELECT id, NTILE(1) OVER w FROM t1 WINDOW w AS ();
 id	NTILE(1) OVER w
 1	1
@@ -2636,17 +2642,10 @@ id	NTILE(?) OVER w
 11	3
 SET @p1= '1';
 EXECUTE p USING @p1;
-ERROR HY000: Incorrect arguments to ntile
+ERROR HY000: Incorrect arguments to EXECUTE
 SET @p1= NULL;
 EXECUTE p USING @p1;
-id	NTILE(?) OVER w
-1	NULL
-2	NULL
-3	NULL
-4	NULL
-5	NULL
-10	NULL
-11	NULL
+ERROR HY000: Incorrect arguments to ntile
 DROP PREPARE p;
 Simulated NTILE via other SQL window functions. Exercises an
 an expression containing window functions defined on different
@@ -7459,12 +7458,12 @@ ON a.c = b.c
 WHERE (b.pk IS NULL AND a.pk IN (6));
 EXPLAIN
 -> Window aggregate: row_number() OVER (ORDER BY 's' ) 
-    -> Filter: (b.pk is null)
-        -> Nested loop left join
-            -> Rows fetched before execution
+    -> Filter: (b.pk is null)  (cost=0.35 rows=1)
+        -> Nested loop left join  (cost=0.35 rows=1)
+            -> Rows fetched before execution  (cost=0.00 rows=1)
             -> Sort: 's'  (cost=0.35 rows=1)
-                -> Filter: ('s' = b.c)
-                    -> Table scan on b
+                -> Filter: ('s' = b.c)  (cost=0.35 rows=1)
+                    -> Table scan on b  (cost=0.35 rows=1)
 
 SELECT ROW_NUMBER() OVER (ORDER BY a.c)
 FROM  a LEFT JOIN b
@@ -9018,6 +9017,7 @@ ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or 
 SELECT w, SUM(w) OVER (ROWS BETWEEN CURRENT ROW AND 3.4 FOLLOWING) FROM t;
 ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 PREPARE stmt FROM "SELECT w, SUM(w) OVER (ROWS 3.14 PRECEDING) FROM t";
+EXECUTE stmt;
 ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 PREPARE stmt FROM "SELECT w, SUM(w) OVER (ROWS ? PRECEDING) FROM t";
 SET @p1= 2;
@@ -9034,7 +9034,7 @@ w	SUM(w) OVER (ROWS ? PRECEDING)
 9	24
 SET @p1= 2.3;
 EXECUTE stmt USING @p1;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
+ERROR HY000: Incorrect arguments to EXECUTE
 DROP PREPARE stmt;
 DROP TABLE t;
 # End of test for Bug#26411055
@@ -9386,3 +9386,162 @@ DO REPLACE((( RELEASE_LOCK( ACOS(0x41))) OR (1)), LAST_VALUE(9.750062e+306)
 RESPECT NULLS OVER(), UUID_SHORT());
 ERROR 42000: Incorrect user-level lock name 'NULL'.
 # End of test for Bug#26975848, Bug#27062796, Bug#27062694
+# Bug#31361428: Assertion `rowno != 0' failed. in bring_back_frame_row
+CREATE TABLE t(a INTEGER);
+INSERT INTO t VALUES(1),(2),(3),(4);
+SELECT PERCENT_RANK() OVER(),
+LAG(1,35,1) OVER w2
+FROM t
+WINDOW w1 AS (ROWS UNBOUNDED PRECEDING),
+w2 AS (ROWS BETWEEN 18446744073709551615 FOLLOWING AND 1 FOLLOWING);
+PERCENT_RANK() OVER()	LAG(1,35,1) OVER w2
+0	1
+0	1
+0	1
+0	1
+SELECT PERCENT_RANK() OVER(),
+LAG(1,35,1) OVER w2
+FROM t
+WINDOW w1 AS (ROWS UNBOUNDED PRECEDING),
+w2 AS (ROWS BETWEEN 1 FOLLOWING AND 18446744073709551615 FOLLOWING);
+PERCENT_RANK() OVER()	LAG(1,35,1) OVER w2
+0	1
+0	1
+0	1
+0	1
+# Prove that 18446744073709551615 is not seen as -1:
+SELECT a, SUM(a) OVER (ROWS BETWEEN
+18446744073709551615 FOLLOWING AND 1 FOLLOWING)
+FROM t;
+a	SUM(a) OVER (ROWS BETWEEN
+18446744073709551615 FOLLOWING AND 1 FOLLOWING)
+1	NULL
+2	NULL
+3	NULL
+4	NULL
+SELECT a, SUM(a) OVER (ROWS BETWEEN
+1 FOLLOWING AND 18446744073709551615 FOLLOWING)
+FROM t;
+a	SUM(a) OVER (ROWS BETWEEN
+1 FOLLOWING AND 18446744073709551615 FOLLOWING)
+1	9
+2	7
+3	4
+4	NULL
+DROP TABLE t;
+#
+# Bug#31361748 ASSERTION `W->FRAME_BUFFER()->S->DB_TYPE()->DB_TYPE..
+#
+# Minimal repro
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES (3), (10), (100), (103);
+SELECT a, COUNT(a) OVER (ORDER BY a RANGE
+BETWEEN 4 FOLLOWING AND 6 FOLLOWING)
+FROM t;
+a	COUNT(a) OVER (ORDER BY a RANGE
+BETWEEN 4 FOLLOWING AND 6 FOLLOWING)
+3	0
+10	0
+100	0
+103	0
+DROP TABLE t;
+# Original repro
+CREATE TABLE t (a INT,b INT);
+INSERT INTO t(a) VALUES(2147483647),(0),(-2),(-1),(0);
+INSERT INTO t(a) VALUES(5430600),(0),(-91),(2147483647),(0);
+INSERT INTO t(a) VALUES(-1),(0),(-26164),(37583),(-1),(79);
+SELECT LAST_VALUE(b) RESPECT NULLS
+OVER (PARTITION BY b ORDER BY a
+RANGE BETWEEN 253 FOLLOWING AND 118 FOLLOWING)
+FROM t;
+LAST_VALUE(b) RESPECT NULLS
+OVER (PARTITION BY b ORDER BY a
+RANGE BETWEEN 253 FOLLOWING AND 118 FOLLOWING)
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+DROP TABLE t;
+#
+# Bug#31393719: SIGFPE, ARITHMETIC EXCEPTION IN ITEM_NTILE::VAL_INT
+#
+DO NTILE(MAX(NOT 1)) OVER();
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'MAX(NOT 1)) OVER()' at line 1
+DO LAG(1, 9223372036854775807) OVER();
+DO LEAD(1, 9223372036854775807) OVER();
+DO NTILE(9223372036854775807) OVER();
+DO LAG(1, 18446744073709551615) OVER();
+ERROR HY000: Incorrect arguments to lag
+DO LEAD(1, 18446744073709551615) OVER();
+ERROR HY000: Incorrect arguments to lead
+DO NTILE(18446744073709551615) OVER();
+ERROR HY000: Incorrect arguments to ntile
+CREATE PROCEDURE p1(n INT) DO NTILE(n) OVER();
+CALL p1(NULL);
+ERROR HY000: Incorrect arguments to ntile
+DROP PROCEDURE p1;
+SET @v = NULL;
+PREPARE stmt FROM 'DO NTILE(?) OVER()';
+EXECUTE stmt USING @v;
+ERROR HY000: Incorrect arguments to ntile
+EXECUTE stmt USING @undefined;
+ERROR HY000: Incorrect arguments to ntile
+DO NTILE(@v) OVER();
+ERROR HY000: Incorrect arguments to ntile
+DO NTILE(@undefined) OVER();
+ERROR HY000: Incorrect arguments to ntile
+CREATE PROCEDURE p2(n INT) DO LEAD(1, n) OVER();
+CALL p2(NULL);
+ERROR HY000: Incorrect arguments to lead
+DROP PROCEDURE p2;
+CREATE PROCEDURE p3(n INT) DO LAG(1, n) OVER();
+CALL p3(NULL);
+ERROR HY000: Incorrect arguments to lag
+DROP PROCEDURE p3;
+PREPARE stmt FROM 'DO LAG(1, ?) OVER()';
+EXECUTE stmt USING @v;
+ERROR HY000: Incorrect arguments to lag
+PREPARE stmt FROM 'DO LEAD(1, ?) OVER()';
+EXECUTE stmt USING @v;
+ERROR HY000: Incorrect arguments to lead
+DO LAG(1, @v) OVER();
+ERROR HY000: Incorrect arguments to lag
+DO LEAD(1, @v) OVER();
+ERROR HY000: Incorrect arguments to lead
+SET @v = '1';
+DO LAG(1, @v) OVER();
+ERROR HY000: Incorrect arguments to lag
+DO LEAD(1, @v) OVER();
+ERROR HY000: Incorrect arguments to lead
+DO NTILE(@v) OVER();
+ERROR HY000: Incorrect arguments to ntile
+SET @v = 1.2;
+DO LAG(1, @v) OVER();
+ERROR HY000: Incorrect arguments to lag
+DO LEAD(1, @v) OVER();
+ERROR HY000: Incorrect arguments to lead
+DO NTILE(@v) OVER();
+ERROR HY000: Incorrect arguments to ntile
+SET @v = 10;
+DO LAG(1, @v) OVER();
+DO LAG(1, @v) OVER(), @v:=20;
+ERROR HY000: Incorrect arguments to lag
+DO LEAD(1, @v) OVER();
+DO LEAD(1, @v) OVER(), @v:=20;
+ERROR HY000: Incorrect arguments to lead
+DO NTILE(@v) OVER();
+DO NTILE(@v) OVER(), @v:=20;
+ERROR HY000: Incorrect arguments to ntile
+# End of test for Bug#31393719

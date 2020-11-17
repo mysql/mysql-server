@@ -1,4 +1,4 @@
-// Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -162,6 +162,7 @@ enum {
   OPT_COLORED_DIFF = OPT_MAX_CLIENT_OPTION,
   OPT_CURSOR_PROTOCOL,
   OPT_EXPLAIN_PROTOCOL,
+  OPT_HYPERGRAPH,
   OPT_JSON_EXPLAIN_PROTOCOL,
   OPT_LOG_DIR,
   OPT_MARK_PROGRESS,
@@ -212,6 +213,7 @@ static bool testcase_disabled = false;
 static bool display_result_vertically = false, display_result_lower = false,
             display_metadata = false, display_result_sorted = false,
             display_session_track_info = false;
+static bool skip_if_hypergraph = false;
 static int start_sort_column = 0;
 static bool disable_query_log = false, disable_result_log = false;
 static bool disable_connect_log = true;
@@ -224,6 +226,7 @@ static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
 static const char *load_default_groups[] = {"mysqltest", "client", nullptr};
 static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos = line_buffer;
 static bool can_handle_expired_passwords = true;
+static bool opt_hypergraph = false;
 
 /*
   These variables control the behavior of the asynchronous operations for
@@ -307,7 +310,7 @@ static size_t delimiter_length = 1;
 static char TMPDIR[FN_REFLEN];
 
 /* Block stack */
-enum block_cmd { cmd_none, cmd_if, cmd_while };
+enum block_cmd { cmd_none, cmd_if, cmd_while, cmd_assert };
 
 struct st_block {
   int line;                         /* Start line of block */
@@ -479,6 +482,7 @@ enum enum_commands {
   Q_SORTED_RESULT,
   Q_PARTIALLY_SORTED_RESULT,
   Q_LOWERCASE,
+  Q_SKIP_IF_HYPERGRAPH,
   Q_START_TIMER,
   Q_END_TIMER,
   Q_CHARACTER_SET,
@@ -497,6 +501,7 @@ enum enum_commands {
   Q_COPY_FILE,
   Q_PERL,
   Q_DIE,
+  Q_ASSERT,
   Q_EXIT,
   Q_SKIP,
   Q_CHMOD_FILE,
@@ -543,11 +548,12 @@ const char *command_names[] = {
     "disable_async_client", "exec", "execw", "exec_in_background", "delimiter",
     "disable_abort_on_error", "enable_abort_on_error", "vertical_results",
     "horizontal_results", "query_vertical", "query_horizontal", "sorted_result",
-    "partially_sorted_result", "lowercase_result", "start_timer", "end_timer",
-    "character_set", "disable_ps_protocol", "enable_ps_protocol",
-    "disable_reconnect", "enable_reconnect", "if", "disable_testcase",
-    "enable_testcase", "replace_regex", "replace_numeric_round", "remove_file",
-    "file_exists", "write_file", "copy_file", "perl", "die",
+    "partially_sorted_result", "lowercase_result", "skip_if_hypergraph",
+    "start_timer", "end_timer", "character_set", "disable_ps_protocol",
+    "enable_ps_protocol", "disable_reconnect", "enable_reconnect", "if",
+    "disable_testcase", "enable_testcase", "replace_regex",
+    "replace_numeric_round", "remove_file", "file_exists", "write_file",
+    "copy_file", "perl", "die", "assert",
 
     /* Don't execute any more commands, compare result */
     "exit", "skip", "chmod", "append_file", "cat_file", "diff_files",
@@ -1153,11 +1159,11 @@ static void check_command_args(struct st_command *command, char *arguments,
         /* Find end of arg, terminated by "delimiter" */
         while (*ptr && *ptr != delimiter) ptr++;
         if (ptr > start) {
-          init_dynamic_string(arg->ds, nullptr, ptr - start, 32);
+          init_dynamic_string(arg->ds, nullptr, ptr - start);
           do_eval(arg->ds, start, ptr, false);
         } else {
           /* Empty string */
-          init_dynamic_string(arg->ds, "", 0, 0);
+          init_dynamic_string(arg->ds, "", 0);
         }
         /* Find real end of arg, terminated by "delimiter_arg" */
         /* This will do nothing if arg was not closed by quotes */
@@ -1173,7 +1179,7 @@ static void check_command_args(struct st_command *command, char *arguments,
         /* Rest of line */
       case ARG_REST:
         start = ptr;
-        init_dynamic_string(arg->ds, nullptr, command->query_len, 256);
+        init_dynamic_string(arg->ds, nullptr, command->query_len);
         do_eval(arg->ds, start, command->end, false);
         command->last_argument = command->end;
         DBUG_PRINT("info", ("val: %s", arg->ds->str));
@@ -1262,6 +1268,15 @@ void handle_error(struct st_command *command, std::uint32_t err_errno,
                   const char *err_error, const char *err_sqlstate,
                   DYNAMIC_STRING *ds) {
   DBUG_TRACE;
+
+  if (opt_hypergraph && err_errno == ER_HYPERGRAPH_NOT_SUPPORTED_YET) {
+    const char errstr[] = "<ignored hypergraph optimizer error: ";
+    dynstr_append_mem(ds, errstr, sizeof(errstr) - 1);
+    replace_dynstr_append(ds, err_error);
+    dynstr_append_mem(ds, ">\n", 2);
+    revert_properties();
+    return;
+  }
 
   if (command->abort_on_error)
     die("Query '%s' failed.\nERROR %d (%s): %s", command->query, err_errno,
@@ -1755,7 +1770,7 @@ static int run_tool(const char *tool_path, DYNAMIC_STRING *ds_res, ...) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("tool_path: %s", tool_path));
 
-  if (init_dynamic_string(&ds_cmdline, IF_WIN("\"", ""), FN_REFLEN, FN_REFLEN))
+  if (init_dynamic_string(&ds_cmdline, IF_WIN("\"", ""), FN_REFLEN))
     die("Out of memory");
 
   dynstr_append_os_quoted(&ds_cmdline, tool_path, NullS);
@@ -1817,6 +1832,102 @@ static int diff_check(const char *diff_name) {
 
 #endif
 
+/**
+  See if the diff consists _solely_ of hunks that are due to output lines being
+  replaced with the special hypergraph error text. If so, return true.
+  An example hunk:
+
+  @@ -315,45 +211,25 @@
+   SELECT * FROM articles WHERE MATCH(title, body) AGAINST('a' IN BOOLEAN MODE);
+  -id     title   body
+  -3      foo     bar
+  -2      bar     baz
+  +<ignored hypergraph optimizer error: The hypergraph optimizer does not yet
+  support 'fulltext search'> SELECT ...
+ */
+static bool is_diff_clean_except_hypergraph(DYNAMIC_STRING *ds) {
+  constexpr char error_signature[] = "+<ignored hypergraph optimizer error: ";
+
+  enum STATE {
+    LOOKING_FOR_FIRST_HUNK,
+    IN_HUNK,
+    FOUND_NEGATIVE_LINE
+  } state = LOOKING_FOR_FIRST_HUNK;
+
+  const char *end = ds->str + ds->length;
+  const char *line_end;
+  for (const char *ptr = ds->str; ptr < end; ptr = line_end + 1) {
+    line_end = pointer_cast<const char *>(memchr(ptr, '\n', end - ptr));
+    if (line_end == nullptr) {
+      line_end = end;
+    }
+
+    size_t line_length = line_end - ptr;
+    if (state == LOOKING_FOR_FIRST_HUNK) {
+      if (line_length < 2) {
+        // Malformed diff, give up.
+        return false;
+      }
+      if (ptr[0] == '@' && ptr[1] == '@') {
+        // Beginning of hunk.
+        state = IN_HUNK;
+      } else {
+        // Still waiting for the first hunk.
+      }
+    } else {
+      assert(state == IN_HUNK || state == FOUND_NEGATIVE_LINE);
+
+      if (line_length < 1) {
+        // Malformed diff, give up.
+        return false;
+      }
+      if (ptr[0] == '-') {
+        // A group of negative diff lines (either the beginning, or more
+        // of them). Hopefully, this group will be ended with an instance of
+        // "+<ignored hypergraph optimizer ...", which means we can ignore it.
+        state = FOUND_NEGATIVE_LINE;
+      } else if (ptr[0] == ' ') {
+        if (state == IN_HUNK) {
+          // Waiting for the next (or first) diff. Continue.
+        } else {
+          // Negative lines that were not followed by an ignored error.
+          // These are not acceptable.
+          return false;
+        }
+      } else if (line_length >= 2 && ptr[0] == '@' && ptr[1] == '@') {
+        // Beginning of a new hunk.
+        if (state == FOUND_NEGATIVE_LINE) {
+          // Negative lines that were not followed by an ignored error.
+          // These are not acceptable.
+          return false;
+        }
+      } else if (ptr[0] == '+') {
+        if (line_length >= strlen(error_signature) &&
+            memcmp(ptr, error_signature, strlen(error_signature)) == 0) {
+          // An ignored error. Whether there were previous negative lines
+          // or not, that's fine; we can end and ignore this group.
+          state = IN_HUNK;
+        } else {
+          // A non-ignored error.
+          return false;
+        }
+      } else {
+        // Malformed diff, give up.
+        return false;
+      }
+    }
+  }
+
+  if (state == FOUND_NEGATIVE_LINE) {
+    // Negative lines that were not followed by an ignored error.
+    // These are not acceptable.
+    return false;
+  }
+
+  // Found nothing else, so success!
+  return true;
+}
+
 /// Show the diff of two files using the systems builtin diff
 /// command. If no such diff command exist, just dump the content
 /// of the two files and inform about how to get "diff"
@@ -1825,10 +1936,11 @@ static int diff_check(const char *diff_name) {
 ///                  diff. If NULL, print the diff to stderr.
 /// @param filename1 Name of the first file
 /// @param filename2 Name of the second file
-static void show_diff(DYNAMIC_STRING *ds, const char *filename1,
+/// @return          true if the diff should be ignored
+static bool show_diff(DYNAMIC_STRING *ds, const char *filename1,
                       const char *filename2) {
   DYNAMIC_STRING ds_diff;
-  if (init_dynamic_string(&ds_diff, "", 256, 256)) die("Out of memory");
+  if (init_dynamic_string(&ds_diff, "", 256)) die("Out of memory");
 
   const char *diff_name = nullptr;
 
@@ -1881,6 +1993,10 @@ static void show_diff(DYNAMIC_STRING *ds, const char *filename1,
               run_tool(diff_name, &ds_diff, filename1, filename2, "2>&1", NULL);
           if (exit_code > 1) diff_name = nullptr;
         }
+      } else if (exit_code == 1 && opt_hypergraph &&
+                 is_diff_clean_except_hypergraph(&ds_diff)) {
+        dynstr_free(&ds_diff);
+        return true;
       }
     }
   }
@@ -1923,6 +2039,7 @@ static void show_diff(DYNAMIC_STRING *ds, const char *filename1,
     fprintf(stderr, "%s\n", ds_diff.str);
 
   dynstr_free(&ds_diff);
+  return false;
 }
 
 enum compare_files_result_enum {
@@ -2061,7 +2178,11 @@ static void check_result() {
         die("Failed to copy '%s' to '%s', errno: %d", log_file.file_name(),
             reject_file, errno);
 
-      show_diff(nullptr, result_file_name, reject_file);
+      bool ignored_diff = show_diff(nullptr, result_file_name, reject_file);
+      if (ignored_diff) {
+        abort_not_supported_test(
+            "Hypergraph optimizer did not support all queries.");
+      }
       die("%s", mess);
       break;
     }
@@ -2425,7 +2546,7 @@ static void var_query_set(VAR *var, const char *query, const char **query_end) {
   ++query;
 
   /* Eval the query, thus replacing all environment variables */
-  init_dynamic_string(&ds_query, nullptr, (end - query) + 32, 256);
+  init_dynamic_string(&ds_query, nullptr, (end - query) + 32);
   do_eval(&ds_query, query, end, false);
 
   if (mysql_real_query_wrapper(mysql, ds_query.str,
@@ -2451,7 +2572,7 @@ static void var_query_set(VAR *var, const char *query, const char **query_end) {
     uint i;
     ulong *lengths;
 
-    init_dynamic_string(&result, "", 512, 512);
+    init_dynamic_string(&result, "", 512);
     lengths = mysql_fetch_lengths(res);
     for (i = 0; i < mysql_num_fields(res); i++) {
       if (row[i]) {
@@ -2469,7 +2590,7 @@ static void var_query_set(VAR *var, const char *query, const char **query_end) {
           }
         }
         DYNAMIC_STRING ds_temp;
-        init_dynamic_string(&ds_temp, "", 512, 512);
+        init_dynamic_string(&ds_temp, "", 512);
 
         /* Store result from replace_result in ds_temp */
         if (glob_replace)
@@ -2486,7 +2607,7 @@ static void var_query_set(VAR *var, const char *query, const char **query_end) {
             char buffer[512];
             strcpy(buffer, ds_temp.str);
             dynstr_free(&ds_temp);
-            init_dynamic_string(&ds_temp, "", 512, 512);
+            init_dynamic_string(&ds_temp, "", 512);
             replace_numeric_round_append(glob_replace_numeric_round, &ds_temp,
                                          buffer, std::strlen(buffer));
           } else
@@ -2984,7 +3105,7 @@ static int replace(DYNAMIC_STRING *ds_str, const char *search_str,
   DYNAMIC_STRING ds_tmp;
   const char *start = strstr(ds_str->str, search_str);
   if (!start) return 1;
-  init_dynamic_string(&ds_tmp, "", ds_str->length + replace_len, 256);
+  init_dynamic_string(&ds_tmp, "", ds_str->length + replace_len);
   dynstr_append_mem(&ds_tmp, ds_str->str, start - ds_str->str);
   dynstr_append_mem(&ds_tmp, replace_str, replace_len);
   dynstr_append(&ds_tmp, start + search_len);
@@ -3048,7 +3169,7 @@ static void do_exec(struct st_command *command, bool run_in_background) {
   command->last_argument = command->end;
 
   DYNAMIC_STRING ds_cmd;
-  init_dynamic_string(&ds_cmd, nullptr, command->query_len + 256, 256);
+  init_dynamic_string(&ds_cmd, nullptr, command->query_len + 256);
 
   // Eval the command, thus replacing all environment variables
   do_eval(&ds_cmd, cmd, command->end, !is_windows);
@@ -3073,10 +3194,10 @@ static void do_exec(struct st_command *command, bool run_in_background) {
     /* Add an invocation of "START /B" on Windows, append " &" on Linux*/
     DYNAMIC_STRING ds_tmp;
 #ifdef WIN32
-    init_dynamic_string(&ds_tmp, "START /B ", ds_cmd.length + 9, 256);
+    init_dynamic_string(&ds_tmp, "START /B ", ds_cmd.length + 9);
     dynstr_append_mem(&ds_tmp, ds_cmd.str, ds_cmd.length);
 #else
-    init_dynamic_string(&ds_tmp, ds_cmd.str, ds_cmd.length + 2, 256);
+    init_dynamic_string(&ds_tmp, ds_cmd.str, ds_cmd.length + 2);
     dynstr_append_mem(&ds_tmp, " &", 2);
 #endif
     dynstr_set(&ds_cmd, ds_tmp.str);
@@ -3350,7 +3471,7 @@ static void do_remove_files_wildcard(struct st_command *command) {
     error = 1;
     goto end;
   }
-  init_dynamic_string(&ds_file_to_remove, dirname, 1024, 1024);
+  init_dynamic_string(&ds_file_to_remove, dirname, 1024);
   dir_separator[0] = FN_LIBCHAR;
   dir_separator[1] = 0;
   dynstr_append(&ds_file_to_remove, dir_separator);
@@ -4153,7 +4274,7 @@ static void do_list_files_write_file_command(struct st_command *command,
   check_command_args(command, command->first_argument, list_files_args,
                      sizeof(list_files_args) / sizeof(struct command_arg), ' ');
 
-  init_dynamic_string(&ds_content, "", 1024, 1024);
+  init_dynamic_string(&ds_content, "", 1024);
   error = get_list_files(&ds_content, &ds_dirname, &ds_wild);
   handle_command_error(command, error);
   str_to_file2(ds_filename.str, ds_content.str, ds_content.length, append);
@@ -4244,7 +4365,7 @@ static void do_write_file_command(struct st_command *command, bool append) {
     /* If no delimiter was provided, use EOF */
     if (ds_delimiter.length == 0) dynstr_set(&ds_delimiter, "EOF");
 
-    init_dynamic_string(&ds_content, "", 1024, 1024);
+    init_dynamic_string(&ds_content, "", 1024);
     read_until_delimiter(&ds_content, &ds_delimiter);
     command->content = ds_content;
   }
@@ -4536,7 +4657,7 @@ static void do_perl(struct st_command *command) {
     /* If no delimiter was provided, use EOF */
     if (ds_delimiter.length == 0) dynstr_set(&ds_delimiter, "EOF");
 
-    init_dynamic_string(&ds_script, "", 1024, 1024);
+    init_dynamic_string(&ds_script, "", 1024);
     read_until_delimiter(&ds_script, &ds_delimiter);
     command->content = ds_script;
   }
@@ -4619,7 +4740,7 @@ static int do_echo(struct st_command *command) {
   DYNAMIC_STRING ds_echo;
   DBUG_TRACE;
 
-  init_dynamic_string(&ds_echo, "", command->query_len, 256);
+  init_dynamic_string(&ds_echo, "", command->query_len);
   do_eval(&ds_echo, command->first_argument, command->end, false);
   dynstr_append_mem(&ds_res, ds_echo.str, ds_echo.length);
   dynstr_append_mem(&ds_res, "\n", 1);
@@ -5145,7 +5266,7 @@ static void do_let(struct st_command *command) {
   DYNAMIC_STRING let_rhs_expr;
   DBUG_TRACE;
 
-  init_dynamic_string(&let_rhs_expr, "", 512, 2048);
+  init_dynamic_string(&let_rhs_expr, "", 512);
 
   /* Find <var_name> */
   if (!*p) die("Missing arguments to let");
@@ -6345,7 +6466,7 @@ static void do_connect(struct st_command *command) {
   }
 
   /* Shared memory */
-  init_dynamic_string(&ds_shm, ds_sock.str, 0, 0);
+  init_dynamic_string(&ds_shm, ds_sock.str, 0);
 
   /* Sock */
   if (ds_sock.length) {
@@ -6602,10 +6723,14 @@ static enum block_op find_operand(const char *start) {
   <block statements>
   }
 
+  assert (expr)
+
   Evaluates the <expr> and if it evaluates to
   greater than zero executes the following code block.
   A '!' can be used before the <expr> to indicate it should
   be executed if it evaluates to zero.
+
+  In the assert() case, the block is an implied { die [query]; }
 
   <expr> can also be a simple comparison condition:
 
@@ -6621,7 +6746,11 @@ static void do_block(enum block_cmd cmd, struct st_command *command) {
   const char *expr_start;
   const char *expr_end;
   VAR v;
-  const char *cmd_name = (cmd == cmd_while ? "while" : "if");
+  const char *cmd_name;
+  if (cmd == cmd_assert)
+    cmd_name = "assert";
+  else
+    cmd_name = (cmd == cmd_while ? "while" : "if");
   bool not_expr = false;
   DBUG_TRACE;
   DBUG_PRINT("enter", ("%s", cmd_name));
@@ -6661,7 +6790,12 @@ static void do_block(enum block_cmd cmd, struct st_command *command) {
   p = expr_end + 1;
 
   while (*p && my_isspace(charset_info, *p)) p++;
-  if (*p && *p != '{') die("Missing '{' after %s. Found \"%s\"", cmd_name, p);
+  if (*p) {
+    if (cmd == cmd_assert)
+      die("End of line junk detected: \"%s\"", p);
+    else if (*p != '{')
+      die("Missing '{' after %s. Found \"%s\"", cmd_name, p);
+  }
 
   var_init(&v, nullptr, 0, nullptr, 0);
 
@@ -6742,19 +6876,18 @@ static void do_block(enum block_cmd cmd, struct st_command *command) {
     }
 
     v.is_int = true;
-    var_free()(&v2);
+    my_free(v2.str_val);
   } else {
     if (*expr_start != '`' && !my_isdigit(charset_info, *expr_start))
-      die("Expression in if/while must beging with $, ` or a number");
+      die("Expression in %s() must begin with $, ` or a number", cmd_name);
     eval_expr(&v, expr_start, &expr_end);
   }
 
 NO_COMPARE:
-  /* Define inner block */
-  cur_block++;
-  cur_block->cmd = cmd;
+  /* Evaluate the expression */
+  bool v_val_bool;
   if (v.is_int) {
-    cur_block->ok = (v.int_val != 0);
+    v_val_bool = (v.int_val != 0);
   } else
   /* Any non-empty string which does not begin with 0 is also true */
   {
@@ -6762,22 +6895,31 @@ NO_COMPARE:
     /* First skip any leading white space or unary -+ */
     while (*p && ((my_isspace(charset_info, *p) || *p == '-' || *p == '+')))
       p++;
-
-    cur_block->ok = (*p && *p != '0') ? true : false;
+    v_val_bool = (*p && *p != '0');
   }
+  if (not_expr) v_val_bool = !v_val_bool;
 
-  if (not_expr) cur_block->ok = !cur_block->ok;
-
-  if (cur_block->ok) {
-    cur_block->delim[0] = '\0';
+  /* Finally, handle assert/if/while */
+  if (cmd == cmd_assert) {
+    if (!v_val_bool) {
+      die("Assertion failed: %s", command->query);
+    }
   } else {
-    /* Remember "old" delimiter if entering a false if block */
-    strcpy(cur_block->delim, delimiter);
+    /* Define inner block */
+    cur_block++;
+    cur_block->cmd = cmd;
+    cur_block->ok = v_val_bool;
+
+    if (v_val_bool) {
+      cur_block->delim[0] = '\0';
+    } else {
+      /* Remember "old" delimiter if entering a false if block */
+      strcpy(cur_block->delim, delimiter);
+    }
   }
 
-  DBUG_PRINT("info", ("OK: %d", cur_block->ok));
-
-  var_free()(&v);
+  DBUG_PRINT("info", ("OK: %d", v_val_bool));
+  my_free(v.str_val);
 }
 
 static void do_delimiter(struct st_command *command) {
@@ -7312,6 +7454,10 @@ static struct my_option my_long_options[] = {
      GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"host", 'h', "Connect to host.", &opt_host, &opt_host, nullptr, GET_STR,
      REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"hypergraph", OPT_HYPERGRAPH,
+     "Force all queries to be run under the hypergraph optimizer.",
+     &opt_hypergraph, &opt_hypergraph, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"include", 'i', "Include SQL before each test case.", &opt_include,
      &opt_include, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
@@ -8121,7 +8267,7 @@ static int append_warnings(DYNAMIC_STRING *ds, MYSQL *mysql) {
     die("Warning count is %u but didn't get any warnings", count);
 
   DYNAMIC_STRING ds_warnings;
-  init_dynamic_string(&ds_warnings, "", 1024, 1024);
+  init_dynamic_string(&ds_warnings, "", 1024);
   append_result(&ds_warnings, warn_res);
   mysql_free_result_wrapper(warn_res);
 
@@ -8281,8 +8427,8 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
   // Init dynamic strings for warnings.
   if (!disable_warnings || disabled_warnings->count() ||
       enabled_warnings->count()) {
-    init_dynamic_string(&ds_prepare_warnings, nullptr, 0, 256);
-    init_dynamic_string(&ds_execute_warnings, nullptr, 0, 256);
+    init_dynamic_string(&ds_prepare_warnings, nullptr, 0);
+    init_dynamic_string(&ds_execute_warnings, nullptr, 0);
   }
 
   // Note that here 'res' is meta data result set
@@ -8365,11 +8511,6 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
 
         // Free normal result set with meta data
         mysql_free_result_wrapper(res);
-
-        // Clear prepare warnings if there are execute warnings,
-        // since they are probably duplicated.
-        if (ds_execute_warnings.length || mysql->warning_count)
-          dynstr_set(&ds_prepare_warnings, nullptr);
       } else {
         // This is a query without resultset
       }
@@ -8508,14 +8649,11 @@ static void run_query(struct st_connection *cn, struct st_command *command,
   if (!(flags & QUERY_SEND_FLAG) && !cn->pending)
     die("Cannot reap on a connection without pending send");
 
-  init_dynamic_string(&ds_warnings, nullptr, 0, 256);
-  ds_warn = &ds_warnings;
-
   /*
     Evaluate query if this is an eval command
   */
   if (command->type == Q_EVAL || command->type == Q_SEND_EVAL) {
-    init_dynamic_string(&eval_query, "", command->query_len + 256, 1024);
+    init_dynamic_string(&eval_query, "", command->query_len + 256);
     do_eval(&eval_query, command->query, command->end, false);
     query = eval_query.str;
     query_len = eval_query.length;
@@ -8542,6 +8680,19 @@ static void run_query(struct st_connection *cn, struct st_command *command,
     dynstr_append_mem(ds, "\n", 1);
   }
 
+  if (skip_if_hypergraph && opt_hypergraph) {
+    constexpr char message[] =
+        "<ignored hypergraph optimizer error: statement skipped by "
+        "test>\n";
+    dynstr_append_mem(&ds_res, message, strlen(message));
+    if (command->type == Q_EVAL || command->type == Q_SEND_EVAL)
+      dynstr_free(&eval_query);
+    return;
+  }
+
+  init_dynamic_string(&ds_warnings, nullptr, 0);
+  ds_warn = &ds_warnings;
+
   if (view_protocol_enabled && complete_query &&
       search_protocol_re(&view_re, query)) {
     /*
@@ -8551,7 +8702,7 @@ static void run_query(struct st_connection *cn, struct st_command *command,
     DYNAMIC_STRING query_str;
     init_dynamic_string(&query_str,
                         "CREATE OR REPLACE VIEW mysqltest_tmp_v AS ",
-                        query_len + 64, 256);
+                        query_len + 64);
     dynstr_append_mem(&query_str, query, query_len);
     if (util_query(mysql, query_str.str)) {
       /*
@@ -8592,7 +8743,7 @@ static void run_query(struct st_connection *cn, struct st_command *command,
     DYNAMIC_STRING query_str;
     init_dynamic_string(&query_str,
                         "DROP PROCEDURE IF EXISTS mysqltest_tmp_sp;",
-                        query_len + 64, 256);
+                        query_len + 64);
     util_query(mysql, query_str.str);
     dynstr_set(&query_str, "CREATE PROCEDURE mysqltest_tmp_sp()\n");
     dynstr_append_mem(&query_str, query, query_len);
@@ -8624,7 +8775,7 @@ static void run_query(struct st_connection *cn, struct st_command *command,
        that can be sorted before it's added to the
        global result string
     */
-    init_dynamic_string(&ds_sorted, "", 1024, 1024);
+    init_dynamic_string(&ds_sorted, "", 1024);
     save_ds = ds; /* Remember original ds */
     ds = &ds_sorted;
   }
@@ -8686,7 +8837,7 @@ static void display_opt_trace(struct st_connection *cn,
     init_dynamic_string(&query_str,
                         "SELECT trace FROM information_schema.optimizer_trace"
                         " /* injected by --opt-trace-protocol */",
-                        128, 128);
+                        128);
 
     command->query = query_str.str;
     command->query_len = query_str.length;
@@ -8711,9 +8862,9 @@ static void run_explain(struct st_connection *cn, struct st_command *command,
     DYNAMIC_STRING query_str;
     DYNAMIC_STRING ds_warning_messages;
 
-    init_dynamic_string(&ds_warning_messages, "", 0, 2048);
+    init_dynamic_string(&ds_warning_messages, "", 0);
     init_dynamic_string(&query_str, json ? "EXPLAIN FORMAT=JSON " : "EXPLAIN ",
-                        256, 256);
+                        256);
     dynstr_append_mem(&query_str, command->query,
                       command->end - command->query);
 
@@ -9055,8 +9206,8 @@ int main(int argc, char **argv) {
   init_win_path_patterns();
 #endif
 
-  init_dynamic_string(&ds_res, "", 2048, 2048);
-  init_dynamic_string(&ds_result, "", 1024, 1024);
+  init_dynamic_string(&ds_res, "", 2048);
+  init_dynamic_string(&ds_result, "", 1024);
 
   parse_args(argc, argv);
 
@@ -9203,6 +9354,16 @@ int main(int argc, char **argv) {
   var_set_errno(-1);
 
   set_current_connection(con);
+
+  if (opt_hypergraph) {
+    int error = mysql_query_wrapper(
+        &con->mysql, "SET optimizer_switch='hypergraph_optimizer=on';");
+    if (error != 0) {
+      die("--hypergraph was given, but the server does not support the "
+          "hypergraph optimizer. (errno=%d)",
+          my_errno());
+    }
+  }
 
   if (opt_include) {
     open_file(opt_include);
@@ -9444,6 +9605,13 @@ int main(int argc, char **argv) {
           */
           display_result_lower = true;
           break;
+        case Q_SKIP_IF_HYPERGRAPH:
+          /*
+            Skip the next query if running with --hypergraph; will be reset
+            after next command.
+           */
+          skip_if_hypergraph = true;
+          break;
         case Q_LET:
           do_let(command);
           break;
@@ -9675,7 +9843,7 @@ int main(int argc, char **argv) {
           break;
         case Q_SKIP: {
           DYNAMIC_STRING ds_skip_msg;
-          init_dynamic_string(&ds_skip_msg, nullptr, command->query_len, 256);
+          init_dynamic_string(&ds_skip_msg, nullptr, command->query_len);
 
           // Evaluate the skip message
           do_eval(&ds_skip_msg, command->first_argument, command->end, false);
@@ -9728,6 +9896,9 @@ int main(int argc, char **argv) {
         case Q_IF:
           do_block(cmd_if, command);
           break;
+        case Q_ASSERT:
+          do_block(cmd_assert, command);
+          break;
         case Q_END_BLOCK:
           do_done(command);
           break;
@@ -9752,9 +9923,10 @@ int main(int argc, char **argv) {
       */
       free_all_replace();
 
-      /* Also reset "sorted_result" and "lowercase"*/
+      /* Also reset "sorted_result", "lowercase" and "skip_if_hypergraph"*/
       display_result_sorted = false;
       display_result_lower = false;
+      skip_if_hypergraph = false;
     }
     last_command_executed = command_executed;
 
@@ -10875,7 +11047,7 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
   }
 
   DYNAMIC_STRING ds_temp;
-  init_dynamic_string(&ds_temp, "", 512, 512);
+  init_dynamic_string(&ds_temp, "", 512);
 
   /* Store result from replace_result in ds_temp */
   if (glob_replace) {
@@ -10894,7 +11066,7 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
       char buffer[512];
       strcpy(buffer, ds_temp.str);
       dynstr_free(&ds_temp);
-      init_dynamic_string(&ds_temp, "", 512, 512);
+      init_dynamic_string(&ds_temp, "", 512);
       replace_numeric_round_append(glob_replace_numeric_round, &ds_temp, buffer,
                                    std::strlen(buffer));
     } else

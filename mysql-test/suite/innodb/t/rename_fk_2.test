@@ -58,7 +58,9 @@ SET foreign_key_checks=1;
 --error ER_ROW_IS_REFERENCED_2
 DELETE FROM country WHERE country_id =1;
 
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS;
 CREATE TABLE tmp_country LIKE country;
 INSERT INTO tmp_country SELECT * FROM country;
@@ -74,7 +76,9 @@ SET foreign_key_checks=1;
 --error ER_ROW_IS_REFERENCED_2
 DELETE FROM country WHERE country_id =1;
 
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS;
 
 DROP TABLE address;

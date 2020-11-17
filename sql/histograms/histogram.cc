@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -116,6 +116,7 @@ static Value_map_type field_type_to_value_map_type(
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_NEWDECIMAL:
       return Value_map_type::DECIMAL;
+    case MYSQL_TYPE_BOOL:
     case MYSQL_TYPE_TINY:
     case MYSQL_TYPE_SHORT:
     case MYSQL_TYPE_LONG:
@@ -154,6 +155,7 @@ static Value_map_type field_type_to_value_map_type(
     case MYSQL_TYPE_JSON:
     case MYSQL_TYPE_GEOMETRY:
     case MYSQL_TYPE_NULL:
+    case MYSQL_TYPE_INVALID:
     default:
       return Value_map_type::INVALID;
   }
@@ -900,7 +902,6 @@ bool update_histogram(THD *thd, TABLE_LIST *table, const columns_set &columns,
     close_thread_tables(thd);
   });
 
-  table->reinit_before_use(thd);
   if (open_and_lock_tables(thd, table, 0)) {
     return true;
   }

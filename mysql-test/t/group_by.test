@@ -734,7 +734,6 @@ insert into t2 values ('aaa', 'bb1'), ('aaa', 'bb2');
 # query with ambiguous column reference 'c2'
 select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4
 group by c2;
-show warnings;
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
@@ -742,7 +741,6 @@ show warnings;
 select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4
 group by t1.c1;
 
-show warnings;
 drop table t1, t2;
 
 #
@@ -2903,3 +2901,95 @@ CREATE TABLE t1 (
 );
 SELECT * FROM t1 GROUP BY f3,f2,f1 WITH ROLLUP;
 DROP TABLE t1;
+
+--echo # Bug#23599127 Unexpected unknown column error without ONLY_FULL_GROUP_BY
+
+SET SQL_MODE = '';
+
+CREATE TABLE t1 (
+  id_aams int NOT NULL ,
+  PRIMARY KEY (id_aams)
+);
+
+CREATE TABLE t2 (
+  id int NOT NULL,
+  id_game int DEFAULT NULL,
+  code_id char(11) DEFAULT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY codeid (code_id,id_game)
+);
+
+select count(distinct x.id_aams)
+from (select *
+      from (select t1.id_aams, t2.*
+            from t1 left join t2
+                 on t2.code_id='G0000000012' and
+                    t1.id_aams=t2.id_game
+            where t1.id_aams=1715000360
+            order by t2.id desc
+           ) as g
+      group by g.id_aams
+      having g.id is null
+     ) as x;
+
+DELIMITER //;
+CREATE FUNCTION f1(vlt_code_id CHAR(11)) RETURNS tinyint DETERMINISTIC
+BEGIN
+  DECLARE not_installed TINYINT DEFAULT 0;
+
+  select count(distinct x.id_aams)
+  into not_installed
+  from (select *
+        from (select t1.id_aams, t2.*
+              from t1 left join t2
+                   on t2.code_id = vlt_code_id and
+                      t1.id_aams = t2.id_game
+              where t1.id_aams = 1715000360
+              order by t2.id desc
+             ) as g
+        group by g.id_aams
+        having g.id is null
+       ) as x;
+
+RETURN TRUE;
+END //
+
+DELIMITER ;//
+
+SELECT f1('G0000000012');
+SELECT f1('G0000000012');
+
+PREPARE stmt from "
+select count(distinct x.id_aams)
+from (select g.id_aams, g.id
+      from (select t1.id_aams, t2.*
+            from t1 left join t2
+                 on t2.code_id='G0000000012' and
+                    t1.id_aams=t2.id_game
+            where t1.id_aams=1715000360
+            order by t2.id desc
+           ) as g
+      group by g.id_aams
+      having g.id is null
+     ) as x";
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+DEALLOCATE PREPARE stmt;
+DROP FUNCTION f1;
+DROP TABLE t1, t2;
+
+SET SQL_MODE = DEFAULT;
+
+--echo # Bug#31562881: Crash in change_to_use_tmp_fields_except_sums
+
+CREATE TABLE w(a INTEGER);
+INSERT INTO w VALUES (1),(2),(3),(4);
+--error ER_DATA_OUT_OF_RANGE
+SELECT MAX(FROM_UNIXTIME(1536999161)),
+       GROUP_CONCAT(ST_LATFROMGEOHASH(ST_GEOHASH(POINT(115,155),201)))
+FROM w RIGHT JOIN w AS e ON TRUE
+GROUP BY w.a
+LIMIT 39;
+DROP TABLE w;

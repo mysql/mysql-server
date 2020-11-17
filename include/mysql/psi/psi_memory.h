@@ -58,16 +58,23 @@ typedef unsigned int PSI_memory_key;
 /**
   @def PSI_MEMORY_VERSION_1
   Performance Schema Memory Interface number for version 1.
-  This version is supported.
+  This version is abandoned.
 */
 #define PSI_MEMORY_VERSION_1 1
 
 /**
+  @def PSI_MEMORY_VERSION_2
+  Performance Schema Memory Interface number for version 2.
+  This version is supported.
+*/
+#define PSI_MEMORY_VERSION_2 2
+
+/**
   @def PSI_CURRENT_MEMORY_VERSION
   Performance Schema Memory Interface number for the most recent version.
-  The most current version is @c PSI_MEMORY_VERSION_1
+  The most current version is @c PSI_MEMORY_VERSION_2
 */
-#define PSI_CURRENT_MEMORY_VERSION 1
+#define PSI_CURRENT_MEMORY_VERSION 2
 
 struct PSI_thread;
 
@@ -88,23 +95,23 @@ typedef struct PSI_memory_bootstrap PSI_memory_bootstrap;
 #ifdef HAVE_PSI_MEMORY_INTERFACE
 
 /**
-  Performance Schema Memory Interface, version 1.
-  @since PSI_MEMORY_VERSION_1
+  Performance Schema Memory Interface, version 2.
+  @since PSI_MEMORY_VERSION_2
 */
-struct PSI_memory_service_v1 {
+struct PSI_memory_service_v2 {
   /** @sa register_memory_v1_t. */
   register_memory_v1_t register_memory;
   /** @sa memory_alloc_v1_t. */
   memory_alloc_v1_t memory_alloc;
   /** @sa memory_realloc_v1_t. */
   memory_realloc_v1_t memory_realloc;
-  /** @sa memory_claim_v1_t. */
-  memory_claim_v1_t memory_claim;
+  /** @sa memory_claim_v2_t. */
+  memory_claim_v2_t memory_claim;
   /** @sa memory_free_v1_t. */
   memory_free_v1_t memory_free;
 };
 
-typedef struct PSI_memory_service_v1 PSI_memory_service_t;
+typedef struct PSI_memory_service_v2 PSI_memory_service_t;
 
 extern MYSQL_PLUGIN_IMPORT PSI_memory_service_t *psi_memory_service;
 

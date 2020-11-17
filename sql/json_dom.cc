@@ -1224,40 +1224,6 @@ static bool escape_character(char c, String *buf) {
          buf->append(_dig_vec_lower[(c & 0x0f)]);
 }
 
-/**
-  Perform quoting on a JSON string to make an external representation
-  of it. It wraps double quotes (text quotes) around the string (cptr)
-  and also performs escaping according to the following table:
-  <pre>
-  @verbatim
-  Common name     C-style  Original unescaped     Transformed to
-                  escape   UTF-8 bytes            escape sequence
-                  notation                        in UTF-8 bytes
-  ---------------------------------------------------------------
-  quote           \"       %x22                    %x5C %x22
-  backslash       \\       %x5C                    %x5C %x5C
-  backspace       \b       %x08                    %x5C %x62
-  formfeed        \f       %x0C                    %x5C %x66
-  linefeed        \n       %x0A                    %x5C %x6E
-  carriage-return \r       %x0D                    %x5C %x72
-  tab             \t       %x09                    %x5C %x74
-  unicode         \uXXXX  A hex number in the      %x5C %x75
-                          range of 00-1F,          followed by
-                          except for the ones      4 hex digits
-                          handled above (backspace,
-                          formfeed, linefeed,
-                          carriage-return,
-                          and tab).
-  ---------------------------------------------------------------
-  @endverbatim
-  </pre>
-
-  @param[in] cptr pointer to string data
-  @param[in] length the length of the string
-  @param[in,out] buf the destination buffer
-  @retval false on success
-  @retval true on error
-*/
 bool double_quote(const char *cptr, size_t length, String *buf) {
   if (reserve(buf, length + 2) || buf->append('"'))
     return true; /* purecov: inspected */
@@ -1394,8 +1360,8 @@ void Json_datetime::from_packed_to_key(const char *from, enum_field_types ft,
       struct timeval tm;
       int warnings = 0;
       TIME_from_longlong_datetime_packed(&ltime, sint8korr(from));
-      datetime_with_no_zero_in_date_to_timeval(current_thd, &ltime, &tm,
-                                               &warnings);
+      datetime_with_no_zero_in_date_to_timeval(
+          &ltime, *current_thd->time_zone(), &tm, &warnings);
       // Assume that since the value was properly stored, there're no warnings
       DBUG_ASSERT(!warnings);
       my_timestamp_to_binary(&tm, to, dec);

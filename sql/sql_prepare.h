@@ -92,6 +92,7 @@ class Reprepare_observer final {
   bool m_invalidated;
 };
 
+bool ask_to_reprepare(THD *thd);
 bool mysql_stmt_precheck(THD *thd, const COM_DATA *com_data,
                          enum enum_server_command cmd,
                          Prepared_statement **stmt);
@@ -107,10 +108,8 @@ void mysqld_stmt_fetch(THD *thd, Prepared_statement *stmt, ulong num_rows);
 void mysqld_stmt_reset(THD *thd, Prepared_statement *stmt);
 void mysql_stmt_get_longdata(THD *thd, Prepared_statement *stmt,
                              uint param_number, uchar *longdata, ulong length);
-bool reinit_stmt_before_use(THD *thd, LEX *lex);
 bool select_like_stmt_cmd_test(THD *thd, class Sql_cmd_dml *cmd,
                                ulong setup_tables_done_option);
-bool mysql_test_show(Prepared_statement *stmt, TABLE_LIST *tables);
 
 /**
   Execute a fragment of server code in an isolated context, so that
@@ -326,6 +325,8 @@ class Prepared_statement final {
   THD *thd;
   Item_param **param_array;
   Server_side_cursor *cursor;
+  /// Used to check that the protocol is stable during execution
+  const Protocol *m_active_protocol{nullptr};
   uint param_count;
   uint last_errno;
   char last_error[MYSQL_ERRMSG_SIZE];
@@ -381,7 +382,9 @@ class Prepared_statement final {
   bool is_in_use() const { return flags & (uint)IS_IN_USE; }
   bool is_sql_prepare() const { return flags & (uint)IS_SQL_PREPARE; }
   void set_sql_prepare() { flags |= (uint)IS_SQL_PREPARE; }
-  bool prepare(const char *packet, size_t packet_length);
+  bool prepare(const char *packet, size_t packet_length,
+               Item_param **orig_param_array);
+  bool prepare_query();
   bool execute_loop(String *expanded_query, bool open_cursor);
   bool execute_server_runnable(Server_runnable *server_runnable);
 #ifdef HAVE_PSI_PS_INTERFACE
@@ -392,10 +395,13 @@ class Prepared_statement final {
   bool set_parameters(String *expanded_query, bool has_new_types,
                       PS_PARAM *parameters);
   bool set_parameters(String *expanded_query);
+  void trace_parameter_types();
 
  private:
   void cleanup_stmt();
   void setup_set_params();
+  bool check_parameter_types();
+  void copy_parameter_types(Item_param **from_param_array);
   bool set_db(const LEX_CSTRING &db_length);
 
   bool execute(String *expanded_query, bool open_cursor);

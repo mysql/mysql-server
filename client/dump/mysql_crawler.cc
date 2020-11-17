@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -53,10 +53,12 @@ Mysql_crawler::Mysql_crawler(
         *message_handler,
     Simple_id_generator *object_id_generator,
     Mysql_chain_element_options *options,
+    Mysqldump_tool_chain_maker_options *mysqldump_tool_cmaker_options,
     Mysql::Tools::Base::Abstract_program *program)
     : Abstract_crawler(message_handler, object_id_generator, program),
       Abstract_mysql_chain_element_extension(connection_provider,
-                                             message_handler, options) {}
+                                             message_handler, options),
+      m_mysqldump_tool_cmaker_options(mysqldump_tool_cmaker_options) {}
 
 void Mysql_crawler::enumerate_objects() {
   Mysql::Tools::Base::Mysql_query_runner *runner = this->get_runner();
@@ -94,6 +96,7 @@ void Mysql_crawler::enumerate_objects() {
   m_dump_end_task = new Dump_end_dump_task();
   m_tables_definition_ready_dump_task = new Tables_definition_ready_dump_task();
 
+  m_dump_end_task->add_dependency(m_dump_start_task);
   this->process_dump_task(m_dump_start_task);
 
   std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row *> databases;
@@ -112,13 +115,26 @@ void Mysql_crawler::enumerate_objects() {
                      this->get_create_statement(runner, "", db_name,
                                                 "DATABASE IF NOT EXISTS")
                          .value());
-
-    db_list.push_back(database);
     m_current_database_start_dump_task = new Database_start_dump_task(database);
+    Abstract_data_object *db_object = dynamic_cast<Abstract_data_object *>(
+        m_current_database_start_dump_task->get_related_db_object());
+
+    /*
+     This check is introduced so that only the database objects that are
+     included in the dump are validated.
+    */
+    if (!m_mysqldump_tool_cmaker_options->is_object_included_in_dump(
+            db_object)) {
+      delete m_current_database_start_dump_task;
+      delete database;
+      continue;
+    }
+    db_list.push_back(database);
     m_current_database_end_dump_task = new Database_end_dump_task(database);
     db_end_task_list.push_back(m_current_database_end_dump_task);
 
     m_current_database_start_dump_task->add_dependency(m_dump_start_task);
+    m_dump_end_task->add_dependency(m_current_database_start_dump_task);
     m_dump_end_task->add_dependency(m_current_database_end_dump_task);
 
     this->process_dump_task(m_current_database_start_dump_task);
@@ -318,6 +334,17 @@ void Mysql_crawler::enumerate_views(const Database &db) {
          view_it != check_view.end(); ++view_it) {
       const Mysql::Tools::Base::Mysql_query_runner::Row &is_view = **view_it;
       if (is_view[0] == "1") {
+        /* Check if view dependent objects exists */
+        if (runner->run_query(
+                std::string("LOCK TABLES ") +
+                this->get_quoted_object_full_name(db.get_name(), table_name) +
+                " READ") != 0) {
+          Mysql::Tools::Base::Mysql_query_runner::cleanup_result(&check_view);
+          Mysql::Tools::Base::Mysql_query_runner::cleanup_result(&tables);
+          delete runner;
+          return;
+        } else
+          runner->run_query(std::string("UNLOCK TABLES"));
         View *view =
             new View(this->generate_new_object_id(), table_name, db.get_name(),
                      this->get_create_statement(runner, db.get_name(),
@@ -449,6 +476,7 @@ void Mysql_crawler::enumerate_users() {
         new Privilege(this->generate_new_object_id(), user_row[0], user);
 
     grant->add_dependency(previous_grant);
+    grant->add_dependency(m_tables_definition_ready_dump_task);
     m_dump_end_task->add_dependency(grant);
     this->process_dump_task(grant);
     previous_grant = grant;

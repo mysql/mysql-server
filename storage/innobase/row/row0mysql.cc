@@ -198,20 +198,16 @@ const byte *row_mysql_read_true_varchar(
   return (field + 1);
 }
 
-/** Stores a reference to a BLOB in the MySQL format. */
-void row_mysql_store_blob_ref(
-    byte *dest,       /*!< in: where to store */
-    ulint col_len,    /*!< in: dest buffer size: determines into
-                      how many bytes the BLOB length is stored,
-                      the space for the length may vary from 1
-                      to 4 bytes */
-    const void *data, /*!< in: BLOB data; if the value to store
-                      is SQL NULL this should be NULL pointer */
-    ulint len)        /*!< in: BLOB length; if the value to store
-                      is SQL NULL this should be 0; remember
-                      also to set the NULL bit in the MySQL record
-                      header! */
-{
+/** Stores a reference to a BLOB in the MySQL format.
+@param[in] dest Where to store
+@param[in,out] col_len Dest buffer size: determines into how many bytes the blob
+length is stored, the space for the length may vary from 1 to 4 bytes
+@param[in] data Blob data; if the value to store is sql null this should be null
+pointer
+@param[in] len Blob length; if the value to store is sql null this should be 0;
+remember also to set the null bit in the mysql record header! */
+void row_mysql_store_blob_ref(byte *dest, ulint col_len, const void *data,
+                              ulint len) {
   /* MySQL might assume the field is set to zero except the length and
   the pointer fields */
 
@@ -332,12 +328,11 @@ static const byte *row_mysql_read_geometry(
   return (data);
 }
 
-/** Pad a column with spaces. */
-void row_mysql_pad_col(ulint mbminlen, /*!< in: minimum size of a character,
-                                       in bytes */
-                       byte *pad,      /*!< out: padded buffer */
-                       ulint len)      /*!< in: number of bytes to pad */
-{
+/** Pad a column with spaces.
+@param[in] mbminlen Minimum size of a character, in bytes
+@param[out] pad Padded buffer
+@param[in] len Number of bytes to pad */
+void row_mysql_pad_col(ulint mbminlen, byte *pad, ulint len) {
   const byte *pad_end;
 
   switch (UNIV_EXPECT(mbminlen, 1)) {
@@ -916,7 +911,7 @@ Max size Secondary index: 16 * 8 bytes + PK = 256 bytes. */
   prebuilt->fts_doc_id_in_read_set = false;
   prebuilt->blob_heap = nullptr;
 
-  prebuilt->skip_serializable_dd_view = false;
+  prebuilt->no_read_locking = false;
   prebuilt->no_autoinc_locking = false;
 
   prebuilt->m_no_prefetch = false;
@@ -925,11 +920,10 @@ Max size Secondary index: 16 * 8 bytes + PK = 256 bytes. */
   return prebuilt;
 }
 
-/** Free a prebuilt struct for a MySQL table handle. */
-void row_prebuilt_free(
-    row_prebuilt_t *prebuilt, /*!< in, own: prebuilt struct */
-    ibool dict_locked)        /*!< in: TRUE=data dictionary locked */
-{
+/** Free a prebuilt struct for a MySQL table handle.
+@param[in,out] prebuilt Prebuilt struct
+@param[in] dict_locked True=data dictionary locked */
+void row_prebuilt_free(row_prebuilt_t *prebuilt, ibool dict_locked) {
   DBUG_TRACE;
 
   ut_a(prebuilt->magic_n == ROW_PREBUILT_ALLOCATED);
@@ -1209,7 +1203,7 @@ run_again:
 }
 
 /** Sets a table lock on the table mentioned in prebuilt.
-@param[in]	prebuilt	table handle
+@param[in,out]	prebuilt	table handle
 @return error code or DB_SUCCESS */
 dberr_t row_lock_table(row_prebuilt_t *prebuilt) {
   trx_t *trx = prebuilt->trx;
@@ -1268,10 +1262,10 @@ run_again:
 }
 
 /** Perform explicit rollback in absence of UNDO logs.
-@param[in]	index	apply rollback action on this index
-@param[in]	entry	entry to remove/rollback.
-@param[in,out]	thr	thread handler.
-@param[in,out]	mtr	mini transaction.
+@param[in]	index	Apply rollback action on this index
+@param[in]	entry	Entry to remove/rollback.
+@param[in,out]	thr	Thread handler.
+@param[in,out]	mtr	Mini-transaction.
 @return error code or DB_SUCCESS */
 static dberr_t row_explicit_rollback(dict_index_t *index, const dtuple_t *entry,
                                      que_thr_t *thr, mtr_t *mtr) {
@@ -1949,6 +1943,11 @@ static dberr_t row_update_inplace_for_intrinsic(const upd_node_t *node) {
   }
 
   row_upd_rec_in_place(rec, index, offsets, node->update, nullptr);
+
+  /* Set the changed pages as modified, so that if the page is
+  evicted from the buffer pool it is flushed and we don't lose
+  the changes */
+  mtr.set_modified();
   mtr_commit(&mtr);
 
   return (DB_SUCCESS);
@@ -1958,7 +1957,7 @@ typedef std::vector<btr_pcur_t, ut_allocator<btr_pcur_t>> cursors_t;
 
 /** Delete row from table (corresponding entries from all the indexes).
 Function will maintain cursor to the entries to invoke explicity rollback
-just incase update action following delete fails.
+just in case update action following delete fails.
 
 @param[in]	node		update node carrying information to delete.
 @param[out]	delete_entries	vector of cursor to deleted entries.
@@ -2696,12 +2695,12 @@ ibool row_table_got_default_clust_index(
 }
 
 /** Locks the data dictionary in shared mode from modifications, for performing
- foreign key check, rollback, or other operation invisible to MySQL. */
-void row_mysql_freeze_data_dictionary_func(
-    trx_t *trx,       /*!< in/out: transaction */
-    const char *file, /*!< in: file name */
-    ulint line)       /*!< in: line number */
-{
+ foreign key check, rollback, or other operation invisible to MySQL.
+@param[in,out] trx Transaction
+@param[in] file File name
+@param[in] line Line number */
+void row_mysql_freeze_data_dictionary_func(trx_t *trx, const char *file,
+                                           ulint line) {
   ut_a(trx->dict_operation_lock_mode == 0);
 
   rw_lock_s_lock_inline(dict_operation_lock, 0, file, line);
@@ -2720,11 +2719,12 @@ void row_mysql_unfreeze_data_dictionary(trx_t *trx) /*!< in/out: transaction */
 }
 
 /** Locks the data dictionary exclusively for performing a table create or other
- data dictionary modification operation. */
-void row_mysql_lock_data_dictionary_func(trx_t *trx, /*!< in/out: transaction */
-                                         const char *file, /*!< in: file name */
-                                         ulint line) /*!< in: line number */
-{
+ data dictionary modification operation.
+@param[in,out] trx Transaction
+@param[in] file File name
+@param[in] line Line number */
+void row_mysql_lock_data_dictionary_func(trx_t *trx, const char *file,
+                                         ulint line) {
   ut_a(trx->dict_operation_lock_mode == 0 ||
        trx->dict_operation_lock_mode == RW_X_LATCH);
 
@@ -2821,7 +2821,7 @@ dberr_t row_create_table_for_mysql(dict_table_t *table, const char *compression,
 
       ut_ad(Compression::validate(compression) == DB_SUCCESS);
 
-      err = fil_set_compression(table, compression);
+      err = dict_set_compression(table, compression);
 
       switch (err) {
         case DB_SUCCESS:
@@ -3779,15 +3779,14 @@ dberr_t row_drop_tablespace(space_id_t space_id, const char *filepath) {
   return (err);
 }
 
-/** Drop a table for MySQL.
-If the data dictionary was not already locked by the transaction,
-the transaction will be committed.  Otherwise, the data dictionary
-will remain locked.
+/** Drop a table for MySQL. If the data dictionary was not already locked
+by the transaction, the transaction will be committed.  Otherwise, the
+data dictionary will remain locked.
 @param[in]	name		Table name
 @param[in]	trx		Transaction handle
 @param[in]	nonatomic	Whether it is permitted to release
 and reacquire dict_operation_lock
-@param[in,out]	handler		Table handler
+@param[in,out]	handler		Table handler or NULL
 @return error code or DB_SUCCESS */
 dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
                                  dict_table_t *handler) {
@@ -4437,10 +4436,6 @@ dberr_t row_mysql_parallel_select_count_star(
         check.m_prev_block = ctx->m_block;
 
         ++check.m_count;
-
-        if (!(check.m_count % 64) && trx_is_interrupted(trx)) {
-          return (DB_INTERRUPTED);
-        }
       }
       return (DB_SUCCESS);
     });

@@ -198,14 +198,15 @@ static bool lock_deadlock_found = false;
 exclusive lock_sys latch */
 static FILE *lock_latest_err_file;
 
-/** Reports that a transaction id is insensible, i.e., in the future. */
-void lock_report_trx_id_insanity(
-    trx_id_t trx_id,           /*!< in: trx id */
-    const rec_t *rec,          /*!< in: user record */
-    const dict_index_t *index, /*!< in: index */
-    const ulint *offsets,      /*!< in: rec_get_offsets(rec, index) */
-    trx_id_t max_trx_id)       /*!< in: trx_sys_get_max_trx_id() */
-{
+/** Reports that a transaction id is insensible, i.e., in the future.
+@param[in] trx_id Trx id
+@param[in] rec User record
+@param[in] index Index
+@param[in] offsets Rec_get_offsets(rec, index)
+@param[in] max_trx_id Trx_sys_get_max_trx_id() */
+void lock_report_trx_id_insanity(trx_id_t trx_id, const rec_t *rec,
+                                 const dict_index_t *index,
+                                 const ulint *offsets, trx_id_t max_trx_id) {
   ib::error(ER_IB_MSG_634) << "Transaction id " << trx_id
                            << " associated with record"
                            << rec_offsets_print(rec, offsets) << " in index "
@@ -1152,10 +1153,11 @@ void RecLock::lock_add(lock_t *lock) {
   }
 }
 
-/** Create a new lock.
-@param[in,out] trx		Transaction requesting the lock
+/**
+Create a lock for a transaction and initialise it.
+@param[in, out] trx		Transaction requesting the new lock
 @param[in] prdt			Predicate lock (optional)
-@return a new lock instance */
+@return new lock instance */
 lock_t *RecLock::create(trx_t *trx, const lock_prdt_t *prdt) {
   ut_ad(locksys::owns_page_shard(m_rec_id.get_page_id()));
 
@@ -2650,13 +2652,12 @@ void lock_move_reorganize_page(
 }
 
 /** Moves the explicit locks on user records to another page if a record
- list end is moved to another page. */
-void lock_move_rec_list_end(
-    const buf_block_t *new_block, /*!< in: index page to move to */
-    const buf_block_t *block,     /*!< in: index page */
-    const rec_t *rec)             /*!< in: record on page: this
-                                  is the first record moved */
-{
+ list end is moved to another page.
+@param[in] new_block Index page to move to
+@param[in] block Index page
+@param[in,out] rec Record on page: this is the first record moved */
+void lock_move_rec_list_end(const buf_block_t *new_block,
+                            const buf_block_t *block, const rec_t *rec) {
   lock_t *lock;
   const ulint comp = page_rec_is_comp(rec);
 
@@ -2740,19 +2741,15 @@ void lock_move_rec_list_end(
 }
 
 /** Moves the explicit locks on user records to another page if a record
- list start is moved to another page. */
-void lock_move_rec_list_start(const buf_block_t *new_block, /*!< in: index page
-                                                            to move to */
-                              const buf_block_t *block, /*!< in: index page */
-                              const rec_t *rec,         /*!< in: record on page:
-                                                        this is the first
-                                                        record NOT copied */
-                              const rec_t *old_end)     /*!< in: old
-                                                        previous-to-last
-                                                        record on new_page
-                                                        before the records
-                                                        were copied */
-{
+ list start is moved to another page.
+@param[in] new_block Index page to move to
+@param[in] block Index page
+@param[in,out] rec Record on page: this is the first record not copied
+@param[in] old_end Old previous-to-last record on new_page before the records
+were copied */
+void lock_move_rec_list_start(const buf_block_t *new_block,
+                              const buf_block_t *block, const rec_t *rec,
+                              const rec_t *old_end) {
   lock_t *lock;
   const ulint comp = page_rec_is_comp(rec);
 
@@ -2831,14 +2828,14 @@ void lock_move_rec_list_start(const buf_block_t *new_block, /*!< in: index page
 }
 
 /** Moves the explicit locks on user records to another page if a record
- list start is moved to another page. */
-void lock_rtr_move_rec_list(const buf_block_t *new_block, /*!< in: index page to
-                                                          move to */
-                            const buf_block_t *block,     /*!< in: index page */
-                            rtr_rec_move_t *rec_move, /*!< in: recording records
-                                                      moved */
-                            ulint num_move) /*!< in: num of rec to move */
-{
+ list start is moved to another page.
+@param[in] new_block Index page to move to
+@param[in] block Index page
+@param[in] rec_move Recording records moved
+@param[in] num_move Num of rec to move */
+void lock_rtr_move_rec_list(const buf_block_t *new_block,
+                            const buf_block_t *block, rtr_rec_move_t *rec_move,
+                            ulint num_move) {
   lock_t *lock;
   ulint comp;
 
@@ -2904,11 +2901,12 @@ void lock_rtr_move_rec_list(const buf_block_t *new_block, /*!< in: index page to
   ut_ad(lock_rec_validate_page(block));
 #endif
 }
-/** Updates the lock table when a page is split to the right. */
-void lock_update_split_right(
-    const buf_block_t *right_block, /*!< in: right page */
-    const buf_block_t *left_block)  /*!< in: left page */
-{
+
+/** Updates the lock table when a page is split to the right.
+@param[in] right_block Right page
+@param[in] left_block Left page */
+void lock_update_split_right(const buf_block_t *right_block,
+                             const buf_block_t *left_block) {
   ulint heap_no = lock_get_min_heap_no(right_block);
 
   locksys::Shard_latches_guard guard{*left_block, *right_block};
@@ -2926,18 +2924,14 @@ void lock_update_split_right(
                           heap_no);
 }
 
-/** Updates the lock table when a page is merged to the right. */
-void lock_update_merge_right(
-    const buf_block_t *right_block, /*!< in: right page
-                                    to which merged */
-    const rec_t *orig_succ,         /*!< in: original
-                                    successor of infimum
-                                    on the right page
-                                    before merge */
-    const buf_block_t *left_block)  /*!< in: merged
-                                    index  page which
-                                    will be  discarded */
-{
+/** Updates the lock table when a page is merged to the right.
+@param[in] right_block Right page to which merged
+@param[in] orig_succ Original successor of infimum on the right page before
+merge
+@param[in] left_block Merged index page which will be discarded */
+void lock_update_merge_right(const buf_block_t *right_block,
+                             const rec_t *orig_succ,
+                             const buf_block_t *left_block) {
   locksys::Shard_latches_guard guard{*left_block, *right_block};
 
   /* Inherit the locks from the supremum of the left page to the original
@@ -2980,13 +2974,11 @@ void lock_update_root_raise(
 }
 
 /** Updates the lock table when a page is copied to another and the original
- page is removed from the chain of leaf pages, except if page is the root! */
-void lock_update_copy_and_discard(
-    const buf_block_t *new_block, /*!< in: index page to
-                                  which copied */
-    const buf_block_t *block)     /*!< in: index page;
-                                  NOT the root! */
-{
+ page is removed from the chain of leaf pages, except if page is the root!
+@param[in] new_block Index page to which copied
+@param[in] block Index page; not the root! */
+void lock_update_copy_and_discard(const buf_block_t *new_block,
+                                  const buf_block_t *block) {
   locksys::Shard_latches_guard guard{*new_block, *block};
 
   /* Move the locks on the supremum of the old page to the supremum
@@ -2996,11 +2988,11 @@ void lock_update_copy_and_discard(
   lock_rec_free_all_from_discard_page(block);
 }
 
-/** Updates the lock table when a page is split to the left. */
-void lock_update_split_left(
-    const buf_block_t *right_block, /*!< in: right page */
-    const buf_block_t *left_block)  /*!< in: left page */
-{
+/** Updates the lock table when a page is split to the left.
+@param[in] right_block Right page
+@param[in] left_block Left page */
+void lock_update_split_left(const buf_block_t *right_block,
+                            const buf_block_t *left_block) {
   ulint heap_no = lock_get_min_heap_no(right_block);
 
   locksys::Shard_latches_guard guard{*left_block, *right_block};
@@ -3012,16 +3004,14 @@ void lock_update_split_left(
                           heap_no);
 }
 
-/** Updates the lock table when a page is merged to the left. */
-void lock_update_merge_left(
-    const buf_block_t *left_block,  /*!< in: left page to
-                                    which merged */
-    const rec_t *orig_pred,         /*!< in: original predecessor
-                                    of supremum on the left page
-                                    before merge */
-    const buf_block_t *right_block) /*!< in: merged index page
-                                    which will be discarded */
-{
+/** Updates the lock table when a page is merged to the left.
+@param[in] left_block Left page to which merged
+@param[in] orig_pred Original predecessor of supremum on the left page before
+merge
+@param[in] right_block Merged index page which will be discarded */
+void lock_update_merge_left(const buf_block_t *left_block,
+                            const rec_t *orig_pred,
+                            const buf_block_t *right_block) {
   const rec_t *left_next_rec;
 
   ut_ad(left_block->frame == page_align(orig_pred));
@@ -3060,19 +3050,15 @@ void lock_update_merge_left(
 }
 
 /** Resets the original locks on heir and replaces them with gap type locks
- inherited from rec. */
-void lock_rec_reset_and_inherit_gap_locks(
-    const buf_block_t *heir_block, /*!< in: block containing the
-                                   record which inherits */
-    const buf_block_t *block,      /*!< in: block containing the
-                                   record from which inherited;
-                                   does NOT reset the locks on
-                                   this record */
-    ulint heir_heap_no,            /*!< in: heap_no of the
-                                   inheriting record */
-    ulint heap_no)                 /*!< in: heap_no of the
-                                   donating record */
-{
+ inherited from rec.
+@param[in] heir_block Block containing the record which inherits
+@param[in] block Block containing the record from which inherited; does not
+reset the locks on this record
+@param[in] heir_heap_no Heap_no of the inheriting record
+@param[in] heap_no Heap_no of the donating record */
+void lock_rec_reset_and_inherit_gap_locks(const buf_block_t *heir_block,
+                                          const buf_block_t *block,
+                                          ulint heir_heap_no, ulint heap_no) {
   locksys::Shard_latches_guard guard{*heir_block, *block};
 
   lock_rec_reset_and_release_wait(heir_block, heir_heap_no);
@@ -3080,15 +3066,12 @@ void lock_rec_reset_and_inherit_gap_locks(
   lock_rec_inherit_to_gap(heir_block, block, heir_heap_no, heap_no);
 }
 
-/** Updates the lock table when a page is discarded. */
-void lock_update_discard(
-    const buf_block_t *heir_block, /*!< in: index page
-                                   which will inherit the locks */
-    ulint heir_heap_no,            /*!< in: heap_no of the record
-                                   which will inherit the locks */
-    const buf_block_t *block)      /*!< in: index page
-                                   which will be discarded */
-{
+/** Updates the lock table when a page is discarded.
+@param[in] heir_block Index page which will inherit the locks
+@param[in] heir_heap_no Heap_no of the record which will inherit the locks
+@param[in] block Index page which will be discarded */
+void lock_update_discard(const buf_block_t *heir_block, ulint heir_heap_no,
+                         const buf_block_t *block) {
   const rec_t *rec;
   ulint heap_no;
   const page_t *page = block->frame;
@@ -3159,11 +3142,10 @@ void lock_update_insert(
   lock_rec_inherit_to_gap_if_gap_lock(block, receiver_heap_no, donator_heap_no);
 }
 
-/** Updates the lock table when a record is removed. */
-void lock_update_delete(
-    const buf_block_t *block, /*!< in: buffer block containing rec */
-    const rec_t *rec)         /*!< in: the record to be removed */
-{
+/** Updates the lock table when a record is removed.
+@param[in] block Buffer block containing rec
+@param[in] rec The record to be removed */
+void lock_update_delete(const buf_block_t *block, const rec_t *rec) {
   const page_t *page = block->frame;
   ulint heap_no;
   ulint next_heap_no;
@@ -3213,17 +3195,14 @@ void lock_rec_store_on_page_infimum(
 }
 
 /** Restores the state of explicit lock requests on a single record, where the
- state was stored on the infimum of the page. */
-void lock_rec_restore_from_page_infimum(
-    const buf_block_t *block,   /*!< in: buffer block containing rec */
-    const rec_t *rec,           /*!< in: record whose lock state
-                                is restored */
-    const buf_block_t *donator) /*!< in: page (rec is not
-                                necessarily on this page)
-                                whose infimum stored the lock
-                                state; lock bits are reset on
-                                the infimum */
-{
+ state was stored on the infimum of the page.
+@param[in] block Buffer block containing rec
+@param[in] rec Record whose lock state is restored
+@param[in] donator Page (rec is not necessarily on this page) whose infimum
+stored the lock state; lock bits are reset on the infimum */
+void lock_rec_restore_from_page_infimum(const buf_block_t *block,
+                                        const rec_t *rec,
+                                        const buf_block_t *donator) {
   DEBUG_SYNC_C("lock_rec_restore_from_page_infimum_will_latch");
   ulint heap_no = page_rec_get_heap_no(rec);
 
@@ -3636,10 +3615,10 @@ dberr_t lock_table(ulint flags, /*!< in: if BTR_NO_LOCKING_FLAG bit is set,
   return (err);
 }
 
-/** Creates a table IX lock object for a resurrected transaction. */
-void lock_table_ix_resurrect(dict_table_t *table, /*!< in/out: table */
-                             trx_t *trx)          /*!< in/out: transaction */
-{
+/** Creates a table IX lock object for a resurrected transaction.
+@param[in,out] table Table
+@param[in,out] trx Transaction */
+void lock_table_ix_resurrect(dict_table_t *table, trx_t *trx) {
   ut_ad(trx->is_recovered);
 
   if (lock_table_has(trx, table, LOCK_IX)) {
@@ -6310,10 +6289,9 @@ bool lock_table_has_locks(const dict_table_t *table) {
   return (has_locks);
 }
 
-/** Initialise the table lock list. */
-void lock_table_lock_list_init(
-    table_lock_list_t *lock_list) /*!< List to initialise */
-{
+/** Initialise the table lock list.
+@param[out] lock_list List to initialise */
+void lock_table_lock_list_init(table_lock_list_t *lock_list) {
   UT_LIST_INIT(*lock_list, &lock_table_t::locks);
 }
 

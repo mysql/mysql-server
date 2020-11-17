@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,20 +52,20 @@ class View_routine_impl : public Weak_object_impl, public View_routine {
 
   View_routine_impl(const View_routine_impl &src, View_impl *parent);
 
-  virtual ~View_routine_impl() {}
+  ~View_routine_impl() override {}
 
  public:
   static void register_tables(Open_dictionary_tables_ctx *otx);
 
-  virtual const Object_table &object_table() const;
+  const Object_table &object_table() const override;
 
-  virtual bool validate() const;
+  bool validate() const override;
 
-  virtual bool store_attributes(Raw_record *r);
+  bool store_attributes(Raw_record *r) override;
 
-  virtual bool restore_attributes(const Raw_record &r);
+  bool restore_attributes(const Raw_record &r) override;
 
-  virtual void debug_print(String_type &outb) const;
+  void debug_print(String_type &outb) const override;
 
   void set_ordinal_position(uint) {}
 
@@ -76,11 +76,11 @@ class View_routine_impl : public Weak_object_impl, public View_routine {
   // routine catalog.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &routine_catalog() const {
+  const String_type &routine_catalog() const override {
     return m_routine_catalog;
   }
 
-  virtual void set_routine_catalog(const String_type &sf_catalog) {
+  void set_routine_catalog(const String_type &sf_catalog) override {
     m_routine_catalog = sf_catalog;
   }
 
@@ -88,9 +88,11 @@ class View_routine_impl : public Weak_object_impl, public View_routine {
   // routine schema.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &routine_schema() const { return m_routine_schema; }
+  const String_type &routine_schema() const override {
+    return m_routine_schema;
+  }
 
-  virtual void set_routine_schema(const String_type &sf_schema) {
+  void set_routine_schema(const String_type &sf_schema) override {
     m_routine_schema = sf_schema;
   }
 
@@ -98,9 +100,9 @@ class View_routine_impl : public Weak_object_impl, public View_routine {
   // routine name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &routine_name() const { return m_routine_name; }
+  const String_type &routine_name() const override { return m_routine_name; }
 
-  virtual void set_routine_name(const String_type &sf_name) {
+  void set_routine_name(const String_type &sf_name) override {
     m_routine_name = sf_name;
   }
 
@@ -108,9 +110,9 @@ class View_routine_impl : public Weak_object_impl, public View_routine {
   // view.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const View &view() const;
+  const View &view() const override;
 
-  virtual View &view();
+  View &view() override;
 
  public:
   static View_routine_impl *restore_item(View_impl *view) {
@@ -123,8 +125,8 @@ class View_routine_impl : public Weak_object_impl, public View_routine {
   }
 
  public:
-  virtual Object_key *create_primary_key() const;
-  virtual bool has_new_primary_key() const;
+  Object_key *create_primary_key() const override;
+  bool has_new_primary_key() const override;
 
  private:
   String_type m_routine_catalog;

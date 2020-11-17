@@ -314,6 +314,9 @@ def	information_schema	SCHEMATA	DEFAULT_CHARACTER_SET_NAME	3	NULL	NO	varchar	64	
 def	information_schema	SCHEMATA	DEFAULT_COLLATION_NAME	4	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	SCHEMATA	SQL_PATH	5	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	SCHEMATA	DEFAULT_ENCRYPTION	6	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_bin	enum('NO','YES')			select			NULL
+def	information_schema	SCHEMATA_EXTENSIONS	CATALOG_NAME	1	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	SCHEMATA_EXTENSIONS	SCHEMA_NAME	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	SCHEMATA_EXTENSIONS	OPTIONS	3	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
 def	information_schema	SCHEMA_PRIVILEGES	GRANTEE	1		NO	varchar	97	292	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(292)			select			NULL
 def	information_schema	SCHEMA_PRIVILEGES	TABLE_CATALOG	2		NO	varchar	170	512	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select			NULL
 def	information_schema	SCHEMA_PRIVILEGES	TABLE_SCHEMA	3		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
@@ -855,6 +858,9 @@ NULL	information_schema	ROUTINES	LAST_ALTERED	timestamp	NULL	NULL	NULL	NULL	time
 3.0000	information_schema	SCHEMATA	DEFAULT_COLLATION_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 NULL	information_schema	SCHEMATA	SQL_PATH	binary	0	0	NULL	NULL	binary(0)
 3.0000	information_schema	SCHEMATA	DEFAULT_ENCRYPTION	enum	3	9	utf8	utf8_bin	enum('NO','YES')
+3.0000	information_schema	SCHEMATA_EXTENSIONS	CATALOG_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	SCHEMATA_EXTENSIONS	SCHEMA_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	SCHEMATA_EXTENSIONS	OPTIONS	varchar	256	768	utf8	utf8_general_ci	varchar(256)
 3.0103	information_schema	SCHEMA_PRIVILEGES	GRANTEE	varchar	97	292	utf8	utf8_general_ci	varchar(292)
 3.0118	information_schema	SCHEMA_PRIVILEGES	TABLE_CATALOG	varchar	170	512	utf8	utf8_general_ci	varchar(512)
 3.0476	information_schema	SCHEMA_PRIVILEGES	TABLE_SCHEMA	varchar	21	64	utf8	utf8_general_ci	varchar(64)

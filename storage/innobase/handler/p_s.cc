@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -259,14 +259,14 @@ class Innodb_trx_scan_state {
 class Innodb_data_lock_iterator : public PSI_engine_data_lock_iterator {
  public:
   Innodb_data_lock_iterator();
-  ~Innodb_data_lock_iterator();
+  ~Innodb_data_lock_iterator() override;
 
-  virtual bool scan(PSI_server_data_lock_container *container,
-                    bool with_lock_data);
+  bool scan(PSI_server_data_lock_container *container,
+            bool with_lock_data) override;
 
-  virtual bool fetch(PSI_server_data_lock_container *container,
-                     const char *engine_lock_id, size_t engine_lock_id_length,
-                     bool with_lock_data);
+  bool fetch(PSI_server_data_lock_container *container,
+             const char *engine_lock_id, size_t engine_lock_id_length,
+             bool with_lock_data) override;
 
  private:
   /** Scan a trx list.
@@ -309,15 +309,15 @@ class Innodb_data_lock_wait_iterator
     : public PSI_engine_data_lock_wait_iterator {
  public:
   Innodb_data_lock_wait_iterator();
-  ~Innodb_data_lock_wait_iterator();
+  ~Innodb_data_lock_wait_iterator() override;
 
-  virtual bool scan(PSI_server_data_lock_wait_container *container);
+  bool scan(PSI_server_data_lock_wait_container *container) override;
 
-  virtual bool fetch(PSI_server_data_lock_wait_container *container,
-                     const char *requesting_engine_lock_id,
-                     size_t requesting_engine_lock_id_length,
-                     const char *blocking_engine_lock_id,
-                     size_t blocking_engine_lock_id_length);
+  bool fetch(PSI_server_data_lock_wait_container *container,
+             const char *requesting_engine_lock_id,
+             size_t requesting_engine_lock_id_length,
+             const char *blocking_engine_lock_id,
+             size_t blocking_engine_lock_id_length) override;
 
  private:
   /** Scan a given transaction list.
@@ -332,13 +332,13 @@ class Innodb_data_lock_wait_iterator
   /** Scan a given transaction.
   Either scan all the waits for a transaction,
   or scan only records matching a given wait.
-  @param[in] container		          The container to fill
-  @param[in] trx		          The trx to scan
-  @param[in] with_filter		  True if looking for a given wait only.
-  @param[in] filter_requesting_lock_immutable_id  Immutable id of lock_t for
-  the requesting lock, when filtering
-  @param[in] filter_blocking_lock_immutable_id	  Immutable id of lock_t
-  for the blocking lock, when filtering
+  @param[in] container		The container to fill
+  @param[in] trx			The trx to scan
+  @param[in] with_filter		True if looking for a given wait only.
+  @param[in] filter_requesting_lock_immutable_id		Immutable id of
+  lock_t for the requesting lock, when filtering
+  @param[in] filter_blocking_lock_immutable_id		Immutable idof
+  lock_t for the blocking lock, when filtering
   @returns the number of records found.
   */
   size_t scan_trx(PSI_server_data_lock_wait_container *container,
@@ -615,7 +615,7 @@ bool Innodb_data_lock_iterator::fetch(PSI_server_data_lock_container *container,
                                       bool with_lock_data) {
   int record_type;
   uint64_t trx_immutable_id;
-  ulint heap_id;
+  ulint heap_id{0};
   uint64_t lock_immutable_id;
   const trx_t *trx;
 

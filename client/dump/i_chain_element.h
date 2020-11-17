@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@ class Item_processing_data;
  */
 class I_chain_element : public virtual I_progress_reporter {
  public:
-  virtual ~I_chain_element();
+  ~I_chain_element() override;
 
   /**
     Returns an application unique ID of this chain element object. This helps

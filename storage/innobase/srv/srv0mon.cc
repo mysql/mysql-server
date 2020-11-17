@@ -772,6 +772,9 @@ static monitor_info_t innodb_counter_info[] = {
     {"trx_active_transactions", "transaction", "Number of active transactions",
      MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_TRX_ACTIVE},
 
+    {"trx_allocations", "transaction", "Number of trx_t allocations",
+     MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_TRX_ALLOCATIONS},
+
     MONITOR_WAIT_STATS("trx_on_log_", "transaction",
                        "Waits for redo during transaction commits",
                        MONITOR_TRX_ON_LOG_),

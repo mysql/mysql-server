@@ -33,6 +33,7 @@
 #include "sql/binlog.h"
 #include "sql/dd/types/abstract_table.h"  // dd::enum_table_type
 #include "sql/dd/types/tablespace.h"      // dd::Tablespace
+#include "sql/debug_sync.h"               // debug_sync_set_action, DEBUG_SYNC
 #include "sql/derror.h"                   // ER_THD
 #include "sql/mysqld.h"                   // opt_bin_log
 #include "sql/mysqld_thd_manager.h"       // Global_THD_manager
@@ -74,7 +75,6 @@
 #include "storage/ndb/plugin/ndb_upgrade_util.h"
 
 typedef NdbDictionary::Event NDBEVENT;
-typedef NdbDictionary::Column NDBCOL;
 typedef NdbDictionary::Table NDBTAB;
 
 extern bool opt_ndb_log_orig;
@@ -106,6 +106,8 @@ void ndb_index_stat_restart();
 #include "storage/ndb/plugin/ndb_schema_object.h"
 
 extern Ndb_cluster_connection *g_ndb_cluster_connection;
+
+extern mysql_mutex_t ndbcluster_mutex;
 
 /*
   Timeout for syncing schema events between
@@ -330,11 +332,6 @@ static void ndbcluster_binlog_wait(THD *thd) {
     DBUG_PRINT("exit", ("Not writing binlog -> nothing to wait for"));
     return;
   }
-
-  // Assumption is that only these commands will wait
-  DBUG_ASSERT(thd_sql_command(thd) == SQLCOM_SHOW_BINLOG_EVENTS ||
-              thd_sql_command(thd) == SQLCOM_FLUSH ||
-              thd_sql_command(thd) == SQLCOM_RESET);
 
   if (thd->system_thread == SYSTEM_THREAD_NDBCLUSTER_BINLOG) {
     // Binlog Injector thread should not wait for itself
@@ -946,6 +943,16 @@ class Ndb_binlog_setup {
                                                ndb_schema_dist_upgrade_allowed))
       return false;
 
+    // Schema distributions that get aborted by the coordinator due to a cluster
+    // failure (or) a MySQL Server shutdown, can leave behind rows in
+    // ndb_schema_result table. Clear the ndb_schema_result table. This is safe
+    // as the binlog thread has the GSL now and no other schema op distribution
+    // can be active.
+    if (!initial_system_restart && !schema_result_table.delete_all_rows()) {
+      ndb_log_warning("Failed to remove obsolete rows from ndb_schema_result");
+      return false;
+    }
+
     Ndb_apply_status_table apply_status_table(thd_ndb);
     if (!apply_status_table.create_or_upgrade(m_thd, true)) return false;
 
@@ -1124,6 +1131,24 @@ bool Ndb_schema_dist_client::log_schema_op_impl(
   // the nodeid which the coordinator and participants listen to
   const uint32 own_nodeid = g_ndb_cluster_connection->node_id();
 
+  if (DBUG_EVALUATE_IF("ndb_schema_dist_client_killed_before_write", true,
+                       false)) {
+    // simulate query interruption thd->kill
+    m_thd->killed = THD::KILL_QUERY;
+  }
+
+  // Abort the distribution before logging the schema op to the ndb_schema table
+  // if the thd has been killed. Once the schema op is logged to the table,
+  // participants cannot be forced to abort even if the thd gets killed.
+  if (thd_killed(m_thd)) {
+    ndb_schema_object->fail_schema_op(Ndb_schema_dist::CLIENT_KILLED,
+                                      "Client was killed");
+    ndb_log_warning("Distribution of '%s' - aborted!", op_name.c_str());
+    return false;
+  }
+
+  DEBUG_SYNC(m_thd, "ndb_schema_before_write");
+
   // Write schema operation to the table
   if (DBUG_EVALUATE_IF("ndb_schema_write_fail", true, false) ||
       !write_schema_op_to_NDB(ndb, query, query_length, db, table_name,
@@ -1133,6 +1158,15 @@ bool Ndb_schema_dist_client::log_schema_op_impl(
                                       "Failed to write schema operation");
     ndb_log_warning("Failed to write the schema op into the ndb_schema table");
     return false;
+  }
+
+  DEBUG_SYNC(m_thd, "ndb_schema_after_write");
+
+  if (DBUG_EVALUATE_IF("ndb_schema_dist_client_killed_after_write", true,
+                       false)) {
+    // simulate query interruption thd->kill to test that
+    // they are ignored after the schema has been logged already.
+    m_thd->killed = THD::KILL_QUERY;
   }
 
   ndb_log_verbose(19, "Distribution of '%s' - started!", op_name.c_str());
@@ -1164,12 +1198,23 @@ bool Ndb_schema_dist_client::log_schema_op_impl(
       break;
     }
 
-    if (thd_killed(m_thd) ||
-        DBUG_EVALUATE_IF("ndb_schema_dist_client_killed", true, false)) {
-      ndb_schema_object->fail_schema_op(Ndb_schema_dist::CLIENT_KILLED,
-                                        "Client was killed");
-      ndb_log_warning("Distribution of '%s' - killed!", op_name.c_str());
-      break;
+    // Once the schema op has been written to the ndb_schema table, it is really
+    // hard to abort the distribution on the participants. If the schema op is
+    // failed at this point and returned before the participants could reply,
+    // the GSL will be released and thus allowing a subsequent DDL to execute in
+    // the cluster while the participants are still applying the previous
+    // change. If the new DDL is conflicting with the previous one, it can
+    // lead to inconsistencies across the DDs of MySQL Servers connected to the
+    // cluster. To prevent this, the client silently ignores if the thd has been
+    // killed after the ndb_schema table write. Regardless of the type of kill,
+    // the client waits for the coordinator to complete the rest of the protocol
+    // (or) timeout on its own (or) detect a shutdown and fail the schema op.
+    if (thd_killed(m_thd)) {
+      ndb_log_verbose(
+          19,
+          "Distribution of '%s' - client killed but waiting for co-ordinator "
+          "to complete!",
+          op_name.c_str());
     }
   }
 
@@ -2059,6 +2104,18 @@ class Ndb_schema_event_handler {
   bool ack_schema_op_with_result(const Ndb_schema_op *schema) const {
     DBUG_TRACE;
 
+    if (DBUG_EVALUATE_IF("ndb_skip_participant_ack", true, false)) {
+      // Skip replying to the schema operation
+      return true;
+    }
+
+    DBUG_EXECUTE_IF("ndb_defer_sending_participant_ack", {
+      ndb_log_info("sending participant ack deferred");
+      const char action[] = "now WAIT_FOR resume_sending_participant_ack";
+      DBUG_ASSERT(!debug_sync_set_action(m_thd, action, strlen(action)));
+      ndb_log_info("continuing..");
+    });
+
     // Should only call this function if ndb_schema has a schema_op_id
     // column which enabled the client to send schema->schema_op_id != 0
     ndbcluster::ndbrequire(schema->schema_op_id);
@@ -2131,6 +2188,7 @@ class Ndb_schema_event_handler {
   }
 
   void remove_schema_result_rows(uint32 schema_op_id) {
+    DBUG_TRACE;
     Ndb *ndb = m_thd_ndb->ndb;
 
     // Open ndb_schema_result table
@@ -2141,120 +2199,56 @@ class Ndb_schema_event_handler {
       ndbcluster::ndbrequire(ndb->getDictionary()->getNdbError().code == 4009);
       return;
     }
-    const NdbDictionary::Table *ndbtab = schema_result_table.get_table();
-    const uint nodeid = own_nodeid();
 
-    // Function for deleting all rows from ndb_schema_result matching
-    // the given nodeid and schema operation id
-    std::function<const NdbError *(NdbTransaction *)>
-        remove_schema_result_rows_func =
-            [nodeid, schema_op_id,
-             ndbtab](NdbTransaction *trans) -> const NdbError * {
-      DBUG_TRACE;
-      DBUG_PRINT("enter",
-                 ("nodeid: %d, schema_op_id: %d", nodeid, schema_op_id));
+    const NdbDictionary::Table *ndb_table = schema_result_table.get_table();
+    const uint node_id = own_nodeid();
+    const int node_id_col =
+        schema_result_table.get_column_num(Ndb_schema_result_table::COL_NODEID);
+    const int schema_op_id_col = schema_result_table.get_column_num(
+        Ndb_schema_result_table::COL_SCHEMA_OP_ID);
 
-      NdbScanOperation *scan_op = trans->getNdbScanOperation(ndbtab);
-      if (scan_op == nullptr) return &trans->getNdbError();
-
-      if (scan_op->readTuples(NdbOperation::LM_Read,
-                              NdbScanOperation::SF_KeyInfo) != 0)
-        return &scan_op->getNdbError();
-
-      // Read the columns to compare
-      uint32 read_node_id, read_schema_op_id;
-      if (scan_op->getValue(Ndb_schema_result_table::COL_NODEID,
-                            (char *)&read_node_id) == nullptr ||
-          scan_op->getValue(Ndb_schema_result_table::COL_SCHEMA_OP_ID,
-                            (char *)&read_schema_op_id) == nullptr)
-        return &scan_op->getNdbError();
-
-      // Start the scan
-      if (trans->execute(NdbTransaction::NoCommit) != 0)
-        return &trans->getNdbError();
-
-      // Loop through all rows
-      unsigned deleted = 0;
-      bool fetch = true;
-      while (true) {
-        const int r = scan_op->nextResult(fetch);
-        if (r < 0) {
-          // Failed to fetch next row
-          return &scan_op->getNdbError();
-        }
-        fetch = false;  // Don't fetch more until nextResult returns 2
-
-        switch (r) {
-          case 0:  // Found row
-            DBUG_PRINT("info", ("Found row"));
-            // Delete rows if equal to nodeid and schema_op_id
-            if (read_schema_op_id == schema_op_id && read_node_id == nodeid) {
-              DBUG_PRINT("info", ("Deleting row"));
-              if (scan_op->deleteCurrentTuple() != 0) {
-                // Failed to delete row
-                return &scan_op->getNdbError();
-              }
-              deleted++;
-            }
-            continue;
-
-          case 1:
-            DBUG_PRINT("info", ("No more rows"));
-            // No more rows, commit the transation
-            if (trans->execute(NdbTransaction::Commit) != 0) {
-              // Failed to commit
-              return &trans->getNdbError();
-            }
-            return nullptr;
-
-          case 2:
-            // Need to fetch more rows, first send the deletes
-            DBUG_PRINT("info", ("Need to fetch more rows"));
-            if (deleted > 0) {
-              DBUG_PRINT("info", ("Sending deletes"));
-              if (trans->execute(NdbTransaction::NoCommit) != 0) {
-                // Failed to send
-                return &trans->getNdbError();
-              }
-            }
-            fetch = true;  // Fetch more rows
-            continue;
-        }
-      }
-      // Never reached
-      ndbcluster::ndbrequire(false);
-      return nullptr;
+    // Lambda function to filter out the rows based on
+    // node id and the given schema op id
+    auto ndb_scan_filter_defn = [=](NdbScanFilter &scan_filter) {
+      scan_filter.begin(NdbScanFilter::AND);
+      scan_filter.eq(node_id_col, node_id);
+      scan_filter.eq(schema_op_id_col, schema_op_id);
+      scan_filter.end();
     };
 
     NdbError ndb_err;
-    if (!ndb_trans_retry(ndb, m_thd, ndb_err, remove_schema_result_rows_func)) {
+    if (!ndb_table_scan_and_delete_rows(ndb, m_thd, ndb_table, ndb_err,
+                                        ndb_scan_filter_defn)) {
       log_NDB_error(ndb_err);
       ndb_log_error("Failed to remove rows from ndb_schema_result");
       return;
     }
+
     ndb_log_verbose(19,
                     "Deleted all rows from ndb_schema_result, nodeid: %d, "
                     "schema_op_id: %d",
-                    nodeid, schema_op_id);
+                    node_id, schema_op_id);
     return;
   }
 
   void check_wakeup_clients(Ndb_schema_dist::Schema_op_result_code result,
                             const char *message) const {
+    DBUG_EXECUTE_IF("ndb_check_wakeup_clients_syncpoint", {
+      const char action[] =
+          "now SIGNAL reached_check_wakeup_clients "
+          "WAIT_FOR continue_check_wakeup_clients NO_CLEAR_EVENT";
+      DBUG_ASSERT(!debug_sync_set_action(m_thd, action, strlen(action)));
+    });
+
     // Build list of current subscribers
     std::unordered_set<uint32> subscribers;
     m_schema_dist_data.get_subscriber_list(subscribers);
 
-    // Check all NDB_SCHEMA_OBJECTS for wakeup
-    std::vector<uint32> schema_op_ids;
-    NDB_SCHEMA_OBJECT::get_schema_op_ids(schema_op_ids);
-    for (auto schema_op_id : schema_op_ids) {
-      // Lookup NDB_SCHEMA_OBJECT from nodeid + schema_op_id
-      std::unique_ptr<NDB_SCHEMA_OBJECT, decltype(&NDB_SCHEMA_OBJECT::release)>
-          schema_object(NDB_SCHEMA_OBJECT::get(own_nodeid(), schema_op_id),
-                        NDB_SCHEMA_OBJECT::release);
-      if (schema_object == nullptr) {
-        // The schema operation has already completed on this node
+    // Check all active NDB_SCHEMA_OBJECTS for wakeup
+    for (const NDB_SCHEMA_OBJECT *schema_object :
+         m_schema_dist_data.active_schema_ops()) {
+      if (schema_object->check_all_participants_completed()) {
+        // all participants have completed and the final ack has been sent
         continue;
       }
 
@@ -3882,13 +3876,6 @@ class Ndb_schema_event_handler {
 
         // Add active schema operation to coordinator
         m_schema_dist_data.add_active_schema_op(ndb_schema_object.get());
-
-        // Test schema dist client killed
-        if (DBUG_EVALUATE_IF("ndb_schema_dist_client_killed", true, false)) {
-          // Wait until the Client has set "coordinator completed"
-          while (!ndb_schema_object->check_coordinator_completed())
-            ndb_milli_sleep(100);
-        }
       }
 
       // Set the custom lock_wait_timeout for schema distribution
@@ -5556,12 +5543,16 @@ int ndbcluster_binlog_wait_synch_drop_table(THD *thd, NDB_SHARE *share) {
   return 0;
 }
 
-void ndbcluster_binlog_validate_sync_blacklist(THD *thd) {
-  ndb_binlog_thread.validate_sync_blacklist(thd);
+void ndbcluster_binlog_validate_sync_excluded_objects(THD *thd) {
+  ndb_binlog_thread.validate_sync_excluded_objects(thd);
 }
 
-void ndbcluster_binlog_validate_sync_retry_list(THD *thd) {
-  ndb_binlog_thread.validate_sync_retry_list(thd);
+void ndbcluster_binlog_clear_sync_excluded_objects() {
+  ndb_binlog_thread.clear_sync_excluded_objects();
+}
+
+void ndbcluster_binlog_clear_sync_retry_objects() {
+  ndb_binlog_thread.clear_sync_retry_objects();
 }
 
 bool ndbcluster_binlog_check_table_async(const std::string &db_name,
@@ -5606,13 +5597,13 @@ bool ndbcluster_binlog_check_schema_async(const std::string &schema_name) {
   return ndb_binlog_thread.add_schema_to_check(schema_name);
 }
 
-void ndbcluster_binlog_retrieve_sync_blacklist(
+void ndbcluster_binlog_retrieve_sync_excluded_objects(
     Ndb_sync_excluded_objects_table *excluded_table) {
-  ndb_binlog_thread.retrieve_sync_blacklist(excluded_table);
+  ndb_binlog_thread.retrieve_sync_excluded_objects(excluded_table);
 }
 
-unsigned int ndbcluster_binlog_get_sync_blacklist_count() {
-  return ndb_binlog_thread.get_sync_blacklist_count();
+unsigned int ndbcluster_binlog_get_sync_excluded_objects_count() {
+  return ndb_binlog_thread.get_sync_excluded_objects_count();
 }
 
 void ndbcluster_binlog_retrieve_sync_pending_objects(
@@ -6755,6 +6746,8 @@ restart_cluster_failure:
       log_and_clear_thd_conditions(thd, condition_logging_level::WARNING);
       ndb_milli_sleep(1000);
     }  // while (!ndb_binlog_setup())
+
+    log_and_clear_thd_conditions(thd, condition_logging_level::WARNING);
 
     DBUG_ASSERT(ndbcluster_hton->slot != ~(uint)0);
 

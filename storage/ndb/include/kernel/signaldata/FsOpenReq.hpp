@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,6 +46,7 @@ class FsOpenReq {
   friend class Filename;
   friend class VoidFs;
   friend class AsyncIoThread;
+  friend class ndb_file;
 
   /**
    * Sender(s)
@@ -74,7 +75,8 @@ public:
    */
   STATIC_CONST( SignalLength = 11 );
   SECTION( FILENAME = 0 );
-  
+  SECTION( PASSWORD = 1 );
+
 private:
 
   /**
@@ -90,9 +92,11 @@ private:
   Uint32 file_size_lo;
   Uint32 auto_sync_size; // In bytes
   
-  STATIC_CONST( OM_READONLY  = 0 );
-  STATIC_CONST( OM_WRITEONLY = 1 );
-  STATIC_CONST( OM_READWRITE = 2 );
+public:
+  STATIC_CONST( OM_READONLY        = 0 );
+  STATIC_CONST( OM_WRITEONLY       = 1 );
+  STATIC_CONST( OM_READWRITE       = 2 );
+  STATIC_CONST( OM_READ_WRITE_MASK = 3 );
 
   STATIC_CONST( OM_APPEND    = 0x8   ); // Not Implemented on W2k
   STATIC_CONST( OM_SYNC      = 0x10  );
@@ -109,6 +113,8 @@ private:
   STATIC_CONST( OM_WRITE_BUFFER   = 0x20000 );
   STATIC_CONST( OM_READ_SIZE      = 0x40000 );
   STATIC_CONST( OM_DIRECT_SYNC    = 0x80000 );
+  STATIC_CONST( OM_ENCRYPT        = 0x100000 );
+  STATIC_CONST( OM_PASSWORD       = 0x200000 ); // Not really needed, implicit by section PASSWORD
   
   enum Suffixes {
     S_DATA = 0,

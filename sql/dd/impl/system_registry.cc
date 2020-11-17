@@ -51,6 +51,7 @@
 #include "sql/dd/impl/system_views/role_table_grants.h"    // Role_table_grants
 #include "sql/dd/impl/system_views/routines.h"             // Routines
 #include "sql/dd/impl/system_views/schemata.h"             // Schemata
+#include "sql/dd/impl/system_views/schemata_extensions.h"  //Schemata_extensions
 #include "sql/dd/impl/system_views/st_geometry_columns.h"  // st_geometry_columns
 #include "sql/dd/impl/system_views/st_spatial_reference_systems.h"  // St_spatial...
 #include "sql/dd/impl/system_views/st_units_of_measure.h"  // St_units_of_measure
@@ -224,6 +225,7 @@ void System_tables::add_remaining_dd_tables() {
   register_table("password_history", system);
   register_table("procs_priv", system);
   register_table("proxies_priv", system);
+  register_table("replication_asynchronous_connection_failover", system);
   register_table("role_edges", system);
   register_table("servers", system);
   register_table("server_cost", system);
@@ -285,6 +287,7 @@ void System_views::init() {
   register_view<dd::system_views::Role_table_grants>(non_dd_based_is);
   register_view<dd::system_views::Routines>(is);
   register_view<dd::system_views::Schemata>(is);
+  register_view<dd::system_views::Schemata_extensions>(is);
   register_view<dd::system_views::Show_statistics>(is);
   register_view<dd::system_views::St_spatial_reference_systems>(is);
   register_view<dd::system_views::St_units_of_measure>(is);

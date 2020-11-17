@@ -1518,10 +1518,6 @@ ERROR HY000: An expression of a check constraint 't1_chk_1' cannot refer to a us
 CREATE TABLE t1 (id INT CHECK (id != (SELECT 1)));
 ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function.
 # Parameter
-PREPARE stmt FROM 'CREATE TABLE t1 (id INT CHECK(id != ?))';
-EXECUTE stmt using @v;
-ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function.
-DEALLOCATE PREPARE stmt;
 #------------------------------------------------------------------------
 # Test case to verify check constraints with numeric data types.
 #------------------------------------------------------------------------

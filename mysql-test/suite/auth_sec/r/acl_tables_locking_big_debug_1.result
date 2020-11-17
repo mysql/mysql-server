@@ -1,0 +1,2436 @@
+# -----------------------------------------------------------------------
+# Setup
+# Saving initial values
+SET @global_start_value = @@global.transaction_isolation;
+SELECT @global_start_value;
+@global_start_value
+REPEATABLE-READ
+SET @session_start_value = @@session.transaction_isolation;
+SELECT @session_start_value;
+@session_start_value
+REPEATABLE-READ
+# Setting transaction isolation to 'READ-UNCOMMITTED'
+SET GLOBAL transaction_isolation = 'READ-UNCOMMITTED';
+# -----------------------------------------------------------------------
+# Case 1: Successful ACL DDLs + FLUSH PRIVILEGES
+# -------------------------------
+# Case 1.1: CREATE USER + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+CREATE USER u1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u1;
+# -------------------------------
+# Case 1.2: ALTER USER + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+ALTER USER u1 IDENTIFIED BY 'abcd';
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u1;
+# -------------------------------
+# Case 1.3: RENAME USER + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+RENAME USER u1 TO u2;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u2;
+# -------------------------------
+# Case 1.4: CREATE ROLE + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+CREATE ROLE r1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP ROLE r1;
+# -------------------------------
+# Case 1.5: GRANT privilege + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+GRANT SELECT ON *.* TO u1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u1;
+# -------------------------------
+# Case 1.6: GRANT role + FLUSH PRIVILEGES
+CREATE USER u1;
+CREATE ROLE r1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+GRANT r1 TO u1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER r1;
+DROP USER u1;
+# -------------------------------
+# Case 1.7: SET DEFAULT ROLE + FLUSH PRIVILEGES
+CREATE USER u1;
+CREATE ROLE r1;
+GRANT r1 TO u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+SET DEFAULT ROLE r1 TO u1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER r1;
+DROP USER u1;
+# -------------------------------
+# Case 1.8: SET PASSWORD + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+SET PASSWORD FOR u1 = 'efgh';
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u1;
+# -------------------------------
+# Case 1.9: REVOKE role + FLUSH PRIVILEGES
+CREATE USER u1;
+CREATE ROLE r1;
+GRANT r1 TO u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+REVOKE r1 FROM u1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP ROLE r1;
+DROP USER u1;
+# -------------------------------
+# Case 1.10: REVOKE privilege + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+REVOKE SELECT ON *.* FROM u1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u1;
+# -------------------------------
+# Case 1.11: DROP ROLE + FLUSH PRIVILEGES
+CREATE ROLE r1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+DROP ROLE r1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -------------------------------
+# Case 1.12: DROP USER + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+DROP USER u1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -----------------------------------------------------------------------
+# Case 2: Unsuccessful ACL DDLs + FLUSH PRIVILEGES
+SET @@lock_wait_timeout=1;
+# -------------------------------
+# Case 2.1: CREATE USER + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+CREATE USER u3, u2, u1;
+ERROR HY000: Operation CREATE USER failed for 'u1'@'%'
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u1;
+# -------------------------------
+# Case 2.2: ALTER USER + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+ALTER USER u2 IDENTIFIED BY 'abcd';
+ERROR HY000: Operation ALTER USER failed for 'u2'@'%'
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -------------------------------
+# Case 2.3: RENAME USER + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+RENAME USER u2 TO u3;
+ERROR HY000: Operation RENAME USER failed for 'u2'@'%'
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -------------------------------
+# Case 2.4: DROP USER + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+DROP USER u2;
+ERROR HY000: Operation DROP USER failed for 'u2'@'%'
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -------------------------------
+# Case 2.5: SET PASSWORD + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout, wl14084_simulate_set_password_failure";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+SET PASSWORD FOR u1 = 'abcd';
+ERROR 42000: Can't find any matching row in the user table
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout, wl14084_simulate_set_password_failure";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u1;
+# -------------------------------
+# Case 2.6: CREATE ROLE + FLUSH PRIVILEGES
+CREATE ROLE r1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+CREATE ROLE r3, r2, r1;
+ERROR HY000: Operation CREATE ROLE failed for 'r1'@'%'
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP ROLE r1;
+# -------------------------------
+# Case 2.7: DROP ROLE + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+DROP ROLE r2;
+ERROR HY000: Operation DROP ROLE failed for 'r2'@'%'
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -------------------------------
+# Case 2.8: GRANT privilege + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+GRANT SELECT ON *.* TO u2;
+ERROR 42000: You are not allowed to create a user with GRANT
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -------------------------------
+# Case 2.9: GRANT role + FLUSH PRIVILEGES
+CREATE ROLE r1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+GRANT r1 TO u2;
+ERROR HY000: Unknown authorization ID `u2`@`%`
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP ROLE r1;
+# -------------------------------
+# Case 2.10: REVOKE role + FLUSH PRIVILEGES
+CREATE ROLE r1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+REVOKE r1 FROM u2;
+ERROR HY000: Unknown authorization ID `u2`@`%`
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP ROLE r1;
+# -------------------------------
+# Case 2.11: REVOKE privilege + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+REVOKE SELECT ON *.* FROM u2;
+ERROR 42000: There is no such grant defined for user 'u2' on host '%'
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -------------------------------
+# Case 2.12: SET DEFAULT ROLE + FLUSH PRIVILEGES
+CREATE ROLE r1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+SET DEFAULT ROLE r1 TO u2;
+ERROR HY000: `r1`@`%` is not granted to `u2`@`%`
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP ROLE r1;
+# -----------------------------------------------------------------------
+# Cleanup
+# Restore initial values
+SET @@global.transaction_isolation = @global_start_value;
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
+REPEATABLE-READ
+SET @@session.transaction_isolation = @session_start_value;
+SELECT @@session.transaction_isolation;
+@@session.transaction_isolation
+REPEATABLE-READ
+# -----------------------------------------------------------------------
+# Setup
+# Saving initial values
+SET @global_start_value = @@global.transaction_isolation;
+SELECT @global_start_value;
+@global_start_value
+REPEATABLE-READ
+SET @session_start_value = @@session.transaction_isolation;
+SELECT @session_start_value;
+@session_start_value
+REPEATABLE-READ
+# Setting transaction isolation to 'READ-COMMITTED'
+SET GLOBAL transaction_isolation = 'READ-COMMITTED';
+# -----------------------------------------------------------------------
+# Case 1: Successful ACL DDLs + FLUSH PRIVILEGES
+# -------------------------------
+# Case 1.1: CREATE USER + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+CREATE USER u1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u1;
+# -------------------------------
+# Case 1.2: ALTER USER + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+ALTER USER u1 IDENTIFIED BY 'abcd';
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u1;
+# -------------------------------
+# Case 1.3: RENAME USER + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+RENAME USER u1 TO u2;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u2;
+# -------------------------------
+# Case 1.4: CREATE ROLE + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+CREATE ROLE r1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP ROLE r1;
+# -------------------------------
+# Case 1.5: GRANT privilege + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+GRANT SELECT ON *.* TO u1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u1;
+# -------------------------------
+# Case 1.6: GRANT role + FLUSH PRIVILEGES
+CREATE USER u1;
+CREATE ROLE r1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+GRANT r1 TO u1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER r1;
+DROP USER u1;
+# -------------------------------
+# Case 1.7: SET DEFAULT ROLE + FLUSH PRIVILEGES
+CREATE USER u1;
+CREATE ROLE r1;
+GRANT r1 TO u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+SET DEFAULT ROLE r1 TO u1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER r1;
+DROP USER u1;
+# -------------------------------
+# Case 1.8: SET PASSWORD + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+SET PASSWORD FOR u1 = 'efgh';
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u1;
+# -------------------------------
+# Case 1.9: REVOKE role + FLUSH PRIVILEGES
+CREATE USER u1;
+CREATE ROLE r1;
+GRANT r1 TO u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+REVOKE r1 FROM u1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP ROLE r1;
+DROP USER u1;
+# -------------------------------
+# Case 1.10: REVOKE privilege + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+REVOKE SELECT ON *.* FROM u1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u1;
+# -------------------------------
+# Case 1.11: DROP ROLE + FLUSH PRIVILEGES
+CREATE ROLE r1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+DROP ROLE r1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -------------------------------
+# Case 1.12: DROP USER + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+DROP USER u1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -----------------------------------------------------------------------
+# Case 2: Unsuccessful ACL DDLs + FLUSH PRIVILEGES
+SET @@lock_wait_timeout=1;
+# -------------------------------
+# Case 2.1: CREATE USER + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+CREATE USER u3, u2, u1;
+ERROR HY000: Operation CREATE USER failed for 'u1'@'%'
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u1;
+# -------------------------------
+# Case 2.2: ALTER USER + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+ALTER USER u2 IDENTIFIED BY 'abcd';
+ERROR HY000: Operation ALTER USER failed for 'u2'@'%'
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -------------------------------
+# Case 2.3: RENAME USER + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+RENAME USER u2 TO u3;
+ERROR HY000: Operation RENAME USER failed for 'u2'@'%'
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -------------------------------
+# Case 2.4: DROP USER + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+DROP USER u2;
+ERROR HY000: Operation DROP USER failed for 'u2'@'%'
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -------------------------------
+# Case 2.5: SET PASSWORD + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout, wl14084_simulate_set_password_failure";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+SET PASSWORD FOR u1 = 'abcd';
+ERROR 42000: Can't find any matching row in the user table
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout, wl14084_simulate_set_password_failure";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u1;
+# -------------------------------
+# Case 2.6: CREATE ROLE + FLUSH PRIVILEGES
+CREATE ROLE r1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+CREATE ROLE r3, r2, r1;
+ERROR HY000: Operation CREATE ROLE failed for 'r1'@'%'
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP ROLE r1;
+# -------------------------------
+# Case 2.7: DROP ROLE + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+DROP ROLE r2;
+ERROR HY000: Operation DROP ROLE failed for 'r2'@'%'
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -------------------------------
+# Case 2.8: GRANT privilege + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+GRANT SELECT ON *.* TO u2;
+ERROR 42000: You are not allowed to create a user with GRANT
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -------------------------------
+# Case 2.9: GRANT role + FLUSH PRIVILEGES
+CREATE ROLE r1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+GRANT r1 TO u2;
+ERROR HY000: Unknown authorization ID `u2`@`%`
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP ROLE r1;
+# -------------------------------
+# Case 2.10: REVOKE role + FLUSH PRIVILEGES
+CREATE ROLE r1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+REVOKE r1 FROM u2;
+ERROR HY000: Unknown authorization ID `u2`@`%`
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP ROLE r1;
+# -------------------------------
+# Case 2.11: REVOKE privilege + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+REVOKE SELECT ON *.* FROM u2;
+ERROR 42000: There is no such grant defined for user 'u2' on host '%'
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -------------------------------
+# Case 2.12: SET DEFAULT ROLE + FLUSH PRIVILEGES
+CREATE ROLE r1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+SET DEFAULT ROLE r1 TO u2;
+ERROR HY000: `r1`@`%` is not granted to `u2`@`%`
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP ROLE r1;
+# -----------------------------------------------------------------------
+# Cleanup
+# Restore initial values
+SET @@global.transaction_isolation = @global_start_value;
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
+REPEATABLE-READ
+SET @@session.transaction_isolation = @session_start_value;
+SELECT @@session.transaction_isolation;
+@@session.transaction_isolation
+REPEATABLE-READ
+# -----------------------------------------------------------------------
+# Setup
+# Saving initial values
+SET @global_start_value = @@global.transaction_isolation;
+SELECT @global_start_value;
+@global_start_value
+REPEATABLE-READ
+SET @session_start_value = @@session.transaction_isolation;
+SELECT @session_start_value;
+@session_start_value
+REPEATABLE-READ
+# Setting transaction isolation to 'REPEATABLE-READ'
+SET GLOBAL transaction_isolation = 'REPEATABLE-READ';
+# -----------------------------------------------------------------------
+# Case 1: Successful ACL DDLs + FLUSH PRIVILEGES
+# -------------------------------
+# Case 1.1: CREATE USER + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+CREATE USER u1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u1;
+# -------------------------------
+# Case 1.2: ALTER USER + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+ALTER USER u1 IDENTIFIED BY 'abcd';
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u1;
+# -------------------------------
+# Case 1.3: RENAME USER + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+RENAME USER u1 TO u2;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u2;
+# -------------------------------
+# Case 1.4: CREATE ROLE + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+CREATE ROLE r1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP ROLE r1;
+# -------------------------------
+# Case 1.5: GRANT privilege + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+GRANT SELECT ON *.* TO u1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u1;
+# -------------------------------
+# Case 1.6: GRANT role + FLUSH PRIVILEGES
+CREATE USER u1;
+CREATE ROLE r1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+GRANT r1 TO u1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER r1;
+DROP USER u1;
+# -------------------------------
+# Case 1.7: SET DEFAULT ROLE + FLUSH PRIVILEGES
+CREATE USER u1;
+CREATE ROLE r1;
+GRANT r1 TO u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+SET DEFAULT ROLE r1 TO u1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER r1;
+DROP USER u1;
+# -------------------------------
+# Case 1.8: SET PASSWORD + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+SET PASSWORD FOR u1 = 'efgh';
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u1;
+# -------------------------------
+# Case 1.9: REVOKE role + FLUSH PRIVILEGES
+CREATE USER u1;
+CREATE ROLE r1;
+GRANT r1 TO u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+REVOKE r1 FROM u1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP ROLE r1;
+DROP USER u1;
+# -------------------------------
+# Case 1.10: REVOKE privilege + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+REVOKE SELECT ON *.* FROM u1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u1;
+# -------------------------------
+# Case 1.11: DROP ROLE + FLUSH PRIVILEGES
+CREATE ROLE r1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+DROP ROLE r1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -------------------------------
+# Case 1.12: DROP USER + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+DROP USER u1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -----------------------------------------------------------------------
+# Case 2: Unsuccessful ACL DDLs + FLUSH PRIVILEGES
+SET @@lock_wait_timeout=1;
+# -------------------------------
+# Case 2.1: CREATE USER + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+CREATE USER u3, u2, u1;
+ERROR HY000: Operation CREATE USER failed for 'u1'@'%'
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u1;
+# -------------------------------
+# Case 2.2: ALTER USER + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+ALTER USER u2 IDENTIFIED BY 'abcd';
+ERROR HY000: Operation ALTER USER failed for 'u2'@'%'
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -------------------------------
+# Case 2.3: RENAME USER + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+RENAME USER u2 TO u3;
+ERROR HY000: Operation RENAME USER failed for 'u2'@'%'
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -------------------------------
+# Case 2.4: DROP USER + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+DROP USER u2;
+ERROR HY000: Operation DROP USER failed for 'u2'@'%'
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -------------------------------
+# Case 2.5: SET PASSWORD + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout, wl14084_simulate_set_password_failure";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+SET PASSWORD FOR u1 = 'abcd';
+ERROR 42000: Can't find any matching row in the user table
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout, wl14084_simulate_set_password_failure";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u1;
+# -------------------------------
+# Case 2.6: CREATE ROLE + FLUSH PRIVILEGES
+CREATE ROLE r1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+CREATE ROLE r3, r2, r1;
+ERROR HY000: Operation CREATE ROLE failed for 'r1'@'%'
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP ROLE r1;
+# -------------------------------
+# Case 2.7: DROP ROLE + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+DROP ROLE r2;
+ERROR HY000: Operation DROP ROLE failed for 'r2'@'%'
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -------------------------------
+# Case 2.8: GRANT privilege + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+GRANT SELECT ON *.* TO u2;
+ERROR 42000: You are not allowed to create a user with GRANT
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -------------------------------
+# Case 2.9: GRANT role + FLUSH PRIVILEGES
+CREATE ROLE r1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+GRANT r1 TO u2;
+ERROR HY000: Unknown authorization ID `u2`@`%`
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP ROLE r1;
+# -------------------------------
+# Case 2.10: REVOKE role + FLUSH PRIVILEGES
+CREATE ROLE r1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+REVOKE r1 FROM u2;
+ERROR HY000: Unknown authorization ID `u2`@`%`
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP ROLE r1;
+# -------------------------------
+# Case 2.11: REVOKE privilege + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+REVOKE SELECT ON *.* FROM u2;
+ERROR 42000: There is no such grant defined for user 'u2' on host '%'
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -------------------------------
+# Case 2.12: SET DEFAULT ROLE + FLUSH PRIVILEGES
+CREATE ROLE r1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+SET DEFAULT ROLE r1 TO u2;
+ERROR HY000: `r1`@`%` is not granted to `u2`@`%`
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP ROLE r1;
+# -----------------------------------------------------------------------
+# Cleanup
+# Restore initial values
+SET @@global.transaction_isolation = @global_start_value;
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
+REPEATABLE-READ
+SET @@session.transaction_isolation = @session_start_value;
+SELECT @@session.transaction_isolation;
+@@session.transaction_isolation
+REPEATABLE-READ
+# -----------------------------------------------------------------------
+# Setup
+# Saving initial values
+SET @global_start_value = @@global.transaction_isolation;
+SELECT @global_start_value;
+@global_start_value
+REPEATABLE-READ
+SET @session_start_value = @@session.transaction_isolation;
+SELECT @session_start_value;
+@session_start_value
+REPEATABLE-READ
+# Setting transaction isolation to 'SERIALIZABLE'
+SET GLOBAL transaction_isolation = 'SERIALIZABLE';
+# -----------------------------------------------------------------------
+# Case 1: Successful ACL DDLs + FLUSH PRIVILEGES
+# -------------------------------
+# Case 1.1: CREATE USER + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+CREATE USER u1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u1;
+# -------------------------------
+# Case 1.2: ALTER USER + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+ALTER USER u1 IDENTIFIED BY 'abcd';
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u1;
+# -------------------------------
+# Case 1.3: RENAME USER + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+RENAME USER u1 TO u2;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u2;
+# -------------------------------
+# Case 1.4: CREATE ROLE + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+CREATE ROLE r1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP ROLE r1;
+# -------------------------------
+# Case 1.5: GRANT privilege + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+GRANT SELECT ON *.* TO u1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u1;
+# -------------------------------
+# Case 1.6: GRANT role + FLUSH PRIVILEGES
+CREATE USER u1;
+CREATE ROLE r1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+GRANT r1 TO u1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER r1;
+DROP USER u1;
+# -------------------------------
+# Case 1.7: SET DEFAULT ROLE + FLUSH PRIVILEGES
+CREATE USER u1;
+CREATE ROLE r1;
+GRANT r1 TO u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+SET DEFAULT ROLE r1 TO u1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER r1;
+DROP USER u1;
+# -------------------------------
+# Case 1.8: SET PASSWORD + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+SET PASSWORD FOR u1 = 'efgh';
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u1;
+# -------------------------------
+# Case 1.9: REVOKE role + FLUSH PRIVILEGES
+CREATE USER u1;
+CREATE ROLE r1;
+GRANT r1 TO u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+REVOKE r1 FROM u1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP ROLE r1;
+DROP USER u1;
+# -------------------------------
+# Case 1.10: REVOKE privilege + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+REVOKE SELECT ON *.* FROM u1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u1;
+# -------------------------------
+# Case 1.11: DROP ROLE + FLUSH PRIVILEGES
+CREATE ROLE r1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+DROP ROLE r1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -------------------------------
+# Case 1.12: DROP USER + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+DROP USER u1;
+SET DEBUG="-d, wl14084_acl_ddl_after_table_lock_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -----------------------------------------------------------------------
+# Case 2: Unsuccessful ACL DDLs + FLUSH PRIVILEGES
+SET @@lock_wait_timeout=1;
+# -------------------------------
+# Case 2.1: CREATE USER + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+CREATE USER u3, u2, u1;
+ERROR HY000: Operation CREATE USER failed for 'u1'@'%'
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u1;
+# -------------------------------
+# Case 2.2: ALTER USER + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+ALTER USER u2 IDENTIFIED BY 'abcd';
+ERROR HY000: Operation ALTER USER failed for 'u2'@'%'
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -------------------------------
+# Case 2.3: RENAME USER + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+RENAME USER u2 TO u3;
+ERROR HY000: Operation RENAME USER failed for 'u2'@'%'
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -------------------------------
+# Case 2.4: DROP USER + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+DROP USER u2;
+ERROR HY000: Operation DROP USER failed for 'u2'@'%'
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -------------------------------
+# Case 2.5: SET PASSWORD + FLUSH PRIVILEGES
+CREATE USER u1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout, wl14084_simulate_set_password_failure";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+SET PASSWORD FOR u1 = 'abcd';
+ERROR 42000: Can't find any matching row in the user table
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout, wl14084_simulate_set_password_failure";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP USER u1;
+# -------------------------------
+# Case 2.6: CREATE ROLE + FLUSH PRIVILEGES
+CREATE ROLE r1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+CREATE ROLE r3, r2, r1;
+ERROR HY000: Operation CREATE ROLE failed for 'r1'@'%'
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP ROLE r1;
+# -------------------------------
+# Case 2.7: DROP ROLE + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+DROP ROLE r2;
+ERROR HY000: Operation DROP ROLE failed for 'r2'@'%'
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -------------------------------
+# Case 2.8: GRANT privilege + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+GRANT SELECT ON *.* TO u2;
+ERROR 42000: You are not allowed to create a user with GRANT
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -------------------------------
+# Case 2.9: GRANT role + FLUSH PRIVILEGES
+CREATE ROLE r1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+GRANT r1 TO u2;
+ERROR HY000: Unknown authorization ID `u2`@`%`
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP ROLE r1;
+# -------------------------------
+# Case 2.10: REVOKE role + FLUSH PRIVILEGES
+CREATE ROLE r1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+REVOKE r1 FROM u2;
+ERROR HY000: Unknown authorization ID `u2`@`%`
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP ROLE r1;
+# -------------------------------
+# Case 2.11: REVOKE privilege + FLUSH PRIVILEGES
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+REVOKE SELECT ON *.* FROM u2;
+ERROR 42000: There is no such grant defined for user 'u2' on host '%'
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+# -------------------------------
+# Case 2.12: SET DEFAULT ROLE + FLUSH PRIVILEGES
+CREATE ROLE r1;
+connect conn_attempt, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connect conn_execute, localhost, root,,,,;
+connection conn_attempt;
+SET DEBUG="+d, wl14084_simulate_flush_privileges_timeout";
+SET DEBUG_SYNC="wl14084_flush_privileges_before_table_locks SIGNAL proceed_with_acl_ddl WAIT_FOR flush_now";
+FLUSH PRIVILEGES;
+connection conn_execute;
+SET DEBUG="+d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+SET DEBUG_SYNC="now WAIT_FOR proceed_with_acl_ddl";
+SET DEBUG_SYNC="wl14084_after_table_locks SIGNAL flush_now";
+SET DEFAULT ROLE r1 TO u2;
+ERROR HY000: `r1`@`%` is not granted to `u2`@`%`
+SET DEBUG="-d, wl14084_acl_ddl_error_before_cache_reload_trigger_timeout";
+connection conn_attempt;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG="-d, wl14084_simulate_flush_privileges_timeout";
+connection default;
+SET DEBUG_SYNC="RESET";
+disconnect conn_attempt;
+disconnect conn_execute;
+DROP ROLE r1;
+# -----------------------------------------------------------------------
+# Cleanup
+# Restore initial values
+SET @@global.transaction_isolation = @global_start_value;
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
+REPEATABLE-READ
+SET @@session.transaction_isolation = @session_start_value;
+SELECT @@session.transaction_isolation;
+@@session.transaction_isolation
+REPEATABLE-READ

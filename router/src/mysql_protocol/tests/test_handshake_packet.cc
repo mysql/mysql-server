@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,17 +22,18 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <cstdlib>
-#include <cstring>
-#include <stdexcept>
+#include <gtest/gtest_prod.h>  // FRIEND_TEST, must be before a tested header
+
+#include "mysqlrouter/mysql_protocol.h"
+
+#include <stdexcept>  // runtime_error
+#include <string>
+#include <vector>
 
 #include <gmock/gmock.h>
 
 #include "helpers/router_test_helpers.h"
-#include "mysqlrouter/mysql_protocol.h"
-#include "mysqlrouter/utils.h"
 
-using std::string;
 using ::testing::ContainerEq;
 using ::testing::NotNull;
 using namespace mysql_protocol;
@@ -44,7 +45,7 @@ using namespace mysql_protocol;
 
 class HandshakeResponsePacketTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {}
+  void SetUp() override {}
 };
 
 TEST_F(HandshakeResponsePacketTest, DefaultConstructor) {
@@ -60,7 +61,7 @@ TEST_F(HandshakeResponsePacketTest, DefaultConstructor) {
       0x70, 0x61, 0x73, 0x73, 0x77, 0x6f, 0x72, 0x64, 0x00,
   };
 
-  ASSERT_THAT(p, ContainerEq(exp));
+  ASSERT_THAT(p.message(), ContainerEq(exp));
 }
 
 TEST_F(HandshakeResponsePacketTest, Constructor) {
@@ -82,7 +83,7 @@ TEST_F(HandshakeResponsePacketTest, Constructor) {
         0x73, 0x73, 0x77, 0x6f, 0x72, 0x64, 0x00,
     };
 
-    ASSERT_THAT(p, ContainerEq(exp));
+    ASSERT_THAT(p.message(), ContainerEq(exp));
   }
 
   {
@@ -101,7 +102,7 @@ TEST_F(HandshakeResponsePacketTest, Constructor) {
         0x6e, 0x61, 0x74, 0x69, 0x76, 0x65, 0x5f, 0x70, 0x61, 0x73, 0x73, 0x77,
         0x6f, 0x72, 0x64, 0x00};
 
-    ASSERT_THAT(p, ContainerEq(exp));
+    ASSERT_THAT(p.message(), ContainerEq(exp));
   }
 
   {
@@ -120,7 +121,7 @@ TEST_F(HandshakeResponsePacketTest, Constructor) {
         0x6e, 0x61, 0x74, 0x69, 0x76, 0x65, 0x5f, 0x70, 0x61, 0x73, 0x73, 0x77,
         0x6f, 0x72, 0x64, 0x00};
 
-    ASSERT_THAT(p, ContainerEq(exp));
+    ASSERT_THAT(p.message(), ContainerEq(exp));
   }
 
   {
@@ -141,14 +142,11 @@ TEST_F(HandshakeResponsePacketTest, Constructor) {
         0x68, 0x5f, 0x70, 0x6c, 0x75, 0x67, 0x69, 0x6e, 0x00,
     };
 
-    ASSERT_THAT(p, ContainerEq(exp));
+    ASSERT_THAT(p.message(), ContainerEq(exp));
   }
 }
 
-class HandshakeResponseParseTest : public ::testing::Test {
- public:
-  void SetUp() override {}
-};
+class HandshakeResponseParseTest : public ::testing::Test {};
 
 /** @brief Converts string of hex values into bytes
  *

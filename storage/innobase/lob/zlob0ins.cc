@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -101,7 +101,8 @@ void zInserter::update_length_in_blobref(big_rec_field_t &field) {
   }
 }
 
-/** Write one blob field data.
+/** Write one small blob field data. Refer to ref_t to determine
+the definition of small blob.
 @param[in]	blob_j	the blob field number
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t zInserter::write_one_small_blob(size_t blob_j) {

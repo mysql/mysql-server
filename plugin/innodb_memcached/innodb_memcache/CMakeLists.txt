@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,6 @@ SET(INNODB_ENGINE_SOURCES
   cache-src/items.c
   cache-src/slabs.c)
 
-MYSQL_ADD_PLUGIN(
-  innodb_engine ${INNODB_ENGINE_SOURCES}
+MYSQL_ADD_PLUGIN(innodb_engine ${INNODB_ENGINE_SOURCES}
   LINK_LIBRARIES libmcd_util
   MODULE_ONLY MODULE_OUTPUT_NAME "innodb_engine")

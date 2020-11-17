@@ -1,0 +1,108 @@
+SET PERSIST innodb_extend_and_initialize=FALSE;
+SELECT @@GLOBAL.innodb_extend_and_initialize;
+@@GLOBAL.innodb_extend_and_initialize
+0
+# Scenario-1: posix_fallocate returns errors EINTR
+# or EINVAL
+DROP TABLE IF EXISTS ttext1;
+Warnings:
+Note	1051	Unknown table 'test.ttext1'
+CREATE TABLE ttext1(c1 INT, c2 TEXT);
+INSERT INTO ttext1 VALUES(1, REPEAT('abcdef', 10000));
+INSERT INTO ttext1 VALUES(2, REPEAT('abcdef', 10000));
+INSERT INTO ttext1 VALUES(3, REPEAT('abcdef', 10000));
+SET SESSION debug='+d,ib_posix_fallocate_fail_eintr';
+INSERT INTO ttext1 VALUES(4, REPEAT('abcdef', 10000));
+SELECT COUNT(*) FROM ttext1;
+COUNT(*)
+4
+DROP TABLE ttext1;
+SET SESSION debug='-d,ib_posix_fallocate_fail_eintr';
+# Scenario-2: Server crashed while creating a table
+# just after writing the redo log record for space
+# extension
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+SET SESSION debug='+d,ib_crash_after_writing_redo_extend_1';
+CREATE TABLE t1(a char(1), b char(1), key(a, b)) ENGINE=innodb;
+# Restart after the crash
+INSERT INTO t1 VALUES('a','b');
+ERROR 42S02: Table 'test.t1' doesn't exist
+# Scenario-3: Server crashed after writing the redo log
+# but before the transaction could commit
+CREATE TABLE ttext1(c1 INT, c2 TEXT);
+INSERT INTO ttext1 VALUES(1, REPEAT('abcdef',10000));
+INSERT INTO ttext1 VALUES(2, REPEAT('abcdef',10000));
+INSERT INTO ttext1 VALUES(3, REPEAT('abcdef',10000));
+SET SESSION debug='+d,ib_crash_after_writing_redo_extend_1';
+INSERT INTO ttext1 VALUES(4, REPEAT('abcdef',10000));
+# Restart after the crash
+SELECT COUNT(*) FROM ttext1;
+COUNT(*)
+3
+INSERT INTO ttext1 VALUES(5, REPEAT('abcdef',10000));
+INSERT INTO ttext1 VALUES(6, REPEAT('abcdef',10000));
+SELECT COUNT(*) FROM ttext1;
+COUNT(*)
+5
+DROP TABLE ttext1;
+SET PERSIST innodb_extend_and_initialize=DEFAULT;
+SELECT @@GLOBAL.innodb_extend_and_initialize;
+@@GLOBAL.innodb_extend_and_initialize
+1
+# Scenario-4: Server crashes before the checkpoint
+SET @@GLOBAL.INNODB_CHECKPOINT_DISABLED='ON';
+DROP TABLE IF EXISTS ttext;
+Warnings:
+Note	1051	Unknown table 'test.ttext'
+CREATE TABLE ttext(c1 INT, c2 TEXT);
+INSERT INTO ttext VALUES(1, REPEAT('abcdef',10000));
+INSERT INTO ttext VALUES(2, REPEAT('abcdef',10000));
+INSERT INTO ttext VALUES(3, REPEAT('abcdef',10000));
+INSERT INTO ttext VALUES(4, REPEAT('abcdef',10000));
+SELECT COUNT(*) FROM ttext;
+COUNT(*)
+4
+# Kill and restart
+SELECT @@GLOBAL.INNODB_CHECKPOINT_DISABLED;
+@@GLOBAL.INNODB_CHECKPOINT_DISABLED
+0
+SELECT @@GLOBAL.innodb_extend_and_initialize;
+@@GLOBAL.innodb_extend_and_initialize
+1
+SELECT COUNT(*) FROM ttext;
+COUNT(*)
+4
+DROP TABLE ttext;
+SET PERSIST innodb_extend_and_initialize=DEFAULT;
+SELECT @@GLOBAL.innodb_extend_and_initialize;
+@@GLOBAL.innodb_extend_and_initialize
+1
+# Scenario-5: Server crasheѕ before checkpoint
+# and restarted with innodb_extend_and_initialize=off
+SET @@GLOBAL.innodb_extend_and_initialize='OFF';
+SELECT @@GLOBAL.innodb_extend_and_initialize;
+@@GLOBAL.innodb_extend_and_initialize
+0
+SET @@GLOBAL.INNODB_CHECKPOINT_DISABLED='ON';
+CREATE TABLE ttext(c1 INT, c2 TEXT);
+INSERT INTO ttext VALUES(1, REPEAT('abcdef',10000));
+INSERT INTO ttext VALUES(2, REPEAT('abcdef',10000));
+INSERT INTO ttext VALUES(3, REPEAT('abcdef',10000));
+INSERT INTO ttext VALUES(4, REPEAT('abcdef',10000));
+SELECT COUNT(*) FROM ttext;
+COUNT(*)
+4
+# Kill and restart
+SELECT @@GLOBAL.INNODB_CHECKPOINT_DISABLED;
+@@GLOBAL.INNODB_CHECKPOINT_DISABLED
+0
+SELECT @@GLOBAL.innodb_extend_and_initialize;
+@@GLOBAL.innodb_extend_and_initialize
+1
+SELECT COUNT(*) FROM ttext;
+COUNT(*)
+4
+DROP TABLE ttext;
+RESET PERSIST;

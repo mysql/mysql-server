@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -210,11 +210,9 @@ bool MVCC::validate() const {
 }
 #endif /* UNIV_DEBUG */
 
-/**
-Try and increase the size of the array. Old elements are
-copied across.
-@param n 		Make space for n elements */
-
+/** Try and increase the size of the array. Old elements are copied across. It
+is a no-op if n is < current size.
+@param  n  Make space for n elements */
 void ReadView::ids_t::reserve(ulint n) {
   if (n <= capacity()) {
     return;
@@ -506,11 +504,10 @@ void MVCC::view_release(ReadView *&view) {
   view = nullptr;
 }
 
-/**
-Allocate and create a view.
-@param view		view owned by this class created for the
-                        caller. Must be freed by calling view_close()
-@param trx		transaction instance of caller */
+/** Allocate and create a view.
+@param view	View owned by this class created for the caller. Must be
+freed by calling view_close()
+@param trx	Transaction instance of caller */
 void MVCC::view_open(ReadView *&view, trx_t *trx) {
   ut_ad(!srv_read_only_mode);
 
@@ -652,10 +649,10 @@ void ReadView::copy_complete() {
 
 /** Clones the oldest view and stores it in view. No need to
 call view_close(). The caller owns the view that is passed in.
-This function is called by Purge to determine whether it should
+It will also move the closed views from the m_views list to the
+m_free list. This function is called by Purge to determine whether it should
 purge the delete marked record or not.
 @param view		Preallocated view, owned by the caller */
-
 void MVCC::clone_oldest_view(ReadView *view) {
   mutex_enter(&trx_sys->mutex);
 

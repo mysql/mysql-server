@@ -9,7 +9,7 @@ USE performance_schema;
 EXPLAIN SELECT * FROM (users AS t1 INNER JOIN hosts AS t2 ON (t2.host = t1.user));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
-1	SIMPLE	t1	NULL	ref	USER	USER	129	func	#	100.00	Using where
+1	SIMPLE	t1	NULL	eq_ref	USER	USER	129	func	#	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `performance_schema`.`t1`.`USER` AS `USER`,`performance_schema`.`t1`.`CURRENT_CONNECTIONS` AS `CURRENT_CONNECTIONS`,`performance_schema`.`t1`.`TOTAL_CONNECTIONS` AS `TOTAL_CONNECTIONS`,`performance_schema`.`t2`.`HOST` AS `HOST`,`performance_schema`.`t2`.`CURRENT_CONNECTIONS` AS `CURRENT_CONNECTIONS`,`performance_schema`.`t2`.`TOTAL_CONNECTIONS` AS `TOTAL_CONNECTIONS` from `performance_schema`.`users` `t1` join `performance_schema`.`hosts` `t2` where (convert(`performance_schema`.`t2`.`HOST` using utf8mb4) = `performance_schema`.`t1`.`USER`)
 

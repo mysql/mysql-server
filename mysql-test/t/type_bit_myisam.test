@@ -47,9 +47,11 @@ drop table t1;
 
 create table t1 (a bit(2));
 insert into t1 values (b'00'), (b'01'), (b'10'), (b'100');
+--sorted_result
 select a+0 from t1;
 alter table t1 add key (a);
 explain select a+0 from t1;
+--sorted_result
 select a+0 from t1;
 drop table t1;
 
@@ -62,11 +64,15 @@ insert into t1 values
 (30, 83), (5, 178), (60, 343), (4, 245), (104, 280), (106, 446), (127, 403),
 (44, 307), (68, 454), (57, 135);
 explain select a+0 from t1;
+--sorted_result
 select a+0 from t1;
 explain select b+0 from t1;
+--sorted_result
 select b+0 from t1;
 explain select a+0, b+0 from t1;
+--sorted_result
 select a+0, b+0 from t1;
+--partially_sorted_result 1
 explain select a+0, b+0 from t1 where a > 40 and b > 200 order by 1;
 select a+0, b+0 from t1 where a > 40 and b > 200 order by 1;
 explain select a+0, b+0 from t1 where a > 40 and a < 70 order by 2;
@@ -96,6 +102,7 @@ drop table t1;
 create table t1(a bit(2), b bit(2));
 insert into t1 (a) values (0x01), (0x03), (0x02);
 update t1 set b= concat(a);
+--sorted_result
 select a+0, b+0 from t1;
 drop table t1;
 

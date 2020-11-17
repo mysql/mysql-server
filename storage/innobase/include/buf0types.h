@@ -127,7 +127,7 @@ inline bool is_checksum_strict(ulint algo) {
 }
 
 /** Parameters of binary buddy system for compressed pages (buf0buddy.h) */
-/* @{ */
+/** @{ */
 /** Zip shift value for the smallest page size */
 #define BUF_BUDDY_LOW_SHIFT UNIV_ZIP_SIZE_SHIFT_MIN
 
@@ -144,7 +144,7 @@ inline bool is_checksum_strict(ulint algo) {
 the underlying memory is aligned by this amount:
 this must be equal to UNIV_PAGE_SIZE */
 #define BUF_BUDDY_HIGH (BUF_BUDDY_LOW << BUF_BUDDY_SIZES)
-/* @} */
+/** @} */
 
 typedef ib_bpmutex_t BPageMutex;
 typedef ib_mutex_t BufListMutex;
@@ -236,12 +236,6 @@ class page_id_t {
   /** Page number. */
   page_no_t m_page_no;
 
-  /** Declare the overloaded global operator<< as a friend of this
-  class. Refer to the global declaration for further details.  Print
-  the given page_id_t object.
-  @param[in,out]	out	the output stream
-  @param[in]	page_id	the page_id_t object to be printed
-  @return the output stream */
   friend std::ostream &operator<<(std::ostream &out, const page_id_t &page_id);
 };
 

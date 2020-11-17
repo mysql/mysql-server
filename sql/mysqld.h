@@ -761,11 +761,6 @@ bool mysqld_partial_revokes();
 */
 void set_mysqld_partial_revokes(bool value);
 
-/**
-  Set m_opt_tracking_mode with a user given value associated with sysvar.
-*/
-void set_mysqld_opt_tracking_mode();
-
 #ifdef _WIN32
 
 bool is_windows_service();

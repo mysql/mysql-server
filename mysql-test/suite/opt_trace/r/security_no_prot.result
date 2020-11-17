@@ -273,7 +273,7 @@ set optimizer_trace_offset=2,optimizer_trace_limit=1;
 call p1();
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
-jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	3065	0
+jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	2868	0
 set optimizer_trace="enabled=off";
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 call p2();
@@ -685,9 +685,9 @@ select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPT
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 call p1()	20	0
 set b@0 NULL	20	0
-jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	3065	0
-select 22 into b from dual	407	0
-select a into b from t1 limit 1	2253	0
+jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	2868	0
+select 22 into b from dual	218	0
+select a into b from t1 limit 1	2041	0
 insert into t1 values(current_user())	20	0
 # Trace exposed body of routine, and content of t1, which we
 # could see anyway:
@@ -714,8 +714,8 @@ select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPT
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 select f1()	413	0
 set b@0 NULL	20	0
-select 48 into b from dual	407	0
-select a into b from t1 limit 1	2253	0
+select 48 into b from dual	218	0
+select a into b from t1 limit 1	2041	0
 insert into t1 values(current_user())	20	0
 freturn 3 36	20	0
 # Trace exposed body of routine, and content of t1, which we
@@ -749,7 +749,7 @@ insert into t2 values(current_user());
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 insert into t2 values(current_user())	20	0
-insert into t3 select * from t3	3080	0
+insert into t3 select * from t3	2841	0
 # Trace exposed body of trigger, and content of t2/t3, which we
 # could see anyway:
 show create trigger trg2;
@@ -767,7 +767,7 @@ a
 first
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
-select a from (select a from t1 where a like "f%") as tt where a like "fi%"	4454	0
+select a from (select a from t1 where a like "f%") as tt where a like "fi%"	4451	0
 
 # For routines, as they only use t1 and we added only one
 # privilege on t1, we have nothing to remove.
@@ -900,6 +900,10 @@ select user();
 user()
 root@localhost
 drop user user1@localhost;
+Warnings:
+Warning	4005	User 'user1'@'localhost' is referenced as a definer account in a view.
+Warning	4005	User 'user1'@'localhost' is referenced as a definer account in a stored routine.
+Warning	4005	User 'user1'@'localhost' is referenced as a definer account in a trigger.
 
 # ==========================================================
 # Part E.
@@ -912,6 +916,9 @@ root@localhost
 drop view v1;
 create sql security definer view v1 as select * from t1 where 'secret';
 create user user1@localhost identified by '';
+Warnings:
+Warning	4005	User 'user1'@'localhost' is referenced as a definer account in a stored routine.
+Warning	4005	User 'user1'@'localhost' is referenced as a definer account in a trigger.
 grant create, insert, select on somedb.* to user1@localhost;
 grant create routine on somedb.* to user1@localhost;
 

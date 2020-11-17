@@ -46,11 +46,22 @@ sub process
         "suite/ndb/backups" .
           substr($File::Find::name, length($NDB_SAVED_BACKUPS)) .
         "\n";
-  my $output = `$NDB_PRINT_BACKUP_FILE $File::Find::name`;
+
+  my $output;
+  open(my $fh, '-|', "$NDB_PRINT_BACKUP_FILE ${File::Find::name}")
+    or die("Unable to open $File::Find::name: $!\n");
+  {
+    local $/;
+    $output = <$fh>;
+  }
+  close($fh) or die("Unable to close $File::Find::name: $!\n");
+
   if (!defined($output))
   {
     die "Failed running: $NDB_PRINT_BACKUP_FILE $File::Find::name";
   }
+  # hide difference in reported byte order
+  $output =~ s/ByteOrder: 0x\d{8}/ByteOrder: 0xXXXXXXXX/m;
   # make sure lines ends with LF
   $output =~ s/\r[\n]?/\n/gm;
   print length($output) . " bytes in output\n";

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -53,9 +53,10 @@ struct trx_t;
 /** Future version used to test that the correct error message is returned. */
 #define IB_EXPORT_CFG_VERSION_V99 99
 
-/** Quiesce the tablespace that the table resides in. */
-void row_quiesce_table_start(dict_table_t *table, /*!< in: quiesce this table */
-                             trx_t *trx); /*!< in/out: transaction/session */
+/** Quiesce the tablespace that the table resides in.
+@param[in] table Quiesce this table
+@param[in,out] trx Transaction/session */
+void row_quiesce_table_start(dict_table_t *table, trx_t *trx);
 
 /** Set a table's quiesce state.
  @return DB_SUCCESS or errro code. */
@@ -65,9 +66,9 @@ dberr_t row_quiesce_set_state(
     trx_t *trx)          /*!< in/out: transaction */
     MY_ATTRIBUTE((warn_unused_result));
 
-/** Cleanup after table quiesce. */
-void row_quiesce_table_complete(
-    dict_table_t *table, /*!< in: quiesce this table */
-    trx_t *trx);         /*!< in/out: transaction/session */
+/** Cleanup after table quiesce.
+@param[in] table Quiesce this table
+@param[in,out] trx Transaction/session */
+void row_quiesce_table_complete(dict_table_t *table, trx_t *trx);
 
 #endif /* row0quiesce_h */

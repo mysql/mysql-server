@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ class CapabilitiesConfiguratorTestSuite : public Test {
  public:
   typedef std::shared_ptr<StrictMock<Mock_capability_handler>> Mock_ptr;
 
-  void SetUp() {
+  void SetUp() override {
     for (int i = 0; i < NUMBER_OF_HANDLERS; ++i) {
       mock_handlers.push_back(
           std::make_shared<StrictMock<Mock_capability_handler>>());

@@ -41,12 +41,12 @@ EXPLAIN SELECT * FROM t1 WHERE SUBSTRING(string_col, 1, 2) = "fo";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	string_func_index	string_func_index	11	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`int_col` AS `int_col`,`test`.`t1`.`string_col` AS `string_col` from `test`.`t1` where (substr(`test`.`t1`.`string_col`,1,2) = 'fo')
+Note	1003	/* select#1 */ select `test`.`t1`.`int_col` AS `int_col`,`test`.`t1`.`string_col` AS `string_col` from `test`.`t1` where (substr(`string_col`,1,2) = 'fo')
 EXPLAIN SELECT * FROM t1 WHERE ABS(int_col) = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	int_func_index	int_func_index	5	const	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`int_col` AS `int_col`,`test`.`t1`.`string_col` AS `string_col` from `test`.`t1` where (abs(`test`.`t1`.`int_col`) = 1)
+Note	1003	/* select#1 */ select `test`.`t1`.`int_col` AS `int_col`,`test`.`t1`.`string_col` AS `string_col` from `test`.`t1` where (abs(`int_col`) = 1)
 # Creating multiple nameless functional indexes should automatically
 # generate new names that doesn't collide.
 CREATE TABLE t2 (
@@ -80,7 +80,7 @@ EXPLAIN SELECT * FROM t1 WHERE int_col + int_col = 2 AND string_col = "bar";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	combined_index	combined_index	1032	const,const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`int_col` AS `int_col`,`test`.`t1`.`string_col` AS `string_col` from `test`.`t1` where ((`test`.`t1`.`string_col` = 'bar') and ((`test`.`t1`.`int_col` + `test`.`t1`.`int_col`) = 2))
+Note	1003	/* select#1 */ select `test`.`t1`.`int_col` AS `int_col`,`test`.`t1`.`string_col` AS `string_col` from `test`.`t1` where ((`test`.`t1`.`string_col` = 'bar') and ((`int_col` + `int_col`) = 2))
 # Test that if we have a string column with the same name as a function,
 # we will pick the function. To pick the column, skip the enclosing
 # parentheses around the expression.
@@ -186,7 +186,7 @@ EXPLAIN SELECT col1 FROM t1 WHERE ABS(col1) < 1 ORDER BY ABS(col1) DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	functional_index	functional_index	5	NULL	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (abs(`test`.`t1`.`col1`) < 1) order by abs(`test`.`t1`.`col1`) desc
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (abs(`col1`) < 1) order by abs(`col1`) desc
 DROP TABLE t1;
 # Test integer index over a JSON key
 CREATE TABLE t1(f1 JSON, INDEX idx1 ((CAST(f1->"$.id" AS UNSIGNED))));
@@ -205,7 +205,7 @@ EXPLAIN SELECT * FROM t1 WHERE f1->"$.id"= 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx1	idx1	9	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$.id') as unsigned) = 5)
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (cast(json_extract(`f1`,_utf8mb4'$.id') as unsigned) = 5)
 SELECT * FROM t1 WHERE f1->"$.id" IN (1,2,3);
 f1
 {"id": 1}
@@ -215,7 +215,7 @@ EXPLAIN SELECT * FROM t1 WHERE f1->"$.id" IN (1,2,3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	idx1	idx1	9	NULL	3	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$.id') as unsigned) in (1,2,3))
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (cast(json_extract(`f1`,_utf8mb4'$.id') as unsigned) in (1,2,3))
 DROP TABLE t1;
 Test string index over a JSON key
 CREATE TABLE t1(f1 JSON, INDEX idx1 ((CAST(f1->>"$.id" AS CHAR(10)))));
@@ -235,7 +235,7 @@ EXPLAIN SELECT * FROM t1 WHERE CAST(f1->>"$.id" AS CHAR(10)) = "\"n\"";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx1	idx1	43	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (cast(json_unquote(json_extract(`test`.`t1`.`f1`,_utf8mb4'$.id')) as char(10) charset utf8mb4) = '"n"')
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (cast(json_unquote(json_extract(`f1`,_utf8mb4'$.id')) as char(10) charset utf8mb4) = '"n"')
 SELECT * FROM t1 WHERE CAST(f1->>"$.id" AS CHAR(10)) IN ("'z", "\"n\"","a");
 f1
 {"id": "'z"}
@@ -245,7 +245,7 @@ EXPLAIN SELECT * FROM t1 WHERE CAST(f1->>"$.id" AS CHAR(10)) IN ("'z", "\"n\"","
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	idx1	idx1	43	NULL	3	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (cast(json_unquote(json_extract(`test`.`t1`.`f1`,_utf8mb4'$.id')) as char(10) charset utf8mb4) in ('\'z','"n"','a'))
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (cast(json_unquote(json_extract(`f1`,_utf8mb4'$.id')) as char(10) charset utf8mb4) in ('\'z','"n"','a'))
 DROP TABLE t1;
 CREATE TABLE t1(f1 JSON, INDEX idx1 ((CAST(f1->>"$.name" AS CHAR(30)) COLLATE utf8mb4_bin)));
 INSERT INTO t1 VALUES
@@ -263,7 +263,7 @@ EXPLAIN SELECT * FROM t1 WHERE f1->>"$.name" = "James";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx1	idx1	123	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((cast(json_unquote(json_extract(`test`.`t1`.`f1`,_utf8mb4'$.name')) as char(30) charset utf8mb4) collate utf8mb4_bin) = 'James')
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((cast(json_unquote(json_extract(`f1`,_utf8mb4'$.name')) as char(30) charset utf8mb4) collate utf8mb4_bin) = 'James')
 # Should return one row, and should use the index
 SELECT * FROM t1 WHERE f1->>"$.name" = "james";
 f1
@@ -272,7 +272,7 @@ EXPLAIN SELECT * FROM t1 WHERE f1->>"$.name" = "james";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx1	idx1	123	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((cast(json_unquote(json_extract(`test`.`t1`.`f1`,_utf8mb4'$.name')) as char(30) charset utf8mb4) collate utf8mb4_bin) = 'james')
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((cast(json_unquote(json_extract(`f1`,_utf8mb4'$.name')) as char(30) charset utf8mb4) collate utf8mb4_bin) = 'james')
 # Should return one row, and should use the index
 SELECT * FROM t1 WHERE CAST(f1->>"$.name" AS CHAR(30)) COLLATE utf8mb4_bin = "james";
 f1
@@ -281,222 +281,7 @@ EXPLAIN SELECT * FROM t1 WHERE CAST(f1->>"$.name" AS CHAR(30)) COLLATE utf8mb4_b
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx1	idx1	123	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((cast(json_unquote(json_extract(`test`.`t1`.`f1`,_utf8mb4'$.name')) as char(30) charset utf8mb4) collate utf8mb4_bin) = 'james')
-DROP TABLE t1;
-# See that optimizer trace doesn't reveal the name of the hidden
-# generated column.
-CREATE TABLE t1 (col1 INT, INDEX ((col1 + col1)));
-SET optimizer_trace="enabled=on";
-SELECT col1 FROM t1 WHERE col1 + col1 = 10;
-col1
-SELECT TRACE FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
-TRACE
-{
-  "steps": [
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "expanded_query": "/* select#1 */ select `t1`.`col1` AS `col1` from `t1` where ((`t1`.`col1` + `t1`.`col1`) = 10)"
-          }
-        ]
-      }
-    },
-    {
-      "join_optimization": {
-        "select#": 1,
-        "steps": [
-          {
-            "condition_processing": {
-              "condition": "WHERE",
-              "original_condition": "((`t1`.`col1` + `t1`.`col1`) = 10)",
-              "steps": [
-                {
-                  "transformation": "equality_propagation",
-                  "resulting_condition": "((`t1`.`col1` + `t1`.`col1`) = 10)"
-                },
-                {
-                  "transformation": "constant_propagation",
-                  "resulting_condition": "((`t1`.`col1` + `t1`.`col1`) = 10)"
-                },
-                {
-                  "transformation": "trivial_condition_removal",
-                  "resulting_condition": "((`t1`.`col1` + `t1`.`col1`) = 10)"
-                }
-              ]
-            }
-          },
-          {
-            "substitute_generated_columns": {
-              "resulting_condition": "((`t1`.`col1` + `t1`.`col1`) = 10)"
-            }
-          },
-          {
-            "table_dependencies": [
-              {
-                "table": "`t1`",
-                "row_may_be_null": false,
-                "map_bit": 0,
-                "depends_on_map_bits": [
-                ]
-              }
-            ]
-          },
-          {
-            "ref_optimizer_key_uses": [
-              {
-                "table": "`t1`",
-                "field": "(`col1` + `col1`)",
-                "equals": "10",
-                "null_rejecting": false
-              }
-            ]
-          },
-          {
-            "rows_estimation": [
-              {
-                "table": "`t1`",
-                "range_analysis": {
-                  "table_scan": {
-                    "rows": 1,
-                    "cost": 2.45
-                  },
-                  "potential_range_indexes": [
-                    {
-                      "index": "functional_index",
-                      "usable": true,
-                      "key_parts": [
-                        "(`col1` + `col1`)"
-                      ]
-                    }
-                  ],
-                  "setup_range_conditions": [
-                  ],
-                  "group_index_range": {
-                    "chosen": false,
-                    "cause": "not_group_by_or_distinct"
-                  },
-                  "skip_scan_range": {
-                    "potential_skip_scan_indexes": [
-                      {
-                        "index": "functional_index",
-                        "usable": false,
-                        "cause": "query_references_nonkey_column"
-                      }
-                    ]
-                  },
-                  "analyzing_range_alternatives": {
-                    "range_scan_alternatives": [
-                      {
-                        "index": "functional_index",
-                        "ranges": [
-                          "10 <= (`col1` + `col1`) <= 10"
-                        ],
-                        "index_dives_for_eq_ranges": true,
-                        "rowid_ordered": false,
-                        "using_mrr": false,
-                        "index_only": false,
-                        "rows": 1,
-                        "cost": 0.61,
-                        "chosen": true
-                      }
-                    ],
-                    "analyzing_roworder_intersect": {
-                      "usable": false,
-                      "cause": "too_few_roworder_scans"
-                    }
-                  },
-                  "chosen_range_access_summary": {
-                    "range_access_plan": {
-                      "type": "range_scan",
-                      "index": "functional_index",
-                      "rows": 1,
-                      "ranges": [
-                        "10 <= (`col1` + `col1`) <= 10"
-                      ]
-                    },
-                    "rows_for_plan": 1,
-                    "cost_for_plan": 0.61,
-                    "chosen": true
-                  }
-                }
-              }
-            ]
-          },
-          {
-            "considered_execution_plans": [
-              {
-                "plan_prefix": [
-                ],
-                "table": "`t1`",
-                "best_access_path": {
-                  "considered_access_paths": [
-                    {
-                      "access_type": "ref",
-                      "index": "functional_index",
-                      "rows": 1,
-                      "cost": 0.35,
-                      "chosen": true
-                    },
-                    {
-                      "access_type": "range",
-                      "range_details": {
-                        "used_index": "functional_index"
-                      },
-                      "chosen": false,
-                      "cause": "heuristic_index_cheaper"
-                    }
-                  ]
-                },
-                "condition_filtering_pct": 100,
-                "rows_for_plan": 1,
-                "cost_for_plan": 0.35,
-                "chosen": true
-              }
-            ]
-          },
-          {
-            "attaching_conditions_to_tables": {
-              "original_condition": "((`t1`.`col1` + `t1`.`col1`) = 10)",
-              "attached_conditions_computation": [
-              ],
-              "attached_conditions_summary": [
-                {
-                  "table": "`t1`",
-                  "attached": "((`t1`.`col1` + `t1`.`col1`) = 10)"
-                }
-              ]
-            }
-          },
-          {
-            "finalizing_table_conditions": [
-              {
-                "table": "`t1`",
-                "original_table_condition": "((`t1`.`col1` + `t1`.`col1`) = 10)",
-                "final_table_condition   ": null
-              }
-            ]
-          },
-          {
-            "refine_plan": [
-              {
-                "table": "`t1`"
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "join_execution": {
-        "select#": 1,
-        "steps": [
-        ]
-      }
-    }
-  ]
-}
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((cast(json_unquote(json_extract(`f1`,_utf8mb4'$.name')) as char(30) charset utf8mb4) collate utf8mb4_bin) = 'james')
 DROP TABLE t1;
 # Test that doing an UPDATE on a hidden generated column returns "column
 # not found".
@@ -578,7 +363,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x` from `test`.`t1` where (cast(json_unquote(json_extract(`test`.`t1`.`x`,_utf8mb4'$.name')) as char(30) charset utf8mb4) = 'knut')
+Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x` from `test`.`t1` where (cast(json_unquote(json_extract(`x`,_utf8mb4'$.name')) as char(30) charset utf8mb4) = 'knut')
 DROP TABLE t1;
 # Check that we cannot drop the last visible column when we have hidden
 # generated columns.
@@ -648,7 +433,7 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE INDEX ind320 ON t1 ((pk >= col_time_nokey LIKE
 ST_GeomFromGeoJSON(col_varchar_key) ));
-ERROR HY000: Functional index 'ind320' cannot refer to an auto-increment column.
+ERROR HY000: Incorrect arguments to like
 DROP TABLE t1;
 #
 # Bug#28218591 WRONG ERROR MESSAGE WHILE CREATING FUNCTIONAL INDEX

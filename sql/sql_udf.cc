@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -248,8 +248,9 @@ void udf_read_functions_table() {
   }
 
   table = tables.table;
-  iterator = init_table_iterator(new_thd, table, nullptr, false,
-                                 /*ignore_not_found_rows=*/false);
+  iterator = init_table_iterator(new_thd, table, nullptr,
+                                 /*ignore_not_found_rows=*/false,
+                                 /*count_examined_rows=*/false);
   if (iterator == nullptr) goto end;
   while (!(error = iterator->Read())) {
     DBUG_PRINT("info", ("init udf record"));
@@ -415,11 +416,8 @@ void free_udf(udf_func *udf) {
       while another thread still was using the udf
     */
     const auto it = udf_hash->find(to_string(udf->name));
-    if (it == udf_hash->end()) {
-      DBUG_ASSERT(false);
-      return;
-    }
-    udf_hash->erase(it);
+    if (it != udf_hash->end()) udf_hash->erase(it);
+
     using_udf_functions = !udf_hash->empty();
     if (udf->dlhandle && !find_udf_dl(udf->dl)) dlclose(udf->dlhandle);
   }

@@ -21,6 +21,8 @@ SET GLOBAL innodb_file_per_table=ON;
 CREATE TABLE t2(a INT) ENGINE = INNODB;
 SET GLOBAL innodb_file_per_table=OFF;
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 # check if ibdata* exist
 # Section I: Test options
 # 1. Read SDI with long option
@@ -939,6 +941,8 @@ c2 TEXT,
 primary key(c1))
 ENGINE = INNODB;
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 # Section I: Test options
 # 1. Read SDI with long option
 # 3. Read with specific id & type (long option)

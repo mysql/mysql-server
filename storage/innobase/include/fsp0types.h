@@ -41,11 +41,11 @@ If records are inserted in order, there are the following
 flags to tell this (their type is made byte for the compiler
 to warn if direction and hint parameters are switched in
 fseg_alloc_free_page) */
-/* @{ */
+/** @{ */
 #define FSP_UP ((byte)111)     /*!< alphabetically upwards */
 #define FSP_DOWN ((byte)112)   /*!< alphabetically downwards */
 #define FSP_NO_DIR ((byte)113) /*!< no order */
-/* @} */
+/** @} */
 
 /** File space extent size in pages
 page size | file space extent size
@@ -75,7 +75,7 @@ offset */
 
 /** @name File segment header
 The file segment header points to the inode describing the file segment. */
-/* @{ */
+/** @{ */
 /** Data type for file segment header */
 typedef byte fseg_header_t;
 
@@ -86,7 +86,7 @@ typedef byte fseg_header_t;
 #define FSEG_HEADER_SIZE            \
   10 /*!< Length of the file system \
      header, in bytes */
-/* @} */
+/** @} */
 
 #ifdef UNIV_DEBUG
 
@@ -96,16 +96,15 @@ struct mtr_t;
 class fseg_header {
  public:
   /** Constructor of fseg_header.
-  @param[in]	header	the underlying file segment header object
-  @param[in]	mtr	the mini-transaction.  No redo logs are
+  @param[in]	header	Underlying file segment header object
+  @param[in]	mtr	Mini-transaction.  No redo logs are
                           generated, only latches are checked within
                           mini-transaction */
   fseg_header(const fseg_header_t *header, mtr_t *mtr)
       : m_header(header), m_mtr(mtr) {}
 
   /** Print the file segment header to the given output stream.
-  @param[in,out]	out	the output stream into which the object
-                          is printed.
+  @param[in]	out	the output stream into which the object is printed.
   @retval	the output stream into which the object was printed. */
   std::ostream &to_stream(std::ostream &out) const;
 
@@ -113,7 +112,7 @@ class fseg_header {
   /** The underlying file segment header */
   const fseg_header_t *m_header;
 
-  /** The mini transaction, which is used mainly to check whether
+  /** The mini-transaction, which is used mainly to check whether
   appropriate latches have been taken by the calling thread. */
   mtr_t *m_mtr;
 };
@@ -144,7 +143,7 @@ this many file pages */
 /** @name The space low address page map
 The pages at FSP_XDES_OFFSET and FSP_IBUF_BITMAP_OFFSET are repeated
 every XDES_DESCRIBED_PER_PAGE pages in every tablespace. */
-/* @{ */
+/** @{ */
 /*--------------------------------------*/
 #define FSP_XDES_OFFSET 0        /* !< extent descriptor */
 #define FSP_IBUF_BITMAP_OFFSET 1 /* !< insert buffer bitmap */
@@ -186,7 +185,7 @@ every XDES_DESCRIBED_PER_PAGE pages in every tablespace. */
   3 /*!< rollback segment directory \
     page number in each undo tablespace */
 /*--------------------------------------*/
-/* @} */
+/** @} */
 
 /** Validate the tablespace flags.
 These flags are stored in the tablespace header at offset FSP_SPACE_FLAGS.
@@ -197,23 +196,23 @@ the DICT_TF_COMPACT bit set.
 @return true if valid, false if not */
 bool fsp_flags_is_valid(uint32_t flags) MY_ATTRIBUTE((warn_unused_result));
 
-/** Check if a space_id is the system temporary space ID.
+/** Check if tablespace is system temporary.
 @param[in]	space_id	tablespace ID
 @return true if tablespace is system temporary. */
 bool fsp_is_system_temporary(space_id_t space_id);
 
-/** Check if a space_id is the system temporary space ID.
-@param[in]	space_id	tablespace ID
-@return true if tablespace is system temporary. */
+/** Check if the tablespace is session temporary.
+@param[in]      space_id        tablespace ID
+@return true if tablespace is a session temporary tablespace. */
 bool fsp_is_session_temporary(space_id_t space_id);
 
-/** Check if a space_id is the system temporary space ID.
+/** Check if tablespace is global temporary.
 @param[in]	space_id	tablespace ID
-@return true if tablespace is system temporary. */
+@return true if tablespace is global temporary. */
 bool fsp_is_global_temporary(space_id_t space_id);
 
 /** Check if checksum is disabled for the given space.
-@param[in]	space_id	verify is checksum is enabled for given space.
+@param[in]	space_id	tablespace ID
 @return true if checksum is disabled for given space. */
 bool fsp_is_checksum_disabled(space_id_t space_id);
 
@@ -225,7 +224,8 @@ the product.
 bool fsp_skip_sanity_check(space_id_t space_id);
 #endif /* UNIV_DEBUG */
 
-/* @defgroup fsp_flags InnoDB Tablespace Flag Constants @{ */
+/** @defgroup fsp_flags InnoDB Tablespace Flag Constants
+@{ */
 
 /** Width of the POST_ANTELOPE flag */
 #define FSP_FLAGS_WIDTH_POST_ANTELOPE 1
@@ -375,7 +375,7 @@ UNIV_INLINE void fsp_flags_unset_sdi(uint32_t &flags) {
 
 /** Use an alias in the code for FSP_FLAGS_GET_SHARED() */
 #define fsp_is_shared_tablespace FSP_FLAGS_GET_SHARED
-/* @} */
+/** @} */
 
 /** Max number of rollback segments: the number of segment specification slots
 in the transaction system array; rollback segment id must fit in one (signed)

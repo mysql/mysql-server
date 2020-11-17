@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -396,10 +396,10 @@ class Gcs_xcom_control : public Gcs_control_interface {
       Gcs_xcom_view_change_control_interface *view_control, bool boot,
       My_xp_socket_util *socket_util);
 
-  virtual ~Gcs_xcom_control();
+  ~Gcs_xcom_control() override;
 
   // Gcs_control_interface implementation
-  enum_gcs_error join();
+  enum_gcs_error join() override;
 
   enum_gcs_error do_join(const bool retry = true);
 
@@ -409,7 +409,7 @@ class Gcs_xcom_control : public Gcs_control_interface {
   */
   enum_gcs_error retry_do_join();
 
-  enum_gcs_error leave();
+  enum_gcs_error leave() override;
 
   /*
     Responsible for doing the heavy lifting related to the leave operation.
@@ -428,15 +428,16 @@ class Gcs_xcom_control : public Gcs_control_interface {
   */
   void do_remove_node_from_group();
 
-  bool belongs_to_group();
+  bool belongs_to_group() override;
 
-  Gcs_view *get_current_view();
+  Gcs_view *get_current_view() override;
 
-  const Gcs_member_identifier get_local_member_identifier() const;
+  const Gcs_member_identifier get_local_member_identifier() const override;
 
-  int add_event_listener(const Gcs_control_event_listener &event_listener);
+  int add_event_listener(
+      const Gcs_control_event_listener &event_listener) override;
 
-  void remove_event_listener(int event_listener_handle);
+  void remove_event_listener(int event_listener_handle) override;
 
   /**
     The purpose of this method is to be called when in Gcs_xcom_interface
@@ -577,7 +578,7 @@ class Gcs_xcom_control : public Gcs_control_interface {
     @retval - GCS_OK if request was successfully scheduled in XCom,
               GCS_NOK otherwise.
   */
-  enum_gcs_error set_xcom_cache_size(uint64_t size);
+  enum_gcs_error set_xcom_cache_size(uint64_t size) override;
 
   /**
     Notify that the current member has left the group and whether it left

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,14 +44,11 @@
   where possible (and the variadic convenience function log_message()
   where it is not). (see sql/log.h).
 
-  (The legacy calls sql_print_(error|warning|information) have now
-  been defined to use log_message().)
-
   Finally, this header defines log types (error log etc.) as well
   as log item types (timestamp, message, ...) used by the logging
   components; these are shared between the variadic convenience
-  functions (log_message(), sql_print_*()) as well as the lower
-  level services using the log_line structure.
+  functions (log_message() etc.) as well as the lower level services
+  using the log_line structure.
 */
 
 /*
@@ -153,7 +150,9 @@ typedef enum enum_log_item_type {
   LOG_ITEM_GEN_FLOAT = 1 << 25,      /**< float not otherwise specified */
   LOG_ITEM_GEN_INTEGER = 1 << 26,    /**< integer not otherwise specified */
   LOG_ITEM_GEN_LEX_STRING = 1 << 27, /**< lex string not otherwise specified */
-  LOG_ITEM_GEN_CSTRING = 1 << 28     /**< C-string not otherwise specified */
+  LOG_ITEM_GEN_CSTRING = 1 << 28,    /**< C-string not otherwise specified */
+  LOG_ITEM_GEN_BUFFER = 1 << 29,     /**< optional buffer; set type on use */
+  LOG_ITEM_RET_BUFFER = 1 << 30      /**< sink's output to pfs table */
 } log_item_type;
 
 /* some suggested keys for generic items */
@@ -166,11 +165,12 @@ typedef enum enum_log_item_type {
 
 /* data type */
 typedef enum enum_log_item_class {
-  LOG_UNTYPED = 0,   /**< undefined */
-  LOG_CSTRING = 1,   /**< string  (char * + \0; variadic API only) */
-  LOG_INTEGER = 2,   /**< integer (long long)  */
-  LOG_FLOAT = 3,     /**< float   (double)     */
-  LOG_LEX_STRING = 4 /**< string  (char *, size_t) */
+  LOG_UNTYPED = 0,    /**< undefined */
+  LOG_CSTRING = 1,    /**< string  (char * + \0; variadic API only) */
+  LOG_INTEGER = 2,    /**< integer (long long)  */
+  LOG_FLOAT = 3,      /**< float   (double)     */
+  LOG_LEX_STRING = 4, /**< string  (const char *, size_t) */
+  LOG_BUFFER = 5      /**< string  (char *, size_t) */
 } log_item_class;
 
 /* do we need to release any parts of the item after use? */
@@ -184,7 +184,8 @@ enum enum_log_item_free {
 typedef union _log_item_data {
   longlong data_integer;
   double data_float;
-  LEX_CSTRING data_string;
+  MYSQL_LEX_CSTRING data_string;
+  MYSQL_LEX_STRING data_buffer;
 } log_item_data;
 
 /* item key: for now, a C-string */

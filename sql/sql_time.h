@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,6 +51,7 @@
 #include "sql_string.h"
 
 class THD;
+class Time_zone;
 class my_decimal;
 
 /**
@@ -71,12 +72,14 @@ struct Known_date_time_format {
   const char *time_format;
 };
 
-my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, bool *not_exist);
-bool datetime_with_no_zero_in_date_to_timeval(THD *thd, const MYSQL_TIME *t,
+my_time_t TIME_to_timestamp(const MYSQL_TIME *t, const Time_zone &tz,
+                            bool *not_exist);
+bool datetime_with_no_zero_in_date_to_timeval(const MYSQL_TIME *t,
+                                              const Time_zone &tz,
                                               struct timeval *tm,
                                               int *warnings);
-bool datetime_to_timeval(THD *thd, const MYSQL_TIME *t, struct timeval *tm,
-                         int *warnings);
+bool datetime_to_timeval(const MYSQL_TIME *t, const Time_zone &tz,
+                         struct timeval *tm, int *warnings);
 bool str_to_datetime_with_warn(String *str, MYSQL_TIME *l_time,
                                my_time_flags_t flags);
 bool my_decimal_to_datetime_with_warn(const my_decimal *decimal,
@@ -89,7 +92,9 @@ bool my_decimal_to_time_with_warn(const my_decimal *decimal, MYSQL_TIME *ltime);
 bool my_double_to_time_with_warn(double nr, MYSQL_TIME *ltime);
 bool my_longlong_to_time_with_warn(longlong nr, MYSQL_TIME *ltime);
 bool str_to_time_with_warn(String *str, MYSQL_TIME *l_time);
-void time_to_datetime(THD *thd, const MYSQL_TIME *tm, MYSQL_TIME *dt);
+void time_to_datetime(THD *thd, const MYSQL_TIME *tm, const Time_zone &tz,
+                      MYSQL_TIME *dt);
+void time_to_datetime(THD *thd, const MYSQL_TIME *in, MYSQL_TIME *out);
 
 bool make_truncated_value_warning(THD *thd,
                                   Sql_condition::enum_severity_level level,
@@ -118,7 +123,7 @@ void propagate_datetime_overflow_helper(THD *thd, int *warnings);
    @param thd Thread context
    @param warnings bitset used mysys function
    @param t value mysys function which is passed on
-   @retval t
+   @returns t
  */
 template <class T>
 inline T propagate_datetime_overflow(THD *thd, int *warnings, T t) {

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -59,7 +59,7 @@ dictionary. FTS Tablespaces are not registered as they are handled differently.
 FTS tablespaces have table_id in their name and we increment table_id of each
 table by DICT_MAX_DD_TABLES
 @param[in,out]	thd		THD
-@return MySQL error code*/
+@return MySQL error code */
 int dd_upgrade_tablespace(THD *thd);
 
 /** Add server and space version number to tablespace while upgrading.
@@ -75,9 +75,9 @@ bool upgrade_space_version(dd::Tablespace *tablespace);
 
 /** Upgrade innodb undo logs after upgrade. Also increment the table_id
 offset by DICT_MAX_DD_TABLES. This offset increment is because the
-first 256 table_ids are reserved for dictionary
+first 256 table_ids are reserved for dictionary.
 @param[in,out]	thd		THD
-@return MySQL error code*/
+@return MySQL error code */
 int dd_upgrade_logs(THD *thd);
 
 /** If upgrade is successful, this API is used to flush innodb

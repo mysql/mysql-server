@@ -97,8 +97,8 @@ Ndb_index_stat_cache_query	#
 Ndb_index_stat_status	#
 Ndb_last_commit_epoch_server	#
 Ndb_last_commit_epoch_session	#
-Ndb_metadata_blacklist_size	#
 Ndb_metadata_detected_count	#
+Ndb_metadata_excluded_count	#
 Ndb_metadata_synced_count	#
 Ndb_number_of_data_nodes	#
 Ndb_number_of_ready_data_nodes	#

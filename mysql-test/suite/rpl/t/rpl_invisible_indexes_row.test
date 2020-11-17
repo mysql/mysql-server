@@ -1,0 +1,61 @@
+--echo #
+--echo # Bug#30072179: USING INVISIBLE INDEX WHEN SLAVE APPLY EVENT
+--echo #
+
+#
+# The variable Slave_rows_last_search_algorithm_used forms the basis for this
+# test, and it is only available in debug builds.
+#
+--source include/have_debug.inc
+
+--source include/master-slave.inc
+
+--echo [Connection Master]
+--connection master
+
+SET sql_log_bin = OFF;
+
+CREATE TABLE t1 ( a INT NOT NULL, b INT NOT NULL, C INT, PRIMARY KEY (a));
+
+SET sql_log_bin = ON;
+
+--echo [Connection Slave]
+--connection slave
+
+CREATE TABLE t1 (
+  a INT NOT NULL,
+  b INT NOT NULL,
+  c INT,
+  PRIMARY KEY (b),
+  UNIQUE KEY(a) INVISIBLE
+);
+
+--echo [Connection Master]
+--connection master
+
+INSERT INTO t1 VALUES (1, 1, 1), (2, 2, 2), (3, 3, 3);
+
+UPDATE t1 SET c = 100 WHERE a = 1;
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo [Connection Slave]
+--connection slave
+
+--echo # Should not have used the a index to syncronize the row.
+
+SELECT 1 AS not_using_index FROM performance_schema.global_status
+WHERE variable_name = 'Slave_rows_last_search_algorithm_used'
+AND variable_value <> 'INDEX_SCAN';
+
+--echo # Make sure it indeed synchronized. This _will_ use the index.
+SELECT * FROM t1;
+
+--echo [Connection Master]
+--connection master
+
+DROP TABLE t1;
+
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_end.inc

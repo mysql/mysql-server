@@ -48,6 +48,7 @@ let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_80011_1.log;
 SET DEBUG='+d,skip_dd_table_access_check';
 --echo # List options for indexes in users table. Should show flags=32
 --echo # since this table was created in 8.0.11
+--sorted_result
 SELECT mysql.schemata.name, mysql.tables.name, mysql.indexes.name,
        mysql.indexes.options
 FROM mysql.tables, mysql.indexes, mysql.schemata
@@ -61,6 +62,7 @@ WHERE mysql.tables.name = 'users' AND
 ALTER TABLE users ADD COLUMN active integer DEFAULT 1 NOT NULL, ALGORITHM =INSTANT;
 --echo # List options for indexes in users table after alter. Should show
 --echo # flags=32
+--sorted_result
 SELECT mysql.schemata.name, mysql.tables.name, mysql.indexes.name,
        mysql.indexes.options
 FROM mysql.tables, mysql.indexes, mysql.schemata
@@ -72,6 +74,7 @@ WHERE mysql.tables.name = 'users' AND
 --echo # Rebuild table
 ALTER TABLE users ENGINE = INNODB;
 --echo # Index options should now be 0
+--sorted_result
 SELECT mysql.schemata.name, mysql.tables.name, mysql.indexes.name,
        mysql.indexes.options
 FROM mysql.tables, mysql.indexes, mysql.schemata

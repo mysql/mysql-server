@@ -703,6 +703,7 @@ flush status;
 select * from t1, t2, t3 where t3.a=t1.a and t2.a=t1.b;
 explain select * from t1, t2, t3 where t3.a=t1.a and t2.a=t1.b;
 --echo We expect rnd_next=5, and read_key must be 0 because of short-cutting:
+--skip_if_hypergraph  # Does not support this access method yet.
 show status like 'Handler_read%'; 
 drop table t1, t2, t3;
 
@@ -733,12 +734,14 @@ create table t2 (a int, b int, primary key(a));
 insert into t2 select @v:=A.a+10*B.a, @v  from t1 A, t1 B;
 
 explain select * from t1;
+--skip_if_hypergraph  # Different cost model.
 show status like '%cost%';
 select 'The cost of accessing t1 (dont care if it changes' '^';
 
 select 'vv: Following query must use ALL(t1), eq_ref(A), eq_ref(B): vv' Z;
 
 explain select * from t1, t2 a, t2 b where a.a = t1.a and b.a=a.b;
+--skip_if_hypergraph  # Different cost model.
 show status like '%cost%';
 select '^^: The above should be ~= 8 + cost(select * from t1). Value less than 8 is an error' Z;
 
@@ -1252,6 +1255,7 @@ SELECT t1.i AS a, (SELECT t2.i FROM t t2 WHERE t1.j = t2.j ORDER BY j DESC, i DE
 --enable_result_log
 
 # Check that we skipped nearly all of the key lookups.
+--skip_if_hypergraph  # Does not support this access method yet.
 SHOW STATUS LIKE 'Handler_read_key';
 
 DROP TABLE t;

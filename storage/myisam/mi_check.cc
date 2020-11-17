@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3346,7 +3346,7 @@ int sort_write_record(MI_SORT_PARAM *sort_param) {
         /* sort_info->param->glob_crc+=info->checksum; */
 
         do {
-          block_length = reclength + 3 + reclength >= (65520 - 3);
+          block_length = reclength + 3 + (reclength >= (65520 - 3));
           if (block_length < share->base.min_block_length)
             block_length = share->base.min_block_length;
           info->update |= HA_STATE_WRITE_AT_END;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,14 +49,14 @@ const int CURRENT_TIMESTAMP_FRACTIONAL_SECONDS = 654321;
  */
 class ItemFuncNowLocalTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     initializer.SetUp();
     timeval now = {CURRENT_TIMESTAMP_WHOLE_SECONDS,
                    CURRENT_TIMESTAMP_FRACTIONAL_SECONDS};
     get_thd()->set_time(&now);
   }
 
-  virtual void TearDown() { initializer.TearDown(); }
+  void TearDown() override { initializer.TearDown(); }
 
   THD *get_thd() { return initializer.thd(); }
 

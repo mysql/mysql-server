@@ -8,6 +8,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 include/start_and_bootstrap_group_replication.inc
 
 STOP SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
 
@@ -23,5 +25,7 @@ START GROUP_REPLICATION;
 
 [connection server1]
 START SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 DROP TABLE test.t1;
 include/group_replication_end.inc

@@ -193,7 +193,7 @@ TEST_F(InplaceVectorTest, NoMemLeaksResizing) {
 class InplaceVectorTestP : public ::testing::TestWithParam<size_t> {
  protected:
   InplaceVectorTestP() : array(PSI_NOT_INSTRUMENTED) {}
-  virtual void SetUp() { n_elems = GetParam(); }
+  void SetUp() override { n_elems = GetParam(); }
   size_t n_elems;
   Inplace_vector<IntWrap, 5> array;
 };

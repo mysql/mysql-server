@@ -65,8 +65,8 @@
 template <typename... FunctionArgTypes, typename... FunctionArgs>
 bool ndb_execute_and_retry(
     Ndb *ndb, const THD *thd, unsigned int retry_sleep, NdbError &last_ndb_err,
-    std::function<const NdbError *(NdbTransaction *, FunctionArgTypes...)>
-        ndb_func,
+    const std::function<const NdbError *(NdbTransaction *, FunctionArgTypes...)>
+        &ndb_func,
     FunctionArgs... args) {
   int retries = 100;
   const NdbError *ndbError;
@@ -123,8 +123,8 @@ bool ndb_execute_and_retry(
 template <typename... FunctionArgTypes, typename... FunctionArgs>
 bool ndb_trans_retry(
     Ndb *ndb, const THD *thd, NdbError &last_ndb_err,
-    std::function<const NdbError *(NdbTransaction *, FunctionArgTypes...)>
-        ndb_func,
+    const std::function<const NdbError *(NdbTransaction *, FunctionArgTypes...)>
+        &ndb_func,
     FunctionArgs... args) {
   return ndb_execute_and_retry<FunctionArgTypes...>(
       ndb, thd, 30, last_ndb_err, ndb_func,

@@ -206,8 +206,9 @@ struct plugin_options_variables {
                                        ssl_mode_values, nullptr};
   ulong ssl_mode_var;
 
-#define IP_WHITELIST_STR_BUFFER_LENGTH 1024
+#define IP_ALLOWLIST_STR_BUFFER_LENGTH 1024
   char *ip_whitelist_var;
+  char *ip_allowlist_var;
 
 #define DEFAULT_COMMUNICATION_MAX_MESSAGE_SIZE 10485760
 #define MAX_COMMUNICATION_MAX_MESSAGE_SIZE get_max_slave_max_allowed_packet()

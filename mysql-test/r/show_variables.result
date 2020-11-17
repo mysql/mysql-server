@@ -43,3 +43,25 @@ Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client
 SHOW FUNCTION STATUS WHERE 0;
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 DROP TABLE t1;
+# Bug#31667061: Inconsistent behavior of @@SQL_SELECT_LIMIT
+#               with prepared statements
+CREATE TABLE t1(a INTEGER, b INTEGER, c INTEGER, d INTEGER);
+SET @@sql_select_limit=1;
+PREPARE stmt FROM "SHOW COLUMNS FROM t1";
+EXECUTE stmt;
+Field	Type	Null	Key	Default	Extra
+a	int	YES		NULL	
+set @@sql_select_limit=2;
+EXECUTE stmt;
+Field	Type	Null	Key	Default	Extra
+a	int	YES		NULL	
+b	int	YES		NULL	
+set @@sql_select_limit=DEFAULT;
+EXECUTE stmt;
+Field	Type	Null	Key	Default	Extra
+a	int	YES		NULL	
+b	int	YES		NULL	
+c	int	YES		NULL	
+d	int	YES		NULL	
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;

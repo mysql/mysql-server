@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@ namespace test {
 
 class Auth_chaining_test_suite_base : public Xcl_session_impl_tests {
  public:
-  void SetUp() {
+  void SetUp() override {
     m_sut = prepare_session();
     EXPECT_CALL(m_mock_connection_state, is_connected())
         .WillRepeatedly(Return(false));

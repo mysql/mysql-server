@@ -305,6 +305,8 @@ FLUSH LOGS;
 ---- i=1 ----
 include/stop_slave.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 include/start_slave.inc
@@ -323,6 +325,8 @@ FLUSH LOGS;
 ---- i=2 ----
 include/stop_slave.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 include/start_slave.inc
@@ -341,6 +345,8 @@ FLUSH LOGS;
 ---- i=3 ----
 include/stop_slave.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 include/start_slave.inc
@@ -359,6 +365,8 @@ FLUSH LOGS;
 ---- i=4 ----
 include/stop_slave.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 include/start_slave.inc
@@ -377,6 +385,8 @@ FLUSH LOGS;
 ==== Part 6 ====
 include/stop_slave.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_AUTO_POSITION= 1, MASTER_LOG_FILE= 'master-bin.000001', MASTER_LOG_POS= 4;
@@ -449,6 +459,8 @@ FLUSH LOGS;
 ==== Part 7 ====
 include/stop_slave.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_HOST= 'SLAVE_MASTER_HOST', MASTER_AUTO_POSITION= 1;
@@ -514,6 +526,8 @@ Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
 RESET MASTER;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_AUTO_POSITION= 0;
 RESET MASTER;
 include/start_slave.inc

@@ -14,7 +14,6 @@
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Failed to establish an internal server connection to execute plugin operations");
-call mtr.add_suppression("Error calling group communication interfaces while trying to leave the group");
 SET SESSION sql_log_bin= 1;
 
 --echo

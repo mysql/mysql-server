@@ -19,6 +19,8 @@ drop table t2;
 ==== Replicate one event at a time on slave ====
 [on slave]
 start slave until master_log_file='MASTER_LOG_FILE', master_log_pos=MASTER_LOG_POS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_start.inc
 include/wait_for_slave_sql_to_stop.inc
 select * from t1;
@@ -29,6 +31,8 @@ n
 4
 include/check_slave_param.inc [Exec_Master_Log_Pos]
 start slave until master_log_file='master-no-such-bin.000001', master_log_pos=MASTER_LOG_POS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_start.inc
 include/wait_for_slave_sql_to_stop.inc
 select * from t1;
@@ -39,6 +43,8 @@ n
 4
 include/check_slave_param.inc [Exec_Master_Log_Pos]
 start slave until relay_log_file='slave-relay-bin.000003', relay_log_pos=RELAY_LOG_POS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_start.inc
 include/wait_for_slave_sql_to_stop.inc
 select * from t2;
@@ -47,11 +53,15 @@ n
 2
 include/check_slave_param.inc [Exec_Master_Log_Pos]
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 [on master]
 [on slave]
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 start slave until master_log_file='MASTER_LOG_FILE', master_log_pos=MASTER_LOG_POS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_start.inc
 include/wait_for_slave_sql_to_stop.inc
 include/check_slave_param.inc [Exec_Master_Log_Pos]
@@ -67,12 +77,17 @@ ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UN
 start slave until relay_log_file='slave-relay-bin.000002', master_log_pos=MASTER_LOG_POS;
 ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
 start slave sql_thread;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 start slave until master_log_file='master-bin.000001', master_log_pos=MASTER_LOG_POS;
 Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 Note	3083	Replication thread(s) for channel '' are already runnning.
 include/stop_slave.inc
 drop table if exists t1;
 reset slave;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root';
 Warnings:
@@ -82,6 +97,8 @@ drop table if exists t1;
 reset master;
 create table t1 (a int primary key auto_increment);
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/stop_slave.inc
 master and slave are in sync now
 select 0 as zero;
@@ -93,6 +110,8 @@ select count(*) as two from t1;
 two
 2
 start slave until master_log_file='MASTER_LOG_FILE', master_log_pos= UNTIL_POS;;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 slave stopped at the prescribed position
 select 0 as zero;
@@ -103,6 +122,8 @@ one
 1
 drop table t1;
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 [connection master]
 # Make sure the master will put the new events in a new binlog file
 FLUSH LOGS;
@@ -114,6 +135,8 @@ CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 include/sync_slave_io_with_master.inc
 # Start SQL thread until it executed the CREATE TABLE
 START SLAVE SQL_THREAD UNTIL MASTER_LOG_FILE = "MASTER_FILE", MASTER_LOG_POS = MASTER_POS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 # Wait until SQL thread reaches last master binlog file
 include/wait_for_slave_param.inc [Relay_Master_Log_File]
 # Wait until SQL thread reaches desired master binlog position
@@ -127,6 +150,8 @@ CREATE TABLE t2 (a INT) ENGINE=InnoDB;
 include/sync_slave_io_with_master.inc
 # Start SQL thread until it executed the CREATE TABLE
 START SLAVE SQL_THREAD UNTIL RELAY_LOG_FILE = "SLAVE_FILE", RELAY_LOG_POS = SLAVE_POS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 # Wait until SQL thread reaches last slave relaylog file
 include/wait_for_slave_param.inc [Relay_Log_File]
 # Wait until SQL thread reaches desired slave relaylog position

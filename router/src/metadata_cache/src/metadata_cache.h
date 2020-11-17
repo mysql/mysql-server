@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -124,14 +124,15 @@ class METADATA_API MetadataCache
 
   /** @brief Wait until there's a primary member in the replicaset
    *
-   * To be called when the master of a single-master replicaset is down and
-   * we want to wait until one becomes elected.
+   * To be called when the primary member of a single-primary replicaset is down
+   * and we want to wait until one becomes elected.
    *
    * @param replicaset_name name of the replicaset
-   * @param timeout - amount of time to wait for a failover, in seconds
+   * @param timeout - amount of time to wait for a failover
    * @return true if a primary member exists
    */
-  bool wait_primary_failover(const std::string &replicaset_name, int timeout);
+  bool wait_primary_failover(const std::string &replicaset_name,
+                             const std::chrono::seconds &timeout);
 
   /** @brief refresh replicaset information */
   void refresh_thread();
@@ -206,6 +207,9 @@ class METADATA_API MetadataCache
 
   // Called each time we were requested to refresh the metadata
   void on_refresh_requested();
+
+  // Called each time the metadata refresh completed execution
+  void on_refresh_completed();
 
   // Update rest users authentication data
   bool update_auth_cache();
@@ -282,6 +286,9 @@ class METADATA_API MetadataCache
   std::condition_variable refresh_wait_;
   std::mutex refresh_wait_mtx_;
 
+  std::condition_variable refresh_completed_;
+  std::mutex refresh_completed_mtx_;
+
   // map of lists (per each replicaset name) of registered callbacks to be
   // called on selected replicaset instances change event
   std::mutex replicaset_instances_change_callbacks_mtx_;
@@ -301,6 +308,8 @@ class METADATA_API MetadataCache
 
   bool version_updated_{false};
   unsigned last_check_in_updated_{0};
+
+  bool ready_announced_{false};
 };
 
 bool operator==(const MetaData::ReplicaSetsByName &map_a,

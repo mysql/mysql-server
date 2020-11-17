@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -173,10 +173,22 @@ class ProcessWrapper {
     return launcher_.send_shutdown_event();
   }
 
+  std::string get_logfile_path() const {
+    return logging_dir_ + "/" + logging_file_;
+  }
+
+  void set_logging_path(const std::string &logging_dir,
+                        const std::string &logging_file) {
+    logging_dir_ = logging_dir;
+    logging_file_ = logging_file;
+  }
+
  private:
-  ProcessWrapper(const std::string &app_cmd,
-                 const std::vector<std::string> &args, bool include_stderr)
-      : launcher_(app_cmd.c_str(), args, include_stderr) {
+  ProcessWrapper(
+      const std::string &app_cmd, const std::vector<std::string> &args,
+      const std::vector<std::pair<std::string, std::string>> &env_vars,
+      bool include_stderr)
+      : launcher_(app_cmd.c_str(), args, env_vars, include_stderr) {
     launcher_.start();
   }
 

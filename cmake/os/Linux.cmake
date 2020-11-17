@@ -114,6 +114,7 @@ IF(NOT WITH_ASAN AND
    NOT WITH_TSAN AND
    NOT WITH_UBSAN)
   SET(LINK_FLAG_NO_UNDEFINED "-Wl,--no-undefined")
+  SET(LINK_FLAG_Z_DEFS "-z,defs")
 ENDIF()
 
 # Linux specific HUGETLB /large page support

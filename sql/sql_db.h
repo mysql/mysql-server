@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 
 #include "lex_string.h"
 
+struct TABLE_SHARE;
 class THD;
 namespace dd {
 class Schema;
@@ -46,4 +47,6 @@ bool get_default_db_collation(const dd::Schema &schema,
                               const CHARSET_INFO **collation);
 bool get_default_db_collation(THD *thd, const char *db_name,
                               const CHARSET_INFO **collation);
+bool check_schema_readonly(THD *thd, const char *schema_name,
+                           TABLE_SHARE *share = nullptr);
 #endif /* SQL_DB_INCLUDED */

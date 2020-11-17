@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -160,6 +160,100 @@ bool get_default_db_collation(THD *thd, const char *db_name,
 }
 
 /**
+  Check if the thread type is allowed to ignore the schema read
+  only option.
+
+  @param thd    Thread context.
+
+  @return       true if the thread is allowed to ignore read only,
+                otherwise false.
+*/
+static bool thread_can_ignore_schema_read_only(THD *thd) {
+  /*
+    We ignore read_only for server side execution during initialize,
+    restart and upgrade. We also ignore it for init-file execution.
+
+    In the same way as for check_readonly, if the thread is a replication
+    slave or if skip_read_only check is enabled for the command, we do not
+    enforce the read only check.
+  */
+  return (thd->is_bootstrap_system_thread() ||
+          thd->is_server_upgrade_thread() || thd->slave_thread ||
+          thd->is_cmd_skip_readonly());
+}
+
+/**
+  Check the read_only option for the given schema, and report error if
+  the schema is not writable.
+
+  @param thd          Thread context.
+  @param schema_name  Name of schema to check.
+  @param share        For tables, we cache the read only option in the
+                      table share, and can therefore get the read only
+                      option from the share.
+
+  Caching the read only state in the table share is done for performance
+  reasons. If a share is submitted, we get the read only state from the
+  share. Otherwise, we get the schema object from the DD cache in order
+  to see the read only state.
+
+  @return false if the schema is writable, true if not. If returning
+          true, then error is already reported.
+*/
+bool check_schema_readonly(THD *thd, const char *schema_name,
+                           TABLE_SHARE *share) {
+  // We ignore read_only for certain thread types.
+  if (thread_can_ignore_schema_read_only(thd)) return false;
+
+  /*
+    We must ignore read_only for ALTER SCHEMA to allow turning off
+    read_only. There is a special check for read_only handling within
+    mysql_alter_schema.
+
+    We also ignore read_only for CREATE SCHEMA to make sure we keep
+    the existing error handling in case the schema exists already.
+  */
+  if (thd->lex->sql_command == SQLCOM_ALTER_DB ||
+      thd->lex->sql_command == SQLCOM_CREATE_DB)
+    return false;
+
+  /*
+    If we submitted a table share, we can conclude without acquiring the
+    schema object from the DD cache.
+  */
+  if (share != nullptr) {
+    if (share->schema_read_only == TABLE_SHARE::Schema_read_only::RO_ON) {
+      my_error(ER_SCHEMA_READ_ONLY, MYF(0), schema_name);
+      return true;
+    }
+    if (share->schema_read_only == TABLE_SHARE::Schema_read_only::RO_OFF) {
+      return false;
+    }
+    DBUG_ASSERT(false);
+  }
+
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Schema *sch_obj = nullptr;
+  dd::Schema_MDL_locker mdl_handler(thd);
+
+  if (mdl_handler.ensure_locked(schema_name) ||
+      thd->dd_client()->acquire(schema_name, &sch_obj)) {
+    DBUG_ASSERT(thd->is_error() || thd->killed);
+    return true;
+  }
+
+  // A non existing schema is considered not being in a read_only state.
+  if (sch_obj == nullptr) return false;
+
+  if (sch_obj->read_only()) {
+    my_error(ER_SCHEMA_READ_ONLY, MYF(0), schema_name);
+    return true;
+  }
+
+  return false;
+}
+
+/**
   Auxiliary function which writes CREATE/ALTER or DROP DATABASE statement
   to the binary log overriding connection's current database with one
   being dropped.
@@ -169,8 +263,7 @@ static bool write_db_cmd_to_binlog(THD *thd, const char *db, bool trx_cache) {
   if (mysql_bin_log.is_open()) {
     int errcode = query_error_code(thd, true);
     Query_log_event qinfo(thd, thd->query().str, thd->query().length, trx_cache,
-                          false,
-                          /* suppress_use */ true, errcode);
+                          false, /* suppress_use */ true, errcode);
     /*
       Write should use the database being created/altered or dropped
       as the "current database" and not the threads current database,
@@ -446,6 +539,43 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
     return true;
   }
 
+  /*
+    If the schema is in read_only state, then the only change allowed is to:
+
+    - Turn off read_only, possibly along with other option changes.
+    - Keep read_only turned on, i.e., a no-op. In this case, other options may
+      not be changed in the same statement.
+
+     This means we fail if:
+
+     - HA_CREATE_USED_READ_ONLY is not set.
+     - Or if we set other fields as well and set READ ONLY to true.
+
+     We check this before locking tables to avoid unnecessary lock acquisition.
+  */
+  bool schema_read_only = false;
+  schema_read_only = schema->read_only();
+  if (!thread_can_ignore_schema_read_only(thd) && schema_read_only) {
+    if (!(create_info->used_fields & HA_CREATE_USED_READ_ONLY) ||
+        ((create_info->used_fields & ~HA_CREATE_USED_READ_ONLY) &&
+         create_info->schema_read_only)) {
+      my_error(ER_SCHEMA_READ_ONLY, MYF(0), db);
+      return true;
+    }
+  }
+
+  /*
+    Lock all tables while under schema lock so that we block all transactions
+    from touching these tables until the ALTER is done. Because the schema read
+    only check and the COMMIT are not done atomically, we use the table MDL
+    to serialize ALTER SCHEMA and any write statements.
+  */
+  TABLE_LIST *tables = nullptr;
+  if (find_db_tables(thd, *schema, db, &tables) ||
+      lock_table_names(thd, tables, nullptr, thd->variables.lock_wait_timeout,
+                       0))
+    return true;
+
   // Set new collation ID if submitted in the statement.
   if (create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET) {
     set_db_default_charset(thd, create_info);
@@ -454,15 +584,32 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
   }
 
   // Set encryption type.
-  if (create_info->encrypt_type.length > 0)
+  if (create_info->used_fields & HA_CREATE_USED_DEFAULT_ENCRYPTION) {
+    DBUG_ASSERT(create_info->encrypt_type.length > 0);
     schema->set_default_encryption(dd::is_encrypted(create_info->encrypt_type));
+  }
+
+  // Set read_only option.
+  if (create_info->used_fields & HA_CREATE_USED_READ_ONLY) {
+    schema->set_read_only(create_info->schema_read_only);
+  }
 
   // Update schema.
   if (thd->dd_client()->update(schema)) return true;
 
+  /*
+    The original query is submitted to the engine's log handler
+    because e.g. NDB needs to propagate the read only option to
+    other mysqld servers in the cluster.
+  */
   ha_binlog_log_query(thd, nullptr, LOGCOM_ALTER_DB, thd->query().str,
                       thd->query().length, db, "");
 
+  /*
+    The original query is written to the binlog and hence replicated.
+    Binlogging must be switched off while executing ALTER SCHEMA if
+    this is not desired.
+  */
   if (write_db_cmd_to_binlog(thd, db, true)) return true;
 
   /*
@@ -485,6 +632,20 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
     thd->variables.collation_database = thd->db_charset;
   }
 
+  /*
+    If the schema read only option was changed, then we must also evict the
+    tables belonging to the schema from the TDC since the option is cached
+    in the table shares. This is safe since we have already acquired
+    exclusive MDL for each table.
+  */
+  if (create_info->used_fields & HA_CREATE_USED_READ_ONLY) {
+    for (TABLE_LIST *table = tables; table != nullptr;
+         table = table->next_global) {
+      tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name,
+                       false);
+    }
+  }
+
   my_ok(thd, 1);
   return false;
 }
@@ -498,9 +659,9 @@ class Rmdir_error_handler : public Internal_error_handler {
  public:
   Rmdir_error_handler() : m_is_active(false) {}
 
-  virtual bool handle_condition(THD *thd, uint, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *msg) {
+  bool handle_condition(THD *thd, uint, const char *,
+                        Sql_condition::enum_severity_level *,
+                        const char *msg) override {
     if (!m_is_active) {
       /* Disable the handler to avoid infinite recursion. */
       m_is_active = true;

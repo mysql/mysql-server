@@ -5626,7 +5626,6 @@ SET @a=20010101112233.123456;
 SELECT * FROM t1 WHERE a=@a;
 SET @a=20010101000000.1e0;
 SELECT @a;
-# Nothing is found, not enough precision for DOUBLE
 SELECT * FROM t1 WHERE a=@a;
 SET @a=NULL;
 SELECT a INTO @a FROM t1 LIMIT 1;
@@ -7998,3 +7997,21 @@ DROP TABLE t1;
 --echo #
 
 do date_add(utc_time(), interval(oct(-11779)) microsecond);
+
+--echo #
+--echo # Bug #31054071 UBSAN: SIGNED INTEGER OVERFLOW IN
+--echo #               ITEM_DATE_ADD_INTERVAL::GET_TIME_INTERNAL
+--echo #
+
+CREATE TABLE t(a TIME(1), b DECIMAL(55,13));
+INSERT INTO t(a,b) VALUES
+('-765:38:03.6',999999999999999999999999999999999999999999.9999999999999);
+SELECT a - INTERVAL(b) MICROSECOND FROM t;
+DROP TABLE t;
+
+--echo #
+--echo # Bug #30324587 	ASSERTION FAILED: (*REF)->IS_TEMPORAL()
+--echo #
+
+SELECT current_date IN ( MAX(NULL), 1 );
+SELECT current_time IN ( MAX(NULL), 1 );

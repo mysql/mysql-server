@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,32 +60,32 @@ class Foreign_key_impl : public Entity_object_impl, public Foreign_key {
 
   Foreign_key_impl(const Foreign_key_impl &src, Table_impl *parent);
 
-  virtual ~Foreign_key_impl() {}
+  ~Foreign_key_impl() override {}
 
  public:
-  virtual const Object_table &object_table() const;
+  const Object_table &object_table() const override;
 
   static void register_tables(Open_dictionary_tables_ctx *otx);
 
-  virtual bool validate() const;
+  bool validate() const override;
 
-  virtual bool store(Open_dictionary_tables_ctx *otx);
+  bool store(Open_dictionary_tables_ctx *otx) override;
 
-  virtual bool restore_children(Open_dictionary_tables_ctx *otx);
+  bool restore_children(Open_dictionary_tables_ctx *otx) override;
 
-  virtual bool store_children(Open_dictionary_tables_ctx *otx);
+  bool store_children(Open_dictionary_tables_ctx *otx) override;
 
-  virtual bool drop_children(Open_dictionary_tables_ctx *otx) const;
+  bool drop_children(Open_dictionary_tables_ctx *otx) const override;
 
-  virtual bool restore_attributes(const Raw_record &r);
+  bool restore_attributes(const Raw_record &r) override;
 
-  virtual bool store_attributes(Raw_record *r);
+  bool store_attributes(Raw_record *r) override;
 
-  void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const;
+  void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const override;
 
-  bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
+  bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val) override;
 
-  void debug_print(String_type &outb) const;
+  void debug_print(String_type &outb) const override;
 
  public:
   void set_ordinal_position(uint) {}
@@ -97,9 +97,9 @@ class Foreign_key_impl : public Entity_object_impl, public Foreign_key {
   // parent table.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Table &table() const;
+  const Table &table() const override;
 
-  virtual Table &table();
+  Table &table() override;
 
   /* non-virtual */ const Table_impl &table_impl() const { return *m_table; }
 
@@ -109,11 +109,11 @@ class Foreign_key_impl : public Entity_object_impl, public Foreign_key {
   // unique_constraint
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &unique_constraint_name() const {
+  const String_type &unique_constraint_name() const override {
     return m_unique_constraint_name;
   }
 
-  virtual void set_unique_constraint_name(const String_type &name) {
+  void set_unique_constraint_name(const String_type &name) override {
     m_unique_constraint_name = name;
   }
 
@@ -121,9 +121,9 @@ class Foreign_key_impl : public Entity_object_impl, public Foreign_key {
   // match_option.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual enum_match_option match_option() const { return m_match_option; }
+  enum_match_option match_option() const override { return m_match_option; }
 
-  virtual void set_match_option(enum_match_option match_option) {
+  void set_match_option(enum_match_option match_option) override {
     m_match_option = match_option;
   }
 
@@ -131,9 +131,9 @@ class Foreign_key_impl : public Entity_object_impl, public Foreign_key {
   // update_rule.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual enum_rule update_rule() const { return m_update_rule; }
+  enum_rule update_rule() const override { return m_update_rule; }
 
-  virtual void set_update_rule(enum_rule update_rule) {
+  void set_update_rule(enum_rule update_rule) override {
     m_update_rule = update_rule;
   }
 
@@ -141,9 +141,9 @@ class Foreign_key_impl : public Entity_object_impl, public Foreign_key {
   // delete_rule.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual enum_rule delete_rule() const { return m_delete_rule; }
+  enum_rule delete_rule() const override { return m_delete_rule; }
 
-  virtual void set_delete_rule(enum_rule delete_rule) {
+  void set_delete_rule(enum_rule delete_rule) override {
     m_delete_rule = delete_rule;
   }
 
@@ -151,11 +151,11 @@ class Foreign_key_impl : public Entity_object_impl, public Foreign_key {
   // the catalog name of the referenced table.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &referenced_table_catalog_name() const {
+  const String_type &referenced_table_catalog_name() const override {
     return m_referenced_table_catalog_name;
   }
 
-  virtual void set_referenced_table_catalog_name(const String_type &name) {
+  void set_referenced_table_catalog_name(const String_type &name) override {
     m_referenced_table_catalog_name = name;
   }
 
@@ -163,11 +163,11 @@ class Foreign_key_impl : public Entity_object_impl, public Foreign_key {
   // the schema name of the referenced table.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &referenced_table_schema_name() const {
+  const String_type &referenced_table_schema_name() const override {
     return m_referenced_table_schema_name;
   }
 
-  virtual void set_referenced_table_schema_name(const String_type &name) {
+  void set_referenced_table_schema_name(const String_type &name) override {
     m_referenced_table_schema_name = name;
   }
 
@@ -175,11 +175,11 @@ class Foreign_key_impl : public Entity_object_impl, public Foreign_key {
   // the name of the referenced table.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &referenced_table_name() const {
+  const String_type &referenced_table_name() const override {
     return m_referenced_table_name;
   }
 
-  virtual void set_referenced_table_name(const String_type &name) {
+  void set_referenced_table_name(const String_type &name) override {
     m_referenced_table_name = name;
   }
 
@@ -187,23 +187,25 @@ class Foreign_key_impl : public Entity_object_impl, public Foreign_key {
   // Foreign key element collection.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Foreign_key_element *add_element();
+  Foreign_key_element *add_element() override;
 
-  virtual const Foreign_key_elements &elements() const { return m_elements; }
+  const Foreign_key_elements &elements() const override { return m_elements; }
 
-  virtual Foreign_key_elements *elements() { return &m_elements; }
+  Foreign_key_elements *elements() override { return &m_elements; }
 
   // Fix "inherits ... via dominance" warnings
-  virtual Entity_object_impl *impl() { return Entity_object_impl::impl(); }
-  virtual const Entity_object_impl *impl() const {
+  Entity_object_impl *impl() override { return Entity_object_impl::impl(); }
+  const Entity_object_impl *impl() const override {
     return Entity_object_impl::impl();
   }
-  virtual Object_id id() const { return Entity_object_impl::id(); }
-  virtual bool is_persistent() const {
+  Object_id id() const override { return Entity_object_impl::id(); }
+  bool is_persistent() const override {
     return Entity_object_impl::is_persistent();
   }
-  virtual const String_type &name() const { return Entity_object_impl::name(); }
-  virtual void set_name(const String_type &name) {
+  const String_type &name() const override {
+    return Entity_object_impl::name();
+  }
+  void set_name(const String_type &name) override {
     Entity_object_impl::set_name(name);
   }
 

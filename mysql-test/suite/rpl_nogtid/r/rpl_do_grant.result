@@ -151,6 +151,8 @@ ERROR 42000: execute command denied to user 'create_rout_db'@'localhost' for rou
 "Test the user who creates a function on master doesn't exist on slave."
 "Hence SQL thread ACL_GLOBAL privilege jumps in and no mysql.procs_priv is inserted"
 DROP USER 'create_rout_db'@'localhost';
+Warnings:
+Warning	4005	User 'create_rout_db'@'localhost' is referenced as a definer account in a stored routine.
 CREATE FUNCTION upgrade_alter_func() RETURNS CHAR(30)
 BEGIN
 RETURN "INSIDE upgrade_alter_func()";

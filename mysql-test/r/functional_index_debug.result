@@ -57,7 +57,7 @@ t1	CREATE TABLE `t1` (
   `9d4481df7b182f78b99e08a25930c91f` varchar(29) GENERATED ALWAYS AS (addtime(_utf8mb4'01:00:00',`time_col`)) VIRTUAL,
   `a5848dfab7c8461e1d6bb033aa7afb7e` int unsigned GENERATED ALWAYS AS (abs(`unsigned_int`)) VIRTUAL,
   `b6c099c314e9ecbf27e3385f0ea88fa3` datetime(6) GENERATED ALWAYS AS ((`datetime_with_fractions_col` - interval 30 day)) VIRTUAL,
-  `bf3e30b3724d85afb72714cc5e9d35a7` double(22,2) GENERATED ALWAYS AS (round(`dbl_col`,2)) VIRTUAL,
+  `bf3e30b3724d85afb72714cc5e9d35a7` double GENERATED ALWAYS AS (round(`dbl_col`,2)) VIRTUAL,
   `c1c817beeba8f7f70efb7dd56df758b0` datetime GENERATED ALWAYS AS ((`datetime_col` - interval 30 day)) VIRTUAL,
   KEY `idx1` ((convert(substr(`str_col`,2,1) using latin1))),
   KEY `idx2` ((abs(`dbl_col`))),
@@ -141,7 +141,7 @@ EXPLAIN SELECT 680963a1f6dcb151c3e713b46b4c3452 FROM t1 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select cast(`test`.`t1`.`j` as unsigned array) AS `680963a1f6dcb151c3e713b46b4c3452` from `test`.`t1`
+Note	1003	/* select#1 */ select cast(`j` as unsigned array) AS `680963a1f6dcb151c3e713b46b4c3452` from `test`.`t1`
 SET SESSION debug="-d,show_hidden_columns";
 DROP TABLE t1;
 #
@@ -337,7 +337,7 @@ EXPLAIN SELECT * FROM t1 WHERE SOUNDEX(col1) = "aa";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx1	idx1	47	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (soundex(`test`.`t1`.`col1`) = 'aa')
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (soundex(`col1`) = 'aa')
 DROP TABLE t1;
 #
 # Bug#29317684 REPLICATION IS SENSITIVE TO ORDER OF HIDDEN COLUMNS FOR

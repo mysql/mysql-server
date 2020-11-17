@@ -212,6 +212,7 @@ void trx_purge_sys_create(ulint n_purge_threads, purge_pq_t *purge_queue) {
   new (&purge_sys->iter) purge_iter_t;
   new (&purge_sys->limit) purge_iter_t;
   new (&purge_sys->undo_trunc) undo::Truncate;
+  new (&purge_sys->thds) ut::unordered_set<THD *>;
 #ifdef UNIV_DEBUG
   new (&purge_sys->done) purge_iter_t;
 #endif /* UNIV_DEBUG */
@@ -238,6 +239,7 @@ void trx_purge_sys_create(ulint n_purge_threads, purge_pq_t *purge_queue) {
   purge_sys->trx->start_time = ut_time();
   purge_sys->trx->state = TRX_STATE_ACTIVE;
   purge_sys->trx->op_info = "purge trx";
+  purge_sys->trx->purge_sys_trx = true;
 
   purge_sys->query = trx_purge_graph_build(purge_sys->trx, n_purge_threads);
 
@@ -286,6 +288,7 @@ void trx_purge_sys_close() {
 
   UT_DELETE(purge_sys->rseg_iter);
 
+  call_destructor(&purge_sys->thds);
   call_destructor(&purge_sys->undo_trunc);
 
   ut_free(purge_sys);
@@ -382,9 +385,9 @@ void trx_purge_add_update_undo_to_history(
 }
 
 /** Remove an rseg header from the history list.
-@param[in,out]	rseg_hdr	rollback segment header
-@param[in]	log_hdr		undo log segment header
-@param[in,out]	mtr		mini transaction. */
+@param[in,out]	rseg_hdr	Rollback segment header
+@param[in]	log_hdr		Undo log segment header
+@param[in,out]	mtr		Mini-transaction. */
 static void trx_purge_remove_log_hdr(trx_rsegf_t *rseg_hdr,
                                      trx_ulogf_t *log_hdr, mtr_t *mtr) {
   flst_remove(rseg_hdr + TRX_RSEG_HISTORY, log_hdr + TRX_UNDO_HISTORY_NODE,
@@ -650,7 +653,7 @@ space_id_t next_space_id(space_id_t space_id, space_id_t space_num) {
 
   space_id_t first_id = dict_sys_t::s_max_undo_space_id + 1 - space_num;
   space_id_t last_id = first_id - (FSP_MAX_UNDO_TABLESPACES *
-                                   (dict_sys_t::undo_space_id_range - 1));
+                                   (dict_sys_t::s_undo_space_id_range - 1));
   return (space_id == SPACE_UNKNOWN || space_id == last_id
               ? first_id
               : space_id - FSP_MAX_UNDO_TABLESPACES);
@@ -687,10 +690,10 @@ space_id_t use_next_space_id(space_id_t space_num) {
   return (next_id);
 }
 
-/** Return the next available undo space number to be used for a new
-explicit undo tablespace. The slot will be marked as in-use.
-@retval if success, next available undo space number.
-@retval if failure, SPACE_UNKNOWN */
+/** Return the next available undo space ID to be used for a new explicit
+undo tablespaces. The slot will be marked as in-use.
+@return next available undo space number if successful.
+@return SPACE_UNKNOWN if failed */
 space_id_t get_next_available_space_num() {
   for (space_id_t slot = FSP_IMPLICIT_UNDO_TABLESPACES;
        slot < FSP_MAX_UNDO_TABLESPACES; ++slot) {
@@ -896,7 +899,7 @@ void Tablespace::alter_active() {
 #ifdef UNIV_DEBUG
 void inject_crash(const char *injection_point_name) {
   DBUG_EXECUTE_IF(injection_point_name,
-                  ib::info(ER_IB_MSG_UNDO_INJECT_CRASH, injection_point_name);
+                  ib::info(ER_IB_MSG_INJECT_CRASH, injection_point_name);
                   log_buffer_flush_to_disk(); DBUG_SUICIDE(););
 }
 
@@ -904,7 +907,7 @@ bool Inject_failure_once::should_fail() {
   DBUG_EXECUTE_IF(m_inject_name, {
     if (!m_already_failed) {
       m_already_failed = true;
-      ib::info(ER_IB_MSG_UNDO_INJECT_FAILURE, m_inject_name);
+      ib::info(ER_IB_MSG_INJECT_FAILURE, m_inject_name);
       return true;
     }
   });
@@ -959,12 +962,12 @@ dberr_t start_logging(Tablespace *undo_space) {
   return (err);
 }
 
-/** Mark completion of undo truncate action by writing magic number to
-the log file and then removing it from the disk.
-If we are going to remove it from disk then why write magic number ?
-This is to safeguard from unlink (file-system) anomalies that will keep
-the link to the file even after unlink action is successful and
-ref-count = 0.
+/** Mark completion of undo truncate action by writing magic number
+to the log file and then removing it from the disk.
+If we are going to remove it from disk then why write magic number?
+This is to safeguard from unlink (file-system) anomalies that will
+keep the link to the file even after unlink action is successful
+and ref-count = 0.
 @param[in]  space_num  number of the undo tablespace to truncate. */
 void done_logging(space_id_t space_num) {
   dberr_t err;
@@ -2120,7 +2123,7 @@ static ulint trx_purge_attach_undo_recs(const ulint n_purge_threads,
       lb->second->push_back(rec);
 
     } else {
-      using value_type = GroupBy::value_type;
+      using Value = GroupBy::value_type;
 
       void *ptr;
       purge_node_t::Recs *recs;
@@ -2133,7 +2136,7 @@ static ulint trx_purge_attach_undo_recs(const ulint n_purge_threads,
 
       recs->push_back(rec);
 
-      group_by.insert(lb, value_type(table_id, recs));
+      group_by.insert(lb, Value{table_id, recs});
     }
   }
 

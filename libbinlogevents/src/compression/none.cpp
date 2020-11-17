@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ std::tuple<std::size_t, bool> None_comp::compress(const unsigned char *buffer,
   /* purecov: begin inspected */
   auto min_capacity = length + (m_buffer_cursor - m_buffer);
   if (min_capacity > m_buffer_capacity)
-    if (reserve(min_capacity)) std::make_tuple(length, true);
+    if (reserve(min_capacity)) return std::make_tuple(length, true);
 
   memcpy(m_buffer_cursor, buffer, length);
   m_buffer_cursor += length;
@@ -73,7 +73,7 @@ std::tuple<std::size_t, bool> None_dec::decompress(const unsigned char *buffer,
   /* purecov: begin inspected */
   auto min_capacity = length + (m_buffer_cursor - m_buffer);
   if (min_capacity > m_buffer_capacity)
-    if (reserve(min_capacity)) std::make_tuple(length, true);
+    if (reserve(min_capacity)) return std::make_tuple(length, true);
 
   memcpy(m_buffer_cursor, buffer, length);
   m_buffer_cursor += length;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,20 +70,20 @@ class Index_element_impl : public Weak_object_impl, public Index_element {
   Index_element_impl(const Index_element_impl &src, Index_impl *parent,
                      Column *column);
 
-  virtual ~Index_element_impl() {}
+  ~Index_element_impl() override {}
 
  public:
-  virtual const Object_table &object_table() const;
+  const Object_table &object_table() const override;
 
-  virtual bool validate() const;
+  bool validate() const override;
 
-  virtual bool store_attributes(Raw_record *r);
+  bool store_attributes(Raw_record *r) override;
 
-  virtual bool restore_attributes(const Raw_record &r);
+  bool restore_attributes(const Raw_record &r) override;
 
-  void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const;
+  void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const override;
 
-  bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
+  bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val) override;
 
   void set_ordinal_position(uint ordinal_position) {
     m_ordinal_position = ordinal_position;
@@ -96,53 +96,53 @@ class Index_element_impl : public Weak_object_impl, public Index_element {
   // index.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Index &index() const { return *m_index; }
+  const Index &index() const override { return *m_index; }
 
-  virtual Index &index() { return *m_index; }
+  Index &index() override { return *m_index; }
 
   /////////////////////////////////////////////////////////////////////////
   // column.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Column &column() const { return *m_column; }
+  const Column &column() const override { return *m_column; }
 
-  virtual Column &column() { return *m_column; }
+  Column &column() override { return *m_column; }
 
   /////////////////////////////////////////////////////////////////////////
   // ordinal_position.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint ordinal_position() const { return m_ordinal_position; }
+  uint ordinal_position() const override { return m_ordinal_position; }
 
   /////////////////////////////////////////////////////////////////////////
   // length.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint length() const { return m_length; }
+  uint length() const override { return m_length; }
 
-  virtual void set_length(uint length) { m_length = length; }
+  void set_length(uint length) override { m_length = length; }
 
-  virtual void set_length_null(bool) { m_length = (uint)-1; }
+  void set_length_null(bool) override { m_length = (uint)-1; }
 
-  virtual bool is_length_null() const { return m_length == (uint)-1; }
+  bool is_length_null() const override { return m_length == (uint)-1; }
 
   /////////////////////////////////////////////////////////////////////////
   // is_hidden.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool is_hidden() const { return m_hidden; }
+  bool is_hidden() const override { return m_hidden; }
 
-  virtual void set_hidden(bool hidden) { m_hidden = hidden; }
+  void set_hidden(bool hidden) override { m_hidden = hidden; }
 
   /////////////////////////////////////////////////////////////////////////
   // order.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual enum_index_element_order order() const { return m_order; }
+  enum_index_element_order order() const override { return m_order; }
 
-  virtual void set_order(enum_index_element_order order) { m_order = order; }
+  void set_order(enum_index_element_order order) override { m_order = order; }
 
-  virtual bool is_prefix() const;
+  bool is_prefix() const override;
 
  public:
   static Index_element_impl *restore_item(Index_impl *index) {
@@ -153,11 +153,11 @@ class Index_element_impl : public Weak_object_impl, public Index_element {
                                    Index_impl *index);
 
  public:
-  virtual void debug_print(String_type &outb) const;
+  void debug_print(String_type &outb) const override;
 
  public:
-  virtual Object_key *create_primary_key() const;
-  virtual bool has_new_primary_key() const;
+  Object_key *create_primary_key() const override;
+  bool has_new_primary_key() const override;
 
  private:
   // Fields

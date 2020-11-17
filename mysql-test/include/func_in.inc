@@ -286,6 +286,7 @@ EXPLAIN SELECT STRAIGHT_JOIN * FROM t3
   JOIN t2 ON t3.a=t2.a
   JOIN t4 WHERE t4.a IN (t1.b, t2.b);
 
+--sorted_result
 SELECT STRAIGHT_JOIN * FROM t3 
   JOIN t1 ON t3.a=t1.a 
   JOIN t2 ON t3.a=t2.a
@@ -296,6 +297,7 @@ EXPLAIN SELECT STRAIGHT_JOIN
   FROM t3, t1, t2
   WHERE t3.a=t1.a AND t3.a=t2.a;
 
+--sorted_result
 SELECT STRAIGHT_JOIN 
    (SELECT SUM(t4.a) FROM t4 WHERE t4.a IN (t1.b, t2.b)) 
   FROM t3, t1, t2
@@ -393,9 +395,11 @@ DROP TABLE t1;
 #
 create table t1(f1 char(1));
 insert into t1 values ('a'),('b'),('1');
+--sorted_result
 select f1 from t1 where f1 in ('a',1);
 select f1, case f1 when 'a' then '+' when 1 then '-' end from t1;
 create index t1f1_idx on t1(f1);
+--sorted_result
 select f1 from t1 where f1 in ('a',1);
 # Ignore possible changes in key_len for different character sets
 --replace_column 8 2

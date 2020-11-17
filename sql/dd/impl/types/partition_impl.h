@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,28 +68,28 @@ class Partition_impl : public Entity_object_impl, public Partition {
 
   Partition_impl(const Partition_impl &src, Partition_impl *partition);
 
-  virtual ~Partition_impl();
+  ~Partition_impl() override;
 
  public:
-  virtual const Object_table &object_table() const;
+  const Object_table &object_table() const override;
 
-  virtual bool validate() const;
+  bool validate() const override;
 
-  virtual bool restore_children(Open_dictionary_tables_ctx *otx);
+  bool restore_children(Open_dictionary_tables_ctx *otx) override;
 
-  virtual bool store_children(Open_dictionary_tables_ctx *otx);
+  bool store_children(Open_dictionary_tables_ctx *otx) override;
 
-  virtual bool drop_children(Open_dictionary_tables_ctx *otx) const;
+  bool drop_children(Open_dictionary_tables_ctx *otx) const override;
 
-  virtual bool restore_attributes(const Raw_record &r);
+  bool restore_attributes(const Raw_record &r) override;
 
-  virtual bool store_attributes(Raw_record *r);
+  bool store_attributes(Raw_record *r) override;
 
-  void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const;
+  void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const override;
 
-  bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
+  bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val) override;
 
-  void debug_print(String_type &outb) const;
+  void debug_print(String_type &outb) const override;
 
   void set_ordinal_position(uint) {}
 
@@ -102,9 +102,9 @@ class Partition_impl : public Entity_object_impl, public Partition {
   // Table.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Table &table() const;
+  const Table &table() const override;
 
-  virtual Table &table();
+  Table &table() override;
 
   /* non-virtual */ const Table_impl &table_impl() const { return *m_table; }
 
@@ -124,11 +124,11 @@ class Partition_impl : public Entity_object_impl, public Partition {
   // parent_partition_id
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Object_id parent_partition_id() const {
+  Object_id parent_partition_id() const override {
     return m_parent_partition_id;
   }
 
-  virtual void set_parent_partition_id(Object_id parent_partition_id) {
+  void set_parent_partition_id(Object_id parent_partition_id) override {
     m_parent_partition_id = parent_partition_id;
   }
 
@@ -136,19 +136,19 @@ class Partition_impl : public Entity_object_impl, public Partition {
   // number.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint number() const { return m_number; }
+  uint number() const override { return m_number; }
 
-  virtual void set_number(uint number) { m_number = number; }
+  void set_number(uint number) override { m_number = number; }
 
   /////////////////////////////////////////////////////////////////////////
   // description_utf8.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &description_utf8() const {
+  const String_type &description_utf8() const override {
     return m_description_utf8;
   }
 
-  virtual void set_description_utf8(const String_type &description_utf8) {
+  void set_description_utf8(const String_type &description_utf8) override {
     m_description_utf8 = description_utf8;
   }
 
@@ -156,31 +156,31 @@ class Partition_impl : public Entity_object_impl, public Partition {
   // engine.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &engine() const { return m_engine; }
+  const String_type &engine() const override { return m_engine; }
 
-  virtual void set_engine(const String_type &engine) { m_engine = engine; }
+  void set_engine(const String_type &engine) override { m_engine = engine; }
 
   /////////////////////////////////////////////////////////////////////////
   // comment.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &comment() const { return m_comment; }
+  const String_type &comment() const override { return m_comment; }
 
-  virtual void set_comment(const String_type &comment) { m_comment = comment; }
+  void set_comment(const String_type &comment) override { m_comment = comment; }
 
   /////////////////////////////////////////////////////////////////////////
   // Options.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Properties &options() const { return m_options; }
+  const Properties &options() const override { return m_options; }
 
-  virtual Properties &options() { return m_options; }
+  Properties &options() override { return m_options; }
 
-  virtual bool set_options(const Properties &options) {
+  bool set_options(const Properties &options) override {
     return m_options.insert_values(options);
   }
 
-  virtual bool set_options(const String_type &options_raw) {
+  bool set_options(const String_type &options_raw) override {
     return m_options.insert_values(options_raw);
   }
 
@@ -188,17 +188,17 @@ class Partition_impl : public Entity_object_impl, public Partition {
   // se_private_data.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Properties &se_private_data() const {
+  const Properties &se_private_data() const override {
     return m_se_private_data;
   }
 
-  virtual Properties &se_private_data() { return m_se_private_data; }
+  Properties &se_private_data() override { return m_se_private_data; }
 
-  virtual bool set_se_private_data(const String_type &se_private_data_raw) {
+  bool set_se_private_data(const String_type &se_private_data_raw) override {
     return m_se_private_data.insert_values(se_private_data_raw);
   }
 
-  virtual bool set_se_private_data(const Properties &se_private_data) {
+  bool set_se_private_data(const Properties &se_private_data) override {
     return m_se_private_data.insert_values(se_private_data);
   }
 
@@ -206,9 +206,9 @@ class Partition_impl : public Entity_object_impl, public Partition {
   // se_private_id.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Object_id se_private_id() const { return m_se_private_id; }
+  Object_id se_private_id() const override { return m_se_private_id; }
 
-  virtual void set_se_private_id(Object_id se_private_id) {
+  void set_se_private_id(Object_id se_private_id) override {
     m_se_private_id = se_private_id;
   }
 
@@ -216,9 +216,9 @@ class Partition_impl : public Entity_object_impl, public Partition {
   // Tablespace.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Object_id tablespace_id() const { return m_tablespace_id; }
+  Object_id tablespace_id() const override { return m_tablespace_id; }
 
-  virtual void set_tablespace_id(Object_id tablespace_id) {
+  void set_tablespace_id(Object_id tablespace_id) override {
     m_tablespace_id = tablespace_id;
   }
 
@@ -226,50 +226,52 @@ class Partition_impl : public Entity_object_impl, public Partition {
   // Partition-value collection
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Partition_value *add_value();
+  Partition_value *add_value() override;
 
-  virtual const Partition_values &values() const { return m_values; }
+  const Partition_values &values() const override { return m_values; }
 
   /////////////////////////////////////////////////////////////////////////
   // Partition-index collection
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Partition_index *add_index(Index *idx);
+  Partition_index *add_index(Index *idx) override;
 
-  virtual const Partition_indexes &indexes() const { return m_indexes; }
+  const Partition_indexes &indexes() const override { return m_indexes; }
 
   /* purecov: begin deadcode */
-  virtual Partition_indexes *indexes() { return &m_indexes; }
+  Partition_indexes *indexes() override { return &m_indexes; }
   /* purecov: end */
 
   /////////////////////////////////////////////////////////////////////////
   // Sub Partition collection.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Partition *add_subpartition();
+  Partition *add_subpartition() override;
 
-  virtual const Table::Partition_collection &subpartitions() const {
+  const Table::Partition_collection &subpartitions() const override {
     return m_subpartitions;
   }
 
-  virtual Table::Partition_collection *subpartitions() {
+  Table::Partition_collection *subpartitions() override {
     return &m_subpartitions;
   }
 
-  virtual const Partition *parent() const { return m_parent; }
-  virtual void set_parent(const Partition *parent) { m_parent = parent; }
+  const Partition *parent() const override { return m_parent; }
+  void set_parent(const Partition *parent) override { m_parent = parent; }
 
   // Fix "inherits ... via dominance" warnings
-  virtual Entity_object_impl *impl() { return Entity_object_impl::impl(); }
-  virtual const Entity_object_impl *impl() const {
+  Entity_object_impl *impl() override { return Entity_object_impl::impl(); }
+  const Entity_object_impl *impl() const override {
     return Entity_object_impl::impl();
   }
-  virtual Object_id id() const { return Entity_object_impl::id(); }
-  virtual bool is_persistent() const {
+  Object_id id() const override { return Entity_object_impl::id(); }
+  bool is_persistent() const override {
     return Entity_object_impl::is_persistent();
   }
-  virtual const String_type &name() const { return Entity_object_impl::name(); }
-  virtual void set_name(const String_type &name) {
+  const String_type &name() const override {
+    return Entity_object_impl::name();
+  }
+  void set_name(const String_type &name) override {
     Entity_object_impl::set_name(name);
   }
 

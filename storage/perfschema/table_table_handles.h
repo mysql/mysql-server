@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -77,7 +77,7 @@ class PFS_index_table_handles : public PFS_engine_index {
                           PFS_engine_key *key_3)
       : PFS_engine_index(key_1, key_2, key_3) {}
 
-  ~PFS_index_table_handles() {}
+  ~PFS_index_table_handles() override {}
 
   virtual bool match(PFS_table *table) = 0;
 };
@@ -90,9 +90,9 @@ class PFS_index_table_handles_by_object : public PFS_index_table_handles {
         m_key_2("OBJECT_SCHEMA"),
         m_key_3("OBJECT_NAME") {}
 
-  ~PFS_index_table_handles_by_object() {}
+  ~PFS_index_table_handles_by_object() override {}
 
-  virtual bool match(PFS_table *table);
+  bool match(PFS_table *table) override;
 
  private:
   PFS_key_object_type m_key_1;
@@ -105,9 +105,9 @@ class PFS_index_table_handles_by_instance : public PFS_index_table_handles {
   PFS_index_table_handles_by_instance()
       : PFS_index_table_handles(&m_key), m_key("OBJECT_INSTANCE_BEGIN") {}
 
-  ~PFS_index_table_handles_by_instance() {}
+  ~PFS_index_table_handles_by_instance() override {}
 
-  virtual bool match(PFS_table *table);
+  bool match(PFS_table *table) override;
 
  private:
   PFS_key_object_instance m_key;
@@ -120,9 +120,9 @@ class PFS_index_table_handles_by_owner : public PFS_index_table_handles {
         m_key_1("OWNER_THREAD_ID"),
         m_key_2("OWNER_EVENT_ID") {}
 
-  ~PFS_index_table_handles_by_owner() {}
+  ~PFS_index_table_handles_by_owner() override {}
 
-  virtual bool match(PFS_table *table);
+  bool match(PFS_table *table) override;
 
  private:
   PFS_key_thread_id m_key_1;
@@ -137,22 +137,22 @@ class table_table_handles : public PFS_engine_table {
   static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
 
-  virtual void reset_position(void);
+  void reset_position(void) override;
 
-  virtual int rnd_init(bool scan);
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
+  int rnd_init(bool scan) override;
+  int rnd_next() override;
+  int rnd_pos(const void *pos) override;
 
-  virtual int index_init(uint idx, bool sorted);
-  virtual int index_next();
+  int index_init(uint idx, bool sorted) override;
+  int index_next() override;
 
  protected:
-  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all);
+  int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                      bool read_all) override;
   table_table_handles();
 
  public:
-  ~table_table_handles() {}
+  ~table_table_handles() override {}
 
  protected:
   int make_row(PFS_table *table);

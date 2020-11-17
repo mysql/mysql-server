@@ -26,6 +26,9 @@
 
 -- source include/have_binlog_format_row.inc
 
+# Reset the binlog to avoid interference from other tests
+RESET MASTER;
+
 --echo #
 --echo # 1. Add some data to be present in the binlog and flush it.
 

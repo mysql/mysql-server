@@ -72,12 +72,16 @@ int Ndb_binlog_thread::do_after_reset_master(void *) {
   return 0;
 }
 
-void Ndb_binlog_thread::validate_sync_blacklist(THD *thd) {
-  metadata_sync.validate_blacklist(thd);
+void Ndb_binlog_thread::validate_sync_excluded_objects(THD *thd) {
+  metadata_sync.validate_excluded_objects(thd);
 }
 
-void Ndb_binlog_thread::validate_sync_retry_list(THD *thd) {
-  metadata_sync.validate_retry_list(thd);
+void Ndb_binlog_thread::clear_sync_excluded_objects() {
+  metadata_sync.clear_excluded_objects();
+}
+
+void Ndb_binlog_thread::clear_sync_retry_objects() {
+  metadata_sync.clear_retry_objects();
 }
 
 bool Ndb_binlog_thread::add_logfile_group_to_check(
@@ -99,13 +103,13 @@ bool Ndb_binlog_thread::add_table_to_check(const std::string &db_name,
   return metadata_sync.add_table(db_name, table_name);
 }
 
-void Ndb_binlog_thread::retrieve_sync_blacklist(
+void Ndb_binlog_thread::retrieve_sync_excluded_objects(
     Ndb_sync_excluded_objects_table *excluded_table) {
-  metadata_sync.retrieve_blacklist(excluded_table);
+  metadata_sync.retrieve_excluded_objects(excluded_table);
 }
 
-unsigned int Ndb_binlog_thread::get_sync_blacklist_count() {
-  return metadata_sync.get_blacklist_count();
+unsigned int Ndb_binlog_thread::get_sync_excluded_objects_count() {
+  return metadata_sync.get_excluded_objects_count();
 }
 
 void Ndb_binlog_thread::retrieve_sync_pending_objects(
@@ -166,8 +170,8 @@ void Ndb_binlog_thread::synchronize_detected_object(THD *thd) {
       } else if (temp_error) {
         if (metadata_sync.retry_limit_exceeded(schema_name, object_name,
                                                object_type)) {
-          metadata_sync.add_object_to_blacklist(schema_name, object_name,
-                                                object_type, error_msg);
+          metadata_sync.exclude_object_from_sync(schema_name, object_name,
+                                                 object_type, error_msg);
         } else {
           log_info(
               "Failed to synchronize logfile group '%s' due to a temporary "
@@ -177,8 +181,8 @@ void Ndb_binlog_thread::synchronize_detected_object(THD *thd) {
       } else {
         log_error("Failed to synchronize logfile group '%s'",
                   object_name.c_str());
-        metadata_sync.add_object_to_blacklist(schema_name, object_name,
-                                              object_type, error_msg);
+        metadata_sync.exclude_object_from_sync(schema_name, object_name,
+                                               object_type, error_msg);
         increment_metadata_synced_count();
       }
       break;
@@ -194,8 +198,8 @@ void Ndb_binlog_thread::synchronize_detected_object(THD *thd) {
       } else if (temp_error) {
         if (metadata_sync.retry_limit_exceeded(schema_name, object_name,
                                                object_type)) {
-          metadata_sync.add_object_to_blacklist(schema_name, object_name,
-                                                object_type, error_msg);
+          metadata_sync.exclude_object_from_sync(schema_name, object_name,
+                                                 object_type, error_msg);
         } else {
           log_info(
               "Failed to synchronize tablespace '%s' due to a temporary error",
@@ -203,8 +207,8 @@ void Ndb_binlog_thread::synchronize_detected_object(THD *thd) {
         }
       } else {
         log_error("Failed to synchronize tablespace '%s'", object_name.c_str());
-        metadata_sync.add_object_to_blacklist(schema_name, object_name,
-                                              object_type, error_msg);
+        metadata_sync.exclude_object_from_sync(schema_name, object_name,
+                                               object_type, error_msg);
         increment_metadata_synced_count();
       }
       break;
@@ -218,16 +222,16 @@ void Ndb_binlog_thread::synchronize_detected_object(THD *thd) {
       } else if (temp_error) {
         if (metadata_sync.retry_limit_exceeded(schema_name, object_name,
                                                object_type)) {
-          metadata_sync.add_object_to_blacklist(schema_name, object_name,
-                                                object_type, error_msg);
+          metadata_sync.exclude_object_from_sync(schema_name, object_name,
+                                                 object_type, error_msg);
         } else {
           log_info("Failed to synchronize schema '%s' due to a temporary error",
                    schema_name.c_str());
         }
       } else {
         log_error("Failed to synchronize schema '%s'", schema_name.c_str());
-        metadata_sync.add_object_to_blacklist(schema_name, object_name,
-                                              object_type, error_msg);
+        metadata_sync.exclude_object_from_sync(schema_name, object_name,
+                                               object_type, error_msg);
         increment_metadata_synced_count();
       }
       break;
@@ -243,8 +247,8 @@ void Ndb_binlog_thread::synchronize_detected_object(THD *thd) {
       } else if (temp_error) {
         if (metadata_sync.retry_limit_exceeded(schema_name, object_name,
                                                object_type)) {
-          metadata_sync.add_object_to_blacklist(schema_name, object_name,
-                                                object_type, error_msg);
+          metadata_sync.exclude_object_from_sync(schema_name, object_name,
+                                                 object_type, error_msg);
         } else {
           log_info(
               "Failed to synchronize table '%s.%s' due to a temporary error",
@@ -253,8 +257,8 @@ void Ndb_binlog_thread::synchronize_detected_object(THD *thd) {
       } else {
         log_error("Failed to synchronize table '%s.%s'", schema_name.c_str(),
                   object_name.c_str());
-        metadata_sync.add_object_to_blacklist(schema_name, object_name,
-                                              object_type, error_msg);
+        metadata_sync.exclude_object_from_sync(schema_name, object_name,
+                                               object_type, error_msg);
         increment_metadata_synced_count();
       }
       break;

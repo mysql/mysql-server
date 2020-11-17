@@ -3232,7 +3232,7 @@ ib_err_t ib_sdi_create(space_id_t tablespace_id) {
 /** Drop SDI Index from tablespace. This should be used only when SDI
 is corrupted.
 @param[in]	tablespace_id	InnoDB tablespace id
-@return DB_SUCCESS if dropping of SDI index is successful, else error */
+@return DB_SUCCESS if dropping of SDI indexes is successful, else error */
 ib_err_t ib_sdi_drop(space_id_t tablespace_id) {
   fil_space_t *space = fil_space_acquire(tablespace_id);
   if (space == nullptr) {

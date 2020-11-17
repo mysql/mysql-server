@@ -33,6 +33,7 @@ ANALYZE TABLE gis_point;
 
 --replace_column 10 #
 EXPLAIN SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1, p2;
+--sorted_result
 SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1, p2;
 
 EXPLAIN SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1, p2 ORDER by p1, p2;
@@ -41,8 +42,11 @@ SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1,p2 ORDER BY p1,p2
 EXPLAIN SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point ORDER BY p1, p2;
 SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point ORDER BY p1, p2;
 
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE p1 = p2;
+--sorted_result
 SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point WHERE p1 = ST_PointFromText('POINT(100.32374832 101.23741821)');
+--sorted_result
 SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point WHERE p2 = ST_PointFromText('POINT(200.32247328 101.86728201)');
 
 DROP TABLE gis_point;

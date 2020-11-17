@@ -44,7 +44,7 @@ class Ndb_binlog_thread : public Ndb_component {
 
  public:
   Ndb_binlog_thread();
-  virtual ~Ndb_binlog_thread();
+  ~Ndb_binlog_thread() override;
 
   /*
     @brief Check if purge of the specified binlog file can be handled
@@ -58,7 +58,7 @@ class Ndb_binlog_thread : public Ndb_component {
   bool handle_purge(const char *filename);
 
   /*
-    @brief Iterate through the blacklist of objects and check if the mismatches
+    @brief Iterate through the excluded objects and check if the mismatches
            are still present or if the user has manually synchronized the
            objects
 
@@ -66,18 +66,21 @@ class Ndb_binlog_thread : public Ndb_component {
 
     @return void
   */
-  void validate_sync_blacklist(THD *thd);
+  void validate_sync_excluded_objects(THD *thd);
 
   /*
-    @brief Iterate through the retry list of objects and check the present
-           status of the objects. The object is removed if the mismatch no
-           longer exists or if the object has been blacklisted
-
-    @param thd  Thread handle
+    @brief Clear the list of objects excluded from sync
 
     @return void
   */
-  void validate_sync_retry_list(THD *thd);
+  void clear_sync_excluded_objects();
+
+  /*
+    @brief Clear the list of objects whose sync has been retried
+
+    @return void
+  */
+  void clear_sync_retry_objects();
 
   /*
     @brief Pass the logfile group object detected to the internal implementation
@@ -122,20 +125,21 @@ class Ndb_binlog_thread : public Ndb_component {
                           const std::string &table_name);
 
   /*
-    @brief Retrieve information about objects currently in the sync blacklist
+    @brief Retrieve information about objects currently excluded from sync
 
     @param excluded_table  Pointer to excluded objects table object
 
     @return void
   */
-  void retrieve_sync_blacklist(Ndb_sync_excluded_objects_table *excluded_table);
+  void retrieve_sync_excluded_objects(
+      Ndb_sync_excluded_objects_table *excluded_table);
 
   /*
-    @brief Get the count of objects currently in the sync blacklist
+    @brief Get the count of objects currently excluded from sync
 
-    @return number of blacklisted objects
+    @return number of excluded objects
   */
-  unsigned int get_sync_blacklist_count();
+  unsigned int get_sync_excluded_objects_count();
 
   /*
     @brief Retrieve information about objects currently awaiting sync
@@ -155,11 +159,11 @@ class Ndb_binlog_thread : public Ndb_component {
   unsigned int get_sync_pending_objects_count();
 
  private:
-  virtual int do_init();
-  virtual void do_run();
-  virtual int do_deinit();
+  int do_init() override;
+  void do_run() override;
+  int do_deinit() override;
   // Wake up for stop
-  virtual void do_wakeup();
+  void do_wakeup() override;
 
   /*
      The Ndb_binlog_thread is supposed to make a continuous recording

@@ -66,7 +66,7 @@ include/assert.inc ['The value of COUNT_CONFLICTS_DETECTED should be 1 on server
 #####################################################################
 [connection server1]
 include/gr_stop_applier_sql_thread.inc
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 [connection server2]
 [connection server1]
 include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE should be 10 on server 1']
@@ -76,7 +76,7 @@ include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE sho
 include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE should be 0 on server 2']
 [connection server1]
 include/gr_start_applier_sql_thread.inc
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 [connection server2]
 include/rpl_sync.inc
 

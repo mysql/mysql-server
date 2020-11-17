@@ -1,7 +1,7 @@
 #ifndef HISTOGRAMS_VALUE_MAP_INCLUDED
 #define HISTOGRAMS_VALUE_MAP_INCLUDED
 
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -255,9 +255,10 @@ class Value_map final : public Value_map_base {
   bool insert(typename value_map_type::const_iterator begin,
               typename value_map_type::const_iterator end);
 
-  virtual Histogram *build_histogram(
-      MEM_ROOT *mem_root, size_t num_buckets, const std::string &db_name,
-      const std::string &tbl_name, const std::string &col_name) const override;
+  Histogram *build_histogram(MEM_ROOT *mem_root, size_t num_buckets,
+                             const std::string &db_name,
+                             const std::string &tbl_name,
+                             const std::string &col_name) const override;
 
   /// @return the overhead in bytes for each distinct value stored in the
   ///         Value_map. The value 32 is obtained from both GCC 8.2 and

@@ -1,0 +1,49 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# 1. We create a table on server 1 for check purposes and extract its id
+[connection master]
+CREATE TABLE t1 (a INT PRIMARY KEY);
+include/sync_slave_sql_with_master.inc
+#
+# 2. On the replica create a storage procedure that uses the `root` user
+#    security context to SET GTID_PURGED
+DROP PROCEDURE IF EXISTS set_gtid_purged_sp;
+Warnings:
+Note	1305	PROCEDURE test.set_gtid_purged_sp does not exist
+CREATE DEFINER = 'root'@'localhost' PROCEDURE set_gtid_purged_sp (IN gtid TEXT)
+SQL SECURITY DEFINER
+DETERMINISTIC
+BEGIN
+SET GLOBAL gtid_purged = gtid;
+END|
+#
+# 3. Create a user with only EXECUTE privileges.
+#    Make a connection with this user
+CREATE USER 'no_priv_user'@localhost IDENTIFIED BY '';
+GRANT EXECUTE ON test.* TO 'no_priv_user'@localhost;
+[connection no_priv_user_con]
+#
+# 4. Use the procedure to set GTID_PURGED.
+#    Check the value was set
+CALL set_gtid_purged_sp("SOURCE_UUID:2");;
+include/assert.inc [@@GLOBAL.GTID_PURGED has changed]
+#
+# 5. Check replication is working as expected
+[connection master]
+INSERT INTO t1 values (2);
+INSERT INTO t1 values (3);
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Only one transaction was replicated]
+#
+# 6. Cleanup
+[connection master]
+DROP TABLE t1;
+[connection slave]
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'no_priv_user'@localhost;
+DROP USER 'no_priv_user'@localhost;
+DROP PROCEDURE set_gtid_purged_sp;
+include/rpl_end.inc

@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -79,7 +79,7 @@ IPCConfig::configureTransporters(Uint32 nodeId,
       if(iter.get(CFG_NODE_HOST, &hostname)) continue;
       if( strlen(hostname) == 0 ) continue;
       if(iter.get(CFG_MGM_PORT, &port)) continue;
-      connect_string.appfmt("%s%s:%u",separator,hostname,port);
+      connect_string.appfmt("%s%s %u",separator,hostname,port);
       separator= ",";
     }
     NdbMgmHandle h= ndb_mgm_create_handle();

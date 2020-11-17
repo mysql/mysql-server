@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -178,7 +178,7 @@ bool wait_for_rest_endpoint_ready(
     const std::string &username = "", const std::string &password = "",
     const std::string &http_host = "127.0.0.1",
     std::chrono::milliseconds max_wait_time = std::chrono::milliseconds(5000),
-    const std::chrono::milliseconds step_time =
+    std::chrono::milliseconds step_time =
         std::chrono::milliseconds(50)) noexcept;
 
 // YYY-MM-DDThh:mm:ss.milisecZ
@@ -247,4 +247,6 @@ class RestApiComponentTest : public RouterComponentTest {
   TempDirectory conf_dir_;
 };
 
+bool wait_endpoint_404(RestClient &rest_client, const std::string &uri,
+                       std::chrono::milliseconds max_wait_time) noexcept;
 #endif

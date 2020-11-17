@@ -1,7 +1,7 @@
 #ifndef DISCRETE_INTERVAL_INCLUDED
 #define DISCRETE_INTERVAL_INCLUDED
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -140,7 +140,7 @@ class Discrete_intervals_list {
  public:
   Discrete_intervals_list()
       : head(nullptr), tail(nullptr), current(nullptr), elements(0) {}
-  void empty() {
+  void clear() {
     if (head) {
       // first element, not on heap, should not be delete-d; start with next:
       for (Discrete_interval *i = head->next; i;) {
@@ -165,7 +165,7 @@ class Discrete_intervals_list {
     if (current != nullptr) current = current->next;
     return tmp;
   }
-  ~Discrete_intervals_list() { empty(); }
+  ~Discrete_intervals_list() { clear(); }
   /**
     Appends an interval to the list.
 

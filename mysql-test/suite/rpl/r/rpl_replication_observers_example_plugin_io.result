@@ -13,6 +13,8 @@ include/install_replication_observers_example.inc
 # Cause a reset slave notification.
 #
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 #
 # Cause a connect notification.
 #

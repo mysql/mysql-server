@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ using my_testing::Server_initializer;
 
 class TC_LOG_MMAP_no_msync : public TC_LOG_MMAP {
  protected:
-  virtual int do_msync_and_fsync(int, void *, size_t, int) { return 0; }
+  int do_msync_and_fsync(int, void *, size_t, int) override { return 0; }
 };
 
 /**
@@ -60,7 +60,7 @@ class TCLogMMapTest : public ::testing::Test {
  public:
   TCLogMMapTest() : tc_log_mmap(nullptr) {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     initializer.SetUp();
     total_ha_2pc = 2;
     tc_heuristic_recover = TC_HEURISTIC_NOT_USED;
@@ -79,7 +79,7 @@ class TCLogMMapTest : public ::testing::Test {
     ASSERT_EQ(0, tc_log_mmap->open(namebuff));
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     tc_log_mmap->close();
     delete tc_log_mmap;
     initializer.TearDown();
@@ -135,7 +135,7 @@ class TC_Log_MMap_thread : public thread::Thread {
         m_tc_log_mmap(nullptr),
         initializer(nullptr) {}
 
-  ~TC_Log_MMap_thread() {
+  ~TC_Log_MMap_thread() override {
     initializer->TearDown();
     delete initializer;
   }
@@ -149,7 +149,7 @@ class TC_Log_MMap_thread : public thread::Thread {
     initializer->SetUp();
   }
 
-  virtual void run() {
+  void run() override {
     ulonglong xid = m_start_xid;
     while (xid < m_end_xid) {
       m_tc_log_mmap->testCommit(xid++, initializer->thd());

@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2014, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -121,9 +121,9 @@ void CachedTransactionsAccountant::registerTxClosed(int64_t token, int nodeId) {
 //////////
 
 SessionImpl::SessionImpl(Ndb_cluster_connection *conn, 
-                             AsyncNdbContext * asyncNdbContext,
-                             const char *defaultDatabase,
-                             int maxTransactions) :
+                         AsyncNdbContext * asyncNdbContext,
+                         const char *defaultDatabase,
+                         int maxTransactions) :
   CachedTransactionsAccountant(conn, maxTransactions),
   maxNdbTransactions(maxTransactions),
   nContexts(0),
@@ -141,7 +141,7 @@ SessionImpl::~SessionImpl() {
 }
 
 
-TransactionImpl * SessionImpl::seizeTransaction() {
+TransactionImpl * SessionImpl::seizeTransaction(Isolate *isolate) {
   TransactionImpl * ctx;
   DEBUG_PRINT("FreeList: %p, nContexts: %d, maxNdbTransactions: %d",
               freeList, nContexts, maxNdbTransactions);
@@ -155,7 +155,7 @@ TransactionImpl * SessionImpl::seizeTransaction() {
 
   /* Can we produce a new context? */
   if(nContexts < maxNdbTransactions) {
-    ctx = new TransactionImpl(this);
+    ctx = new TransactionImpl(this, isolate);
     nContexts++;
     return ctx;  
   }

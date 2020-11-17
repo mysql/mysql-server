@@ -95,7 +95,11 @@ include/sync_slave_sql_with_master.inc
 [connection server2]
 SET @@GLOBAL.group_replication_consistency= DEFAULT;
 STOP SLAVE FOR CHANNEL 'ch3_2';
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 RESET SLAVE ALL FOR CHANNEL 'ch3_2';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 [connection server3]
 RESET MASTER;
 include/group_replication_end.inc

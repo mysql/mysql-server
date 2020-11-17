@@ -22,6 +22,8 @@ CREATE TABLE d3.t1 (a int unique) ENGINE=INNODB;
 CREATE TABLE d4.t1 (a int unique) ENGINE=INNODB;
 include/sync_slave_sql_with_master.inc
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 SET GLOBAL DEBUG='d,flush_after_reading_user_var_event';
 BEGIN;
 INSERT INTO d1.t1 VALUES (1);
@@ -55,6 +57,8 @@ INSERT INTO d4.t1 VALUES (9);
 include/sync_slave_io_with_master.inc
 [connection slave1]
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 [connection slave]
 COMMIT;
 include/wait_for_slave_sql_error.inc [errno=1062]
@@ -91,6 +95,8 @@ CREATE TABLE d3.t1 (a int unique) ENGINE=INNODB;
 CREATE TABLE d4.t1 (a int unique) ENGINE=INNODB;
 include/sync_slave_sql_with_master.inc
 STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 SET GLOBAL DEBUG='d,flush_after_reading_user_var_event';
 BEGIN;
 INSERT INTO d1.t1 VALUES (1);
@@ -124,6 +130,8 @@ INSERT INTO d4.t1 VALUES (9);
 include/sync_slave_io_with_master.inc
 [connection slave1]
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 [connection slave]
 COMMIT;
 include/wait_for_slave_sql_error.inc [errno=1062]

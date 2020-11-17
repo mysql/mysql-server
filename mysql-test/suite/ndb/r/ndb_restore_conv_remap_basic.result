@@ -31,9 +31,18 @@ kbu	kbs	dbu_low	dbu_hi	dbs_low	dbs_hi	d	sha1(t)
 17	17	7	18446744073709551613	-9223372036854775801	9223372036854775805	17	9fe20fbc5f880a060075656835cdf38e2b2cefcd
 18	18	8	18446744073709551614	-9223372036854775800	9223372036854775806	18	c8abcc9e265f63f0fe47931bfeb1328e57a6e848
 19	19	9	18446744073709551615	-9223372036854775799	9223372036854775807	19	c36cdf290b4883026e80a0aa4b9156c763ae2a8f
+Create a table with NULL-value columns
+create table t2(
+col1 int unsigned not null primary key,
+col2 int unsigned DEFAULT NULL)
+charset = utf8mb4 engine=ndbcluster;
+insert into t2 values(1, 1), (2,2), (3,NULL), (4,4), (5,5);
 Run backup
 Restore with no key offsets + 0 + 0
+Remapping a column having NULL values with an offset.
+NULL values will be preserved.
 truncate test.t1;
+truncate table t2;
 select kbu, kbs, dbu_low, dbu_hi, dbs_low, dbs_hi, d, sha1(t) from test.t1 order by kbu;
 kbu	kbs	dbu_low	dbu_hi	dbs_low	dbs_hi	d	sha1(t)
 10	10	0	18446744073709551606	-9223372036854775808	9223372036854775798	10	1746a73fbc27d76ffc2e7b503da9a5ecf97654fc
@@ -46,6 +55,13 @@ kbu	kbs	dbu_low	dbu_hi	dbs_low	dbs_hi	d	sha1(t)
 17	17	7	18446744073709551613	-9223372036854775801	9223372036854775805	17	9fe20fbc5f880a060075656835cdf38e2b2cefcd
 18	18	8	18446744073709551614	-9223372036854775800	9223372036854775806	18	c8abcc9e265f63f0fe47931bfeb1328e57a6e848
 19	19	9	18446744073709551615	-9223372036854775799	9223372036854775807	19	c36cdf290b4883026e80a0aa4b9156c763ae2a8f
+select * from t2 order by col1;
+col1	col2
+1	11
+2	12
+3	NULL
+4	14
+5	15
 Restore with small overlapping key offset + 5
 truncate test.t1;
 select kbu, kbs, dbu_low, dbu_hi, dbs_low, dbs_hi, d, sha1(t) from test.t1 order by kbu;
@@ -159,6 +175,7 @@ kbu	kbs	dbu_low	dbu_hi	dbs_low	dbs_hi	d	sha1(t)
 8	-9223372036854775790	8	18446744073709551614	-9223372036854775800	9223372036854775806	18	c8abcc9e265f63f0fe47931bfeb1328e57a6e848
 9	-9223372036854775789	9	18446744073709551615	-9223372036854775799	9223372036854775807	19	c36cdf290b4883026e80a0aa4b9156c763ae2a8f
 drop table test.t1;
+drop table test.t2;
 create table t1 (kiu int unsigned,
 kis int,
 diu_low int unsigned,

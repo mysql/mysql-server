@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -168,7 +168,7 @@ class Execute_load_query_event : public virtual Query_event {
   Execute_load_query_event(const char *buf,
                            const Format_description_event *fde);
 
-  ~Execute_load_query_event() {}
+  ~Execute_load_query_event() override {}
 };
 
 /**
@@ -226,14 +226,14 @@ class Delete_file_event : public Binary_log_event {
  */
   Delete_file_event(const char *buf, const Format_description_event *fde);
 
-  ~Delete_file_event() {}
+  ~Delete_file_event() override {}
 
 #ifndef HAVE_MYSYS
   // TODO(WL#7684): Implement the method print_event_info and print_long_info
   // for
   //            all the events supported  in  MySQL Binlog
-  void print_event_info(std::ostream &) {}
-  void print_long_info(std::ostream &) {}
+  void print_event_info(std::ostream &) override {}
+  void print_long_info(std::ostream &) override {}
 #endif
 };
 
@@ -331,14 +331,14 @@ class Append_block_event : public Binary_log_event {
     @param fde  An FDE event (see Rotate_event constructor for more info).
   */
   Append_block_event(const char *buf, const Format_description_event *fde);
-  ~Append_block_event() {}
+  ~Append_block_event() override {}
 
 #ifndef HAVE_MYSYS
   // TODO(WL#7684): Implement the method print_event_info and print_long_info
   // for
   //            all the events supported  in  MySQL Binlog
-  void print_event_info(std::ostream &) {}
-  void print_long_info(std::ostream &) {}
+  void print_event_info(std::ostream &) override {}
+  void print_long_info(std::ostream &) override {}
 #endif
 };
 
@@ -379,14 +379,14 @@ class Begin_load_query_event : public virtual Append_block_event {
   */
   Begin_load_query_event(const char *buf, const Format_description_event *fde);
 
-  ~Begin_load_query_event() {}
+  ~Begin_load_query_event() override {}
 
 #ifndef HAVE_MYSYS
   // TODO(WL#7684): Implement the method print_event_info and print_long_info
   // for
   //            all the events supported  in  MySQL Binlog
-  void print_event_info(std::ostream &) {}
-  void print_long_info(std::ostream &) {}
+  void print_event_info(std::ostream &) override {}
+  void print_long_info(std::ostream &) override {}
 #endif
 };
 }  // end namespace binary_log

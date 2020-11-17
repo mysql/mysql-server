@@ -673,7 +673,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 5	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 3	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	insert into `test`.`t1` (`test`.`t1`.`pk`,`test`.`t1`.`a`) /* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t2`.`pk` = `<subquery5>`.`a`)
+Note	1003	insert into `test`.`t1` /* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t2`.`pk` = `<subquery5>`.`a`)
 INSERT INTO v1
 SELECT * FROM v2;
 DELETE FROM t1;
@@ -701,7 +701,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	100.00	End temporary
 4	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	insert into `test`.`t1` (`test`.`t1`.`pk`,`test`.`t1`.`a`) /* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) join `test`.`t2` semi join (`test`.`t3`) where ((`test`.`t3`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`pk` = `test`.`t3`.`a`) and (`test`.`t2`.`pk` = `test`.`t3`.`a`))
+Note	1003	insert into `test`.`t1` /* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) join `test`.`t2` semi join (`test`.`t3`) where ((`test`.`t3`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`pk` = `test`.`t3`.`a`) and (`test`.`t2`.`pk` = `test`.`t3`.`a`))
 INSERT INTO v1
 SELECT dt.pk, v2.a
 FROM (SELECT * FROM v2) AS dt JOIN v2 ON dt.pk=v2.pk;
@@ -1040,3 +1040,36 @@ INSERT INTO t VALUES (1, VALUES(x));
 Warnings:
 Warning	1681	'VALUES function' is deprecated and will be removed in a future release.
 DROP TABLE t;
+# Bug#31417951: Assert `!bulk_insert_started' in sql/sql_insert.cc
+#               on reexecuting prepared stmt
+CREATE TABLE t1 (
+pk INTEGER NOT NULL,
+col_varchar VARCHAR(64) DEFAULT NULL,
+col_blob BLOB,
+PRIMARY KEY (pk)
+);
+CREATE VIEW v1 AS
+SELECT col_blob, pk, col_varchar
+FROM t1
+WHERE pk between 4 and 5;
+CREATE TABLE t2 (
+pk INTEGER NOT NULL,
+col_int INTEGER DEFAULT NULL,
+col_blob BLOB,
+PRIMARY KEY (pk)
+);
+INSERT INTO t2 VALUES (7,8, 0xEFBFBDEFBFBDEFBFBDEFBFBD004A);
+PREPARE stmt FROM
+"INSERT INTO v1 (col_blob, pk, col_varchar)
+ SELECT col_blob, col_int, col_blob
+ FROM t2
+ WHERE pk BETWEEN 7 AND 8
+ LIMIT 1";
+EXECUTE stmt;
+EXECUTE stmt;
+ERROR 23000: Duplicate entry '8' for key 't1.PRIMARY'
+EXECUTE stmt;
+ERROR 23000: Duplicate entry '8' for key 't1.PRIMARY'
+DEALLOCATE PREPARE stmt;
+DROP VIEW v1;
+DROP TABLE t1, t2;

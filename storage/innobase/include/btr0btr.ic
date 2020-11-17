@@ -51,17 +51,17 @@ trace. */
 
 #ifndef UNIV_HOTBACKUP
 /** Gets a buffer page and declares its latching order level.
-@param[in]	page_id	page id
-@param[in]	mode	latch mode
-@param[in]	file	file name
-@param[in]	line	line where called */
+@param[in]	page_id	Page id
+@param[in]	mode	Latch mode
+@param[in]	file	File name
+@param[in]	line	Line where called */
 #ifdef UNIV_DEBUG
 /**
-@param[in]	index	index tree, may be NULL if it is not an insert buffer
+@param[in]	index	Index tree, may be NULL if it is not an insert buffer
 tree */
 #endif /* UNIV_DEBUG */
 /**
-@param[in,out]	mtr	mini-transaction
+@param[in,out]	mtr	Mini-transaction
 @return block */
 UNIV_INLINE
 buf_block_t *btr_block_get_func(const page_id_t &page_id,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -146,6 +146,7 @@ import com.mysql.jtie.Wrapper;
     int CFG_DB_MICRO_GCP_TIMEOUT = 171;
     int CFG_DB_COMPRESSED_BACKUP = 172;
     int CFG_DB_COMPRESSED_LCP = 173;
+    int CFG_DB_REQUIRE_ENCRYPTED_BACKUP = 673;
     int CFG_DB_SCHED_EXEC_TIME = 174;
     int CFG_DB_SCHED_SPIN_TIME = 175;
     int CFG_DB_REALTIME_SCHEDULER = 176;

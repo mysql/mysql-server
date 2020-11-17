@@ -89,6 +89,7 @@ ROLE_ROUTINE_GRANTS
 ROLE_TABLE_GRANTS
 ROUTINES
 SCHEMATA
+SCHEMATA_EXTENSIONS
 SCHEMA_PRIVILEGES
 STATISTICS
 ST_GEOMETRY_COLUMNS
@@ -124,6 +125,7 @@ password_history
 plugin
 procs_priv
 proxies_priv
+replication_asynchronous_connection_failover
 role_edges
 server_cost
 servers
@@ -884,8 +886,8 @@ table_schema IN ('mysql', 'information_schema', 'test', 'mysqltest')
 AND table_name not like 'ndb%' AND table_name COLLATE utf8_general_ci not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 TABLE_SCHEMA	count(*)
-information_schema	47
-mysql	31
+information_schema	48
+mysql	32
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
 begin
@@ -1362,6 +1364,7 @@ ROLE_ROUTINE_GRANTS	information_schema.ROLE_ROUTINE_GRANTS	1
 ROLE_TABLE_GRANTS	information_schema.ROLE_TABLE_GRANTS	1
 ROUTINES	information_schema.ROUTINES	1
 SCHEMATA	information_schema.SCHEMATA	1
+SCHEMATA_EXTENSIONS	information_schema.SCHEMATA_EXTENSIONS	1
 SCHEMA_PRIVILEGES	information_schema.SCHEMA_PRIVILEGES	1
 STATISTICS	information_schema.STATISTICS	1
 ST_GEOMETRY_COLUMNS	information_schema.ST_GEOMETRY_COLUMNS	1
@@ -1476,7 +1479,7 @@ MyISAM	YES	MyISAM storage engine	NO	NO	NO
 explain format=tree select * from information_schema.engines WHERE ENGINE="MyISAM";
 EXPLAIN
 -> Filter: (`engines`.`ENGINE` = 'MyISAM')
-    -> Table scan on engines
+    -> Table scan on engines  (cost=0.00 rows=0)
         -> Fill information schema table engines
 
 create user user3148@localhost;
@@ -1534,7 +1537,7 @@ AS SELECT *
 FROM information_schema.TABLES;
 SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS where TABLE_NAME = 'v1';
 VIEW_DEFINITION
-select `TABLES`.`TABLE_CATALOG` AS `TABLE_CATALOG`,`TABLES`.`TABLE_SCHEMA` AS `TABLE_SCHEMA`,`TABLES`.`TABLE_NAME` AS `TABLE_NAME`,`TABLES`.`TABLE_TYPE` AS `TABLE_TYPE`,`TABLES`.`ENGINE` AS `ENGINE`,`TABLES`.`VERSION` AS `VERSION`,`TABLES`.`ROW_FORMAT` AS `ROW_FORMAT`,`TABLES`.`TABLE_ROWS` AS `TABLE_ROWS`,`TABLES`.`AVG_ROW_LENGTH` AS `AVG_ROW_LENGTH`,`TABLES`.`DATA_LENGTH` AS `DATA_LENGTH`,`TABLES`.`MAX_DATA_LENGTH` AS `MAX_DATA_LENGTH`,`TABLES`.`INDEX_LENGTH` AS `INDEX_LENGTH`,`TABLES`.`DATA_FREE` AS `DATA_FREE`,`TABLES`.`AUTO_INCREMENT` AS `AUTO_INCREMENT`,`TABLES`.`CREATE_TIME` AS `CREATE_TIME`,`TABLES`.`UPDATE_TIME` AS `UPDATE_TIME`,`TABLES`.`CHECK_TIME` AS `CHECK_TIME`,`TABLES`.`TABLE_COLLATION` AS `TABLE_COLLATION`,`TABLES`.`CHECKSUM` AS `CHECKSUM`,`TABLES`.`CREATE_OPTIONS` AS `CREATE_OPTIONS`,`TABLES`.`TABLE_COMMENT` AS `TABLE_COMMENT` from `information_schema`.`TABLES`
+select `information_schema`.`TABLES`.`TABLE_CATALOG` AS `TABLE_CATALOG`,`information_schema`.`TABLES`.`TABLE_SCHEMA` AS `TABLE_SCHEMA`,`information_schema`.`TABLES`.`TABLE_NAME` AS `TABLE_NAME`,`information_schema`.`TABLES`.`TABLE_TYPE` AS `TABLE_TYPE`,`information_schema`.`TABLES`.`ENGINE` AS `ENGINE`,`information_schema`.`TABLES`.`VERSION` AS `VERSION`,`information_schema`.`TABLES`.`ROW_FORMAT` AS `ROW_FORMAT`,`information_schema`.`TABLES`.`TABLE_ROWS` AS `TABLE_ROWS`,`information_schema`.`TABLES`.`AVG_ROW_LENGTH` AS `AVG_ROW_LENGTH`,`information_schema`.`TABLES`.`DATA_LENGTH` AS `DATA_LENGTH`,`information_schema`.`TABLES`.`MAX_DATA_LENGTH` AS `MAX_DATA_LENGTH`,`information_schema`.`TABLES`.`INDEX_LENGTH` AS `INDEX_LENGTH`,`information_schema`.`TABLES`.`DATA_FREE` AS `DATA_FREE`,`information_schema`.`TABLES`.`AUTO_INCREMENT` AS `AUTO_INCREMENT`,`information_schema`.`TABLES`.`CREATE_TIME` AS `CREATE_TIME`,`information_schema`.`TABLES`.`UPDATE_TIME` AS `UPDATE_TIME`,`information_schema`.`TABLES`.`CHECK_TIME` AS `CHECK_TIME`,`information_schema`.`TABLES`.`TABLE_COLLATION` AS `TABLE_COLLATION`,`information_schema`.`TABLES`.`CHECKSUM` AS `CHECKSUM`,`information_schema`.`TABLES`.`CREATE_OPTIONS` AS `CREATE_OPTIONS`,`information_schema`.`TABLES`.`TABLE_COMMENT` AS `TABLE_COMMENT` from `information_schema`.`TABLES`
 DROP VIEW v1;
 SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA
 WHERE SCHEMA_NAME ='information_schema';
@@ -2254,6 +2257,8 @@ SELECT CAN_ACCESS_TABLE("test", "t1") AS f1, COLUMN_NAME AS F2  FROM INFORMATION
 ERROR HY000: Access to native function 'CAN_ACCESS_TABLE' is rejected.
 PREPARE stmt FROM 'SELECT CAN_ACCESS_TABLE("test", "t1") AS f1, COLUMN_NAME AS F2  FROM INFORMATION_SCHEMA.COLUMNS';
 ERROR HY000: Access to native function 'CAN_ACCESS_TABLE' is rejected.
+SELECT CAN_ACCESS_USER(NULL, NULL);
+ERROR HY000: Access to native function 'CAN_ACCESS_USER' is rejected.
 # Case 2: Invoking I_S native methods should be allowed through I_S queries.
 SELECT * FROM INFORMATION_SCHEMA.TABLES where table_name='t1';
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
@@ -2275,7 +2280,7 @@ AND t.table_name = c.table_name
 AND t.table_name = 't1' limit 1;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t`.`TABLE_SCHEMA` AS `table_schema`,`t`.`TABLE_NAME` AS `table_name`,`c`.`COLUMN_NAME` AS `column_name` from (`information_schema`.`TABLES` `t` join `information_schema`.`COLUMNS` `c`) where ((`t`.`TABLE_SCHEMA` = `c`.`TABLE_SCHEMA`) and (`t`.`TABLE_NAME` = `c`.`TABLE_NAME`) and (`t`.`TABLE_NAME` = 't1')) limit 1	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `information_schema`.`t`.`TABLE_SCHEMA` AS `table_schema`,`information_schema`.`t`.`TABLE_NAME` AS `table_name`,`information_schema`.`c`.`COLUMN_NAME` AS `column_name` from (`information_schema`.`TABLES` `t` join `information_schema`.`COLUMNS` `c`) where ((`information_schema`.`t`.`TABLE_SCHEMA` = `information_schema`.`c`.`TABLE_SCHEMA`) and (`information_schema`.`t`.`TABLE_NAME` = `information_schema`.`c`.`TABLE_NAME`) and (`information_schema`.`t`.`TABLE_NAME` = 't1')) limit 1	utf8mb4	utf8mb4_0900_ai_ci
 CREATE TABLE t2 AS
 SELECT t.table_schema, t.table_name, c.column_name
 FROM INFORMATION_SCHEMA.TABLES t,
@@ -2490,6 +2495,7 @@ ROLE_ROUTINE_GRANTS	SPECIFIC_SCHEMA
 ROLE_TABLE_GRANTS	TABLE_SCHEMA
 ROUTINES	ROUTINE_SCHEMA
 SCHEMATA	SCHEMA_NAME
+SCHEMATA_EXTENSIONS	SCHEMA_NAME
 SCHEMA_PRIVILEGES	TABLE_SCHEMA
 STATISTICS	TABLE_SCHEMA
 ST_GEOMETRY_COLUMNS	TABLE_SCHEMA
@@ -2556,6 +2562,7 @@ ROLE_ROUTINE_GRANTS	SPECIFIC_SCHEMA
 ROLE_TABLE_GRANTS	TABLE_SCHEMA
 ROUTINES	ROUTINE_SCHEMA
 SCHEMATA	SCHEMA_NAME
+SCHEMATA_EXTENSIONS	SCHEMA_NAME
 SCHEMA_PRIVILEGES	TABLE_SCHEMA
 STATISTICS	TABLE_SCHEMA
 ST_GEOMETRY_COLUMNS	TABLE_SCHEMA
@@ -2614,6 +2621,9 @@ DROP TABLE t1;
 # BUG#25185947 -- issues with renaming root user
 #
 RENAME USER root@localhost TO master@localhost;
+Warnings:
+Warning	4005	User 'root'@'localhost' is referenced as a definer account in a stored routine.
+Warning	4005	User 'root'@'localhost' is referenced as a definer account in a trigger.
 FLUSH PRIVILEGES;
 # Without patch, SHOW DATABASES returns error ERROR 1449 (HY000):
 # The user specified as a definer ('root'@'localhost') does not exist
@@ -2626,6 +2636,9 @@ performance_schema
 sys
 test
 RENAME USER master@localhost TO root@localhost;
+Warnings:
+Warning	4005	User 'root'@'localhost' is referenced as a definer account in a stored routine.
+Warning	4005	User 'root'@'localhost' is referenced as a definer account in a trigger.
 FLUSH PRIVILEGES;
 #
 # Bug#27041452 assertion

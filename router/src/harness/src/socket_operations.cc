@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,22 +25,13 @@
 #include "socket_operations.h"
 
 #include <array>
-#ifndef _WIN32
-#include <arpa/inet.h>  // inet_ntop
-#include <unistd.h>     // gethostname
-#ifndef __APPLE__
-#include <ifaddrs.h>
-#include <net/if.h>
-#endif
-#else
-#include <windows.h>
-#include <winsock2.h>  // gethostname
-#endif
 
+#include "mysql/harness/net_ts/impl/netif.h"
 #include "mysql/harness/net_ts/impl/poll.h"
 #include "mysql/harness/net_ts/impl/resolver.h"
 #include "mysql/harness/net_ts/impl/socket.h"
 #include "mysql/harness/net_ts/impl/socket_error.h"
+#include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/stdx/expected.h"
 
 namespace mysql_harness {
@@ -54,6 +45,7 @@ SocketOperations::result<size_t> SocketOperations::poll(
     struct pollfd *fds, size_t nfds, std::chrono::milliseconds timeout_ms) {
   return net::impl::poll::poll(fds, nfds, timeout_ms);
 }
+
 SocketOperations::result<void> SocketOperations::connect_non_blocking_wait(
     socket_t sock, std::chrono::milliseconds timeout_ms) {
   std::array<struct pollfd, 1> fds = {
@@ -164,77 +156,133 @@ std::string SocketOperations::get_local_hostname() {
   buf.resize(1024);
 
 #if defined(_WIN32) || defined(__APPLE__) || defined(__FreeBSD__)
-  auto res = net::impl::resolver::gethostname(&buf.front(), buf.size());
+  const auto res = net::impl::resolver::gethostname(&buf.front(), buf.size());
   if (!res) {
     throw LocalHostnameResolutionError(
         "Could not get local hostname: " + res.error().message() +
         " (error: " + std::to_string(res.error().value()) + ")");
   }
-#else
-  int family;
-
-  std::unique_ptr<ifaddrs, decltype(&freeifaddrs)> iface_addrs(nullptr,
-                                                               &freeifaddrs);
-
-  struct ifaddrs *ifa = nullptr;
-  if (0 != getifaddrs(&ifa)) {
-    const auto ec = net::impl::socket::last_error_code();
-
-    throw LocalHostnameResolutionError(
-        "Could not get local host address: " + ec.message() +
-        "(errno: " + std::to_string(ec.value()) + ")");
-  }
-
-  // move ownership to the unique-ptr
-  iface_addrs.reset(ifa);
-
-  stdx::expected<void, std::error_code> getnameinfo_res{};
-  for (const auto *ifap = iface_addrs.get(); ifap != nullptr;
-       ifap = ifap->ifa_next) {
-    if ((ifap->ifa_addr == nullptr) || (ifap->ifa_flags & IFF_LOOPBACK) ||
-        (!(ifap->ifa_flags & IFF_UP)))
-      continue;
-    family = ifap->ifa_addr->sa_family;
-    if (family != AF_INET && family != AF_INET6) continue;
-    if (family == AF_INET6) {
-      struct sockaddr_in6 *sin6;
-
-      sin6 = (struct sockaddr_in6 *)ifap->ifa_addr;
-      if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr) ||
-          IN6_IS_ADDR_MC_LINKLOCAL(&sin6->sin6_addr))
-        continue;
-    }
-    const auto addrlen = static_cast<socklen_t>(
-        (family == AF_INET) ? sizeof(struct sockaddr_in)
-                            : sizeof(struct sockaddr_in6));
-
-    getnameinfo_res =
-        net::impl::resolver::getnameinfo(ifap->ifa_addr, addrlen, &buf.front(),
-                                         buf.size(), nullptr, 0, NI_NAMEREQD);
-
-    if (getnameinfo_res) break;
-  }
-
-  if (!getnameinfo_res &&
-      getnameinfo_res.error() !=
-          make_error_code(net::ip::resolver_errc::host_not_found)) {
-    throw LocalHostnameResolutionError(
-        "Could not get local hostname: " + getnameinfo_res.error().message() +
-        " (ret: " + std::to_string(getnameinfo_res.error().value()) + ")");
-  }
-#endif
 
   // resize string to the first 0-char
   size_t nul_pos = buf.find('\0');
   if (nul_pos != std::string::npos) {
     buf.resize(nul_pos);
   }
+#else
+  net::NetworkInterfaceResolver netif_resolver;
+
+  const auto netifs_res = netif_resolver.query();
+  if (!netifs_res) {
+    const auto ec = netifs_res.error();
+    throw LocalHostnameResolutionError(
+        "Could not get local host address: " + ec.message() +
+        "(errno: " + std::to_string(ec.value()) + ")");
+  }
+  const auto netifs = netifs_res.value();
+
+  std::error_code last_ec{};
+
+  for (auto const &netif : netifs) {
+    // skip loopback interface
+    if (netif.flags().value() & IFF_LOOPBACK) continue;
+    // skip interfaces that aren't up
+    if (!(netif.flags().value() & IFF_UP)) continue;
+
+    for (auto const &net : netif.v6_networks()) {
+      if (net.network().is_loopback()) continue;
+      if (net.network().is_link_local()) continue;
+
+      const auto ep = net::ip::tcp::endpoint(net.address(), 3306);
+
+      const auto resolve_res = net::impl::resolver::getnameinfo(
+          reinterpret_cast<const sockaddr *>(ep.data()), ep.size(),
+          &buf.front(), buf.size(), nullptr, 0, NI_NAMEREQD);
+
+      if (!resolve_res) {
+        last_ec = resolve_res.error();
+        continue;
+      }
+
+      // resize string to the first 0-char
+      size_t nul_pos = buf.find('\0');
+      if (nul_pos != std::string::npos) {
+        buf.resize(nul_pos);
+      }
+
+      if (!buf.empty()) {
+        return buf;
+      }
+    }
+
+    for (auto const &net : netif.v4_networks()) {
+      if (net.network().is_loopback()) continue;
+
+      const auto ep = net::ip::tcp::endpoint(net.address(), 3306);
+
+      const auto resolve_res = net::impl::resolver::getnameinfo(
+          reinterpret_cast<const sockaddr *>(ep.data()), ep.size(),
+          &buf.front(), buf.size(), nullptr, 0, NI_NAMEREQD);
+
+      if (!resolve_res) {
+        last_ec = resolve_res.error();
+        continue;
+      }
+
+      // resize string to the first 0-char
+      size_t nul_pos = buf.find('\0');
+      if (nul_pos != std::string::npos) {
+        buf.resize(nul_pos);
+      }
+
+      if (!buf.empty()) {
+        return buf;
+      }
+    }
+  }
+
+  if (last_ec &&
+      (last_ec != make_error_code(net::ip::resolver_errc::host_not_found))) {
+    throw LocalHostnameResolutionError(
+        "Could not get local hostname: " + last_ec.message() +
+        " (ret: " + std::to_string(last_ec.value()) + ")");
+  }
+#endif
+
   return buf;
 }
 
 SocketOperations::result<void> SocketOperations::set_socket_blocking(
     socket_t sock, bool blocking) {
   return net::impl::socket::native_non_blocking(sock, !blocking);
+}
+
+SocketOperations::result<bool> SocketOperations::has_data(
+    socket_t sock, std::chrono::milliseconds timeout) {
+#ifdef _WIN32
+  constexpr const auto kEvents = POLLRDNORM;
+#else
+  constexpr const auto kEvents = POLLIN | POLLHUP;
+#endif
+
+  std::array<struct pollfd, 1> fds = {
+      {{sock, kEvents, 0}},
+  };
+
+  const auto poll_res = poll(fds.data(), fds.size(), timeout);
+
+  if (!poll_res) {
+    if (poll_res.error() == make_error_code(std::errc::timed_out)) return false;
+
+    return stdx::make_unexpected(poll_res.error());
+  }
+
+  if (poll_res.value() > 0) return true;
+
+  if (fds[0].revents & POLLNVAL) {
+    return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
+  }
+
+  return false;
 }
 
 }  // namespace mysql_harness

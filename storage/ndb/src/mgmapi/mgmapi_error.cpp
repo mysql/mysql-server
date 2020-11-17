@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@ const struct Ndb_Mgm_Error_Msg ndb_mgm_error_msgs[] = {
   { NDB_MGM_OUT_OF_MEMORY, "Out of memory" },
   { NDB_MGM_SERVER_NOT_CONNECTED, "Management server not connected" },
   { NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, "Could not connect to socket" },
+  { NDB_MGM_ILLEGAL_BIND_ADDRESS, "Illegal bind address" },
   
   /* Service errors - Start/Stop Node or System */
   { NDB_MGM_START_FAILED, "Start failed" },

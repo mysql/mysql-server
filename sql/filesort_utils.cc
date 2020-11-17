@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,7 @@ PSI_memory_key key_memory_Filesort_buffer_sort_keys;
 
 using std::max;
 using std::min;
+using std::nth_element;
 using std::sort;
 using std::stable_sort;
 using std::unique;
@@ -136,18 +137,33 @@ class Equality_from_less {
 
 }  // namespace
 
-unsigned Filesort_buffer::sort_buffer(Sort_param *param, uint count) {
+size_t Filesort_buffer::sort_buffer(Sort_param *param, size_t num_input_rows,
+                                    size_t max_output_rows) {
   const bool force_stable_sort = param->m_force_stable_sort;
   param->m_sort_algorithm = Sort_param::FILESORT_ALG_NONE;
 
-  if (count <= 1) return count;
-  if (param->max_compare_length() == 0) return count;
+  if (max_output_rows == 0) return max_output_rows;
+  if (num_input_rows <= 1) return num_input_rows;
+  if (param->max_compare_length() == 0) return num_input_rows;
 
   const auto it_begin = begin(m_record_pointers);
-  const auto it_end = begin(m_record_pointers) + count;
+  auto it_end = begin(m_record_pointers) + num_input_rows;
+
+  // Due to LIMIT, we don't need to sort all of the elements, so find out
+  // which ones that we need and sort only those. This reduces the total
+  // running time from O(n log n) to O(n + k log k), which is a significant
+  // win for small k. nth_element() isn't guaranteed to be a stable sort,
+  // though, so we can only use it if an unstable one is okay.
+  const bool prefilter_nth_element =
+      (max_output_rows < num_input_rows / 2 && !param->m_remove_duplicates &&
+       !force_stable_sort);
 
   if (param->using_varlen_keys()) {
     const Mem_compare_varlen_key comp(param->local_sortorder, param->use_hash);
+    if (prefilter_nth_element) {
+      nth_element(it_begin, it_begin + max_output_rows - 1, it_end, comp);
+      it_end = it_begin + max_output_rows;
+    }
     if (force_stable_sort) {
       param->m_sort_algorithm = Sort_param::FILESORT_ALG_STD_STABLE;
       stable_sort(it_begin, it_end, comp);
@@ -158,11 +174,12 @@ unsigned Filesort_buffer::sort_buffer(Sort_param *param, uint count) {
       sort(it_begin, it_end, comp);
     }
     if (param->m_remove_duplicates) {
-      return unique(it_begin, it_end,
-                    Equality_from_less<Mem_compare_varlen_key>(comp)) -
-             it_begin;
+      num_input_rows =
+          unique(it_begin, it_end,
+                 Equality_from_less<Mem_compare_varlen_key>(comp)) -
+          it_begin;
     }
-    return count;
+    return std::min(num_input_rows, max_output_rows);
   }
 
   // If we don't use addon fields, we'll have the record position appended to
@@ -171,7 +188,7 @@ unsigned Filesort_buffer::sort_buffer(Sort_param *param, uint count) {
   // cheaper.)
   size_t key_len = param->max_compare_length();
   if (!param->using_addon_fields()) {
-    key_len -= param->ref_length;
+    key_len -= param->sum_ref_length;
   }
 
   /*
@@ -180,47 +197,69 @@ unsigned Filesort_buffer::sort_buffer(Sort_param *param, uint count) {
     than quicksort seems to be somewhere around 10 to 40 records.
     So we're a bit conservative, and stay with quicksort up to 100 records.
   */
-  if (count <= 100 && !force_stable_sort) {
+  if (num_input_rows <= 100 && !force_stable_sort) {
     if (key_len < 10) {
       param->m_sort_algorithm = Sort_param::FILESORT_ALG_STD_SORT;
+      if (prefilter_nth_element) {
+        nth_element(it_begin, it_begin + max_output_rows - 1, it_end,
+                    Mem_compare(key_len));
+        it_end = it_begin + max_output_rows;
+      }
       sort(it_begin, it_end, Mem_compare(key_len));
       if (param->m_remove_duplicates) {
-        return unique(it_begin, it_end,
-                      Equality_from_less<Mem_compare>(Mem_compare(key_len))) -
-               it_begin;
+        num_input_rows =
+            unique(it_begin, it_end,
+                   Equality_from_less<Mem_compare>(Mem_compare(key_len))) -
+            it_begin;
       }
-      return count;
+      return std::min(num_input_rows, max_output_rows);
     }
     param->m_sort_algorithm = Sort_param::FILESORT_ALG_STD_SORT;
+    if (prefilter_nth_element) {
+      nth_element(it_begin, it_begin + max_output_rows - 1, it_end,
+                  Mem_compare_longkey(key_len));
+      it_end = it_begin + max_output_rows;
+    }
     sort(it_begin, it_end, Mem_compare_longkey(key_len));
     if (param->m_remove_duplicates) {
       auto new_end = unique(it_begin, it_end,
                             Equality_from_less<Mem_compare_longkey>(
                                 Mem_compare_longkey(key_len)));
-      return new_end - it_begin;
+      num_input_rows = new_end - it_begin;
     }
-    return count;
+    return std::min(num_input_rows, max_output_rows);
   }
 
   param->m_sort_algorithm = Sort_param::FILESORT_ALG_STD_STABLE;
   // Heuristics here: avoid function overhead call for short keys.
   if (key_len < 10) {
+    if (prefilter_nth_element) {
+      nth_element(it_begin, it_begin + max_output_rows - 1, it_end,
+                  Mem_compare(key_len));
+      it_end = it_begin + max_output_rows;
+    }
     stable_sort(it_begin, it_end, Mem_compare(key_len));
     if (param->m_remove_duplicates) {
-      return unique(it_begin, it_end,
-                    Equality_from_less<Mem_compare>(Mem_compare(key_len))) -
-             it_begin;
+      num_input_rows =
+          unique(it_begin, it_end,
+                 Equality_from_less<Mem_compare>(Mem_compare(key_len))) -
+          it_begin;
     }
   } else {
+    if (prefilter_nth_element) {
+      nth_element(it_begin, it_begin + max_output_rows - 1, it_end,
+                  Mem_compare_longkey(key_len));
+      it_end = it_begin + max_output_rows;
+    }
     stable_sort(it_begin, it_end, Mem_compare_longkey(key_len));
     if (param->m_remove_duplicates) {
-      return unique(it_begin, it_end,
-                    Equality_from_less<Mem_compare_longkey>(
-                        Mem_compare_longkey(key_len))) -
-             it_begin;
+      num_input_rows = unique(it_begin, it_end,
+                              Equality_from_less<Mem_compare_longkey>(
+                                  Mem_compare_longkey(key_len))) -
+                       it_begin;
     }
   }
-  return count;
+  return std::min(num_input_rows, max_output_rows);
 }
 
 void Filesort_buffer::reset() {

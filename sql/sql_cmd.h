@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,17 +71,33 @@ class Sql_cmd {
   */
   virtual enum_sql_command sql_command_code() const = 0;
 
+  /**
+    @return true if object represents a preparable statement, ie. a query
+    that is prepared with a PREPARE statement and executed with an EXECUTE
+    statement. False is returned for regular statements (non-preparable
+    statements) that are executed directly. Also false if statement is part
+    of a stored procedure.
+  */
+  bool needs_explicit_preparation() const {
+    return m_owner != nullptr && !m_part_of_sp;
+  }
+  /**
+    @return true if statement is regular, ie not prepared statement and not
+    part of stored procedure.
+  */
+  bool is_regular() const { return m_owner == nullptr && !m_part_of_sp; }
+
   /// @return true if this statement is prepared
   bool is_prepared() const { return m_prepared; }
 
   /**
     Prepare this SQL statement.
 
-    @param thd the current thread
+    param thd the current thread
 
     @returns false if success, true if error
   */
-  virtual bool prepare(THD *thd MY_ATTRIBUTE((unused))) {
+  virtual bool prepare(THD *) {
     // Default behavior for a statement is to have no preparation code.
     /* purecov: begin inspected */
     DBUG_ASSERT(!is_prepared());
@@ -100,21 +116,29 @@ class Sql_cmd {
   /**
     Command-specific reinitialization before execution of prepared statement
 
-    @see reinit_stmt_before_use()
-
-    @note Currently this function is overloaded for INSERT/REPLACE stmts only.
-
-    @param thd  Current THD.
+    param thd  Current THD.
   */
-  virtual void cleanup(THD *thd MY_ATTRIBUTE((unused))) {
-    m_secondary_engine = nullptr;
-  }
+  virtual void cleanup(THD *) { m_secondary_engine = nullptr; }
 
   /// Set the owning prepared statement
-  void set_owner(Prepared_statement *stmt) { m_owner = stmt; }
+  void set_owner(Prepared_statement *stmt) {
+    DBUG_ASSERT(!m_part_of_sp);
+    m_owner = stmt;
+  }
 
   /// Get the owning prepared statement
-  Prepared_statement *get_owner() { return m_owner; }
+  Prepared_statement *owner() const { return m_owner; }
+
+  /**
+    Mark statement as part of procedure. Such statements can be executed
+    multiple times, the first execute() call will also prepare it.
+  */
+  void set_as_part_of_sp() {
+    DBUG_ASSERT(!m_part_of_sp && m_owner == nullptr);
+    m_part_of_sp = true;
+  }
+  /// @returns true if statement is part of a stored procedure
+  bool is_part_of_sp() const { return m_part_of_sp; }
 
   /// @return true if SQL command is a DML statement
   virtual bool is_dml() const { return false; }
@@ -127,20 +151,7 @@ class Sql_cmd {
     /* purecov: end */
   }
 
-  /**
-    Temporary function used to "unprepare" a prepared statement after
-    preparation, so that a subsequent execute statement will reprepare it.
-    This is done because UNIT::cleanup() will un-resolve all resolved QBs.
-  */
-  virtual void unprepare(THD *thd MY_ATTRIBUTE((unused))) {
-    DBUG_ASSERT(is_prepared());
-    m_prepared = false;
-  }
-
-  virtual bool accept(THD *thd MY_ATTRIBUTE((unused)),
-                      Select_lex_visitor *visitor MY_ATTRIBUTE((unused))) {
-    return false;
-  }
+  virtual bool accept(THD *, Select_lex_visitor *) { return false; }
 
   /**
     Is this statement of a type and on a form that makes it eligible
@@ -209,7 +220,7 @@ class Sql_cmd {
   }
 
  protected:
-  Sql_cmd() : m_owner(nullptr), m_prepared(false), prepare_only(true) {}
+  Sql_cmd() : m_owner(nullptr), m_part_of_sp(false), m_prepared(false) {}
 
   virtual ~Sql_cmd() {
     /*
@@ -221,22 +232,13 @@ class Sql_cmd {
     DBUG_ASSERT(false);
   }
 
-  /**
-    @return true if object represents a preparable statement, ie. a query
-    that is prepared with a PREPARE statement and executed with an EXECUTE
-    statement. False is returned for regular statements (non-preparable
-    statements) that are executed directly.
-    @todo replace with "m_owner != nullptr" when prepare-once is implemented
-  */
-  bool needs_explicit_preparation() const { return prepare_only; }
-
   /// Set this statement as prepared
   void set_prepared() { m_prepared = true; }
 
  private:
-  Prepared_statement
-      *m_owner;     /// Owning prepared statement, nullptr if non-prep.
-  bool m_prepared;  /// True when statement has been prepared
+  Prepared_statement *m_owner;  /// Owning prepared statement, NULL if non-prep.
+  bool m_part_of_sp;            /// True when statement is part of stored proc.
+  bool m_prepared;              /// True when statement has been prepared
 
   /**
     Tells if a secondary storage engine can be used for this
@@ -257,10 +259,6 @@ class Sql_cmd {
     This property is reset at the start of each execution.
   */
   const handlerton *m_secondary_engine{nullptr};
-
- protected:
-  bool prepare_only;  /// @see needs_explicit_preparation
-                      /// @todo remove when prepare-once is implemented
 };
 
 #endif  // SQL_CMD_INCLUDED

@@ -30,6 +30,7 @@
 #--let $rpl_debug= 1
 --let $rpl_topology= 1->2,4->3
 --let $rpl_skip_start_slave= 1
+--let $rpl_shallow_reset_slave= 1
 --source include/rpl_init.inc
 
 # Make connections to mysqlds

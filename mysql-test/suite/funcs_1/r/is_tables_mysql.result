@@ -451,6 +451,29 @@ user_comment	User proxy privileges
 Separator	-----------------------------------------------------
 TABLE_CATALOG	def
 TABLE_SCHEMA	mysql
+TABLE_NAME	replication_asynchronous_connection_failover
+TABLE_TYPE	BASE TABLE
+ENGINE	TMP_TABLE_ENGINE
+VERSION	10
+ROW_FORMAT	Dynamic
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	#AI#
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	utf8_general_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	The source configuration details
+Separator	-----------------------------------------------------
+TABLE_CATALOG	def
+TABLE_SCHEMA	mysql
 TABLE_NAME	role_edges
 TABLE_TYPE	BASE TABLE
 ENGINE	TMP_TABLE_ENGINE

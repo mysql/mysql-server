@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,8 @@
 #include "log_client.h"
 
 const char SASL_GSSAPI[] = "GSSAPI";
+const char SASL_SCRAM_SHA1[] = "SCRAM-SHA-1";
+const int SASL_ERROR_INVALID_METHOD = -2;
 
 class Sasl_mechanism {
  public:
@@ -54,8 +56,8 @@ class Sasl_mechanism_kerberos : public Sasl_mechanism {
  public:
   Sasl_mechanism_kerberos();
   ~Sasl_mechanism_kerberos() override;
-  bool virtual pre_authentication() override;
-  void virtual get_ldap_host(std::string &host) override;
+  bool pre_authentication() override;
+  void get_ldap_host(std::string &host) override;
 
  private:
   std::unique_ptr<auth_ldap_client_kerberos_context::Kerberos> m_kerberos;

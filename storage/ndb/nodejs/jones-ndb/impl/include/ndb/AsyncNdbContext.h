@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,7 @@ public:
   /* Methods */
   int executeAsynch(TransactionImpl *, NdbTransaction *,
                     int execType, int abortOption, int forceSend,
-                    v8::Handle<v8::Function> execCompleteCallback);
+                    v8::Local<v8::Function> execCompleteCallback);
 
   void shutdown();
 

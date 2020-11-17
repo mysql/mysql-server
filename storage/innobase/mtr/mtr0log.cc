@@ -44,11 +44,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0boot.h"
 #endif /* !UNIV_HOTBACKUP */
 
-/** Catenates n bytes to the mtr log. */
-void mlog_catenate_string(mtr_t *mtr,      /*!< in: mtr */
-                          const byte *str, /*!< in: string to write */
-                          ulint len)       /*!< in: string length */
-{
+/** Catenates n bytes to the mtr log.
+@param[in] mtr Mini-transaction
+@param[in] str String to write
+@param[in] len String length */
+void mlog_catenate_string(mtr_t *mtr, const byte *str, ulint len) {
   if (mtr_get_log_mode(mtr) == MTR_LOG_NONE) {
     return;
   }
@@ -83,7 +83,7 @@ void mlog_write_initial_log_record(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/** Parse an initial log record written by mlog_write_initial_dict_log_record.
+/** Parses an initial log record written by mlog_write_initial_dict_log_record.
 @param[in]	ptr		buffer
 @param[in]	end_ptr		buffer end
 @param[out]	type		log record type, should be

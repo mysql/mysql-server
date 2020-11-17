@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,8 @@
 #ifndef _opt_range_h
 #define _opt_range_h
 
-#include <stddef.h>
 #include <sys/types.h>
+
 #include <algorithm>
 #include <memory>
 #include <vector>
@@ -513,32 +513,32 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
 
   QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint index_arg, bool no_alloc,
                      MEM_ROOT *parent_alloc, bool *create_error);
-  ~QUICK_RANGE_SELECT();
+  ~QUICK_RANGE_SELECT() override;
 
-  void need_sorted_output();
-  int init();
-  int reset(void);
-  int get_next();
-  void range_end();
+  void need_sorted_output() override;
+  int init() override;
+  int reset(void) override;
+  int get_next() override;
+  void range_end() override;
   int get_next_prefix(uint prefix_length, uint group_key_parts,
                       uchar *cur_prefix);
-  bool reverse_sorted() const { return false; }
-  bool reverse_sort_possible() const { return true; }
-  bool unique_key_range();
-  int init_ror_merged_scan(bool reuse_handler);
-  void save_last_pos() { file->position(record); }
-  int get_type() const { return QS_TYPE_RANGE; }
-  virtual bool is_loose_index_scan() const { return false; }
-  virtual bool is_agg_loose_index_scan() const { return false; }
-  void add_keys_and_lengths(String *key_names, String *used_lengths);
-  void add_info_string(String *str);
+  bool reverse_sorted() const override { return false; }
+  bool reverse_sort_possible() const override { return true; }
+  bool unique_key_range() override;
+  int init_ror_merged_scan(bool reuse_handler) override;
+  void save_last_pos() override { file->position(record); }
+  int get_type() const override { return QS_TYPE_RANGE; }
+  bool is_loose_index_scan() const override { return false; }
+  bool is_agg_loose_index_scan() const override { return false; }
+  void add_keys_and_lengths(String *key_names, String *used_lengths) override;
+  void add_info_string(String *str) override;
 #ifndef DBUG_OFF
-  void dbug_dump(int indent, bool verbose);
+  void dbug_dump(int indent, bool verbose) override;
 #endif
-  QUICK_SELECT_I *make_reverse(uint used_key_parts_arg);
-  void set_handler(handler *file_arg) { file = file_arg; }
+  QUICK_SELECT_I *make_reverse(uint used_key_parts_arg) override;
+  void set_handler(handler *file_arg) override { file = file_arg; }
 
-  virtual void get_fields_used(MY_BITMAP *used_fields) {
+  void get_fields_used(MY_BITMAP *used_fields) override {
     for (uint i = 0; i < used_key_parts; i++)
       bitmap_set_bit(used_fields, key_parts[i].field->field_index());
   }
@@ -554,7 +554,7 @@ class QUICK_RANGE_SELECT_GEOM : public QUICK_RANGE_SELECT {
                           MEM_ROOT *parent_alloc, bool *create_error)
       : QUICK_RANGE_SELECT(thd, table, index_arg, no_alloc, parent_alloc,
                            create_error) {}
-  virtual int get_next();
+  int get_next() override;
 };
 
 /*
@@ -621,23 +621,23 @@ class QUICK_INDEX_MERGE_SELECT : public QUICK_SELECT_I {
 
  public:
   QUICK_INDEX_MERGE_SELECT(THD *thd, TABLE *table);
-  ~QUICK_INDEX_MERGE_SELECT();
+  ~QUICK_INDEX_MERGE_SELECT() override;
 
-  int init();
-  void need_sorted_output() { DBUG_ASSERT(false); /* Can't do it */ }
-  int reset(void);
-  int get_next();
-  bool reverse_sorted() const { return false; }
-  bool reverse_sort_possible() const { return false; }
-  bool unique_key_range() { return false; }
-  int get_type() const { return QS_TYPE_INDEX_MERGE; }
-  virtual bool is_loose_index_scan() const { return false; }
-  virtual bool is_agg_loose_index_scan() const { return false; }
-  void add_keys_and_lengths(String *key_names, String *used_lengths);
-  void add_info_string(String *str);
-  bool is_keys_used(const MY_BITMAP *fields);
+  int init() override;
+  void need_sorted_output() override { DBUG_ASSERT(false); /* Can't do it */ }
+  int reset(void) override;
+  int get_next() override;
+  bool reverse_sorted() const override { return false; }
+  bool reverse_sort_possible() const override { return false; }
+  bool unique_key_range() override { return false; }
+  int get_type() const override { return QS_TYPE_INDEX_MERGE; }
+  bool is_loose_index_scan() const override { return false; }
+  bool is_agg_loose_index_scan() const override { return false; }
+  void add_keys_and_lengths(String *key_names, String *used_lengths) override;
+  void add_info_string(String *str) override;
+  bool is_keys_used(const MY_BITMAP *fields) override;
 #ifndef DBUG_OFF
-  void dbug_dump(int indent, bool verbose);
+  void dbug_dump(int indent, bool verbose) override;
 #endif
 
   bool push_quick_back(QUICK_RANGE_SELECT *quick_sel_range);
@@ -655,9 +655,9 @@ class QUICK_INDEX_MERGE_SELECT : public QUICK_SELECT_I {
   THD *thd;
   int read_keys_and_merge();
 
-  bool clustered_pk_range() { return pk_quick_select; }
+  bool clustered_pk_range() override { return pk_quick_select; }
 
-  virtual bool is_valid() {
+  bool is_valid() override {
     List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
     QUICK_RANGE_SELECT *quick;
     bool valid = true;
@@ -670,7 +670,7 @@ class QUICK_INDEX_MERGE_SELECT : public QUICK_SELECT_I {
     return valid;
   }
 
-  virtual void get_fields_used(MY_BITMAP *used_fields) {
+  void get_fields_used(MY_BITMAP *used_fields) override {
     List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
     QUICK_RANGE_SELECT *quick;
     while ((quick = it++)) quick->get_fields_used(used_fields);
@@ -704,25 +704,25 @@ class QUICK_ROR_INTERSECT_SELECT : public QUICK_SELECT_I {
  public:
   QUICK_ROR_INTERSECT_SELECT(THD *thd, TABLE *table, bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc);
-  ~QUICK_ROR_INTERSECT_SELECT();
+  ~QUICK_ROR_INTERSECT_SELECT() override;
 
-  int init();
-  void need_sorted_output() { DBUG_ASSERT(false); /* Can't do it */ }
-  int reset(void);
-  int get_next();
-  bool reverse_sorted() const { return false; }
-  bool reverse_sort_possible() const { return false; }
-  bool unique_key_range() { return false; }
-  int get_type() const { return QS_TYPE_ROR_INTERSECT; }
-  virtual bool is_loose_index_scan() const { return false; }
-  virtual bool is_agg_loose_index_scan() const { return false; }
-  void add_keys_and_lengths(String *key_names, String *used_lengths);
-  void add_info_string(String *str);
-  bool is_keys_used(const MY_BITMAP *fields);
+  int init() override;
+  void need_sorted_output() override { DBUG_ASSERT(false); /* Can't do it */ }
+  int reset(void) override;
+  int get_next() override;
+  bool reverse_sorted() const override { return false; }
+  bool reverse_sort_possible() const override { return false; }
+  bool unique_key_range() override { return false; }
+  int get_type() const override { return QS_TYPE_ROR_INTERSECT; }
+  bool is_loose_index_scan() const override { return false; }
+  bool is_agg_loose_index_scan() const override { return false; }
+  void add_keys_and_lengths(String *key_names, String *used_lengths) override;
+  void add_info_string(String *str) override;
+  bool is_keys_used(const MY_BITMAP *fields) override;
 #ifndef DBUG_OFF
-  void dbug_dump(int indent, bool verbose);
+  void dbug_dump(int indent, bool verbose) override;
 #endif
-  int init_ror_merged_scan(bool reuse_handler);
+  int init_ror_merged_scan(bool reuse_handler) override;
   bool push_quick_back(QUICK_RANGE_SELECT *quick_sel_range);
 
   /*
@@ -731,7 +731,7 @@ class QUICK_ROR_INTERSECT_SELECT : public QUICK_SELECT_I {
   */
   List<QUICK_RANGE_SELECT> quick_selects;
 
-  virtual bool is_valid() {
+  bool is_valid() override {
     List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
     QUICK_RANGE_SELECT *quick;
     bool valid = true;
@@ -744,7 +744,7 @@ class QUICK_ROR_INTERSECT_SELECT : public QUICK_SELECT_I {
     return valid;
   }
 
-  virtual void get_fields_used(MY_BITMAP *used_fields) {
+  void get_fields_used(MY_BITMAP *used_fields) override {
     List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
     QUICK_RANGE_SELECT *quick;
     while ((quick = it++)) quick->get_fields_used(used_fields);
@@ -791,30 +791,30 @@ struct Quick_ror_union_less {
 class QUICK_ROR_UNION_SELECT : public QUICK_SELECT_I {
  public:
   QUICK_ROR_UNION_SELECT(THD *thd, TABLE *table);
-  ~QUICK_ROR_UNION_SELECT();
+  ~QUICK_ROR_UNION_SELECT() override;
 
-  int init();
-  void need_sorted_output() { DBUG_ASSERT(false); /* Can't do it */ }
-  int reset(void);
-  int get_next();
-  bool reverse_sorted() const { return false; }
-  bool reverse_sort_possible() const { return false; }
-  bool unique_key_range() { return false; }
-  int get_type() const { return QS_TYPE_ROR_UNION; }
-  virtual bool is_loose_index_scan() const { return false; }
-  virtual bool is_agg_loose_index_scan() const { return false; }
-  void add_keys_and_lengths(String *key_names, String *used_lengths);
-  void add_info_string(String *str);
-  bool is_keys_used(const MY_BITMAP *fields);
+  int init() override;
+  void need_sorted_output() override { DBUG_ASSERT(false); /* Can't do it */ }
+  int reset(void) override;
+  int get_next() override;
+  bool reverse_sorted() const override { return false; }
+  bool reverse_sort_possible() const override { return false; }
+  bool unique_key_range() override { return false; }
+  int get_type() const override { return QS_TYPE_ROR_UNION; }
+  bool is_loose_index_scan() const override { return false; }
+  bool is_agg_loose_index_scan() const override { return false; }
+  void add_keys_and_lengths(String *key_names, String *used_lengths) override;
+  void add_info_string(String *str) override;
+  bool is_keys_used(const MY_BITMAP *fields) override;
 #ifndef DBUG_OFF
-  void dbug_dump(int indent, bool verbose);
+  void dbug_dump(int indent, bool verbose) override;
 #endif
 
   bool push_quick_back(QUICK_SELECT_I *quick_sel_range);
 
   List<QUICK_SELECT_I> quick_selects; /* Merged quick selects */
 
-  virtual bool is_valid() {
+  bool is_valid() override {
     List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
     QUICK_SELECT_I *quick;
     bool valid = true;
@@ -827,7 +827,7 @@ class QUICK_ROR_UNION_SELECT : public QUICK_SELECT_I {
     return valid;
   }
 
-  virtual void get_fields_used(MY_BITMAP *used_fields) {
+  void get_fields_used(MY_BITMAP *used_fields) override {
     List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
     QUICK_SELECT_I *quick;
     while ((quick = it++)) quick->get_fields_used(used_fields);
@@ -950,53 +950,53 @@ class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I {
                              uint use_index, const Cost_estimate *cost_est,
                              ha_rows records, uint key_infix_len,
                              MEM_ROOT *parent_alloc, bool is_index_scan);
-  ~QUICK_GROUP_MIN_MAX_SELECT();
+  ~QUICK_GROUP_MIN_MAX_SELECT() override;
   bool add_range(SEL_ARG *sel_range, int idx);
   void update_key_stat();
   void adjust_prefix_ranges();
-  int init();
-  void need_sorted_output() { /* always do it */
+  int init() override;
+  void need_sorted_output() override { /* always do it */
   }
-  int reset();
-  int get_next();
-  bool reverse_sorted() const { return false; }
-  bool reverse_sort_possible() const { return false; }
-  bool unique_key_range() { return false; }
-  int get_type() const { return QS_TYPE_GROUP_MIN_MAX; }
-  virtual bool is_loose_index_scan() const { return true; }
-  virtual bool is_agg_loose_index_scan() const { return is_agg_distinct(); }
-  void add_keys_and_lengths(String *key_names, String *used_lengths);
+  int reset() override;
+  int get_next() override;
+  bool reverse_sorted() const override { return false; }
+  bool reverse_sort_possible() const override { return false; }
+  bool unique_key_range() override { return false; }
+  int get_type() const override { return QS_TYPE_GROUP_MIN_MAX; }
+  bool is_loose_index_scan() const override { return true; }
+  bool is_agg_loose_index_scan() const override { return is_agg_distinct(); }
+  void add_keys_and_lengths(String *key_names, String *used_lengths) override;
 #ifndef DBUG_OFF
-  void dbug_dump(int indent, bool verbose);
+  void dbug_dump(int indent, bool verbose) override;
 #endif
   bool is_agg_distinct() const { return have_agg_distinct; }
   virtual void append_loose_scan_type(String *str) {
     if (is_index_scan) str->append(STRING_WITH_LEN("scanning"));
   }
 
-  virtual void get_fields_used(MY_BITMAP *used_fields) {
+  void get_fields_used(MY_BITMAP *used_fields) override {
     for (uint i = 0; i < used_key_parts; i++)
       bitmap_set_bit(used_fields, index_info->key_part[i].field->field_index());
   }
-  void add_info_string(String *str);
+  void add_info_string(String *str) override;
 };
 
 class QUICK_SELECT_DESC : public QUICK_RANGE_SELECT {
  public:
   QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q, uint used_key_parts);
-  int get_next();
-  bool reverse_sorted() const { return true; }
-  bool reverse_sort_possible() const { return true; }
-  int get_type() const { return QS_TYPE_RANGE_DESC; }
-  virtual bool is_loose_index_scan() const { return false; }
-  virtual bool is_agg_loose_index_scan() const { return false; }
-  QUICK_SELECT_I *make_reverse(uint) {
+  int get_next() override;
+  bool reverse_sorted() const override { return true; }
+  bool reverse_sort_possible() const override { return true; }
+  int get_type() const override { return QS_TYPE_RANGE_DESC; }
+  bool is_loose_index_scan() const override { return false; }
+  bool is_agg_loose_index_scan() const override { return false; }
+  QUICK_SELECT_I *make_reverse(uint) override {
     return this;  // is already reverse sorted
   }
 
  private:
   bool range_reads_after_key(QUICK_RANGE *range);
-  int reset(void) {
+  int reset(void) override {
     rev_it.rewind();
     return QUICK_RANGE_SELECT::reset();
   }
@@ -1099,29 +1099,29 @@ class QUICK_SKIP_SCAN_SELECT : public QUICK_SELECT_I {
                          uint used_key_parts,
                          const Cost_estimate *read_cost_arg, ha_rows records,
                          MEM_ROOT *parent_alloc, bool has_aggregate_function);
-  ~QUICK_SKIP_SCAN_SELECT();
+  ~QUICK_SKIP_SCAN_SELECT() override;
   bool set_range(SEL_ARG *sel_range);
-  int init();
-  void need_sorted_output() {}
-  int reset();
-  int get_next();
-  bool reverse_sorted() const { return false; }
-  bool reverse_sort_possible() const { return false; }
-  bool unique_key_range() { return false; }
-  int get_type() const { return QS_TYPE_SKIP_SCAN; }
-  virtual bool is_loose_index_scan() const { return true; }
-  virtual bool is_agg_loose_index_scan() const {
+  int init() override;
+  void need_sorted_output() override {}
+  int reset() override;
+  int get_next() override;
+  bool reverse_sorted() const override { return false; }
+  bool reverse_sort_possible() const override { return false; }
+  bool unique_key_range() override { return false; }
+  int get_type() const override { return QS_TYPE_SKIP_SCAN; }
+  bool is_loose_index_scan() const override { return true; }
+  bool is_agg_loose_index_scan() const override {
     return has_aggregate_function;
   }
-  void add_keys_and_lengths(String *key_names, String *used_lengths);
+  void add_keys_and_lengths(String *key_names, String *used_lengths) override;
 #ifndef DBUG_OFF
-  void dbug_dump(int indent, bool verbose);
+  void dbug_dump(int indent, bool verbose) override;
 #endif
-  virtual void get_fields_used(MY_BITMAP *used_fields) {
+  void get_fields_used(MY_BITMAP *used_fields) override {
     for (uint i = 0; i < used_key_parts; i++)
       bitmap_set_bit(used_fields, index_info->key_part[i].field->field_index());
   }
-  void add_info_string(String *str);
+  void add_info_string(String *str) override;
 };
 
 class QEP_shared_owner;

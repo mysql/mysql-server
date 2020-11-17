@@ -1,0 +1,150 @@
+--source include/load_sysvars.inc
+
+##########################################################
+#           START OF select_into_disk_sync TESTS                    #
+##########################################################
+
+
+##################################################################
+# Saving initial value of select_into_disk_sync in a temporary variable     #
+##################################################################
+
+SET @start_value = @@select_into_disk_sync;
+SELECT @start_value;
+
+--echo '#--------------------FN_DYNVARS_005_01------------------------#'
+#############################################################
+#           Display the DEFAULT value of select_into_disk_sync         #
+#############################################################
+
+SET @@select_into_disk_sync = 1;
+SET @@select_into_disk_sync = DEFAULT;
+SELECT @@select_into_disk_sync;
+
+
+--echo '#--------------------FN_DYNVARS_005_02------------------------#'
+#############################################################
+#    Change the value of select_into_disk_sync to a valid value        #
+#############################################################
+
+SET @@select_into_disk_sync = 0;
+SELECT @@select_into_disk_sync;
+SET @@select_into_disk_sync = 1;
+SELECT @@select_into_disk_sync;
+
+
+--echo '#--------------------FN_DYNVARS_005_03-------------------------#'
+########################################################################### 
+#          Change the value of select_into_disk_sync to invalid value                #
+########################################################################### 
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@select_into_disk_sync = 2;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@select_into_disk_sync = -1;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@select_into_disk_sync = TRUEF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@select_into_disk_sync = TRUE_F;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@select_into_disk_sync = FALSE0;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@select_into_disk_sync = OON;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@select_into_disk_sync = ONN;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@select_into_disk_sync = OOFF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@select_into_disk_sync = 0FF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@select_into_disk_sync = ' ';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@select_into_disk_sync = " ";
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@select_into_disk_sync = '';
+
+
+
+--echo '#-------------------FN_DYNVARS_005_04----------------------------#'
+########################################################################### 
+#            Test if accessing global select_into_disk_sync gives error              #
+########################################################################### 
+
+SET @@global.select_into_disk_sync = 1-@@global.select_into_disk_sync;
+SELECT @@global.select_into_disk_sync;
+SET @@global.select_into_disk_sync = 1-@@global.select_into_disk_sync;
+
+--echo '#----------------------FN_DYNVARS_005_05------------------------#'
+############################################################################## 
+# Check if the value in  SESSION Tables matches values in variable           #
+##############################################################################
+
+--disable_warnings
+SELECT IF(@@select_into_disk_sync, "ON", "OFF") = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='select_into_disk_sync';
+--enable_warnings
+
+
+--echo '#---------------------FN_DYNVARS_005_06----------------------#'
+################################################################### 
+#        Check if ON and OFF values can be used on variable       #
+################################################################### 
+
+SET @@select_into_disk_sync = OFF;
+SELECT @@select_into_disk_sync;
+SET @@select_into_disk_sync = ON;
+SELECT @@select_into_disk_sync;
+
+--echo '#---------------------FN_DYNVARS_005_07----------------------#'
+################################################################### 
+#      Check if TRUE and FALSE values can be used on variable     #
+###################################################################
+
+SET @@select_into_disk_sync = TRUE;
+SELECT @@select_into_disk_sync;
+SET @@select_into_disk_sync = FALSE;
+SELECT @@select_into_disk_sync;
+
+
+--echo '#---------------------FN_DYNVARS_005_08----------------------#'
+##############################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points #
+#    to same session variable                                                #
+##############################################################################
+
+SET @@select_into_disk_sync = 0;
+SELECT @@select_into_disk_sync = @@session.select_into_disk_sync;
+SET @@select_into_disk_sync = 1;
+SELECT @@select_into_disk_sync = @@local.select_into_disk_sync and @@local.select_into_disk_sync = @@session.select_into_disk_sync;
+
+--echo '#---------------------FN_DYNVARS_005_09----------------------#'
+##########################################################################
+#        Check if select_into_disk_sync can be accessed with and without @@ sign    #
+##########################################################################
+
+SET select_into_disk_sync = 1;
+SELECT @@select_into_disk_sync;
+--Error ER_PARSE_ERROR
+SET local.select_into_disk_sync = 1;
+--Error ER_UNKNOWN_TABLE
+SELECT local.select_into_disk_sync;
+--Error ER_PARSE_ERROR
+SET session.select_into_disk_sync = 1;
+--Error ER_UNKNOWN_TABLE
+SELECT session.select_into_disk_sync;
+--Error ER_BAD_FIELD_ERROR
+select select_into_disk_sync;
+
+
+##############################  
+#   Restore initial value    #
+##############################
+
+SET @@select_into_disk_sync = @start_value;
+SELECT @@select_into_disk_sync;
+
+
+#######################################################
+#              END OF select_into_disk_sync TESTS                #
+#######################################################

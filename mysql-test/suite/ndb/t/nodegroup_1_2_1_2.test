@@ -1,0 +1,3 @@
+source include/have_ndb.inc;
+
+source ndb_mgm_show_table.inc;

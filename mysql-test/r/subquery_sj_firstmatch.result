@@ -340,6 +340,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -368,6 +369,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -445,6 +447,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -473,6 +476,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -550,6 +554,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -578,6 +583,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -657,6 +663,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -685,6 +692,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -762,6 +770,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -790,6 +799,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -867,6 +877,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -895,6 +906,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -974,6 +986,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -1002,6 +1015,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -1079,6 +1093,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -1107,6 +1122,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -1184,6 +1200,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -1212,6 +1229,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -1295,6 +1313,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -1327,6 +1346,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -1418,6 +1438,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -1450,6 +1471,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -1542,6 +1564,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -1574,6 +1597,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -1668,6 +1692,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -1700,6 +1725,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -1793,6 +1819,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 EXECUTE stmt;
 i
 2
+
 EXECUTE stmt;
 i
 2
@@ -1829,6 +1856,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 EXECUTE stmt;
 i
 2
+
 EXECUTE stmt;
 i
 2
@@ -1925,6 +1953,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 EXECUTE stmt;
 i
 2
+
 EXECUTE stmt;
 i
 2
@@ -1961,6 +1990,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 EXECUTE stmt;
 i
 2
+
 EXECUTE stmt;
 i
 2
@@ -2057,6 +2087,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -2089,6 +2120,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -2182,6 +2214,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 EXECUTE stmt;
 i
 2
+
 EXECUTE stmt;
 i
 2
@@ -2218,6 +2251,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 EXECUTE stmt;
 i
 2
+
 EXECUTE stmt;
 i
 2
@@ -2314,6 +2348,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 EXECUTE stmt;
 i
 2
+
 EXECUTE stmt;
 i
 2
@@ -2350,6 +2385,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 EXECUTE stmt;
 i
 2
+
 EXECUTE stmt;
 i
 2
@@ -2448,6 +2484,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -2480,6 +2517,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -2571,6 +2609,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -2603,6 +2642,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -2695,6 +2735,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -2727,6 +2768,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -2822,6 +2864,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -2854,6 +2897,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -2947,6 +2991,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 EXECUTE stmt;
 i
 2
+
 EXECUTE stmt;
 i
 2
@@ -2983,6 +3028,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 EXECUTE stmt;
 i
 2
+
 EXECUTE stmt;
 i
 2
@@ -3079,6 +3125,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 EXECUTE stmt;
 i
 2
+
 EXECUTE stmt;
 i
 2
@@ -3115,6 +3162,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 EXECUTE stmt;
 i
 2
+
 EXECUTE stmt;
 i
 2
@@ -3213,6 +3261,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -3245,6 +3294,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
 EXECUTE stmt;
 i
+
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
@@ -3338,6 +3388,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 EXECUTE stmt;
 i
 2
+
 EXECUTE stmt;
 i
 2
@@ -3374,6 +3425,7 @@ PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN
 EXECUTE stmt;
 i
 2
+
 EXECUTE stmt;
 i
 2
@@ -3472,6 +3524,7 @@ EXECUTE stmt;
 i
 1
 2
+
 EXECUTE stmt;
 i
 1
@@ -3512,6 +3565,7 @@ EXECUTE stmt;
 i
 1
 2
+
 EXECUTE stmt;
 i
 1
@@ -6517,6 +6571,7 @@ EXECUTE stmt;
 t1field
 1
 2
+
 EXECUTE stmt;
 t1field
 1
@@ -6536,6 +6591,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.t1field	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`t1field` AS `t1field` from `test`.`t2` join `test`.`t3` join `test`.`t1` where ((`test`.`t2`.`t2field` = `test`.`t1`.`t1field`) and (`test`.`t3`.`t3field` = `test`.`t1`.`t1field`))
+
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index
@@ -6753,6 +6809,7 @@ EXECUTE stmt;
 t1field
 1
 2
+
 EXECUTE stmt;
 t1field
 1
@@ -7131,6 +7188,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	8.33	Using where; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2`) where ((`test`.`t3`.`EMPNUM` = `test`.`t1`.`EMPNUM`) and (`test`.`t3`.`PNUM` = `test`.`t2`.`PNUM`) and (`test`.`t2`.`PTYPE` = 'Design'))
+
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	t1_IDX	NULL	NULL	NULL	5	100.00	NULL
@@ -7172,6 +7230,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	8.33	Using where; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2`) where ((`test`.`t3`.`EMPNUM` = `test`.`t1`.`EMPNUM`) and (`test`.`t3`.`PNUM` = `test`.`t2`.`PNUM`) and (`test`.`t2`.`PTYPE` = 'Design'))
+
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	t1_IDX	NULL	NULL	NULL	5	100.00	NULL
@@ -7212,6 +7271,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	8.33	Using where; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2`) where ((`test`.`t3`.`EMPNUM` = `test`.`t1`.`EMPNUM`) and (`test`.`t3`.`PNUM` = `test`.`t2`.`PNUM`) and (`test`.`t2`.`PTYPE` = 'Design'))
+
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
@@ -7657,7 +7717,7 @@ explain select * from t0
 where t0.a in ( select t1.a from t1,t2 where t2.a=t0.a and
 t1.b=t2.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	5	100.00	Using where
+1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	5	100.00	NULL
 1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (hash join)
 1	SIMPLE	t1	NULL	ref	a	a	5	test.t2.a	1	20.00	Using where; FirstMatch(t0)
 Warnings:
@@ -8174,6 +8234,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ref	PRIMARY	PRIMARY	4	test.t1.id	1	14.29	Using where; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`partner_id` AS `partner_id` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`id` = `test`.`t1`.`id`) and (`test`.`t2`.`article_id` = 'imp'))
+
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
@@ -8195,6 +8256,7 @@ WHERE t1.id IN (
 EXECUTE stmt;
 partner_id
 partner2
+
 EXECUTE stmt;
 partner_id
 partner2
@@ -8248,6 +8310,7 @@ Algeria	2
 Batna	2
 Bchar	2
 Skikda	2
+
 EXECUTE stmt;
 city	country_id
 Algeria	2
@@ -10416,6 +10479,7 @@ FROM t2 AS alias1
 ';
 EXECUTE stmt;
 field1
+
 EXECUTE stmt;
 field1
 DEALLOCATE prepare stmt;
@@ -10876,6 +10940,7 @@ WHERE EXISTS
 EXECUTE stmt;
 field1
 NULL
+
 EXECUTE stmt;
 field1
 NULL
@@ -10936,8 +11001,8 @@ WHERE (alias1.col_varchar_key, alias1.col_varchar_nokey) IN
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived7>	NULL	ALL	<auto_distinct_key>	NULL	NULL	NULL	2	100.00	NULL
 1	PRIMARY	alias2	NULL	ALL	NULL	NULL	NULL	NULL	11	10.00	Using where; Using join buffer (hash join)
-1	PRIMARY	<derived6>	NULL	ref	<auto_key0>	<auto_key0>	8	test.alias2.col_varchar_nokey,view_inline_2.p	3	100.00	Using index; FirstMatch(alias2)
-1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	8	view_inline_2.p,view_inline_2.Name_exp_p	2	100.00	NULL
+1	PRIMARY	<derived6>	NULL	ref	<auto_key0>	<auto_key0>	8	test.alias2.col_varchar_nokey,test.view_inline_2.p	3	100.00	Using index; FirstMatch(alias2)
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	8	test.view_inline_2.p,test.view_inline_2.Name_exp_p	2	100.00	NULL
 7	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 8	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 NULL	UNION RESULT	<union7,8>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
@@ -10946,7 +11011,7 @@ NULL	UNION RESULT	<union7,8>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using tempor
 2	DERIVED	<derived5>	NULL	ALL	NULL	NULL	NULL	NULL	15	100.00	NULL
 5	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select sum(`alias1`.`col_varchar_nokey`) AS `field2` from `test`.`view_inline_2` join `test`.`t2` `alias2` join (/* select#2 */ select `view_inline_0`.`pk` AS `pk`,`view_inline_0`.`col_varchar_key` AS `col_varchar_key`,`view_inline_0`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`view_inline_0`) `alias1` semi join (`test`.`view_inline_1`) where ((`view_inline_1`.`sq2_field1` = `test`.`alias2`.`col_varchar_nokey`) and (`alias1`.`col_varchar_nokey` = `view_inline_2`.`Name_exp_p`) and (`test`.`alias2`.`col_varchar_key` = `view_inline_2`.`p`) and (`view_inline_1`.`sq2_field2` = `view_inline_2`.`p`) and (`alias1`.`col_varchar_key` = `view_inline_2`.`p`))
+Note	1003	/* select#1 */ select sum(`alias1`.`col_varchar_nokey`) AS `field2` from `test`.`view_inline_2` join `test`.`t2` `alias2` join (/* select#2 */ select `test`.`view_inline_0`.`pk` AS `pk`,`test`.`view_inline_0`.`col_varchar_key` AS `col_varchar_key`,`test`.`view_inline_0`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`view_inline_0`) `alias1` semi join (`test`.`view_inline_1`) where ((`test`.`view_inline_1`.`sq2_field1` = `test`.`alias2`.`col_varchar_nokey`) and (`alias1`.`col_varchar_nokey` = `test`.`view_inline_2`.`Name_exp_p`) and (`test`.`alias2`.`col_varchar_key` = `test`.`view_inline_2`.`p`) and (`test`.`view_inline_1`.`sq2_field2` = `test`.`view_inline_2`.`p`) and (`alias1`.`col_varchar_key` = `test`.`view_inline_2`.`p`))
 SELECT SUM(alias1.col_varchar_nokey) AS field2
 FROM t2 AS alias2
 LEFT JOIN (SELECT * FROM view_inline_0) AS alias1
@@ -11068,14 +11133,14 @@ FROM t1 AS subquery3_t1
 )
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	const	2	100.00	Using where
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	PRIMARY	subquery3_t1	NULL	ref	col_varchar_key	col_varchar_key	7	table1.col_varchar_nokey	0	0.00	Using index; FirstMatch(<derived2>)
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	FirstMatch(subquery3_t1); Using join buffer (hash join)
 1	PRIMARY	table2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index; Using join buffer (hash join)
-2	DERIVED	subquery1_t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
+2	DERIVED	subquery1_t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	1	100.00	Using where
 2	DERIVED	subquery1_t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.subquery1_t1.pk	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `table1`.`pk` AS `field1` from (/* select#2 */ select `test`.`subquery1_t1`.`pk` AS `pk`,`test`.`subquery1_t1`.`col_int_key` AS `col_int_key`,`test`.`subquery1_t1`.`col_varchar_key` AS `col_varchar_key`,`test`.`subquery1_t1`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2` `subquery1_t1` join `test`.`t2` `subquery1_t2` where (`test`.`subquery1_t2`.`pk` = `test`.`subquery1_t1`.`pk`)) `table1` straight_join `test`.`t2` `table2` semi join (`test`.`t3`) semi join (`test`.`t1` `subquery3_t1`) where ((`table1`.`col_int_key` = 7) and (`test`.`subquery3_t1`.`col_varchar_key` = `table1`.`col_varchar_nokey`))
+Note	1003	/* select#1 */ select `table1`.`pk` AS `field1` from (/* select#2 */ select `test`.`subquery1_t1`.`pk` AS `pk`,`test`.`subquery1_t1`.`col_int_key` AS `col_int_key`,`test`.`subquery1_t1`.`col_varchar_key` AS `col_varchar_key`,`test`.`subquery1_t1`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2` `subquery1_t1` join `test`.`t2` `subquery1_t2` where ((`test`.`subquery1_t1`.`col_int_key` = 7) and (`test`.`subquery1_t2`.`pk` = `test`.`subquery1_t1`.`pk`))) `table1` straight_join `test`.`t2` `table2` semi join (`test`.`t3`) semi join (`test`.`t1` `subquery3_t1`) where (`test`.`subquery3_t1`.`col_varchar_key` = `table1`.`col_varchar_nokey`)
 SELECT table1.pk AS field1
 FROM ( SELECT subquery1_t1. *
 FROM t2 AS subquery1_t1
@@ -11321,6 +11386,7 @@ col_int
 0
 1
 1
+
 EXECUTE stmt;
 col_int
 0
@@ -12422,8 +12488,8 @@ ORDER BY col_int_key
 EXPLAIN
 -> Nested loop semijoin  (cost=3.05 rows=7)
     -> Sort: t4.col_int_key  (cost=0.85 rows=6)
-        -> Filter: (t4.col_int_key is not null)
-            -> Table scan on t4
+        -> Filter: (t4.col_int_key is not null)  (cost=0.85 rows=6)
+            -> Table scan on t4  (cost=0.85 rows=6)
     -> Filter: (t3.col_int is null)  (cost=2.14 rows=1)
         -> Nested loop left join  (cost=2.14 rows=1)
             -> Index lookup on t1 using col_int_key (col_int_key=t4.col_int_key)  (cost=0.27 rows=1)
@@ -12561,6 +12627,8 @@ WHERE t1.uid IN (SELECT t4.uid FROM t4, t3 WHERE t3.uid=1 AND t4.uid=t3.fid)
 AND t2.uid=t1.fid;
 name
 A
+A
+B
 B
 C
 D
@@ -12568,8 +12636,6 @@ E
 F
 G
 H
-A
-B
 I
 SHOW STATUS LIKE '%handler_read%';
 Variable_name	Value
@@ -12753,10 +12819,10 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
 EXPLAIN
--> Inner hash join (no condition)
+-> Inner hash join (no condition)  (cost=5.40 rows=3)
     -> Table scan on t1  (cost=0.55 rows=3)
     -> Hash
-        -> Limit: 1 row(s)
+        -> Limit: 1 row(s)  (cost=4.85 rows=1)
             -> Nested loop left join  (cost=4.85 rows=18)
                 -> Nested loop left join  (cost=1.55 rows=6)
                     -> Table scan on t2  (cost=0.45 rows=2)
@@ -12820,21 +12886,21 @@ WHERE 1 IN (SELECT it1.a
 FROM t1 AS it1 JOIN t6 AS it3 ON it1.a=it3.a);
 a	a
 5	1
+5	1
+5	3
 5	3
 5	5
 5	7
-5	9
 5	7
-5	3
-5	1
+5	9
 8	1
+8	1
+8	3
 8	3
 8	5
 8	7
-8	9
 8	7
-8	3
-8	1
+8	9
 EXPLAIN
 SELECT *
 FROM t0 AS ot1, t2 AS nt3

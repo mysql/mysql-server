@@ -67,7 +67,7 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
 
   ADD_EXECUTABLE(${target} ${sources})
 
-  SET_PATH_TO_SSL(${target} ${TARGET_RUNTIME_OUTPUT_DIRECTORY})
+  SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(${target})
 
   IF(ARG_DEPENDENCIES)
     ADD_DEPENDENCIES(${target} ${ARG_DEPENDENCIES})
@@ -115,6 +115,11 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
     ADD_TEST(${ARG_ADD_TEST}
       ${TARGET_RUNTIME_OUTPUT_DIRECTORY}/${target})
     SET(ARG_SKIP_INSTALL TRUE)
+  ENDIF()
+
+  IF(COMPRESS_DEBUG_SECTIONS)
+    MY_TARGET_LINK_OPTIONS(${target}
+      "LINKER:--compress-debug-sections=zlib")
   ENDIF()
 
   # tell CPack where to install

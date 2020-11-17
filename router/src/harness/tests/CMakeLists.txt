@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,9 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 INCLUDE_DIRECTORIES(SYSTEM ${GMOCK_INCLUDE_DIRS})
+
+# TODO(sgunders): Remove when all GMock tests use MOCK_METHOD().
+STRING(REPLACE "-Wsuggest-override" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 IF(NOT BUILD_IS_SINGLE_CONFIG)
   FOREACH(config ${CMAKE_CONFIGURATION_TYPES})
@@ -60,9 +63,7 @@ SET(TESTS
   test_config.cc
   test_filesystem.cc
   test_hostname_validator.cc
-  test_ip_address.cc
   test_bug22104451.cc
-  test_resolver.cc
   test_random_generator.cc
   test_mysql_router_thread.cc
   test_mpmc_queue.cc
@@ -79,7 +80,7 @@ FOREACH(TEST ${TESTS})
     INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/src/
     INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/tests/include/
     INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/tests/
-    LIB_DEPENDS test-helpers;harness_stdx_filesystem)
+    LIB_DEPENDS test-helpers;harness_stdx)
 ENDFOREACH()
 
 SET(TESTS
@@ -98,9 +99,17 @@ SET(TESTS
   test_stdx_expected.cc
   test_stdx_string_view.cc
   test_net_ts_buffer.cc
+  test_net_ts_executor.cc
   test_net_ts_impl_file.cc
+  test_net_ts_impl_linux_epoll_io_service.cc
+  test_net_ts_impl_kqueue_io_service.cc
   test_net_ts_impl_resolver.cc
   test_net_ts_impl_socket.cc
+  test_net_ts_internet.cc
+  test_net_ts_io_context.cc
+  test_net_ts_io_context_socket.cc
+  test_net_ts_socket.cc
+  test_net_ts_timer.cc
 )
 
 FOREACH(TEST ${TESTS})
@@ -108,15 +117,22 @@ FOREACH(TEST ${TESTS})
     LIB_DEPENDS harness_net_ts)
 ENDFOREACH()
 
+ADD_TEST_FILE(test_net_ts_local.cc
+  MODULE ${TEST_MODULE}
+  LIB_DEPENDS harness_net_ts
+  LIB_DEPENDS test-helpers
+  INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/shared/include/
+  )
+
 SET(TESTS
+  test_stdx_monitor.cc
   test_stdx_io_file_handle.cc
 )
 
 FOREACH(TEST ${TESTS})
   ADD_TEST_FILE(${TEST} MODULE ${TEST_MODULE}
-    LIB_DEPENDS harness_stdx_io)
+    LIB_DEPENDS harness_stdx)
 ENDFOREACH()
-
 
 # Use configuration file templates to generate configuration files
 CONFIGURE_TEST_FILE_TEMPLATES(${CMAKE_CURRENT_SOURCE_DIR}/data
@@ -132,3 +148,19 @@ SET(TEST_FILES
   tests-bad-3.cfg
   )
 COPY_TEST_FILES(${CMAKE_CURRENT_SOURCE_DIR}/data "${TEST_FILES}")
+
+MYSQL_ADD_EXECUTABLE(net_ts_netifs net_ts_netifs.cc SKIP_INSTALL)
+TARGET_LINK_LIBRARIES(net_ts_netifs harness_net_ts)
+ADD_DEPENDENCIES(mysqlrouter_all net_ts_netifs)
+
+MYSQL_ADD_EXECUTABLE(net_ts_connect net_ts_connect.cc SKIP_INSTALL)
+TARGET_LINK_LIBRARIES(net_ts_connect harness_net_ts)
+ADD_DEPENDENCIES(mysqlrouter_all net_ts_connect)
+
+MYSQL_ADD_EXECUTABLE(net_ts_accept net_ts_accept.cc SKIP_INSTALL)
+TARGET_LINK_LIBRARIES(net_ts_accept harness_net_ts)
+ADD_DEPENDENCIES(mysqlrouter_all net_ts_accept)
+
+MYSQL_ADD_EXECUTABLE(net_ts_forward net_ts_forward.cc SKIP_INSTALL)
+TARGET_LINK_LIBRARIES(net_ts_forward harness_net_ts)
+ADD_DEPENDENCIES(mysqlrouter_all net_ts_forward)

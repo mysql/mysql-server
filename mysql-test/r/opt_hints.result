@@ -164,8 +164,8 @@ SELECT /*+ BKA() */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 f1	f2	f3
 1	1	qwerty
-2	2	qwerty
 1	1	qwerty
+2	2	qwerty
 2	2	qwerty
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
@@ -598,12 +598,12 @@ FLUSH STATUS;
 SELECT t1.* FROM t1,t2,t3;
 a	b
 1	1
-2	2
+1	1
+1	1
 1	1
 2	2
-1	1
 2	2
-1	1
+2	2
 2	2
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
@@ -1636,6 +1636,7 @@ SELECT /*+ NO_ICP(`�`) */ 1 FROM t1;
 Warnings:
 Warning	1064	Optimizer hint syntax error near '`?`) */ 1 FROM t1' at line 1
 DROP TABLE таблица;
+SET NAMES DEFAULT;
 
 # derived tables and other subqueries:
 
@@ -1769,8 +1770,6 @@ CALL p1();
 Warnings:
 Warning	3128	Unresolved name `q`@`select#1` `w` for NO_MRR hint
 CALL p1();
-Warnings:
-Warning	3128	Unresolved name `q`@`select#1` `w` for NO_MRR hint
 DROP PROCEDURE p1;
 #
 # WL#9307 MERGE/NO_MERGE hint for derived table, view
@@ -1815,7 +1814,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select /*+ NO_MERGE(`v1`@`select#1`) */ `v1`.`a` AS `a` from `test`.`v1`
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`v1`@`select#1`) */ `test`.`v1`.`a` AS `a` from `test`.`v1`
 drop view v1;
 # hint is OVERRIDDEN by algorithm=
 create algorithm=merge view v1 as (select * from t1);
@@ -1841,19 +1840,19 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `v1`.`a` AS `a` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`a` AS `a` from `test`.`v1`
 explain select /*+ merge(v1) */ * from v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select /*+ MERGE(`v1`@`select#1`) */ `v1`.`a` AS `a` from `test`.`v1`
+Note	1003	/* select#1 */ select /*+ MERGE(`v1`@`select#1`) */ `test`.`v1`.`a` AS `a` from `test`.`v1`
 explain select /*+ no_merge(v1) */ * from v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select /*+ NO_MERGE(`v1`@`select#1`) */ `v1`.`a` AS `a` from `test`.`v1`
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`v1`@`select#1`) */ `test`.`v1`.`a` AS `a` from `test`.`v1`
 drop view v1;
 # hint OVERRIDES optimizer_switch
 set optimizer_switch="derived_merge=off";
@@ -1880,7 +1879,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `v1`.`a` AS `a` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`a` AS `a` from `test`.`v1`
 explain select /*+ merge(v1) */ * from v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
@@ -1891,7 +1890,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select /*+ NO_MERGE(`v1`@`select#1`) */ `v1`.`a` AS `a` from `test`.`v1`
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`v1`@`select#1`) */ `test`.`v1`.`a` AS `a` from `test`.`v1`
 drop view v1;
 set optimizer_switch=default;
 # Can apply to certain derived tables
@@ -1999,7 +1998,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t2.a' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `v1`.`(select t1.a from t1 where t1.a=t2.a)` AS `(select t1.a from t1 where t1.a=t2.a)` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`(select t1.a from t1 where t1.a=t2.a)` AS `(select t1.a from t1 where t1.a=t2.a)` from `test`.`v1`
 drop view v1;
 create algorithm=merge view v1 as select (select t1.a from t1 where t1.a=t2.a) from t2;
 explain select * from v1;
@@ -2044,7 +2043,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	update /*+ NO_MERGE(`v1`@`select#1`) */ `test`.`t3` join `test`.`v1` set `test`.`t3`.`a` = (`v1`.`a` + 10) where ((`test`.`t3`.`a` - `v1`.`a`) = 0)
+Note	1003	update /*+ NO_MERGE(`v1`@`select#1`) */ `test`.`t3` join `test`.`v1` set `test`.`t3`.`a` = (`test`.`v1`.`a` + 10) where ((`test`.`t3`.`a` - `test`.`v1`.`a`) = 0)
 update /*+ no_merge(v1) */ t3, v1 set t3.a=v1.a+10 where t3.a-v1.a=0;
 select * from t3;
 a	b
@@ -2197,14 +2196,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	delete /*+ NO_MERGE(`v1`@`select#1`) */ `test`.`t3` from `test`.`t3` join `test`.`v1` where ((`test`.`t3`.`a` - `v1`.`a`) = 0)
+Note	1003	delete /*+ NO_MERGE(`v1`@`select#1`) */ `test`.`t3` from `test`.`t3` join `test`.`v1` where ((`test`.`t3`.`a` - `test`.`v1`.`a`) = 0)
 delete /*+ no_merge(v1) */ t3.* from t3, v1 where t3.a-v1.a=0;
 select * from t3;
 a	b
 drop view v1;
 drop table t1,t2,t3;
 #
-# Unbalanced commentary test
+# Non-terminated comment test
 #
-SELECT /*+ 10;
+PREPARE stmt FROM 'SELECT /*+ 10';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '/*+ 10' at line 1

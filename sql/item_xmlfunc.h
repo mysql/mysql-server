@@ -1,7 +1,7 @@
 #ifndef ITEM_XMLFUNC_INCLUDED
 #define ITEM_XMLFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,13 +23,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_inttypes.h"
-#include "my_xml.h"            // my_xml_node_type
-#include "sql/item_strfunc.h"  // Item_str_func
-#include "sql/parse_tree_node_base.h"
-#include "sql_string.h"
+#include <sys/types.h>  // uint
 
-class Item;
+#include <vector>
+
+#include "my_inttypes.h"
+#include "my_xml.h"              // my_xml_node_type
+#include "sql/item.h"            // Check_function_as_value_generator_parameters
+#include "sql/item_strfunc.h"    // Item_str_func
+#include "sql/parse_location.h"  // POS
+#include "sql_string.h"
+#include "template_utils.h"  // pointer_cast
+
 class THD;
 
 /* This file defines all XML functions */
@@ -49,7 +54,9 @@ using ParsedXML = std::vector<MY_XML_NODE>;
 class Item_xml_str_func : public Item_str_func {
  protected:
   ParsedXML pxml;
-  Item *nodeset_func;
+  Item *nodeset_func{nullptr};
+  /// True if nodeset_func assigned during resolving
+  bool nodeset_func_permanent{false};
   String xpath_tmp_value;
 
  public:
@@ -62,6 +69,10 @@ class Item_xml_str_func : public Item_str_func {
     maybe_null = true;
   }
   bool resolve_type(THD *thd) override;
+  void cleanup() override {
+    Item_str_func::cleanup();
+    if (!nodeset_func_permanent) nodeset_func = nullptr;
+  }
   bool check_function_as_value_generator(uchar *) override { return false; }
 
  protected:

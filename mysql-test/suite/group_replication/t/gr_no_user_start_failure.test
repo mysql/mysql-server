@@ -84,7 +84,6 @@ SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("There was an error when trying to access the server with user: mysql.session.*");
 call mtr.add_suppression("Failed to establish an internal server connection to execute plugin operations");
 call mtr.add_suppression("It was not possible to establish a connection to server SQL service");
-call mtr.add_suppression("Error calling group communication interfaces while trying to leave the group");
 call mtr.add_suppression("On plugin shutdown it was not possible to reset the server read mode settings.");
 SET SESSION sql_log_bin= 1;
 

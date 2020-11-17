@@ -672,8 +672,6 @@ c1	c2	c3
 77777.78125	7777780000	7
 88888.89062	8888890000	8
 UPDATE t1,t2,t3,t4 SET t2.c1=t2.c1+t3.c1, t3.c2=t3.c2-t2.c1, t4.c1=t1.c1*t1.c3 WHERE t1.c2 >'1111111111' AND t4.c2 < '8888888888' ;
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t1;
 c1	c2	c3	c4
 100000.00000	-100000.00000	10000000000	9
@@ -1073,8 +1071,6 @@ c1	c2	c3
 88888.88888	8888888888	8
 99999.99999	9999999999	9
 UPDATE t1,t2,t3,t4 SET t2.c1=t2.c1+t3.c1, t3.c2=t3.c2-t2.c1, t4.c1=t1.c1*t1.c3 WHERE t1.c2 >'1111111111' AND t4.c2 < '8888888888' ;
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t1;
 c1	c2	c3	c4
 11111.11111	-11111.11111	1111111111	1

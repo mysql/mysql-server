@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -85,7 +85,6 @@
 #include "my_thread_local.h"
 #include "my_time.h"
 #include "myisam.h"  // myisam_flush
-#include "mysql/components/services/log_builtins.h"
 #include "mysql/plugin_group_replication.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql_version.h"
@@ -392,6 +391,14 @@ static Sys_var_charptr Sys_pfs_instrument(
     READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_pfs_instrument),
     CMD_LINE(OPT_ARG, OPT_PFS_INSTRUMENT), IN_FS_CHARSET, DEFAULT(""),
     PFS_TRAILING_PROPERTIES);
+
+static Sys_var_bool Sys_pfs_processlist(
+    "performance_schema_show_processlist",
+    "Default startup value to enable SHOW PROCESSLIST "
+    "in the performance schema.",
+    GLOBAL_VAR(pfs_processlist_enabled), CMD_LINE(OPT_ARG), DEFAULT(false),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr),
+    nullptr, sys_var::PARSE_NORMAL);
 
 static Sys_var_bool Sys_pfs_consumer_events_stages_current(
     "performance_schema_consumer_events_stages_current",
@@ -1607,6 +1614,25 @@ static Sys_var_charptr Sys_character_sets_dir(
     READ_ONLY NON_PERSIST GLOBAL_VAR(charsets_dir), CMD_LINE(REQUIRED_ARG),
     IN_FS_CHARSET, DEFAULT(nullptr));
 
+static Sys_var_ulong Sys_select_into_buffer_size(
+    "select_into_buffer_size", "Buffer size for SELECT INTO OUTFILE/DUMPFILE.",
+    HINT_UPDATEABLE SESSION_VAR(select_into_buffer_size), CMD_LINE(OPT_ARG),
+    VALID_RANGE(IO_SIZE * 2, INT_MAX32), DEFAULT(128 * 1024),
+    BLOCK_SIZE(IO_SIZE));
+
+static Sys_var_bool Sys_select_into_disk_sync(
+    "select_into_disk_sync",
+    "Synchronize flushed buffer with disk for SELECT INTO OUTFILE/DUMPFILE.",
+    HINT_UPDATEABLE SESSION_VAR(select_into_disk_sync), CMD_LINE(OPT_ARG),
+    DEFAULT(false));
+
+static Sys_var_uint Sys_select_into_disk_sync_delay(
+    "select_into_disk_sync_delay",
+    "The delay in milliseconds after each buffer sync "
+    "for SELECT INTO OUTFILE/DUMPFILE. Requires select_into_sync_disk = ON.",
+    HINT_UPDATEABLE SESSION_VAR(select_into_disk_sync_delay), CMD_LINE(OPT_ARG),
+    VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(0), BLOCK_SIZE(1));
+
 static bool check_not_null(sys_var *, THD *, set_var *var) {
   return var->value && var->value->is_null();
 }
@@ -2388,20 +2414,39 @@ static Sys_var_charptr Sys_log_error(
 static bool check_log_error_services(sys_var *self, THD *thd, set_var *var) {
   // test whether syntax is OK and services exist
   size_t pos;
+  log_error_stack_error ret;
 
   if (var->save_result.string_value.str == nullptr) return true;
 
-  if (log_builtins_error_stack(var->save_result.string_value.str, true, &pos) <
-      0) {
-    push_warning_printf(
-        thd, Sql_condition::SL_WARNING, ER_CANT_SET_ERROR_LOG_SERVICE,
-        ER_THD(thd, ER_CANT_SET_ERROR_LOG_SERVICE), self->name.str,
-        &((char *)var->save_result.string_value.str)[pos]);
-    return true;
-  } else if (strlen(var->save_result.string_value.str) < 1) {
+  ret = log_builtins_error_stack(var->save_result.string_value.str, true, &pos);
+
+  if (strlen(var->save_result.string_value.str) < 1) {
     push_warning_printf(
         thd, Sql_condition::SL_WARNING, ER_EMPTY_PIPELINE_FOR_ERROR_LOG_SERVICE,
         ER_THD(thd, ER_EMPTY_PIPELINE_FOR_ERROR_LOG_SERVICE), self->name.str);
+  } else if (ret != LOG_ERROR_STACK_SUCCESS) {
+    int err_code = 0;
+    switch (ret) {
+      case LOG_ERROR_STACK_NO_PFS_SUPPORT:
+        err_code = ER_DA_ERROR_LOG_TABLE_DISABLED;
+        break;
+      case LOG_ERROR_STACK_NO_LOG_PARSER:
+        err_code = ER_DA_NO_ERROR_LOG_PARSER_CONFIGURED;
+        break;
+      case LOG_ERROR_MULTIPLE_FILTERS:
+        err_code = ER_DA_ERROR_LOG_MULTIPLE_FILTERS;
+        break;
+      default:
+        push_warning_printf(
+            thd, Sql_condition::SL_WARNING, ER_CANT_SET_ERROR_LOG_SERVICE,
+            ER_THD(thd, ER_CANT_SET_ERROR_LOG_SERVICE), self->name.str,
+            &((char *)var->save_result.string_value.str)[pos]);
+        return true;
+    }
+
+    push_warning(thd, Sql_condition::SL_NOTE, err_code,
+                 ER_THD_NONCONST(thd, err_code));
+    return false;
   }
 
   return false;
@@ -2410,18 +2455,43 @@ static bool check_log_error_services(sys_var *self, THD *thd, set_var *var) {
 static bool fix_log_error_services(sys_var *self MY_ATTRIBUTE((unused)),
                                    THD *thd,
                                    enum_var_type type MY_ATTRIBUTE((unused))) {
+  bool ret = false;
   // syntax is OK and services exist; try to initialize them!
   size_t pos;
+
+  /*
+    There is a theoretical race/deadlock here:
+
+    SET GLOBAL log_error_services=... first acquires
+    LOCK_global_system_variables (on account of being a system variable),
+    and then will try to obtain THR_LOCK_log_stack (to update the
+    error logging stack).
+
+    If FLUSH ERROR LOGS is also executed, it will first obtain
+    THR_LOCK_log_stack (as it will call the flush functions in all
+    configured sinks, and cannot allow people to change the config
+    or UNINSTALL COMPONENTs while that happens), and then one of
+    those log-components may try to re-install its pluggable
+    system variables on flush.
+
+    Due to the reverse locking order, this may deadlock here.
+    We could temporarily release LOCK_global_system_variables
+    while updating the error-logging stack (after first making
+    a copy of opt_log_error_services), but the better option
+    is to not have log-services' pluggable system variables
+    appear/disappear during FLUSH.
+  */
+
   if (log_builtins_error_stack(opt_log_error_services, false, &pos) < 0) {
     if (pos < strlen(opt_log_error_services)) /* purecov: begin inspected */
       push_warning_printf(
           thd, Sql_condition::SL_WARNING, ER_CANT_START_ERROR_LOG_SERVICE,
           ER_THD(thd, ER_CANT_START_ERROR_LOG_SERVICE), self->name.str,
           &((char *)opt_log_error_services)[pos]);
-    return true; /* purecov: end */
+    ret = true; /* purecov: end */
   }
 
-  return false;
+  return ret;
 }
 
 static Sys_var_charptr Sys_log_error_services(
@@ -2538,7 +2608,10 @@ static Sys_var_enum Sys_log_timestamps(
     "This affects only log files, not log tables, as the timestamp columns "
     "of the latter can be converted at will.",
     GLOBAL_VAR(opt_log_timestamps), CMD_LINE(REQUIRED_ARG),
-    timestamp_type_names, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG);
+    timestamp_type_names, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr), nullptr,
+    /* log_error is an early option, so its timestamp format should be, too. */
+    sys_var::PARSE_EARLY);
 
 static Sys_var_bool Sys_log_statements_unsafe_for_binlog(
     "log_statements_unsafe_for_binlog",
@@ -3092,6 +3165,36 @@ export void update_parser_max_mem_size() {
   global_system_variables.parser_max_mem_size = new_val;
 }
 
+static bool check_optimizer_switch(sys_var *, THD *thd MY_ATTRIBUTE((unused)),
+                                   set_var *var) {
+  const bool current_hypergraph_optimizer =
+      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
+  const bool want_hypergraph_optimizer =
+      var->save_result.ulonglong_value & OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER;
+
+  if (current_hypergraph_optimizer && !want_hypergraph_optimizer) {
+    // Don't turn off the hypergraph optimizer on set optimizer_switch=DEFAULT.
+    // This is so that mtr --hypergraph should not be easily cancelled in the
+    // middle of a test, unless the test explicitly meant it.
+    if (var->value == nullptr) {
+      var->save_result.ulonglong_value |= OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER;
+    }
+  } else if (!current_hypergraph_optimizer && want_hypergraph_optimizer) {
+#ifndef DBUG_OFF
+    // Allow, with a warning.
+    push_warning(thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
+                 ER_THD(thd, ER_WARN_HYPERGRAPH_EXPERIMENTAL));
+    return false;
+#else
+    // Disallow; the hypergraph optimizer is not ready for production yet.
+    my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0),
+             "use in non-debug builds");
+    return true;
+#endif
+  }
+  return false;
+}
+
 /**
   @note
   @b BEWARE! These must have the same order as the \#defines in sql_const.h!
@@ -3121,6 +3224,8 @@ static const char *optimizer_switch_names[] = {
     "hash_join",
     "subquery_to_derived",
     "prefer_ordering_index",
+    "hypergraph_optimizer",  // Deliberately not documented below.
+    "derived_condition_pushdown",
     "default",
     NullS};
 static Sys_var_flagset Sys_optimizer_switch(
@@ -3133,11 +3238,12 @@ static Sys_var_flagset Sys_optimizer_switch(
     " subquery_materialization_cost_based, skip_scan,"
     " block_nested_loop, batched_key_access, use_index_extensions,"
     " condition_fanout_filter, derived_merge, hash_join,"
-    " subquery_to_derived, prefer_ordering_index} and val is one of "
+    " subquery_to_derived, prefer_ordering_index,"
+    " derived_condition_pushdown} and val is one of "
     "{on, off, default}",
     HINT_UPDATEABLE SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
     optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
+    NOT_IN_BINLOG, ON_CHECK(check_optimizer_switch), ON_UPDATE(nullptr));
 
 static Sys_var_bool Sys_var_end_markers_in_json(
     "end_markers_in_json",
@@ -3757,13 +3863,6 @@ static bool check_binlog_transaction_dependency_tracking(sys_var *, THD *,
 static bool update_binlog_transaction_dependency_tracking(sys_var *, THD *,
                                                           enum_var_type) {
   /*
-    m_opt_tracking_mode is read and written in an atomic way based
-    on the value of m_opt_tracking_mode_value that is associated
-    with the sys_var variable.
-  */
-  set_mysqld_opt_tracking_mode();
-
-  /*
     the writeset_history_start needs to be set to 0 whenever there is a
     change in the transaction dependency source so that WS and COMMIT
     transition smoothly.
@@ -3782,7 +3881,7 @@ static Sys_var_enum Binlog_transaction_dependency_tracking(
     "assess which transactions can be executed in parallel by the "
     "slave's multi-threaded applier. "
     "Possible values are COMMIT_ORDER, WRITESET and WRITESET_SESSION.",
-    GLOBAL_VAR(mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode_value),
+    GLOBAL_VAR(mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode),
     CMD_LINE(REQUIRED_ARG), opt_binlog_transaction_dependency_tracking_names,
     DEFAULT(DEPENDENCY_TRACKING_COMMIT_ORDER), &PLock_slave_trans_dep_tracker,
     NOT_IN_BINLOG, ON_CHECK(check_binlog_transaction_dependency_tracking),
@@ -4076,6 +4175,22 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
                  "@@GLOBAL.GTID_MODE = OFF.",
                  mi->get_channel(), mi->get_channel());
         my_error(ER_CANT_SET_GTID_MODE, MYF(0), "OFF", buf);
+        goto err;
+      }
+    }
+  }
+
+  /*
+    Cannot set OFF when source_connection_auto_failover is enabled for any
+    channel.
+  */
+  if (new_gtid_mode != Gtid_mode::ON) {
+    for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
+         it++) {
+      Master_info *mi = it->second;
+      if (mi != nullptr && mi->is_source_connection_auto_failover()) {
+        my_error(ER_DISABLE_GTID_MODE_REQUIRES_ASYNC_RECONNECT_OFF, MYF(0),
+                 Gtid_mode::to_string(new_gtid_mode));
         goto err;
       }
     }
@@ -6048,8 +6163,7 @@ static bool check_gtid_purged(sys_var *self, THD *thd, set_var *var) {
     return true;
   }
 
-  if (!var->value ||
-      check_session_admin_outside_trx_outside_sf_outside_sp(self, thd, var))
+  if (!var->value || check_session_admin_outside_trx_outside_sf(self, thd, var))
     return true;
 
   if (var->value->result_type() != STRING_RESULT ||

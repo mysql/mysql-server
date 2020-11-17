@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_import\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/01/2020
+.\"      Date: 09/04/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_IMPORT\FR" "1" "06/01/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_IMPORT\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -188,7 +188,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.263.\ \&Command\-line options for the ndb_import program
+.B Table\ \&22.264.\ \&Command\-line options for the ndb_import program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -643,13 +643,6 @@ T}
 \fB\-\-abort\-on\-error\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -684,13 +677,6 @@ Dump core on any fatal error; used for debugging only\&.
 \fB\-\-ai\-increment\fR=\fI#\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -739,13 +725,6 @@ system variable does in the MySQL Server\&.
 \fB\-\-ai\-offset\fR=\fI#\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -794,13 +773,6 @@ system variable\&.
 \fB\-\-ai\-prefetch\-sz\fR=\fI#\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -849,13 +821,6 @@ system variable does in the MySQL Server\&.
 \fB\-\-connections\fR=\fI#\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -902,13 +867,6 @@ Number of cluster connections to create\&.
 \fB\-\-continue\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -943,13 +901,6 @@ When a job fails, continue to the next job\&.
 \fB\-\-db\-workers\fR=\fI#\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -996,13 +947,6 @@ Number of threads, per data node, executing database operations\&.
 \fB\-\-errins\-type\fR=\fIname\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -1056,13 +1000,7 @@ value to obtain all possible values\&. This option is used for testing purposes 
 \fB\-\-errins\-delay\fR=\fI#\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
+lB l
 lB l
 lB l
 lB l
@@ -1093,6 +1031,11 @@ Maximum Value
 T}:T{
 4294967295
 T}
+T{
+Unit
+T}:T{
+ms
+T}
 .TE
 .sp 1
 Error insert delay in milliseconds; random variation is added\&. This option is used for testing purposes only\&.
@@ -1109,13 +1052,6 @@ Error insert delay in milliseconds; random variation is added\&. This option is 
 \fB\-\-fields\-enclosed\-by\fR=\fIchar\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -1155,13 +1091,6 @@ statement, specifying a character to be interpeted as quoting field values\&. Fo
 \fB\-\-fields\-escaped\-by\fR=\fIname\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -1200,13 +1129,6 @@ statement\&.
 \fB\-\-fields\-optionally\-enclosed\-by\fR=\fIchar\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -1246,13 +1168,6 @@ statement, specifying a character to be interpeted as optionally quoting field v
 \fB\-\-fields\-terminated\-by\fR=\fIchar\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -1291,13 +1206,7 @@ statement, specifying a character to be interpeted as the field separator\&.
 \fB\-\-idlesleep\fR=\fI#\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
+lB l
 lB l
 lB l
 lB l
@@ -1328,6 +1237,11 @@ Maximum Value
 T}:T{
 4294967295
 T}
+T{
+Unit
+T}:T{
+ms
+T}
 .TE
 .sp 1
 Number of milliseconds to sleep waiting for more work to perform\&.
@@ -1344,13 +1258,6 @@ Number of milliseconds to sleep waiting for more work to perform\&.
 \fB\-\-idlespin\fR=\fI#\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -1397,13 +1304,6 @@ Number of times to retry before sleeping\&.
 \fB\-\-ignore\-lines\fR=\fI#\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -1452,13 +1352,6 @@ lines of the input file\&. This can be employed to skip a file header that does 
 \fB\-\-input\-type\fR=\fIname\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -1505,13 +1398,6 @@ is intended for testing purposes only\&. \&.
 \fB\-\-input\-workers\fR=\fI#\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -1558,13 +1444,6 @@ Set the number of threads processing input\&.
 \fB\-\-keep\-state\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -1601,13 +1480,6 @@ files) when it completes a job\&. Specify this option (nor argument is required)
 \fB\-\-lines\-terminated\-by\fR=\fIname\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -1646,13 +1518,6 @@ statement, specifying a character to be interpeted as end\-of\-line\&.
 \fB\-\-log\-level\fR=\fI#\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -1701,13 +1566,7 @@ In debug builds of NDB only, the logging level can be set using this option to a
 \fB\-\-max\-rows\fR=\fI#\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
+lB l
 lB l
 lB l
 lB l
@@ -1738,6 +1597,11 @@ Maximum Value
 T}:T{
 4294967295
 T}
+T{
+Unit
+T}:T{
+bytes
+T}
 .TE
 .sp 1
 Import only this number of input data rows; the default is 0, which imports all rows\&.
@@ -1754,13 +1618,7 @@ Import only this number of input data rows; the default is 0, which imports all 
 \fB\-\-monitor\fR=\fI#\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
+lB l
 lB l
 lB l
 lB l
@@ -1791,6 +1649,11 @@ Maximum Value
 T}:T{
 4294967295
 T}
+T{
+Unit
+T}:T{
+bytes
+T}
 .TE
 .sp 1
 Periodically print the status of a running job if something has changed (status, rejected rows, temporary errors)\&. Set to 0 to disable this reporting\&. Setting to 1 prints any change that is seen\&. Higher values reduce the frequency of this status reporting\&.
@@ -1807,13 +1670,6 @@ Periodically print the status of a running job if something has changed (status,
 \fB\-\-no\-asynch\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -1848,13 +1704,6 @@ Run database operations as batches, in single transactions\&.
 \fB\-\-no\-hint\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -1889,13 +1738,7 @@ Do not use distribution key hinting to select a data node\&.
 \fB\-\-opbatch\fR=\fI#\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
+lB l
 lB l
 lB l
 lB l
@@ -1926,6 +1769,11 @@ Maximum Value
 T}:T{
 4294967295
 T}
+T{
+Unit
+T}:T{
+bytes
+T}
 .TE
 .sp 1
 Set a limit on the number of operations (including blob operations), and thus the number of asynchronous transactions, per execution batch\&.
@@ -1942,13 +1790,7 @@ Set a limit on the number of operations (including blob operations), and thus th
 \fB\-\-opbytes\fR=\fI#\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
+lB l
 lB l
 lB l
 lB l
@@ -1979,6 +1821,11 @@ Maximum Value
 T}:T{
 4294967295
 T}
+T{
+Unit
+T}:T{
+bytes
+T}
 .TE
 .sp 1
 Set a limit on the number of bytes per execution batch\&. Use 0 for no limit\&.
@@ -1995,13 +1842,6 @@ Set a limit on the number of bytes per execution batch\&. Use 0 for no limit\&.
 \fB\-\-output\-type\fR=\fIname\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -2046,13 +1886,6 @@ is used only for testing\&.
 \fB\-\-output\-workers\fR=\fI#\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -2099,13 +1932,7 @@ Set the number of threads processing output or relaying database operations\&.
 \fB\-\-pagesize\fR=\fI#\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
+lB l
 lB l
 lB l
 lB l
@@ -2136,6 +1963,11 @@ Maximum Value
 T}:T{
 4294967295
 T}
+T{
+Unit
+T}:T{
+bytes
+T}
 .TE
 .sp 1
 Align I/O buffers to the given size\&.
@@ -2152,13 +1984,6 @@ Align I/O buffers to the given size\&.
 \fB\-\-pagecnt\fR=\fI#\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -2205,13 +2030,7 @@ Set the size of I/O buffers as multiple of page size\&. The CSV input worker all
 \fB\-\-polltimeout\fR=\fI#\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
+lB l
 lB l
 lB l
 lB l
@@ -2242,6 +2061,11 @@ Maximum Value
 T}:T{
 4294967295
 T}
+T{
+Unit
+T}:T{
+ms
+T}
 .TE
 .sp 1
 Set a timeout per poll for completed asynchonous transactions; polling continues until all polls are completed, or until an error occurs\&.
@@ -2258,13 +2082,6 @@ Set a timeout per poll for completed asynchonous transactions; polling continues
 \fB\-\-rejects\fR=\fI#\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -2319,13 +2136,6 @@ run for this purpose\&.
 \fB\-\-resume\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -2360,13 +2170,7 @@ If a job is aborted (due to a temporary db error or when interrupted by the user
 \fB\-\-rowbatch\fR=\fI#\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
+lB l
 lB l
 lB l
 lB l
@@ -2397,6 +2201,11 @@ Maximum Value
 T}:T{
 4294967295
 T}
+T{
+Unit
+T}:T{
+rows
+T}
 .TE
 .sp 1
 Set a limit on the number of rows per row queue\&. Use 0 for no limit\&.
@@ -2413,13 +2222,7 @@ Set a limit on the number of rows per row queue\&. Use 0 for no limit\&.
 \fB\-\-rowbytes\fR=\fI#\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
+lB l
 lB l
 lB l
 lB l
@@ -2450,6 +2253,11 @@ Maximum Value
 T}:T{
 4294967295
 T}
+T{
+Unit
+T}:T{
+bytes
+T}
 .TE
 .sp 1
 Set a limit on the number of bytes per row queue\&. Use 0 for no limit\&.
@@ -2466,13 +2274,6 @@ Set a limit on the number of bytes per row queue\&. Use 0 for no limit\&.
 \fB\-\-stats\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -2509,16 +2310,9 @@ is not also specified)\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB \-\-state\-dir\fR=\fIname\fR
+\fB\-\-state\-dir\fR=\fIname\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -2556,13 +2350,7 @@ Where to write the state files (\fItbl_name\fR\&.map,
 \fB\-\-tempdelay\fR=\fI#\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
+lB l
 lB l
 lB l
 lB l
@@ -2593,6 +2381,11 @@ Maximum Value
 T}:T{
 4294967295
 T}
+T{
+Unit
+T}:T{
+ms
+T}
 .TE
 .sp 1
 Number of milliseconds to sleep between temporary errors\&.
@@ -2609,13 +2402,6 @@ Number of milliseconds to sleep between temporary errors\&.
 \fB\-\-temperrors\fR=\fI#\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -2665,13 +2451,6 @@ file\&.
 \fB\-v\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.

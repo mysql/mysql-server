@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 #include "field_types.h"
 #include "m_ctype.h"
 #include "my_alloc.h"
+#include "my_bit.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -38,6 +39,7 @@
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item_cmpfunc.h"
+#include "sql/join_optimizer/bit_utils.h"
 #include "sql/psi_memory_key.h"
 #include "sql/sql_class.h"
 #include "sql/sql_executor.h"
@@ -53,18 +55,12 @@ Column::Column(Field *field) : field(field), field_type(field->real_type()) {}
 
 // Take in a QEP_TAB and extract the columns that are needed to satisfy the SQL
 // query (determined by the read set of the table).
-Table::Table(QEP_TAB *qep_tab)
-    : qep_tab(qep_tab), columns(PSI_NOT_INSTRUMENTED) {
-  const TABLE *table = qep_tab->table();
+Table::Table(TABLE *table) : table(table), columns(PSI_NOT_INSTRUMENTED) {
   for (uint i = 0; i < table->s->fields; ++i) {
     if (bitmap_is_set(table->read_set, i)) {
       columns.emplace_back(table->field[i]);
     }
   }
-
-  // Cache the value of rowid_status, the value may be changed by other
-  // iterators. See QEP_TAB::rowid_status for more details.
-  rowid_status = qep_tab->rowid_status;
 }
 
 // Take a set of tables involed in a hash join and extract the columns that are
@@ -72,15 +68,27 @@ Table::Table(QEP_TAB *qep_tab)
 // with no columns, like t2 in the following query:
 //
 //   SELECT t1.col1 FROM t1, t2;  # t2 will be included without any columns.
-TableCollection::TableCollection(const JOIN *join, qep_tab_map tables) {
-  for (QEP_TAB *qep_tab : TablesContainedIn(join, tables)) {
-    AddTable(qep_tab);
+TableCollection::TableCollection(const JOIN *join, table_map tables,
+                                 bool store_rowids,
+                                 table_map tables_to_get_rowid_for)
+    : m_tables_bitmap(tables),
+      m_store_rowids(store_rowids),
+      m_tables_to_get_rowid_for(tables_to_get_rowid_for) {
+  if (!store_rowids) {
+    assert(m_tables_to_get_rowid_for == table_map{0});
+  }
+  for (uint table_idx = 0; table_idx < join->tables; ++table_idx) {
+    TABLE *table = join->qep_tab[table_idx].table();
+    if (table == nullptr || table->pos_in_table_list == nullptr) {
+      continue;
+    }
+    if (Overlaps(tables, table->pos_in_table_list->map())) {
+      AddTable(table);
+    }
   }
 }
 
-void TableCollection::AddTable(QEP_TAB *qep_tab) {
-  m_tables_bitmap |= qep_tab->table_ref->map();
-
+void TableCollection::AddTable(TABLE *tab) {
   // When constructing the iterator tree, we might end up adding a
   // WeedoutIterator _after_ a HashJoinIterator has been constructed.
   // When adding the WeedoutIterator, QEP_TAB::rowid_status will be changed
@@ -91,13 +99,13 @@ void TableCollection::AddTable(QEP_TAB *qep_tab) {
   // account here. To overcome this, we always assume that the row ID should
   // be kept; reserving some extra bytes in a few buffers should not be an
   // issue.
-  m_ref_and_null_bytes_size += qep_tab->table()->file->ref_length;
+  m_ref_and_null_bytes_size += tab->file->ref_length;
 
-  if (qep_tab->table()->is_nullable()) {
-    m_ref_and_null_bytes_size += sizeof(qep_tab->table()->null_row);
+  if (tab->is_nullable()) {
+    m_ref_and_null_bytes_size += sizeof(tab->null_row);
   }
 
-  Table table(qep_tab);
+  Table table(tab);
   for (const hash_join_buffer::Column &column : table.columns) {
     // Field_typed_array will mask away the BLOB_FLAG for all types. Hence,
     // we will treat all Field_typed_array as blob columns.
@@ -119,7 +127,7 @@ void TableCollection::AddTable(QEP_TAB *qep_tab) {
   }
 
   if (table.copy_null_flags) {
-    m_ref_and_null_bytes_size += qep_tab->table()->s->null_bytes;
+    m_ref_and_null_bytes_size += tab->s->null_bytes;
   }
 
   m_tables.push_back(table);
@@ -136,6 +144,7 @@ static size_t CalculateColumnStorageSize(const Column &column) {
   bool is_blob_column = false;
   switch (column.field_type) {
     case MYSQL_TYPE_DECIMAL:
+    case MYSQL_TYPE_BOOL:
     case MYSQL_TYPE_TINY:
     case MYSQL_TYPE_SHORT:
     case MYSQL_TYPE_LONG:
@@ -174,8 +183,9 @@ static size_t CalculateColumnStorageSize(const Column &column) {
       is_blob_column = true;
       break;
     }
-    case MYSQL_TYPE_TYPED_ARRAY: {
-      // This type is only used for replication, so it should not occur here.
+    case MYSQL_TYPE_INVALID:      // Should not occur
+    case MYSQL_TYPE_TYPED_ARRAY:  // Type only used for replication
+    {
       DBUG_ASSERT(false);
       return 0;
     }
@@ -209,12 +219,10 @@ size_t ComputeRowSizeUpperBound(const TableCollection &tables) {
   return total_size;
 }
 
-static bool ShouldCopyRowId(const hash_join_buffer::Table &tbl) {
+static bool ShouldCopyRowId(const TABLE *table) {
   // It is not safe to copy the row ID if we have a NULL-complemented row; the
   // value is undefined, or the buffer location can even be nullptr.
-  const TABLE *table = tbl.qep_tab->table();
-  return tbl.rowid_status != NO_ROWID_NEEDED && !table->const_table &&
-         !(table->is_nullable() && table->null_row);
+  return !table->const_table && !(table->is_nullable() && table->null_row);
 }
 
 bool StoreFromTableBuffers(const TableCollection &tables, String *buffer) {
@@ -234,7 +242,7 @@ bool StoreFromTableBuffers(const TableCollection &tables, String *buffer) {
 
   uchar *dptr = pointer_cast<uchar *>(buffer->ptr());
   for (const Table &tbl : tables.tables()) {
-    const TABLE *table = tbl.qep_tab->table();
+    const TABLE *table = tbl.table;
 
     // Store the NULL flags.
     if (tbl.copy_null_flags) {
@@ -242,14 +250,14 @@ bool StoreFromTableBuffers(const TableCollection &tables, String *buffer) {
       dptr += table->s->null_bytes;
     }
 
-    if (tbl.qep_tab->table()->is_nullable()) {
-      const size_t null_row_size = sizeof(tbl.qep_tab->table()->null_row);
-      memcpy(dptr, pointer_cast<const uchar *>(&tbl.qep_tab->table()->null_row),
+    if (tbl.table->is_nullable()) {
+      const size_t null_row_size = sizeof(tbl.table->null_row);
+      memcpy(dptr, pointer_cast<const uchar *>(&tbl.table->null_row),
              null_row_size);
       dptr += null_row_size;
     }
 
-    if (ShouldCopyRowId(tbl)) {
+    if (tables.store_rowids() && ShouldCopyRowId(tbl.table)) {
       // Store the row ID, since it is needed by weedout.
       memcpy(dptr, table->file->ref, table->file->ref_length);
       dptr += table->file->ref_length;
@@ -279,7 +287,7 @@ bool StoreFromTableBuffers(const TableCollection &tables, String *buffer) {
 const uchar *LoadIntoTableBuffers(const TableCollection &tables,
                                   const uchar *ptr) {
   for (const Table &tbl : tables.tables()) {
-    TABLE *table = tbl.qep_tab->table();
+    TABLE *table = tbl.table;
 
     // If the NULL row flag is set, it may override the NULL flags for the
     // columns. This may in turn cause columns not to be restored when they
@@ -291,14 +299,13 @@ const uchar *LoadIntoTableBuffers(const TableCollection &tables,
       ptr += table->s->null_bytes;
     }
 
-    if (tbl.qep_tab->table()->is_nullable()) {
-      const size_t null_row_size = sizeof(tbl.qep_tab->table()->null_row);
-      memcpy(pointer_cast<uchar *>(&tbl.qep_tab->table()->null_row), ptr,
-             null_row_size);
+    if (tbl.table->is_nullable()) {
+      const size_t null_row_size = sizeof(tbl.table->null_row);
+      memcpy(pointer_cast<uchar *>(&tbl.table->null_row), ptr, null_row_size);
       ptr += null_row_size;
     }
 
-    if (ShouldCopyRowId(tbl)) {
+    if (tables.store_rowids() && ShouldCopyRowId(tbl.table)) {
       memcpy(table->file->ref, ptr, table->file->ref_length);
       ptr += table->file->ref_length;
     }

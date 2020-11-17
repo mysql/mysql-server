@@ -27,6 +27,9 @@
 
 #ifdef _WIN32
 #include <WinSock2.h>
+#include <ws2tcpip.h>
+#else
+#include <netinet/in.h>
 #endif
 
 #include "mgmapi_config_parameters.h"
@@ -266,14 +269,62 @@ extern "C" {
     /** IP address of node as seen by the other nodes in the cluster. */
     char connect_address[
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-			 sizeof("000.000.000.000")+1
+                        sizeof("000.000.000.000")+1
 #endif
     ];
 
     /** MySQL version number */
     int mysql_version;
+  };
+
+  /**
+   *   Status of a node in the cluster.
+   *
+   *   Sub-structure in enum ndb_mgm_cluster_state
+   *   returned by ndb_mgm_get_status().
+   *
+   *   @note <var>node_status</var>, <var>start_phase</var>,
+   *         <var>dynamic_id</var>
+   *         and <var>node_group</var> are relevant only for database nodes,
+   *         i.e. <var>node_type</var> == @ref NDB_MGM_NODE_TYPE_NDB.
+   */
+  struct ndb_mgm_node_state2 {
+    /** NDB Cluster node ID*/
+    int node_id;
+    /** Type of NDB Cluster node*/
+    enum ndb_mgm_node_type   node_type;
+   /** State of node*/
+    enum ndb_mgm_node_status node_status;
+    /** Start phase.
+     *
+     *  @note Start phase is only valid if the <var>node_type</var> is
+     *        NDB_MGM_NODE_TYPE_NDB and the <var>node_status</var> is
+     *        NDB_MGM_NODE_STATUS_STARTING
+     */
+    int start_phase;
+    /** ID for heartbeats and master take-over (only valid for DB nodes)
+     */
+    int dynamic_id;
+    /** Node group of node (only valid for DB nodes)*/
+    int node_group;
+    /** Internal version number*/
+    int version;
+    /** Number of times node has connected or disconnected to the
+     *  management server
+     */
+    int connect_count;
+    /** MySQL version number */
+    int mysql_version;
     /** Node is the single user **/
     int is_single_user;
+    /** IP address of node as seen by the other nodes in the cluster. */
+    char connect_address[
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+       INET6_ADDRSTRLEN
+#endif
+    ];
+
+    void init();
   };
   
   /**
@@ -290,6 +341,8 @@ extern "C" {
 #endif
     ];
   };
+
+  struct ndb_mgm_cluster_state2;
 
   /**
    *   Default reply from the server (reserved for future use)
@@ -712,6 +765,44 @@ extern "C" {
                       const enum ndb_mgm_node_type types[]);
                       
 
+  /**
+   * Gets status of the nodes *of specified types* in an NDB Cluster.
+   *
+   * @note This function works for an IPv6 cluster.
+   * @note The caller must free the pointer returned by this function.
+   * @note Passing a NULL pointer into types make this equivalent to
+   *       ndb_mgm_get_status
+   *
+   * @param   handle        Management handle.
+   * @param   types         Pointer to array of interesting node types.
+   *                        Array should be terminated
+   *                        by *NDB_MGM_NODE_TYPE_UNKNOWN*.
+   *
+   * @return                Cluster state (or <var>NULL</var> on error).
+   */
+  struct ndb_mgm_cluster_state2 *
+  ndb_mgm_get_status3(NdbMgmHandle handle,
+                      const enum ndb_mgm_node_type types[]);
+
+  /**
+   * Get the node status of a cluster state at a given position
+   *
+   * @param cs Cluster state
+   * @param i Position of required node state, starting from 0
+   *
+   * @return Node state of cs at position i
+   */
+  struct ndb_mgm_node_state2 *
+  ndb_mgm_get_node_status(ndb_mgm_cluster_state2 *cs, int i);
+
+  /**
+   * Get the number of nodes in a cluster state
+   *
+   * @param cs Cluster state
+   * @return Number of nodes in the cluster state
+   */
+  int
+  ndb_mgm_get_status_node_count(ndb_mgm_cluster_state2 *cs);
 
   /**
    * Dump state
@@ -1234,6 +1325,32 @@ extern "C" {
 			   struct ndb_mgm_reply* reply,
 			   unsigned int input_backupId,
 			   unsigned int backuppoint);
+
+  /**
+   * Start backup
+   *
+   * @param   handle                NDB management handle.
+   * @param   wait_completed        0:  Don't wait for confirmation<br>
+   *                                1:  Wait for backup to be started<br>
+   *                                2:  Wait for backup to be completed
+   * @param   backup_id             Backup ID is returned from function.
+   * @param   reply                 Reply message.
+   * @param   input_backupId        run as backupId and set next backup id to input_backupId+1.
+   * @param   backuppoint           Backup happen at start time(1) or complete time(0).
+   * @param   encryption_password   Password to encrypt the backup files
+   * @param   password_length       Length of the encryption password
+   * @return                        -1 on error.
+   * @note                          backup_id will not be returned if
+   *                                wait_completed == 0
+   */
+  int ndb_mgm_start_backup4(NdbMgmHandle handle, int wait_completed,
+         unsigned int* backup_id,
+         struct ndb_mgm_reply* reply,
+         unsigned int input_backupId,
+         unsigned int backuppoint,
+         const char* encryption_password,
+         unsigned int password_length);
+
 
   /**
    * Abort backup

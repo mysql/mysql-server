@@ -132,6 +132,11 @@ bool Session_consistency_gtids_ctx::notify_after_gtid_executed_update(
   return res;
 }
 
+void Session_consistency_gtids_ctx::
+    update_tracking_activeness_from_session_variable(const THD *thd) {
+  m_curr_session_track_gtids = thd->variables.session_track_gtids;
+}
+
 bool Session_consistency_gtids_ctx::notify_after_response_packet(
     const THD *thd) {
   int res = false;
@@ -144,7 +149,7 @@ bool Session_consistency_gtids_ctx::notify_after_response_packet(
    this value. It may have changed (the previous command may have been
    a SET SESSION session_track_gtids=...;).
    */
-  m_curr_session_track_gtids = thd->variables.session_track_gtids;
+  update_tracking_activeness_from_session_variable(thd);
   return res;
 }
 
@@ -162,7 +167,7 @@ void Session_consistency_gtids_ctx::register_ctx_change_listener(
      if the session_track_gtids value is set at startup time to anything
      different than OFF.
      */
-    m_curr_session_track_gtids = thd->variables.session_track_gtids;
+    update_tracking_activeness_from_session_variable(thd);
   }
 }
 

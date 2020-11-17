@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
     All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -39,7 +39,9 @@ public:
   int start(unsigned & _backup_id,
 	    int flags = 2,
 	    unsigned int user_backup_id= 0,
-	    unsigned int logtype= 0);
+	    unsigned int logtype= 0,
+	    const char* encryption_password = nullptr,
+	    unsigned int password_length = 0);
   int start() { unsigned unused =0; return start(unused); }
   int restore(unsigned _backup_id, bool restore_meta = true, bool restore_data = true, unsigned error_insert = 0, bool restore_epoch = false);
 

@@ -103,8 +103,8 @@ CREATE TABLE test.I_S_view_names (name VARCHAR(64) PRIMARY KEY);
 ########################################################################
 # The number of I_S system views must be as expected.
 ########################################################################
-include/assert.inc [There are 43 system views.]
-include/assert.inc [There are 43 I_S system views in total.]
+include/assert.inc [There are 44 system views.]
+include/assert.inc [There are 44 I_S system views in total.]
 ########################################################################
 # No unexpected I_S tables must be present.
 ########################################################################
@@ -118,7 +118,7 @@ include/assert.inc [All expected I_S system views are present.]
 #         I_S system views.
 ########################################################################
 # Print the actual I_S version stored on disk.
-Current I_S_VERSION=80021
+Current I_S_VERSION=80022
 CREATE TABLE I_S_check_table (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 t TEXT NOT NULL,
 row_hash VARCHAR(64) DEFAULT NULL);
@@ -1007,6 +1007,22 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   JOIN mysql.character_sets cs ON col.character_set_id= cs.id WHERE 
   CAN_ACCESS_DATABASE(sch.name)
 ");
+CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.SCHEMATA_EXTENSIONS AS SELECT 
+  cat.name AS CATALOG_NAME,
+  sch.name AS SCHEMA_NAME,
+  GET_DD_SCHEMA_OPTIONS(sch.options) AS OPTIONS FROM 
+  mysql.schemata sch
+  JOIN mysql.catalogs cat ON cat.id=sch.catalog_id WHERE 
+  CAN_ACCESS_DATABASE(sch.name)
+
+INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.SCHEMATA_EXTENSIONS AS SELECT 
+  cat.name AS CATALOG_NAME,
+  sch.name AS SCHEMA_NAME,
+  GET_DD_SCHEMA_OPTIONS(sch.options) AS OPTIONS FROM 
+  mysql.schemata sch
+  JOIN mysql.catalogs cat ON cat.id=sch.catalog_id WHERE 
+  CAN_ACCESS_DATABASE(sch.name)
+");
 CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.ST_SPATIAL_REFERENCE_SYSTEMS AS SELECT 
   name AS SRS_NAME,
   id AS SRS_ID,
@@ -1615,13 +1631,15 @@ CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema
   user AS USER,
   host AS HOST,
   user_attributes->>"$.metadata" AS `ATTRIBUTE` FROM 
-  mysql.user
+  mysql.user WHERE 
+  CAN_ACCESS_USER(mysql.user.user,mysql.user.host)
 
 INSERT INTO I_S_check_table(t) VALUES ('CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.USER_ATTRIBUTES AS SELECT 
   user AS USER,
   host AS HOST,
   user_attributes->>"$.metadata" AS `ATTRIBUTE` FROM 
-  mysql.user
+  mysql.user WHERE 
+  CAN_ACCESS_USER(mysql.user.user,mysql.user.host)
 ');
 SET debug = '-d,fetch_system_view_definition';
 ########################################################################
@@ -1631,8 +1649,8 @@ SET debug = '-d,fetch_system_view_definition';
 include/assert.inc [Found expected number of system views in DD.]
 include/assert.inc [Found expected number of system views in I_S_check_table.]
 include/assert.inc [The group concat max length is sufficient.]
-The schema checksum corresponds to I_S version 80021.
+The schema checksum corresponds to I_S version 80022.
 include/assert.inc [The schema checksum corresponds to a known I_S version.]
 include/assert.inc [The schema checksum corresponds to
-IS_VERSION 80021 stored on on disk.]
+IS_VERSION 80022 stored on on disk.]
 include/assert.inc [The stored I_S version is the latest published I_S version.]

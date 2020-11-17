@@ -120,7 +120,7 @@ eval select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME,
   and (OWNER_THREAD_ID = $con_default_thread_id
        OR OWNER_THREAD_ID = $con1_thread_id
        OR OWNER_THREAD_ID = $con2_thread_id)
-  order by LOCK_STATUS;
+  order by LOCK_STATUS, LOCK_TYPE;
 --enable_query_log
 
 select name from mysql.plugin

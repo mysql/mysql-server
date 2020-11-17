@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,7 +76,7 @@ class Sink_interface : public Common_interface {
     polymorphically used.
   */
 
-  virtual ~Sink_interface() {}
+  ~Sink_interface() override {}
 
   /**
     The purpose of this method is to effectively log the information.
@@ -127,7 +127,7 @@ class Logger_interface : public Common_interface {
     polymorphically used.
   */
 
-  virtual ~Logger_interface() {}
+  ~Logger_interface() override {}
 
   /**
     The purpose of this method is to deliver to the logging system any message

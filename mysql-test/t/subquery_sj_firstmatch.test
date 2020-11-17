@@ -74,6 +74,7 @@ FROM t2 AS nt2
 WHERE 1 IN (SELECT it1.a
             FROM t1 AS it1 JOIN t6 AS it3 ON it1.a=it3.a);
 
+--sorted_result
 SELECT *
 FROM t2 AS nt2
 WHERE 1 IN (SELECT it1.a
@@ -85,6 +86,7 @@ FROM t2 AS nt2, t8 AS nt4
 WHERE 1 IN (SELECT it1.a
             FROM t1 AS it1 JOIN t6 AS it3 ON it1.a=it3.a);
 
+--sorted_result
 SELECT *
 FROM t2 AS nt2, t8 AS nt4
 WHERE 1 IN (SELECT it1.a

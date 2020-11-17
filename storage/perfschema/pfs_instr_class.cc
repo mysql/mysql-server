@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -62,6 +62,14 @@
   This flag is set at startup, and never changes.
 */
 bool pfs_enabled = true;
+
+/**
+  Global flag used to enable and disable SHOW PROCESSLIST in the
+  performance schema. This flag only takes effect if the performance schema
+  is configured to support SHOW PROCESSLIST.
+  @sa performance-schema-enable-processlist
+*/
+bool pfs_processlist_enabled = false;
 
 /**
   Global performance schema reference count for plugin and component events.
@@ -1275,7 +1283,8 @@ PFS_thread_key register_thread_class(const char *name, uint name_length,
     entry->m_singleton = nullptr;
     entry->m_history = true;
 
-    entry->enforce_valid_flags(PSI_FLAG_SINGLETON | PSI_FLAG_USER);
+    entry->enforce_valid_flags(PSI_FLAG_SINGLETON | PSI_FLAG_USER |
+                               PSI_FLAG_THREAD_SYSTEM);
 
     configure_instr_class(entry);
     ++thread_class_allocated_count;
@@ -1965,7 +1974,7 @@ class Proc_table_share_derived_flags
  public:
   Proc_table_share_derived_flags(PFS_thread *thread) : m_thread(thread) {}
 
-  virtual void operator()(PFS_table_share *pfs) {
+  void operator()(PFS_table_share *pfs) override {
     pfs->refresh_setup_object_flags(m_thread);
   }
 
@@ -1983,7 +1992,7 @@ class Proc_program_share_derived_flags
  public:
   Proc_program_share_derived_flags(PFS_thread *thread) : m_thread(thread) {}
 
-  virtual void operator()(PFS_program *pfs) {
+  void operator()(PFS_program *pfs) override {
     pfs->refresh_setup_object_flags(m_thread);
   }
 

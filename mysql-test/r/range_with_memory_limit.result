@@ -17,13 +17,13 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	index	a	a	5	NULL	10	10.00	Using where
 Warnings:
 Warning	3170	Memory capacity of 100 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in (<cache>((0,0)),<cache>((1,1))))
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in ((0,0),(1,1)))
 SET RANGE_OPTIMIZER_MAX_MEM_SIZE= DEFAULT;
 EXPLAIN SELECT DISTINCT a FROM t1 WHERE (a, b) IN ((0, 0), (1, 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	a	a	5	NULL	2	20.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in (<cache>((0,0)),<cache>((1,1))))
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in ((0,0),(1,1)))
 DROP TABLE t1;
 SET RANGE_OPTIMIZER_MAX_MEM_SIZE= 10;
 drop table if exists t1, t2, t3;
@@ -444,8 +444,8 @@ WHERE
 a	b
 15	1
 47	1
-Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warnings:
 DROP TABLE t1;
 CREATE TABLE t1 (
 id int( 11 ) unsigned NOT NULL AUTO_INCREMENT ,
@@ -476,8 +476,8 @@ SELECT id, columnid, tableid, content, showid, line, ordinal FROM t1 WHERE owner
 id	columnid	tableid	content	showid	line	ordinal
 13	13	1	188	1	5	0
 15	15	1	188	1	1	0
-Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warnings:
 drop table t1;
 create  table t1 (id int(10) primary key);
 Warnings:
@@ -778,8 +778,8 @@ select * from t1 where a <> -1;
 a
 18446744073709551614
 18446744073709551615
-Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warnings:
 explain select * from t1 where a > -1 or a < -1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	t1i	t1i	9	NULL	2	50.00	Using where; Using index
@@ -790,8 +790,8 @@ select * from t1 where a > -1 or a < -1;
 a
 18446744073709551614
 18446744073709551615
-Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warnings:
 explain select * from t1 where a > -1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	t1i	t1i	9	NULL	2	50.00	Using where; Using index
@@ -802,8 +802,8 @@ select * from t1 where a > -1;
 a
 18446744073709551614
 18446744073709551615
-Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warnings:
 explain select * from t1 where a < -1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
@@ -949,14 +949,14 @@ WHERE s.oxrootid = 'd8c4177d09f8b11f5.52725521' AND
 v.oxrootid ='d8c4177d09f8b11f5.52725521' AND
 s.oxleft > v.oxleft AND s.oxleft < v.oxright;
 oxid
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warnings:
 d8c4177d151affab2.81582770
 d8c4177d206a333d2.74422679
 d8c4177d225791924.30714720
 d8c4177d2380fc201.39666693
 d8c4177d24ccef970.14957924
-Warnings:
-Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 DROP TABLE t1;
 create table t1 (
 c1  char(10), c2  char(10), c3  char(10), c4  char(10),
@@ -1621,8 +1621,8 @@ SELECT * FROM t1 WHERE
 a	b
 5	0
 9	7
-Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warnings:
 EXPLAIN
 SELECT * FROM t1 WHERE
 3 <= a AND a < 5 OR 
@@ -1640,8 +1640,8 @@ SELECT * FROM t1 WHERE
 a	b
 5	0
 9	7
-Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warnings:
 EXPLAIN
 SELECT * FROM t1 WHERE
 3 <= a AND a < 5 OR 
@@ -1659,8 +1659,8 @@ SELECT * FROM t1 WHERE
 a	b
 5	0
 9	7
-Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warnings:
 EXPLAIN
 SELECT * FROM t1 WHERE
 3 <= a AND a <= 5 OR 
@@ -1677,8 +1677,8 @@ SELECT * FROM t1 WHERE
 a	b
 5	0
 9	7
-Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warnings:
 EXPLAIN
 SELECT * FROM t1 WHERE
 3 <= a AND a <= 5 OR 
@@ -1695,14 +1695,6 @@ OR
 1 <= a AND b = 1;
 a	b
 1	1
-2	1
-3	1
-4	1
-5	1
-6	1
-7	1
-8	1
-9	1
 10	1
 11	1
 12	1
@@ -1718,9 +1710,17 @@ a	b
 18	3
 19	1
 19	3
+2	1
 20	1
-Warnings:
+3	1
+4	1
+5	1
+6	1
+7	1
+8	1
+9	1
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warnings:
 EXPLAIN
 SELECT * FROM t2 WHERE
 5 <= a AND a < 10 AND b = 1 OR
@@ -1739,19 +1739,6 @@ OR
 1 <= a AND b = 1;
 a	b
 1	1
-2	1
-3	1
-4	1
-5	1
-5	2
-6	1
-6	2
-7	1
-7	2
-8	1
-8	2
-9	1
-9	2
 10	1
 11	1
 12	1
@@ -1767,9 +1754,22 @@ a	b
 18	3
 19	1
 19	3
+2	1
 20	1
-Warnings:
+3	1
+4	1
+5	1
+5	2
+6	1
+6	2
+7	1
+7	2
+8	1
+8	2
+9	1
+9	2
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warnings:
 EXPLAIN
 SELECT * FROM t2 WHERE
 5 <= a AND a < 10 AND b = 2 OR
@@ -1795,8 +1795,8 @@ a	b
 7	0
 8	0
 9	0
-Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warnings:
 EXPLAIN
 SELECT * FROM t3 WHERE
 5 <= a AND a < 10 AND b = 3 OR 
@@ -2276,7 +2276,7 @@ Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exce
 EXPLAIN
 SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	i4_uq	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	i4_uq	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.i4	1	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i4` AS `i4`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`i4` AS `i4` from `test`.`t1` join `test`.`t1` `t2` where (`test`.`t2`.`pk` between `test`.`t1`.`i4` and `test`.`t1`.`i4`)
@@ -2284,7 +2284,8 @@ EXPLAIN FORMAT=tree
 SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
 EXPLAIN
 -> Nested loop inner join  (cost=1.85 rows=3)
-    -> Table scan on t1  (cost=0.80 rows=3)
+    -> Filter: (t1.i4 is not null)  (cost=0.80 rows=3)
+        -> Table scan on t1  (cost=0.80 rows=3)
     -> Single-row index lookup on t2 using PRIMARY (pk=t1.i4), with index condition: (t2.pk between t1.i4 and t1.i4)  (cost=0.28 rows=1)
 
 SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
@@ -2292,7 +2293,7 @@ pk	i4	pk	i4
 EXPLAIN
 SELECT * FROM t1, t1 as t2 WHERE t1.i4 BETWEEN t2.pk AND t2.pk;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	i4_uq	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	i4_uq	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.i4	1	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i4` AS `i4`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`i4` AS `i4` from `test`.`t1` join `test`.`t1` `t2` where (`test`.`t1`.`i4` between `test`.`t2`.`pk` and `test`.`t2`.`pk`)
@@ -2967,6 +2968,10 @@ Warnings:
 Warning	1831	Duplicate index 'a_2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 INSERT INTO t1 VALUES (1,5,1),(2,4,1),(3,3,1),(4,2,1),(5,1,1);
 UPDATE t1 SET b = 0, c=1 WHERE a <=>0;
+Warnings:
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 SELECT * FROM t1;
 a	b	c
 1	5	1
@@ -3071,12 +3076,12 @@ Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exce
 Note	1003	/* select#1 */ select `test`.`t2`.`b` AS `b` from `test`.`t2` where (`test`.`t2`.`b` = <cache>(cast('2001-01-01' as date)))
 SELECT * FROM t2 WHERE b=CAST('2001-01-01' AS DATE);
 b
+2001#01#01
 2001-01-01
 2001-01-01 00:00:00
 2001.01.01
-2001#01#01
-Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warnings:
 
 # range/ref access cannot be used for any of the queries below.
 # See BUG#13814468 about 'Range checked for each record'
@@ -3175,7 +3180,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	index	x	x	10	NULL	4098	2.00	Using where; Using index
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in (<cache>((NULL,NULL)),<cache>((NULL,NULL))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in ((NULL,NULL),(NULL,NULL)))
 EXPLAIN SELECT a, b FROM t1 WHERE (a = 0 AND b = 0) OR (a = 1 AND b = 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	x	x	10	NULL	4098	1.99	Using where; Using index
@@ -3198,6 +3203,8 @@ Handler_read_next	4098
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
+Warnings:
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 EXPLAIN SELECT a, b FROM t1 WHERE (a, b) IN ((0, 0));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	x	x	10	const,const	10	100.00	Using index
@@ -3219,12 +3226,14 @@ Handler_read_next	1
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
+Warnings:
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 EXPLAIN SELECT a, b FROM t1 WHERE (a, b) IN ((0, 0), (1, 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	x	x	10	NULL	4098	2.00	Using where; Using index
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in (<cache>((0,0)),<cache>((1,1))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in ((0,0),(1,1)))
 FLUSH STATUS;
 SELECT a, b FROM t1 WHERE (a, b) IN ((0, 0), (1, 1));
 a	b
@@ -3241,12 +3250,14 @@ Handler_read_next	4098
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
+Warnings:
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 EXPLAIN SELECT a, b, c FROM t2 WHERE (a, b, c) IN ((0, 0, 0), (1, 1, 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	x	NULL	NULL	NULL	4098	0.20	Using where
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` where ((`test`.`t2`.`a`,`test`.`t2`.`b`,`test`.`t2`.`c`) in (<cache>((0,0,0)),<cache>((1,1,1))))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` where ((`test`.`t2`.`a`,`test`.`t2`.`b`,`test`.`t2`.`c`) in ((0,0,0),(1,1,1)))
 FLUSH STATUS;
 SELECT a, b, c FROM t2 WHERE (a, b, c) IN ((0, 0, 0), (1, 1, 1));
 a	b	c
@@ -3263,12 +3274,14 @@ Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	4099
+Warnings:
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 EXPLAIN SELECT a, b, c FROM t3 WHERE (a, b, c) IN ((0, 0, 0), (1, 1, 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	index	x	x	15	NULL	4098	0.20	Using where; Using index
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where ((`test`.`t3`.`a`,`test`.`t3`.`b`,`test`.`t3`.`c`) in (<cache>((0,0,0)),<cache>((1,1,1))))
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where ((`test`.`t3`.`a`,`test`.`t3`.`b`,`test`.`t3`.`c`) in ((0,0,0),(1,1,1)))
 FLUSH STATUS;
 SELECT a, b, c FROM t3 WHERE (a, b, c) IN ((0, 0, 0), (1, 1, 1));
 a	b	c
@@ -3285,6 +3298,8 @@ Handler_read_next	4098
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
+Warnings:
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 EXPLAIN SELECT a, b FROM t1 WHERE a = 0 AND b = 0 OR (a, b) IN ((1, 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	x	x	10	NULL	4098	1.99	Using where; Using index
@@ -3307,6 +3322,8 @@ Handler_read_next	4098
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
+Warnings:
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 EXPLAIN SELECT a, b FROM t1 WHERE (a, b) IN ((1, 1)) OR a = 0 AND b = 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	x	x	10	NULL	4098	1.99	Using where; Using index
@@ -3329,6 +3346,8 @@ Handler_read_next	4098
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
+Warnings:
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 EXPLAIN SELECT a, b FROM t2 WHERE (a, b, c) IN ((1, 1, 1)) OR a = 0 AND b = 0 AND c = 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	x	NULL	NULL	NULL	4098	0.20	Using where
@@ -3351,6 +3370,8 @@ Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	4099
+Warnings:
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 EXPLAIN SELECT a, b FROM t3 WHERE (a, b, c) IN ((1, 1, 1)) OR a = 0 AND b = 0 AND c = 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	index	x	x	15	NULL	4098	0.20	Using where; Using index
@@ -3373,6 +3394,8 @@ Handler_read_next	4098
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
+Warnings:
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 EXPLAIN SELECT a, b FROM t1 WHERE (a, b) IN (((SELECT 1), 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	x	x	10	const,const	10	100.00	Using index
@@ -3395,12 +3418,14 @@ Handler_read_next	1
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
+Warnings:
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 EXPLAIN SELECT a, b FROM t1 WHERE (a, b) IN (('0', 0), (1, 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	x	x	10	NULL	4098	2.00	Using where; Using index
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in (<cache>(('0',0)),<cache>((1,1))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in (('0',0),(1,1)))
 FLUSH STATUS;
 SELECT a, b FROM t1 WHERE (a, b) IN (('0', 0), (1, 1));
 a	b
@@ -3417,13 +3442,15 @@ Handler_read_next	4098
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
+Warnings:
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 SET @v = 0;
 EXPLAIN SELECT a, b FROM t1 WHERE (a, b) IN ((@v, 0), (1, 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	x	x	10	NULL	4098	2.00	Using where; Using index
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in (<cache>(((@`v`),0)),<cache>((1,1))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in (((@`v`),0),(1,1)))
 FLUSH STATUS;
 SELECT a, b FROM t1 WHERE (a, b) IN ((@v, 0), (1, 1));
 a	b
@@ -3440,6 +3467,8 @@ Handler_read_next	4098
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
+Warnings:
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 CREATE TABLE t4 ( a INT, b INT );
 INSERT INTO t4 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
 INSERT INTO t4 SELECT a + 5, b + 5 FROM t4;
@@ -3458,7 +3487,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	640	2.00	Using where
 1	SIMPLE	t1	NULL	ref	x	x	10	test.t4.a,test.t4.b	410	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t4` join `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t4`.`b`) and (`test`.`t1`.`a` = `test`.`t4`.`a`) and ((`test`.`t4`.`a`,`test`.`t4`.`b`) in (<cache>((1,1)),<cache>((0,0)))))
+Note	1003	/* select#1 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t4` join `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t4`.`b`) and (`test`.`t1`.`a` = `test`.`t4`.`a`) and ((`test`.`t4`.`a`,`test`.`t4`.`b`) in ((1,1),(0,0))))
 # Join on IN
 EXPLAIN
 SELECT t4.*, t1.a, t1.b
@@ -3469,7 +3498,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	index	x	x	10	NULL	4098	2.00	Using where; Using index; Using join buffer (hash join)
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-Note	1003	/* select#1 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t4` join `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in ((`test`.`t4`.`a`,`test`.`t4`.`b`),<cache>((0,0))))
+Note	1003	/* select#1 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t4` join `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in ((`test`.`t4`.`a`,`test`.`t4`.`b`),(0,0)))
 EXPLAIN
 SELECT t4.*, t1.a, t1.b
 FROM t4 JOIN t1
@@ -3479,7 +3508,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	index	x	x	10	NULL	4098	2.00	Using where; Using index; Using join buffer (hash join)
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-Note	1003	/* select#1 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t4` join `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in ((`test`.`t4`.`a`,`test`.`t4`.`b`),<cache>((1,1))))
+Note	1003	/* select#1 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t4` join `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in ((`test`.`t4`.`a`,`test`.`t4`.`b`),(1,1)))
 #
 # Tests for non-deterministic functions.
 #
@@ -3490,19 +3519,19 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	x	NULL	NULL	NULL	4098	0.20	Using where
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`,`test`.`t1`.`c`) in (<cache>((0,0,0)),(`f1`(),1,1)))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`,`test`.`t1`.`c`) in ((0,0,0),(`f1`(),1,1)))
 EXPLAIN SELECT a, b FROM t1 WHERE (a, b, c) IN ((0, 0, 0), (1, f1(), 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	x	NULL	NULL	NULL	4098	0.20	Using where
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`,`test`.`t1`.`c`) in (<cache>((0,0,0)),(1,`f1`(),1)))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`,`test`.`t1`.`c`) in ((0,0,0),(1,`f1`(),1)))
 EXPLAIN SELECT a, b FROM t1 WHERE (a, b, c) IN ((0, 0, 0), (1, 1, f1()));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	x	NULL	NULL	NULL	4098	0.20	Using where
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`,`test`.`t1`.`c`) in (<cache>((0,0,0)),(1,1,`f1`())))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`,`test`.`t1`.`c`) in ((0,0,0),(1,1,`f1`())))
 # The statement immediately below should not use range access.
 EXPLAIN SELECT a, b FROM t1 WHERE (a, b) IN ((f1(), 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -3566,6 +3595,8 @@ Handler_read_next	9
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	6
+Warnings:
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 EXPLAIN SELECT *
 FROM t5 JOIN t6 ON t5.a = t6.a JOIN t7
 WHERE (t7.a, t7.b) IN ((t5.b, 1), (t6.b, 1));
@@ -3594,6 +3625,8 @@ Handler_read_next	9
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	6
+Warnings:
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 #
 # Regression tests of the worklog below.
 #
@@ -3624,7 +3657,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	x	NULL	NULL	NULL	4098	2.00	Using where
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`c`) in (<cache>((0,0)),<cache>((1,1))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`c`) in ((0,0),(1,1)))
 DROP TABLE t1, t2, t3, t4, t5, t6, t7;
 #
 # Bug#17635476: CRASH IN GET_MM_PARTS() OR ASSERT IN
@@ -3658,7 +3691,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	index	a	a	5	NULL	10	10.00	Using where
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in (<cache>((0,0)),<cache>((1,1))))
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in ((0,0),(1,1)))
 FLUSH STATUS;
 SELECT DISTINCT a FROM t1 WHERE (a, b) IN ((0, 0), (1, 1));
 a
@@ -3675,12 +3708,14 @@ Handler_read_next	10
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
+Warnings:
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 EXPLAIN SELECT DISTINCT a FROM t2 WHERE (a, b) IN ((0, 0), (1, 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	a	a	10	NULL	10	10.00	Using where; Using index
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-Note	1003	/* select#1 */ select distinct `test`.`t2`.`a` AS `a` from `test`.`t2` where ((`test`.`t2`.`a`,`test`.`t2`.`b`) in (<cache>((0,0)),<cache>((1,1))))
+Note	1003	/* select#1 */ select distinct `test`.`t2`.`a` AS `a` from `test`.`t2` where ((`test`.`t2`.`a`,`test`.`t2`.`b`) in ((0,0),(1,1)))
 FLUSH STATUS;
 SELECT DISTINCT a FROM t2 WHERE (a, b) IN ((0, 0), (1, 1));
 a
@@ -3697,20 +3732,22 @@ Handler_read_next	10
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
+Warnings:
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 # Should not use range scan.
 EXPLAIN SELECT DISTINCT a FROM t1 WHERE (NULL, b) IN ((0, 0), (1, 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	a	a	5	NULL	10	20.00	Using where
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1` where ((NULL,`test`.`t1`.`b`) in (<cache>((0,0)),<cache>((1,1))))
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1` where ((NULL,`test`.`t1`.`b`) in ((0,0),(1,1)))
 # Should not use range scan.
 EXPLAIN SELECT DISTINCT a FROM t2 WHERE (NULL, b) IN ((0, 0), (1, 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	a	a	10	NULL	10	20.00	Using where; Using index
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-Note	1003	/* select#1 */ select distinct `test`.`t2`.`a` AS `a` from `test`.`t2` where ((NULL,`test`.`t2`.`b`) in (<cache>((0,0)),<cache>((1,1))))
+Note	1003	/* select#1 */ select distinct `test`.`t2`.`a` AS `a` from `test`.`t2` where ((NULL,`test`.`t2`.`b`) in ((0,0),(1,1)))
 DROP TABLE t1, t2;
 #
 # Bug#17755540 VALGRIND ERROR WHEN SETTING UP ROW COMPARATORS
@@ -4386,17 +4423,17 @@ test.t1	analyze	status	Operation failed
 EXPLAIN SELECT *
 FROM test_ref
 WHERE id=3 AND c LIKE 'gh%'
-ORDER BY c
+ORDER BY c, a
 LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	test_ref	NULL	ref	idx1,idx2	idx1	5	const	25	11.11	Using index condition
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-Note	1003	/* select#1 */ select `test`.`test_ref`.`a` AS `a`,`test`.`test_ref`.`b` AS `b`,`test`.`test_ref`.`c` AS `c`,`test`.`test_ref`.`d` AS `d`,`test`.`test_ref`.`id` AS `id` from `test`.`test_ref` where ((`test`.`test_ref`.`id` = 3) and (`test`.`test_ref`.`c` like 'gh%')) order by `test`.`test_ref`.`c` limit 1
+Note	1003	/* select#1 */ select `test`.`test_ref`.`a` AS `a`,`test`.`test_ref`.`b` AS `b`,`test`.`test_ref`.`c` AS `c`,`test`.`test_ref`.`d` AS `d`,`test`.`test_ref`.`id` AS `id` from `test`.`test_ref` where ((`test`.`test_ref`.`id` = 3) and (`test`.`test_ref`.`c` like 'gh%')) order by `test`.`test_ref`.`c`,`test`.`test_ref`.`a` limit 1
 SELECT *
 FROM test_ref
 WHERE id=3 AND c LIKE 'gh%'
-ORDER BY c
+ORDER BY c, a
 LIMIT 1;
 a	b	c	d	id
 34876	D003	gheennse	S	3
@@ -4405,22 +4442,34 @@ Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exce
 EXPLAIN SELECT *
 FROM test_ref
 WHERE id=3 AND c LIKE 'gh%'
-ORDER BY c DESC
+ORDER BY c DESC, a DESC
 LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	test_ref	NULL	ref	idx1,idx2	idx1	5	const	25	11.11	Using where; Backward index scan
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-Note	1003	/* select#1 */ select `test`.`test_ref`.`a` AS `a`,`test`.`test_ref`.`b` AS `b`,`test`.`test_ref`.`c` AS `c`,`test`.`test_ref`.`d` AS `d`,`test`.`test_ref`.`id` AS `id` from `test`.`test_ref` where ((`test`.`test_ref`.`id` = 3) and (`test`.`test_ref`.`c` like 'gh%')) order by `test`.`test_ref`.`c` desc limit 1
+Note	1003	/* select#1 */ select `test`.`test_ref`.`a` AS `a`,`test`.`test_ref`.`b` AS `b`,`test`.`test_ref`.`c` AS `c`,`test`.`test_ref`.`d` AS `d`,`test`.`test_ref`.`id` AS `id` from `test`.`test_ref` where ((`test`.`test_ref`.`id` = 3) and (`test`.`test_ref`.`c` like 'gh%')) order by `test`.`test_ref`.`c` desc,`test`.`test_ref`.`a` desc limit 1
 SELECT *
 FROM test_ref
 WHERE id=3 AND c LIKE 'gh%'
-ORDER BY c DESC
+ORDER BY c DESC, a DESC
 LIMIT 1;
 a	b	c	d	id
 1770649	D003	gheennse	S	3
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 DROP TABLE test_ref;
+#
+# Bug #30988735: SELECT QUERY WITH ERROR RESULT WITH "NOT IN"
+#                WHERE_CLAUSE
+#
+CREATE TABLE t(f1 INTEGER key, f2 INTEGER)ENGINE=INNODB;
+INSERT INTO t VALUES(0,0);
+SELECT f1,f2 FROM t WHERE f1 NOT IN(-0.1,0.1);
+f1	f2
+0	0
+Warnings:
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+DROP TABLE t;
 SET RANGE_OPTIMIZER_MAX_MEM_SIZE= DEFAULT;
 # End of test for Bug#17769777 and Bug#17413040

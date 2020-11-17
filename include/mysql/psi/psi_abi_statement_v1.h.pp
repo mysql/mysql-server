@@ -164,6 +164,8 @@ typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state;
 typedef struct PSI_sp_locker_state_v1 PSI_sp_locker_state;
 #include "psi_base.h"
 #include "my_psi_config.h"
+static constexpr unsigned PSI_INSTRUMENT_ME = 0;
+static constexpr unsigned PSI_NOT_INSTRUMENTED = 0;
 struct PSI_placeholder {
   int m_placeholder;
 };

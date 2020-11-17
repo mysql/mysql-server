@@ -114,9 +114,8 @@ connection server2;
 --write_file $MYSQLTEST_VARDIR/tmp/mysqld.2.1.expect
 wait
 EOF
-# Send shutdown to the connected server and give
-# it 30 seconds to die before zapping it.
-shutdown_server 30;
+# Send shutdown to the connected server 
+--shutdown_server 
 # Check if server is gone
 --source include/wait_until_disconnected.inc
 
@@ -199,9 +198,8 @@ connection server1;
 --write_file $MYSQLTEST_VARDIR/tmp/mysqld.1.1.expect
 wait
 EOF
-# Send shutdown to the connected server and give
-# it 30 seconds to die before zapping it
-shutdown_server 30;
+# Send shutdown to the connected server
+--shutdown_server
 # Check if server is gone
 --source include/wait_until_disconnected.inc
 

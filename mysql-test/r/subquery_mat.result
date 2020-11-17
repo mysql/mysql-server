@@ -2223,7 +2223,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select 1,2 union /* select#3 */ select 1,2),<exists>(/* select#4 */ select 1,2 having ((<cache>(<cache>(`<union temporary>`.`1`)) = 1) and (<cache>(<cache>(`<union temporary>`.`2`)) = 2) and <is_not_null_test>(1) and <is_not_null_test>(2)))) AS `(SELECT 1, 2 UNION SELECT 1, 2) IN (SELECT 1, 2)`
+Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select 1,2 union /* select#3 */ select 1,2),<exists>(/* select#4 */ select 1,2 having ((<cache>(<cache>(`1`)) = 1) and (<cache>(<cache>(`2`)) = 2) and <is_not_null_test>(1) and <is_not_null_test>(2)))) AS `(SELECT 1, 2 UNION SELECT 1, 2) IN (SELECT 1, 2)`
 SELECT (SELECT 1, 2 UNION SELECT 1, 2) IN (SELECT 1, 2);
 (SELECT 1, 2 UNION SELECT 1, 2) IN (SELECT 1, 2)
 1
@@ -2235,7 +2235,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select 1,1 union /* select#3 */ select 1,1),<exists>(/* select#4 */ select 1,2 having ((<cache>(<cache>(`<union temporary>`.`1`)) = 1) and (<cache>(<cache>(`<union temporary>`.`1`)) = 2) and <is_not_null_test>(1) and <is_not_null_test>(2)))) AS `(SELECT 1, 1 UNION SELECT 1, 1) IN (SELECT 1, 2)`
+Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select 1,1 union /* select#3 */ select 1,1),<exists>(/* select#4 */ select 1,2 having ((<cache>(<cache>(`1`)) = 1) and (<cache>(<cache>(`1`)) = 2) and <is_not_null_test>(1) and <is_not_null_test>(2)))) AS `(SELECT 1, 1 UNION SELECT 1, 1) IN (SELECT 1, 2)`
 SELECT (SELECT 1, 1 UNION SELECT 1, 1) IN (SELECT 1, 2);
 (SELECT 1, 1 UNION SELECT 1, 1) IN (SELECT 1, 2)
 0
@@ -2247,7 +2247,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select NULL,NULL union /* select#3 */ select NULL,NULL),<exists>(/* select#4 */ select 1,2 having (<if>(outer_field_is_not_null, ((<cache>(<cache>(`<union temporary>`.`NULL`)) = 1) or (1 is null)), true) and <if>(outer_field_is_not_null, ((<cache>(<cache>(`<union temporary>`.`NULL`)) = 2) or (2 is null)), true) and <if>(outer_field_is_not_null, <is_not_null_test>(1), true) and <if>(outer_field_is_not_null, <is_not_null_test>(2), true)))) AS `(SELECT NULL, NULL UNION SELECT NULL, NULL) IN (SELECT 1, 2)`
+Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select NULL,NULL union /* select#3 */ select NULL,NULL),<exists>(/* select#4 */ select 1,2 having (<if>(outer_field_is_not_null, ((<cache>(<cache>(`NULL`)) = 1) or (1 is null)), true) and <if>(outer_field_is_not_null, ((<cache>(<cache>(`NULL`)) = 2) or (2 is null)), true) and <if>(outer_field_is_not_null, <is_not_null_test>(1), true) and <if>(outer_field_is_not_null, <is_not_null_test>(2), true)))) AS `(SELECT NULL, NULL UNION SELECT NULL, NULL) IN (SELECT 1, 2)`
 SELECT (SELECT NULL, NULL UNION SELECT NULL, NULL) IN (SELECT 1, 2);
 (SELECT NULL, NULL UNION SELECT NULL, NULL) IN (SELECT 1, 2)
 NULL
@@ -2259,7 +2259,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select 1,1 union /* select#3 */ select 2,2),<exists>(/* select#4 */ select 1,2 having ((<cache>(<cache>(`<union temporary>`.`1`)) = 1) and (<cache>(<cache>(`<union temporary>`.`1`)) = 2) and <is_not_null_test>(1) and <is_not_null_test>(2)))) AS `(SELECT 1, 1 UNION SELECT 2, 2) IN (SELECT 1, 2)`
+Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select 1,1 union /* select#3 */ select 2,2),<exists>(/* select#4 */ select 1,2 having ((<cache>(<cache>(`1`)) = 1) and (<cache>(<cache>(`1`)) = 2) and <is_not_null_test>(1) and <is_not_null_test>(2)))) AS `(SELECT 1, 1 UNION SELECT 2, 2) IN (SELECT 1, 2)`
 SELECT (SELECT 1, 1 UNION SELECT 2, 2) IN (SELECT 1, 2);
 ERROR 21000: Subquery returns more than 1 row
 EXPLAIN SELECT (SELECT 1, 2 WHERE FALSE UNION SELECT 1, 2 WHERE FALSE) IN (SELECT 1, 2);
@@ -2270,7 +2270,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select 1,2 from DUAL  where false union /* select#3 */ select 1,2 from DUAL  where false),<exists>(/* select#4 */ select 1,2 having (<if>(outer_field_is_not_null, ((<cache>(<cache>(`<union temporary>`.`1`)) = 1) or (1 is null)), true) and <if>(outer_field_is_not_null, ((<cache>(<cache>(`<union temporary>`.`2`)) = 2) or (2 is null)), true) and <if>(outer_field_is_not_null, <is_not_null_test>(1), true) and <if>(outer_field_is_not_null, <is_not_null_test>(2), true)))) AS `(SELECT 1, 2 WHERE FALSE UNION SELECT 1, 2 WHERE FALSE) IN (SELECT 1, 2)`
+Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select 1,2 from DUAL  where false union /* select#3 */ select 1,2 from DUAL  where false),<exists>(/* select#4 */ select 1,2 having (<if>(outer_field_is_not_null, ((<cache>(<cache>(`1`)) = 1) or (1 is null)), true) and <if>(outer_field_is_not_null, ((<cache>(<cache>(`2`)) = 2) or (2 is null)), true) and <if>(outer_field_is_not_null, <is_not_null_test>(1), true) and <if>(outer_field_is_not_null, <is_not_null_test>(2), true)))) AS `(SELECT 1, 2 WHERE FALSE UNION SELECT 1, 2 WHERE FALSE) IN (SELECT 1, 2)`
 SELECT (SELECT 1, 2 WHERE FALSE UNION SELECT 1, 2 WHERE FALSE) IN (SELECT 1, 2);
 (SELECT 1, 2 WHERE FALSE UNION SELECT 1, 2 WHERE FALSE) IN (SELECT 1, 2)
 NULL
@@ -2281,7 +2281,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select 1,2 union all /* select#3 */ select 1,2),<exists>(/* select#4 */ select 1,2 having ((<cache>(<cache>(`<union temporary>`.`1`)) = 1) and (<cache>(<cache>(`<union temporary>`.`2`)) = 2) and <is_not_null_test>(1) and <is_not_null_test>(2)))) AS `(SELECT 1, 2 UNION ALL SELECT 1, 2) IN (SELECT 1, 2)`
+Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select 1,2 union all /* select#3 */ select 1,2),<exists>(/* select#4 */ select 1,2 having ((<cache>(<cache>(`1`)) = 1) and (<cache>(<cache>(`2`)) = 2) and <is_not_null_test>(1) and <is_not_null_test>(2)))) AS `(SELECT 1, 2 UNION ALL SELECT 1, 2) IN (SELECT 1, 2)`
 SELECT (SELECT 1, 2 UNION ALL SELECT 1, 2) IN (SELECT 1, 2);
 ERROR 21000: Subquery returns more than 1 row
 EXPLAIN SELECT (SELECT 1, 1 UNION ALL SELECT 1, 1) IN (SELECT 1, 2);
@@ -2291,7 +2291,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select 1,1 union all /* select#3 */ select 1,1),<exists>(/* select#4 */ select 1,2 having ((<cache>(<cache>(`<union temporary>`.`1`)) = 1) and (<cache>(<cache>(`<union temporary>`.`1`)) = 2) and <is_not_null_test>(1) and <is_not_null_test>(2)))) AS `(SELECT 1, 1 UNION ALL SELECT 1, 1) IN (SELECT 1, 2)`
+Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select 1,1 union all /* select#3 */ select 1,1),<exists>(/* select#4 */ select 1,2 having ((<cache>(<cache>(`1`)) = 1) and (<cache>(<cache>(`1`)) = 2) and <is_not_null_test>(1) and <is_not_null_test>(2)))) AS `(SELECT 1, 1 UNION ALL SELECT 1, 1) IN (SELECT 1, 2)`
 SELECT (SELECT 1, 1 UNION ALL SELECT 1, 1) IN (SELECT 1, 2);
 ERROR 21000: Subquery returns more than 1 row
 EXPLAIN SELECT (SELECT NULL, NULL UNION ALL SELECT NULL, NULL) IN (SELECT 1, 2);
@@ -2301,7 +2301,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select NULL,NULL union all /* select#3 */ select NULL,NULL),<exists>(/* select#4 */ select 1,2 having (<if>(outer_field_is_not_null, ((<cache>(<cache>(`<union temporary>`.`NULL`)) = 1) or (1 is null)), true) and <if>(outer_field_is_not_null, ((<cache>(<cache>(`<union temporary>`.`NULL`)) = 2) or (2 is null)), true) and <if>(outer_field_is_not_null, <is_not_null_test>(1), true) and <if>(outer_field_is_not_null, <is_not_null_test>(2), true)))) AS `(SELECT NULL, NULL UNION ALL SELECT NULL, NULL) IN (SELECT 1, 2)`
+Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select NULL,NULL union all /* select#3 */ select NULL,NULL),<exists>(/* select#4 */ select 1,2 having (<if>(outer_field_is_not_null, ((<cache>(<cache>(`NULL`)) = 1) or (1 is null)), true) and <if>(outer_field_is_not_null, ((<cache>(<cache>(`NULL`)) = 2) or (2 is null)), true) and <if>(outer_field_is_not_null, <is_not_null_test>(1), true) and <if>(outer_field_is_not_null, <is_not_null_test>(2), true)))) AS `(SELECT NULL, NULL UNION ALL SELECT NULL, NULL) IN (SELECT 1, 2)`
 SELECT (SELECT NULL, NULL UNION ALL SELECT NULL, NULL) IN (SELECT 1, 2);
 ERROR 21000: Subquery returns more than 1 row
 EXPLAIN SELECT (SELECT 1, 1 UNION ALL SELECT 2, 2) IN (SELECT 1, 2);
@@ -2311,7 +2311,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select 1,1 union all /* select#3 */ select 2,2),<exists>(/* select#4 */ select 1,2 having ((<cache>(<cache>(`<union temporary>`.`1`)) = 1) and (<cache>(<cache>(`<union temporary>`.`1`)) = 2) and <is_not_null_test>(1) and <is_not_null_test>(2)))) AS `(SELECT 1, 1 UNION ALL SELECT 2, 2) IN (SELECT 1, 2)`
+Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select 1,1 union all /* select#3 */ select 2,2),<exists>(/* select#4 */ select 1,2 having ((<cache>(<cache>(`1`)) = 1) and (<cache>(<cache>(`1`)) = 2) and <is_not_null_test>(1) and <is_not_null_test>(2)))) AS `(SELECT 1, 1 UNION ALL SELECT 2, 2) IN (SELECT 1, 2)`
 SELECT (SELECT 1, 1 UNION ALL SELECT 2, 2) IN (SELECT 1, 2);
 ERROR 21000: Subquery returns more than 1 row
 EXPLAIN SELECT (SELECT 1, 2 WHERE FALSE UNION ALL SELECT 1, 2 WHERE FALSE) IN (SELECT 1, 2);
@@ -2321,7 +2321,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select 1,2 from DUAL  where false union all /* select#3 */ select 1,2 from DUAL  where false),<exists>(/* select#4 */ select 1,2 having (<if>(outer_field_is_not_null, ((<cache>(<cache>(`<union temporary>`.`1`)) = 1) or (1 is null)), true) and <if>(outer_field_is_not_null, ((<cache>(<cache>(`<union temporary>`.`2`)) = 2) or (2 is null)), true) and <if>(outer_field_is_not_null, <is_not_null_test>(1), true) and <if>(outer_field_is_not_null, <is_not_null_test>(2), true)))) AS `(SELECT 1, 2 WHERE FALSE UNION ALL SELECT 1, 2 WHERE FALSE) IN (SELECT 1, 2)`
+Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select 1,2 from DUAL  where false union all /* select#3 */ select 1,2 from DUAL  where false),<exists>(/* select#4 */ select 1,2 having (<if>(outer_field_is_not_null, ((<cache>(<cache>(`1`)) = 1) or (1 is null)), true) and <if>(outer_field_is_not_null, ((<cache>(<cache>(`2`)) = 2) or (2 is null)), true) and <if>(outer_field_is_not_null, <is_not_null_test>(1), true) and <if>(outer_field_is_not_null, <is_not_null_test>(2), true)))) AS `(SELECT 1, 2 WHERE FALSE UNION ALL SELECT 1, 2 WHERE FALSE) IN (SELECT 1, 2)`
 SELECT (SELECT 1, 2 WHERE FALSE UNION ALL SELECT 1, 2 WHERE FALSE) IN (SELECT 1, 2);
 (SELECT 1, 2 WHERE FALSE UNION ALL SELECT 1, 2 WHERE FALSE) IN (SELECT 1, 2)
 NULL

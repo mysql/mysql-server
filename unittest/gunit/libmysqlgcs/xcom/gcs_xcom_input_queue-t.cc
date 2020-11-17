@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,9 +47,9 @@ class GcsXcomInputQueueTest : public GcsBaseTest {
  protected:
   GcsXcomInputQueueTest() {}
 
-  virtual void SetUp() {}
+  void SetUp() override {}
 
-  virtual void TearDown() {}
+  void TearDown() override {}
 };
 
 /* The XCom queue fails to push into the backend MPSC queue. This tests covers

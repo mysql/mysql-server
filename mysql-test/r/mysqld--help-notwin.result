@@ -758,8 +758,8 @@ The following options may be given as the first argument:
  block_nested_loop, batched_key_access,
  use_index_extensions, condition_fanout_filter,
  derived_merge, hash_join, subquery_to_derived,
- prefer_ordering_index} and val is one of {on, off,
- default}
+ prefer_ordering_index, derived_condition_pushdown} and
+ val is one of {on, off, default}
  --optimizer-trace=name 
  Controls tracing of the Optimizer:
  optimizer_trace=option=val[,option=val...], where option
@@ -965,6 +965,9 @@ The following options may be given as the first argument:
  --performance-schema-setup-objects-size=# 
  Maximum number of rows in SETUP_OBJECTS. Use 0 to
  disable, -1 for automated scaling.
+ --performance-schema-show-processlist 
+ Default startup value to enable SHOW PROCESSLIST in the
+ performance schema.
  --performance-schema-users-size=# 
  Maximum number of instrumented users. Use 0 to disable,
  -1 for automated scaling.
@@ -1162,6 +1165,15 @@ The following options may be given as the first argument:
  --secure-file-priv=name 
  Limit LOAD DATA, SELECT ... OUTFILE, and LOAD_FILE() to
  files within specified directory
+ --select-into-buffer-size[=#] 
+ Buffer size for SELECT INTO OUTFILE/DUMPFILE.
+ --select-into-disk-sync 
+ Synchronize flushed buffer with disk for SELECT INTO
+ OUTFILE/DUMPFILE.
+ --select-into-disk-sync-delay[=#] 
+ The delay in milliseconds after each buffer sync for
+ SELECT INTO OUTFILE/DUMPFILE. Requires
+ select_into_sync_disk = ON.
  --server-id=#       Uniquely identifies the server instance in the community
  of replication partners
  --server-id-bits=#  Set number of significant bits in server-id
@@ -1626,7 +1638,7 @@ old-alter-table FALSE
 old-style-user-limits FALSE
 optimizer-prune-level 1
 optimizer-search-depth 62
-optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on
+optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=off,derived_condition_pushdown=on
 optimizer-trace 
 optimizer-trace-features greedy_search=on,range_optimizer=on,dynamic_range=on,repeated_subselect=on
 optimizer-trace-limit 1
@@ -1696,6 +1708,7 @@ performance-schema-max-thread-instances -1
 performance-schema-session-connect-attrs-size -1
 performance-schema-setup-actors-size -1
 performance-schema-setup-objects-size -1
+performance-schema-show-processlist FALSE
 performance-schema-users-size -1
 persist-only-admin-x509-subject 
 persisted-globals-load TRUE
@@ -1732,6 +1745,9 @@ rpl-stop-slave-timeout 31536000
 safe-user-create FALSE
 schema-definition-cache 256
 secondary-engine-cost-threshold 100000
+select-into-buffer-size 131072
+select-into-disk-sync FALSE
+select-into-disk-sync-delay 0
 server-id 1
 server-id-bits 32
 session-track-gtids OFF

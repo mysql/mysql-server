@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -489,14 +489,16 @@ void fts_ast_node_print(fts_ast_node_t *node) /*!< in: ast node to print */
 @param[in]	node	ast node to check
 @return true if the node contains only union else false. */
 bool fts_ast_node_check_union(fts_ast_node_t *node) {
-  if (node->type == FTS_AST_LIST || node->type == FTS_AST_SUBEXP_LIST ||
-      node->type == FTS_AST_PARSER_PHRASE_LIST) {
+  if (node->type == FTS_AST_LIST || node->type == FTS_AST_SUBEXP_LIST) {
     for (node = node->list.head; node; node = node->next) {
       if (!fts_ast_node_check_union(node)) {
         return (false);
       }
     }
 
+  } else if (node->type == FTS_AST_PARSER_PHRASE_LIST) {
+    /* Phrase search for plugin parser */
+    return (false);
   } else if (node->type == FTS_AST_OPER &&
              (node->oper == FTS_IGNORE || node->oper == FTS_EXIST)) {
     return (false);

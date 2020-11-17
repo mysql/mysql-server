@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,29 +59,9 @@ class Fake_key_field : public Key_field {
 */
 class OptRefTest : public ::testing::Test {
  public:
-  OptRefTest()
-      : field_t1_a("field1", true, false),
-        field_t1_b("field2", true, false),
-        field_t2_a("field3", true, false),
-        field_t2_b("field4", true, false),
-        t1(&field_t1_a, &field_t1_b),
-        t2(&field_t2_a, &field_t2_b),
-        t1_key_fields(&t1_key_field_arr[0]) {
-    index_over_t1ab_id = t1.create_index(&field_t1_a, &field_t1_b);
-    indexes.set_bit(index_over_t1ab_id);
+  OptRefTest() : t1_key_fields(&t1_key_field_arr[0]) {}
 
-    t1_join_tab.set_qs(&t1_qep_shared);
-    t1_join_tab.set_table(&t1);
-    t1_table_list.select_lex = t1.pos_in_table_list->select_lex;
-    t1.pos_in_table_list = &t1_table_list;
-
-    t1_table_list.table = &t1;
-    t1_table_list.embedding = nullptr;
-    t1_table_list.derived_keys_ready = true;
-    t1_table_list.set_tableno(0);
-  }
-
-  virtual void SetUp() {
+  void SetUp() override {
     // We do some pointer arithmetic on these
     static_assert(sizeof(Fake_key_field) == sizeof(Key_field), "");
     initializer.SetUp();
@@ -89,26 +69,45 @@ class OptRefTest : public ::testing::Test {
     item_zero = new Item_int(0);
     item_one = new Item_int(1);
 
-    item_field_t1_a = new Item_field(&field_t1_a);
-    item_field_t1_b = new Item_field(&field_t1_b);
+    field_t1_a = new Mock_field_long("field1", true, false);
+    field_t1_b = new Mock_field_long("field2", true, false);
+    field_t2_a = new Mock_field_long("field3", true, false);
+    field_t2_b = new Mock_field_long("field4", true, false);
+    t1 = new Fake_TABLE(field_t1_a, field_t1_b);
+    t2 = new Fake_TABLE(field_t2_a, field_t2_b);
 
-    item_field_t2_a = new Item_field(&field_t2_a);
-    item_field_t2_b = new Item_field(&field_t2_b);
+    index_over_t1ab_id = t1->create_index(field_t1_a, field_t1_b);
+    indexes.set_bit(index_over_t1ab_id);
+
+    t1_join_tab.set_qs(&t1_qep_shared);
+    t1_join_tab.set_table(t1);
+
+    item_field_t1_a = new Item_field(field_t1_a);
+    item_field_t1_b = new Item_field(field_t1_b);
+
+    item_field_t2_a = new Item_field(field_t2_a);
+    item_field_t2_b = new Item_field(field_t2_b);
   }
 
-  virtual void TearDown() { initializer.TearDown(); }
+  void TearDown() override {
+    delete field_t1_a;
+    delete field_t1_b;
+    delete field_t2_a;
+    delete field_t2_b;
+    delete t1;
+    delete t2;
+    initializer.TearDown();
+  }
 
   THD *thd() { return initializer.thd(); }
 
   Key_map indexes;
 
-  Mock_field_long field_t1_a, field_t1_b;
-  Mock_field_long field_t2_a, field_t2_b;
+  Mock_field_long *field_t1_a, *field_t1_b;
+  Mock_field_long *field_t2_a, *field_t2_b;
 
-  Fake_TABLE t1;
-  Fake_TABLE t2;
-  TABLE_LIST t1_table_list;
-  TABLE_LIST t2_table_list;
+  Fake_TABLE *t1;
+  Fake_TABLE *t2;
 
   JOIN_TAB t1_join_tab;
   QEP_shared t1_qep_shared;
@@ -138,8 +137,8 @@ static Item_row *make_item_row(Item *a, Item *b) {
     The Item_row CTOR doesn't store the reference to the list, hence
     it can live on the stack.
   */
-  List<Item> items;
-  items.push_front(b);
+  mem_root_deque<Item *> items(*THR_MALLOC);
+  items.push_back(b);
   return new Item_row(POS(), a, items);
 }
 
@@ -203,7 +202,7 @@ TEST_F(OptRefTest, addKeyFieldsFromInOneRowWithCols) {
   EXPECT_EQ(Key_map(0), t1_join_tab.const_keys);
   EXPECT_EQ(indexes, t1_join_tab.keys());
 
-  EXPECT_EQ(t2.pos_in_table_list->map(), t1_join_tab.key_dependent);
+  EXPECT_EQ(t2->pos_in_table_list->map(), t1_join_tab.key_dependent);
 }
 
 TEST_F(OptRefTest, addKeyFieldsFromEq) {

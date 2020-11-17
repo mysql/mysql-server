@@ -1,7 +1,5 @@
 /*
-   Copyright 2009 Sun Microsystems, Inc.
-
-   Use is subject to license terms.
+   Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,5 +43,10 @@ void NDBT_find_binary(BaseString& name,
   Wrapper around 'NDBT_find_binary' hardcoded to find ndb_mgmd
 */
 void NDBT_find_ndb_mgmd(BaseString& path);
+
+/*
+  Wrapper to find ndbd
+*/
+void NDBT_find_ndbd(BaseString& path);
 
 #endif

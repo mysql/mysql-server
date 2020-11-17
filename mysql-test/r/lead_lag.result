@@ -86,7 +86,7 @@ INSERT INTO t1(d, id, sex) VALUES (1.0, 1, 'M'),
 SELECT id, sex, LEAD(id, -1) RESPECT NULLS OVER () FROM t1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1) RESPECT NULLS OVER () FROM t1' at line 1
 SELECT id, sex, LEAD(id, 1.2) RESPECT NULLS OVER () FROM t1;
-ERROR HY000: Incorrect arguments to lead
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '1.2) RESPECT NULLS OVER () FROM t1' at line 1
 SELECT id, sex, LEAD(id, 'a') RESPECT NULLS OVER () FROM t1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''a') RESPECT NULLS OVER () FROM t1' at line 1
 SELECT id, sex, LEAD(id, NULL) RESPECT NULLS OVER () FROM t1;
@@ -106,19 +106,10 @@ NULL	M	11
 11	NULL	NULL
 SET @p1= -3;
 EXECUTE p USING @p1;
-id	sex	LEAD(id, ?) OVER ()
-1	M	NULL
-2	F	NULL
-3	F	NULL
-4	F	1
-5	M	2
-NULL	M	3
-10	NULL	4
-10	NULL	5
-11	NULL	NULL
+ERROR HY000: Incorrect arguments to lead
 SET @p1= 'a';
 EXECUTE p USING @p1;
-ERROR HY000: Incorrect arguments to lead
+ERROR HY000: Incorrect arguments to EXECUTE
 PREPARE p FROM "SELECT id, sex, LEAD(id+?, ?, ?) RESPECT NULLS OVER () FROM t1";
 SET @p1= 8;
 SET @p2= 3;

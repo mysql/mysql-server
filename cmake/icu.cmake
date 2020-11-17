@@ -28,8 +28,7 @@
 #   or
 #     - cmake -DWITH_ICU=</path/to/custom/icu>
 #
-# The default value for WITH_ICU is "bundled"
-# set in cmake/build_configurations/feature_set.cmake
+# The default value for WITH_ICU is "bundled".
 
 # To do: The default should probably be different depending on platform. On
 # Windows, it should likely be wherever NuGet puts the libraries.
@@ -109,12 +108,12 @@ MACRO (MYSQL_USE_BUNDLED_ICU)
 
 ENDMACRO()
 
-IF(NOT WITH_ICU)
-  SET(WITH_ICU bundled CACHE STRING
-    "By default use bundled icu library")
-ENDIF()
-
 MACRO (MYSQL_CHECK_ICU)
+
+  IF(NOT WITH_ICU)
+    SET(WITH_ICU bundled CACHE STRING
+      "By default use bundled icu library")
+  ENDIF()
 
   FILE(TO_CMAKE_PATH "${WITH_ICU}" WITH_ICU)
 

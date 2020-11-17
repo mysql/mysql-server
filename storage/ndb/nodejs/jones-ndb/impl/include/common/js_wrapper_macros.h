@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -23,87 +23,64 @@
  */
 
 #include <node.h>
+#include "JsValueAccess.h"
 
-#define STRING(I, S) v8::String::NewFromUtf8(I, S)
+#define SYMBOL(I, S) NewStringSymbol(I, S)
 
-#define NEW_STRING(S) STRING(v8::Isolate::GetCurrent(), S)
-
-#define SYMBOL(I, S) v8::String::NewFromUtf8(I, S, v8::String::kInternalizedString)
-
-#define NEW_SYMBOL(S) SYMBOL(v8::Isolate::GetCurrent(), S)
-
-#define THROW_ERROR(MESSAGE) \
-  ThrowException(Exception::Error(NEW_STRING(MESSAGE))))
-  
-#define THROW_TYPE_ERROR(MESSAGE) \
-  Isolate::GetCurrent()->ThrowException(Exception::TypeError(NEW_STRING(MESSAGE)))
-  
-/*#define REQUIRE_ARGS_LENGTH(N) \
+#define REQUIRE_ARGS_LENGTH(N) \
   if(args.Length() != N) { \
-    THROW_TYPE_ERROR("Requires " #N " arguments"); \
-    return scope.Close(Undefined()); \
+    args.GetIsolate()->ThrowException(Exception::TypeError( \
+      ToString(args, "Requires " #N " arguments"))); \
   }
-*/
-#define REQUIRE_ARGS_LENGTH(N) assert(args.Length() == N);
-
 
 #define REQUIRE_MIN_ARGS(N) \
   if(args.Length() < N) { \
-    THROW_TYPE_ERROR("Requires at least " #N " arguments"); \
+    args.GetIsolate()->ThrowException(Exception::TypeError( \
+      ToString(args, "Requires at least " #N " arguments"))); \
   }
 
 #define REQUIRE_MAX_ARGS(N) \
   if(args.Length() > N) { \
-    THROW_TYPE_ERROR("Requires no more than " #N " arguments"); \
+    args.GetIsolate()->ThrowException(Exception::TypeError( \
+      ToString(args, "Requires no more than " #N " arguments"))); \
   }
 
-/* #define REQUIRE_CONSTRUCTOR_CALL() \
-  if(! args.IsConstructCall()) { \
-    THROW_ERROR("Must be called as a Constructor call"); \
-    return scope.Close(Undefined()); \
-  }
-*/
 #define REQUIRE_CONSTRUCTOR_CALL() assert(args.IsConstructCall()) 
 
-
-/* #define PROHIBIT_CONSTRUCTOR_CALL() \
-  if(args.IsConstructCall()) { \
-    THROW_ERROR("May not be used as a Constructor call"); \
-    return scope.Close(Undefined()); \
-  }
-*/
 #define PROHIBIT_CONSTRUCTOR_CALL() assert(! args.IsConstructCall())
+
+#define GET_CONTEXT() v8::Isolate::GetCurrent()->GetCurrentContext()
 
 #define NEW_FN_TEMPLATE(FN) \
   v8::FunctionTemplate::New(v8::Isolate::GetCurrent(), FN)
 
 #define DEFINE_JS_FUNCTION(TARGET, NAME, FN) \
-  TARGET->Set(NEW_SYMBOL(NAME), NEW_FN_TEMPLATE(FN)->GetFunction())
+  { \
+    Maybe<bool> result = \
+    TARGET->Set(GET_CONTEXT(), NewStringSymbol(TARGET, NAME), \
+                NEW_FN_TEMPLATE(FN)->GetFunction(GET_CONTEXT()). \
+                ToLocalChecked()); \
+    result.Check(); \
+  }
 
-/* For SetInternalFieldCount() , see:
- http://groups.google.com/group/v8-users/browse_thread/thread/d8bcb33178a55223
-*/  
 
-#define DEFINE_JS_ACCESSOR(TARGET, property, getter)                 \
-  (TARGET)->SetAccessor(NEW_SYMBOL(property), getter)
+#define DEFINE_JS_ACCESSOR(isolate, TARGET, property, getter)   \
+  (TARGET)->SetAccessor((target)->CreationContext(),            \
+                        NewStringSymbol(isolate, property),              \
+                        getter).IsJust()
 
-/* Some compatibility */
-#if NODE_MAJOR_VERSION > 3
-#define SET_RO_PROPERTY(target, symbol, value) \
+#define SET_PROPERTY(target, symbol, value, flags) \
   (target)->DefineOwnProperty((target)->CreationContext(), \
                                symbol, value, static_cast<v8::PropertyAttribute>\
-                               (v8::ReadOnly|v8::DontDelete)).IsJust()
-#else
+                               (flags)).IsJust()
+
 #define SET_RO_PROPERTY(target, symbol, value) \
-  (target)->ForceSet(symbol, value, static_cast<v8::PropertyAttribute>\
-                     (v8::ReadOnly|v8::DontDelete))
-#endif
+  SET_PROPERTY(target, symbol, value, (v8::ReadOnly|v8::DontDelete))
 
 #define DEFINE_JS_INT(TARGET, name, value) \
-  SET_RO_PROPERTY(TARGET, NEW_SYMBOL(name), \
+  SET_RO_PROPERTY(TARGET, NewStringSymbol(TARGET, name), \
                   v8::Integer::New(v8::Isolate::GetCurrent(), value))
 
 #define DEFINE_JS_CONSTANT(TARGET, constant) \
    DEFINE_JS_INT(TARGET, #constant, constant)
 
-   

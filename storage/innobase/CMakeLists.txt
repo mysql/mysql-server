@@ -63,6 +63,7 @@ SET(INNOBASE_SOURCES
   btr/btr0pcur.cc
   btr/btr0sea.cc
   btr/btr0bulk.cc
+  buf/buf0block_hint.cc
   buf/buf0buddy.cc
   buf/buf0buf.cc
   buf/buf0dblwr.cc

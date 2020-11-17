@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -137,7 +137,7 @@ class Gcs_split_header_v2 : public Gcs_stage_metadata {
         m_message_part_id(message_part_id),
         m_payload_length(payload_length) {}
 
-  std::unique_ptr<Gcs_stage_metadata> clone() {
+  std::unique_ptr<Gcs_stage_metadata> clone() override {
     return std::unique_ptr<Gcs_split_header_v2>(new Gcs_split_header_v2(*this));
   }
 
@@ -216,7 +216,7 @@ class Gcs_split_header_v2 : public Gcs_stage_metadata {
    @param buffer The buffer to decode from.
    @return Length of the encoded information.
    */
-  virtual unsigned long long decode(const unsigned char *buffer);
+  unsigned long long decode(const unsigned char *buffer) override;
 
   /**
    Encode the contents of this instance into the buffer. The encoding SHALL
@@ -225,12 +225,12 @@ class Gcs_split_header_v2 : public Gcs_stage_metadata {
    @param buffer The buffer to encode to.
    @return Length of the encoded information.
    */
-  virtual unsigned long long encode(unsigned char *buffer) const;
+  unsigned long long encode(unsigned char *buffer) const override;
 
   /**
    Calculate the length used to store the stage header information.
    */
-  virtual unsigned long long calculate_encode_length() const {
+  unsigned long long calculate_encode_length() const override {
     return fixed_encode_length();
   }
 
@@ -240,7 +240,7 @@ class Gcs_split_header_v2 : public Gcs_stage_metadata {
    @param output Reference to the output stream where the string will be
           created.
    */
-  virtual void dump(std::ostringstream &output) const;
+  void dump(std::ostringstream &output) const override;
 
  private:
   /**
@@ -270,20 +270,20 @@ class Gcs_message_stage_split_v2 : public Gcs_message_stage {
   /*
    Methods inherited from the Gcs_message_stage class.
    */
-  virtual Gcs_message_stage::stage_status skip_apply(
-      uint64_t const &original_payload_size) const;
+  Gcs_message_stage::stage_status skip_apply(
+      uint64_t const &original_payload_size) const override;
 
-  std::unique_ptr<Gcs_stage_metadata> get_stage_header();
+  std::unique_ptr<Gcs_stage_metadata> get_stage_header() override;
 
  protected:
   std::pair<bool, std::vector<Gcs_packet>> apply_transformation(
-      Gcs_packet &&packet);
+      Gcs_packet &&packet) override;
 
   std::pair<Gcs_pipeline_incoming_result, Gcs_packet> revert_transformation(
-      Gcs_packet &&packet);
+      Gcs_packet &&packet) override;
 
-  virtual Gcs_message_stage::stage_status skip_revert(
-      const Gcs_packet &packet) const;
+  Gcs_message_stage::stage_status skip_revert(
+      const Gcs_packet &packet) const override;
 
  private:
   /*
@@ -322,12 +322,12 @@ class Gcs_message_stage_split_v2 : public Gcs_message_stage {
         m_packets_per_source(),
         m_split_threshold(split_threshold) {}
 
-  virtual ~Gcs_message_stage_split_v2() { m_packets_per_source.clear(); }
+  ~Gcs_message_stage_split_v2() override { m_packets_per_source.clear(); }
 
   /**
    Return the stage code.
    */
-  virtual Stage_code get_stage_code() const { return Stage_code::ST_SPLIT_V2; }
+  Stage_code get_stage_code() const override { return Stage_code::ST_SPLIT_V2; }
 
   /**
    Update the list of members in the group as this is required to process split
@@ -337,8 +337,8 @@ class Gcs_message_stage_split_v2 : public Gcs_message_stage {
    @param xcom_nodes List of members in the group.
    @return If there is an error, true is returned. Otherwise, false is returned.
    */
-  virtual bool update_members_information(const Gcs_member_identifier &me,
-                                          const Gcs_xcom_nodes &xcom_nodes);
+  bool update_members_information(const Gcs_member_identifier &me,
+                                  const Gcs_xcom_nodes &xcom_nodes) override;
 
   /**
     Sets the threshold in bytes after which messages are split.
@@ -377,7 +377,7 @@ class Gcs_message_stage_split_v2 : public Gcs_message_stage {
    */
   void remove_sender(const Gcs_sender_id &sender_id);
 
-  Gcs_xcom_synode_set get_snapshot() const;
+  Gcs_xcom_synode_set get_snapshot() const override;
 
   void apply_transformation_single_fragment(Gcs_packet &packet) const;
 

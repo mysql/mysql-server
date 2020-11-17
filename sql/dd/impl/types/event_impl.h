@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,40 +49,40 @@ class Event_impl : public Entity_object_impl, public Event {
   Event_impl();
   Event_impl(const Event_impl &);
 
-  virtual ~Event_impl() {}
+  ~Event_impl() override {}
 
  public:
-  virtual const Object_table &object_table() const;
+  const Object_table &object_table() const override;
 
   static void register_tables(Open_dictionary_tables_ctx *otx);
 
-  virtual bool validate() const;
+  bool validate() const override;
 
-  virtual bool restore_attributes(const Raw_record &r);
+  bool restore_attributes(const Raw_record &r) override;
 
-  virtual bool store_attributes(Raw_record *r);
+  bool store_attributes(Raw_record *r) override;
 
-  virtual void debug_print(String_type &outb) const;
+  void debug_print(String_type &outb) const override;
 
  public:
   /////////////////////////////////////////////////////////////////////////
   // schema.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Object_id schema_id() const { return m_schema_id; }
+  Object_id schema_id() const override { return m_schema_id; }
 
-  virtual void set_schema_id(Object_id schema_id) { m_schema_id = schema_id; }
+  void set_schema_id(Object_id schema_id) override { m_schema_id = schema_id; }
 
   /////////////////////////////////////////////////////////////////////////
   // definer.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &definer_user() const { return m_definer_user; }
+  const String_type &definer_user() const override { return m_definer_user; }
 
-  virtual const String_type &definer_host() const { return m_definer_host; }
+  const String_type &definer_host() const override { return m_definer_host; }
 
-  virtual void set_definer(const String_type &username,
-                           const String_type &hostname) {
+  void set_definer(const String_type &username,
+                   const String_type &hostname) override {
     m_definer_user = username;
     m_definer_host = hostname;
   }
@@ -91,9 +91,9 @@ class Event_impl : public Entity_object_impl, public Event {
   // time_zone
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &time_zone() const { return m_time_zone; }
+  const String_type &time_zone() const override { return m_time_zone; }
 
-  virtual void set_time_zone(const String_type &time_zone) {
+  void set_time_zone(const String_type &time_zone) override {
     m_time_zone = time_zone;
   }
 
@@ -101,17 +101,17 @@ class Event_impl : public Entity_object_impl, public Event {
   // definition/utf8.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &definition() const { return m_definition; }
+  const String_type &definition() const override { return m_definition; }
 
-  virtual void set_definition(const String_type &definition) {
+  void set_definition(const String_type &definition) override {
     m_definition = definition;
   }
 
-  virtual const String_type &definition_utf8() const {
+  const String_type &definition_utf8() const override {
     return m_definition_utf8;
   }
 
-  virtual void set_definition_utf8(const String_type &definition_utf8) {
+  void set_definition_utf8(const String_type &definition_utf8) override {
     m_definition_utf8 = definition_utf8;
   }
 
@@ -119,33 +119,33 @@ class Event_impl : public Entity_object_impl, public Event {
   // execute_at.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual my_time_t execute_at() const { return m_execute_at; }
+  my_time_t execute_at() const override { return m_execute_at; }
 
-  virtual void set_execute_at(my_time_t execute_at) {
+  void set_execute_at(my_time_t execute_at) override {
     m_execute_at = execute_at;
   }
 
-  virtual void set_execute_at_null(bool is_null) {
+  void set_execute_at_null(bool is_null) override {
     m_is_execute_at_null = is_null;
   }
 
-  virtual bool is_execute_at_null() const { return m_is_execute_at_null; }
+  bool is_execute_at_null() const override { return m_is_execute_at_null; }
 
   /////////////////////////////////////////////////////////////////////////
   // interval_value.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint interval_value() const { return m_interval_value; }
+  uint interval_value() const override { return m_interval_value; }
 
-  virtual void set_interval_value(uint interval_value) {
+  void set_interval_value(uint interval_value) override {
     m_interval_value = interval_value;
   }
 
-  virtual void set_interval_value_null(bool is_null) {
+  void set_interval_value_null(bool is_null) override {
     m_is_interval_value_null = is_null;
   }
 
-  virtual bool is_interval_value_null() const {
+  bool is_interval_value_null() const override {
     return m_is_interval_value_null;
   }
 
@@ -153,19 +153,19 @@ class Event_impl : public Entity_object_impl, public Event {
   // interval_field
   /////////////////////////////////////////////////////////////////////////
 
-  virtual enum_interval_field interval_field() const {
+  enum_interval_field interval_field() const override {
     return m_interval_field;
   }
 
-  virtual void set_interval_field(enum_interval_field interval_field) {
+  void set_interval_field(enum_interval_field interval_field) override {
     m_interval_field = interval_field;
   }
 
-  virtual void set_interval_field_null(bool is_null) {
+  void set_interval_field_null(bool is_null) override {
     m_is_interval_field_null = is_null;
   }
 
-  virtual bool is_interval_field_null() const {
+  bool is_interval_field_null() const override {
     return m_is_interval_field_null;
   }
 
@@ -173,57 +173,57 @@ class Event_impl : public Entity_object_impl, public Event {
   // sql_mode
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong sql_mode() const { return m_sql_mode; }
+  ulonglong sql_mode() const override { return m_sql_mode; }
 
-  virtual void set_sql_mode(ulonglong sm) { m_sql_mode = sm; }
+  void set_sql_mode(ulonglong sm) override { m_sql_mode = sm; }
 
   /////////////////////////////////////////////////////////////////////////
   // starts.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual my_time_t starts() const { return m_starts; }
+  my_time_t starts() const override { return m_starts; }
 
-  virtual void set_starts(my_time_t starts) { m_starts = starts; }
+  void set_starts(my_time_t starts) override { m_starts = starts; }
 
-  virtual void set_starts_null(bool is_null) { m_is_starts_null = is_null; }
+  void set_starts_null(bool is_null) override { m_is_starts_null = is_null; }
 
-  virtual bool is_starts_null() const { return m_is_starts_null; }
+  bool is_starts_null() const override { return m_is_starts_null; }
 
   /////////////////////////////////////////////////////////////////////////
   // ends.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual my_time_t ends() const { return m_ends; }
+  my_time_t ends() const override { return m_ends; }
 
-  virtual void set_ends(my_time_t ends) { m_ends = ends; }
+  void set_ends(my_time_t ends) override { m_ends = ends; }
 
-  virtual void set_ends_null(bool is_null) { m_is_ends_null = is_null; }
+  void set_ends_null(bool is_null) override { m_is_ends_null = is_null; }
 
-  virtual bool is_ends_null() const { return m_is_ends_null; }
+  bool is_ends_null() const override { return m_is_ends_null; }
 
   /////////////////////////////////////////////////////////////////////////
   // event_status
   /////////////////////////////////////////////////////////////////////////
 
-  virtual enum_event_status event_status() const { return m_event_status; }
+  enum_event_status event_status() const override { return m_event_status; }
 
-  virtual void set_event_status(enum_event_status event_status) {
+  void set_event_status(enum_event_status event_status) override {
     m_event_status = event_status;
   }
 
-  virtual void set_event_status_null(bool is_null) {
+  void set_event_status_null(bool is_null) override {
     m_is_event_status_null = is_null;
   }
 
-  virtual bool is_event_status_null() const { return m_is_event_status_null; }
+  bool is_event_status_null() const override { return m_is_event_status_null; }
 
   /////////////////////////////////////////////////////////////////////////
   // on_completion
   /////////////////////////////////////////////////////////////////////////
 
-  virtual enum_on_completion on_completion() const { return m_on_completion; }
+  enum_on_completion on_completion() const override { return m_on_completion; }
 
-  virtual void set_on_completion(enum_on_completion on_completion) {
+  void set_on_completion(enum_on_completion on_completion) override {
     m_on_completion = on_completion;
   }
 
@@ -231,22 +231,22 @@ class Event_impl : public Entity_object_impl, public Event {
   // created.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong created(bool convert_time) const {
+  ulonglong created(bool convert_time) const override {
     return convert_time ? gmt_time_to_local_time(m_created) : m_created;
   }
 
-  virtual void set_created(ulonglong created) { m_created = created; }
+  void set_created(ulonglong created) override { m_created = created; }
 
   /////////////////////////////////////////////////////////////////////////
   // last altered.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong last_altered(bool convert_time) const {
+  ulonglong last_altered(bool convert_time) const override {
     return convert_time ? gmt_time_to_local_time(m_last_altered)
                         : m_last_altered;
   }
 
-  virtual void set_last_altered(ulonglong last_altered) {
+  void set_last_altered(ulonglong last_altered) override {
     m_last_altered = last_altered;
   }
 
@@ -254,34 +254,36 @@ class Event_impl : public Entity_object_impl, public Event {
   // last_executed.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual my_time_t last_executed() const { return m_last_executed; }
+  my_time_t last_executed() const override { return m_last_executed; }
 
-  virtual void set_last_executed(my_time_t last_executed) {
+  void set_last_executed(my_time_t last_executed) override {
     m_is_last_executed_null = false;
     m_last_executed = last_executed;
   }
 
-  virtual void set_last_executed_null(bool is_null) {
+  void set_last_executed_null(bool is_null) override {
     m_is_last_executed_null = is_null;
   }
 
-  virtual bool is_last_executed_null() const { return m_is_last_executed_null; }
+  bool is_last_executed_null() const override {
+    return m_is_last_executed_null;
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // comment.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &comment() const { return m_comment; }
+  const String_type &comment() const override { return m_comment; }
 
-  virtual void set_comment(const String_type &comment) { m_comment = comment; }
+  void set_comment(const String_type &comment) override { m_comment = comment; }
 
   /////////////////////////////////////////////////////////////////////////
   // originator
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong originator() const { return m_originator; }
+  ulonglong originator() const override { return m_originator; }
 
-  virtual void set_originator(ulonglong originator) {
+  void set_originator(ulonglong originator) override {
     m_originator = originator;
   }
 
@@ -289,41 +291,43 @@ class Event_impl : public Entity_object_impl, public Event {
   // collation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Object_id client_collation_id() const {
+  Object_id client_collation_id() const override {
     return m_client_collation_id;
   }
 
-  virtual void set_client_collation_id(Object_id client_collation_id) {
+  void set_client_collation_id(Object_id client_collation_id) override {
     m_client_collation_id = client_collation_id;
   }
 
-  virtual Object_id connection_collation_id() const {
+  Object_id connection_collation_id() const override {
     return m_connection_collation_id;
   }
 
-  virtual void set_connection_collation_id(Object_id connection_collation_id) {
+  void set_connection_collation_id(Object_id connection_collation_id) override {
     m_connection_collation_id = connection_collation_id;
   }
 
-  virtual Object_id schema_collation_id() const {
+  Object_id schema_collation_id() const override {
     return m_schema_collation_id;
   }
 
-  virtual void set_schema_collation_id(Object_id schema_collation_id) {
+  void set_schema_collation_id(Object_id schema_collation_id) override {
     m_schema_collation_id = schema_collation_id;
   }
 
   // Fix "inherits ... via dominance" warnings
-  virtual Entity_object_impl *impl() { return Entity_object_impl::impl(); }
-  virtual const Entity_object_impl *impl() const {
+  Entity_object_impl *impl() override { return Entity_object_impl::impl(); }
+  const Entity_object_impl *impl() const override {
     return Entity_object_impl::impl();
   }
-  virtual Object_id id() const { return Entity_object_impl::id(); }
-  virtual bool is_persistent() const {
+  Object_id id() const override { return Entity_object_impl::id(); }
+  bool is_persistent() const override {
     return Entity_object_impl::is_persistent();
   }
-  virtual const String_type &name() const { return Entity_object_impl::name(); }
-  virtual void set_name(const String_type &name) {
+  const String_type &name() const override {
+    return Entity_object_impl::name();
+  }
+  void set_name(const String_type &name) override {
     Entity_object_impl::set_name(name);
   }
 
@@ -365,7 +369,7 @@ class Event_impl : public Entity_object_impl, public Event {
   Object_id m_connection_collation_id;
   Object_id m_schema_collation_id;
 
-  Event *clone() const { return new Event_impl(*this); }
+  Event *clone() const override { return new Event_impl(*this); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

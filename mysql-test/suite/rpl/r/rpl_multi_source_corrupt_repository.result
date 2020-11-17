@@ -125,8 +125,12 @@ Slave_SQL_Running_State = ''
 Channel_Name = ''
 ===== Executing RESET SLAVE FOR CHANNEL on channel ''.
 RESET SLAVE FOR CHANNEL '';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ===== Executing RESET SLAVE ALL FOR CHANNEL on channel ''.
 RESET SLAVE ALL FOR CHANNEL '';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ===== Executing few basic commands on channel 'channel_2'.
 ===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_2]
@@ -164,8 +168,12 @@ Slave_SQL_Running_State = ''
 Channel_Name = 'channel_2'
 ===== Executing RESET SLAVE FOR CHANNEL on channel 'channel_2'.
 RESET SLAVE FOR CHANNEL 'channel_2';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ===== Executing RESET SLAVE ALL FOR CHANNEL on channel 'channel_2'.
 RESET SLAVE ALL FOR CHANNEL 'channel_2';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ===== Executing few basic commands on channel 'channel_3'.
 ===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_3]
@@ -203,8 +211,12 @@ Slave_SQL_Running_State = ''
 Channel_Name = 'channel_3'
 ===== Executing RESET SLAVE FOR CHANNEL on channel 'channel_3'.
 RESET SLAVE FOR CHANNEL 'channel_3';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ===== Executing RESET SLAVE ALL FOR CHANNEL on channel 'channel_3'.
 RESET SLAVE ALL FOR CHANNEL 'channel_3';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 [connection server_1]
 RESET MASTER;
 [connection server_4]
@@ -326,8 +338,12 @@ Slave_SQL_Running_State = ''
 Channel_Name = ''
 ===== Executing RESET SLAVE FOR CHANNEL on channel ''.
 RESET SLAVE FOR CHANNEL '';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ===== Executing RESET SLAVE ALL FOR CHANNEL on channel ''.
 RESET SLAVE ALL FOR CHANNEL '';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ===== Executing few basic commands on channel 'channel_2'.
 ===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_2]
@@ -361,8 +377,12 @@ Slave_SQL_Running_State = ''
 Channel_Name = 'channel_2'
 ===== Executing RESET SLAVE FOR CHANNEL on channel 'channel_2'.
 RESET SLAVE FOR CHANNEL 'channel_2';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ===== Executing RESET SLAVE ALL FOR CHANNEL on channel 'channel_2'.
 RESET SLAVE ALL FOR CHANNEL 'channel_2';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ===== Executing few basic commands on channel 'channel_3'.
 ===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_3]
@@ -400,8 +420,12 @@ Slave_SQL_Running_State = ''
 Channel_Name = 'channel_3'
 ===== Executing RESET SLAVE FOR CHANNEL on channel 'channel_3'.
 RESET SLAVE FOR CHANNEL 'channel_3';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ===== Executing RESET SLAVE ALL FOR CHANNEL on channel 'channel_3'.
 RESET SLAVE ALL FOR CHANNEL 'channel_3';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 [connection server_1]
 RESET MASTER;
 [connection server_4]
@@ -523,8 +547,12 @@ Slave_SQL_Running_State = ''
 Channel_Name = ''
 ===== Executing RESET SLAVE FOR CHANNEL on channel ''.
 RESET SLAVE FOR CHANNEL '';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ===== Executing RESET SLAVE ALL FOR CHANNEL on channel ''.
 RESET SLAVE ALL FOR CHANNEL '';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ===== Executing few basic commands on channel 'channel_2'.
 ===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_2]
@@ -562,8 +590,12 @@ Slave_SQL_Running_State = ''
 Channel_Name = 'channel_2'
 ===== Executing RESET SLAVE FOR CHANNEL on channel 'channel_2'.
 RESET SLAVE FOR CHANNEL 'channel_2';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ===== Executing RESET SLAVE ALL FOR CHANNEL on channel 'channel_2'.
 RESET SLAVE ALL FOR CHANNEL 'channel_2';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ===== Executing few basic commands on channel 'channel_3'.
 ===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_3]
@@ -597,6 +629,10 @@ Slave_SQL_Running_State = ''
 Channel_Name = 'channel_3'
 ===== Executing RESET SLAVE FOR CHANNEL on channel 'channel_3'.
 RESET SLAVE FOR CHANNEL 'channel_3';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ===== Executing RESET SLAVE ALL FOR CHANNEL on channel 'channel_3'.
 RESET SLAVE ALL FOR CHANNEL 'channel_3';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/rpl_end.inc

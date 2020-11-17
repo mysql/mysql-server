@@ -1840,7 +1840,7 @@ SELECT CAST(0.996 AS DECIMAL(14,3)) *
 --echo # Bug#25685958 ASSERTION FAILED:
 --echo #              RETVAL == 0 IN ITEM_SUM_HYBRID::VAL_DECIMAL()
 --echo #
-do 1 div nullif(min(from_days(1)),_utf8'1');
+do 1 div nullif(min(from_days(1)),_utf8mb4'2000-01-01');
 
 --echo #
 --echo # Bug#26497007 ASSERTION(0) IN DIV_BY_POW10 WITH LARGE NUMBER

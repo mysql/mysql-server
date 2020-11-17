@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ class Gcs_gr_logger_impl : public Logger_interface {
   /**
     Destructor.
   */
-  ~Gcs_gr_logger_impl() {}
+  ~Gcs_gr_logger_impl() override {}
 
   /**
     Initialize the logger.
@@ -51,7 +51,7 @@ class Gcs_gr_logger_impl : public Logger_interface {
       @retval GCS_OK   Success
       @retval GCS_NOK  Error
   */
-  enum_gcs_error initialize();
+  enum_gcs_error initialize() override;
 
   /**
     Finalize the logger.
@@ -60,7 +60,7 @@ class Gcs_gr_logger_impl : public Logger_interface {
       @retval GCS_OK   Success
       @retval GCS_NOK  Error
   */
-  enum_gcs_error finalize();
+  enum_gcs_error finalize() override;
 
   /**
     Log a message using the specified level.
@@ -68,7 +68,8 @@ class Gcs_gr_logger_impl : public Logger_interface {
     @param[in] level    logging level of message
     @param[in] message  the message to log
   */
-  void log_event(const gcs_log_level_t level, const std::string &message);
+  void log_event(const gcs_log_level_t level,
+                 const std::string &message) override;
 
   /*
     Disabling copy constructor and assignment operator.

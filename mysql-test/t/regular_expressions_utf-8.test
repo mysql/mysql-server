@@ -843,3 +843,115 @@ INSERT INTO t1 VALUES (
 SELECT * FROM t1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#31031886: EVALUATING REGEXP CHARACTER CLASSES IN BINARY
+--echo #               STRING CONTEXTS
+--echo #
+
+--echo #
+--echo # Small part of the test. Making sure you can't mix binary strings with
+--echo # any other character set. See regular_expressions_utf-8_big.test for the
+--echo # big part.
+--echo #
+
+--error ER_CHARACTER_SET_MISMATCH
+SELECT regexp_like('1', x'01');
+--error ER_CHARACTER_SET_MISMATCH
+SELECT regexp_like(x'01', '1');
+
+--error ER_CHARACTER_SET_MISMATCH
+SELECT regexp_replace('01', '01', x'02');
+--error ER_CHARACTER_SET_MISMATCH
+SELECT regexp_replace('01', x'01', '02');
+--error ER_CHARACTER_SET_MISMATCH
+SELECT regexp_replace('01', x'01', x'02');
+--error ER_CHARACTER_SET_MISMATCH
+SELECT regexp_replace(x'01', '01', '02');
+--error ER_CHARACTER_SET_MISMATCH
+SELECT regexp_replace(x'01', '01', x'02');
+--error ER_CHARACTER_SET_MISMATCH
+SELECT regexp_replace(x'01', x'01', '02');
+
+--echo # We repeat the above test for other char types, but this time we
+--echo # make it a little smaller, just to check that the same rule applies for
+--echo # all the relevant data types.
+CREATE TABLE t1(a CHAR(1));
+CREATE TABLE t2(a BLOB);
+CREATE TABLE t3(a TEXT);
+
+INSERT INTO t1 VALUES('1');
+INSERT INTO t2 VALUES('1');
+INSERT INTO t3 VALUES('1');
+
+--error ER_CHARACTER_SET_MISMATCH
+SELECT regexp_like(a, x'01') FROM t1;
+SELECT regexp_like(a, x'01') FROM t2;
+--error ER_CHARACTER_SET_MISMATCH
+SELECT regexp_like(a, x'01') FROM t3;
+--error ER_CHARACTER_SET_MISMATCH
+SELECT regexp_like(x'01', a) FROM t1;
+SELECT regexp_like(x'01', a) FROM t2;
+--error ER_CHARACTER_SET_MISMATCH
+SELECT regexp_like(x'01', a) FROM t3;
+
+DROP TABLE t1, t2, t3;
+
+--echo # When any argument is NULL, the result of a regular expression function
+--echo # is also NULL, obviously. These tests are only here to show that we
+--echo # don't mistakenly reject NULL values based on character set.
+SELECT regexp_instr(1, 'a');
+SELECT regexp_instr('a', 1);
+SELECT regexp_instr(NULL, 'a');
+SELECT regexp_instr('a', NULL);
+
+SELECT regexp_like(1, 'a');
+SELECT regexp_like('a', 1);
+SELECT regexp_like(NULL, 'a');
+SELECT regexp_like('a', NULL);
+
+SELECT regexp_replace(1, 1, 'a');
+SELECT regexp_replace(1, 'a', 1);
+SELECT regexp_replace(1, 'a', 'a');
+SELECT regexp_replace('a', 1, 1);
+SELECT regexp_replace('a', 1, 'a');
+SELECT regexp_replace('a', 'a', 1);
+
+SELECT regexp_replace(NULL, NULL, 'a');
+SELECT regexp_replace(NULL, 'a', NULL);
+SELECT regexp_replace(NULL, 'a', 'a');
+SELECT regexp_replace('a', NULL, NULL);
+SELECT regexp_replace('a', NULL, 'a');
+SELECT regexp_replace('a', 'a', NULL);
+
+SELECT regexp_substr(1, 'a');
+SELECT regexp_substr('a', 1);
+
+SELECT regexp_substr(NULL, 'a');
+SELECT regexp_substr('a', NULL);
+
+--echo #
+--echo # Bug#31031888: REGEXP_REPLACE AND REGEXP_SUBSTR STILL ADD NULL
+--echo # BYTES
+--echo #
+
+SELECT hex(regexp_replace(x'01', x'01', x'02'));
+
+SELECT hex(regexp_substr(x'FFFF', x'FFFF'));
+
+CREATE TABLE t1 AS SELECT regexp_substr(x'01', x'01');
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 AS SELECT regexp_replace(x'01', x'01', x'02');
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #31514995 REGEXP::CHECK_ICU_STATUS: ASSERTION `FALSE' FAILED.
+--echo #
+
+--error ER_REGEX_NUMBER_TOO_BIG
+do regexp_like(0, "^{18446744073709551616");
+--error ER_REGEX_NUMBER_TOO_BIG
+do regexp_instr(0, "^{18446744073709551616");

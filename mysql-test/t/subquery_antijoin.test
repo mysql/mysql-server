@@ -479,3 +479,20 @@ explain format=tree select a from t where 1 not in (select 1 from t);
 select a from t where 1 not in (select 1 from t);
 
 drop table t;
+
+--echo #
+--echo # Bug#31425664 RECENT REGRESSION: CRASH IN ITEM::SAVE_IN_FIELD
+--echo #
+
+CREATE TABLE t (a TIME);
+CREATE TABLE s (b INT);
+INSERT INTO t VALUES('11:11:11.1111'),('22:22:22.2222');
+INSERT INTO t VALUES('11:11:11.1111'),('22:22:22.2222');
+INSERT INTO t VALUES('11:11:11.1111'),('22:22:22.2222');
+INSERT INTO s VALUES(1),(2),(3),(4);
+SELECT 1 FROM t WHERE NOT EXISTS
+  (
+    SELECT 1 FROM s
+    WHERE a=FROM_UNIXTIME(1536999178)
+  );
+DROP TABLE t,s;

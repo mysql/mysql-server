@@ -49,6 +49,7 @@ mysql_harness::Plugin ROUTER_PROTOBUF_EXPORT harness_plugin_router_protobuf = {
       google::protobuf::ShutdownProtobufLibrary();
     },
     nullptr,  // start
-    nullptr   // stop
+    nullptr,  // stop
+    false     // declare_readiness
 };
 }

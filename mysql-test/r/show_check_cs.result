@@ -69,10 +69,10 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show index from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	mysql	tables	SHOW_STATISTICS	Table	Table	253	256	2	N	#	0	255
+def		tables	SHOW_STATISTICS	Table	Table	253	256	2	N	#	0	255
 def			SHOW_STATISTICS	Non_unique	Non_unique	3	1	1	N	32769	0	63
 def			SHOW_STATISTICS	Key_name	Key_name	253	256	7	Y	0	0	255
-def	mysql	index_column_usage	SHOW_STATISTICS	Seq_in_index	Seq_in_index	3	10	1	N	36897	0	63
+def		index_column_usage	SHOW_STATISTICS	Seq_in_index	Seq_in_index	3	10	1	N	36897	0	63
 def			SHOW_STATISTICS	Column_name	Column_name	253	256	1	Y	0	0	255
 def			SHOW_STATISTICS	Collation	Collation	253	4	1	Y	0	0	255
 def			SHOW_STATISTICS	Cardinality	Cardinality	8	21	1	Y	32768	0	63
@@ -81,7 +81,7 @@ def					Packed	6	0	0	Y	32896	0	63
 def			SHOW_STATISTICS	Null	Null	253	12	0	N	1	0	255
 def			SHOW_STATISTICS	Index_type	Index_type	253	44	5	N	129	0	255
 def			SHOW_STATISTICS	Comment	Comment	253	32	0	N	1	0	255
-def	mysql	indexes	SHOW_STATISTICS	Index_comment	Index_comment	253	8192	0	N	#	0	255
+def		indexes	SHOW_STATISTICS	Index_comment	Index_comment	253	8192	0	N	#	0	255
 def			SHOW_STATISTICS	Visible	Visible	253	12	3	N	1	0	255
 def			SHOW_STATISTICS	Expression	Expression	252	4294967295	0	Y	144	0	255
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
@@ -112,27 +112,27 @@ drop table t1;
 -- after Bug#29394 is implemented.
 show variables like "wait_timeout%";
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def		session_variables	session_variables	Variable_name	Variable_name	253	256	12	N	4097	0	255
-def		session_variables	session_variables	Value	Value	253	4096	5	Y	0	0	255
+def	performance_schema	session_variables	session_variables	Variable_name	Variable_name	253	256	12	N	4097	0	255
+def	performance_schema	session_variables	session_variables	Value	Value	253	4096	5	Y	0	0	255
 Variable_name	Value
 wait_timeout	28800
 show variables like "WAIT_timeout%";
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def		session_variables	session_variables	Variable_name	Variable_name	253	256	12	N	4097	0	255
-def		session_variables	session_variables	Value	Value	253	4096	5	Y	0	0	255
+def	performance_schema	session_variables	session_variables	Variable_name	Variable_name	253	256	12	N	4097	0	255
+def	performance_schema	session_variables	session_variables	Value	Value	253	4096	5	Y	0	0	255
 Variable_name	Value
 wait_timeout	28800
 show variables like "this_doesn't_exists%";
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def		session_variables	session_variables	Variable_name	Variable_name	253	256	0	N	4097	0	255
-def		session_variables	session_variables	Value	Value	253	4096	0	Y	0	0	255
+def	performance_schema	session_variables	session_variables	Variable_name	Variable_name	253	256	0	N	4097	0	255
+def	performance_schema	session_variables	session_variables	Value	Value	253	4096	0	Y	0	0	255
 Variable_name	Value
 show table status from test like "this_doesn't_exists%";
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	mysql	tables	TABLES	Name	Name	253	256	0	N	#	0	255
+def		tables	TABLES	Name	Name	253	256	0	N	#	0	255
 def			TABLES	Engine	Engine	253	256	0	Y	0	0	255
 def			TABLES	Version	Version	3	2	0	Y	32768	0	63
-def	mysql	tables	TABLES	Row_format	Row_format	254	40	0	Y	384	0	255
+def		tables	TABLES	Row_format	Row_format	254	40	0	Y	384	0	255
 def			TABLES	Rows	Rows	8	21	0	Y	32800	0	63
 def			TABLES	Avg_row_length	Avg_row_length	8	21	0	Y	32800	0	63
 def			TABLES	Data_length	Data_length	8	21	0	Y	32800	0	63
@@ -140,17 +140,17 @@ def			TABLES	Max_data_length	Max_data_length	8	21	0	Y	32800	0	63
 def			TABLES	Index_length	Index_length	8	21	0	Y	32800	0	63
 def			TABLES	Data_free	Data_free	8	21	0	Y	32800	0	63
 def			TABLES	Auto_increment	Auto_increment	8	21	0	Y	32800	0	63
-def	mysql	tables	TABLES	Create_time	Create_time	7	19	0	N	#	0	63
+def		tables	TABLES	Create_time	Create_time	7	19	0	N	#	0	63
 def			TABLES	Update_time	Update_time	12	19	0	Y	128	0	63
 def			TABLES	Check_time	Check_time	12	19	0	Y	128	0	63
-def	mysql	collations	TABLES	Collation	Collation	253	256	0	Y	4096	0	255
+def		collations	TABLES	Collation	Collation	253	256	0	Y	4096	0	255
 def			TABLES	Checksum	Checksum	8	21	0	Y	32768	0	63
 def			TABLES	Create_options	Create_options	253	1024	0	Y	0	0	255
 def			TABLES	Comment	Comment	252	24576	0	Y	16	0	255
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 show databases;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	mysql	schemata	SCHEMATA	Database	Database	253	256	18	N	#	0	255
+def		schemata	SCHEMATA	Database	Database	253	256	18	N	#	0	255
 Database
 information_schema
 mtr
@@ -160,7 +160,7 @@ sys
 test
 show databases like "test%";
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	mysql	schemata	SCHEMATA	Database (test%)	Database (test%)	253	256	4	N	#	0	255
+def		schemata	SCHEMATA	Database (test%)	Database (test%)	253	256	4	N	#	0	255
 Database (test%)
 test
 create temporary table t1 (a int not null);
@@ -528,10 +528,10 @@ PRIMARY KEY(field1(750))
 );
 show index from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	mysql	tables	SHOW_STATISTICS	Table	Table	253	64	2	N	#	0	63
+def		tables	SHOW_STATISTICS	Table	Table	253	64	2	N	#	0	63
 def			SHOW_STATISTICS	Non_unique	Non_unique	3	1	1	N	32769	0	63
 def			SHOW_STATISTICS	Key_name	Key_name	253	64	7	Y	0	0	63
-def	mysql	index_column_usage	SHOW_STATISTICS	Seq_in_index	Seq_in_index	3	10	1	N	36897	0	63
+def		index_column_usage	SHOW_STATISTICS	Seq_in_index	Seq_in_index	3	10	1	N	36897	0	63
 def			SHOW_STATISTICS	Column_name	Column_name	253	64	6	Y	0	0	63
 def			SHOW_STATISTICS	Collation	Collation	253	1	1	Y	0	0	63
 def			SHOW_STATISTICS	Cardinality	Cardinality	8	21	1	Y	32768	0	63
@@ -540,7 +540,7 @@ def					Packed	6	0	0	Y	32896	0	63
 def			SHOW_STATISTICS	Null	Null	253	3	0	N	1	0	63
 def			SHOW_STATISTICS	Index_type	Index_type	253	11	5	N	129	0	63
 def			SHOW_STATISTICS	Comment	Comment	253	8	0	N	1	0	63
-def	mysql	indexes	SHOW_STATISTICS	Index_comment	Index_comment	253	2048	0	N	#	0	63
+def		indexes	SHOW_STATISTICS	Index_comment	Index_comment	253	2048	0	N	#	0	63
 def			SHOW_STATISTICS	Visible	Visible	253	3	3	N	1	0	63
 def			SHOW_STATISTICS	Expression	Expression	252	4294967295	0	Y	144	0	63
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
@@ -703,22 +703,22 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 ----------------------------------------------------------------
 SHOW CHARACTER SET LIKE 'utf8';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	mysql	cs	CHARACTER_SETS	Charset	Charset	253	192	4	N	20485	0	33
-def	mysql	cs	CHARACTER_SETS	Description	Description	253	6144	13	N	4097	0	33
-def	mysql	col	CHARACTER_SETS	Default collation	Default collation	253	192	15	N	20485	0	33
-def	mysql	cs	CHARACTER_SETS	Maxlen	Maxlen	3	10	1	N	36897	0	63
+def	information_schema	cs	CHARACTER_SETS	Charset	Charset	253	192	4	N	20485	0	33
+def	information_schema	cs	CHARACTER_SETS	Description	Description	253	6144	13	N	4097	0	33
+def	information_schema	col	CHARACTER_SETS	Default collation	Default collation	253	192	15	N	20485	0	33
+def	information_schema	cs	CHARACTER_SETS	Maxlen	Maxlen	3	10	1	N	36897	0	63
 Charset	Description	Default collation	Maxlen
 utf8	UTF-8 Unicode	utf8_general_ci	3
 ----------------------------------------------------------------
 SHOW COLLATION LIKE 'latin1_bin';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def		COLLATIONS	COLLATIONS	Collation	Collation	253	192	10	N	4097	0	33
-def		COLLATIONS	COLLATIONS	Charset	Charset	253	192	6	N	4097	0	33
-def		COLLATIONS	COLLATIONS	Id	Id	8	20	2	N	32801	0	63
-def		COLLATIONS	COLLATIONS	Default	Default	253	9	0	N	1	0	33
-def		COLLATIONS	COLLATIONS	Compiled	Compiled	253	9	3	N	1	0	33
-def		COLLATIONS	COLLATIONS	Sortlen	Sortlen	3	10	1	N	36897	0	63
-def		COLLATIONS	COLLATIONS	Pad_attribute	Pad_attribute	254	27	9	N	4481	0	33
+def	information_schema	COLLATIONS	COLLATIONS	Collation	Collation	253	192	10	N	4097	0	33
+def	information_schema	COLLATIONS	COLLATIONS	Charset	Charset	253	192	6	N	4097	0	33
+def	information_schema	COLLATIONS	COLLATIONS	Id	Id	8	20	2	N	32801	0	63
+def	information_schema	COLLATIONS	COLLATIONS	Default	Default	253	9	0	N	1	0	33
+def	information_schema	COLLATIONS	COLLATIONS	Compiled	Compiled	253	9	3	N	1	0	33
+def	information_schema	COLLATIONS	COLLATIONS	Sortlen	Sortlen	3	10	1	N	36897	0	63
+def	information_schema	COLLATIONS	COLLATIONS	Pad_attribute	Pad_attribute	254	27	9	N	4481	0	33
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 latin1_bin	latin1	47		Yes	1	PAD SPACE
 ----------------------------------------------------------------
@@ -731,7 +731,7 @@ mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET utf8mb4 C
 ----------------------------------------------------------------
 SHOW DATABASES LIKE 'mysqltest1';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	mysql	schemata	SCHEMATA	Database (mysqltest1)	Database (mysqltest1)	253	192	10	N	#	0	33
+def		schemata	SCHEMATA	Database (mysqltest1)	Database (mysqltest1)	253	192	10	N	#	0	33
 Database (mysqltest1)
 mysqltest1
 ----------------------------------------------------------------
@@ -747,10 +747,10 @@ t1	CREATE TABLE `t1` (
 ----------------------------------------------------------------
 SHOW INDEX FROM t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	mysql	tables	SHOW_STATISTICS	Table	Table	253	192	2	N	#	0	33
+def		tables	SHOW_STATISTICS	Table	Table	253	192	2	N	#	0	33
 def			SHOW_STATISTICS	Non_unique	Non_unique	3	1	1	N	32769	0	63
 def			SHOW_STATISTICS	Key_name	Key_name	253	192	7	Y	0	0	33
-def	mysql	index_column_usage	SHOW_STATISTICS	Seq_in_index	Seq_in_index	3	10	1	N	36897	0	63
+def		index_column_usage	SHOW_STATISTICS	Seq_in_index	Seq_in_index	3	10	1	N	36897	0	63
 def			SHOW_STATISTICS	Column_name	Column_name	253	192	1	Y	0	0	33
 def			SHOW_STATISTICS	Collation	Collation	253	3	1	Y	0	0	33
 def			SHOW_STATISTICS	Cardinality	Cardinality	8	21	1	Y	32768	0	63
@@ -759,7 +759,7 @@ def					Packed	6	0	0	Y	32896	0	63
 def			SHOW_STATISTICS	Null	Null	253	9	0	N	1	0	33
 def			SHOW_STATISTICS	Index_type	Index_type	253	33	5	N	129	0	33
 def			SHOW_STATISTICS	Comment	Comment	253	24	0	N	1	0	33
-def	mysql	indexes	SHOW_STATISTICS	Index_comment	Index_comment	253	6144	0	N	#	0	33
+def		indexes	SHOW_STATISTICS	Index_comment	Index_comment	253	6144	0	N	#	0	33
 def			SHOW_STATISTICS	Visible	Visible	253	9	3	N	1	0	33
 def			SHOW_STATISTICS	Expression	Expression	252	4294967295	0	Y	144	0	33
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
@@ -778,16 +778,16 @@ TABLE_COMMENT
 FROM INFORMATION_SCHEMA.TABLES
 WHERE table_name = 't1';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	mysql	TABLES	TABLES	TABLE_CATALOG	TABLE_CATALOG	253	192	3	N	#	0	33
-def	mysql	TABLES	TABLES	TABLE_SCHEMA	TABLE_SCHEMA	253	192	4	N	#	0	33
-def	mysql	TABLES	TABLES	TABLE_NAME	TABLE_NAME	253	192	2	N	#	0	33
-def	mysql	TABLES	TABLES	TABLE_TYPE	TABLE_TYPE	254	33	10	N	20873	0	33
-def		TABLES	TABLES	ENGINE	ENGINE	253	192	6	Y	0	31	33
-def	mysql	TABLES	TABLES	ROW_FORMAT	ROW_FORMAT	254	30	7	Y	384	0	33
-def	mysql	TABLES	TABLES	TABLE_COLLATION	TABLE_COLLATION	253	192	18	Y	20484	0	33
-def		TABLES	TABLES	CREATE_OPTIONS	CREATE_OPTIONS	253	768	0	Y	0	31	33
-def		TABLES	TABLES	TABLE_COMMENT	TABLE_COMMENT	253	6144	0	Y	0	31	33
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	ROW_FORMAT	TABLE_COLLATION	CREATE_OPTIONS	TABLE_COMMENT
+def		TABLES	TABLES	CREATE_OPTIONS	CREATE_OPTIONS	253	768	0	Y	0	31	33
+def		TABLES	TABLES	ENGINE	ENGINE	253	192	6	Y	0	31	33
+def		TABLES	TABLES	TABLE_COMMENT	TABLE_COMMENT	253	6144	0	Y	0	31	33
+def	information_schema	TABLES	TABLES	ROW_FORMAT	ROW_FORMAT	254	30	7	Y	384	0	33
+def	information_schema	TABLES	TABLES	TABLE_CATALOG	TABLE_CATALOG	253	192	3	N	#	0	33
+def	information_schema	TABLES	TABLES	TABLE_COLLATION	TABLE_COLLATION	253	192	18	Y	20484	0	33
+def	information_schema	TABLES	TABLES	TABLE_NAME	TABLE_NAME	253	192	2	N	#	0	33
+def	information_schema	TABLES	TABLES	TABLE_SCHEMA	TABLE_SCHEMA	253	192	4	N	#	0	33
+def	information_schema	TABLES	TABLES	TABLE_TYPE	TABLE_TYPE	254	33	10	N	20873	0	33
 def	test	t1	BASE TABLE	InnoDB	Dynamic	utf8mb4_0900_ai_ci		
 ----------------------------------------------------------------
 SELECT
@@ -808,53 +808,53 @@ COLUMN_COMMENT
 FROM INFORMATION_SCHEMA.COLUMNS
 WHERE table_name = 't1';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	mysql	COLUMNS	COLUMNS	TABLE_CATALOG	TABLE_CATALOG	253	192	3	N	#	0	33
-def	mysql	COLUMNS	COLUMNS	TABLE_SCHEMA	TABLE_SCHEMA	253	192	4	N	#	0	33
-def	mysql	COLUMNS	COLUMNS	TABLE_NAME	TABLE_NAME	253	192	2	N	#	0	33
-def		COLUMNS	COLUMNS	COLUMN_NAME	COLUMN_NAME	253	192	1	Y	0	31	33
-def	mysql	COLUMNS	COLUMNS	COLUMN_DEFAULT	COLUMN_DEFAULT	252	196605	0	Y	144	0	33
-def		COLUMNS	COLUMNS	IS_NULLABLE	IS_NULLABLE	253	9	2	N	1	31	33
-def		COLUMNS	COLUMNS	DATA_TYPE	DATA_TYPE	251	150994935	3	Y	128	31	33
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
 def		COLUMNS	COLUMNS	CHARACTER_SET_NAME	CHARACTER_SET_NAME	253	192	0	Y	0	31	33
 def		COLUMNS	COLUMNS	COLLATION_NAME	COLLATION_NAME	253	192	0	Y	0	31	33
-def	mysql	COLUMNS	COLUMNS	COLUMN_TYPE	COLUMN_TYPE	252	50331645	3	N	4241	0	33
-def	mysql	COLUMNS	COLUMNS	COLUMN_KEY	COLUMN_KEY	254	9	3	N	4481	0	33
-def		COLUMNS	COLUMNS	EXTRA	EXTRA	253	768	0	Y	0	31	33
-def		COLUMNS	COLUMNS	PRIVILEGES	PRIVILEGES	253	462	31	Y	0	31	33
 def		COLUMNS	COLUMNS	COLUMN_COMMENT	COLUMN_COMMENT	253	6144	0	N	129	31	33
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
+def		COLUMNS	COLUMNS	COLUMN_NAME	COLUMN_NAME	253	192	1	Y	0	31	33
+def		COLUMNS	COLUMNS	DATA_TYPE	DATA_TYPE	251	150994935	3	Y	128	31	33
+def		COLUMNS	COLUMNS	EXTRA	EXTRA	253	768	0	Y	0	31	33
+def		COLUMNS	COLUMNS	IS_NULLABLE	IS_NULLABLE	253	9	2	N	1	31	33
+def		COLUMNS	COLUMNS	PRIVILEGES	PRIVILEGES	253	462	31	Y	0	31	33
+def	information_schema	COLUMNS	COLUMNS	COLUMN_DEFAULT	COLUMN_DEFAULT	252	196605	0	Y	144	0	33
+def	information_schema	COLUMNS	COLUMNS	COLUMN_KEY	COLUMN_KEY	254	9	3	N	4481	0	33
+def	information_schema	COLUMNS	COLUMNS	COLUMN_TYPE	COLUMN_TYPE	252	50331645	3	N	4241	0	33
+def	information_schema	COLUMNS	COLUMNS	TABLE_CATALOG	TABLE_CATALOG	253	192	3	N	#	0	33
+def	information_schema	COLUMNS	COLUMNS	TABLE_NAME	TABLE_NAME	253	192	2	N	#	0	33
+def	information_schema	COLUMNS	COLUMNS	TABLE_SCHEMA	TABLE_SCHEMA	253	192	4	N	#	0	33
 def	test	t1	c	NULL	NO	int	NULL	NULL	int	PRI		select,insert,update,references	
 ----------------------------------------------------------------
 SHOW TABLES LIKE 't1';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	mysql	tables	TABLES	Tables_in_test (t1)	Tables_in_test (t1)	253	192	2	N	#	0	33
+def		tables	TABLES	Tables_in_test (t1)	Tables_in_test (t1)	253	192	2	N	#	0	33
 Tables_in_test (t1)
 t1
 ----------------------------------------------------------------
 SHOW COLUMNS FROM t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def			COLUMNS	Field	Field	253	192	1	Y	0	0	33
-def	mysql	columns	COLUMNS	Type	Type	252	50331645	3	N	4241	0	33
+def		columns	COLUMNS	Type	Type	252	50331645	3	N	4241	0	33
 def			COLUMNS	Null	Null	253	9	2	N	1	0	33
-def	mysql	columns	COLUMNS	Key	Key	254	9	3	N	4481	0	33
-def	mysql	columns	COLUMNS	Default	Default	252	196605	0	Y	144	0	33
+def		columns	COLUMNS	Key	Key	254	9	3	N	4481	0	33
+def		columns	COLUMNS	Default	Default	252	196605	0	Y	144	0	33
 def			COLUMNS	Extra	Extra	253	768	0	Y	0	0	33
 Field	Type	Null	Key	Default	Extra
 c	int	NO	PRI	NULL	
 ----------------------------------------------------------------
 SHOW TRIGGERS LIKE 't1';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	mysql	triggers	TRIGGERS	Trigger	Trigger	253	192	5	N	4097	0	33
-def	mysql	triggers	TRIGGERS	Event	Event	254	18	6	N	4481	0	33
-def	mysql	tables	TRIGGERS	Table	Table	253	192	2	N	4225	0	33
-def	mysql	triggers	TRIGGERS	Statement	Statement	252	4294967295	10	N	4241	0	33
-def	mysql	triggers	TRIGGERS	Timing	Timing	254	18	6	N	4481	0	33
-def	mysql	triggers	TRIGGERS	Created	Created	7	22	22	N	4225	2	63
-def	mysql	triggers	TRIGGERS	sql_mode	sql_mode	254	1560	117	N	6273	0	33
-def	mysql	triggers	TRIGGERS	Definer	Definer	253	864	14	N	4225	0	33
-def	mysql	character_sets	TRIGGERS	character_set_client	character_set_client	253	192	6	N	4097	0	33
-def	mysql	collations	TRIGGERS	collation_connection	collation_connection	253	192	6	N	4097	0	33
-def	mysql	collations	TRIGGERS	Database Collation	Database Collation	253	192	18	N	4097	0	33
+def		triggers	TRIGGERS	Trigger	Trigger	253	192	5	N	4097	0	33
+def		triggers	TRIGGERS	Event	Event	254	18	6	N	4481	0	33
+def		tables	TRIGGERS	Table	Table	253	192	2	N	4225	0	33
+def		triggers	TRIGGERS	Statement	Statement	252	4294967295	10	N	4241	0	33
+def		triggers	TRIGGERS	Timing	Timing	254	18	6	N	4481	0	33
+def		triggers	TRIGGERS	Created	Created	7	22	22	N	4225	2	63
+def		triggers	TRIGGERS	sql_mode	sql_mode	254	1560	117	N	6273	0	33
+def		triggers	TRIGGERS	Definer	Definer	253	864	14	N	4225	0	33
+def		character_sets	TRIGGERS	character_set_client	character_set_client	253	192	6	N	4097	0	33
+def		collations	TRIGGERS	collation_connection	collation_connection	253	192	6	N	4097	0	33
+def		collations	TRIGGERS	Database Collation	Database Collation	253	192	18	N	4097	0	33
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 t1_bi	INSERT	t1	SET @a = 1	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	binary	binary	utf8mb4_0900_ai_ci
 ----------------------------------------------------------------
@@ -879,23 +879,23 @@ DEFINER
 FROM INFORMATION_SCHEMA.TRIGGERS
 WHERE trigger_name = 't1_bi';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	mysql	TRIGGERS	TRIGGERS	TRIGGER_CATALOG	TRIGGER_CATALOG	253	192	3	N	20613	0	33
-def	mysql	TRIGGERS	TRIGGERS	TRIGGER_SCHEMA	TRIGGER_SCHEMA	253	192	4	N	20609	0	33
-def	mysql	TRIGGERS	TRIGGERS	TRIGGER_NAME	TRIGGER_NAME	253	192	5	N	20481	0	33
-def	mysql	TRIGGERS	TRIGGERS	EVENT_MANIPULATION	EVENT_MANIPULATION	254	18	6	N	20865	0	33
-def	mysql	TRIGGERS	TRIGGERS	EVENT_OBJECT_CATALOG	EVENT_OBJECT_CATALOG	253	192	3	N	20613	0	33
-def	mysql	TRIGGERS	TRIGGERS	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_SCHEMA	253	192	4	N	20609	0	33
-def	mysql	TRIGGERS	TRIGGERS	EVENT_OBJECT_TABLE	EVENT_OBJECT_TABLE	253	192	2	N	20609	0	33
+def	information_schema	TRIGGERS	TRIGGERS	TRIGGER_CATALOG	TRIGGER_CATALOG	253	192	3	N	20613	0	33
+def	information_schema	TRIGGERS	TRIGGERS	TRIGGER_SCHEMA	TRIGGER_SCHEMA	253	192	4	N	20609	0	33
+def	information_schema	TRIGGERS	TRIGGERS	TRIGGER_NAME	TRIGGER_NAME	253	192	5	N	20481	0	33
+def	information_schema	TRIGGERS	TRIGGERS	EVENT_MANIPULATION	EVENT_MANIPULATION	254	18	6	N	20865	0	33
+def	information_schema	TRIGGERS	TRIGGERS	EVENT_OBJECT_CATALOG	EVENT_OBJECT_CATALOG	253	192	3	N	20613	0	33
+def	information_schema	TRIGGERS	TRIGGERS	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_SCHEMA	253	192	4	N	20609	0	33
+def	information_schema	TRIGGERS	TRIGGERS	EVENT_OBJECT_TABLE	EVENT_OBJECT_TABLE	253	192	2	N	20609	0	33
 def		TRIGGERS	TRIGGERS	ACTION_CONDITION	ACTION_CONDITION	6	0	0	Y	32896	0	63
-def	mysql	TRIGGERS	TRIGGERS	ACTION_STATEMENT	ACTION_STATEMENT	252	4294967295	10	N	4241	0	33
+def	information_schema	TRIGGERS	TRIGGERS	ACTION_STATEMENT	ACTION_STATEMENT	252	4294967295	10	N	4241	0	33
 def		TRIGGERS	TRIGGERS	ACTION_ORIENTATION	ACTION_ORIENTATION	253	9	3	N	1	31	33
-def	mysql	TRIGGERS	TRIGGERS	ACTION_TIMING	ACTION_TIMING	254	18	6	N	20865	0	33
+def	information_schema	TRIGGERS	TRIGGERS	ACTION_TIMING	ACTION_TIMING	254	18	6	N	20865	0	33
 def		TRIGGERS	TRIGGERS	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_OLD_TABLE	6	0	0	Y	32896	0	63
 def		TRIGGERS	TRIGGERS	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_NEW_TABLE	6	0	0	Y	32896	0	63
 def		TRIGGERS	TRIGGERS	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_OLD_ROW	253	9	3	N	1	31	33
 def		TRIGGERS	TRIGGERS	ACTION_REFERENCE_NEW_ROW	ACTION_REFERENCE_NEW_ROW	253	9	3	N	1	31	33
-def	mysql	TRIGGERS	TRIGGERS	SQL_MODE	SQL_MODE	254	1560	117	N	6273	0	33
-def	mysql	TRIGGERS	TRIGGERS	DEFINER	DEFINER	253	864	14	N	4225	0	33
+def	information_schema	TRIGGERS	TRIGGERS	SQL_MODE	SQL_MODE	254	1560	117	N	6273	0	33
+def	information_schema	TRIGGERS	TRIGGERS	DEFINER	DEFINER	253	864	14	N	20617	0	33
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	SQL_MODE	DEFINER
 def	test	t1_bi	INSERT	def	test	t1	NULL	SET @a = 1	ROW	BEFORE	NULL	NULL	OLD	NEW	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost
 ----------------------------------------------------------------
@@ -912,17 +912,17 @@ SELECT *
 FROM INFORMATION_SCHEMA.VIEWS
 WHERE table_name = 'v1';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	mysql	VIEWS	VIEWS	TABLE_CATALOG	TABLE_CATALOG	253	192	3	N	#	0	33
-def	mysql	VIEWS	VIEWS	TABLE_SCHEMA	TABLE_SCHEMA	253	192	4	N	#	0	33
-def	mysql	VIEWS	VIEWS	TABLE_NAME	TABLE_NAME	253	192	2	N	#	0	33
-def		VIEWS	VIEWS	VIEW_DEFINITION	VIEW_DEFINITION	252	4294967295	15	Y	128	31	33
-def	mysql	VIEWS	VIEWS	CHECK_OPTION	CHECK_OPTION	254	24	4	Y	384	0	33
-def	mysql	VIEWS	VIEWS	IS_UPDATABLE	IS_UPDATABLE	254	9	2	Y	384	0	33
-def	mysql	VIEWS	VIEWS	DEFINER	DEFINER	253	864	14	Y	128	0	33
-def		VIEWS	VIEWS	SECURITY_TYPE	SECURITY_TYPE	253	21	7	Y	128	31	33
-def	mysql	VIEWS	VIEWS	CHARACTER_SET_CLIENT	CHARACTER_SET_CLIENT	253	192	6	N	#	0	33
-def	mysql	VIEWS	VIEWS	COLLATION_CONNECTION	COLLATION_CONNECTION	253	192	6	N	#	0	33
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
+def		VIEWS	VIEWS	SECURITY_TYPE	SECURITY_TYPE	253	21	7	Y	128	31	33
+def		VIEWS	VIEWS	VIEW_DEFINITION	VIEW_DEFINITION	252	4294967295	15	Y	128	31	33
+def	information_schema	VIEWS	VIEWS	CHARACTER_SET_CLIENT	CHARACTER_SET_CLIENT	253	192	6	N	#	0	33
+def	information_schema	VIEWS	VIEWS	CHECK_OPTION	CHECK_OPTION	254	24	4	Y	384	0	33
+def	information_schema	VIEWS	VIEWS	COLLATION_CONNECTION	COLLATION_CONNECTION	253	192	6	N	#	0	33
+def	information_schema	VIEWS	VIEWS	DEFINER	DEFINER	253	864	14	Y	16512	0	33
+def	information_schema	VIEWS	VIEWS	IS_UPDATABLE	IS_UPDATABLE	254	9	2	Y	384	0	33
+def	information_schema	VIEWS	VIEWS	TABLE_CATALOG	TABLE_CATALOG	253	192	3	N	#	0	33
+def	information_schema	VIEWS	VIEWS	TABLE_NAME	TABLE_NAME	253	192	2	N	#	0	33
+def	information_schema	VIEWS	VIEWS	TABLE_SCHEMA	TABLE_SCHEMA	253	192	4	N	#	0	33
 def	test	v1	select 1 AS `1`	NONE	NO	root@localhost	DEFINER	binary	binary
 ----------------------------------------------------------------
 SHOW CREATE PROCEDURE p1;
@@ -959,24 +959,24 @@ DEFINER
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE routine_name = 'p1';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	mysql	ROUTINES	ROUTINES	SPECIFIC_NAME	SPECIFIC_NAME	253	192	2	N	20481	0	33
-def	mysql	ROUTINES	ROUTINES	ROUTINE_CATALOG	ROUTINE_CATALOG	253	192	3	N	20613	0	33
-def	mysql	ROUTINES	ROUTINES	ROUTINE_SCHEMA	ROUTINE_SCHEMA	253	192	4	N	20609	0	33
-def	mysql	ROUTINES	ROUTINES	ROUTINE_NAME	ROUTINE_NAME	253	192	2	N	20481	0	33
-def	mysql	ROUTINES	ROUTINES	ROUTINE_TYPE	ROUTINE_TYPE	254	27	9	N	20865	0	33
+def	information_schema	ROUTINES	ROUTINES	SPECIFIC_NAME	SPECIFIC_NAME	253	192	2	N	20481	0	33
+def	information_schema	ROUTINES	ROUTINES	ROUTINE_CATALOG	ROUTINE_CATALOG	253	192	3	N	20613	0	33
+def	information_schema	ROUTINES	ROUTINES	ROUTINE_SCHEMA	ROUTINE_SCHEMA	253	192	4	N	20609	0	33
+def	information_schema	ROUTINES	ROUTINES	ROUTINE_NAME	ROUTINE_NAME	253	192	2	N	20481	0	33
+def	information_schema	ROUTINES	ROUTINES	ROUTINE_TYPE	ROUTINE_TYPE	254	27	9	N	20865	0	33
 def		ROUTINES	ROUTINES	DTD_IDENTIFIER	DTD_IDENTIFIER	252	150994935	0	Y	128	31	33
 def		ROUTINES	ROUTINES	ROUTINE_BODY	ROUTINE_BODY	253	9	3	N	1	31	33
 def		ROUTINES	ROUTINES	ROUTINE_DEFINITION	ROUTINE_DEFINITION	252	4294967295	8	Y	128	31	33
 def		ROUTINES	ROUTINES	EXTERNAL_NAME	EXTERNAL_NAME	6	0	0	Y	32896	0	63
-def	mysql	ROUTINES	ROUTINES	EXTERNAL_LANGUAGE	EXTERNAL_LANGUAGE	253	192	3	N	129	0	33
+def	information_schema	ROUTINES	ROUTINES	EXTERNAL_LANGUAGE	EXTERNAL_LANGUAGE	253	192	3	N	129	0	33
 def		ROUTINES	ROUTINES	PARAMETER_STYLE	PARAMETER_STYLE	253	9	3	N	1	31	33
 def		ROUTINES	ROUTINES	IS_DETERMINISTIC	IS_DETERMINISTIC	253	9	2	N	1	31	33
-def	mysql	ROUTINES	ROUTINES	SQL_DATA_ACCESS	SQL_DATA_ACCESS	254	51	12	N	4481	0	33
+def	information_schema	ROUTINES	ROUTINES	SQL_DATA_ACCESS	SQL_DATA_ACCESS	254	51	12	N	4481	0	33
 def		ROUTINES	ROUTINES	SQL_PATH	SQL_PATH	6	0	0	Y	32896	0	63
-def	mysql	ROUTINES	ROUTINES	SECURITY_TYPE	SECURITY_TYPE	254	21	7	N	4481	0	33
-def	mysql	ROUTINES	ROUTINES	SQL_MODE	SQL_MODE	254	1560	117	N	6273	0	33
-def	mysql	ROUTINES	ROUTINES	ROUTINE_COMMENT	ROUTINE_COMMENT	252	196605	0	N	4241	0	33
-def	mysql	ROUTINES	ROUTINES	DEFINER	DEFINER	253	864	14	N	4225	0	33
+def	information_schema	ROUTINES	ROUTINES	SECURITY_TYPE	SECURITY_TYPE	254	21	7	N	4481	0	33
+def	information_schema	ROUTINES	ROUTINES	SQL_MODE	SQL_MODE	254	1560	117	N	6273	0	33
+def	information_schema	ROUTINES	ROUTINES	ROUTINE_COMMENT	ROUTINE_COMMENT	252	196605	0	N	4241	0	33
+def	information_schema	ROUTINES	ROUTINES	DEFINER	DEFINER	253	864	14	N	20617	0	33
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	SQL_MODE	ROUTINE_COMMENT	DEFINER
 p1	def	test	p1	PROCEDURE	NULL	SQL	SELECT 1	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost
 ----------------------------------------------------------------
@@ -1014,24 +1014,24 @@ DEFINER
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE routine_name = 'f1';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	mysql	ROUTINES	ROUTINES	SPECIFIC_NAME	SPECIFIC_NAME	253	192	2	N	20481	0	33
-def	mysql	ROUTINES	ROUTINES	ROUTINE_CATALOG	ROUTINE_CATALOG	253	192	3	N	20613	0	33
-def	mysql	ROUTINES	ROUTINES	ROUTINE_SCHEMA	ROUTINE_SCHEMA	253	192	4	N	20609	0	33
-def	mysql	ROUTINES	ROUTINES	ROUTINE_NAME	ROUTINE_NAME	253	192	2	N	20481	0	33
-def	mysql	ROUTINES	ROUTINES	ROUTINE_TYPE	ROUTINE_TYPE	254	27	8	N	20865	0	33
+def	information_schema	ROUTINES	ROUTINES	SPECIFIC_NAME	SPECIFIC_NAME	253	192	2	N	20481	0	33
+def	information_schema	ROUTINES	ROUTINES	ROUTINE_CATALOG	ROUTINE_CATALOG	253	192	3	N	20613	0	33
+def	information_schema	ROUTINES	ROUTINES	ROUTINE_SCHEMA	ROUTINE_SCHEMA	253	192	4	N	20609	0	33
+def	information_schema	ROUTINES	ROUTINES	ROUTINE_NAME	ROUTINE_NAME	253	192	2	N	20481	0	33
+def	information_schema	ROUTINES	ROUTINES	ROUTINE_TYPE	ROUTINE_TYPE	254	27	8	N	20865	0	33
 def		ROUTINES	ROUTINES	DTD_IDENTIFIER	DTD_IDENTIFIER	252	150994935	3	Y	128	31	33
 def		ROUTINES	ROUTINES	ROUTINE_BODY	ROUTINE_BODY	253	9	3	N	1	31	33
 def		ROUTINES	ROUTINES	ROUTINE_DEFINITION	ROUTINE_DEFINITION	252	4294967295	8	Y	128	31	33
 def		ROUTINES	ROUTINES	EXTERNAL_NAME	EXTERNAL_NAME	6	0	0	Y	32896	0	63
-def	mysql	ROUTINES	ROUTINES	EXTERNAL_LANGUAGE	EXTERNAL_LANGUAGE	253	192	3	N	129	0	33
+def	information_schema	ROUTINES	ROUTINES	EXTERNAL_LANGUAGE	EXTERNAL_LANGUAGE	253	192	3	N	129	0	33
 def		ROUTINES	ROUTINES	PARAMETER_STYLE	PARAMETER_STYLE	253	9	3	N	1	31	33
 def		ROUTINES	ROUTINES	IS_DETERMINISTIC	IS_DETERMINISTIC	253	9	2	N	1	31	33
-def	mysql	ROUTINES	ROUTINES	SQL_DATA_ACCESS	SQL_DATA_ACCESS	254	51	12	N	4481	0	33
+def	information_schema	ROUTINES	ROUTINES	SQL_DATA_ACCESS	SQL_DATA_ACCESS	254	51	12	N	4481	0	33
 def		ROUTINES	ROUTINES	SQL_PATH	SQL_PATH	6	0	0	Y	32896	0	63
-def	mysql	ROUTINES	ROUTINES	SECURITY_TYPE	SECURITY_TYPE	254	21	7	N	4481	0	33
-def	mysql	ROUTINES	ROUTINES	SQL_MODE	SQL_MODE	254	1560	117	N	6273	0	33
-def	mysql	ROUTINES	ROUTINES	ROUTINE_COMMENT	ROUTINE_COMMENT	252	196605	0	N	4241	0	33
-def	mysql	ROUTINES	ROUTINES	DEFINER	DEFINER	253	864	14	N	4225	0	33
+def	information_schema	ROUTINES	ROUTINES	SECURITY_TYPE	SECURITY_TYPE	254	21	7	N	4481	0	33
+def	information_schema	ROUTINES	ROUTINES	SQL_MODE	SQL_MODE	254	1560	117	N	6273	0	33
+def	information_schema	ROUTINES	ROUTINES	ROUTINE_COMMENT	ROUTINE_COMMENT	252	196605	0	N	4241	0	33
+def	information_schema	ROUTINES	ROUTINES	DEFINER	DEFINER	253	864	14	N	20617	0	33
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	SQL_MODE	ROUTINE_COMMENT	DEFINER
 f1	def	test	f1	FUNCTION	int	SQL	RETURN 1	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost
 ----------------------------------------------------------------
@@ -1480,8 +1480,8 @@ t1	1	c2d	1	c2	A	0	NULL	NULL	YES	BTREE			YES	NULL
 SELECT table_schema, table_name, index_name, column_name FROM
 INFORMATION_SCHEMA.STATISTICS WHERE table_name='t1';
 TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	COLUMN_NAME
-test	t1	c2d	c2
 test	t1	PRIMARY	c1
+test	t1	c2d	c2
 SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE table_name='t1';
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE	ENFORCED
 def	test	PRIMARY	test	t1	PRIMARY KEY	YES

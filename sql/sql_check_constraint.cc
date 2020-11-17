@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -90,13 +90,11 @@ void Sql_check_constraint_spec::print_expr(THD *thd, String &out) {
 }
 
 bool Sql_check_constraint_spec::expr_refers_column(const char *column_name) {
-  List<Item_field> fields;
+  mem_root_deque<Item_field *> fields(current_thd->mem_root);
   check_expr->walk(&Item::collect_item_field_processor, enum_walk::POSTFIX,
                    (uchar *)&fields);
 
-  Item_field *cur_item;
-  List_iterator<Item_field> fields_it(fields);
-  while ((cur_item = fields_it++)) {
+  for (Item_field *cur_item : fields) {
     if (cur_item->type() == Item::FIELD_ITEM &&
         !my_strcasecmp(system_charset_info, cur_item->field_name, column_name))
       return true;
@@ -113,16 +111,14 @@ bool is_slave_with_master_without_check_constraints_support(THD *thd) {
 
 bool check_constraint_expr_refers_to_only_column(Item *check_expr,
                                                  const char *column_name) {
-  List<Item_field> fields;
+  mem_root_deque<Item_field *> fields(current_thd->mem_root);
   check_expr->walk(&Item::collect_item_field_processor, enum_walk::POSTFIX,
                    (uchar *)&fields);
 
   // Expression does not refer to any columns.
-  if (fields.elements == 0) return false;
+  if (fields.empty()) return false;
 
-  Item_field *cur_item;
-  List_iterator<Item_field> fields_it(fields);
-  while ((cur_item = fields_it++)) {
+  for (Item_field *cur_item : fields) {
     // Expression refers to some other column.
     if (cur_item->type() == Item::FIELD_ITEM &&
         my_strcasecmp(system_charset_info, cur_item->field_name, column_name))

@@ -26,9 +26,11 @@ STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";;
 SET DEBUG_SYNC='now SIGNAL continue_commit';
 SET @@GLOBAL.DEBUG= @debug_save;
 [connection server2]
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 
 # 5. Cleanup
 include/gr_start_applier_sql_thread.inc
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 DROP TABLE t1;
 include/group_replication_end.inc

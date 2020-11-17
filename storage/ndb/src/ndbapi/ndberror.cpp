@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -635,6 +635,11 @@ ErrorBundle ErrorCodes[] = {
   { 1304, DMEC, IE, "Sequence failure" },
   { 1305, DMEC, IE, "Backup definition not implemented" },
   { 1306, DMEC, AE, "Backup not supported in diskless mode (change Diskless)" },
+  { 1307, DMEC, IE, "Encrypted backup is not supported by the data node/s" },
+  { 1308, DMEC, CE, "Data node/s configured to have encryption but password not provided" },
+  { 1309, DMEC, CE, "Encryption password has bad character/s (see 'HELP START BACKUP')" },
+  { 1310, DMEC, CE, "Encryption password is too long (see 'HELP START BACKUP')" },
+  { 1311, DMEC, CE, "Encryption password is of zero length" },
 
   { 1321, DMEC, UD, "Backup aborted by user request" },
   { 1322, DMEC, IE, "Backup already completed" },
@@ -813,6 +818,7 @@ ErrorBundle ErrorCodes[] = {
   { 4555, DMEC, AE, "NdbBlob cannot be closed with pending operations" },
   { 4556, DMEC, AE, "RecordSpecification has illegal value in column_flags" },
   { 4557, DMEC, AE, "Column types must be identical when comparing two columns" },
+  { 4558, DMEC, AE, "Pending Blob operations must be executed before this call" },
 
   { 4200, DMEC, AE, "Status Error when defining an operation" },
   { 4201, DMEC, AE, "Variable Arrays not yet supported" },

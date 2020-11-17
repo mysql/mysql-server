@@ -129,6 +129,59 @@ CREATE USER u3 DEFAULT ROLE r2;
 ERROR 42000: Access denied; you need (at least one of) the WITH ADMIN, ROLE_ADMIN, SUPER privilege(s) for this operation
 DROP ROLE r1, r2;
 DROP USER u1, u2;
+#
+# Bug#30660403 ROLES NOT HANDLING COLUMN LEVEL PRIVILEGES CORRECTLY;
+#              CAN SELECT, BUT NOT UPDATE
+#
+# Create sample database/table
+CREATE DATABASE bug_test;
+CREATE TABLE bug_test.test_table (test_id int, test_data varchar(50),
+row_is_verified bool);
+INSERT INTO bug_test.test_table VALUES(1, 'valueA', FALSE);
+# Create role and two users
+CREATE ROLE `r_verifier`@`localhost`;
+CREATE USER `TestUserFails`@`localhost` IDENTIFIED BY 'test';
+CREATE USER `TestUserWorks`@`localhost` IDENTIFIED BY 'test';
+# Grant privileges to ROLE
+GRANT SELECT ON bug_test.* TO `r_verifier`@`localhost`;
+GRANT UPDATE (row_is_verified) ON bug_test.test_table TO `r_verifier`@`localhost`;
+# GRANT same privileges to USER
+GRANT SELECT ON bug_test.* TO `TestUserWorks`@`localhost`;
+GRANT UPDATE (row_is_verified) ON bug_test.test_table TO `TestUserWorks`@`localhost`;
+# Grant role to TestUserFails and make it a default role
+GRANT `r_verifier`@`localhost` TO `TestUserFails`@`localhost`;
+SET DEFAULT ROLE `r_verifier`@`localhost` TO `TestUserFails`@`localhost`;
+SHOW GRANTS FOR `r_verifier`@`localhost`;
+Grants for r_verifier@localhost
+GRANT USAGE ON *.* TO `r_verifier`@`localhost`
+GRANT SELECT ON `bug_test`.* TO `r_verifier`@`localhost`
+GRANT UPDATE (`row_is_verified`) ON `bug_test`.`test_table` TO `r_verifier`@`localhost`
+SHOW GRANTS FOR `TestUserFails`@`localhost`;
+Grants for TestUserFails@localhost
+GRANT USAGE ON *.* TO `TestUserFails`@`localhost`
+GRANT `r_verifier`@`localhost` TO `TestUserFails`@`localhost`
+SELECT CURRENT_USER(), CURRENT_ROLE();
+CURRENT_USER()	CURRENT_ROLE()
+TestUserWorks@localhost	NONE
+SELECT test_id, test_data, row_is_verified FROM bug_test.test_table;
+test_id	test_data	row_is_verified
+1	valueA	0
+UPDATE bug_test.test_table SET row_is_verified = TRUE WHERE test_id=1;
+SELECT test_id, test_data, row_is_verified FROM bug_test.test_table;
+test_id	test_data	row_is_verified
+1	valueA	1
+# After fix the below update statement should not throw error.
+SELECT CURRENT_USER(), CURRENT_ROLE();
+CURRENT_USER()	CURRENT_ROLE()
+TestUserFails@localhost	`r_verifier`@`localhost`
+SELECT test_id, test_data, row_is_verified FROM bug_test.test_table;
+test_id	test_data	row_is_verified
+1	valueA	1
+UPDATE bug_test.test_table SET row_is_verified = TRUE WHERE test_id=1;
+# cleanup
+DROP USER `TestUserFails`@`localhost`, `TestUserWorks`@`localhost`;
+DROP ROLE `r_verifier`@`localhost`;
+DROP DATABASE bug_test;
 
 # End of 8.0 tests
 

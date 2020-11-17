@@ -559,7 +559,7 @@ void read_key_tinyint_v1(PSI_key_reader *reader, PSI_plugin_key_tinyint *key,
   PFS_key_reader *pfs_reader = (PFS_key_reader *)reader;
   enum ha_rkey_function e_find_flag = (enum ha_rkey_function)find_flag;
 
-  char temp_value;
+  char temp_value{0};
   key->m_find_flags =
       pfs_reader->read_int8(e_find_flag, key->m_is_null, &temp_value);
   key->m_value = temp_value;
@@ -570,7 +570,7 @@ void read_key_utinyint_v1(PSI_key_reader *reader, PSI_plugin_key_utinyint *key,
   PFS_key_reader *pfs_reader = (PFS_key_reader *)reader;
   enum ha_rkey_function e_find_flag = (enum ha_rkey_function)find_flag;
 
-  unsigned char temp_value;
+  unsigned char temp_value{0};
   key->m_find_flags =
       pfs_reader->read_uint8(e_find_flag, key->m_is_null, &temp_value);
   key->m_value = temp_value;
@@ -638,7 +638,7 @@ void read_key_smallint_v1(PSI_key_reader *reader, PSI_plugin_key_smallint *key,
   PFS_key_reader *pfs_reader = (PFS_key_reader *)reader;
   enum ha_rkey_function e_find_flag = (enum ha_rkey_function)find_flag;
 
-  short temp_value;
+  short temp_value{0};
   key->m_find_flags =
       pfs_reader->read_int16(e_find_flag, key->m_is_null, &temp_value);
   key->m_value = temp_value;
@@ -649,7 +649,7 @@ void read_key_usmallint_v1(PSI_key_reader *reader,
   PFS_key_reader *pfs_reader = (PFS_key_reader *)reader;
   enum ha_rkey_function e_find_flag = (enum ha_rkey_function)find_flag;
 
-  unsigned short temp_value;
+  unsigned short temp_value{0};
   key->m_find_flags =
       pfs_reader->read_uint16(e_find_flag, key->m_is_null, &temp_value);
   key->m_value = temp_value;
@@ -717,7 +717,7 @@ void read_key_mediumint_v1(PSI_key_reader *reader,
   PFS_key_reader *pfs_reader = (PFS_key_reader *)reader;
   enum ha_rkey_function e_find_flag = (enum ha_rkey_function)find_flag;
 
-  long temp_value;
+  long temp_value{0};
   key->m_find_flags =
       pfs_reader->read_int24(e_find_flag, key->m_is_null, &temp_value);
   key->m_value = temp_value;
@@ -728,7 +728,7 @@ void read_key_umediumint_v1(PSI_key_reader *reader,
   PFS_key_reader *pfs_reader = (PFS_key_reader *)reader;
   enum ha_rkey_function e_find_flag = (enum ha_rkey_function)find_flag;
 
-  unsigned long temp_value;
+  unsigned long temp_value{0};
   key->m_find_flags =
       pfs_reader->read_uint24(e_find_flag, key->m_is_null, &temp_value);
   key->m_value = temp_value;
@@ -796,7 +796,7 @@ void read_key_integer_v1(PSI_key_reader *reader, PSI_plugin_key_integer *key,
   PFS_key_reader *pfs_reader = (PFS_key_reader *)reader;
   enum ha_rkey_function e_find_flag = (enum ha_rkey_function)find_flag;
 
-  long temp_value;
+  long temp_value{0};
   key->m_find_flags =
       pfs_reader->read_long(e_find_flag, key->m_is_null, &temp_value);
   key->m_value = temp_value;
@@ -807,7 +807,7 @@ void read_key_uinteger_v1(PSI_key_reader *reader, PSI_plugin_key_uinteger *key,
   PFS_key_reader *pfs_reader = (PFS_key_reader *)reader;
   enum ha_rkey_function e_find_flag = (enum ha_rkey_function)find_flag;
 
-  unsigned long temp_value;
+  unsigned long temp_value{0};
   key->m_find_flags =
       pfs_reader->read_ulong(e_find_flag, key->m_is_null, &temp_value);
   key->m_value = temp_value;
@@ -875,7 +875,7 @@ void read_key_bigint_v1(PSI_key_reader *reader, PSI_plugin_key_bigint *key,
   PFS_key_reader *pfs_reader = (PFS_key_reader *)reader;
   enum ha_rkey_function e_find_flag = (enum ha_rkey_function)find_flag;
 
-  long long temp_value;
+  long long temp_value{0};
   key->m_find_flags =
       pfs_reader->read_longlong(e_find_flag, key->m_is_null, &temp_value);
   key->m_value = temp_value;
@@ -886,7 +886,7 @@ void read_key_ubigint_v1(PSI_key_reader *reader, PSI_plugin_key_ubigint *key,
   PFS_key_reader *pfs_reader = (PFS_key_reader *)reader;
   enum ha_rkey_function e_find_flag = (enum ha_rkey_function)find_flag;
 
-  unsigned long long temp_value;
+  unsigned long long temp_value{0};
   key->m_find_flags =
       pfs_reader->read_ulonglong(e_find_flag, key->m_is_null, &temp_value);
   key->m_value = temp_value;

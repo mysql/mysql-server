@@ -222,20 +222,20 @@ a
 hello
 select t from t1 group by t;
 t
-NULL
 
-hello
-HELLO MY
-a
 1
+HELLO MY
+NULL
+a
+hello
 select b from t1 group by b;
 b
-NULL
 
-hello
 HELLO
 HELLO MY
+NULL
 a
+hello
 set big_tables=1;
 select distinct t from t1;
 t

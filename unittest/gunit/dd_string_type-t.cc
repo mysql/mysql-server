@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -126,12 +126,12 @@ typedef dd::Char_stringstream_template<Tracking_allocator<char>>
 
 class TrackingStringTypeTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     Tracking_alloc::allocations = 0;
     Tracking_alloc::bytes_allocated = 0;
     Tracking_alloc::frees = 0;
   }
-  virtual void TearDown() {
+  void TearDown() override {
     std::cout << "allocations: " << Tracking_alloc::allocations
               << ", frees: " << Tracking_alloc::frees
               << ", bytes allocated: " << Tracking_alloc::bytes_allocated

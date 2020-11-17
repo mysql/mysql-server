@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -338,8 +338,8 @@ NdbInfoScanVirtual::~NdbInfoScanVirtual()
 class BlocksTable : public VirtualTable
 {
 public:
-  virtual bool read_row(VirtualTable::Row& w,
-                        Uint32 row_number) const
+  bool read_row(VirtualTable::Row& w,
+                Uint32 row_number) const override
   {
     if (row_number >= NO_OF_BLOCK_NAMES)
     {
@@ -353,7 +353,7 @@ public:
     return true;
   }
 
-  NdbInfo::Table* get_instance() const
+  NdbInfo::Table* get_instance() const override
   {
     NdbInfo::Table* tab = new NdbInfo::Table("blocks",
                                              NdbInfo::Table::InvalidTableId,
@@ -374,8 +374,8 @@ public:
 class DictObjTypesTable : public VirtualTable
 {
 public:
-  virtual bool read_row(VirtualTable::Row& w,
-                        Uint32 row_number) const
+  bool read_row(VirtualTable::Row& w,
+                Uint32 row_number) const override
   {
     struct Entry {
      const DictTabInfo::TableType type;
@@ -418,7 +418,7 @@ public:
     return true;
   }
 
-  NdbInfo::Table* get_instance() const
+  NdbInfo::Table* get_instance() const override
   {
     NdbInfo::Table* tab = new NdbInfo::Table("dict_obj_types",
                                              NdbInfo::Table::InvalidTableId,
@@ -530,8 +530,8 @@ public:
     return true;
   }
 
-  virtual bool read_row(VirtualTable::Row& w,
-                        Uint32 row_number) const
+  bool read_row(VirtualTable::Row& w,
+                Uint32 row_number) const override
   {
     if (row_number >= m_error_messages.size())
     {
@@ -549,7 +549,7 @@ public:
     return true;
   }
 
-  NdbInfo::Table* get_instance() const
+  NdbInfo::Table* get_instance() const override
   {
     NdbInfo::Table* tab = new NdbInfo::Table("error_messages",
                                              NdbInfo::Table::InvalidTableId,
@@ -598,8 +598,8 @@ public:
     return true;
   }
 
-  virtual bool read_row(VirtualTable::Row& w,
-                        Uint32 row_number) const
+  bool read_row(VirtualTable::Row& w,
+                Uint32 row_number) const override
   {
     if (row_number >= m_config_params.size())
     {
@@ -723,7 +723,7 @@ public:
   }
 
 
-  NdbInfo::Table* get_instance() const
+  NdbInfo::Table* get_instance() const override
   {
     NdbInfo::Table* tab = new NdbInfo::Table("config_params",
                                              NdbInfo::Table::InvalidTableId,
@@ -776,8 +776,8 @@ public:
       m_array_count++;
   }
 
-  virtual bool read_row(VirtualTable::Row& w,
-                        Uint32 row_number) const
+  bool read_row(VirtualTable::Row& w,
+                Uint32 row_number) const override
   {
     if (row_number >= m_array_count)
     {
@@ -794,7 +794,7 @@ public:
     return true;
   }
 
-  NdbInfo::Table* get_instance() const
+  NdbInfo::Table* get_instance() const override
   {
     NdbInfo::Table* tab = new NdbInfo::Table(m_table_name,
                                              NdbInfo::Table::InvalidTableId,

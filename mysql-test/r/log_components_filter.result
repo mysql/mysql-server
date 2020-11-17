@@ -744,11 +744,14 @@ SET @@global.dragnet.log_error_filter_rules=@save_filters;
 call mtr.add_suppression("\\[ERROR\\] \\[MY\\-010000\\] \\[Server\\] Errors should not be suppressed");
 SET @save_suppression_list=@@global.log_error_suppression_list;
 SET @@global.log_error_services='log_filter_dragnet; log_filter_internal; log_sink_internal';
+Warnings:
+Note	4003	@@global.log_error_services lists more than one log-filter service. This is discouraged as it will make it hard to understand which rule in which filter affected a log-event.
 SET @@global.log_error_suppression_list='10000';
 SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_PARSER_TRACE THEN SET prio=0. IF err_code==ER_PARSER_TRACE THEN SET msg="System messages should not be suppressed".';
 SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_PARSER_TRACE THEN SET prio=1. IF err_code==ER_PARSER_TRACE THEN SET msg="Errors should not be suppressed".';
 SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_PARSER_TRACE THEN SET prio=2. IF err_code==ER_PARSER_TRACE THEN SET msg="Warnings should be suppressed".';
 SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_PARSER_TRACE THEN SET prio=3. IF err_code==ER_PARSER_TRACE THEN SET msg="Notes should be suppressed".';
+FLUSH ERROR LOGS;
 SET @@global.log_error_services=DEFAULT;
 SET @@global.dragnet.log_error_filter_rules=@save_filters;
 SET @@global.log_error_suppression_list=@save_suppression_list;
@@ -1001,6 +1004,7 @@ SET @@global.log_error_verbosity=DEFAULT;
 [prio=1];[err_symbol=ER_PARSER_TRACE];[msg=using log_message() with errno 0];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_code=10000];[SQL_state=XX999];[subsystem=Server];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
 [prio=1];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[SQL_state=HY000];[subsystem=Server];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
 [prio=1];[err_symbol=ER_SERVER_TEST_MESSAGE];[msg=using log_message() with errsymbol];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_code=13151];[SQL_state=HY000];[subsystem=Server];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
+[prio=1];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[subsystem=Server];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
 [log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=XX999];[source_file=log_sink_test];[test_float=3.141592692700];[test_int=739241];[test_cstring=cstring];[test_lexstring=lexstring];[msg=using LogEvent() object in external service];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
 [log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[msg=item_inconsistent(#1): NOT_FOUND];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
 [log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[msg=item_inconsistent(#2): CLASS_MISMATCH];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];

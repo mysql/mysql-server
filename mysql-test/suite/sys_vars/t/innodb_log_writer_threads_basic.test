@@ -1,0 +1,29 @@
+# Check the default value
+SET @orig = @@global.innodb_log_writer_threads;
+
+SET GLOBAL innodb_log_writer_threads = OFF;
+SELECT @@global.innodb_log_writer_threads;
+
+SET GLOBAL innodb_log_writer_threads = default;
+SELECT @@global.innodb_log_writer_threads;
+
+SET GLOBAL innodb_log_writer_threads = ON;
+SELECT @@global.innodb_log_writer_threads;
+
+-- error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_log_writer_threads = 2;
+SELECT @@global.innodb_log_writer_threads;
+
+-- error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL innodb_log_writer_threads = 1e2;
+SELECT @@global.innodb_log_writer_threads;
+
+-- error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL innodb_log_writer_threads = 1.0;
+SELECT @@global.innodb_log_writer_threads;
+
+-- error ER_GLOBAL_VARIABLE
+SET innodb_log_writer_threads = OFF;
+SELECT @@global.innodb_log_writer_threads;
+
+SET GLOBAL innodb_log_writer_threads = @orig;

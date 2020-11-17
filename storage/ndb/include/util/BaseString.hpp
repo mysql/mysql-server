@@ -137,6 +137,22 @@ public:
 	    int maximum = -1) const;
 
   /**
+   * Split a string into key and value, with "=" as the separator.
+   * The substring to the left of "=" is the key and the substring
+   * to the right of "=" is the value.
+   * The first "=" is considered the separator.
+   */
+  bool splitKeyValue(BaseString& key, BaseString& value) const;
+
+  /**
+   * Same as split except that splitWithQuotedStrings does not consider
+   * spaces within quotes(double or single) as a separators.
+   */
+  int splitWithQuotedStrings(Vector<BaseString> &vector,
+        const BaseString &separator = BaseString(" "),
+        int maxSize = -1) const;
+
+  /**
    * Returns the index of the first occurance of the character c.
    *
    * @params c character to look for

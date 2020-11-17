@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -107,11 +107,10 @@ void btr_pcur_t::store_position(mtr_t *mtr) {
   m_old_rec = dict_index_copy_rec_order_prefix(index, rec, &m_old_n_fields,
                                                &m_old_rec_buf, &m_buf_size);
 
-  m_block_when_stored = block;
+  m_block_when_stored.store(block);
 
   /* Function try to check if block is S/X latch. */
   m_modify_clock = buf_block_get_modify_clock(block);
-  m_withdraw_clock = buf_withdraw_clock;
 }
 
 void btr_pcur_t::copy_stored_position(btr_pcur_t *dst, const btr_pcur_t *src) {
@@ -156,7 +155,7 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
 
     m_pos_state = BTR_PCUR_IS_POSITIONED;
 
-    m_block_when_stored = get_block();
+    m_block_when_stored.clear();
 
     return (false);
   }
@@ -170,11 +169,11 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
        latch_mode == BTR_SEARCH_PREV || latch_mode == BTR_MODIFY_PREV) &&
       !m_btr_cur.index->table->is_intrinsic()) {
     /* Try optimistic restoration. */
-
-    if (!buf_pool_is_obsolete(m_withdraw_clock) &&
-        btr_cur_optimistic_latch_leaves(m_block_when_stored, m_modify_clock,
-                                        &latch_mode, &m_btr_cur, file, line,
-                                        mtr)) {
+    if (m_block_when_stored.run_with_hint([&](buf_block_t *hint) {
+          return hint != nullptr && btr_cur_optimistic_latch_leaves(
+                                        hint, m_modify_clock, &latch_mode,
+                                        &m_btr_cur, file, line, mtr);
+        })) {
       m_pos_state = BTR_PCUR_IS_POSITIONED;
 
       m_latch_mode = latch_mode;
@@ -254,14 +253,11 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
     /* We have to store the NEW value for the modify clock,
     since the cursor can now be on a different page!
     But we can retain the value of old_rec */
-
-    m_block_when_stored = get_block();
-
-    m_modify_clock = buf_block_get_modify_clock(m_block_when_stored);
+    auto block = get_block();
+    m_block_when_stored.store(block);
+    m_modify_clock = buf_block_get_modify_clock(block);
 
     m_old_stored = true;
-
-    m_withdraw_clock = buf_withdraw_clock;
 
     mem_heap_free(heap);
 

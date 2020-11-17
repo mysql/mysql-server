@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -135,6 +135,8 @@ dd::enum_column_types get_new_field_type(enum_field_types type) {
       return dd::enum_column_types::DOUBLE;
 
     case MYSQL_TYPE_NULL:
+    case MYSQL_TYPE_INVALID:
+    case MYSQL_TYPE_BOOL:
       return dd::enum_column_types::TYPE_NULL;
 
     case MYSQL_TYPE_TIMESTAMP:
@@ -1494,12 +1496,26 @@ static bool fill_dd_partition_from_create_info(
       // expressions.
       Sql_mode_parse_guard parse_guard(thd);
 
+      /*
+        Because there are lifetime issues with CREATE TABLE and ALTER TABLE
+        when used with prepared statements, the field pointer within an
+        Item_field object may be invalid. However, it is not needed by
+        part_expr->print(), so set it to NULL temporarily.
+        This should be fixed by handling the lifetime issues for DDL operations.
+      */
+      Field *saved = nullptr;
+      if (part_info->part_expr->type() == Item::FIELD_ITEM) {
+        saved = down_cast<Item_field *>(part_info->part_expr)->field;
+        down_cast<Item_field *>(part_info->part_expr)->field = nullptr;
+      }
       // No point in including schema and table name for identifiers
       // since any columns must be in this table.
       part_info->part_expr->print(
           thd, &tmp,
           enum_query_type(QT_TO_SYSTEM_CHARSET | QT_NO_DB | QT_NO_TABLE));
 
+      if (saved != nullptr)
+        down_cast<Item_field *>(part_info->part_expr)->field = saved;
       if (tmp.numchars() > PARTITION_EXPR_CHAR_LEN) {
         my_error(ER_PART_EXPR_TOO_LONG, MYF(0));
         return true;
@@ -2061,9 +2077,6 @@ static bool fill_dd_table_from_create_info(
   //
 
   table_options->set("avg_row_length", create_info->avg_row_length);
-
-  if (create_info->row_type != ROW_TYPE_DEFAULT)
-    table_options->set("row_type", create_info->row_type);
 
   // ROW_FORMAT which was explicitly specified by user (if any).
   if (create_info->row_type != ROW_TYPE_DEFAULT)

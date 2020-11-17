@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1833,10 +1833,11 @@ bool sp_head::setup_trigger_fields(THD *thd, Table_trigger_field_support *tfs,
          f = f->next_trg_field) {
       f->setup_field(tfs, subject_table_grant);
 
-      if (need_fix_fields && !f->fixed &&
-          f->fix_fields(thd, (Item **)nullptr)) {
-        return true;
-      }
+      if (!need_fix_fields || f->fixed) continue;
+
+      Prepared_stmt_arena_holder ps_arena_holder(thd);
+
+      if (f->fix_fields(thd, nullptr)) return true;
     }
   }
 
@@ -2117,7 +2118,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
   */
   old_lex = thd->lex;
   /*
-    We should also save Item tree change list to avoid rollback something
+    Save Item tree change list to avoid rollback something
     too early in the calling query.
   */
   thd->change_list.move_elements_to(&old_change_list);
@@ -2238,9 +2239,10 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
       thd->user_var_events_alloc = nullptr;  // DEBUG
     }
 
-    /* we should cleanup free_list and memroot, used by instruction */
-
+    // Free items created when executing the instruction, etc.
     thd->cleanup_after_query();
+
+    // Release memory allocated during execution of the instruction
     free_root(&execute_mem_root, MYF(0));
 
     /*
@@ -2270,16 +2272,14 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
   thd->profiling->start_new_query("tail end of routine");
 #endif
 
-  /* Restore query context. */
-
+  // Restore query context.
   m_creation_ctx->restore_env(thd, saved_creation_ctx);
 
-  /* Restore arena. */
-
+  // Restore arena.
   thd->swap_query_arena(backup_arena, &execute_arena);
 
-  thd->sp_runtime_ctx
-      ->pop_all_cursors();  // To avoid memory leaks after an error
+  // Delete all cursors allocated during execution
+  thd->sp_runtime_ctx->pop_all_cursors();
 
   if (thd->is_classic_protocol()) /* Restore all saved */
     old_packet.swap(*thd->get_protocol_classic()->get_output_packet());
@@ -2703,7 +2703,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
       thd->user_var_events.clear();
       /* Forget those values, in case more function calls are binlogged: */
       thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt = false;
-      thd->auto_inc_intervals_in_cur_stmt_for_binlog.empty();
+      thd->auto_inc_intervals_in_cur_stmt_for_binlog.clear();
     }
   }
 
@@ -2735,7 +2735,7 @@ err_with_cleanup:
   return err_status;
 }
 
-bool sp_head::execute_procedure(THD *thd, List<Item> *args) {
+bool sp_head::execute_procedure(THD *thd, mem_root_deque<Item *> *args) {
   bool err_status = false;
   uint params = m_root_parsing_ctx->context_var_count();
   /* Query start time may be reset in a multi-stmt SP; keep this for later. */
@@ -2749,7 +2749,7 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args) {
   DBUG_PRINT("info", ("procedure %s", m_name.str));
 
   // Argument count has been validated in prepare function.
-  DBUG_ASSERT((args != nullptr ? args->elements : 0) == params);
+  DBUG_ASSERT((args != nullptr ? args->size() : 0) == params);
 
   if (!parent_sp_runtime_ctx) {
     // Create a temporary old context. We need it to pass OUT-parameter values.
@@ -2779,13 +2779,12 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args) {
   proc_runtime_ctx->sp = this;
 
   if (params > 0) {
-    List_iterator<Item> it_args(*args);
+    auto it_args = args->begin();
 
     DBUG_PRINT("info", (" %.*s: eval args", (int)m_name.length, m_name.str));
 
-    for (uint i = 0; i < params; i++) {
-      Item *arg_item = it_args++;
-
+    for (uint i = 0; i < params; ++i, ++it_args) {
+      Item *arg_item = *it_args;
       if (!arg_item) break;
 
       sp_variable *spvar = m_root_parsing_ctx->find_variable(i);
@@ -2812,7 +2811,7 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args) {
           break;
         }
       } else {
-        if (proc_runtime_ctx->set_variable(thd, i, it_args.ref())) {
+        if (proc_runtime_ctx->set_variable(thd, i, &*it_args)) {
           err_status = true;
           break;
         }
@@ -2829,7 +2828,7 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args) {
       arguments evaluation. If arguments evaluation required prelocking mode,
       we'll leave it here.
     */
-    thd->lex->unit->cleanup(thd, true);
+    thd->lex->cleanup(thd, true);
 
     if (!thd->in_sub_stmt) {
       thd->get_stmt_da()->set_overwrite_status(true);
@@ -2897,14 +2896,14 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args) {
   thd->sp_runtime_ctx->callers_arena = parent_sp_runtime_ctx->callers_arena;
 
   if (!err_status && params > 0) {
-    List_iterator<Item> it_args(*args);
+    auto it_args = args->cbegin();
 
     /*
       Copy back all OUT or INOUT values to the previous frame, or
       set global user variables
     */
     for (uint i = 0; i < params; i++) {
-      Item *arg_item = it_args++;
+      Item *arg_item = *it_args++;
 
       if (!arg_item) break;
 
@@ -3108,7 +3107,7 @@ void sp_head::optimize() {
 
   opt_mark();
 
-  bp.empty();
+  bp.clear();
   src = dst = 0;
   while ((i = get_instr(src))) {
     if (!i->opt_is_marked()) {
@@ -3131,7 +3130,7 @@ void sp_head::optimize() {
   }
 
   m_instructions.resize(dst);
-  bp.empty();
+  bp.clear();
 }
 
 void sp_head::add_mark_lead(uint ip, List<sp_instr> *leads) {
@@ -3179,7 +3178,6 @@ bool sp_head::show_routine_code(THD *thd) {
   Protocol *protocol = thd->get_protocol();
   char buff[2048];
   String buffer(buff, sizeof(buff), system_charset_info);
-  List<Item> field_list;
   sp_instr *i;
   bool full_access;
   bool res = false;
@@ -3187,11 +3185,12 @@ bool sp_head::show_routine_code(THD *thd) {
 
   if (check_show_access(thd, &full_access) || !full_access) return true;
 
+  mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(new Item_uint(NAME_STRING("Pos"), 0, 9));
   // 1024 is for not to confuse old clients
   field_list.push_back(new Item_empty_string(
       "Instruction", std::max<size_t>(buffer.length(), 1024U)));
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 

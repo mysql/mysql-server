@@ -28,10 +28,10 @@ update t set a=0 where a = 11;
 SET DEBUG_SYNC = 'now SIGNAL go_ahead';
 SELECT c FROM t;
 c
-NULL
-3
 19
 29
+3
+NULL
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
@@ -56,10 +56,10 @@ ROLLBACK;
 SET DEBUG_SYNC = 'now SIGNAL go_ahead';
 SELECT c FROM t;
 c
-NULL
-3
 19
 29
+3
+NULL
 SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_create WAIT_FOR go_ahead';
 ALTER TABLE t ADD COLUMN x2 INT;;
 SET DEBUG_SYNC = 'now WAIT_FOR start_create';
@@ -70,9 +70,9 @@ DELETE FROM t WHERE a = 0;
 SET DEBUG_SYNC = 'now SIGNAL go_ahead';
 SELECT c FROM t;
 c
-NULL
 19
 29
+NULL
 DROP TABLE t;
 SET DEBUG_SYNC = 'RESET';
 CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10));
@@ -97,10 +97,10 @@ t	CREATE TABLE `t` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT c FROM t;
 c
-NULL
 14
 19
 29
+NULL
 DROP TABLE t;
 #
 # Bug#22018532 ASSERTION WHEN ONLINE REAPPLY REBUILD LOG ON
@@ -164,12 +164,12 @@ test.t	optimize	note	Table does not support optimize, doing recreate + analyze i
 test.t	optimize	status	OK
 SELECT c FROM t;
 c
-NULL
 14
 19
 29
 50
 71
+NULL
 DROP TABLE t;
 #
 #  Bug#22140944    WL#8149: ADD TEST FOR THE ROW0LOG.CC FIX THAT

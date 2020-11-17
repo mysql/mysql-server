@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,52 +23,48 @@
 */
 
 #include "dest_next_available.h"
-#include "mysql/harness/logging/logging.h"
-#include "mysql/harness/stdx/expected.h"
-#include "socket_operations.h"
 
-#ifdef _WIN32
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#endif
+#include <memory>  // make_unique
+#include <mutex>   // lock_guard
+#include <string>
+#include <system_error>  // error_code
 
-IMPORT_LOG_FUNCTIONS()
+class StateTrackingDestination : public Destination {
+ public:
+  StateTrackingDestination(std::string id, std::string addr, uint16_t port,
+                           DestNextAvailable *balancer, size_t ndx)
+      : Destination(std::move(id), std::move(addr), port),
+        balancer_{balancer},
+        ndx_{ndx} {}
 
-stdx::expected<mysql_harness::socket_t, std::error_code>
-DestNextAvailable::get_server_socket(
-    std::chrono::milliseconds connect_timeout,
-    mysql_harness::TCPAddress *address) noexcept {
-  // Say for example, that we have three servers: A, B and C.
-  // The active server should be failed-over in such fashion:
-  //
-  //   A -> B -> C -> no more connections (regardless of whether A and B go back
-  //   up or not)
-  //
-  // This is what this function does.
-  //
-  std::error_code last_ec{};
-
-  if (destinations_.empty()) {
-    return stdx::make_unexpected(last_ec);
-  }
-
-  // We start the list at the currently available server
-  for (size_t i = current_pos_; i < destinations_.size(); ++i) {
-    auto addr = destinations_.at(i);
-    log_debug("Trying server %s (index %lu)", addr.str().c_str(),
-              static_cast<long unsigned>(i));  // 32bit Linux requires cast
-    auto sock_res = get_mysql_socket(addr, connect_timeout);
-    if (sock_res) {
-      current_pos_ = i;
-      if (address) *address = addr;
-      return sock_res;
-    } else {
-      last_ec = sock_res.error();
+  void connect_status(std::error_code ec) override {
+    if (ec != std::error_code{}) {
+      // mark the current ndx as invalid
+      balancer_->mark_ndx_invalid(ndx_);
     }
   }
 
-  current_pos_ = destinations_.size();  // so for(..) above will no longer try
-                                        // to connect to a server
-  return stdx::make_unexpected(last_ec);
+  bool good() const override { return ndx_ >= balancer_->valid_ndx(); }
+
+ private:
+  DestNextAvailable *balancer_;
+
+  size_t ndx_;
+};
+
+Destinations DestNextAvailable::destinations() {
+  Destinations dests;
+
+  {
+    std::lock_guard<std::mutex> lk(mutex_update_);
+    const auto end = destinations_.end();
+    auto cur = destinations_.begin();
+
+    for (size_t ndx{}; cur != end; ++cur, ++ndx) {
+      dests.push_back(std::make_unique<StateTrackingDestination>(
+          cur->str(), cur->addr, cur->port, this, ndx));
+    }
+  }
+
+  return dests;
 }

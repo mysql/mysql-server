@@ -113,7 +113,7 @@ class Mock_server : public iface::Server {
   MOCK_METHOD0(start_failed, void());
   MOCK_METHOD0(prepare, bool());
   MOCK_METHOD0(start_tasks, void());
-  MOCK_METHOD1(stop, void(const bool));
+  MOCK_METHOD0(stop, void());
   MOCK_METHOD0(delayed_start_tasks, void());
 
   MOCK_CONST_METHOD0(get_config,

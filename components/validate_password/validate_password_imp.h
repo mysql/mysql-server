@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ extern REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
 extern REQUIRES_SERVICE_PLACEHOLDER(status_variable_registration);
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_security_context);
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_security_context_options);
-extern REQUIRES_SERVICE_PLACEHOLDER(psi_memory_v1);
+extern REQUIRES_SERVICE_PLACEHOLDER(psi_memory_v2);
 
 /**
   An implementation of the password_validation_service to validate password and

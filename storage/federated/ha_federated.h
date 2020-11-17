@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -132,9 +132,9 @@ class ha_federated : public handler {
 
  public:
   ha_federated(handlerton *hton, TABLE_SHARE *table_arg);
-  ~ha_federated() {}
+  ~ha_federated() override {}
   /* The name that will be used for display purposes */
-  const char *table_type() const { return "FEDERATED"; }
+  const char *table_type() const override { return "FEDERATED"; }
   /*
     Next pointer used in transaction
   */
@@ -144,7 +144,7 @@ class ha_federated : public handler {
     implements. The current table flags are documented in
     handler.h
   */
-  ulonglong table_flags() const {
+  ulonglong table_flags() const override {
     /* fix server to be able to get remote server table flags */
     return (HA_PRIMARY_KEY_IN_READ_INDEX |
             HA_PRIMARY_KEY_REQUIRED_FOR_POSITION | HA_FILE_BASED |
@@ -165,15 +165,19 @@ class ha_federated : public handler {
     index up to and including 'part'.
   */
   /* fix server to be able to get remote server index flags */
-  ulong index_flags(uint, uint, bool) const {
+  ulong index_flags(uint, uint, bool) const override {
     return (HA_READ_NEXT | HA_READ_RANGE | HA_READ_AFTER_KEY);
   }
-  uint max_supported_record_length() const { return HA_MAX_REC_LENGTH; }
-  uint max_supported_keys() const { return MAX_KEY; }
-  uint max_supported_key_parts() const { return MAX_REF_PARTS; }
-  uint max_supported_key_length() const { return FEDERATED_MAX_KEY_LENGTH; }
+  uint max_supported_record_length() const override {
+    return HA_MAX_REC_LENGTH;
+  }
+  uint max_supported_keys() const override { return MAX_KEY; }
+  uint max_supported_key_parts() const override { return MAX_REF_PARTS; }
+  uint max_supported_key_length() const override {
+    return FEDERATED_MAX_KEY_LENGTH;
+  }
   uint max_supported_key_part_length(
-      HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused))) const {
+      HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused))) const override {
     return FEDERATED_MAX_KEY_LENGTH;
   }
   /*
@@ -187,14 +191,14 @@ class ha_federated : public handler {
     ... The reason for "records * 1000" is that such a large number forces this
     to use indexes "
   */
-  double scan_time() {
+  double scan_time() override {
     DBUG_PRINT("info", ("records %lu", (ulong)stats.records));
     return (double)(stats.records * 1000);
   }
   /*
     The next method will never be called if you do not implement indexes.
   */
-  double read_time(uint, uint, ha_rows rows) {
+  double read_time(uint, uint, ha_rows rows) override {
     /*
       Per Brian, this number is bugus, but this method must be implemented,
       and at a later date, he intends to document this issue for handler code
@@ -209,28 +213,28 @@ class ha_federated : public handler {
     MySQL will treat them as not implemented
   */
   int open(const char *name, int mode, uint test_if_locked,
-           const dd::Table *table_def);  // required
-  int close(void);                       // required
+           const dd::Table *table_def) override;  // required
+  int close(void) override;                       // required
 
-  void start_bulk_insert(ha_rows rows);
-  int end_bulk_insert();
-  int write_row(uchar *buf);
-  int update_row(const uchar *old_data, uchar *new_data);
-  int delete_row(const uchar *buf);
-  int index_init(uint keynr, bool sorted);
-  ha_rows estimate_rows_upper_bound();
+  void start_bulk_insert(ha_rows rows) override;
+  int end_bulk_insert() override;
+  int write_row(uchar *buf) override;
+  int update_row(const uchar *old_data, uchar *new_data) override;
+  int delete_row(const uchar *buf) override;
+  int index_init(uint keynr, bool sorted) override;
+  ha_rows estimate_rows_upper_bound() override;
   int index_read_idx_map(uchar *buf, uint index, const uchar *key,
                          key_part_map keypart_map,
-                         enum ha_rkey_function find_flag);
+                         enum ha_rkey_function find_flag) override;
   int index_read(uchar *buf, const uchar *key, uint key_len,
-                 enum ha_rkey_function find_flag);
+                 enum ha_rkey_function find_flag) override;
   int index_read_idx(uchar *buf, uint idx, const uchar *key, uint key_len,
                      enum ha_rkey_function find_flag);
-  int index_next(uchar *buf);
-  int index_end();
+  int index_next(uchar *buf) override;
+  int index_end() override;
   int read_range_first(const key_range *start_key, const key_range *end_key,
-                       bool eq_range, bool sorted);
-  int read_range_next();
+                       bool eq_range, bool sorted) override;
+  int read_range_next() override;
   /*
     unlike index_init(), rnd_init() can be called two times
     without rnd_end() in between (it only makes sense if scan=1).
@@ -239,36 +243,38 @@ class ha_federated : public handler {
     position it to the start of the table, no need to deallocate
     and allocate it again
   */
-  int rnd_init(bool scan);  // required
-  int rnd_end();
-  int rnd_next(uchar *buf);  // required
+  int rnd_init(bool scan) override;  // required
+  int rnd_end() override;
+  int rnd_next(uchar *buf) override;  // required
   int rnd_next_int(uchar *buf);
-  int rnd_pos(uchar *buf, uchar *pos);  // required
-  void position(const uchar *record);   // required
-  int info(uint);                       // required
-  int extra(ha_extra_function operation);
+  int rnd_pos(uchar *buf, uchar *pos) override;  // required
+  void position(const uchar *record) override;   // required
+  int info(uint) override;                       // required
+  int extra(ha_extra_function operation) override;
 
   void update_auto_increment(void);
-  int repair(THD *thd, HA_CHECK_OPT *check_opt);
-  int optimize(THD *thd, HA_CHECK_OPT *check_opt);
+  int repair(THD *thd, HA_CHECK_OPT *check_opt) override;
+  int optimize(THD *thd, HA_CHECK_OPT *check_opt) override;
 
-  int delete_all_rows(void);
-  int truncate(dd::Table *table_def);
+  int delete_all_rows(void) override;
+  int truncate(dd::Table *table_def) override;
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
-             dd::Table *table_def);  // required
-  ha_rows records_in_range(uint inx, key_range *start_key, key_range *end_key);
+             dd::Table *table_def) override;  // required
+  ha_rows records_in_range(uint inx, key_range *start_key,
+                           key_range *end_key) override;
 
-  THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
-                             enum thr_lock_type lock_type);  // required
-  bool get_error_message(int error, String *buf);
+  THR_LOCK_DATA **store_lock(
+      THD *thd, THR_LOCK_DATA **to,
+      enum thr_lock_type lock_type) override;  // required
+  bool get_error_message(int error, String *buf) override;
 
   MYSQL_RES *store_result(MYSQL *mysql);
   void free_result();
 
-  int external_lock(THD *thd, int lock_type);
+  int external_lock(THD *thd, int lock_type) override;
   int connection_commit();
   int connection_rollback();
   int connection_autocommit(bool state);
   int execute_simple_query(const char *query, int len);
-  int reset(void);
+  int reset(void) override;
 };

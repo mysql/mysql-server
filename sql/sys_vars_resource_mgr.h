@@ -1,7 +1,7 @@
 #ifndef SYS_VARS_RESOURCE_MGR_INCLUDED
 #define SYS_VARS_RESOURCE_MGR_INCLUDED
 
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -84,7 +84,7 @@ class Session_sysvar_resource_manager {
   */
   bool update(char **var, char *val, size_t val_len);
 
-  void claim_memory_ownership();
+  void claim_memory_ownership(bool claim);
 
   /**
     Frees the memory allocated for Sys_var_charptr session variables.

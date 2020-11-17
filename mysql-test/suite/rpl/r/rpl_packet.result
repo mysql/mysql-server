@@ -47,7 +47,11 @@ INSERT INTO t1(f1, f2, f3) VALUES(1, REPEAT('a', @@global.max_allowed_packet), R
 include/wait_for_slave_io_error.inc [errno=13125]
 Last_IO_Error = 'Got a packet bigger than 'slave_max_allowed_packet' bytes'
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 SET @max_allowed_packet_0= @@session.max_allowed_packet;
@@ -56,6 +60,8 @@ SET @max_allowed_packet_1= @@session.max_allowed_packet;
 SHOW BINLOG EVENTS;
 SET @max_allowed_packet_2= @@session.max_allowed_packet;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 DROP TABLE t1;
 select @@global.max_allowed_packet;
@@ -92,4 +98,6 @@ SET @@global.max_allowed_packet= 2048;
 DROP TABLE t1;
 include/stop_slave_sql.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/rpl_end.inc

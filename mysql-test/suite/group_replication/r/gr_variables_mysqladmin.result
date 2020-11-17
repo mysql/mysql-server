@@ -16,7 +16,7 @@ group_replication_components_stop_timeout
 group_replication_compression_threshold
 1000000
 group_replication_force_members
-group_replication_ip_whitelist
+group_replication_ip_allowlist
 AUTOMATIC
 group_replication_poll_spin_loops
 0

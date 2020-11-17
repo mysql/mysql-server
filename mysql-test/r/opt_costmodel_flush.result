@@ -283,8 +283,7 @@ EXPLAIN
             "c2",
             "c3",
             "c4"
-          ],
-          "attached_condition": "(`test`.`t1`.`i1` is not null)"
+          ]
         }
       },
       {
@@ -374,8 +373,7 @@ EXPLAIN
             "c2",
             "c3",
             "c4"
-          ],
-          "attached_condition": "(`test`.`t1`.`i1` is not null)"
+          ]
         }
       },
       {
@@ -466,8 +464,7 @@ EXPLAIN
             "c2",
             "c3",
             "c4"
-          ],
-          "attached_condition": "(`test`.`t1`.`i1` is not null)"
+          ]
         }
       },
       {
@@ -560,8 +557,7 @@ EXPLAIN
             "c2",
             "c3",
             "c4"
-          ],
-          "attached_condition": "(`test`.`t1`.`i1` is not null)"
+          ]
         }
       },
       {

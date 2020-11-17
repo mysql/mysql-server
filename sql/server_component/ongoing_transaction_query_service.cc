@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@ class Get_running_transactions : public Do_THD_Impl {
    have an active query plan, or is in the middle of a multi statement
    transaction.
   */
-  virtual void operator()(THD *thd) {
+  void operator()(THD *thd) override {
     if (thd->is_killed() || thd->is_error()) return;
 
     TX_TRACKER_GET(tst);

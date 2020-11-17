@@ -110,5 +110,5 @@ CHANGE MASTER TO MASTER_DELAY= 0 For channel 'channel_1';
 CHANGE MASTER TO MASTER_DELAY= 0 For channel 'channel_3';
 include/start_slave_sql.inc
 include/rpl_end.inc
-RESET SLAVE ALL FOR CHANNEL 'channel_1';
-RESET SLAVE ALL FOR CHANNEL 'channel_3';
+RESET REPLICA ALL FOR CHANNEL 'channel_1';
+RESET REPLICA ALL FOR CHANNEL 'channel_3';

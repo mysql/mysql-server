@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,7 +83,7 @@ void Table_function::empty_table() {
 }
 
 bool Table_function::init_args() {
-  if (inited) return false;
+  DBUG_ASSERT(!inited);
   if (do_init_args()) return true;
   table->pos_in_table_list->dep_tables |= used_tables();
   inited = true;
@@ -112,26 +112,6 @@ List<Create_field> *Table_function_json::get_field_list() {
   // It's safe as Json_table_column is derived from Create_field
   return reinterpret_cast<List<Create_field> *>(&m_vt_list);
 }
-
-/**
-  Initialize columns and lists for json table
-
-  @details This function does several things:
-  1) sets up list of fields (vt_list) for result table creation
-  2) fills array of all columns (m_all_columns) for execution
-  3) for each column that has default ON EMPTY or ON ERROR clauses, checks
-    the value to be proper json and initializes column appropriately
-  4) for each column that involves path, the path is checked to be correct.
-  The function goes recursively, starting from the top NESTED PATH clause
-  and going in the depth-first way, traverses the tree of columns.
-
-  @param nest_idx  index of parent's element in the nesting data array
-  @param parent    Parent of the NESTED PATH clause being initialized
-
-  @returns
-    false  ok
-    true   an error occurred
-*/
 
 bool Table_function_json::init_json_table_col_lists(uint *nest_idx,
                                                     Json_table_column *parent) {
@@ -252,6 +232,12 @@ bool Table_function_json::do_init_args() {
   Item *dummy = source;
   if (source->fix_fields(thd, &dummy)) return true;
 
+  /*
+    For the default type of '?', two choices make sense: VARCHAR and JSON. The
+    latter would lead to a call to Item_param::val_json() which isn't
+    implemented. So we use the former.
+  */
+  if (source->propagate_type(current_thd)) return true;
   DBUG_ASSERT(source->data_type() != MYSQL_TYPE_VAR_STRING);
   if (source->has_aggregation() || source->has_subquery() || source != dummy) {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "JSON_TABLE");
@@ -326,14 +312,6 @@ bool Table_function_json::init() {
   return false;
 }
 
-/**
-  A helper function which sets all columns under given NESTED PATH column
-  to nullptr. Used to evaluate sibling NESTED PATHS.
-
-  @param       root  root NESTED PATH column
-  @param [out] last  last column which belongs to the given NESTED PATH
-*/
-
 void Table_function_json::set_subtree_to_null(Json_table_column *root,
                                               Json_table_column **last) {
   List_iterator<Json_table_column> li(*root->m_nested_columns);
@@ -350,32 +328,6 @@ void Table_function_json::set_subtree_to_null(Json_table_column *root,
     }
   }
 }
-
-/**
-  Fill a json table column
-
-  @details Fills a column with data, according to specification in
-  JSON_TABLE. This function handles all kinds of columns:
-  Ordinality)  just saves the counter into the column's field
-  Path)        extracts value, saves it to the column's field and handles
-               ON ERROR/ON EMPTY clauses
-  Exists)      checks the path existence and saves either 1 or 0 into result
-               field
-  Nested path) matches the path expression against data source. If there're
-               matches, this function sets NESTED PATH's iterator over those
-               matches and resets ordinality counter.
-
-  @param[in]   table_function the JSON table function
-  @param[out]  skip  true <=> it's a NESTED PATH node and its path
-                     expression didn't return any matches or a
-                     previous sibling NESTED PATH clause still producing
-                     records, thus all columns of this NESTED PATH node
-                     should be skipped
-
-  @returns
-    false column is filled
-    true  an error occurred, execution should be stopped
-*/
 
 bool Json_table_column::fill_column(Table_function_json *table_function,
                                     jt_skip_reason *skip) {
@@ -530,7 +482,7 @@ bool Json_table_column::fill_column(Table_function_json *table_function,
   return false;
 }
 
-void Json_table_column::cleanup() {
+Json_table_column::~Json_table_column() {
   // Reset paths and wrappers to free allocated memory.
   m_path_json = Json_path();
   if (m_on_empty == Json_on_response_type::DEFAULT)
@@ -595,6 +547,7 @@ void Json_table_column::cleanup() {
 bool Table_function_json::fill_json_table() {
   // 'Stack' of nested NESTED PATH clauses
   Prealloced_array<uint, MAX_NESTED_PATH> nested(PSI_NOT_INSTRUMENTED);
+
   // The column being processed
   uint col_idx = 0;
   jt_skip_reason skip_subtree;
@@ -794,13 +747,9 @@ void Table_function_json::do_cleanup() {
   is_source_parsed = false;
   for (uint i = 0; i < MAX_NESTED_PATH; i++) m_jds[i].cleanup();
   for (uint i = 0; i < m_all_columns.size(); i++) m_all_columns[i]->cleanup();
-  m_all_columns.clear();
-  m_vt_list.empty();
 }
 
 void JT_data_source::cleanup() {
-  jdata = Json_wrapper();
   v.clear();
-  v.shrink_to_fit();
   producing_records = false;
 }

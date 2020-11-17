@@ -23,6 +23,18 @@
 %global mysql_vendor    Oracle and/or its affiliates
 %global mysqldatadir    /var/lib/mysql
 
+%if 0%{?cluster}
+%global with_meb    0
+%global with_router 0
+%else
+%if 0%{?commercial}
+%global with_meb    1
+%else
+%global with_meb    0
+%endif
+%global with_router 1
+%endif
+
 # Pass --define 'with_cluster 1' to build with cluster support
 %{?with_cluster: %global cluster 1}
 
@@ -135,7 +147,7 @@ BuildRequires:  cyrus-sasl-devel
 BuildRequires:  openldap2-devel
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
-%global _privatelibs libprotobuf.*|libmysqlharness.so.*|libmysqlrouter.so.*|libmysqlrouter_http.*\.so\..*
+%global _privatelibs libprotobuf.*|libmysqlharness\.so.*|libmysqlharness_stdx\.so.*|libmysqlrouter\.so\..*|libmysqlrouter_.*\.so\..*
 %global _privateperl perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
 %global __requires_exclude ^((%{_privatelibs})|(%{_privateperl}))
 %global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so|%{_libdir}/mysql/private/.*|%{_libdir}/mysqlrouter/%{?sles12:libprotobuf-lite}.*|%{_libdir}/mysqlrouter/private/.*)$
@@ -244,19 +256,17 @@ to run and administer a MySQL server.
 Summary:        MySQL database client applications and tools
 Group:          Applications/Databases
 Requires:       %{name}-libs >= %{min}
+Requires:       %{name}-client-plugins = %{version}-%{release}
 %if 0%{?commercial}
 Provides:       MySQL-client-advanced = %{version}-%{release}
 Obsoletes:      MySQL-client-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-client < %{version}-%{release}
-Conflicts:      mysql-commercial-server < 8.0.21
 %if 0%{?cluster}
 Provides:       MySQL-Cluster-client-advanced = %{version}-%{release}
 Obsoletes:      MySQL-Cluster-client-advanced < %{version}-%{release}
 Obsoletes:      mysql-commercial-client < %{version}-%{release}
 Obsoletes:      mysql-cluster-community-client < %{version}-%{release}
 %endif
-%else
-Conflicts:      mysql-community-server < 8.0.21
 %endif
 %if 0%{?cluster}
 Provides:       MySQL-Cluster-client-gpl = %{version}-%{release}
@@ -379,6 +389,7 @@ to develop MySQL client applications.
 Summary:        Shared libraries for MySQL database client applications
 Group:          Applications/Databases
 Requires:       %{name}-common >= %{min}
+Requires:       %{name}-client-plugins = %{version}-%{release}
 %if 0%{?commercial}
 Provides:       MySQL-shared-advanced = %{version}-%{release}
 Obsoletes:      MySQL-shared-advanced < %{version}-%{release}
@@ -406,6 +417,25 @@ Provides:       libmysqlclient21 = %{version}-%{release}
 %description    libs
 This package contains the shared libraries for MySQL client
 applications.
+
+%package        client-plugins
+Summary:        Shared plugins for MySQL client applications
+Group:          Applications/Databases
+Provides:       mysql-client-plugins = %{version}-%{release}
+%if 0%{?commercial}
+Conflicts:      mysql-commercial-server < 8.0.21
+Conflicts:      mysql-commercial-client < 8.0.22
+Obsoletes:      mysql-community-client-plugins < %{version}-%{release}
+%if 0%{?cluster}
+Obsoletes:      mysql-commercial-client-plugins < %{version}-%{release}
+%endif
+%else
+Conflicts:      mysql-community-server < 8.0.21
+Conflicts:      mysql-community-client < 8.0.22
+%endif
+
+%description    client-plugins
+This package contains the client-plugins libraries used by MySQL client applications.
 
 %if 0%{?cluster}
 %package        management-server
@@ -489,7 +519,7 @@ to provide a persistent MySQL Cluster data store.
 
 %endif # cluster
 
-%if 0%{?commercial}
+%if 0%{?with_meb}
 %package        backup
 Summary:        MySQL Enterprise Backup
 Group:          Applications/Databases
@@ -508,8 +538,9 @@ MySQL Enterprise Backup provides DBAs with a high-performance, online
 "hot" backup solution with data compression technology to ensure your
 data is protected in case of downtime or an outage. MySQL is a
 trademark of %{mysql_vendor}
-%endif
+%endif # with_meb
 
+%if 0%{?with_router}
 %package  -n   mysql-router-%{product_suffix}
 Summary:       MySQL Router
 Group:         Applications/Databases
@@ -548,6 +579,7 @@ Requires:       mysql-router-community = %{version}-%{release}
 %description -n mysql-router-%{product_suffix}-devel
 This package contains the development header files and libraries
 necessary to develop MySQL Router applications.
+%endif # with_router
 
 %prep
 %setup -q -T -a 0 -a 10 -c -n %{src_dir}
@@ -583,6 +615,8 @@ mkdir debug
            -DWITH_SYSTEMD=1 \
            -DSYSTEMD_SERVICE_NAME="mysql" \
            -DSYSTEMD_PID_DIR="/var/run/mysql" \
+           -DWITH_MEB=%{with_meb} \
+           -DWITH_ROUTER=%{with_router} \
 %if 0%{?cluster}
            -DWITH_NDBCLUSTER=1 \
 %endif
@@ -593,7 +627,6 @@ mkdir debug
            -DNDB_NODEJS_EXTRAS_PATH=%{ndb_nodejs_extras_path} \
 %endif
 %if 0%{?commercial}
-           -DWITH_MEB=1 \
            -DWITH_CURL=system \
            %{?aws_sdk_option} \
 %endif
@@ -626,6 +659,8 @@ mkdir release
            -DWITH_SYSTEMD=1 \
            -DSYSTEMD_SERVICE_NAME="mysql" \
            -DSYSTEMD_PID_DIR="/var/run/mysql" \
+           -DWITH_MEB=%{with_meb} \
+           -DWITH_ROUTER=%{with_router} \
 %if 0%{?cluster}
            -DWITH_NDBCLUSTER=1 \
 %endif
@@ -636,7 +671,6 @@ mkdir release
            -DNDB_NODEJS_EXTRAS_PATH=%{ndb_nodejs_extras_path} \
 %endif
 %if 0%{?commercial}
-           -DWITH_MEB=1 \
            -DWITH_CURL=system \
            %{?aws_sdk_option} \
 %endif
@@ -677,17 +711,15 @@ install -d -m 0755 %{buildroot}%{_sysconfdir}/ld.so.conf.d
 echo "%{_libdir}/mysql" > %{buildroot}%{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 
 # Router directories
+%if 0%{?with_router}
 install -d -m 0755 %{buildroot}/var/log/mysqlrouter
 install -d -m 0755 %{buildroot}/var/run/mysqlrouter
 
-install -D -p -m 0644 packaging/rpm-common/mysqlrouter.service %{buildroot}%{_unitdir}/mysqlrouter.service
-install -D -p -m 0644 packaging/rpm-common/mysqlrouter.tmpfiles.d %{buildroot}%{_tmpfilesdir}/mysqlrouter.conf
 install -D -p -m 0644 packaging/rpm-common/mysqlrouter.conf %{buildroot}%{_sysconfdir}/mysqlrouter/mysqlrouter.conf
+%endif
 
 # Remove files pages we explicitly do not want to package
 rm -rf %{buildroot}%{_infodir}/mysql.info*
-rm -rf %{buildroot}%{_datadir}/mysql-*/mysql.server
-rm -rf %{buildroot}%{_datadir}/mysql-*/mysqld_multi.server
 rm -f %{buildroot}%{_datadir}/mysql-*/win_install_firewall.sql
 rm -f %{buildroot}%{_datadir}/mysql-*/audit_log_filter_win_install.sql
 
@@ -746,6 +778,7 @@ rm -r $(readlink var) var
 %postun libs-compat -p /sbin/ldconfig
 %endif
 
+%if 0%{?with_router}
 %pre -n mysql-router-%{product_suffix}
 /usr/sbin/groupadd -r mysqlrouter >/dev/null 2>&1 || :
 /usr/sbin/useradd -M -N -g mysqlrouter -r -d /var/lib/mysqlrouter -s /bin/false \
@@ -761,6 +794,7 @@ rm -r $(readlink var) var
 %postun -n mysql-router-%{product_suffix}
 /sbin/ldconfig
 %systemd_postun_with_restart mysqlrouter.service
+%endif # with_router
 
 %files server
 %defattr(-, root, root, -)
@@ -775,13 +809,10 @@ rm -r $(readlink var) var
 %attr(644, root, root) %{_mandir}/man1/myisamlog.1*
 %attr(644, root, root) %{_mandir}/man1/myisampack.1*
 %attr(644, root, root) %{_mandir}/man8/mysqld.8*
-%exclude %{_mandir}/man1/mysqld_multi.1*
-%exclude %{_mandir}/man1/mysqld_safe.1*
 %attr(644, root, root) %{_mandir}/man1/mysqldumpslow.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_secure_installation.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_upgrade.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlman.1*
-%attr(644, root, root) %{_mandir}/man1/mysql.server.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_tzinfo_to_sql.1*
 %attr(644, root, root) %{_mandir}/man1/perror.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_ssl_rsa_setup.1*
@@ -886,6 +917,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_hashicorp.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_oci.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
@@ -898,6 +930,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_okv.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_hashicorp.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_oci.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/firewall.so
@@ -977,7 +1010,6 @@ rm -r $(readlink var) var
 %attr(644, root, root) %{_mandir}/man1/mysqlslap.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_config_editor.1*
 
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
 
 %if 0%{?cluster}
 %attr(755, root, root) %{_bindir}/ndb_blob_tool
@@ -1007,6 +1039,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_bindir}/ndb_top
 %attr(755, root, root) %{_bindir}/ndb_waiter
 %attr(755, root, root) %{_bindir}/ndbinfo_select_all
+%attr(755, root, root) %{_bindir}/ndbxfrm
 
 %attr(644, root, root) %{_mandir}/man1/ndb-common-options.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_blob_tool.1*
@@ -1060,6 +1093,11 @@ rm -r $(readlink var) var
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %{_libdir}/mysql/libmysqlclient.so.21*
+
+%files client-plugins
+%defattr(-, root, root, -)
+%doc %{?license_files_server}
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
 
 %if 0%{?compatlib}
 %files libs-compat
@@ -1301,19 +1339,21 @@ rm -r $(readlink var) var
 %{_datadir}/mysql-*/java/
 %endif # cluster
 
-%if 0%{?commercial}
+%if 0%{?with_meb}
 %files backup
 %defattr(-, root, root, -)
 %doc %{src_dir}/packaging/meb/LICENSE.meb
 %doc %{src_dir}/packaging/meb/README.meb
 %attr(755, root, root) %{_bindir}/mysqlbackup
-%endif
+%endif # with_meb
 
+%if 0%{?with_router}
 %files -n mysql-router-%{product_suffix}
 %defattr(-, root, root, -)
 %doc %{src_dir}/router/README.router  %{src_dir}/router/LICENSE.router
 %dir %{_sysconfdir}/mysqlrouter
 %config(noreplace) %{_sysconfdir}/mysqlrouter/mysqlrouter.conf
+%attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysqlrouter
 %{_bindir}/mysqlrouter
 %{_bindir}/mysqlrouter_keyring
 %{_bindir}/mysqlrouter_passwd
@@ -1324,18 +1364,24 @@ rm -r $(readlink var) var
 %{_unitdir}/mysqlrouter.service
 %{_tmpfilesdir}/mysqlrouter.conf
 %{_libdir}/mysqlrouter/private/libmysqlharness.so.*
+%{_libdir}/mysqlrouter/private/libmysqlharness_stdx.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_http.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_http_auth_backend.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_http_auth_realm.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_io_component.so.*
 %{_libdir}/mysqlrouter/private/libprotobuf-lite.so.3.11.4
 %dir %{_libdir}/mysqlrouter
 %dir %{_libdir}/mysqlrouter/private
 %{_libdir}/mysqlrouter/*.so
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/log/mysqlrouter
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/run/mysqlrouter
+%endif # with_router
 
 %changelog
+* Sun Jul 12 2020 Sreedhar S <sreedhar.sreedhargadda@oracle.com> - 8.0.22-1
+- Add a new subpackage client-plugins
+
 * Mon May 11 2020 Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.15-1
 - Added component_test_component_deinit.so test component
 

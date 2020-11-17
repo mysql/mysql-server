@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ char from[BUFLEN];
 
 class PartitionTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     // Save global settings.
     m_charset = system_charset_info;
     m_locale = my_default_lc_messages;
@@ -60,7 +60,7 @@ class PartitionTest : public ::testing::Test {
     EXPECT_FALSE(errmsgs->replace_msg(ER_RENAMED_NAME, "Renamed"));
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     // Restore global settings.
     system_charset_info = m_charset;
     my_default_lc_messages = m_locale;

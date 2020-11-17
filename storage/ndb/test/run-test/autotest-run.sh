@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -100,8 +100,12 @@ do
                     ;;
                 --site=*) site_arg="$1";;
                 --default-max-retries=*) default_max_retries_arg="$1";;
-                --default-force-cluster-restart) default_force_cluster_restart_arg="$1";;
+                --default-force-cluster-restart=*)
+                    default_force_cluster_restart_arg="$1";;
                 --default-behaviour-on-failure=*) default_behaviour_on_failure_arg="$1";;
+                --*clean-shutdown*) clean_shutdown_arg="$1";;
+                --*-coverage*) coverage_arg="$1";;
+                --build-dir=*) build_dir_arg="$1";;
         esac
         shift
 done
@@ -452,6 +456,9 @@ else
     args="$args ${default_max_retries_arg}"
     args="$args ${default_force_cluster_restart_arg}"
     args="$args ${default_behaviour_on_failure_arg}"
+    args="$args ${clean_shutdown_arg}"
+    args="$args ${coverage_arg}"
+    args="$args ${build_dir_arg}"
     $atrt $args my.cnf | tee -a log.txt
 
     atrt_test_status=${PIPESTATUS[0]}
@@ -466,6 +473,9 @@ fi
 [ -f log.txt ] && mv log.txt $res_dir
 [ -f report.txt ] && mv report.txt $res_dir
 [ "`find . -name 'result*'`" ] && mv result* $res_dir
+[ -f final_coverage.info ] && mv final_coverage.info \
+                              "$res_dir/$RUN.$suite_suffix.coverage.info"
+[ -d coverage_report ] && mv coverage_report "$res_dir"
 cd $res_dir
 
 echo "date=$DATE" > info.txt

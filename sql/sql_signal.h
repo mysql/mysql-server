@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -95,7 +95,7 @@ class Sql_cmd_common_signal : public Sql_cmd {
                         Set_signal_information *set)
       : Sql_cmd(), m_cond(cond), m_set_signal_information(set) {}
 
-  virtual ~Sql_cmd_common_signal() {}
+  ~Sql_cmd_common_signal() override {}
 
   /**
     Assign the condition items 'MYSQL_ERRNO', 'level' and 'MESSAGE_TEXT'
@@ -154,11 +154,11 @@ class Sql_cmd_signal : public Sql_cmd_common_signal {
   Sql_cmd_signal(const sp_condition_value *cond, Set_signal_information *set)
       : Sql_cmd_common_signal(cond, set) {}
 
-  virtual ~Sql_cmd_signal() {}
+  ~Sql_cmd_signal() override {}
 
-  virtual enum_sql_command sql_command_code() const { return SQLCOM_SIGNAL; }
+  enum_sql_command sql_command_code() const override { return SQLCOM_SIGNAL; }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 };
 
 /**
@@ -174,11 +174,11 @@ class Sql_cmd_resignal : public Sql_cmd_common_signal {
   Sql_cmd_resignal(const sp_condition_value *cond, Set_signal_information *set)
       : Sql_cmd_common_signal(cond, set) {}
 
-  virtual ~Sql_cmd_resignal() {}
+  ~Sql_cmd_resignal() override {}
 
-  virtual enum_sql_command sql_command_code() const { return SQLCOM_RESIGNAL; }
+  enum_sql_command sql_command_code() const override { return SQLCOM_RESIGNAL; }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 };
 
 #endif

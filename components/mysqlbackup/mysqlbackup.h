@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/dynamic_privilege.h>
 #include <mysql/components/services/log_builtins.h>
 #include <mysql/components/services/mysql_current_thread_reader.h>
+#include <mysql/components/services/psi_memory_service.h>
 #include <mysql/components/services/security_context.h>
 #include <mysql/components/services/udf_registration.h>
 #include <string>
@@ -48,4 +49,6 @@ extern REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_security_context);
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_security_context_options);
 extern REQUIRES_SERVICE_PLACEHOLDER(global_grants_check);
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_current_thread_reader);
+extern REQUIRES_SERVICE_PLACEHOLDER(psi_memory_v2);
+
 #endif /* MYSQLBACKUP_H */

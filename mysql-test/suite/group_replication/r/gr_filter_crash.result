@@ -21,7 +21,7 @@ call mtr.add_suppression("read failed");
 SET SESSION sql_log_bin=1;
 INSERT INTO t1 VALUES(1);
 include/gr_stop_applier_sql_thread.inc
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 [connection server_2]
 START GROUP_REPLICATION;
 # Wait until donor is confirmed
@@ -39,7 +39,7 @@ DROP TABLE t1;
 #
 [connection server_1]
 include/gr_start_applier_sql_thread.inc
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 include/stop_group_replication.inc
 DROP TABLE t1;
 include/group_replication_end.inc

@@ -64,7 +64,7 @@ const string kDefaultRoutingConfigStrategy =
 
 class TestConfig : public ConsoleOutputTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     init_test_logger();
     set_origin(g_origin);
     ConsoleOutputTest::SetUp();

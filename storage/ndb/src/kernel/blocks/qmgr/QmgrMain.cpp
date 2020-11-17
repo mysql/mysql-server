@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,6 +59,10 @@
 #include <OwnProcessInfo.hpp>
 #include <NodeInfo.hpp>
 #include <NdbSleep.h>
+#ifdef _WIN32
+#include <ws2tcpip.h>
+#endif
+
 
 #include <TransporterRegistry.hpp> // Get connect address
 
@@ -3286,6 +3290,7 @@ void Qmgr::initData(Signal* signal)
     arbitRec.method = ArbitRec::DISABLED;
   }
 
+  setNodeInfo(getOwnNodeId()).m_version = NDB_VERSION;
   setNodeInfo(getOwnNodeId()).m_mysql_version = NDB_MYSQL_VERSION_D;
 
   ndb_mgm_configuration_iterator * iter =
@@ -3886,6 +3891,7 @@ void Qmgr::execAPI_FAILCONF(Signal* signal)
      *   so that no block risks reading 0 as node-version
      */
     setNodeInfo(failedNodePtr.i).m_version = 0;
+    setNodeInfo(failedNodePtr.i).m_mysql_version = 0;
     recompute_version_info(getNodeInfo(failedNodePtr.i).m_type);
   }
   return;
@@ -4022,6 +4028,7 @@ void Qmgr::execNDB_FAILCONF(Signal* signal)
    *   so that no block risks reading 0 as node version
    */
   setNodeInfo(failedNodePtr.i).m_version = 0;
+  setNodeInfo(failedNodePtr.i).m_mysql_version = 0;
   recompute_version_info(NodeInfo::DB);
 
   /** 
@@ -4643,18 +4650,26 @@ Qmgr::execAPI_VERSION_REQ(Signal * signal) {
   Uint32 nodeId = req->nodeId;
 
   ApiVersionConf * conf = (ApiVersionConf *)req;
-  if(getNodeInfo(nodeId).m_connected)
+  static_assert(sizeof(in6_addr) <= 16,
+                "Cannot fit in6_inaddr into ApiVersionConf:m_inet6_addr");
+  NodeInfo nodeInfo = getNodeInfo(nodeId);
+  conf->m_inet_addr = 0;
+  if(nodeInfo.m_connected)
   {
-    conf->version = getNodeInfo(nodeId).m_version;
-    conf->mysql_version = getNodeInfo(nodeId).m_mysql_version;
-    struct in_addr in= globalTransporterRegistry.get_connect_address(nodeId);
-    conf->m_inet_addr= in.s_addr;
+    conf->version = nodeInfo.m_version;
+    conf->mysql_version = nodeInfo.m_mysql_version;
+    struct in6_addr in= globalTransporterRegistry.get_connect_address(nodeId);
+    memcpy(conf->m_inet6_addr, in.s6_addr, sizeof(conf->m_inet6_addr));
+    if (IN6_IS_ADDR_V4MAPPED(&in))
+    {
+      memcpy(&conf->m_inet_addr, &conf->m_inet6_addr[12], sizeof(in_addr));
+    }
   }
   else
   {
     conf->version =  0;
     conf->mysql_version =  0;
-    conf->m_inet_addr= 0;
+    memset(conf->m_inet6_addr, 0, sizeof(conf->m_inet6_addr));
   }
   conf->nodeId = nodeId;
   conf->isSingleUser = (nodeId == getNodeState().getSingleUserApi());
@@ -8782,10 +8797,10 @@ Qmgr::execDBINFO_SCANREQ(Signal *signal)
           /* MGM/API node is too old to send ProcessInfoRep, so create a
              fallback-style report */
 
-          struct in_addr addr= globalTransporterRegistry.get_connect_address(i);
-          char service_uri[32];
+          struct in6_addr addr= globalTransporterRegistry.get_connect_address(i);
+          char service_uri[INET6_ADDRSTRLEN + 6];
           strcpy(service_uri, "ndb://");
-          Ndb_inet_ntop(AF_INET, & addr, service_uri + 6, 24);
+          Ndb_inet_ntop(AF_INET6, & addr, service_uri + 6, 46);
 
           Ndbinfo::Row row(signal, req);
           row.write_uint32(getOwnNodeId());                 // reporting_node_id
@@ -8842,7 +8857,7 @@ Qmgr::execPROCESSINFO_REP(Signal *signal)
          of ProcessInfo::setHostAddress() is also available, which
          takes a struct sockaddr * and length.
       */
-      struct in_addr addr=
+      struct in6_addr addr=
         globalTransporterRegistry.get_connect_address(report->node_id);
       processInfo->setHostAddress(& addr);
     }

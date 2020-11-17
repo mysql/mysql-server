@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +48,8 @@ public class FindByPrimaryKey2Test extends AbstractClusterJModelTest {
 
     @Override
     public void localSetUp() {
+        // Using a non default PROPERTY_CLUSTER_DATABASE will
+        // force ClusterJ to create a new SessionFactory
         createSessionFactory();
         session = sessionFactory.getSession();
         createEmployee2Instances(NUMBER_TO_INSERT);
@@ -55,7 +57,14 @@ public class FindByPrimaryKey2Test extends AbstractClusterJModelTest {
         tx.begin();
         session.deletePersistentAll(Employee2.class);
         tx.commit();
-        addTearDownClasses(Employee2.class);
+    }
+
+    @Override
+    public void localTearDown() {
+        session.deletePersistentAll(Employee2.class);
+        // Close the session and the new session factory
+        session.close();
+        sessionFactory.close();
     }
 
     public void testFind() {

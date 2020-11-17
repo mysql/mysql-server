@@ -675,7 +675,7 @@ t1	CREATE TABLE `t1` (
   `conv(130,16,10)` varchar(65) DEFAULT NULL,
   `hex(130)` varchar(6) DEFAULT NULL,
   `char(130)` varbinary(4) DEFAULT NULL,
-  `format(130,10)` varchar(37) DEFAULT NULL,
+  `format(130,10)` varchar(36) DEFAULT NULL,
   `left(_latin2'a',1)` varchar(1) CHARACTER SET latin2 DEFAULT NULL,
   `right(_latin2'a',1)` varchar(1) CHARACTER SET latin2 DEFAULT NULL,
   `lcase(_latin2'a')` varchar(1) CHARACTER SET latin2 DEFAULT NULL,
@@ -2422,7 +2422,7 @@ create table t1(a float);
 insert into t1 values (1.33);
 select format(a, 2) from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					format(a, 2)	253	49	4	Y	0	31	8
+def					format(a, 2)	253	48	4	Y	0	31	8
 format(a, 2)
 1.33
 drop table t1;
@@ -2689,7 +2689,7 @@ CREATE TABLE t1 charset utf8mb4 AS SELECT format(123,2,'no_NO');
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `format(123,2,'no_NO')` varchar(37) CHARACTER SET latin1 DEFAULT NULL
+  `format(123,2,'no_NO')` varchar(36) CHARACTER SET latin1 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 format(123,2,'no_NO')
@@ -4340,7 +4340,7 @@ latin1_swedish_ci
 SET NAMES latin2;
 EXECUTE stmt;
 COLLATION(space(2))
-latin2_general_ci
+latin1_swedish_ci
 #
 # Bug#11829861: SUBSTRING_INDEX() RESULTS IN MISSING CHARACTERS WHEN USED
 # INSIDE LOWER()
@@ -5171,3 +5171,10 @@ REPLACE('æøåæøå',_utf16 x'00e5', _gb18030 x'9439B937')
 SELECT REPLACE(_latin1 x'E6F8E5E6F8E5',_utf16 x'00e5', _utf32 x'00000061');
 REPLACE(_latin1 x'E6F8E5E6F8E5',_utf16 x'00e5', _utf32 x'00000061')
 æøaæøa
+# Bug#31358389: Crash in Item::add_accum_properties()
+DO INSERT(1, 1, 1, CAST(1 AS DECIMAL(1,3)));
+ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column '').
+#
+# Bug #31798093 RECENT REGRESSION:
+#               ARG_COMPARATOR::COMPARE JUMPING TO INVALID CODE IN MEMORY
+DO CONVERT( NULLIF( @a , 'c' ) USING BINARY);

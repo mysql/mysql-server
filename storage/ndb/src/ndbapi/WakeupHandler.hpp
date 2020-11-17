@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,9 +54,9 @@ class MultiNdbWakeupHandler : public WakeupHandler
 {
 public:
   MultiNdbWakeupHandler(Ndb* _wakeNdb);
-  ~MultiNdbWakeupHandler();
-  void notifyTransactionCompleted(Ndb* from);
-  void notifyWakeup();
+  ~MultiNdbWakeupHandler() override;
+  void notifyTransactionCompleted(Ndb* from) override;
+  void notifyWakeup() override;
   /** returns 0 on success, -1 on timeout: */
   int waitForInput(Ndb **objs,
                    int cnt,

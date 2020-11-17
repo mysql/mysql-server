@@ -1,0 +1,142 @@
+##
+## Test the Performance Schema-based implementation of SHOW PROCESSLIST.
+##
+## Verify the Host field (hostname:port) against the legacy implementation.
+##
+
+### Setup ###
+
+select @@global.performance_schema_show_processlist into @save_processlist;
+
+# Control user
+create user user0@localhost;
+grant ALL on *.* to user0@localhost;
+# Test users
+
+create user user1@localhost, user2@localhost,
+user3@localhost, user4@localhost;
+
+grant USAGE on *.* to user1@localhost;
+grant ALL on *.* to user2@localhost;
+grant ALL on *.* to user3@localhost;
+grant ALL on *.* to user4@localhost;
+
+flush privileges;
+
+show grants for user1@localhost;
+Grants for user1@localhost
+GRANT USAGE ON *.* TO `user1`@`localhost`
+
+# Connect (con_user0, localhost, user0, , )
+# Connect (con_user1, localhost, user1, , )
+# Connect (con_user2, localhost, user2, , )
+# Connect (con_user3, localhost, user3, , )
+# Connect (con_user4, localhost, user4, , )
+
+### Compare the SHOW PROCESSLIST Host column between the new and old implementations
+
+## New SHOW PROCESSLIST
+set @@global.performance_schema_show_processlist = on;
+
+SHOW FULL PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user0	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL
+
+# Performance Schema processlist table
+
+select * from performance_schema.processlist order by user, id;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL
+
+# Information Schema processlist table
+
+select * from information_schema.processlist order by user, id;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL
+
+# Connection user1
+# Get Host:Port, new
+
+## Legacy SHOW PROCESSLIST
+set @@global.performance_schema_show_processlist = off;
+
+SHOW FULL PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user0	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL
+
+# Performance Schema processlist table
+
+select * from performance_schema.processlist order by user, id;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL
+
+# Information Schema processlist table
+
+select * from information_schema.processlist order by user, id;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL
+
+# Connection user1
+# Get Host:Port, legacy
+
+***SUCCESS*** The SHOW PROCESSLIST Host fields match
+
+### Compare the processlist  Host column between Performance Schema and the Information Schema
+
+# Connection con_user0
+
+***SUCCESS*** The processlist Host fields match between the Performance Schema and the Information Schema
+
+
+### Clean up ###
+
+# Disconnect con_user0
+# Disconnect con_user1
+# Disconnect con_user2
+# Disconnect con_user3
+# Disconnect con_user4
+# Connection default
+
+drop user user0@localhost;
+drop user user1@localhost;
+drop user user2@localhost;
+drop user user3@localhost;
+drop user user4@localhost;
+
+set @@global.performance_schema_show_processlist = @save_processlist;

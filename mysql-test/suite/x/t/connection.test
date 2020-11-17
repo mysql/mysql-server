@@ -104,8 +104,10 @@ EOF
 --echo #
 exec $MYSQLXTEST -ux_root --password=''
   --file=$MYSQL_TMP_DIR/mysqlx-connection.tmp 2>&1;
-let $wait_for_status_variable = 'Mysqlx_connections_closed';
-let $wait_for_status_value = 1;
+let $wait_for_status_variable =
+  'Mysqlx_connections_closed',
+  'Mysqlx_sessions_closed';
+let $wait_for_status_value = 1, 1;
 source ../include/wait_for_status_variables.inc;
 source ../include/connection_test_helpers.inc;
 
@@ -179,8 +181,10 @@ let $restart_parameters = restart: ;
 source include/restart_mysqld.inc;
 exec $MYSQLXTEST -u x_root --password='' -v%EXPECT_ERROR%=ER_SUCCESS
   --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1;
-let $wait_for_status_variable = 'Mysqlx_connections_closed';
-let $wait_for_status_value = 1;
+let $wait_for_status_variable =
+  'Mysqlx_connections_closed',
+  'Mysqlx_sessions_closed';
+let $wait_for_status_value = 1,1;
 source ../include/wait_for_status_variables.inc;
 source ../include/connection_test_helpers.inc;
 
@@ -416,10 +420,10 @@ replace_regex /\.dll/.so/;
 source include/restart_mysqld.inc;
 exec $MYSQLXTEST -u x_root --password=''
   --file=$MYSQL_TMP_DIR/open_max_mysqlx_connection.tmp 2>&1;
+
 let $wait_for_status_variable =
-  'Mysqlx_connections_closed',
-  'Mysqlx_connections_accepted';
-let $wait_for_status_value = 2, 2;
+  'Mysqlx_connections_closed', 'Mysqlx_connections_accepted', 'Mysqlx_sessions_closed';
+let $wait_for_status_value = 2, 2, 2;
 source ../include/wait_for_status_variables.inc;
 let $skip_show_mysqlx_sessions_variables=1;
 source ../include/connection_test_helpers.inc;
@@ -466,9 +470,8 @@ let $restart_parameters = restart: --mysqlx_max_connections=3;
 --source include/restart_mysqld.inc
 --exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/open_max_mysqlx_connection2.tmp 2>&1
 let $wait_for_status_variable =
-  'Mysqlx_connections_closed',
-  'Mysqlx_connections_accepted';
-let $wait_for_status_value = 3, 3;
+  'Mysqlx_connections_closed', 'Mysqlx_connections_accepted', 'Mysqlx_sessions_closed';
+let $wait_for_status_value = 3, 3, 3;
 source ../include/wait_for_status_variables.inc;
 let $skip_show_mysqlx_sessions_variables=1;
 source ../include/connection_test_helpers.inc;
@@ -546,9 +549,8 @@ EOF
 --echo #
 --exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/allconn_root.tmp 2>&1
 let $wait_for_status_variable =
-  'Mysqlx_connections_closed',
-  'Mysqlx_connections_accepted';
-let $wait_for_status_value = 6, 6;
+  'Mysqlx_connections_closed', 'Mysqlx_connections_accepted', 'Mysqlx_sessions_closed';
+let $wait_for_status_value = 6, 6, 6;
 source ../include/wait_for_status_variables.inc;
 let $skip_show_mysqlx_sessions_variables=1;
 source ../include/connection_test_helpers.inc;
@@ -692,9 +694,8 @@ EOF
 --sleep 1
 
 let $wait_for_status_variable =
-  'Mysqlx_connections_closed',
-  'Mysqlx_connections_accepted';
-let $wait_for_status_value = 10, 10;
+  'Mysqlx_connections_closed', 'Mysqlx_connections_accepted', 'Mysqlx_sessions_closed';
+let $wait_for_status_value = 10, 10, 10;
 source ../include/wait_for_status_variables.inc;
 let $skip_show_mysqlx_sessions_variables=1;
 source ../include/connection_test_helpers.inc;

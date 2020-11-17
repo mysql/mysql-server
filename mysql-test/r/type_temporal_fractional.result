@@ -14629,8 +14629,6 @@ a
 2001-01-01 11:22:33.123456
 EXECUTE stmt USING @c;
 a
-Warnings:
-Warning	1292	Incorrect datetime value: '0.123456' for column 'a' at row 1
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 #
@@ -14657,6 +14655,7 @@ SELECT @a;
 20010101000000.1
 SELECT * FROM t1 WHERE a=@a;
 a
+2001-01-01 00:00:00.100000
 SET @a=NULL;
 SELECT a INTO @a FROM t1 LIMIT 1;
 SELECT @a;
@@ -16878,7 +16877,6 @@ WHERE CONVERT_TZ(GREATEST('2005-11-05 18:16:50.055749', STR_TO_DATE(CURRENT_TIME
 col_timestamp_2_not_null_key
 Warnings:
 Warning	1292	Truncated incorrect date value: '17:28:30'
-Warning	1292	Truncated incorrect date value: '17:28:30'
 Warning	1292	Incorrect datetime value: '2017-00-00'
 DROP TABLE t1;
 SET timestamp=DEFAULT;
@@ -17750,3 +17748,26 @@ DROP TABLE t1;
 do date_add(utc_time(), interval(oct(-11779)) microsecond);
 Warnings:
 Warning	1441	Datetime function: time field overflow
+#
+# Bug #31054071 UBSAN: SIGNED INTEGER OVERFLOW IN
+#               ITEM_DATE_ADD_INTERVAL::GET_TIME_INTERNAL
+#
+CREATE TABLE t(a TIME(1), b DECIMAL(55,13));
+INSERT INTO t(a,b) VALUES
+('-765:38:03.6',999999999999999999999999999999999999999999.9999999999999);
+SELECT a - INTERVAL(b) MICROSECOND FROM t;
+a - INTERVAL(b) MICROSECOND
+NULL
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '999999999999999999999999999999999999999999.9999999999999'
+Warning	1441	Datetime function: time field overflow
+DROP TABLE t;
+#
+# Bug #30324587 	ASSERTION FAILED: (*REF)->IS_TEMPORAL()
+#
+SELECT current_date IN ( MAX(NULL), 1 );
+current_date IN ( MAX(NULL), 1 )
+NULL
+SELECT current_time IN ( MAX(NULL), 1 );
+current_time IN ( MAX(NULL), 1 )
+NULL

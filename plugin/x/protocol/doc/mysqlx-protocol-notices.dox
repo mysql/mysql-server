@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -45,20 +45,18 @@ Global Notices {#notices_Global_Notices}
 
 Global Notices are sent by the server in case of events happen that are
 unrelated to the currently active message sequence:
+- server is shutting down
+- replication slave disconnected
+- group replication state change
+- schema or table dropped
 
--  server is shutting down
-
--  node disconnected from group
-
--  schema or table dropped
-
--  binlog events
 
 ## Server Shutting Down
 
 The server indicates that it shuts down in a clean way.
+@warning Not supported yet
 
-## Node Disconnected from Group
+## Replication slave disconnected
 
 The slave stopped to replicate changes from the master/group and may
 contain stale information.
@@ -68,12 +66,21 @@ contain stale information.
     ``sql_thread`` leads to a race condition for the following query.
     One would have to check after query of the slave is still running to
     see if it didn't stop in between.
+@warning Not supported yet
+
+## Group replication state change
+
+Following changes inside the group, trigger this notice: quorum loss,
+view changed, role of the node changed, state changed.
+This information is transfered inside `GROUP_REPLICATION_STATE_CHANGED` notice,
+using following message @ref Mysqlx::Notice::GroupReplicationStateChanged.
 
 ## Schema or Table Dropped/Altered/...
 
 If a client maintains a cache of recent queries + resultsets it would
 improve the caching behavior if the client would be notified if a
 underlying table or schema was dropped, changed, and so on.
+@warning Not supported yet
 
 Local Notices {#notices_Local_Notices}
 =============
@@ -81,19 +88,21 @@ Local Notices {#notices_Local_Notices}
 Local Notices are related to the currently active Message Sequence like:
 
 -  Committed Transaction IDs
+@warning Not supported yet
 
 -  Transaction State Changes
+@warning Not supported yet
 
--  SQL warnings @ref Mysqlx_Notice_Warning "@c Warning "
+-  SQL warnings @ref Mysqlx::Notice::Warning
 
--  @ref notices_Session_Variable_Changed "session variable
-   changed"  and @ref #notices_Session_State_Changed
-   "session state changed"
+-  @ref notices_Session_Variable_Changed "session variable changed"
+
+-  @ref notices_Session_State_Changed "session state changed"
 
 ## Session Variable Changed {#notices_Session_Variable_Changed}
 
 Via
-@ref Mysqlx_Notice_SessionVariableChanged "@c SessionVariableChanged "
+@ref Mysqlx::Notice::SessionVariableChanged
 
 It allows intermediates to track state changes on the clients session
 that may be otherwise unnoticeable like:
@@ -122,7 +131,7 @@ Session variable changes are usually done from the client via
 
 ## Session State Changed {#notices_Session_State_Changed}
 
-Via @ref Mysqlx_Notice_SessionStateChanged "@c SessionStateChanged ".
+Via @ref Mysqlx::Notice::SessionStateChanged.
 
 -  Account Expired while
    @ref mysqlx_protocol_authentication "Authentication"
@@ -136,16 +145,18 @@ Via @ref Mysqlx_Notice_SessionStateChanged "@c SessionStateChanged ".
 @par CURRENT_SCHEMA
     Sent after statement that changes the current schema like
     ``USE ...``
+@warning Not supported yet
 
 @par GENERATED_INSERT_ID
     Sent after an ID was created by an INSERT-operation.
 @note
-        Multiple ``GENERATED_INSERT_ID`` notices may be sent per message
-        sequence. Stored Procedures, Multi-Row INSERTs, and so on.
+    Multiple ``GENERATED_INSERT_ID`` notices may be sent per message
+    sequence. Stored Procedures, Multi-Row INSERTs, and so on.
 
 @par ROWS_FOUND
     Rows that would be found if ``LIMIT`` wasn't applied (see
     ``SQL_CALC_FOUND_ROWS``)
+@warning Not supported yet
 
 @par ROWS_AFFECTED
     Rows affected by a modifying statement
@@ -154,29 +165,31 @@ Via @ref Mysqlx_Notice_SessionStateChanged "@c SessionStateChanged ".
     Rows matched by the criteria of a modifying statement (``UPDATE``,
     ``INSERT``, ``DELETE``, ...)
 @note
-        ``ROWS_AFFECTED`` and ``ROWS_MATCHED`` where sent in the MySQL
-        C/S %Protocol as plain text ``info`` for a ``OK`` packet after an
-        ``UPDATE``:
+    ``ROWS_AFFECTED`` and ``ROWS_MATCHED`` where sent in the MySQL
+    C/S %Protocol as plain text ``info`` for a ``OK`` packet after an
+    ``UPDATE``:
 @code{unparsed}
-            Rows matched: 0  Changed: 0  Warnings: 0
+    Rows matched: 0  Changed: 0  Warnings: 0
 @endcode
 
 @par ACCOUNT_EXPIRED
     Sent after a successful authentication before
-    @ref Mysqlx_Session_AuthenticateOk "@c AuthenticateOk "
+    @ref Mysqlx::Session::AuthenticateOk
 
 @par TRX_COMMITTED
     Sent after a transaction was committed. .value may contain a
     transaction identifier.
 @note
-        Used to track implicit, explicit and auto commits.
+    Used to track implicit, explicit and auto commits.
+@warning Not supported yet
 
 @see http://dev.mysql.com/doc/en/innodb-implicit-commit.html
 
 @par TRX_ROLLEDBACK
     Sent after a transaction was rolled back.
-    @note
-        Used to track implicit and explicit rollback operations.
+@note
+    Used to track implicit and explicit rollback operations.
+@warning Not supported yet
 
 @see  http://dev.mysql.com/doc/en/innodb-implicit-commit.html
 

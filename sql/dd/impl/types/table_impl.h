@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,35 +68,35 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
  public:
   Table_impl();
 
-  virtual ~Table_impl();
+  ~Table_impl() override;
 
  public:
   /////////////////////////////////////////////////////////////////////////
   // enum_table_type.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual enum_table_type type() const { return enum_table_type::BASE_TABLE; }
+  enum_table_type type() const override { return enum_table_type::BASE_TABLE; }
 
  public:
   static void register_tables(Open_dictionary_tables_ctx *otx);
 
-  virtual bool validate() const;
+  bool validate() const override;
 
-  virtual bool restore_children(Open_dictionary_tables_ctx *otx);
+  bool restore_children(Open_dictionary_tables_ctx *otx) override;
 
-  virtual bool store_children(Open_dictionary_tables_ctx *otx);
+  bool store_children(Open_dictionary_tables_ctx *otx) override;
 
-  virtual bool drop_children(Open_dictionary_tables_ctx *otx) const;
+  bool drop_children(Open_dictionary_tables_ctx *otx) const override;
 
-  virtual bool restore_attributes(const Raw_record &r);
+  bool restore_attributes(const Raw_record &r) override;
 
-  virtual bool store_attributes(Raw_record *r);
+  bool store_attributes(Raw_record *r) override;
 
-  void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const;
+  void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const override;
 
-  bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
+  bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val) override;
 
-  virtual void debug_print(String_type &outb) const;
+  void debug_print(String_type &outb) const override;
 
  private:
   /**
@@ -115,8 +115,8 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   // is_temporary.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool is_temporary() const { return m_is_temporary; }
-  virtual void set_is_temporary(bool is_temporary) {
+  bool is_temporary() const override { return m_is_temporary; }
+  void set_is_temporary(bool is_temporary) override {
     m_is_temporary = is_temporary;
   }
 
@@ -124,9 +124,9 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   // collation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Object_id collation_id() const { return m_collation_id; }
+  Object_id collation_id() const override { return m_collation_id; }
 
-  virtual void set_collation_id(Object_id collation_id) {
+  void set_collation_id(Object_id collation_id) override {
     m_collation_id = collation_id;
   }
 
@@ -134,13 +134,13 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   // tablespace.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Object_id tablespace_id() const { return m_tablespace_id; }
+  Object_id tablespace_id() const override { return m_tablespace_id; }
 
-  virtual void set_tablespace_id(Object_id tablespace_id) {
+  void set_tablespace_id(Object_id tablespace_id) override {
     m_tablespace_id = tablespace_id;
   }
 
-  virtual bool is_explicit_tablespace() const {
+  bool is_explicit_tablespace() const override {
     bool is_explicit = false;
     if (options().exists("explicit_tablespace"))
       options().get("explicit_tablespace", &is_explicit);
@@ -151,17 +151,17 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   // engine.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &engine() const { return m_engine; }
+  const String_type &engine() const override { return m_engine; }
 
-  virtual void set_engine(const String_type &engine) { m_engine = engine; }
+  void set_engine(const String_type &engine) override { m_engine = engine; }
 
   /////////////////////////////////////////////////////////////////////////
   // row_format
   /////////////////////////////////////////////////////////////////////////
 
-  virtual enum_row_format row_format() const { return m_row_format; }
+  enum_row_format row_format() const override { return m_row_format; }
 
-  virtual void set_row_format(enum_row_format row_format) {
+  void set_row_format(enum_row_format row_format) override {
     m_row_format = row_format;
   }
 
@@ -169,18 +169,18 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   // comment
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &comment() const { return m_comment; }
+  const String_type &comment() const override { return m_comment; }
 
-  virtual void set_comment(const String_type &comment) { m_comment = comment; }
+  void set_comment(const String_type &comment) override { m_comment = comment; }
 
   /////////////////////////////////////////////////////////////////////////
   // last_checked_for_upgrade_version_id
   /////////////////////////////////////////////////////////////////////////
-  virtual uint last_checked_for_upgrade_version_id() const {
+  uint last_checked_for_upgrade_version_id() const override {
     return m_last_checked_for_upgrade_version_id;
   }
 
-  virtual void mark_as_checked_for_upgrade() {
+  void mark_as_checked_for_upgrade() override {
     m_last_checked_for_upgrade_version_id = MYSQL_VERSION_ID;
   }
 
@@ -188,17 +188,17 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   // se_private_data.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Properties &se_private_data() const {
+  const Properties &se_private_data() const override {
     return m_se_private_data;
   }
 
-  virtual Properties &se_private_data() { return m_se_private_data; }
+  Properties &se_private_data() override { return m_se_private_data; }
 
-  virtual bool set_se_private_data(const String_type &se_private_data_raw) {
+  bool set_se_private_data(const String_type &se_private_data_raw) override {
     return m_se_private_data.insert_values(se_private_data_raw);
   }
 
-  virtual bool set_se_private_data(const Properties &se_private_data) {
+  bool set_se_private_data(const Properties &se_private_data) override {
     return m_se_private_data.insert_values(se_private_data);
   }
 
@@ -206,9 +206,9 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   // se_private_id.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Object_id se_private_id() const { return m_se_private_id; }
+  Object_id se_private_id() const override { return m_se_private_id; }
 
-  virtual void set_se_private_id(Object_id se_private_id) {
+  void set_se_private_id(Object_id se_private_id) override {
     m_se_private_id = se_private_id;
   }
 
@@ -216,19 +216,19 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   // Storage engine attributes
   /////////////////////////////////////////////////////////////////////////
 
-  LEX_CSTRING engine_attribute() const {
+  LEX_CSTRING engine_attribute() const override {
     return lex_cstring_handle(m_engine_attribute);
   }
 
-  void set_engine_attribute(LEX_CSTRING a) {
+  void set_engine_attribute(LEX_CSTRING a) override {
     m_engine_attribute.assign(a.str, a.length);
   }
 
-  LEX_CSTRING secondary_engine_attribute() const {
+  LEX_CSTRING secondary_engine_attribute() const override {
     return lex_cstring_handle(m_secondary_engine_attribute);
   }
 
-  void set_secondary_engine_attribute(LEX_CSTRING a) {
+  void set_secondary_engine_attribute(LEX_CSTRING a) override {
     m_secondary_engine_attribute.assign(a.str, a.length);
   }
 
@@ -236,11 +236,11 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   // Partition type
   /////////////////////////////////////////////////////////////////////////
 
-  virtual enum_partition_type partition_type() const {
+  enum_partition_type partition_type() const override {
     return m_partition_type;
   }
 
-  virtual void set_partition_type(enum_partition_type partition_type) {
+  void set_partition_type(enum_partition_type partition_type) override {
     m_partition_type = partition_type;
   }
 
@@ -248,12 +248,12 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   // default_partitioning
   /////////////////////////////////////////////////////////////////////////
 
-  virtual enum_default_partitioning default_partitioning() const {
+  enum_default_partitioning default_partitioning() const override {
     return m_default_partitioning;
   }
 
-  virtual void set_default_partitioning(
-      enum_default_partitioning default_partitioning) {
+  void set_default_partitioning(
+      enum_default_partitioning default_partitioning) override {
     m_default_partitioning = default_partitioning;
   }
 
@@ -261,12 +261,12 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   // partition_expression
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &partition_expression() const {
+  const String_type &partition_expression() const override {
     return m_partition_expression;
   }
 
-  virtual void set_partition_expression(
-      const String_type &partition_expression) {
+  void set_partition_expression(
+      const String_type &partition_expression) override {
     m_partition_expression = partition_expression;
   }
 
@@ -274,12 +274,12 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   // partition_expression_utf8
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &partition_expression_utf8() const {
+  const String_type &partition_expression_utf8() const override {
     return m_partition_expression_utf8;
   }
 
-  virtual void set_partition_expression_utf8(
-      const String_type &partition_expression_utf8) {
+  void set_partition_expression_utf8(
+      const String_type &partition_expression_utf8) override {
     m_partition_expression_utf8 = partition_expression_utf8;
   }
 
@@ -287,11 +287,12 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   // subpartition_type
   /////////////////////////////////////////////////////////////////////////
 
-  virtual enum_subpartition_type subpartition_type() const {
+  enum_subpartition_type subpartition_type() const override {
     return m_subpartition_type;
   }
 
-  virtual void set_subpartition_type(enum_subpartition_type subpartition_type) {
+  void set_subpartition_type(
+      enum_subpartition_type subpartition_type) override {
     m_subpartition_type = subpartition_type;
   }
 
@@ -299,12 +300,12 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   // default_subpartitioning
   /////////////////////////////////////////////////////////////////////////
 
-  virtual enum_default_partitioning default_subpartitioning() const {
+  enum_default_partitioning default_subpartitioning() const override {
     return m_default_subpartitioning;
   }
 
-  virtual void set_default_subpartitioning(
-      enum_default_partitioning default_subpartitioning) {
+  void set_default_subpartitioning(
+      enum_default_partitioning default_subpartitioning) override {
     m_default_subpartitioning = default_subpartitioning;
   }
 
@@ -312,12 +313,12 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   // subpartition_expression
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &subpartition_expression() const {
+  const String_type &subpartition_expression() const override {
     return m_subpartition_expression;
   }
 
-  virtual void set_subpartition_expression(
-      const String_type &subpartition_expression) {
+  void set_subpartition_expression(
+      const String_type &subpartition_expression) override {
     m_subpartition_expression = subpartition_expression;
   }
 
@@ -325,12 +326,12 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   // subpartition_expression_utf8
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &subpartition_expression_utf8() const {
+  const String_type &subpartition_expression_utf8() const override {
     return m_subpartition_expression_utf8;
   }
 
-  virtual void set_subpartition_expression_utf8(
-      const String_type &subpartition_expression_utf8) {
+  void set_subpartition_expression_utf8(
+      const String_type &subpartition_expression_utf8) override {
     m_subpartition_expression_utf8 = subpartition_expression_utf8;
   }
 
@@ -338,13 +339,13 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   // Index collection.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Index *add_index();
+  Index *add_index() override;
 
-  virtual Index *add_first_index();
+  Index *add_first_index() override;
 
-  virtual const Index_collection &indexes() const { return m_indexes; }
+  const Index_collection &indexes() const override { return m_indexes; }
 
-  virtual Index_collection *indexes() { return &m_indexes; }
+  Index_collection *indexes() override { return &m_indexes; }
 
   const Index *get_index(Object_id index_id) const {
     return const_cast<Table_impl *>(this)->get_index(index_id);
@@ -356,13 +357,13 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   // Foreign key collection.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Foreign_key *add_foreign_key();
+  Foreign_key *add_foreign_key() override;
 
-  virtual const Foreign_key_collection &foreign_keys() const {
+  const Foreign_key_collection &foreign_keys() const override {
     return m_foreign_keys;
   }
 
-  virtual Foreign_key_collection *foreign_keys() { return &m_foreign_keys; }
+  Foreign_key_collection *foreign_keys() override { return &m_foreign_keys; }
 
   /////////////////////////////////////////////////////////////////////////
   // Foreign key parent collection.
@@ -374,9 +375,9 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   bool load_foreign_key_parents(Open_dictionary_tables_ctx *otx);
 
  public:
-  virtual bool reload_foreign_key_parents(THD *thd);
+  bool reload_foreign_key_parents(THD *thd) override;
 
-  virtual const Foreign_key_parent_collection &foreign_key_parents() const {
+  const Foreign_key_parent_collection &foreign_key_parents() const override {
     return m_foreign_key_parents;
   }
 
@@ -384,19 +385,19 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   // Partition collection.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Partition *add_partition();
+  Partition *add_partition() override;
 
-  virtual const Partition_collection &partitions() const {
+  const Partition_collection &partitions() const override {
     return m_partitions;
   }
 
-  virtual Partition_collection *partitions() { return &m_partitions; }
+  Partition_collection *partitions() override { return &m_partitions; }
 
-  virtual const Partition_leaf_vector &leaf_partitions() const {
+  const Partition_leaf_vector &leaf_partitions() const override {
     return m_leaf_partitions;
   }
 
-  virtual Partition_leaf_vector *leaf_partitions() {
+  Partition_leaf_vector *leaf_partitions() override {
     return &m_leaf_partitions;
   }
 
@@ -412,54 +413,56 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   Partition *get_partition(const String_type &name);
 
   // Fix "inherits ... via dominance" warnings
-  virtual Entity_object_impl *impl() { return Entity_object_impl::impl(); }
-  virtual const Entity_object_impl *impl() const {
+  Entity_object_impl *impl() override { return Entity_object_impl::impl(); }
+  const Entity_object_impl *impl() const override {
     return Entity_object_impl::impl();
   }
-  virtual Object_id id() const { return Entity_object_impl::id(); }
-  virtual bool is_persistent() const {
+  Object_id id() const override { return Entity_object_impl::id(); }
+  bool is_persistent() const override {
     return Entity_object_impl::is_persistent();
   }
-  virtual const String_type &name() const { return Entity_object_impl::name(); }
-  virtual void set_name(const String_type &name) {
+  const String_type &name() const override {
+    return Entity_object_impl::name();
+  }
+  void set_name(const String_type &name) override {
     Entity_object_impl::set_name(name);
   }
-  virtual Object_id schema_id() const {
+  Object_id schema_id() const override {
     return Abstract_table_impl::schema_id();
   }
-  virtual void set_schema_id(Object_id schema_id) {
+  void set_schema_id(Object_id schema_id) override {
     Abstract_table_impl::set_schema_id(schema_id);
   }
-  virtual uint mysql_version_id() const {
+  uint mysql_version_id() const override {
     return Abstract_table_impl::mysql_version_id();
   }
-  virtual const Properties &options() const {
+  const Properties &options() const override {
     return Abstract_table_impl::options();
   }
-  virtual Properties &options() { return Abstract_table_impl::options(); }
-  virtual bool set_options(const Properties &options) {
+  Properties &options() override { return Abstract_table_impl::options(); }
+  bool set_options(const Properties &options) override {
     return Abstract_table_impl::set_options(options);
   }
-  virtual bool set_options(const String_type &options_raw) {
+  bool set_options(const String_type &options_raw) override {
     return Abstract_table_impl::set_options(options_raw);
   }
-  virtual ulonglong created(bool convert_time) const {
+  ulonglong created(bool convert_time) const override {
     return Abstract_table_impl::created(convert_time);
   }
-  virtual void set_created(ulonglong created) {
+  void set_created(ulonglong created) override {
     Abstract_table_impl::set_created(created);
   }
-  virtual ulonglong last_altered(bool convert_time) const {
+  ulonglong last_altered(bool convert_time) const override {
     return Abstract_table_impl::last_altered(convert_time);
   }
-  virtual void set_last_altered(ulonglong last_altered) {
+  void set_last_altered(ulonglong last_altered) override {
     Abstract_table_impl::set_last_altered(last_altered);
   }
-  virtual Column *add_column() { return Abstract_table_impl::add_column(); }
-  virtual const Column_collection &columns() const {
+  Column *add_column() override { return Abstract_table_impl::add_column(); }
+  const Column_collection &columns() const override {
     return Abstract_table_impl::columns();
   }
-  virtual Column_collection *columns() {
+  Column_collection *columns() override {
     return Abstract_table_impl::columns();
   }
   const Column *get_column(Object_id column_id) const {
@@ -468,19 +471,19 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   Column *get_column(Object_id column_id) {
     return Abstract_table_impl::get_column(column_id);
   }
-  const Column *get_column(const String_type &name) const {
+  const Column *get_column(const String_type &name) const override {
     return Abstract_table_impl::get_column(name);
   }
   Column *get_column(const String_type &name) {
     return Abstract_table_impl::get_column(name);
   }
-  virtual bool update_aux_key(Aux_key *key) const {
+  bool update_aux_key(Aux_key *key) const override {
     return Table::update_aux_key(key);
   }
-  virtual enum_hidden_type hidden() const {
+  enum_hidden_type hidden() const override {
     return Abstract_table_impl::hidden();
   }
-  virtual void set_hidden(enum_hidden_type hidden) {
+  void set_hidden(enum_hidden_type hidden) override {
     Abstract_table_impl::set_hidden(hidden);
   }
 
@@ -488,30 +491,30 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   // Trigger collection.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool has_trigger() const { return (m_triggers.size() > 0); }
+  bool has_trigger() const override { return (m_triggers.size() > 0); }
 
-  virtual const Trigger_collection &triggers() const { return m_triggers; }
+  const Trigger_collection &triggers() const override { return m_triggers; }
 
-  virtual Trigger_collection *triggers() { return &m_triggers; }
+  Trigger_collection *triggers() override { return &m_triggers; }
 
-  virtual void copy_triggers(const Table *tab_obj);
+  void copy_triggers(const Table *tab_obj) override;
 
-  virtual Trigger *add_trigger(Trigger::enum_action_timing at,
-                               Trigger::enum_event_type et);
+  Trigger *add_trigger(Trigger::enum_action_timing at,
+                       Trigger::enum_event_type et) override;
 
-  virtual const Trigger *get_trigger(const char *name) const;
+  const Trigger *get_trigger(const char *name) const override;
 
-  virtual Trigger *add_trigger_following(const Trigger *trigger,
-                                         Trigger::enum_action_timing at,
-                                         Trigger::enum_event_type et);
+  Trigger *add_trigger_following(const Trigger *trigger,
+                                 Trigger::enum_action_timing at,
+                                 Trigger::enum_event_type et) override;
 
-  virtual Trigger *add_trigger_preceding(const Trigger *trigger,
-                                         Trigger::enum_action_timing at,
-                                         Trigger::enum_event_type et);
+  Trigger *add_trigger_preceding(const Trigger *trigger,
+                                 Trigger::enum_action_timing at,
+                                 Trigger::enum_event_type et) override;
 
-  virtual void drop_trigger(const Trigger *trigger);
+  void drop_trigger(const Trigger *trigger) override;
 
-  virtual void drop_all_triggers();
+  void drop_all_triggers() override;
 
  private:
   uint get_max_action_order(Trigger::enum_action_timing at,
@@ -527,13 +530,13 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   // Check constraints.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Check_constraint *add_check_constraint();
+  Check_constraint *add_check_constraint() override;
 
-  virtual const Check_constraint_collection &check_constraints() const {
+  const Check_constraint_collection &check_constraints() const override {
     return m_check_constraints;
   }
 
-  virtual Check_constraint_collection *check_constraints() {
+  Check_constraint_collection *check_constraints() override {
     return &m_check_constraints;
   }
 
@@ -587,7 +590,7 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   Object_id m_tablespace_id;
 
   Table_impl(const Table_impl &src);
-  Table_impl *clone() const { return new Table_impl(*this); }
+  Table_impl *clone() const override { return new Table_impl(*this); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

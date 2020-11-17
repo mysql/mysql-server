@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2014, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -33,8 +33,6 @@
 #include "NativeMethodCall.h"
 #include "NdbWrapperErrors.h"
 
-using namespace v8;
-
 V8WrapperFn getOperationError,
             tryImmediateStartTransaction,
             execute,
@@ -56,7 +54,6 @@ public:
 
 BatchImplEnvelopeClass BatchImplEnvelope;
 
-// CALLER in DBOperationHelper has a HandleScope
 Local<Value> BatchImpl_Wrapper(BatchImpl *set) {
   Local<Value> jsobj = BatchImplEnvelope.wrap(set);
   BatchImplEnvelope.freeFromGC(set, jsobj);
@@ -64,11 +61,11 @@ Local<Value> BatchImpl_Wrapper(BatchImpl *set) {
 }
 
 // This version is *not* freed from GC
-Local<Object> getWrappedObject(BatchImpl *set) {
-  return BatchImplEnvelope.wrap(set)->ToObject();
+Local<Value> getWrappedObject(BatchImpl *set) {
+  return BatchImplEnvelope.wrap(set);
 }
 
-Local<Value> BatchImpl_Recycle(Handle<Object> oldWrapper,
+Local<Value> BatchImpl_Recycle(Local<Object> oldWrapper,
                                BatchImpl * newSet) {
   DEBUG_PRINT("BatchImpl *Recycle*");
   BatchImpl * oldSet = unwrapPointer<BatchImpl *>(oldWrapper);
@@ -84,7 +81,7 @@ void getOperationError(const Arguments & args) {
   EscapableHandleScope scope(args.GetIsolate());
 
   BatchImpl * set = unwrapPointer<BatchImpl *>(args.Holder());
-  int n = args[0]->Int32Value();
+  int n = GetInt32Arg(args, 0);
 
   const NdbError * err = set->getError(n);
 
@@ -120,7 +117,7 @@ public:
   {
     errorHandler = getNdbErrorIfLessThanZero;
   }
-  void doAsyncCallback(Local<Object>);  
+  void doAsyncCallback(Local<Object>) override;  
 };                               
 
 void TxExecuteAndCloseCall::doAsyncCallback(Local<Object> context) {
@@ -144,7 +141,7 @@ void execute(const Arguments &args) {
 void executeAsynch(const Arguments &args) {
   EscapableHandleScope scope(args.GetIsolate());
   typedef NativeMethodCall_4_<int, BatchImpl,
-                              int, int, int, Handle<Function> > MCALL;
+                              int, int, int, Local<Function> > MCALL;
   MCALL mcall(& BatchImpl::executeAsynch, args);
   mcall.run();
   args.GetReturnValue().Set(mcall.jsReturnVal());
@@ -153,7 +150,7 @@ void executeAsynch(const Arguments &args) {
 
 void readBlobResults(const Arguments &args) {
   BatchImpl * set = unwrapPointer<BatchImpl *>(args.Holder());
-  int n = args[0]->Int32Value();
+  int n = GetInt32Arg(args, 0);
   set->getKeyOperation(n)->readBlobResults(args);
 //  args.GetReturnValue().Set(set->getKeyOperation(n)->readBlobResults());
 }

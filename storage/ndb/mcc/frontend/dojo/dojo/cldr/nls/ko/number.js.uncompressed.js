@@ -1,23 +1,25 @@
 define(
 "dojo/cldr/nls/ko/number", //begin v1.x content
 {
-	"group": ",",
-	"percentSign": "%",
-	"exponential": "E",
 	"scientificFormat": "#E0",
-	"percentFormat": "#,##0%",
-	"list": ";",
 	"infinity": "∞",
-	"minusSign": "-",
-	"decimal": ".",
 	"superscriptingExponent": "×",
+	"list": ";",
+	"percentSign": "%",
+	"minusSign": "-",
+	"decimalFormat-short": "000조",
 	"nan": "NaN",
-	"perMille": "‰",
-	"decimalFormat": "#,##0.###",
-	"currencyFormat": "¤#,##0.00;(¤#,##0.00)",
 	"plusSign": "+",
+	"currencyFormat": "¤#,##0.00;(¤#,##0.00)",
+	"perMille": "‰",
+	"group": ",",
+	"percentFormat": "#,##0%",
 	"decimalFormat-long": "000조",
-	"decimalFormat-short": "000조"
+	"decimalFormat": "#,##0.###",
+	"currencyFormat-short": "¤000조",
+	"timeSeparator": ":",
+	"decimal": ".",
+	"exponential": "E"
 }
 //end v1.x content
 );

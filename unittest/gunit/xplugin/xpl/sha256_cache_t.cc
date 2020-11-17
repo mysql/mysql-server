@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ using ::testing::StrictMock;
 
 class Sha256_cache_test_suite : public ::testing::Test {
  public:
-  void SetUp() { m_cache.enable(); }
+  void SetUp() override { m_cache.enable(); }
 
   Sha256_cache_test_suite() = default;
 

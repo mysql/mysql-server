@@ -110,19 +110,19 @@ struct i_s_locks_row_t {
 
   /** Information for record locks.  All these are
   ULINT_UNDEFINED for table locks. */
-  /* @{ */
+  /** @{ */
   space_id_t lock_space; /*!< tablespace identifier */
   page_no_t lock_page;   /*!< page number within the_space */
   ulint lock_rec;        /*!< heap number of the record
                          on the page */
-  /* @} */
+  /** @} */
 
   /** The following are auxiliary and not included in the table */
-  /* @{ */
+  /** @{ */
   table_id_t lock_table_id;
   /*!< table identifier from
   lock_get_table_id */
-  /* @} */
+  /** @} */
 };
 
 /** This structure represents INFORMATION_SCHEMA.innodb_trx row */

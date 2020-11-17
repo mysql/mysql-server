@@ -56,8 +56,8 @@ extern SERVICE_TYPE(psi_idle_v1)
     SERVICE_IMPLEMENTATION(performance_schema, psi_idle_v1);
 extern SERVICE_TYPE(psi_mdl_v1)
     SERVICE_IMPLEMENTATION(performance_schema, psi_mdl_v1);
-extern SERVICE_TYPE(psi_memory_v1)
-    SERVICE_IMPLEMENTATION(performance_schema, psi_memory_v1);
+extern SERVICE_TYPE(psi_memory_v2)
+    SERVICE_IMPLEMENTATION(performance_schema, psi_memory_v2);
 extern SERVICE_TYPE(psi_mutex_v1)
     SERVICE_IMPLEMENTATION(performance_schema, psi_mutex_v1);
 extern SERVICE_TYPE(psi_rwlock_v2)
@@ -75,8 +75,8 @@ extern SERVICE_TYPE(psi_system_v1)
     SERVICE_IMPLEMENTATION(performance_schema, psi_system_v1);
 extern SERVICE_TYPE(psi_table_v1)
     SERVICE_IMPLEMENTATION(performance_schema, psi_table_v1);
-extern SERVICE_TYPE(psi_thread_v3)
-    SERVICE_IMPLEMENTATION(performance_schema, psi_thread_v3);
+extern SERVICE_TYPE(psi_thread_v4)
+    SERVICE_IMPLEMENTATION(performance_schema, psi_thread_v4);
 extern SERVICE_TYPE(psi_transaction_v1)
     SERVICE_IMPLEMENTATION(performance_schema, psi_transaction_v1);
 extern SERVICE_TYPE(psi_tls_channel_v1)

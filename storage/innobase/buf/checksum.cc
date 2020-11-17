@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -494,7 +494,7 @@ uint32_t BlockReporter::calc_zip_checksum(
 
 /** Calculate the compressed page checksum. This variant
 should be used when only the page_size_t is unknown and
-only physical page_size of compressed page is available
+only physical page_size of compressed page is available.
 @param[in]	read_buf		buffer holding the page
 @param[in]	phys_page_size		physical page size
 @param[in]	algo			checksum algorithm to use

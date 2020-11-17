@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -6464,7 +6464,7 @@ ER_LOCK_ABORTED
 ER_DATA_OUT_OF_RANGE 22003
   eng "%s value is out of range in '%s'"
 
-ER_WRONG_SPVAR_TYPE_IN_LIMIT
+OBSOLETE_ER_WRONG_SPVAR_TYPE_IN_LIMIT
   eng "A variable of a non-integer based type in LIMIT clause"
 
 ER_BINLOG_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE
@@ -9369,12 +9369,81 @@ ER_INNODB_REDO_ARCHIVING_ENABLED
 ER_MDL_OUT_OF_RESOURCES
   eng "Not enough resources to complete lock request."
 
-
 ER_IMPLICIT_COMPARISON_FOR_JSON
   eng "Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING"
 
 ER_FUNCTION_DOES_NOT_SUPPORT_CHARACTER_SET
   eng "The function %s does not support the character set '%s'."
+
+ER_IMPOSSIBLE_STRING_CONVERSION
+  eng "Conversion from collation %s into %s impossible for %s"
+
+ER_SCHEMA_READ_ONLY
+  eng "Schema '%s' is in read only mode."
+
+ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF
+  eng "Failed to enable Asynchronous Replication Connection Failover feature. The CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 1 can only be set when @@GLOBAL.GTID_MODE = ON."
+
+ER_RPL_ASYNC_RECONNECT_AUTO_POSITION_OFF
+  eng "Failed to enable Asynchronous Replication Connection Failover feature. The CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 1 can only be set when MASTER_AUTO_POSITION option of CHANGE MASTER TO is enabled."
+
+ER_DISABLE_GTID_MODE_REQUIRES_ASYNC_RECONNECT_OFF
+  eng "The @@GLOBAL.GTID_MODE = %-.64s cannot be executed because Asynchronous Replication Connection Failover is enabled i.e. CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 1."
+
+ER_DISABLE_AUTO_POSITION_REQUIRES_ASYNC_RECONNECT_OFF
+  eng "CHANGE MASTER TO MASTER_AUTO_POSITION = 0 cannot be executed because Asynchronous Replication Connection Failover is enabled i.e. CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 1."
+
+ER_INVALID_PARAMETER_USE
+  eng "Invalid use of parameters in '%s'"
+
+ER_CHARACTER_SET_MISMATCH
+  eng "Character set '%s' cannot be used in conjunction with '%s' in call to %s."
+
+ER_WARN_VAR_VALUE_CHANGE_NOT_SUPPORTED
+  eng "Changing %s not supported on this platform. Falling back to the default."
+
+ER_INVALID_TIME_ZONE_INTERVAL
+  eng "Invalid time zone interval: '%s'"
+
+ER_INVALID_CAST
+  eng "Cannot cast value to %s."
+
+ER_HYPERGRAPH_NOT_SUPPORTED_YET 42000
+  eng "The hypergraph optimizer does not yet support '%s'"
+
+ER_WARN_HYPERGRAPH_EXPERIMENTAL
+  eng "The hypergraph optimizer is highly experimental and is meant for testing only. Do not enable it unless you are a MySQL developer."
+
+ER_DA_NO_ERROR_LOG_PARSER_CONFIGURED
+  eng "None of the log-sinks selected with --log-error-services=... provides a log-parser. The server will not be able to make the previous runs' error-logs available in performance_schema.error_log."
+
+ER_DA_ERROR_LOG_TABLE_DISABLED
+  eng "None of the log-sinks selected in @@global.log_error_services supports writing to the performance schema. The server will not be able to make the current runs' error events available in performance_schema.error_log. To change this, add a log-sink that supports the performance schema to @@global.log_error_services."
+
+ER_DA_ERROR_LOG_MULTIPLE_FILTERS
+  eng "@@global.log_error_services lists more than one log-filter service. This is discouraged as it will make it hard to understand which rule in which filter affected a log-event."
+
+ER_DA_CANT_OPEN_ERROR_LOG
+  eng "Could not open file '%s' for error logging%s%s"
+
+ER_USER_REFERENCED_AS_DEFINER
+  eng "User %.256s is referenced as a definer account in %s."
+
+ER_CANNOT_USER_REFERENCED_AS_DEFINER
+  eng "Operation %s failed for %.256s as it is referenced as a definer account in %s."
+
+ER_REGEX_NUMBER_TOO_BIG
+  eng "Decimal number in regular expression is too large."
+
+# When using this error message, use the ER_PARSE_ERROR message
+ER_SPVAR_NONINTEGER_TYPE
+  eng "The variable \"%s\" has a non-integer based type"
+
+WARN_UNSUPPORTED_ACL_TABLES_READ
+  eng "Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables."
+
+ER_BINLOG_UNSAFE_ACL_TABLE_READ_IN_DML_DDL
+  eng "The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave."
 
 #
 #  End of 8.0 error messages (server-to-client).

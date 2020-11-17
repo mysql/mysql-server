@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -870,7 +870,7 @@ public:
 
 public:
   Dbdict(Block_context& ctx);
-  virtual ~Dbdict();
+  ~Dbdict() override;
 
 private:
   BLOCK_DEFINES(Dbdict);
@@ -4821,7 +4821,7 @@ public:
   void startNextGetTabInfoReq(Signal*);
 
 protected:
-  virtual bool getParam(const char * param, Uint32 * retVal);
+  bool getParam(const char * param, Uint32 * retVal) override;
 private:
   ArenaAllocator c_arenaAllocator;
   Uint32 c_noOfMetaTables;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,11 @@
   EXPLAIN FORMAT=@<format@> @<command@>.
 */
 
-#include <string.h>
 #include <sys/types.h>
 
+#include <cstring>
+
+#include "my_alloc.h"  // MEM_ROOT
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -43,7 +45,6 @@ class Opt_trace_object;
 class Query_result;
 class SELECT_LEX_UNIT;
 class Window;
-struct MEM_ROOT;
 
 enum class enum_explain_type;
 
@@ -360,17 +361,17 @@ class qep_row {
   void cleanup() {
     col_id.cleanup();
     col_table_name.cleanup();
-    col_partitions.empty();
+    col_partitions.clear();
     col_join_type.cleanup();
-    col_possible_keys.empty();
+    col_possible_keys.clear();
     col_key.cleanup();
     col_key_len.cleanup();
-    col_ref.empty();
+    col_ref.clear();
     col_filtered.cleanup();
-    col_extra.empty();
+    col_extra.clear();
     col_message.cleanup();
     col_attached_condition.cleanup();
-    col_key_parts.empty();
+    col_key_parts.clear();
 
     col_rows.cleanup();
     col_prefix_rows.cleanup();
@@ -386,7 +387,7 @@ class qep_row {
       just for the consistency).
     */
     query_block_id = 0;
-    derived_from.empty();
+    derived_from.clear();
     is_dependent = false;
     is_cacheable = true;
     using_temporary = false;

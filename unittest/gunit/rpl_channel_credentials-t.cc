@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@ class CredentialStructTesting : public ::testing::Test {
  protected:
   CredentialStructTesting() {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     user[0] = 0;
     pass[0] = 0;
     auth[0] = 0;
@@ -43,7 +43,7 @@ class CredentialStructTesting : public ::testing::Test {
     strcpy(auth, "authentication");
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     user[0] = 0;
     pass[0] = 0;
     auth[0] = 0;

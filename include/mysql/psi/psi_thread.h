@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -55,16 +55,23 @@
 /**
   @def PSI_THREAD_VERSION_3
   Performance Schema Thread Interface number for version 3.
-  This version is supported.
+  This version is obsolete.
 */
 #define PSI_THREAD_VERSION_3 3
 
 /**
+  @def PSI_THREAD_VERSION_4
+  Performance Schema Thread Interface number for version 4.
+  This version is supported.
+*/
+#define PSI_THREAD_VERSION_4 4
+
+/**
   @def PSI_CURRENT_THREAD_VERSION
   Performance Schema Thread Interface number for the most recent version.
-  The most current version is @c PSI_THREAD_VERSION_3
+  The most current version is @c PSI_THREAD_VERSION_4
 */
-#define PSI_CURRENT_THREAD_VERSION 3
+#define PSI_CURRENT_THREAD_VERSION 4
 
 /** Entry point for the performance schema interface. */
 struct PSI_thread_bootstrap {
@@ -75,6 +82,7 @@ struct PSI_thread_bootstrap {
     @sa PSI_THREAD_VERSION_1
     @sa PSI_THREAD_VERSION_2
     @sa PSI_THREAD_VERSION_3
+    @sa PSI_THREAD_VERSION_4
     @sa PSI_CURRENT_THREAD_VERSION
   */
   void *(*get_interface)(int version);
@@ -84,10 +92,10 @@ typedef struct PSI_thread_bootstrap PSI_thread_bootstrap;
 #ifdef HAVE_PSI_THREAD_INTERFACE
 
 /**
-  Performance Schema Thread Interface, version 3.
-  @since PSI_THREAD_VERSION_3
+  Performance Schema Thread Interface, version 4.
+  @since PSI_THREAD_VERSION_4
 */
-struct PSI_thread_service_v3 {
+struct PSI_thread_service_v4 {
   /** @sa register_thread_v1_t. */
   register_thread_v1_t register_thread;
   /** @sa spawn_thread_v1_t. */
@@ -128,6 +136,8 @@ struct PSI_thread_service_v3 {
   set_thread_resource_group_by_id_v1_t set_thread_resource_group_by_id;
   /** @sa set_thread_v1_t. */
   set_thread_v1_t set_thread;
+  /** @sa set_thread_peer_port_vc_t. */
+  set_thread_peer_port_v4_t set_thread_peer_port;
   /** @sa aggregate_thread_status_v1_t. */
   aggregate_thread_status_v2_t aggregate_thread_status;
   /** @sa delete_current_thread_v1_t. */
@@ -156,7 +166,7 @@ struct PSI_thread_service_v3 {
   notify_session_change_user_v1_t notify_session_change_user;
 };
 
-typedef struct PSI_thread_service_v3 PSI_thread_service_t;
+typedef struct PSI_thread_service_v4 PSI_thread_service_t;
 
 extern MYSQL_PLUGIN_IMPORT PSI_thread_service_t *psi_thread_service;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -30,6 +30,7 @@
 #include <vector>
 
 #include "m_ctype.h"
+#include "mf_wcomp.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -474,6 +475,29 @@ void Security_context::get_active_roles(THD *thd, List<LEX_USER> &list) {
   }
 }
 
+/**
+  Get grant information for given database
+
+  Cached database access is split into two containers:
+  1. Database names without wildcards
+  2. Database names with wildcards
+
+  First we perform the exact name comprison.
+  If that returns the result, all good.
+
+  Otherwise, we take a look at each db in second list
+  and compare incoming database name against it.
+  If patial_revokes is OFF, use_pattern_scan flag is
+  passed to wild_compare. This would allow incoming
+  database name like db1name to match against wild card
+  db entry db_name/db%name.
+
+  @param [in] db               Name of the database
+  @param [in] use_pattern_scan Flag to treat database name as pattern
+
+  @returns Access granted to user for given database
+*/
+
 ulong Security_context::db_acl(LEX_CSTRING db, bool use_pattern_scan) const {
   DBUG_TRACE;
   if (m_acl_map == nullptr || db.length == 0) return 0;
@@ -481,31 +505,26 @@ ulong Security_context::db_acl(LEX_CSTRING db, bool use_pattern_scan) const {
   std::string key(db.str, db.length);
   Db_access_map::iterator found_acl_it = m_acl_map->db_acls()->find(key);
   if (found_acl_it == m_acl_map->db_acls()->end()) {
-    if (use_pattern_scan) {
-      Db_access_map::iterator it = m_acl_map->db_wild_acls()->begin();
-      ulong access = 0;
-      for (; it != m_acl_map->db_wild_acls()->end(); ++it) {
-        /*
-          Do the usual string comparision if partial_revokes is ON,
-          otherwise do the wildcard grant comparision
-        */
-        if (mysqld_partial_revokes()
-                ? (my_strcasecmp(system_charset_info, db.str,
-                                 it->first.c_str()) == 0)
-                : (wild_case_compare(system_charset_info, db.str, db.length,
-                                     it->first.c_str(),
-                                     it->first.size()) == 0)) {
-          DBUG_PRINT("info", ("Found matching db pattern %s for key %s",
-                              it->first.c_str(), key.c_str()));
-          access |= it->second;
-        }
+    Db_access_map::iterator it = m_acl_map->db_wild_acls()->begin();
+    ulong access = 0;
+    for (; it != m_acl_map->db_wild_acls()->end(); ++it) {
+      /*
+        Do the usual string comparision if partial_revokes is ON,
+        otherwise do the wildcard grant comparision
+      */
+      if (mysqld_partial_revokes()
+              ? (my_strcasecmp(system_charset_info, db.str,
+                               it->first.c_str()) == 0)
+              : (wild_compare(db.str, db.length, it->first.c_str(),
+                              it->first.size(), use_pattern_scan)) == 0) {
+        DBUG_PRINT("info", ("Found matching db pattern %s for key %s",
+                            it->first.c_str(), key.c_str()));
+        access |= it->second;
+        return filter_access(access, key);
       }
-      return filter_access(access, key);
-    } else {
-      DBUG_PRINT("info", ("Db %s not found in cache (no pattern matching)",
-                          key.c_str()));
-      return 0;
     }
+    DBUG_PRINT("info", ("Db %s not found in cache", key.c_str()));
+    return 0;
   } else {
     DBUG_PRINT("info", ("Found exact match for db %s", key.c_str()));
     return filter_access(found_acl_it->second, key);
@@ -713,6 +732,8 @@ std::pair<bool, bool> Security_context::has_global_grant(
                                     auth_id.
                                     true  - consider as privilege exists
                                     false - consider as privilege do not exist
+  @param  [in]  throw_error         Flag to decide if error needs to be thrown
+  or not.
 
   @retval true    auth_id has the privilege but the current_auth does not, also
                   throws error.
@@ -721,7 +742,8 @@ std::pair<bool, bool> Security_context::has_global_grant(
 bool Security_context::can_operate_with(const Auth_id &auth_id,
                                         const std::string &privilege,
                                         bool cumulative /*= false */,
-                                        bool ignore_if_nonextant /*= true */) {
+                                        bool ignore_if_nonextant /*= true */,
+                                        bool throw_error /* = true */) {
   DBUG_TRACE;
   Acl_cache_lock_guard acl_cache_lock(current_thd,
                                       Acl_cache_lock_mode::READ_MODE);
@@ -736,7 +758,8 @@ bool Security_context::can_operate_with(const Auth_id &auth_id,
     if (ignore_if_nonextant)
       return false;
     else {
-      my_error(ER_USER_DOES_NOT_EXIST, MYF(0), auth_id.auth_str().c_str());
+      if (throw_error)
+        my_error(ER_USER_DOES_NOT_EXIST, MYF(0), auth_id.auth_str().c_str());
       return true;
     }
   }
@@ -748,7 +771,8 @@ bool Security_context::can_operate_with(const Auth_id &auth_id,
                       : true;
   }
   if (is_mismatch) {
-    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), privilege.c_str());
+    if (throw_error)
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), privilege.c_str());
   }
   return is_mismatch;
 }

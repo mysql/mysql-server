@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -94,7 +94,7 @@ MATCHER_P(Eq_info, param, "") {
 
 class Callback_command_delegate_testsuite : public Test {
  public:
-  void SetUp() { m_sut.reset(new Callback_command_delegate()); }
+  void SetUp() override { m_sut.reset(new Callback_command_delegate()); }
 
   void create_sut_with_callback_mock() {
     Callback_command_delegate::Start_row_callback start_row =

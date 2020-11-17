@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,11 +34,11 @@
 class DbtupProxy : public LocalProxy {
 public:
   DbtupProxy(Block_context& ctx);
-  virtual ~DbtupProxy();
+  ~DbtupProxy() override;
   BLOCK_DEFINES(DbtupProxy);
 
 protected:
-  virtual SimulatedBlock* newWorker(Uint32 instanceNo);
+  SimulatedBlock* newWorker(Uint32 instanceNo) override;
 
   class Pgman* c_pgman; // PGMAN proxy
   class Tsman *c_tsman;
@@ -47,10 +47,10 @@ protected:
   Uint32* c_tableRec;    // bool => table exists
 
   // GSN_READ_CONFIG_REQ
-  virtual void callREAD_CONFIG_REQ(Signal*);
+  void callREAD_CONFIG_REQ(Signal*) override;
 
   // GSN_STTOR
-  virtual void callSTTOR(Signal*);
+  void callSTTOR(Signal*) override;
 
   // GSN_CREATE_TAB_REQ
   void execCREATE_TAB_REQ(Signal*);

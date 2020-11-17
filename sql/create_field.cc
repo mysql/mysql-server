@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,12 +31,6 @@
 #include "template_utils.h"
 
 #include <cmath>
-
-// Definition of static constexpr data members in Create_field.
-constexpr size_t Create_field::TINYBLOB_MAX_SIZE_IN_BYTES;
-constexpr size_t Create_field::BLOB_MAX_SIZE_IN_BYTES;
-constexpr size_t Create_field::MEDIUMBLOB_MAX_SIZE_IN_BYTES;
-constexpr size_t Create_field::LONGBLOB_MAX_SIZE_IN_BYTES;
 
 /**
     Constructs a column definition from an object representing an actual
@@ -256,7 +250,7 @@ bool Create_field::init(
   change = fld_change;
   interval = nullptr;
   geom_type = static_cast<Field::geometry_type>(fld_geom_type);
-  interval_list.empty();
+  interval_list.clear();
 
   comment = *fld_comment;
   gcol_info = fld_gcol_info;
@@ -354,6 +348,8 @@ bool Create_field::init(
       allowed_type_modifier = AUTO_INCREMENT_FLAG;
       break;
     case MYSQL_TYPE_NULL:
+    case MYSQL_TYPE_INVALID:
+    case MYSQL_TYPE_BOOL:
       break;
     case MYSQL_TYPE_NEWDECIMAL: {
       ulong precision = static_cast<ulong>(m_max_display_width_in_codepoints);
@@ -657,19 +653,19 @@ size_t Create_field::max_display_width_in_codepoints() const {
     return std::min(max_display_width_in_codepoints,
                     static_cast<size_t>(MAX_FIELD_WIDTH - 1));
   } else if (sql_type == MYSQL_TYPE_TINY_BLOB) {
-    return TINYBLOB_MAX_SIZE_IN_BYTES / charset->mbmaxlen;
+    return Field::MAX_TINY_BLOB_WIDTH / charset->mbmaxlen;
   } else if (sql_type == MYSQL_TYPE_BLOB && !explicit_display_width()) {
     // For BLOB and TEXT, the user can give a display width explicitly in CREATE
     // TABLE (BLOB(25), TEXT(25)) where the expected behavior is that the server
     // will find the smallest possible BLOB/TEXT type that will fit the given
     // display width. If the user has given an explicit display width, return
     // that instead of the max BLOB size.
-    return BLOB_MAX_SIZE_IN_BYTES / charset->mbmaxlen;
+    return Field::MAX_SHORT_BLOB_WIDTH / charset->mbmaxlen;
   } else if (sql_type == MYSQL_TYPE_MEDIUM_BLOB) {
-    return MEDIUMBLOB_MAX_SIZE_IN_BYTES / charset->mbmaxlen;
+    return Field::MAX_MEDIUM_BLOB_WIDTH / charset->mbmaxlen;
   } else if (sql_type == MYSQL_TYPE_LONG_BLOB || sql_type == MYSQL_TYPE_JSON ||
              sql_type == MYSQL_TYPE_GEOMETRY) {
-    return LONGBLOB_MAX_SIZE_IN_BYTES / charset->mbmaxlen;
+    return Field::MAX_LONG_BLOB_WIDTH / charset->mbmaxlen;
   } else {
     return m_max_display_width_in_codepoints;
   }
@@ -689,29 +685,29 @@ size_t Create_field::max_display_width_in_bytes() const {
     // Numeric types, temporal types, YEAR or BIT are never multi-byte.
     return max_display_width_in_codepoints();
   } else if (sql_type == MYSQL_TYPE_TINY_BLOB) {
-    return TINYBLOB_MAX_SIZE_IN_BYTES;
+    return Field::MAX_TINY_BLOB_WIDTH;
   } else if (sql_type == MYSQL_TYPE_BLOB && !explicit_display_width()) {
     // For BLOB and TEXT, the user can give a display width (BLOB(25), TEXT(25))
     // where the expected behavior is that the server will find the smallest
     // possible BLOB/TEXT type that will fit the given display width. If the
     // user has given an explicit display width, return that instead of the
     // max BLOB size.
-    return BLOB_MAX_SIZE_IN_BYTES;
+    return Field::MAX_SHORT_BLOB_WIDTH;
   } else if (sql_type == MYSQL_TYPE_MEDIUM_BLOB) {
-    return MEDIUMBLOB_MAX_SIZE_IN_BYTES;
+    return Field::MAX_MEDIUM_BLOB_WIDTH;
   } else if (sql_type == MYSQL_TYPE_LONG_BLOB || sql_type == MYSQL_TYPE_JSON ||
              sql_type == MYSQL_TYPE_GEOMETRY) {
-    return LONGBLOB_MAX_SIZE_IN_BYTES;
+    return Field::MAX_LONG_BLOB_WIDTH;
   } else {
     // If the user has given a display width to the TEXT type where the display
     // width is 2^32-1, the below computation will exceed
-    // LONGBLOB_MAX_SIZE_IN_BYTES if the character set is multi-byte. So we must
+    // MAX_LONG_BLOB_WIDTH if the character set is multi-byte. So we must
     // ensure that we never return a value greater than
-    // LONGBLOB_MAX_SIZE_IN_BYTES.
+    // MAX_LONG_BLOB_WIDTH.
     std::int64_t display_width = max_display_width_in_codepoints() *
                                  static_cast<std::int64_t>(charset->mbmaxlen);
     return static_cast<size_t>(std::min(
-        display_width, static_cast<std::int64_t>(LONGBLOB_MAX_SIZE_IN_BYTES)));
+        display_width, static_cast<std::int64_t>(Field::MAX_LONG_BLOB_WIDTH)));
   }
 }
 

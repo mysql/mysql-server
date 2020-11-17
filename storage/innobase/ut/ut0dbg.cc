@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -47,12 +47,12 @@ void ut_set_assert_callback(std::function<void()> &callback) {
   assert_callback = callback;
 }
 
-/** Report a failed assertion. */
-[[noreturn]] void ut_dbg_assertion_failed(
-    const char *expr, /*!< in: the failed assertion (optional) */
-    const char *file, /*!< in: source file containing the assertion */
-    ulint line)       /*!< in: line number of the assertion */
-{
+/** Report a failed assertion.
+@param[in] expr The failed assertion
+@param[in] file Source file containing the assertion
+@param[in] line Line number of the assertion */
+[[noreturn]] void ut_dbg_assertion_failed(const char *expr, const char *file,
+                                          ulint line) {
 #if !defined(UNIV_HOTBACKUP) && !defined(UNIV_NO_ERR_MSGS)
   ib::error(ER_IB_MSG_1273)
       << "Assertion failure: " << innobase_basename(file) << ":" << line

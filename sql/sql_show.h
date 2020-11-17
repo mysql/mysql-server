@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,13 +29,16 @@
 #include "lex_string.h"
 #include "my_inttypes.h"
 #include "mysql/status_var.h"
+#include "sql/sql_select.h"
 #include "typelib.h"
 
 /* Forward declarations */
+class Item;
 class JOIN;
 class QEP_TAB;
 class SELECT_LEX;
 class String;
+class Table_ident;
 class THD;
 class sp_name;
 struct CHARSET_INFO;
@@ -139,7 +142,457 @@ void show_sql_type(enum_field_types type, bool is_array, uint metadata,
                    String *str, const CHARSET_INFO *field_cs = nullptr);
 
 bool do_fill_information_schema_table(THD *thd, TABLE_LIST *table_list,
-                                      QEP_TAB *qep_tab);
+                                      Item *condition);
 
 extern TYPELIB grant_types;
+
+/**
+  Sql_cmd_show represents the SHOW statements that are implemented
+  as SELECT statements internally.
+  Normally, preparation and execution is the same as for regular SELECT
+  statements.
+*/
+class Sql_cmd_show : public Sql_cmd_select {
+ public:
+  Sql_cmd_show(enum_sql_command sql_command)
+      : Sql_cmd_select(nullptr), m_sql_command(sql_command) {}
+  enum_sql_command sql_command_code() const override { return m_sql_command; }
+  virtual bool check_parameters(THD *) { return false; }
+  /// Generally, the SHOW commands do not distinguish precheck and regular check
+  bool precheck(THD *thd) override { return check_privileges(thd); }
+  bool check_privileges(THD *) override;
+  bool execute(THD *thd) override;
+
+ protected:
+  // Use for SHOW commands that operate on a single table.
+  bool check_privileges_for_table(THD *thd, bool is_temporary);
+  enum_sql_command m_sql_command;
+};
+
+/**
+  Common base class: Represents commands that are not represented by
+  a plan that iss equivalent to a SELECT statement.
+
+  This class has a common execution framework with an execute() function
+  that calls check_privileges() and execute_inner().
+*/
+class Sql_cmd_show_noplan : public Sql_cmd_show {
+ protected:
+  Sql_cmd_show_noplan(enum_sql_command sql_command)
+      : Sql_cmd_show(sql_command) {}
+  bool execute(THD *thd) override {
+    lex = thd->lex;
+    if (check_privileges(thd)) return true;
+    if (execute_inner(thd)) return true;
+    return false;
+  }
+};
+
+/// Common base class: Represents commands that operate on a schema (database)
+
+class Sql_cmd_show_schema_base : public Sql_cmd_show {
+ public:
+  Sql_cmd_show_schema_base(enum_sql_command command) : Sql_cmd_show(command) {}
+  bool check_privileges(THD *thd) override;
+  bool check_parameters(THD *thd) override;
+  bool set_metadata_lock(THD *thd);
+};
+
+/// Common base class: Represents the SHOW COLUMNS and SHOW KEYS statements.
+
+class Sql_cmd_show_table_base : public Sql_cmd_show {
+ public:
+  Sql_cmd_show_table_base(enum_sql_command command) : Sql_cmd_show(command) {}
+  bool check_privileges(THD *thd) override;
+  bool check_parameters(THD *thd) override;
+
+  bool m_temporary;  ///< True if table to be analyzed is temporary
+};
+
+/// Represents SHOW FUNCTION CODE and SHOW PROCEDURE CODE statements.
+
+class Sql_cmd_show_routine_code final : public Sql_cmd_show_noplan {
+ public:
+  Sql_cmd_show_routine_code(enum_sql_command sql_command,
+                            const sp_name *routine_name)
+      : Sql_cmd_show_noplan(sql_command), m_routine_name(routine_name) {}
+  bool check_privileges(THD *thd) override;
+  bool execute_inner(THD *thd) override;
+
+ private:
+  const sp_name *m_routine_name;
+};
+
+/// Following are all subclasses of class Sql_cmd_show, in alphabetical order
+
+/// Represents SHOW BINLOG EVENTS statement.
+
+class Sql_cmd_show_binlog_events : public Sql_cmd_show_noplan {
+ public:
+  Sql_cmd_show_binlog_events()
+      : Sql_cmd_show_noplan(SQLCOM_SHOW_BINLOG_EVENTS) {}
+  bool check_privileges(THD *thd) override;
+  bool execute_inner(THD *thd) override;
+
+ private:
+  // binlog_in
+  // binlog_from
+  // opt_limit
+};
+
+/// Represents SHOW BINARY LOGS statement.
+
+class Sql_cmd_show_binlogs : public Sql_cmd_show_noplan {
+ public:
+  Sql_cmd_show_binlogs() : Sql_cmd_show_noplan(SQLCOM_SHOW_BINLOGS) {}
+  bool check_privileges(THD *thd) override;
+  bool execute_inner(THD *thd) override;
+};
+
+/// Represents SHOW CHARACTER SET statement.
+
+class Sql_cmd_show_charsets : public Sql_cmd_show {
+ public:
+  Sql_cmd_show_charsets() : Sql_cmd_show(SQLCOM_SHOW_CHARSETS) {}
+};
+
+/// Represents SHOW COLLATION statement.
+
+class Sql_cmd_show_collations : public Sql_cmd_show {
+ public:
+  Sql_cmd_show_collations() : Sql_cmd_show(SQLCOM_SHOW_COLLATIONS) {}
+};
+
+/// Represents SHOW COLUMNS statement.
+
+class Sql_cmd_show_columns : public Sql_cmd_show_table_base {
+ public:
+  Sql_cmd_show_columns() : Sql_cmd_show_table_base(SQLCOM_SHOW_FIELDS) {}
+};
+
+/// Represents SHOW CREATE DATABASE statement.
+
+class Sql_cmd_show_create_database : public Sql_cmd_show_noplan {
+ public:
+  Sql_cmd_show_create_database() : Sql_cmd_show_noplan(SQLCOM_SHOW_CREATE_DB) {}
+  bool check_privileges(THD *thd) override;
+  bool execute_inner(THD *thd) override;
+};
+
+/// Represents SHOW CREATE EVENT statement.
+
+class Sql_cmd_show_create_event : public Sql_cmd_show_noplan {
+ public:
+  Sql_cmd_show_create_event() : Sql_cmd_show_noplan(SQLCOM_SHOW_CREATE_EVENT) {}
+  bool check_privileges(THD *thd) override;
+  bool execute_inner(THD *thd) override;
+};
+
+/// Represents SHOW CREATE FUNCTION statement.
+
+class Sql_cmd_show_create_function : public Sql_cmd_show_noplan {
+ public:
+  Sql_cmd_show_create_function()
+      : Sql_cmd_show_noplan(SQLCOM_SHOW_CREATE_FUNC) {}
+  bool check_privileges(THD *thd) override;
+  bool execute_inner(THD *thd) override;
+};
+
+/// Represents SHOW CREATE PROCEDURE statement.
+
+class Sql_cmd_show_create_procedure : public Sql_cmd_show_noplan {
+ public:
+  Sql_cmd_show_create_procedure()
+      : Sql_cmd_show_noplan(SQLCOM_SHOW_CREATE_PROC) {}
+  bool check_privileges(THD *thd) override;
+  bool execute_inner(THD *thd) override;
+};
+
+/// Represents SHOW CREATE TABLE/VIEW statement.
+
+class Sql_cmd_show_create_table : public Sql_cmd_show_noplan {
+ public:
+  Sql_cmd_show_create_table(bool is_view, Table_ident *table_ident)
+      : Sql_cmd_show_noplan(SQLCOM_SHOW_CREATE),
+        m_is_view(is_view),
+        m_table_ident(table_ident) {}
+  bool check_privileges(THD *thd) override;
+  bool execute_inner(THD *thd) override;
+
+ private:
+  const bool m_is_view;
+  Table_ident *const m_table_ident;
+};
+
+/// Represents SHOW CREATE TRIGGER statement.
+
+class Sql_cmd_show_create_trigger : public Sql_cmd_show_noplan {
+ public:
+  Sql_cmd_show_create_trigger()
+      : Sql_cmd_show_noplan(SQLCOM_SHOW_CREATE_TRIGGER) {}
+  bool check_privileges(THD *thd) override;
+  bool execute_inner(THD *thd) override;
+};
+
+/// Represents SHOW CREATE USER statement.
+
+class Sql_cmd_show_create_user : public Sql_cmd_show {
+ public:
+  Sql_cmd_show_create_user() : Sql_cmd_show(SQLCOM_SHOW_CREATE_USER) {}
+  bool check_privileges(THD *thd) override;
+  bool execute_inner(THD *thd) override;
+};
+
+/// Represents SHOW DATABASES statement.
+
+class Sql_cmd_show_databases : public Sql_cmd_show {
+ public:
+  Sql_cmd_show_databases() : Sql_cmd_show(SQLCOM_SHOW_DATABASES) {}
+  bool check_privileges(THD *thd) override;
+};
+
+/// Represents SHOW ENGINE LOGS statement.
+
+class Sql_cmd_show_engine_logs : public Sql_cmd_show_noplan {
+ public:
+  Sql_cmd_show_engine_logs() : Sql_cmd_show_noplan(SQLCOM_SHOW_ENGINE_LOGS) {}
+  bool check_privileges(THD *thd) override;
+  bool execute_inner(THD *thd) override;
+};
+
+/// Represents SHOW ENGINE MUTEX statement.
+
+class Sql_cmd_show_engine_mutex : public Sql_cmd_show_noplan {
+ public:
+  Sql_cmd_show_engine_mutex() : Sql_cmd_show_noplan(SQLCOM_SHOW_ENGINE_MUTEX) {}
+  bool check_privileges(THD *thd) override;
+  bool execute_inner(THD *thd) override;
+};
+
+/// Represents SHOW ENGINE STATUS statement.
+
+class Sql_cmd_show_engine_status : public Sql_cmd_show_noplan {
+ public:
+  Sql_cmd_show_engine_status()
+      : Sql_cmd_show_noplan(SQLCOM_SHOW_ENGINE_STATUS) {}
+  bool check_privileges(THD *thd) override;
+  bool execute_inner(THD *thd) override;
+};
+
+/// Represents SHOW STORAGE ENGINES statement.
+
+class Sql_cmd_show_engines : public Sql_cmd_show {
+ public:
+  Sql_cmd_show_engines() : Sql_cmd_show(SQLCOM_SHOW_STORAGE_ENGINES) {}
+};
+
+/// Represents SHOW ERRORS statement.
+
+class Sql_cmd_show_errors : public Sql_cmd_show_noplan {
+ public:
+  Sql_cmd_show_errors() : Sql_cmd_show_noplan(SQLCOM_SHOW_ERRORS) {}
+  bool execute_inner(THD *thd) override {
+    return mysqld_show_warnings(thd, 1UL << (uint)Sql_condition::SL_ERROR);
+  }
+};
+
+/// Represents SHOW EVENTS statement.
+
+class Sql_cmd_show_events : public Sql_cmd_show_schema_base {
+ public:
+  Sql_cmd_show_events() : Sql_cmd_show_schema_base(SQLCOM_SHOW_EVENTS) {}
+  bool check_privileges(THD *thd) override;
+  // To enable error message for unknown database, delete the below function.
+  bool check_parameters(THD *) override { return false; }
+};
+
+/// Represents SHOW GRANTS statement.
+
+class Sql_cmd_show_grants : public Sql_cmd_show_noplan {
+ public:
+  Sql_cmd_show_grants(const LEX_USER *for_user_arg,
+                      const List<LEX_USER> *using_users_arg)
+      : Sql_cmd_show_noplan(SQLCOM_SHOW_GRANTS),
+        for_user(for_user_arg),
+        using_users(using_users_arg) {}
+
+  bool check_privileges(THD *thd) override;
+  bool execute_inner(THD *thd) override;
+
+ private:
+  const LEX_USER *for_user;
+  const List<LEX_USER> *using_users;
+};
+
+/// Represents the SHOW INDEX statement.
+
+class Sql_cmd_show_keys : public Sql_cmd_show_table_base {
+ public:
+  Sql_cmd_show_keys() : Sql_cmd_show_table_base(SQLCOM_SHOW_KEYS) {}
+};
+
+/// Represents SHOW MASTER STATUS statement.
+
+class Sql_cmd_show_master_status : public Sql_cmd_show_noplan {
+ public:
+  Sql_cmd_show_master_status() : Sql_cmd_show_noplan(SQLCOM_SHOW_MASTER_STAT) {}
+  bool check_privileges(THD *thd) override;
+  bool execute_inner(THD *thd) override;
+};
+
+/// Represents SHOW OPEN TABLES statement.
+
+class Sql_cmd_show_open_tables : public Sql_cmd_show {
+ public:
+  Sql_cmd_show_open_tables() : Sql_cmd_show(SQLCOM_SHOW_OPEN_TABLES) {}
+};
+
+/// Represents SHOW PLUGINS statement.
+
+class Sql_cmd_show_plugins : public Sql_cmd_show {
+ public:
+  Sql_cmd_show_plugins() : Sql_cmd_show(SQLCOM_SHOW_PLUGINS) {}
+};
+
+/// Represents SHOW PRIVILEGES statement.
+
+class Sql_cmd_show_privileges : public Sql_cmd_show_noplan {
+ public:
+  Sql_cmd_show_privileges() : Sql_cmd_show_noplan(SQLCOM_SHOW_PRIVILEGES) {}
+  bool execute_inner(THD *thd) override;
+};
+
+/// Represents SHOW PROCESSLIST statement.
+
+class Sql_cmd_show_processlist : public Sql_cmd_show {
+ public:
+  Sql_cmd_show_processlist() : Sql_cmd_show(SQLCOM_SHOW_PROCESSLIST) {}
+  explicit Sql_cmd_show_processlist(bool verbose)
+      : Sql_cmd_show(SQLCOM_SHOW_PROCESSLIST), m_verbose(verbose) {}
+  bool check_privileges(THD *thd) override;
+  bool execute_inner(THD *thd) override;
+
+  void set_use_pfs(bool use_pfs) { m_use_pfs = use_pfs; }
+  bool verbose() const { return m_verbose; }
+
+ private:
+  bool use_pfs() { return m_use_pfs; }
+  bool execute_with_performance_schema(THD *thd);
+
+  const bool m_verbose{false};
+  bool m_use_pfs{false};
+};
+
+/// Represents SHOW PROFILE statement.
+
+class Sql_cmd_show_profile : public Sql_cmd_show {
+ public:
+  Sql_cmd_show_profile() : Sql_cmd_show(SQLCOM_SHOW_PROFILE) {}
+};
+
+/// Represents SHOW PROFILES statement.
+
+class Sql_cmd_show_profiles : public Sql_cmd_show_noplan {
+ public:
+  Sql_cmd_show_profiles() : Sql_cmd_show_noplan(SQLCOM_SHOW_PROFILES) {}
+  bool execute_inner(THD *thd) override;
+};
+
+/// Represents SHOW RELAYLOG EVENTS statement.
+
+class Sql_cmd_show_relaylog_events : public Sql_cmd_show_noplan {
+ public:
+  Sql_cmd_show_relaylog_events()
+      : Sql_cmd_show_noplan(SQLCOM_SHOW_RELAYLOG_EVENTS) {}
+  bool check_privileges(THD *thd) override;
+  bool execute_inner(THD *thd) override;
+
+ private:
+  // binlog_in
+  // binlog_from
+  // opt_limit
+};
+
+/// Represents SHOW REPLICAS statement.
+
+class Sql_cmd_show_replicas : public Sql_cmd_show_noplan {
+ public:
+  Sql_cmd_show_replicas() : Sql_cmd_show_noplan(SQLCOM_SHOW_SLAVE_HOSTS) {}
+  bool check_privileges(THD *thd) override;
+  bool execute_inner(THD *thd) override;
+};
+
+/// Represents SHOW REPLICA STATUS statement.
+
+class Sql_cmd_show_replica_status : public Sql_cmd_show_noplan {
+ public:
+  Sql_cmd_show_replica_status() : Sql_cmd_show_noplan(SQLCOM_SHOW_SLAVE_STAT) {}
+  bool check_privileges(THD *thd) override;
+  bool execute_inner(THD *thd) override;
+};
+
+/// Represents SHOW STATUS statement.
+
+class Sql_cmd_show_status : public Sql_cmd_show {
+ public:
+  Sql_cmd_show_status() : Sql_cmd_show(SQLCOM_SHOW_STATUS) {}
+  bool execute(THD *thd) override;
+};
+
+/// Represents SHOW STATUS FUNCTION statement.
+
+class Sql_cmd_show_status_func : public Sql_cmd_show {
+ public:
+  Sql_cmd_show_status_func() : Sql_cmd_show(SQLCOM_SHOW_STATUS_FUNC) {}
+};
+
+/// Represents SHOW STATUS PROCEDURE statement.
+
+class Sql_cmd_show_status_proc : public Sql_cmd_show {
+ public:
+  Sql_cmd_show_status_proc() : Sql_cmd_show(SQLCOM_SHOW_STATUS_PROC) {}
+};
+
+/// Represents SHOW TABLE STATUS statement.
+
+class Sql_cmd_show_table_status : public Sql_cmd_show_schema_base {
+ public:
+  Sql_cmd_show_table_status()
+      : Sql_cmd_show_schema_base(SQLCOM_SHOW_TABLE_STATUS) {}
+};
+
+/// Represents SHOW TABLES statement.
+
+class Sql_cmd_show_tables : public Sql_cmd_show_schema_base {
+ public:
+  Sql_cmd_show_tables() : Sql_cmd_show_schema_base(SQLCOM_SHOW_TABLES) {}
+};
+
+/// Represents SHOW TRIGGERS statement.
+
+class Sql_cmd_show_triggers : public Sql_cmd_show_schema_base {
+ public:
+  Sql_cmd_show_triggers() : Sql_cmd_show_schema_base(SQLCOM_SHOW_TRIGGERS) {}
+};
+
+/// Represents SHOW VARIABLES statement.
+
+class Sql_cmd_show_variables : public Sql_cmd_show {
+ public:
+  Sql_cmd_show_variables() : Sql_cmd_show(SQLCOM_SHOW_VARIABLES) {}
+};
+
+/// Represents SHOW WARNINGS statement.
+
+class Sql_cmd_show_warnings : public Sql_cmd_show_noplan {
+ public:
+  Sql_cmd_show_warnings() : Sql_cmd_show_noplan(SQLCOM_SHOW_WARNS) {}
+  bool execute_inner(THD *thd) override {
+    return mysqld_show_warnings(thd,
+                                (1UL << (uint)Sql_condition::SL_NOTE) |
+                                    (1UL << (uint)Sql_condition::SL_WARNING) |
+                                    (1UL << (uint)Sql_condition::SL_ERROR));
+  }
+};
+
 #endif /* SQL_SHOW_H */

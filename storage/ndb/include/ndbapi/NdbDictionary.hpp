@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -231,19 +231,19 @@ public:
   {
   public:
     ObjectId();
-    virtual ~ObjectId();
+    ~ObjectId() override;
     
     /**
      * Get status of object
      */
-    virtual Status getObjectStatus() const;
+    Status getObjectStatus() const override;
     
     /**
      * Get version of object
      */
-    virtual int getObjectVersion() const;
+    int getObjectVersion() const override;
     
-    virtual int getObjectId() const;
+    int getObjectId() const override;
     
   private:
     friend class NdbDictObjectImpl;
@@ -895,7 +895,7 @@ public:
      * @param  table  Table to be copied
      */
     Table(const Table& table); 
-    virtual ~Table();
+    ~Table() override;
     
     /**
      * Assignment operator, deep copy
@@ -1002,13 +1002,13 @@ public:
     /**
      * Get object status
      */
-    virtual Object::Status getObjectStatus() const;
+    Object::Status getObjectStatus() const override;
     void setStatusInvalid() const;
 
     /**
      * Get object version
      */
-    virtual int getObjectVersion() const;
+    int getObjectVersion() const override;
 
     /**
      * Set/Get indicator if default number of partitions is used in table.
@@ -1019,7 +1019,7 @@ public:
     /**
      * Get object id
      */
-    virtual int getObjectId() const;
+    int getObjectId() const override;
 
     /**
      * Set frm file to store with this table
@@ -1331,17 +1331,17 @@ public:
     /**
      * Get object status
      */
-    virtual Object::Status getObjectStatus() const;
+    Object::Status getObjectStatus() const override;
 
     /**
      * Get object version
      */
-    virtual int getObjectVersion() const;
+    int getObjectVersion() const override;
 
     /**
      * Get object id
      */
-    virtual int getObjectId() const;
+    int getObjectId() const override;
 
     /**
      * Get default NdbRecord object for this index
@@ -1367,7 +1367,7 @@ public:
      *  @param  name  Name of index
      */
     Index(const char * name = "");
-    virtual ~Index();
+    ~Index() override;
 
     /**
      * Set the name of an index
@@ -1624,7 +1624,7 @@ public:
      *  @param  table Reference retrieved from NdbDictionary
      */
     Event(const char *name, const NdbDictionary::Table& table);
-    virtual ~Event();
+    ~Event() override;
     /**
      * Set unique identifier for the event
      */
@@ -1750,17 +1750,17 @@ public:
     /**
      * Get object status
      */
-    virtual Object::Status getObjectStatus() const;
+    Object::Status getObjectStatus() const override;
 
     /**
      * Get object version
      */
-    virtual int getObjectVersion() const;
+    int getObjectVersion() const override;
 
     /**
      * Get object id
      */
-    virtual int getObjectId() const;
+    int getObjectId() const override;
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     void print();
@@ -1994,7 +1994,7 @@ public:
   public:
     LogfileGroup();
     LogfileGroup(const LogfileGroup&);
-    virtual ~LogfileGroup();
+    ~LogfileGroup() override;
 
     void setName(const char * name);
     const char* getName() const;
@@ -2010,17 +2010,17 @@ public:
     /**
      * Get object status
      */
-    virtual Object::Status getObjectStatus() const;
+    Object::Status getObjectStatus() const override;
 
     /**
      * Get object version
      */
-    virtual int getObjectVersion() const;
+    int getObjectVersion() const override;
 
     /**
      * Get object id
      */
-    virtual int getObjectId() const;
+    int getObjectId() const override;
 
   private:
     friend class NdbDictionaryImpl;
@@ -2036,7 +2036,7 @@ public:
   public:
     Tablespace();
     Tablespace(const Tablespace&);
-    virtual ~Tablespace();
+    ~Tablespace() override;
 
     void setName(const char * name);
     const char* getName() const;
@@ -2056,17 +2056,17 @@ public:
     /**
      * Get object status
      */
-    virtual Object::Status getObjectStatus() const;
+    Object::Status getObjectStatus() const override;
 
     /**
      * Get object version
      */
-    virtual int getObjectVersion() const;
+    int getObjectVersion() const override;
 
     /**
      * Get object id
      */
-    virtual int getObjectId() const;
+    int getObjectId() const override;
 
   private:
     friend class NdbTablespaceImpl;
@@ -2078,7 +2078,7 @@ public:
   public:
     Datafile();
     Datafile(const Datafile&);
-    virtual ~Datafile();
+    ~Datafile() override;
 
     void setPath(const char * name);
     const char* getPath() const;
@@ -2095,17 +2095,17 @@ public:
     /**
      * Get object status
      */
-    virtual Object::Status getObjectStatus() const;
+    Object::Status getObjectStatus() const override;
 
     /**
      * Get object version
      */
-    virtual int getObjectVersion() const;
+    int getObjectVersion() const override;
 
     /**
      * Get object id
      */
-    virtual int getObjectId() const;
+    int getObjectId() const override;
 
   private:
     friend class NdbDatafileImpl;
@@ -2117,7 +2117,7 @@ public:
   public:
     Undofile();
     Undofile(const Undofile&);
-    virtual ~Undofile();
+    ~Undofile() override;
 
     void setPath(const char * path);
     const char* getPath() const;
@@ -2133,17 +2133,17 @@ public:
     /**
      * Get object status
      */
-    virtual Object::Status getObjectStatus() const;
+    Object::Status getObjectStatus() const override;
 
     /**
      * Get object version
      */
-    virtual int getObjectVersion() const;
+    int getObjectVersion() const override;
 
     /**
      * Get object id
      */
-    virtual int getObjectId() const;
+    int getObjectId() const override;
 
   private:
     friend class NdbUndofileImpl;
@@ -2160,7 +2160,7 @@ public:
   public:
     HashMap();
     HashMap(const HashMap&);
-    virtual ~HashMap();
+    ~HashMap() override;
 
     void setName(const char *);
     const char * getName() const;
@@ -2178,17 +2178,17 @@ public:
     /**
      * Get object status
      */
-    virtual Object::Status getObjectStatus() const;
+    Object::Status getObjectStatus() const override;
 
     /**
      * Get object version
      */
-    virtual int getObjectVersion() const;
+    int getObjectVersion() const override;
 
     /**
      * Get object id
      */
-    virtual int getObjectId() const;
+    int getObjectId() const override;
 
   private:
     friend class NdbHashMapImpl;
@@ -2205,7 +2205,7 @@ public:
   public:
     ForeignKey();
     ForeignKey(const ForeignKey&);
-    virtual ~ForeignKey();
+    ~ForeignKey() override;
 
     enum FkAction
     {
@@ -2266,17 +2266,17 @@ public:
     /**
      * Get object status
      */
-    virtual Object::Status getObjectStatus() const;
+    Object::Status getObjectStatus() const override;
 
     /**
      * Get object id
      */
-    virtual int getObjectId() const;
+    int getObjectId() const override;
 
     /**
      * Get object version
      */
-    virtual int getObjectVersion() const;
+    int getObjectVersion() const override;
 
   private:
     friend class NdbForeignKeyImpl;

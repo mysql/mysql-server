@@ -1,6 +1,6 @@
 #ifndef INCLUDES_MYSQL_SQL_LIST_H
 #define INCLUDES_MYSQL_SQL_LIST_H
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,7 @@ class SQL_I_List {
   /** A reference to the next element in the list. */
   T **next;
 
-  SQL_I_List() { empty(); }
+  SQL_I_List() { clear(); }
 
   SQL_I_List(const SQL_I_List &tmp)
       : elements(tmp.elements),
@@ -59,7 +59,7 @@ class SQL_I_List {
 
   SQL_I_List(SQL_I_List &&) = default;
 
-  inline void empty() {
+  inline void clear() {
     elements = 0;
     first = nullptr;
     next = &first;
@@ -74,7 +74,7 @@ class SQL_I_List {
 
   inline void save_and_clear(SQL_I_List<T> *save) {
     *save = *this;
-    empty();
+    clear();
   }
 
   inline void push_front(SQL_I_List<T> *save) {
@@ -138,12 +138,12 @@ class base_list {
     return elements == rhs.elements && first == rhs.first && last == rhs.last;
   }
 
-  inline void empty() {
+  inline void clear() {
     elements = 0;
     first = &end_of_list;
     last = &first;
   }
-  inline base_list() { empty(); }
+  inline base_list() { clear(); }
   /**
     This is a shallow copy constructor that implicitly passes the ownership
     from the source list to the new instance. The old instance is not
@@ -263,13 +263,6 @@ class base_list {
   inline const void *head() const { return first->info; }
   inline void **head_ref() {
     return first != &end_of_list ? &first->info : nullptr;
-  }
-  // Can be removed after WL#6570
-  inline void **tail_ref() {
-    if (first == &end_of_list) return nullptr;
-    list_node *n = first;
-    while (n->next != &end_of_list) n = n->next;
-    return &n->info;
   }
   inline bool is_empty() const { return first == &end_of_list; }
   inline list_node *last_ref() { return &end_of_list; }
@@ -466,7 +459,6 @@ class List : public base_list {
     return static_cast<const T *>(base_list::head());
   }
   inline T **head_ref() { return (T **)base_list::head_ref(); }
-  inline T **tail_ref() { return (T **)base_list::tail_ref(); }
   inline T *pop() { return (T *)base_list::pop(); }
   inline void concat(List<T> *list) { base_list::concat(list); }
   inline void disjoin(List<T> *list) { base_list::disjoin(list); }
@@ -477,7 +469,7 @@ class List : public base_list {
       next = element->next;
       delete (T *)element->info;
     }
-    empty();
+    clear();
   }
 
   void destroy_elements(void) {
@@ -486,7 +478,7 @@ class List : public base_list {
       next = element->next;
       destroy((T *)element->info);
     }
-    empty();
+    clear();
   }
 
   T *operator[](uint index) const {
@@ -727,11 +719,11 @@ class base_ilist {
 
  public:
   // The sentinel is not a T, but at least it is a POD
-  void empty() SUPPRESS_UBSAN {
+  void clear() SUPPRESS_UBSAN {
     first = static_cast<T *>(&sentinel);
     sentinel.prev = &first;
   }
-  base_ilist() { empty(); }
+  base_ilist() { clear(); }
 
   // The sentinel is not a T, but at least it is a POD
   bool is_empty() const SUPPRESS_UBSAN {
@@ -775,7 +767,7 @@ class base_ilist {
     DBUG_ASSERT(new_owner->is_empty());
     new_owner->first = first;
     new_owner->sentinel = sentinel;
-    empty();
+    clear();
   }
 
   friend class base_ilist_iterator<T>;
@@ -812,7 +804,7 @@ class base_ilist_iterator {
 template <class T>
 class I_List : private base_ilist<T> {
  public:
-  using base_ilist<T>::empty;
+  using base_ilist<T>::clear;
   using base_ilist<T>::is_empty;
   using base_ilist<T>::get;
   using base_ilist<T>::push_front;

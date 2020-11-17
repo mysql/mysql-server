@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -73,8 +73,8 @@ class GetLoggingFolderTest : public ::testing::Test {
   }
 
  protected:
-  virtual void SetUp() {}
-  virtual void TearDown() {
+  void SetUp() override {}
+  void TearDown() override {
     if (!conf_dir_.empty()) mysql_harness::delete_dir_recursive(conf_dir_);
   }
 
@@ -166,8 +166,8 @@ class AllowWindowsServiceToWriteLogsTest : public ::testing::Test {
   }
 
  protected:
-  virtual void SetUp() {}
-  virtual void TearDown() {
+  void SetUp() override {}
+  void TearDown() override {
     if (!log_dir_.empty()) mysql_harness::delete_dir_recursive(log_dir_);
     if (!conf_dir_.empty()) mysql_harness::delete_dir_recursive(conf_dir_);
   }

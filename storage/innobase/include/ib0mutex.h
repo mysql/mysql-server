@@ -538,9 +538,8 @@ struct TTASEventMutex {
   /** Release the mutex. */
   void exit() UNIV_NOTHROW {
     m_lock_word.store(false);
-    std::atomic_thread_fence(std::memory_order_acquire);
 
-    if (m_waiters.load(std::memory_order_acquire)) {
+    if (m_waiters.load()) {
       signal();
     }
   }
@@ -672,20 +671,11 @@ struct TTASEventMutex {
     m_policy.add(n_spins, n_waits);
   }
 
-  /** @return the value of the m_waiters flag */
-  lock_word_t waiters() UNIV_NOTHROW {
-    return (m_waiters.load(std::memory_order_relaxed));
-  }
-
   /** Note that there are threads waiting on the mutex */
-  void set_waiters() UNIV_NOTHROW {
-    m_waiters.store(true, std::memory_order_release);
-  }
+  void set_waiters() UNIV_NOTHROW { m_waiters.store(true); }
 
   /** Note that there are no threads waiting on the mutex */
-  void clear_waiters() UNIV_NOTHROW {
-    m_waiters.store(false, std::memory_order_release);
-  }
+  void clear_waiters() UNIV_NOTHROW { m_waiters.store(false); }
 
   /** Wakeup any waiting thread(s). */
   void signal() UNIV_NOTHROW;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,19 +42,19 @@
 class DblqhProxy : public LocalProxy {
 public:
   DblqhProxy(Block_context& ctx);
-  virtual ~DblqhProxy();
+  ~DblqhProxy() override;
   BLOCK_DEFINES(DblqhProxy);
 
 protected:
-  virtual SimulatedBlock* newWorker(Uint32 instanceNo);
+  SimulatedBlock* newWorker(Uint32 instanceNo) override;
 
   // system info
   Uint32 c_tableRecSize;
   Uint8* c_tableRec;    // bool => table exists
 
   // GSN_NDB_STTOR
-  virtual void callNDB_STTOR(Signal*);
-  virtual void callREAD_CONFIG_REQ(Signal*);
+  void callNDB_STTOR(Signal*) override;
+  void callREAD_CONFIG_REQ(Signal*) override;
 
   // GSN_CREATE_TAB_REQ
   struct Ss_CREATE_TAB_REQ : SsParallel {

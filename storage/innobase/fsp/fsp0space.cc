@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -40,7 +40,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "my_sys.h"
 
 /** Check if two tablespaces have common data file names.
-@param other_space	Tablespace to check against this.
+@param[in]	other_space	Tablespace to check against this.
 @return true if they have the same data filenames and paths */
 bool Tablespace::intersection(const Tablespace *other_space) {
   files_t::const_iterator end = other_space->m_files.end();
@@ -182,11 +182,11 @@ void Tablespace::delete_files() {
   }
 }
 
-/** Use the ADD DATAFILE path to create a Datafile object and add it to the
-front of m_files.
-Parse the datafile path into a path and a filename with extension 'ibd'.
-This datafile_path provided may or may not be an absolute path, but it
-must end with the extension .ibd and have a basename of at least 1 byte.
+/** Use the ADD DATAFILE path to create a Datafile object and add
+it to the front of m_files. Parse the datafile path into a path
+and a basename with extension 'ibd'. This datafile_path provided
+may be an absolute or relative path, but it must end with the
+extension .ibd and have a basename of at least 1 byte.
 
 Set tablespace m_path member and add a Datafile with the filename.
 @param[in]	datafile_added	full path of the tablespace file. */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -53,7 +53,7 @@ void btr_search_sys_resize(ulint hash_size);
 void btr_search_sys_free();
 
 /** Disable the adaptive hash search system and empty the index.
-@param  need_mutex      need to acquire dict_sys->mutex */
+@param[in]	need_mutex	Need to acquire dict_sys->mutex */
 void btr_search_disable(bool need_mutex);
 /** Enable the adaptive hash search system. */
 void btr_search_enable();
@@ -85,20 +85,20 @@ void btr_search_info_update(dict_index_t *index, btr_cur_t *cursor);
 of the index. Note that if mode is PAGE_CUR_LE, which is used in inserts,
 and the function returns TRUE, then cursor->up_match and cursor->low_match
 both have sensible values.
-@param[in,out]	index		index
-@param[in,out]	info		index search info
-@param[in]	tuple		logical record
+@param[in,out]	index		Index
+@param[in,out]	info		Index search info
+@param[in]	tuple		Logical record
 @param[in]	mode		PAGE_CUR_L, ....
 @param[in]	latch_mode	BTR_SEARCH_LEAF, ...;
                                 NOTE that only if has_search_latch is 0, we will
                                 have a latch set on the cursor page, otherwise
                                 we assume the caller uses his search latch
                                 to protect the record!
-@param[out]	cursor		tree cursor
+@param[out]	cursor		Tree cursor
 @param[in]	has_search_latch
-                                latch mode the caller currently has on
+                                Latch mode the caller currently has on
                                 search system: RW_S/X_LATCH or 0
-@param[in]	mtr		mini transaction
+@param[in]	mtr		Mini-transaction
 @return true if succeeded */
 ibool btr_search_guess_on_hash(dict_index_t *index, btr_search_t *info,
                                const dtuple_t *tuple, ulint mode,
@@ -148,7 +148,7 @@ void btr_drop_ahi_for_index(dict_index_t *index);
 void btr_search_update_hash_node_on_insert(btr_cur_t *cursor);
 
 /** Updates the page hash index when a single record is inserted on a page.
-@param[in]	cursor		cursor which was positioned to the
+@param[in,out]	cursor		cursor which was positioned to the
                                 place to insert using btr_cur_search_...,
                                 and the new record has been inserted next
                                 to the cursor */
@@ -238,13 +238,11 @@ struct btr_search_t {
                    when during initialization in
                    btr_search_info_create(). */
 
-  /* @{ The following fields are not protected by any latch.
+  /** @{ The following fields are not protected by any latch.
   Unfortunately, this means that they must be aligned to
   the machine word, i.e., they cannot be turned into bit-fields. */
   buf_block_t *root_guess; /*!< the root page frame when it was last time
                            fetched, or NULL */
-  ulint withdraw_clock;    /*!< the withdraw clock value of the buffer
-                           pool when root_guess was stored */
   ulint hash_analysis;     /*!< when this exceeds
                            BTR_SEARCH_HASH_ANALYSIS, the hash
                            analysis starts; this is reset if no
@@ -259,8 +257,8 @@ struct btr_search_t {
   which would have succeeded, or did succeed,
   using the hash index;
   the range is 0 .. BTR_SEARCH_BUILD_LIMIT + 5 */
-  /* @} */
-  /*---------------------- @{ */
+  /** @} */
+  /**---------------------- @{ */
   ulint n_fields;  /*!< recommended prefix length for hash search:
                    number of full fields */
   ulint n_bytes;   /*!< recommended prefix: number of bytes in

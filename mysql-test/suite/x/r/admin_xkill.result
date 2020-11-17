@@ -1,25 +1,17 @@
 call mtr.add_suppression("Plugin mysqlx reported: 'Unhandled network error: Bad file descriptor'");
 create user sslcon@localhost identified by 'sslcon';
 grant all on *.* to sslcon@localhost;
-RUN create user abc@localhost identified by 'abc'
+RUN create user abc@localhost identified by 'abc',
+            xplugin@localhost identified by 'xplugin',
+            process@localhost identified by 'process',
+            expire@localhost identified by 'expire'
 
 0 rows affected
-RUN create user xplugin@localhost identified by 'xplugin'
-
-0 rows affected
-RUN grant all on *.* to xplugin@localhost
-
-0 rows affected
-RUN create user process@localhost identified by 'process'
+RUN grant all on *.* to xplugin@localhost,
+                    expire@localhost
 
 0 rows affected
 RUN grant process on *.* to process@localhost
-
-0 rows affected
-RUN create user expire@localhost identified by 'expire'
-
-0 rows affected
-RUN grant all on *.* to expire@localhost
 
 0 rows affected
 RUN alter user expire@localhost password expire
@@ -262,154 +254,56 @@ checking list_clients and kill_client with default 100 connections, expect succe
 RUN set @@global.mysqlx_max_connections=60
 
 0 rows affected
-RUN create user xconnection1@localhost identified by  'xconnection1'
-
-0 rows affected
-RUN create user xconnection2@localhost identified by  'xconnection2'
-
-0 rows affected
-RUN create user xconnection3@localhost identified by  'xconnection3'
-
-0 rows affected
-RUN create user xconnection4@localhost identified by  'xconnection4'
-
-0 rows affected
-RUN create user xconnection5@localhost identified by  'xconnection5'
-
-0 rows affected
-RUN create user xconnection6@localhost identified by  'xconnection6'
-
-0 rows affected
-RUN create user xconnection7@localhost identified by  'xconnection7'
-
-0 rows affected
-RUN create user xconnection8@localhost identified by  'xconnection8'
-
-0 rows affected
-RUN create user xconnection9@localhost identified by  'xconnection9'
-
-0 rows affected
-RUN create user xconnection10@localhost identified by  'xconnection10'
-
-0 rows affected
-RUN create user xconnection11@localhost identified by  'xconnection11'
-
-0 rows affected
-RUN create user xconnection12@localhost identified by  'xconnection12'
-
-0 rows affected
-RUN create user xconnection13@localhost identified by  'xconnection13'
-
-0 rows affected
-RUN create user xconnection14@localhost identified by  'xconnection14'
-
-0 rows affected
-RUN create user xconnection15@localhost identified by  'xconnection15'
-
-0 rows affected
-RUN create user xconnection16@localhost identified by  'xconnection16'
-
-0 rows affected
-RUN create user xconnection17@localhost identified by  'xconnection17'
-
-0 rows affected
-RUN create user xconnection18@localhost identified by  'xconnection18'
-
-0 rows affected
-RUN create user xconnection19@localhost identified by  'xconnection19'
-
-0 rows affected
-RUN create user xconnection20@localhost identified by  'xconnection20'
-
-0 rows affected
-RUN create user xconnection21@localhost identified by  'xconnection21'
-
-0 rows affected
-RUN create user xconnection22@localhost identified by  'xconnection22'
-
-0 rows affected
-RUN create user xconnection23@localhost identified by  'xconnection23'
-
-0 rows affected
-RUN create user xconnection24@localhost identified by  'xconnection24'
-
-0 rows affected
-RUN create user xconnection25@localhost identified by  'xconnection25'
-
-0 rows affected
-RUN create user xconnection26@localhost identified by  'xconnection26'
-
-0 rows affected
-RUN create user xconnection27@localhost identified by  'xconnection27'
-
-0 rows affected
-RUN create user xconnection28@localhost identified by  'xconnection28'
-
-0 rows affected
-RUN create user xconnection29@localhost identified by  'xconnection29'
-
-0 rows affected
-RUN create user xconnection30@localhost identified by  'xconnection30'
-
-0 rows affected
-RUN create user xconnection31@localhost identified by  'xconnection31'
-
-0 rows affected
-RUN create user xconnection32@localhost identified by  'xconnection32'
-
-0 rows affected
-RUN create user xconnection33@localhost identified by  'xconnection33'
-
-0 rows affected
-RUN create user xconnection34@localhost identified by  'xconnection34'
-
-0 rows affected
-RUN create user xconnection35@localhost identified by  'xconnection35'
-
-0 rows affected
-RUN create user xconnection36@localhost identified by  'xconnection36'
-
-0 rows affected
-RUN create user xconnection37@localhost identified by  'xconnection37'
-
-0 rows affected
-RUN create user xconnection38@localhost identified by  'xconnection38'
-
-0 rows affected
-RUN create user xconnection39@localhost identified by  'xconnection39'
-
-0 rows affected
-RUN create user xconnection40@localhost identified by  'xconnection40'
-
-0 rows affected
-RUN create user xconnection41@localhost identified by  'xconnection41'
-
-0 rows affected
-RUN create user xconnection42@localhost identified by  'xconnection42'
-
-0 rows affected
-RUN create user xconnection43@localhost identified by  'xconnection43'
-
-0 rows affected
-RUN create user xconnection44@localhost identified by  'xconnection44'
-
-0 rows affected
-RUN create user xconnection45@localhost identified by  'xconnection45'
-
-0 rows affected
-RUN create user xconnection46@localhost identified by  'xconnection46'
-
-0 rows affected
-RUN create user xconnection47@localhost identified by  'xconnection47'
-
-0 rows affected
-RUN create user xconnection48@localhost identified by  'xconnection48'
-
-0 rows affected
-RUN create user xconnection49@localhost identified by  'xconnection49'
-
-0 rows affected
-RUN create user xconnection50@localhost identified by  'xconnection50'
+RUN create user xconnection1@localhost identified by  'xconnection1',
+            xconnection2@localhost identified by  'xconnection2',
+            xconnection3@localhost identified by  'xconnection3',
+            xconnection4@localhost identified by  'xconnection4',
+            xconnection5@localhost identified by  'xconnection5',
+            xconnection6@localhost identified by  'xconnection6',
+            xconnection7@localhost identified by  'xconnection7',
+            xconnection8@localhost identified by  'xconnection8',
+            xconnection9@localhost identified by  'xconnection9',
+            xconnection10@localhost identified by  'xconnection10',
+            xconnection11@localhost identified by  'xconnection11',
+            xconnection12@localhost identified by  'xconnection12',
+            xconnection13@localhost identified by  'xconnection13',
+            xconnection14@localhost identified by  'xconnection14',
+            xconnection15@localhost identified by  'xconnection15',
+            xconnection16@localhost identified by  'xconnection16',
+            xconnection17@localhost identified by  'xconnection17',
+            xconnection18@localhost identified by  'xconnection18',
+            xconnection19@localhost identified by  'xconnection19',
+            xconnection20@localhost identified by  'xconnection20',
+            xconnection21@localhost identified by  'xconnection21',
+            xconnection22@localhost identified by  'xconnection22',
+            xconnection23@localhost identified by  'xconnection23',
+            xconnection24@localhost identified by  'xconnection24',
+            xconnection25@localhost identified by  'xconnection25',
+            xconnection26@localhost identified by  'xconnection26',
+            xconnection27@localhost identified by  'xconnection27',
+            xconnection28@localhost identified by  'xconnection28',
+            xconnection29@localhost identified by  'xconnection29',
+            xconnection30@localhost identified by  'xconnection30',
+            xconnection31@localhost identified by  'xconnection31',
+            xconnection32@localhost identified by  'xconnection32',
+            xconnection33@localhost identified by  'xconnection33',
+            xconnection34@localhost identified by  'xconnection34',
+            xconnection35@localhost identified by  'xconnection35',
+            xconnection36@localhost identified by  'xconnection36',
+            xconnection37@localhost identified by  'xconnection37',
+            xconnection38@localhost identified by  'xconnection38',
+            xconnection39@localhost identified by  'xconnection39',
+            xconnection40@localhost identified by  'xconnection40',
+            xconnection41@localhost identified by  'xconnection41',
+            xconnection42@localhost identified by  'xconnection42',
+            xconnection43@localhost identified by  'xconnection43',
+            xconnection44@localhost identified by  'xconnection44',
+            xconnection45@localhost identified by  'xconnection45',
+            xconnection46@localhost identified by  'xconnection46',
+            xconnection47@localhost identified by  'xconnection47',
+            xconnection48@localhost identified by  'xconnection48',
+            xconnection49@localhost identified by  'xconnection49',
+            xconnection50@localhost identified by  'xconnection50'
 
 0 rows affected
 Test data
@@ -799,154 +693,56 @@ Verify [Status variable "Mysqlx_sessions_closed" needs to have a value of 59]
 Verify [Status variable "Mysqlx_sessions_fatal_error" needs to have a value of 0]
 Verify [Status variable "Mysqlx_sessions_killed" needs to have a value of 54]
 Verify [Status variable "Mysqlx_sessions_rejected" needs to have a value of 0]
-RUN drop user xconnection1@localhost
-
-0 rows affected
-RUN drop user xconnection2@localhost
-
-0 rows affected
-RUN drop user xconnection3@localhost
-
-0 rows affected
-RUN drop user xconnection4@localhost
-
-0 rows affected
-RUN drop user xconnection5@localhost
-
-0 rows affected
-RUN drop user xconnection6@localhost
-
-0 rows affected
-RUN drop user xconnection7@localhost
-
-0 rows affected
-RUN drop user xconnection8@localhost
-
-0 rows affected
-RUN drop user xconnection9@localhost
-
-0 rows affected
-RUN drop user xconnection10@localhost
-
-0 rows affected
-RUN drop user xconnection11@localhost
-
-0 rows affected
-RUN drop user xconnection12@localhost
-
-0 rows affected
-RUN drop user xconnection13@localhost
-
-0 rows affected
-RUN drop user xconnection14@localhost
-
-0 rows affected
-RUN drop user xconnection15@localhost
-
-0 rows affected
-RUN drop user xconnection16@localhost
-
-0 rows affected
-RUN drop user xconnection17@localhost
-
-0 rows affected
-RUN drop user xconnection18@localhost
-
-0 rows affected
-RUN drop user xconnection19@localhost
-
-0 rows affected
-RUN drop user xconnection20@localhost
-
-0 rows affected
-RUN drop user xconnection21@localhost
-
-0 rows affected
-RUN drop user xconnection22@localhost
-
-0 rows affected
-RUN drop user xconnection23@localhost
-
-0 rows affected
-RUN drop user xconnection24@localhost
-
-0 rows affected
-RUN drop user xconnection25@localhost
-
-0 rows affected
-RUN drop user xconnection26@localhost
-
-0 rows affected
-RUN drop user xconnection27@localhost
-
-0 rows affected
-RUN drop user xconnection28@localhost
-
-0 rows affected
-RUN drop user xconnection29@localhost
-
-0 rows affected
-RUN drop user xconnection30@localhost
-
-0 rows affected
-RUN drop user xconnection31@localhost
-
-0 rows affected
-RUN drop user xconnection32@localhost
-
-0 rows affected
-RUN drop user xconnection33@localhost
-
-0 rows affected
-RUN drop user xconnection34@localhost
-
-0 rows affected
-RUN drop user xconnection35@localhost
-
-0 rows affected
-RUN drop user xconnection36@localhost
-
-0 rows affected
-RUN drop user xconnection37@localhost
-
-0 rows affected
-RUN drop user xconnection38@localhost
-
-0 rows affected
-RUN drop user xconnection39@localhost
-
-0 rows affected
-RUN drop user xconnection40@localhost
-
-0 rows affected
-RUN drop user xconnection41@localhost
-
-0 rows affected
-RUN drop user xconnection42@localhost
-
-0 rows affected
-RUN drop user xconnection43@localhost
-
-0 rows affected
-RUN drop user xconnection44@localhost
-
-0 rows affected
-RUN drop user xconnection45@localhost
-
-0 rows affected
-RUN drop user xconnection46@localhost
-
-0 rows affected
-RUN drop user xconnection47@localhost
-
-0 rows affected
-RUN drop user xconnection48@localhost
-
-0 rows affected
-RUN drop user xconnection49@localhost
-
-0 rows affected
-RUN drop user xconnection50@localhost
+RUN drop user xconnection1@localhost,
+ xconnection2@localhost,
+ xconnection3@localhost,
+ xconnection4@localhost,
+ xconnection5@localhost,
+ xconnection6@localhost,
+ xconnection7@localhost,
+ xconnection8@localhost,
+ xconnection9@localhost,
+ xconnection10@localhost,
+ xconnection11@localhost,
+ xconnection12@localhost,
+ xconnection13@localhost,
+ xconnection14@localhost,
+ xconnection15@localhost,
+ xconnection16@localhost,
+ xconnection17@localhost,
+ xconnection18@localhost,
+ xconnection19@localhost,
+ xconnection20@localhost,
+ xconnection21@localhost,
+ xconnection22@localhost,
+ xconnection23@localhost,
+ xconnection24@localhost,
+ xconnection25@localhost,
+ xconnection26@localhost,
+ xconnection27@localhost,
+ xconnection28@localhost,
+ xconnection29@localhost,
+ xconnection30@localhost,
+ xconnection31@localhost,
+ xconnection32@localhost,
+ xconnection33@localhost,
+ xconnection34@localhost,
+ xconnection35@localhost,
+ xconnection36@localhost,
+ xconnection37@localhost,
+ xconnection38@localhost,
+ xconnection39@localhost,
+ xconnection40@localhost,
+ xconnection41@localhost,
+ xconnection42@localhost,
+ xconnection43@localhost,
+ xconnection44@localhost,
+ xconnection45@localhost,
+ xconnection46@localhost,
+ xconnection47@localhost,
+ xconnection48@localhost,
+ xconnection49@localhost,
+ xconnection50@localhost
 
 0 rows affected
 Mysqlx.Ok {
@@ -1013,10 +809,8 @@ Mysqlx.Ok {
 }
 ok
 open xconnection with ssl and kill,expect success
-RUN create user con1@localhost identified by 'con1'
-
-0 rows affected
-RUN create user con2@localhost identified by 'con2'
+RUN create user con1@localhost identified by 'con1',
+            con2@localhost identified by 'con2'
 
 0 rows affected
 RUN set @@global.mysqlx_max_connections=3
@@ -1066,10 +860,8 @@ client_id	user	host
 62	sslcon	localhost
 command ok
 expect Mysqlx_stmt_list_clients=3 and Mysqlx_stmt_kill_client=2
-RUN drop user con1@localhost
-
-0 rows affected
-RUN drop user con2@localhost
+RUN drop user con1@localhost,
+  con2@localhost
 
 0 rows affected
 Verify [Status variable "Mysqlx_stmt_kill_client" needs to have a value of 2]
@@ -1080,10 +872,8 @@ Mysqlx.Ok {
 }
 ok
 open xconnection with ssl x_root user kill,expect success
-RUN create user con1@localhost identified by 'con1'
-
-0 rows affected
-RUN create user con2@localhost identified by 'con2'
+RUN create user con1@localhost identified by 'con1',
+            con2@localhost identified by 'con2'
 
 0 rows affected
 RUN set @@global.mysqlx_max_connections=3
@@ -1121,10 +911,8 @@ Verify [Status variable "Mysqlx_sessions" needs to have a value of 1]
 client_id	user	host	
 65	x_root	localhost
 command ok
-RUN drop user con1@localhost
-
-0 rows affected
-RUN drop user con2@localhost
+RUN drop user con1@localhost,
+  con2@localhost
 
 0 rows affected
 Mysqlx.Ok {
@@ -1136,10 +924,10 @@ Variable_name	Value
 Mysqlx_stmt_kill_client	68
 Mysqlx_stmt_list_clients	26
 # restart: 
-drop user abc@localhost;
-drop user xplugin@localhost;
-drop user process@localhost;
-drop user expire@localhost;
+drop user abc@localhost,
+xplugin@localhost,
+process@localhost,
+expire@localhost;
 set @@global.mysqlx_max_connections=100;
 show status like 'Mysqlx_stmt%client%';
 Variable_name	Value
@@ -1148,25 +936,17 @@ Mysqlx_stmt_list_clients	0
 select sleep(0.5);
 sleep(0.5)
 0
-RUN create user abc@localhost identified by 'abc'
+RUN create user abc@localhost identified by 'abc',
+            xplugin@localhost identified by 'xplugin',
+            process@localhost identified by 'process',
+            expire@localhost identified by 'expire'
 
 0 rows affected
-RUN create user xplugin@localhost identified by 'xplugin'
-
-0 rows affected
-RUN grant all on *.* to xplugin@localhost
-
-0 rows affected
-RUN create user process@localhost identified by 'process'
+RUN grant all on *.* to xplugin@localhost,
+                    expire@localhost
 
 0 rows affected
 RUN grant process on *.* to process@localhost
-
-0 rows affected
-RUN create user expire@localhost identified by 'expire'
-
-0 rows affected
-RUN grant all on *.* to expire@localhost
 
 0 rows affected
 RUN alter user expire@localhost password expire
@@ -1312,8 +1092,8 @@ show status like 'Mysqlx_stmt%client%';
 Variable_name	Value
 Mysqlx_stmt_kill_client	6
 Mysqlx_stmt_list_clients	12
-drop user abc@localhost;
-drop user xplugin@localhost;
-drop user process@localhost;
-drop user expire@localhost;
-drop user sslcon@localhost;
+drop user abc@localhost,
+xplugin@localhost,
+process@localhost,
+expire@localhost,
+sslcon@localhost;

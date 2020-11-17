@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_GEOMETRY_VISITOR_H_INCLUDED
 #define SQL_GIS_GEOMETRY_VISITOR_H_INCLUDED
 
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -120,111 +120,103 @@ class Geometry_visitor {
 /// A visitor that implements the entire interface and does nothing.
 class Nop_visitor : public Geometry_visitor {
  public:
-  virtual bool visit_enter(Geometry *) override { return false; }
-  virtual bool visit_enter(Curve *c) override {
+  bool visit_enter(Geometry *) override { return false; }
+  bool visit_enter(Curve *c) override {
     return visit_enter(static_cast<Geometry *>(c));
   }
-  virtual bool visit_enter(Linestring *ls) override {
+  bool visit_enter(Linestring *ls) override {
     return visit_enter(static_cast<Curve *>(ls));
   }
-  virtual bool visit_enter(Linearring *lr) override {
+  bool visit_enter(Linearring *lr) override {
     return visit_enter(static_cast<Linestring *>(lr));
   }
-  virtual bool visit_enter(Surface *s) override {
+  bool visit_enter(Surface *s) override {
     return visit_enter(static_cast<Geometry *>(s));
   }
-  virtual bool visit_enter(Polygon *py) override {
+  bool visit_enter(Polygon *py) override {
     return visit_enter(static_cast<Surface *>(py));
   }
-  virtual bool visit_enter(Geometrycollection *gc) override {
+  bool visit_enter(Geometrycollection *gc) override {
     return visit_enter(static_cast<Geometry *>(gc));
   }
-  virtual bool visit_enter(Multipoint *mpt) override {
+  bool visit_enter(Multipoint *mpt) override {
     return visit_enter(static_cast<Geometrycollection *>(mpt));
   }
-  virtual bool visit_enter(Multicurve *mc) override {
+  bool visit_enter(Multicurve *mc) override {
     return visit_enter(static_cast<Geometrycollection *>(mc));
   }
-  virtual bool visit_enter(Multilinestring *mls) override {
+  bool visit_enter(Multilinestring *mls) override {
     return visit_enter(static_cast<Multicurve *>(mls));
   }
-  virtual bool visit_enter(Multisurface *ms) override {
+  bool visit_enter(Multisurface *ms) override {
     return visit_enter(static_cast<Geometrycollection *>(ms));
   }
-  virtual bool visit_enter(Multipolygon *mpy) override {
+  bool visit_enter(Multipolygon *mpy) override {
     return visit_enter(static_cast<Multisurface *>(mpy));
   }
 
-  virtual bool visit(Geometry *) override { return false; }
-  virtual bool visit(Point *pt) override {
-    return visit(static_cast<Geometry *>(pt));
-  }
-  virtual bool visit(Curve *c) override {
-    return visit(static_cast<Geometry *>(c));
-  }
-  virtual bool visit(Linestring *ls) override {
+  bool visit(Geometry *) override { return false; }
+  bool visit(Point *pt) override { return visit(static_cast<Geometry *>(pt)); }
+  bool visit(Curve *c) override { return visit(static_cast<Geometry *>(c)); }
+  bool visit(Linestring *ls) override {
     return visit(static_cast<Curve *>(ls));
   }
-  virtual bool visit(Linearring *lr) override {
+  bool visit(Linearring *lr) override {
     return visit(static_cast<Linestring *>(lr));
   }
-  virtual bool visit(Surface *s) override {
-    return visit(static_cast<Geometry *>(s));
-  }
-  virtual bool visit(Polygon *py) override {
-    return visit(static_cast<Surface *>(py));
-  }
-  virtual bool visit(Geometrycollection *gc) override {
+  bool visit(Surface *s) override { return visit(static_cast<Geometry *>(s)); }
+  bool visit(Polygon *py) override { return visit(static_cast<Surface *>(py)); }
+  bool visit(Geometrycollection *gc) override {
     return visit(static_cast<Geometry *>(gc));
   }
-  virtual bool visit(Multipoint *mpt) override {
+  bool visit(Multipoint *mpt) override {
     return visit(static_cast<Geometrycollection *>(mpt));
   }
-  virtual bool visit(Multicurve *mc) override {
+  bool visit(Multicurve *mc) override {
     return visit(static_cast<Geometrycollection *>(mc));
   }
-  virtual bool visit(Multilinestring *mls) override {
+  bool visit(Multilinestring *mls) override {
     return visit(static_cast<Multicurve *>(mls));
   }
-  virtual bool visit(Multisurface *ms) override {
+  bool visit(Multisurface *ms) override {
     return visit(static_cast<Geometrycollection *>(ms));
   }
-  virtual bool visit(Multipolygon *mpy) override {
+  bool visit(Multipolygon *mpy) override {
     return visit(static_cast<Multisurface *>(mpy));
   }
 
-  virtual bool visit_leave(Geometry *) override { return false; }
-  virtual bool visit_leave(Curve *c) override {
+  bool visit_leave(Geometry *) override { return false; }
+  bool visit_leave(Curve *c) override {
     return visit_leave(static_cast<Geometry *>(c));
   }
-  virtual bool visit_leave(Linestring *ls) override {
+  bool visit_leave(Linestring *ls) override {
     return visit_leave(static_cast<Curve *>(ls));
   }
-  virtual bool visit_leave(Linearring *lr) override {
+  bool visit_leave(Linearring *lr) override {
     return visit_leave(static_cast<Linestring *>(lr));
   }
-  virtual bool visit_leave(Surface *s) override {
+  bool visit_leave(Surface *s) override {
     return visit_leave(static_cast<Geometry *>(s));
   }
-  virtual bool visit_leave(Polygon *py) override {
+  bool visit_leave(Polygon *py) override {
     return visit_leave(static_cast<Surface *>(py));
   }
-  virtual bool visit_leave(Geometrycollection *gc) override {
+  bool visit_leave(Geometrycollection *gc) override {
     return visit_leave(static_cast<Geometry *>(gc));
   }
-  virtual bool visit_leave(Multipoint *mpt) override {
+  bool visit_leave(Multipoint *mpt) override {
     return visit_leave(static_cast<Geometrycollection *>(mpt));
   }
-  virtual bool visit_leave(Multicurve *mc) override {
+  bool visit_leave(Multicurve *mc) override {
     return visit_leave(static_cast<Geometrycollection *>(mc));
   }
-  virtual bool visit_leave(Multilinestring *mls) override {
+  bool visit_leave(Multilinestring *mls) override {
     return visit_leave(static_cast<Multicurve *>(mls));
   }
-  virtual bool visit_leave(Multisurface *ms) override {
+  bool visit_leave(Multisurface *ms) override {
     return visit_leave(static_cast<Geometrycollection *>(ms));
   }
-  virtual bool visit_leave(Multipolygon *mpy) override {
+  bool visit_leave(Multipolygon *mpy) override {
     return visit_leave(static_cast<Multisurface *>(mpy));
   }
 };

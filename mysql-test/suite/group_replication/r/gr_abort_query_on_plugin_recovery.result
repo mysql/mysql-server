@@ -9,6 +9,8 @@ server1
 include/start_and_bootstrap_group_replication.inc
 CREATE TABLE test.t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
 STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 
 #####################################################################
 # Start group replication on server2 and wait for the state to change.
@@ -32,6 +34,8 @@ ERROR HY000: The MySQL server is running with the --super-read-only option so it
 # On server 1 restart the applier thread so now server 2 can recover.
 server1
 START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 
 ###################################################################
 # On server 2 wait for it to become online and re-execute the query

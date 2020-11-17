@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,7 @@
 #ifndef SQL_SHOW_STATUS_H
 #define SQL_SHOW_STATUS_H
 
-#include "sql/parse_tree_node_base.h"  // POS
+#include "sql/parse_location.h"  // POS
 
 class Item;
 class SELECT_LEX;

@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@ usr/bin/mysqlrouter_passwd
 usr/lib/mysqlrouter/plugin/http_auth_backend.so
 usr/lib/mysqlrouter/plugin/http_auth_realm.so
 usr/lib/mysqlrouter/plugin/http_server.so
+usr/lib/mysqlrouter/plugin/io.so
 usr/lib/mysqlrouter/plugin/keepalive.so
 usr/lib/mysqlrouter/plugin/mysql_protocol.so
 usr/lib/mysqlrouter/plugin/routing.so
@@ -39,18 +40,24 @@ usr/lib/mysqlrouter/plugin/rest_metadata_cache.so
 # private shared libraries
 usr/lib/mysqlrouter/private/libprotobuf-lite.so.3.11.4
 usr/lib/mysqlrouter/private/libmysqlharness.so.1
+usr/lib/mysqlrouter/private/libmysqlharness_stdx.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_http.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_http_auth_backend.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_http_auth_realm.so.1
+usr/lib/mysqlrouter/private/libmysqlrouter_io_component.so.1
 
-usr/share/mysql-@MYSQL_BASE_VERSION@/docs/sample_mysqlrouter.conf
+usr/share/mysqlrouter/docs/sample_mysqlrouter.conf
+usr/share/mysqlrouter/mysqlrouter-systemd-start
 usr/share/man/man1/mysqlrouter.1
 usr/share/man/man1/mysqlrouter_passwd.1
 usr/share/man/man1/mysqlrouter_plugin_info.1
 debian/extra/mysqlrouter.conf /etc/mysqlrouter/
 # app armor profile
 @DEB_INSTALL_ROUTER_APPARMOR@
+
+# support files
+etc/logrotate.d/mysqlrouter
 
 # legal
 usr/LICENSE.router usr/share/doc/mysql-router-@DEB_PRODUCTNAME@/

@@ -2,7 +2,7 @@
 #define FAKE_COSTMODEL_INCLUDED
 
 /*
-   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ class Fake_Cost_model_server : public Cost_model_server {
 #endif
   }
 
-  ~Fake_Cost_model_server() {
+  ~Fake_Cost_model_server() override {
     delete m_server_cost_constants;
     m_server_cost_constants = nullptr;
   }

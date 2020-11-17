@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -82,7 +82,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
   Set socket descriptor and address.
   @param socket instrumented socket
   @param addr unformatted socket address
-  @param addr_len length of socket addres
+  @param addr_len length of socket address
 */
 
 static inline void mysql_socket_set_address(
@@ -96,13 +96,13 @@ static inline void mysql_socket_set_address(
 ) {
 #ifdef HAVE_PSI_SOCKET_INTERFACE
   if (socket.m_psi != nullptr) {
-    PSI_SOCKET_CALL(set_socket_info)(socket.m_psi, nullptr, addr, addr_len);
+    PSI_SOCKET_CALL(set_socket_info)(socket.m_psi, &socket.fd, addr, addr_len);
   }
 #endif
 }
 
 /**
-  Set socket descriptor and address.
+  Assign the current thread instrumentation to the socket.
   @param socket instrumented socket
 */
 static inline void mysql_socket_set_thread_owner(

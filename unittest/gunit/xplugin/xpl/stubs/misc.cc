@@ -120,6 +120,8 @@ THD *thd_get_current_thd() { return current_thd; }
 
 bool check_address_is_wildcard(const char *, size_t) { return false; }
 
+void conditional_sync_point(std::string) {}
+
 #ifdef HAVE_SETNS
 bool set_network_namespace(const std::string &) { return false; }
 

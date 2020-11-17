@@ -170,7 +170,7 @@ my $initial_bootstrap_cmd;
 my $mysql_base_version;
 my $mysqlx_baseport;
 my $path_config_file;       # The generated config file, var/my.cnf
-my $path_vardir_trace;      # Unix formatted opt_vardir for trace files
+my $path_vardir_trace;
 my $test_fail;
 
 my $build_thread       = 0;
@@ -213,7 +213,6 @@ our $opt_manual_debug;
 our $opt_manual_gdb;
 our $opt_manual_lldb;
 our $opt_no_skip;
-our $opt_non_parallel_test;
 our $opt_record;
 our $opt_report_unstable_tests;
 our $opt_skip_combinations;
@@ -278,6 +277,7 @@ our $opt_fast                      = 0;
 our $opt_gcov_err                  = "mysql-test-gcov.err";
 our $opt_gcov_exe                  = "gcov";
 our $opt_gcov_msg                  = "mysql-test-gcov.msg";
+our $opt_hypergraph                = 0;
 our $opt_mem                       = $ENV{'MTR_MEM'} ? 1 : 0;
 our $opt_only_big_test             = 0;
 our $opt_parallel                  = $ENV{MTR_PARALLEL};
@@ -336,6 +336,7 @@ our $start_only;
 our $glob_debugger      = 0;
 our $group_replication  = 0;
 our $ndbcluster_enabled = 0;
+our $mysqlbackup_enabled= 0;
 
 our @share_locations;
 
@@ -1444,10 +1445,6 @@ sub set_vardir {
 
   $opt_vardir        = $vardir;
   $path_vardir_trace = $opt_vardir;
-
-  # Chop off any "c:", DBUG likes a unix path ex: c:/src/... => /src/...
-  $path_vardir_trace =~ s/^\w://;
-
   # Location of my.cnf that all clients use
   $path_config_file = "$opt_vardir/my.cnf";
 
@@ -1467,6 +1464,7 @@ sub print_global_resfile {
   resfile_global("gcov",             $opt_gcov             ? 1 : 0);
   resfile_global("gprof",            $opt_gprof            ? 1 : 0);
   resfile_global("helgrind",         $opt_helgrind         ? 1 : 0);
+  resfile_global("hypergraph",       $opt_hypergraph       ? 1 : 0);
   resfile_global("initialize",       \@opt_extra_bootstrap_opt);
   resfile_global("max-connections",  $opt_max_connections);
   resfile_global("mem",              $opt_mem              ? 1 : 0);
@@ -1523,6 +1521,7 @@ sub command_line_setup {
     'async-client'          => \$opt_async_client,
     'cursor-protocol'       => \$opt_cursor_protocol,
     'explain-protocol'      => \$opt_explain_protocol,
+    'hypergraph'            => \$opt_hypergraph,
     'json-explain-protocol' => \$opt_json_explain_protocol,
     'opt-trace-protocol'    => \$opt_trace_protocol,
     'ps-protocol'           => \$opt_ps_protocol,
@@ -1532,9 +1531,6 @@ sub command_line_setup {
 
     # Max number of parallel threads to use
     'parallel=s' => \$opt_parallel,
-
-    # Option to run the tests sourcing 'not_parallel.inc' file
-    'non-parallel-test' => \$opt_non_parallel_test,
 
     # Config file to use as template for all tests
     'defaults-file=s' => \&collect_option,
@@ -2215,6 +2211,7 @@ sub command_line_setup {
 
   mtr_report("Checking supported features");
 
+  check_mysqlbackup_support();
   check_debug_support(\%mysqld_variables);
   check_ndbcluster_support(\%mysqld_variables);
 
@@ -2998,8 +2995,6 @@ sub environment_setup {
   $ENV{'MYSQLXTEST'}          = mysqlxtest_arguments();
   $ENV{'PATH_CONFIG_FILE'}    = $path_config_file;
 
-  $ENV{'MYSQLBACKUP'} = mysqlbackup_arguments()
-    unless $ENV{'MYSQLBACKUP'};
   $ENV{'MYSQLBACKUP_PLUGIN_DIR'} = mysqlbackup_plugin_dir()
     unless $ENV{'MYSQLBACKUP_PLUGIN_DIR'};
   $ENV{'MYSQL_CONFIG_EDITOR'} =
@@ -3111,6 +3106,10 @@ sub environment_setup {
   my $exe_zlib_decompress =
     mtr_exe_maybe_exists("$path_client_bindir/zlib_decompress");
   $ENV{'ZLIB_DECOMPRESS'} = native_path($exe_zlib_decompress);
+
+  # Create an environment variable to make it possible
+  # to detect that the hypergraph optimizer is being used from test cases
+  $ENV{'HYPERGRAPH_TEST'} = $opt_hypergraph;
 
   # Create an environment variable to make it possible
   # to detect that valgrind is being used from test cases
@@ -3319,6 +3318,16 @@ sub check_running_as_root () {
   unlink($test_file);
 }
 
+sub check_mysqlbackup_support() {
+  $ENV{'MYSQLBACKUP'} = mysqlbackup_arguments()
+    unless $ENV{'MYSQLBACKUP'};
+  if($ENV{'MYSQLBACKUP'}) {
+    $mysqlbackup_enabled = 1;
+  } else {
+    $mysqlbackup_enabled = 0;
+  }
+}
+
 sub check_debug_support ($) {
   my $mysqld_variables = shift;
 
@@ -3430,7 +3439,7 @@ sub check_ndbcluster_support ($) {
   $ndbcluster_enabled = 1;
   # Add MySQL Cluster test suites
   $DEFAULT_SUITES .=
-    ",ndb,ndb_binlog,rpl_ndb,ndb_rpl,ndb_memcache,ndbcluster,ndb_ddl,gcol_ndb";
+    ",ndb,ndb_binlog,rpl_ndb,ndb_rpl,ndb_memcache,ndbcluster,ndb_ddl,gcol_ndb,ndb_opt";
   # Increase the suite timeout when running with default ndb suites
   $opt_suite_timeout *= 2;
   return;
@@ -6068,6 +6077,9 @@ sub mysqld_arguments ($$$) {
   # Facility stays disabled if timeout value is zero.
   mtr_add_arg($args, "--loose-debug-sync-timeout=%s", $opt_debug_sync_timeout)
     unless $opt_user_args;
+  if (-e "$bindir/plugin_output_directory") {
+    mtr_add_arg($args, "--plugin-dir=$bindir/plugin_output_directory");
+  }
 
   # Options specified in .opt files should be added last so they can
   # override defaults above.
@@ -6954,6 +6966,10 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "--colored-diff", $opt_colored_diff);
   }
 
+  if ($opt_hypergraph) {
+    mtr_add_arg($args, "--hypergraph");
+  }
+
   foreach my $arg (@opt_extra_mysqltest_opt) {
     mtr_add_arg($args, $arg);
   }
@@ -7724,8 +7740,6 @@ Misc options
                         by inc files are not satisfied. The option mandatorily
                         requires an excluded list at include/excludenoskip.list
                         which contains inc files which should continue to skip.
-  non-parallel-test     Also run tests marked as 'non-parallel'. Tests sourcing
-                        'not_parallel.inc' are marked as 'non-parallel' tests.
   nounit-tests          Do not run unit tests. Normally run if configured
                         and if not running named tests/suites.
   parallel=N            Run tests in N parallel threads. The default value is 1.

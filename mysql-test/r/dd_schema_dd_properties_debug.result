@@ -824,13 +824,16 @@ events=
       elem1=def=KEY(connection_collation_id)
             lbl=INDEX_K_CONNECTION_COLLATION_ID
             pos=3
-      elem2=def=KEY(schema_collation_id)
+      elem2=def=KEY(definer)
+            lbl=INDEX_K_DEFINER
+            pos=5
+      elem3=def=KEY(schema_collation_id)
             lbl=INDEX_K_SCHEMA_COLLATION_ID
             pos=4
-      elem3=def=PRIMARY KEY(id)
+      elem4=def=PRIMARY KEY(id)
             lbl=INDEX_PK_ID
             pos=0
-      elem4=def=UNIQUE KEY(schema_id, name)
+      elem5=def=UNIQUE KEY(schema_id, name)
             lbl=INDEX_UK_SCHEMA_ID_NAME
             pos=1
     name=events
@@ -876,6 +879,11 @@ events=
        trx_id=0
   idx4=id=31
        root=34
+       space_id=4294967294
+       table_id=13
+       trx_id=0
+  idx5=id=32
+       root=35
        space_id=4294967294
        table_id=13
        trx_id=0
@@ -940,18 +948,18 @@ foreign_key_column_usage=
             lbl=TABLESPACE
             pos=5
   id=14
-  idx0=id=32
-       root=35
-       space_id=4294967294
-       table_id=14
-       trx_id=0
-  idx1=id=33
+  idx0=id=33
        root=36
        space_id=4294967294
        table_id=14
        trx_id=0
-  idx2=id=34
+  idx1=id=34
        root=37
+       space_id=4294967294
+       table_id=14
+       trx_id=0
+  idx2=id=35
+       root=38
        space_id=4294967294
        table_id=14
        trx_id=0
@@ -1057,23 +1065,23 @@ foreign_key_column_usage=
             lbl=TABLESPACE
             pos=5
   id=15
-  idx0=id=35
-       root=38
-       space_id=4294967294
-       table_id=15
-       trx_id=0
-  idx1=id=36
+  idx0=id=36
        root=39
        space_id=4294967294
        table_id=15
        trx_id=0
-  idx2=id=37
+  idx1=id=37
        root=40
        space_id=4294967294
        table_id=15
        trx_id=0
-  idx3=id=38
+  idx2=id=38
        root=41
+       space_id=4294967294
+       table_id=15
+       trx_id=0
+  idx3=id=39
+       root=42
        space_id=4294967294
        table_id=15
        trx_id=0
@@ -1146,18 +1154,18 @@ index_column_usage=
             lbl=TABLESPACE
             pos=5
   id=16
-  idx0=id=39
-       root=42
-       space_id=4294967294
-       table_id=16
-       trx_id=0
-  idx1=id=40
+  idx0=id=40
        root=43
        space_id=4294967294
        table_id=16
        trx_id=0
-  idx2=id=41
+  idx1=id=41
        root=44
+       space_id=4294967294
+       table_id=16
+       trx_id=0
+  idx2=id=42
+       root=45
        space_id=4294967294
        table_id=16
        trx_id=0
@@ -1229,18 +1237,18 @@ index_partitions=
             lbl=TABLESPACE
             pos=5
   id=17
-  idx0=id=42
-       root=45
-       space_id=4294967294
-       table_id=17
-       trx_id=0
-  idx1=id=43
+  idx0=id=43
        root=47
        space_id=4294967294
        table_id=17
        trx_id=0
-  idx2=id=44
+  idx1=id=44
        root=48
+       space_id=4294967294
+       table_id=17
+       trx_id=0
+  idx2=id=45
+       root=49
        space_id=4294967294
        table_id=17
        trx_id=0
@@ -1301,8 +1309,8 @@ index_stats=
             lbl=TABLESPACE
             pos=5
   id=18
-  idx0=id=45
-       root=49
+  idx0=id=46
+       root=50
        space_id=4294967294
        table_id=18
        trx_id=0
@@ -1432,18 +1440,18 @@ index_stats=
             lbl=TABLESPACE
             pos=5
   id=19
-  idx0=id=46
-       root=50
-       space_id=4294967294
-       table_id=19
-       trx_id=0
-  idx1=id=47
+  idx0=id=47
        root=51
        space_id=4294967294
        table_id=19
        trx_id=0
-  idx2=id=48
+  idx1=id=48
        root=52
+       space_id=4294967294
+       table_id=19
+       trx_id=0
+  idx2=id=49
+       root=53
        space_id=4294967294
        table_id=19
        trx_id=0
@@ -1762,8 +1770,8 @@ parameter_type_elements=
             lbl=TABLESPACE
             pos=5
   id=20
-  idx0=id=49
-       root=53
+  idx0=id=50
+       root=54
        space_id=4294967294
        table_id=20
        trx_id=0
@@ -1890,18 +1898,18 @@ parameters=
             lbl=TABLESPACE
             pos=5
   id=21
-  idx0=id=50
-       root=54
-       space_id=4294967294
-       table_id=21
-       trx_id=0
-  idx1=id=51
+  idx0=id=51
        root=55
        space_id=4294967294
        table_id=21
        trx_id=0
-  idx2=id=52
+  idx1=id=52
        root=56
+       space_id=4294967294
+       table_id=21
+       trx_id=0
+  idx2=id=53
+       root=57
        space_id=4294967294
        table_id=21
        trx_id=0
@@ -1970,13 +1978,13 @@ resource_groups=
             lbl=TABLESPACE
             pos=5
   id=22
-  idx0=id=53
-       root=57
+  idx0=id=54
+       root=58
        space_id=4294967294
        table_id=22
        trx_id=0
-  idx1=id=54
-       root=58
+  idx1=id=55
+       root=59
        space_id=4294967294
        table_id=22
        trx_id=0
@@ -2146,16 +2154,19 @@ routines=
       elem1=def=KEY(connection_collation_id)
             lbl=INDEX_K_CONNECTION_COLLATION_ID
             pos=4
-      elem2=def=KEY(result_collation_id)
+      elem2=def=KEY(definer)
+            lbl=INDEX_K_DEFINER
+            pos=6
+      elem3=def=KEY(result_collation_id)
             lbl=INDEX_K_RESULT_COLLATION_ID
             pos=2
-      elem3=def=KEY(schema_collation_id)
+      elem4=def=KEY(schema_collation_id)
             lbl=INDEX_K_SCHEMA_COLLATION_ID
             pos=5
-      elem4=def=PRIMARY KEY(id)
+      elem5=def=PRIMARY KEY(id)
             lbl=INDEX_PK_ID
             pos=0
-      elem5=def=UNIQUE KEY(schema_id, type, name)
+      elem6=def=UNIQUE KEY(schema_id, type, name)
             lbl=INDEX_UK_SCHEMA_ID_TYPE_NAME
             pos=1
     name=routines
@@ -2179,33 +2190,38 @@ routines=
             lbl=TABLESPACE
             pos=5
   id=23
-  idx0=id=55
-       root=59
-       space_id=4294967294
-       table_id=23
-       trx_id=0
-  idx1=id=56
+  idx0=id=56
        root=60
        space_id=4294967294
        table_id=23
        trx_id=0
-  idx2=id=57
+  idx1=id=57
        root=61
        space_id=4294967294
        table_id=23
        trx_id=0
-  idx3=id=58
+  idx2=id=58
        root=62
        space_id=4294967294
        table_id=23
        trx_id=0
-  idx4=id=59
+  idx3=id=59
        root=63
        space_id=4294967294
        table_id=23
        trx_id=0
-  idx5=id=60
+  idx4=id=60
        root=64
+       space_id=4294967294
+       table_id=23
+       trx_id=0
+  idx5=id=61
+       root=65
+       space_id=4294967294
+       table_id=23
+       trx_id=0
+  idx6=id=62
+       root=66
        space_id=4294967294
        table_id=23
        trx_id=0
@@ -2291,18 +2307,18 @@ schemata=
             lbl=TABLESPACE
             pos=5
   id=24
-  idx0=id=61
-       root=65
-       space_id=4294967294
-       table_id=24
-       trx_id=0
-  idx1=id=62
-       root=66
-       space_id=4294967294
-       table_id=24
-       trx_id=0
-  idx2=id=63
+  idx0=id=63
        root=67
+       space_id=4294967294
+       table_id=24
+       trx_id=0
+  idx1=id=64
+       root=68
+       space_id=4294967294
+       table_id=24
+       trx_id=0
+  idx2=id=65
+       root=69
        space_id=4294967294
        table_id=24
        trx_id=0
@@ -2394,18 +2410,18 @@ COLLATE utf8_general_ci
             lbl=TABLESPACE
             pos=5
   id=25
-  idx0=id=64
-       root=68
-       space_id=4294967294
-       table_id=25
-       trx_id=0
-  idx1=id=65
-       root=69
-       space_id=4294967294
-       table_id=25
-       trx_id=0
-  idx2=id=66
+  idx0=id=66
        root=70
+       space_id=4294967294
+       table_id=25
+       trx_id=0
+  idx1=id=67
+       root=71
+       space_id=4294967294
+       table_id=25
+       trx_id=0
+  idx2=id=68
+       root=72
        space_id=4294967294
        table_id=25
        trx_id=0
@@ -2465,8 +2481,8 @@ table_partition_values=
             lbl=TABLESPACE
             pos=5
   id=26
-  idx0=id=67
-       root=71
+  idx0=id=69
+       root=73
        space_id=4294967294
        table_id=26
        trx_id=0
@@ -2579,38 +2595,38 @@ table_partitions=
             lbl=TABLESPACE
             pos=5
   id=27
-  idx0=id=68
-       root=72
-       space_id=4294967294
-       table_id=27
-       trx_id=0
-  idx1=id=69
-       root=73
-       space_id=4294967294
-       table_id=27
-       trx_id=0
-  idx2=id=70
+  idx0=id=70
        root=74
        space_id=4294967294
        table_id=27
        trx_id=0
-  idx3=id=71
+  idx1=id=71
        root=75
        space_id=4294967294
        table_id=27
        trx_id=0
-  idx4=id=72
+  idx2=id=72
        root=76
        space_id=4294967294
        table_id=27
        trx_id=0
-  idx5=id=73
+  idx3=id=73
        root=77
        space_id=4294967294
        table_id=27
        trx_id=0
-  idx6=id=74
+  idx4=id=74
        root=78
+       space_id=4294967294
+       table_id=27
+       trx_id=0
+  idx5=id=75
+       root=79
+       space_id=4294967294
+       table_id=27
+       trx_id=0
+  idx6=id=76
+       root=80
        space_id=4294967294
        table_id=27
        trx_id=0
@@ -2699,8 +2715,8 @@ table_stats=
             lbl=TABLESPACE
             pos=5
   id=28
-  idx0=id=75
-       root=79
+  idx0=id=77
+       root=81
        space_id=4294967294
        table_id=28
        trx_id=0
@@ -2899,19 +2915,22 @@ tables=
       elem3=def=KEY(type)
             lbl=INDEX_K_TYPE
             pos=6
-      elem4=def=KEY(view_client_collation_id)
+      elem4=def=KEY(type, view_definer)
+            lbl=INDEX_K_TYPE_VIEW_DEFINER
+            pos=9
+      elem5=def=KEY(view_client_collation_id)
             lbl=INDEX_K_VIEW_CLIENT_COLLATION_ID
             pos=7
-      elem5=def=KEY(view_connection_collation_id)
+      elem6=def=KEY(view_connection_collation_id)
             lbl=INDEX_K_VIEW_CONNECTION_COLLATION_ID
             pos=8
-      elem6=def=PRIMARY KEY (id)
+      elem7=def=PRIMARY KEY (id)
             lbl=INDEX_PK_ID
             pos=0
-      elem7=def=UNIQUE KEY (engine, se_private_id)
+      elem8=def=UNIQUE KEY (engine, se_private_id)
             lbl=INDEX_UK_ENGINE_SE_PRIVATE_ID
             pos=2
-      elem8=def=UNIQUE KEY (schema_id, name)
+      elem9=def=UNIQUE KEY (schema_id, name)
             lbl=INDEX_UK_SCHEMA_ID_NAME
             pos=1
     name=tables
@@ -2935,48 +2954,53 @@ tables=
             lbl=TABLESPACE
             pos=5
   id=29
-  idx0=id=76
-       root=80
-       space_id=4294967294
-       table_id=29
-       trx_id=0
-  idx1=id=77
-       root=81
-       space_id=4294967294
-       table_id=29
-       trx_id=0
-  idx2=id=78
+  idx0=id=78
        root=82
        space_id=4294967294
        table_id=29
        trx_id=0
-  idx3=id=79
+  idx1=id=79
        root=83
        space_id=4294967294
        table_id=29
        trx_id=0
-  idx4=id=80
+  idx2=id=80
        root=84
        space_id=4294967294
        table_id=29
        trx_id=0
-  idx5=id=81
+  idx3=id=81
        root=85
        space_id=4294967294
        table_id=29
        trx_id=0
-  idx6=id=82
+  idx4=id=82
        root=86
        space_id=4294967294
        table_id=29
        trx_id=0
-  idx7=id=83
+  idx5=id=83
        root=87
        space_id=4294967294
        table_id=29
        trx_id=0
-  idx8=id=84
+  idx6=id=84
        root=88
+       space_id=4294967294
+       table_id=29
+       trx_id=0
+  idx7=id=85
+       root=90
+       space_id=4294967294
+       table_id=29
+       trx_id=0
+  idx8=id=86
+       root=91
+       space_id=4294967294
+       table_id=29
+       trx_id=0
+  idx9=id=87
+       root=92
        space_id=4294967294
        table_id=29
        trx_id=0
@@ -3035,13 +3059,13 @@ tablespace_files=
             lbl=TABLESPACE
             pos=5
   id=30
-  idx0=id=85
-       root=90
+  idx0=id=88
+       root=93
        space_id=4294967294
        table_id=30
        trx_id=0
-  idx1=id=86
-       root=91
+  idx1=id=89
+       root=94
        space_id=4294967294
        table_id=30
        trx_id=0
@@ -3110,13 +3134,13 @@ tablespaces=
             lbl=TABLESPACE
             pos=5
   id=31
-  idx0=id=87
-       root=92
+  idx0=id=90
+       root=95
        space_id=4294967294
        table_id=31
        trx_id=0
-  idx1=id=88
-       root=93
+  idx1=id=91
+       root=96
        space_id=4294967294
        table_id=31
        trx_id=0
@@ -3219,16 +3243,19 @@ triggers=
       elem1=def=KEY(connection_collation_id)
             lbl=INDEX_K_CONNECTION_COLLATION_ID
             pos=4
-      elem2=def=KEY(schema_collation_id)
+      elem2=def=KEY(definer)
+            lbl=INDEX_K_DEFINER
+            pos=6
+      elem3=def=KEY(schema_collation_id)
             lbl=INDEX_K_SCHEMA_COLLATION_ID
             pos=5
-      elem3=def=PRIMARY KEY(id)
+      elem4=def=PRIMARY KEY(id)
             lbl=INDEX_PK_ID
             pos=0
-      elem4=def=UNIQUE KEY (schema_id, name)
+      elem5=def=UNIQUE KEY (schema_id, name)
             lbl=INDEX_UK_SCHEMA_ID_NAME
             pos=1
-      elem5=def=UNIQUE KEY (table_id, event_type, action_timing, action_order)
+      elem6=def=UNIQUE KEY (table_id, event_type, action_timing, action_order)
             lbl=INDEX_UK_TABLE_ID_EVENT_TYPE_ACTION_TIMING_ACTION_ORDER
             pos=2
     name=triggers
@@ -3252,33 +3279,38 @@ triggers=
             lbl=TABLESPACE
             pos=5
   id=32
-  idx0=id=89
-       root=94
-       space_id=4294967294
-       table_id=32
-       trx_id=0
-  idx1=id=90
-       root=95
-       space_id=4294967294
-       table_id=32
-       trx_id=0
-  idx2=id=91
-       root=96
-       space_id=4294967294
-       table_id=32
-       trx_id=0
-  idx3=id=92
+  idx0=id=92
        root=97
        space_id=4294967294
        table_id=32
        trx_id=0
-  idx4=id=93
+  idx1=id=93
        root=98
        space_id=4294967294
        table_id=32
        trx_id=0
-  idx5=id=94
+  idx2=id=94
        root=99
+       space_id=4294967294
+       table_id=32
+       trx_id=0
+  idx3=id=95
+       root=100
+       space_id=4294967294
+       table_id=32
+       trx_id=0
+  idx4=id=96
+       root=101
+       space_id=4294967294
+       table_id=32
+       trx_id=0
+  idx5=id=97
+       root=102
+       space_id=4294967294
+       table_id=32
+       trx_id=0
+  idx6=id=98
+       root=103
        space_id=4294967294
        table_id=32
        trx_id=0
@@ -3337,13 +3369,13 @@ view_routine_usage=
             lbl=TABLESPACE
             pos=5
   id=33
-  idx0=id=95
-       root=100
+  idx0=id=99
+       root=104
        space_id=4294967294
        table_id=33
        trx_id=0
-  idx1=id=96
-       root=101
+  idx1=id=100
+       root=105
        space_id=4294967294
        table_id=33
        trx_id=0
@@ -3402,13 +3434,13 @@ view_table_usage=
             lbl=TABLESPACE
             pos=5
   id=34
-  idx0=id=97
-       root=102
+  idx0=id=101
+       root=106
        space_id=4294967294
        table_id=34
        trx_id=0
-  idx1=id=98
-       root=103
+  idx1=id=102
+       root=107
        space_id=4294967294
        table_id=34
        trx_id=0

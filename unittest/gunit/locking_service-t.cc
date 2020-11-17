@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,7 @@ class LockingServiceTest : public ::testing::Test {
     table_def_free();
   }
 
-  virtual void SetUp() {
+  void SetUp() override {
     mdl_init();
     m_initializer.SetUp();
     m_thd = m_initializer.thd();
@@ -78,7 +78,7 @@ class LockingServiceTest : public ::testing::Test {
     m_thd->system_thread = SYSTEM_THREAD_SLAVE_IO;
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     m_initializer.TearDown();
     mdl_destroy();
   }
@@ -272,7 +272,7 @@ class LockServiceThread : public Thread {
         m_lock_grabbed(grabbed_arg),
         m_lock_release(release_arg) {}
 
-  virtual void run() {
+  void run() override {
     Server_initializer m_initializer;
     m_initializer.SetUp();
     THD *m_thd = m_initializer.thd();
@@ -438,7 +438,7 @@ class LockServiceDisconnectThread : public Thread {
  public:
   LockServiceDisconnectThread() {}
 
-  virtual void run() {
+  void run() override {
     Server_initializer m_initializer;
     m_initializer.SetUp();
     THD *m_thd = m_initializer.thd();
@@ -473,7 +473,7 @@ class LockServiceDeadlockThread : public Thread {
   LockServiceDeadlockThread(Notification *grabbed1_arg, Notification *wait_arg)
       : m_lock_grabbed1(grabbed1_arg), m_wait(wait_arg) {}
 
-  virtual void run() {
+  void run() override {
     Server_initializer m_initializer;
     m_initializer.SetUp();
     THD *m_thd = m_initializer.thd();

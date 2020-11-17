@@ -1,0 +1,39 @@
+--source include/not_partial_revokes.inc
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo #
+--echo # Bug#31013538 ALL PRIVILEGES ON A DATABASE FOR
+--echo #              ROLE DOESN'T ALLOW USER TO CREATE
+--echo #
+
+CREATE USER u1;
+CREATE ROLE r1;
+GRANT CREATE, DROP ON db_name.* TO r1;
+GRANT r1 TO u1;
+
+--connect(conn_u1, localhost, u1,,,,)
+--echo # Grants without role activation
+SHOW GRANTS;
+# Activate r1
+SET ROLE r1;
+--echo # Grants after role activation: Must show privileges from r1
+SHOW GRANTS;
+
+CREATE DATABASE db_name;
+DROP DATABASE db_name;
+
+CREATE DATABASE db1name;
+DROP DATABASE db1name;
+
+--connection default
+--disconnect conn_u1
+DROP ROLE r1;
+DROP USER u1;
+
+--echo
+--echo # End of 8.0 tests
+--echo
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

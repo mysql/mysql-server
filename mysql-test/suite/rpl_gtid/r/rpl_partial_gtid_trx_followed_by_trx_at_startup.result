@@ -36,6 +36,8 @@ include/gtid_step_assert_on_retrieved.inc [count=3, only_count=1]
 Asserting based on SHOW SLAVE STATUS(Retrieved_Gtid_Set)
 include/stop_slave_io.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
 [connection master]

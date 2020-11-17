@@ -1,0 +1,911 @@
+#--------------------------------------------------------------------
+# Test of WL#13369 for l_c_t_n = 0.
+#--------------------------------------------------------------------
+#--------------------------------------------------------------------
+# FR1, FR2: Option name, values, persistence.
+#--------------------------------------------------------------------
+CREATE SCHEMA S;
+# Invalid values.
+ALTER SCHEMA S read only=on;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'on' at line 1
+ALTER SCHEMA S read only=off;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'off' at line 1
+ALTER SCHEMA S read only=-1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1' at line 1
+ALTER SCHEMA S read only=2;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '2' at line 1
+# Hyphen invalid in option names.
+ALTER SCHEMA S read-only=0;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-only=0' at line 1
+ALTER SCHEMA S READ-ONLY=0;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-ONLY=0' at line 1
+# Valid values.
+ALTER SCHEMA S read only=0;
+ALTER SCHEMA S read only=default;
+ALTER SCHEMA S read only=1;
+ALTER SCHEMA S READ ONLY=0;
+ALTER SCHEMA S READ ONLY=DEFAULT;
+ALTER SCHEMA S READ ONLY=1;
+# Value survives restart.
+SHOW CREATE SCHEMA S;
+Database	Create Database
+S	CREATE DATABASE `S` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */ /* READ ONLY = 1 */
+CREATE TABLE S.t(i INT);
+ERROR HY000: Schema 'S' is in read only mode.
+# restart
+SHOW CREATE SCHEMA S;
+Database	Create Database
+S	CREATE DATABASE `S` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */ /* READ ONLY = 1 */
+CREATE TABLE S.t(i INT);
+ERROR HY000: Schema 'S' is in read only mode.
+ALTER SCHEMA S READ ONLY=0;
+DROP SCHEMA S;
+#--------------------------------------------------------------------
+# FR3: Invalid option in CREATE SCHEMA.
+#--------------------------------------------------------------------
+CREATE SCHEMA S read only=0;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'read only=0' at line 1
+#--------------------------------------------------------------------
+# FR4: ALTER privilege needed to change read only.
+#--------------------------------------------------------------------
+CREATE SCHEMA S;
+CREATE USER s_usr;
+connect  s_con, localhost, s_usr,,;
+ALTER SCHEMA S read only=1;
+ERROR 42000: Access denied for user 's_usr'@'%' to database 'S'
+connection default;
+GRANT ALTER ON S.* TO s_usr;
+connection s_con;
+ALTER SCHEMA S read only=1;
+ALTER SCHEMA S read only=0;
+connection default;
+disconnect s_con;
+DROP USER s_usr;
+DROP SCHEMA S;
+#--------------------------------------------------------------------
+# FR5: Visibility in SHOW CREATE.
+#--------------------------------------------------------------------
+CREATE SCHEMA S;
+SHOW CREATE SCHEMA S;
+Database	Create Database
+S	CREATE DATABASE `S` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
+ALTER SCHEMA S read only=1;
+SHOW CREATE SCHEMA S;
+Database	Create Database
+S	CREATE DATABASE `S` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */ /* READ ONLY = 1 */
+ALTER SCHEMA S read only=0;
+SHOW CREATE SCHEMA S;
+Database	Create Database
+S	CREATE DATABASE `S` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
+# Re-create based on SHOW output.
+ALTER SCHEMA S READ ONLY=1;
+ALTER SCHEMA S READ ONLY=0;
+DROP SCHEMA S;
+	CREATE DATABASE `S` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */ /* READ ONLY = 1 */;
+# Note read only option ignored in CREATE.
+SHOW CREATE SCHEMA S;
+Database	Create Database
+S	CREATE DATABASE `S` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
+DROP SCHEMA S;
+#--------------------------------------------------------------------
+# FR6: I_S.SCHEMATA_extensions.
+#--------------------------------------------------------------------
+CREATE SCHEMA S;
+SELECT * FROM information_schema.schemata_extensions ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	OPTIONS
+def	S	
+def	information_schema	
+def	mtr	
+def	mysql	
+def	performance_schema	
+def	sys	
+def	test	
+ALTER SCHEMA S READ ONLY=1;
+SELECT * FROM information_schema.schemata_extensions ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	OPTIONS
+def	S	READ ONLY=1
+def	information_schema	
+def	mtr	
+def	mysql	
+def	performance_schema	
+def	sys	
+def	test	
+ALTER SCHEMA S READ ONLY=0;
+SELECT * FROM information_schema.schemata_extensions ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	OPTIONS
+def	S	
+def	information_schema	
+def	mtr	
+def	mysql	
+def	performance_schema	
+def	sys	
+def	test	
+DROP SCHEMA S;
+#--------------------------------------------------------------------
+# FR7: The read only option affects all users.
+#--------------------------------------------------------------------
+CREATE USER con_adm_usr;
+GRANT ALL ON *.* TO con_adm_usr;
+GRANT CONNECTION_ADMIN ON *.* TO con_adm_usr;
+CREATE USER super_usr;
+GRANT ALL ON *.* TO super_usr;
+GRANT SUPER ON *.* TO super_usr;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+CREATE SCHEMA S;
+connect  root_con, localhost, root,,;
+CREATE TABLE S.t(i INT);
+DROP TABLE S.t;
+ALTER SCHEMA S READ ONLY=1;
+CREATE TABLE S.t(i INT);
+ERROR HY000: Schema 'S' is in read only mode.
+ALTER SCHEMA S READ ONLY=0;
+connect  con_adm_con, localhost, con_adm_usr,,;
+CREATE TABLE S.t(i INT);
+DROP TABLE S.t;
+ALTER SCHEMA S READ ONLY=1;
+CREATE TABLE S.t(i INT);
+ERROR HY000: Schema 'S' is in read only mode.
+ALTER SCHEMA S READ ONLY=0;
+connect  super_con, localhost, super_usr,,;
+CREATE TABLE S.t(i INT);
+DROP TABLE S.t;
+ALTER SCHEMA S READ ONLY=1;
+CREATE TABLE S.t(i INT);
+ERROR HY000: Schema 'S' is in read only mode.
+ALTER SCHEMA S READ ONLY=0;
+connection default;
+disconnect root_con;
+disconnect con_adm_con;
+disconnect super_con;
+DROP USER con_adm_usr;
+DROP USER super_usr;
+DROP SCHEMA S;
+#--------------------------------------------------------------------
+# FR8: The read only option shall be replicated.
+#--------------------------------------------------------------------
+# See separate test rpl.rpl_alter_db.
+#--------------------------------------------------------------------
+# FR9: Initialization, restart, upgrade and replication not affected.
+#--------------------------------------------------------------------
+CREATE SCHEMA S;
+ALTER SCHEMA S READ ONLY=1;
+# Initialization.
+# Restart.
+# restart: --debug=+d,schema_read_only
+SHOW TABLES IN S;
+Tables_in_S
+restart
+SHOW CREATE SCHEMA S;
+Database	Create Database
+S	CREATE DATABASE `S` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */ /* READ ONLY = 1 */
+# Upgrade.
+# Copy tables since upgrade will break check testcase.
+CREATE TABLE mysql.tmp_backup_tables_priv AS SELECT * FROM mysql.tables_priv;
+CREATE TABLE mysql.tmp_backup_user AS SELECT * FROM mysql.user;
+# restart: --upgrade=force --debug=+d,schema_read_only
+# Restore copied tables.
+TRUNCATE TABLE mysql.tables_priv;
+INSERT INTO mysql.tables_priv (SELECT * FROM mysql.tmp_backup_tables_priv);
+DROP TABLE mysql.tmp_backup_tables_priv;
+TRUNCATE TABLE mysql.user;
+INSERT INTO mysql.user (SELECT * FROM mysql.tmp_backup_user);
+DROP TABLE mysql.tmp_backup_user;
+SHOW TABLES IN S;
+Tables_in_S
+restart
+upgrade
+SHOW CREATE SCHEMA S;
+Database	Create Database
+S	CREATE DATABASE `S` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */ /* READ ONLY = 1 */
+# Replication: See separate test rpl.rpl_alter_db.
+#--------------------------------------------------------------------
+# FR10: Statements in an init file shall not be affected.
+#--------------------------------------------------------------------
+# restart: --init-file=MYSQLTEST_VARDIR/tmp/schema_read_only.sql
+SHOW CREATE SCHEMA schema_read_only;
+ERROR 42000: Unknown database 'schema_read_only'
+SHOW TABLES IN S;
+Tables_in_S
+init_file
+restart
+upgrade
+SHOW CREATE SCHEMA S;
+Database	Create Database
+S	CREATE DATABASE `S` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */ /* READ ONLY = 1 */
+ALTER SCHEMA S READ ONLY=0;
+DROP SCHEMA S;
+#--------------------------------------------------------------------
+# FR11: No ALTER for mysql, I_S, P_S and sys.
+#--------------------------------------------------------------------
+ALTER SCHEMA mysql READ ONLY=1;
+ERROR HY000: Access to system schema 'mysql' is rejected.
+ALTER SCHEMA information_schema READ ONLY=1;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+ALTER SCHEMA performance_schema READ ONLY=1;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+#--------------------------------------------------------------------
+# FR12: Restrictions on statement execution.
+#--------------------------------------------------------------------
+# Sample read only schema.
+CREATE SCHEMA S;
+CREATE TABLE S.t1(i INT, j INT, INDEX i1(i));
+ALTER SCHEMA S read only=1;
+SHOW CREATE SCHEMA S;
+Database	Create Database
+S	CREATE DATABASE `S` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */ /* READ ONLY = 1 */
+SELECT schema_name FROM information_schema.schemata ORDER BY schema_name;
+SCHEMA_NAME
+S
+information_schema
+mtr
+mysql
+performance_schema
+sys
+test
+# Schema operations.
+CREATE SCHEMA S;
+ERROR HY000: Can't create database 'S'; database exists
+ALTER SCHEMA S COLLATE utf8_bin;
+ERROR HY000: Schema 'S' is in read only mode.
+ALTER SCHEMA S CHARACTER SET ascii;
+ERROR HY000: Schema 'S' is in read only mode.
+DROP SCHEMA S;
+ERROR HY000: Schema 'S' is in read only mode.
+# Table operations.
+CREATE TABLE S.t2(i INT);
+ERROR HY000: Schema 'S' is in read only mode.
+ALTER TABLE S.t1 ADD COLUMN (k INT), ALGORITHM INSTANT;
+ERROR HY000: Schema 'S' is in read only mode.
+ALTER TABLE S.t1 ADD COLUMN (k INT), ALGORITHM INPLACE;
+ERROR HY000: Schema 'S' is in read only mode.
+ALTER TABLE S.t1 ADD COLUMN (k INT), ALGORITHM COPY;
+ERROR HY000: Schema 'S' is in read only mode.
+CREATE INDEX i2 ON S.t1(j);
+ERROR HY000: Schema 'S' is in read only mode.
+DROP INDEX i1 ON S.t1;
+ERROR HY000: Schema 'S' is in read only mode.
+RENAME TABLE S.t1 TO S.t2;
+ERROR HY000: Schema 'S' is in read only mode.
+CREATE TABLE test.t1 LIKE S.t1;
+RENAME TABLE S.t1 TO S.t2;
+ERROR HY000: Schema 'S' is in read only mode.
+RENAME TABLE test.t1 TO test.t2, S.t1 TO S.t2;
+ERROR HY000: Schema 'S' is in read only mode.
+TRUNCATE TABLE S.t1;
+ERROR HY000: Schema 'S' is in read only mode.
+DROP TABLE S.t1;
+ERROR HY000: Schema 'S' is in read only mode.
+DROP TABLE test.t1, S.t1;
+ERROR HY000: Schema 'S' is in read only mode.
+DROP TABLE test.t1;
+SELECT * FROM S.t1;
+i	j
+DELETE FROM S.t1;
+ERROR HY000: Schema 'S' is in read only mode.
+INSERT INTO S.t1 VALUES (1, 1);
+ERROR HY000: Schema 'S' is in read only mode.
+REPLACE INTO S.t1 VALUES (1, 1);
+ERROR HY000: Schema 'S' is in read only mode.
+UPDATE S.t1 SET i = j;
+ERROR HY000: Schema 'S' is in read only mode.
+# Import
+ALTER SCHEMA S READ ONLY=0;
+CREATE TABLE S.t_imp (i INT) ENGINE=MYISAM;
+INSERT INTO S.t_imp VALUES (1), (3), (5);
+SELECT * FROM S.t_imp;
+i
+1
+3
+5
+FLUSH TABLES WITH READ LOCK;
+UNLOCK TABLES;
+DROP TABLE S.t_imp;
+ALTER SCHEMA S READ ONLY=1;
+USE S;
+IMPORT TABLE FROM 't_imp*.sdi';
+ERROR HY000: Schema 'S' is in read only mode.
+# LOAD DATA INFILE/XML
+SELECT 1, 1 INTO OUTFILE 't.txt';
+LOAD DATA INFILE 't.txt' INTO TABLE S.t1;
+ERROR HY000: Schema 'S' is in read only mode.
+CREATE TABLE test.t1 LIKE S.t1;
+INSERT INTO test.t1 VALUES (1, 1);
+LOAD XML INFILE "MYSQLTEST_VARDIR/tmp/t1.xml" INTO TABLE S.t1;;
+ERROR HY000: Schema 'S' is in read only mode.
+# View operations.
+CREATE VIEW S.v1 AS SELECT * FROM S.t1;
+ERROR HY000: Schema 'S' is in read only mode.
+ALTER SCHEMA S READ ONLY=0;
+CREATE VIEW S.v1 AS SELECT * FROM test.t1;
+ALTER SCHEMA S READ ONLY=1;
+# Operations altering the validity of a view in a read only schema are
+# rejected.
+DROP TABLE test.t1;
+ERROR HY000: Schema 'S' is in read only mode.
+ALTER SCHEMA S READ ONLY=0;
+DROP TABLE test.t1;
+ALTER SCHEMA S READ ONLY=1;
+CREATE TABLE test.t1 LIKE S.t1;
+ERROR HY000: Schema 'S' is in read only mode.
+ALTER VIEW S.v1 AS SELECT * FROM S.t1;
+ERROR HY000: Schema 'S' is in read only mode.
+DROP VIEW S.v1;
+ERROR HY000: Schema 'S' is in read only mode.
+ALTER SCHEMA S READ ONLY=0;
+DROP VIEW S.v1;
+ALTER SCHEMA S READ ONLY=1;
+# Inserts in updatable view will fail.
+CREATE VIEW test.v AS SELECT * FROM S.t1;
+SELECT * FROM test.v;
+i	j
+INSERT INTO test.v VALUES(1, 1);
+ERROR HY000: Schema 'S' is in read only mode.
+DROP VIEW test.v;
+# Functions. Recursion not allowed, DDL causing implicit commit not
+# allowed.
+CREATE FUNCTION S.f() RETURNS INT RETURN 1;
+ERROR HY000: Schema 'S' is in read only mode.
+CREATE TABLE test.t1 LIKE S.t1;
+ALTER SCHEMA S READ ONLY=0;
+CREATE FUNCTION S.f(stmt VARCHAR(20)) RETURNS INT
+BEGIN
+CASE stmt
+WHEN 'INSERT s' THEN INSERT INTO S.t1 VALUES(1, 1);
+WHEN 'INSERT test' THEN INSERT INTO test.t1 VALUES(1, 1);
+ELSE BEGIN END;
+END CASE;
+RETURN 1;
+END|
+CREATE VIEW S.v_s AS SELECT S.f('INSERT s');
+CREATE VIEW S.v_test AS SELECT S.f('INSERT test');
+ALTER SCHEMA S READ ONLY=1;
+CREATE FUNCTION test.f(stmt VARCHAR(20)) RETURNS INT
+BEGIN
+CASE stmt
+WHEN 'INSERT s' THEN INSERT INTO S.t1 VALUES(1, 1);
+WHEN 'INSERT test' THEN INSERT INTO test.t1 VALUES(1, 1);
+ELSE BEGIN END;
+END CASE;
+RETURN 1;
+END|
+CREATE VIEW test.v_s AS SELECT test.f('INSERT s');
+CREATE VIEW test.v_test AS SELECT test.f('INSERT test');
+# Fails due to prelocking strategy.
+SELECT S.f('INSERT test');
+ERROR HY000: Schema 'S' is in read only mode.
+SELECT S.f('INSERT s');
+ERROR HY000: Schema 'S' is in read only mode.
+SELECT * FROM S.v_test;
+ERROR HY000: Schema 'S' is in read only mode.
+SELECT * FROM S.v_s;
+ERROR HY000: Schema 'S' is in read only mode.
+DROP FUNCTION S.f;
+ERROR HY000: Schema 'S' is in read only mode.
+# Fails due to prelocking strategy.
+SELECT test.f('INSERT test');
+ERROR HY000: Schema 'S' is in read only mode.
+SELECT test.f('INSERT s');
+ERROR HY000: Schema 'S' is in read only mode.
+SELECT * FROM test.v_test;
+ERROR HY000: Schema 'S' is in read only mode.
+SELECT * FROM test.v_s;
+ERROR HY000: Schema 'S' is in read only mode.
+ALTER SCHEMA S READ ONLY=0;
+SELECT S.f('INSERT test');
+S.f('INSERT test')
+1
+SELECT S.f('INSERT s');
+S.f('INSERT s')
+1
+SELECT * FROM S.v_test;
+S.f('INSERT test')
+1
+SELECT * FROM S.v_s;
+S.f('INSERT s')
+1
+SELECT test.f('INSERT test');
+test.f('INSERT test')
+1
+SELECT test.f('INSERT s');
+test.f('INSERT s')
+1
+SELECT * FROM test.v_test;
+test.f('INSERT test')
+1
+SELECT * FROM test.v_s;
+test.f('INSERT s')
+1
+DROP VIEW S.v_s;
+DROP VIEW S.v_test;
+DROP FUNCTION S.f;
+ALTER SCHEMA S READ ONLY=1;
+DROP VIEW test.v_s;
+DROP VIEW test.v_test;
+DROP FUNCTION test.f;
+DROP TABLE test.t1;
+# Procedures.
+CREATE PROCEDURE S.p() BEGIN END;
+ERROR HY000: Schema 'S' is in read only mode.
+CREATE TABLE test.t1 LIKE S.t1;
+ALTER SCHEMA S READ ONLY=0;
+CREATE PROCEDURE S.p(stmt VARCHAR(20))
+BEGIN
+CASE stmt
+WHEN 'INSERT s' THEN INSERT INTO S.t1 VALUES(1, 1);
+WHEN 'INSERT test' THEN INSERT INTO test.t1 VALUES(1, 1);
+ELSE BEGIN END;
+END CASE;
+END|
+ALTER SCHEMA S READ ONLY=1;
+CREATE PROCEDURE test.p(stmt VARCHAR(20))
+BEGIN
+CASE stmt
+WHEN 'INSERT s' THEN INSERT INTO S.t1 VALUES(1, 1);
+WHEN 'INSERT test' THEN INSERT INTO test.t1 VALUES(1, 1);
+ELSE BEGIN END;
+END CASE;
+END|
+CALL S.p('INSERT s');
+ERROR HY000: Schema 'S' is in read only mode.
+# Succeeds due to no prelocking for CALL.
+CALL S.p('INSERT test');
+DROP PROCEDURE S.p;
+ERROR HY000: Schema 'S' is in read only mode.
+CALL test.p('INSERT s');
+ERROR HY000: Schema 'S' is in read only mode.
+# Succeeds due to no prelocking for CALL.
+CALL test.p('INSERT test');
+ALTER SCHEMA S READ ONLY=0;
+CALL S.p('INSERT s');
+CALL S.p('INSERT test');
+DROP PROCEDURE S.p;
+CALL test.p('INSERT s');
+CALL test.p('INSERT test');
+ALTER SCHEMA S READ ONLY=1;
+DROP PROCEDURE test.p;
+DROP TABLE test.t1;
+# Triggers.
+CREATE TABLE test.t1 LIKE S.t1;
+CREATE TRIGGER S.eq BEFORE INSERT ON S.t1 FOR EACH ROW SET NEW.j = NEW.i;
+ERROR HY000: Schema 'S' is in read only mode.
+ALTER SCHEMA S READ ONLY=0;
+CREATE TRIGGER S.ins_upd
+BEFORE INSERT ON S.t1 FOR EACH ROW UPDATE test.t1 SET i = j;
+ALTER SCHEMA S READ ONLY=1;
+DROP TRIGGER S.ins_upd;
+ERROR HY000: Schema 'S' is in read only mode.
+CREATE TRIGGER test.ins_upd
+BEFORE INSERT ON test.t1 FOR EACH ROW UPDATE S.t1 SET j = i;
+INSERT INTO S.t1 VALUES (1, 2);
+ERROR HY000: Schema 'S' is in read only mode.
+INSERT INTO test.t1 VALUES (3, 4);
+ERROR HY000: Schema 'S' is in read only mode.
+ALTER SCHEMA S READ ONLY=0;
+INSERT INTO S.t1 VALUES (1, 2);
+INSERT INTO test.t1 VALUES (3, 4);
+DROP TRIGGER S.ins_upd;
+ALTER SCHEMA S READ ONLY=1;
+DROP TRIGGER test.ins_upd;
+DROP TABLE test.t1;
+# Events.
+# Restart to get a separate log file.
+# restart: --log-error=MYSQLD_LOG
+CREATE TABLE test.t1 LIKE S.t1;
+CREATE EVENT test.ev
+ON SCHEDULE EVERY 1 SECOND DO INSERT INTO S.t1 VALUES (1, 2);
+CREATE EVENT S.ev
+ON SCHEDULE EVERY 1 SECOND DO INSERT INTO test.t1 VALUES (1, 2);
+ERROR HY000: Schema 'S' is in read only mode.
+ALTER SCHEMA S READ ONLY=0;
+CREATE EVENT S.ev
+ON SCHEDULE EVERY 1 SECOND DO INSERT INTO test.t1 VALUES (1, 2);
+ALTER SCHEMA S READ ONLY=1;
+ALTER EVENT S.ev DISABLE;
+ERROR HY000: Schema 'S' is in read only mode.
+DROP EVENT S.ev;
+ERROR HY000: Schema 'S' is in read only mode.
+# Reject executing events located in a read only schema because
+# last_executed timestamp must be updated.
+Pattern not found.
+Pattern not found.
+# Reject executing events accessing read only entities.
+Pattern not found.
+Pattern not found.
+ALTER SCHEMA S READ ONLY=0;
+ALTER EVENT S.ev DISABLE;
+DROP EVENT S.ev;
+DROP EVENT test.ev;
+DROP TABLE test.t1;
+ALTER SCHEMA S READ ONLY=1;
+# Non-cascading foreign keys.
+CREATE TABLE test.p (
+id INT NOT NULL,
+PRIMARY KEY (id)
+);
+INSERT INTO test.p VALUES (1), (2), (3), (4);
+ALTER SCHEMA S READ ONLY=0;
+CREATE TABLE S.c (
+p_id INT,
+FOREIGN KEY (p_id)
+REFERENCES test.p(id)
+);
+INSERT INTO S.c VALUES (1), (2);
+ALTER SCHEMA S READ ONLY=1;
+DELETE FROM test.p WHERE id=1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`S`.`c`, CONSTRAINT `c_ibfk_1` FOREIGN KEY (`p_id`) REFERENCES `test`.`p` (`id`))
+DELETE FROM test.p WHERE id=4;
+SELECT * FROM test.p;
+id
+1
+2
+3
+SELECT * FROM S.c;
+p_id
+1
+2
+# Parent of non-cascading FK may be locked.
+LOCK TABLE test.p WRITE;
+UNLOCK TABLES;
+ALTER SCHEMA S READ ONLY=0;
+DROP TABLE S.c;
+# Cascading foreign keys.
+INSERT INTO test.p VALUES (4);
+CREATE TABLE S.c (
+p_id INT,
+FOREIGN KEY (p_id)
+REFERENCES test.p(id)
+ON DELETE CASCADE
+ON UPDATE CASCADE
+);
+INSERT INTO S.c VALUES (1), (2);
+ALTER SCHEMA S READ ONLY=1;
+# Prelocking will reject any parent update/delete + LOCK TABLE.
+DELETE FROM test.p WHERE id=1;
+ERROR HY000: Schema 'S' is in read only mode.
+DELETE FROM test.p WHERE id=4;
+ERROR HY000: Schema 'S' is in read only mode.
+UPDATE test.p SET id=5 WHERE id=2;
+ERROR HY000: Schema 'S' is in read only mode.
+UPDATE test.p SET id=5 WHERE id=4;
+ERROR HY000: Schema 'S' is in read only mode.
+LOCK TABLE test.p WRITE;
+ERROR HY000: Schema 'S' is in read only mode.
+# Turning off FKC will allow changes and skip updating child, but still
+# reject LOCK TABLE.
+SET @@session.foreign_key_checks=0;
+DELETE FROM test.p WHERE id=1;
+DELETE FROM test.p WHERE id=4;
+UPDATE test.p SET id=5 WHERE id=2;
+UPDATE test.p SET id=2 WHERE id=3;
+SELECT * FROM test.p;
+id
+2
+5
+SELECT * FROM S.c;
+p_id
+1
+2
+LOCK TABLE test.p WRITE;
+ERROR HY000: Schema 'S' is in read only mode.
+SET @@session.foreign_key_checks=1;
+# Turning off read only will allow changes and update child + allow
+# LOCK TABLE.
+ALTER SCHEMA S READ ONLY=0;
+UPDATE test.p SET id=6 WHERE id=2;
+SELECT * FROM test.p;
+id
+5
+6
+SELECT * FROM S.c;
+p_id
+1
+6
+DELETE FROM test.p WHERE id=6;
+SELECT * FROM test.p;
+id
+5
+SELECT * FROM S.c;
+p_id
+1
+LOCK TABLE test.p WRITE;
+# LOCK will block altering schema from same connection.
+ALTER SCHEMA S READ ONLY=1;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+UNLOCK TABLES;
+ALTER SCHEMA S READ ONLY=1;
+# Trigger deleting/updating parent with a cascading FK child in
+# read only schema.
+CREATE TABLE test.t(i INT);
+CREATE TRIGGER test.ins_upd
+BEFORE INSERT ON test.t FOR EACH ROW
+UPDATE test.p SET id = id + 1 WHERE id = NEW.i;
+CREATE TRIGGER test.ins_del
+AFTER INSERT ON test.t FOR EACH ROW DELETE FROM test.p WHERE id = NEW.i-1;
+SELECT * FROM test.p;
+id
+5
+SELECT * FROM S.c;
+p_id
+1
+INSERT INTO test.t VALUES (4);
+ERROR HY000: Schema 'S' is in read only mode.
+LOCK TABLE test.t WRITE;
+ERROR HY000: Schema 'S' is in read only mode.
+ALTER SCHEMA S READ ONLY=0;
+INSERT INTO test.t VALUES (4);
+SELECT * FROM test.p;
+id
+5
+SELECT * FROM S.c;
+p_id
+1
+# LOCK TABLE WRITE blocking ALTER SCHEMA from another connection.
+LOCK TABLE test.t WRITE;
+connect  con_1, localhost, root,, test;
+set @@session.lock_wait_timeout = 1;
+ALTER SCHEMA S READ ONLY=1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# LOCK TABLE READ will not block ALTER SCHEMA S from another connection,
+# but ALTER SCHEMA test will be blocked.
+connection default;
+UNLOCK TABLES;
+LOCK TABLE test.t READ;
+connection con_1;
+ALTER SCHEMA S READ ONLY=1;
+ALTER SCHEMA S READ ONLY=0;
+ALTER SCHEMA test READ ONLY=1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+connection default;
+disconnect con_1;
+UNLOCK TABLES;
+set @@session.lock_wait_timeout=DEFAULT;
+# LOCK TABLES of table in read only schema.
+ALTER SCHEMA S READ ONLY=1;
+LOCK TABLE S.c WRITE;
+ERROR HY000: Schema 'S' is in read only mode.
+# Restart with default log file.
+# restart:
+# Intermediate cleanup.
+ALTER SCHEMA S READ ONLY=0;
+DROP SCHEMA S;
+DROP TABLE test.t;
+DROP TABLE test.p;
+#--------------------------------------------------------------------
+# FR13: The option shall not have any affect on temporary tables.
+#--------------------------------------------------------------------
+CREATE SCHEMA S;
+ALTER SCHEMA S READ ONLY=1;
+CREATE TEMPORARY TABLE S.t(i INT);
+INSERT INTO S.t VALUES(1);
+SELECT * FROM S.t;
+i
+1
+DROP TABLE S.t;
+ALTER SCHEMA S READ ONLY=0;
+DROP SCHEMA S;
+#--------------------------------------------------------------------
+# FR14: Concurrency.
+#--------------------------------------------------------------------
+CREATE SCHEMA S;
+CREATE TABLE S.t(i INT);
+connect  con1, localhost, root,,;
+connect  con2, localhost, root,,;
+# From a separate connection, issue an INSERT, and halt after getting
+# lock.
+connection con1;
+SET DEBUG_SYNC =
+'after_open_table_mdl_shared SIGNAL got_lock WAIT_FOR continue';
+INSERT INTO S.t VALUES (1);;
+# From another connection, issue an ALTER SCHEMA.
+connection con2;
+SET DEBUG_SYNC = 'now WAIT_FOR got_lock';
+ALTER SCHEMA S READ ONLY=1;;
+# Verify lock state and let the INSERT continue.
+connection default;
+SELECT object_schema, object_name, lock_type, lock_status
+FROM performance_schema.metadata_locks WHERE object_schema in ('s', 'S');
+object_schema	object_name	lock_type	lock_status
+S	t	SHARED_WRITE	GRANTED
+S	NULL	EXCLUSIVE	GRANTED
+S	t	EXCLUSIVE	PENDING
+SET DEBUG_SYNC = 'now SIGNAL continue';
+# Verify that the statements complete. Note deadlock for the insert
+# due to acquiring IX on schema name.
+connection con1;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+connection con2;
+connection default;
+SHOW CREATE SCHEMA S;
+Database	Create Database
+S	CREATE DATABASE `S` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */ /* READ ONLY = 1 */
+# Halt ALTER SCHEMA after locking schema tables.
+connection con1;
+SET DEBUG_SYNC =
+'after_wait_locked_tablespace_name_for_table SIGNAL got_lock
+   WAIT_FOR continue';
+ALTER SCHEMA S READ ONLY=0;;
+# From a separate connection, issue an INSERT.
+connection con2;
+SET DEBUG_SYNC = 'now WAIT_FOR got_lock';
+INSERT INTO S.t VALUES (1);;
+# Verify lock state and let the ALTER continue.
+connection default;
+SELECT object_schema, object_name, lock_type, lock_status
+FROM performance_schema.metadata_locks WHERE object_schema in ('s', 'S');
+object_schema	object_name	lock_type	lock_status
+S	NULL	EXCLUSIVE	GRANTED
+S	t	EXCLUSIVE	GRANTED
+S	t	SHARED_WRITE	PENDING
+SET DEBUG_SYNC = 'now SIGNAL continue';
+# Verify that the statements complete.
+connection con1;
+connection con2;
+connection default;
+SHOW CREATE SCHEMA S;
+Database	Create Database
+S	CREATE DATABASE `S` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
+disconnect con1;
+disconnect con2;
+DROP SCHEMA S;
+#--------------------------------------------------------------------
+# FR15: Conflicting options.
+#--------------------------------------------------------------------
+CREATE SCHEMA S;
+ALTER SCHEMA S READ ONLY = 0 READ ONLY = 0;
+ALTER SCHEMA S READ ONLY = 0 READ ONLY = 1;
+ERROR HY000: Conflicting declarations: 'READ ONLY=0' and 'READ ONLY=1'
+ALTER SCHEMA S READ ONLY = 0 READ ONLY = DEFAULT;
+ALTER SCHEMA S READ ONLY = 1 READ ONLY = 0;
+ERROR HY000: Conflicting declarations: 'READ ONLY=0' and 'READ ONLY=1'
+ALTER SCHEMA S READ ONLY = 1 READ ONLY = 1;
+ALTER SCHEMA S READ ONLY = 1 READ ONLY = DEFAULT;
+ERROR HY000: Conflicting declarations: 'READ ONLY=0' and 'READ ONLY=1'
+ALTER SCHEMA S READ ONLY = DEFAULT READ ONLY = 0;
+ALTER SCHEMA S READ ONLY = DEFAULT READ ONLY = 1;
+ERROR HY000: Conflicting declarations: 'READ ONLY=0' and 'READ ONLY=1'
+ALTER SCHEMA S READ ONLY = DEFAULT READ ONLY = DEFAULT;
+DROP SCHEMA S;
+#--------------------------------------------------------------------
+# FR16: ALTER READ ONLY allowed for read only schema.
+#--------------------------------------------------------------------
+CREATE SCHEMA S;
+ALTER SCHEMA S READ ONLY=1;
+SHOW CREATE SCHEMA S;
+Database	Create Database
+S	CREATE DATABASE `S` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */ /* READ ONLY = 1 */
+ALTER SCHEMA S READ ONLY=DEFAULT;
+SHOW CREATE SCHEMA S;
+Database	Create Database
+S	CREATE DATABASE `S` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
+ALTER SCHEMA S READ ONLY=1;
+Repeated READ ONLY = 1 is allowed
+ALTER SCHEMA S READ ONLY=1;
+SHOW CREATE SCHEMA S;
+Database	Create Database
+S	CREATE DATABASE `S` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */ /* READ ONLY = 1 */
+ALTER SCHEMA S READ ONLY=0;
+DROP SCHEMA S;
+#--------------------------------------------------------------------
+# FR17: ALTER SCHEMA rejected for read only schema.
+#--------------------------------------------------------------------
+CREATE SCHEMA S;
+ALTER SCHEMA S READ ONLY=1;
+SHOW CREATE SCHEMA S;
+Database	Create Database
+S	CREATE DATABASE `S` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */ /* READ ONLY = 1 */
+ALTER SCHEMA S COLLATE utf8_bin;
+ERROR HY000: Schema 'S' is in read only mode.
+SHOW CREATE SCHEMA S;
+Database	Create Database
+S	CREATE DATABASE `S` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */ /* READ ONLY = 1 */
+ALTER SCHEMA S READ ONLY=0;
+DROP SCHEMA S;
+#--------------------------------------------------------------------
+# FR18: ALTER SCHEMA for a mix of options.
+#--------------------------------------------------------------------
+CREATE SCHEMA S;
+ALTER SCHEMA S READ ONLY=1;
+ALTER SCHEMA S READ ONLY = 1 COLLATE utf8_bin;
+ERROR HY000: Schema 'S' is in read only mode.
+ALTER SCHEMA S READ ONLY = 0 COLLATE utf8_bin;
+Warnings:
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+SHOW CREATE SCHEMA S;
+Database	Create Database
+S	CREATE DATABASE `S` /*!40100 DEFAULT CHARACTER SET utf8 COLLATE utf8_bin */ /*!80016 DEFAULT ENCRYPTION='N' */
+ALTER SCHEMA S READ ONLY = 1 COLLATE utf8_general_ci;
+Warnings:
+Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+ALTER SCHEMA S READ ONLY=0;
+DROP SCHEMA S;
+#--------------------------------------------------------------------
+# FR19: A priori check for read only schema.
+#--------------------------------------------------------------------
+CREATE SCHEMA S;
+ALTER SCHEMA S READ ONLY=1;
+CREATE TABLE S.t(i INT) ENGINE MyISAM;
+ERROR HY000: Schema 'S' is in read only mode.
+ALTER SCHEMA S READ ONLY=0;
+DROP SCHEMA S;
+#--------------------------------------------------------------------
+# FR20: No impact from schema read only on cloning, but state kept.
+#--------------------------------------------------------------------
+# See extension of test clone.local_basic.
+#--------------------------------------------------------------------
+# Misc: Using lower_case_table_names.
+#--------------------------------------------------------------------
+# See separate test wrappers schema_read_only_{cs,ci}.
+#--------------------------------------------------------------------
+# Misc: Merge engine.
+#--------------------------------------------------------------------
+USE test;
+CREATE SCHEMA S;
+CREATE TABLE t1(str varchar(10)) ENGINE MyISAM;
+CREATE TABLE t2(str varchar(10)) ENGINE MyISAM;
+CREATE TABLE S.t1(str varchar(10)) ENGINE MyISAM;
+CREATE TABLE tt_last(str varchar(10))
+ENGINE MERGE UNION = (t1, S.t1), INSERT_METHOD=LAST;
+CREATE TABLE tt_first(str varchar (10))
+ENGINE MERGE UNION = (t1, S.t1), INSERT_METHOD=FIRST;
+CREATE TABLE S.tt(str varchar (10))
+ENGINE MERGE UNION = (t1, t2), INSERT_METHOD=LAST;
+INSERT INTO tt_last VALUES ('last');
+INSERT INTO tt_first VALUES ('first');
+INSERT INTO S.tt VALUES ('s.tt');
+SELECT * FROM t1;
+str
+first
+SELECT * FROM t2;
+str
+s.tt
+SELECT * FROM S.t1;
+str
+last
+SELECT * FROM tt_last;
+str
+first
+last
+SELECT * FROM tt_first;
+str
+first
+last
+SELECT * FROM S.tt;
+str
+first
+s.tt
+ALTER SCHEMA S READ ONLY=1;
+INSERT INTO tt_last VALUES ('2 last');
+ERROR HY000: Schema 'S' is in read only mode.
+INSERT INTO tt_first VALUES ('2 first');
+ERROR HY000: Schema 'S' is in read only mode.
+INSERT INTO S.tt VALUES ('2 s.tt');
+ERROR HY000: Schema 'S' is in read only mode.
+SELECT * FROM t1;
+str
+first
+SELECT * FROM t2;
+str
+s.tt
+SELECT * FROM S.t1;
+str
+last
+SELECT * FROM tt_last;
+str
+first
+last
+SELECT * FROM tt_first;
+str
+first
+last
+SELECT * FROM S.tt;
+str
+first
+s.tt
+# Allowed to drop merge tables referring a read only schema.
+DROP TABLE tt_first;
+DROP TABLE tt_last;
+ALTER SCHEMA S READ ONLY=0;
+DROP TABLE t2;
+DROP TABLE t1;
+DROP SCHEMA S;

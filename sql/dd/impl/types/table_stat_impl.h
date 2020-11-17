@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,14 +66,14 @@ class Table_stat_impl : public Entity_object_impl, public Table_stat {
         m_cached_time(0) {}
 
  public:
-  virtual void debug_print(String_type &outb) const;
+  void debug_print(String_type &outb) const override;
 
-  virtual const Object_table &object_table() const;
+  const Object_table &object_table() const override;
 
-  virtual bool validate() const;
+  bool validate() const override;
 
-  virtual bool restore_attributes(const Raw_record &r);
-  virtual bool store_attributes(Raw_record *r);
+  bool restore_attributes(const Raw_record &r) override;
+  bool store_attributes(Raw_record *r) override;
 
  public:
   static void register_tables(Open_dictionary_tables_ctx *otx);
@@ -82,9 +82,9 @@ class Table_stat_impl : public Entity_object_impl, public Table_stat {
   // schema name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &schema_name() const { return m_schema_name; }
+  const String_type &schema_name() const override { return m_schema_name; }
 
-  virtual void set_schema_name(const String_type &schema_name) {
+  void set_schema_name(const String_type &schema_name) override {
     m_schema_name = schema_name;
   }
 
@@ -92,9 +92,9 @@ class Table_stat_impl : public Entity_object_impl, public Table_stat {
   // table name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &table_name() const { return m_table_name; }
+  const String_type &table_name() const override { return m_table_name; }
 
-  virtual void set_table_name(const String_type &table_name) {
+  void set_table_name(const String_type &table_name) override {
     m_table_name = table_name;
   }
 
@@ -102,9 +102,9 @@ class Table_stat_impl : public Entity_object_impl, public Table_stat {
   // table_rows.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong table_rows() const { return m_table_rows; }
+  ulonglong table_rows() const override { return m_table_rows; }
 
-  virtual void set_table_rows(ulonglong table_rows) {
+  void set_table_rows(ulonglong table_rows) override {
     m_table_rows = table_rows;
   }
 
@@ -112,9 +112,9 @@ class Table_stat_impl : public Entity_object_impl, public Table_stat {
   // avg_row_length.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong avg_row_length() const { return m_avg_row_length; }
+  ulonglong avg_row_length() const override { return m_avg_row_length; }
 
-  virtual void set_avg_row_length(ulonglong avg_row_length) {
+  void set_avg_row_length(ulonglong avg_row_length) override {
     m_avg_row_length = avg_row_length;
   }
 
@@ -122,9 +122,9 @@ class Table_stat_impl : public Entity_object_impl, public Table_stat {
   // data_length.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong data_length() const { return m_data_length; }
+  ulonglong data_length() const override { return m_data_length; }
 
-  virtual void set_data_length(ulonglong data_length) {
+  void set_data_length(ulonglong data_length) override {
     m_data_length = data_length;
   }
 
@@ -132,9 +132,9 @@ class Table_stat_impl : public Entity_object_impl, public Table_stat {
   // max_data_length.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong max_data_length() const { return m_max_data_length; }
+  ulonglong max_data_length() const override { return m_max_data_length; }
 
-  virtual void set_max_data_length(ulonglong max_data_length) {
+  void set_max_data_length(ulonglong max_data_length) override {
     m_max_data_length = max_data_length;
   }
 
@@ -142,9 +142,9 @@ class Table_stat_impl : public Entity_object_impl, public Table_stat {
   // index_length.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong index_length() const { return m_index_length; }
+  ulonglong index_length() const override { return m_index_length; }
 
-  virtual void set_index_length(ulonglong index_length) {
+  void set_index_length(ulonglong index_length) override {
     m_index_length = index_length;
   }
 
@@ -152,17 +152,17 @@ class Table_stat_impl : public Entity_object_impl, public Table_stat {
   // data_free.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong data_free() const { return m_data_free; }
+  ulonglong data_free() const override { return m_data_free; }
 
-  virtual void set_data_free(ulonglong data_free) { m_data_free = data_free; }
+  void set_data_free(ulonglong data_free) override { m_data_free = data_free; }
 
   /////////////////////////////////////////////////////////////////////////
   // auto_increment.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong auto_increment() const { return m_auto_increment; }
+  ulonglong auto_increment() const override { return m_auto_increment; }
 
-  virtual void set_auto_increment(ulonglong auto_increment) {
+  void set_auto_increment(ulonglong auto_increment) override {
     m_auto_increment = auto_increment;
   }
 
@@ -170,17 +170,17 @@ class Table_stat_impl : public Entity_object_impl, public Table_stat {
   // checksum.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong checksum() const { return m_checksum; }
+  ulonglong checksum() const override { return m_checksum; }
 
-  virtual void set_checksum(ulonglong checksum) { m_checksum = checksum; }
+  void set_checksum(ulonglong checksum) override { m_checksum = checksum; }
 
   /////////////////////////////////////////////////////////////////////////
   // update_time.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong update_time() const { return m_update_time; }
+  ulonglong update_time() const override { return m_update_time; }
 
-  virtual void set_update_time(ulonglong update_time) {
+  void set_update_time(ulonglong update_time) override {
     m_update_time = update_time;
   }
 
@@ -188,9 +188,9 @@ class Table_stat_impl : public Entity_object_impl, public Table_stat {
   // check_time.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong check_time() const { return m_check_time; }
+  ulonglong check_time() const override { return m_check_time; }
 
-  virtual void set_check_time(ulonglong check_time) {
+  void set_check_time(ulonglong check_time) override {
     m_check_time = check_time;
   }
 
@@ -198,27 +198,29 @@ class Table_stat_impl : public Entity_object_impl, public Table_stat {
   // cached_time.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong cached_time() const { return m_cached_time; }
+  ulonglong cached_time() const override { return m_cached_time; }
 
-  virtual void set_cached_time(ulonglong cached_time) {
+  void set_cached_time(ulonglong cached_time) override {
     m_cached_time = cached_time;
   }
 
  public:
-  virtual Object_key *create_primary_key() const;
-  virtual bool has_new_primary_key() const;
+  Object_key *create_primary_key() const override;
+  bool has_new_primary_key() const override;
 
   // Fix "inherits ... via dominance" warnings
-  virtual Entity_object_impl *impl() { return Entity_object_impl::impl(); }
-  virtual const Entity_object_impl *impl() const {
+  Entity_object_impl *impl() override { return Entity_object_impl::impl(); }
+  const Entity_object_impl *impl() const override {
     return Entity_object_impl::impl();
   }
-  virtual Object_id id() const { return Entity_object_impl::id(); }
-  virtual bool is_persistent() const {
+  Object_id id() const override { return Entity_object_impl::id(); }
+  bool is_persistent() const override {
     return Entity_object_impl::is_persistent();
   }
-  virtual const String_type &name() const { return Entity_object_impl::name(); }
-  virtual void set_name(const String_type &name) {
+  const String_type &name() const override {
+    return Entity_object_impl::name();
+  }
+  void set_name(const String_type &name) override {
     Entity_object_impl::set_name(name);
   }
 

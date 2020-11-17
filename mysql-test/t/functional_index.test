@@ -215,14 +215,6 @@ EXPLAIN SELECT * FROM t1 WHERE CAST(f1->>"$.name" AS CHAR(30)) COLLATE utf8mb4_b
 
 DROP TABLE t1;
 
---echo # See that optimizer trace doesn't reveal the name of the hidden
---echo # generated column.
-CREATE TABLE t1 (col1 INT, INDEX ((col1 + col1)));
-SET optimizer_trace="enabled=on";
-SELECT col1 FROM t1 WHERE col1 + col1 = 10;
-SELECT TRACE FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
-DROP TABLE t1;
-
 --echo # Test that doing an UPDATE on a hidden generated column returns "column
 --echo # not found".
 
@@ -339,7 +331,7 @@ CREATE TABLE t1 (
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_0900_ai_ci;
 
---error ER_FUNCTIONAL_INDEX_REF_AUTO_INCREMENT
+--error ER_WRONG_ARGUMENTS
 CREATE INDEX ind320 ON t1 ((pk >= col_time_nokey LIKE
 ST_GeomFromGeoJSON(col_varchar_key) ));
 DROP TABLE t1;

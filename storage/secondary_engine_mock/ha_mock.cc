@@ -195,13 +195,9 @@ THR_LOCK_DATA **ha_mock::store_lock(THD *, THR_LOCK_DATA **to,
   return to;
 }
 
-int ha_mock::prepare_load_table(const TABLE &table_arg) {
-  loaded_tables->add(table_arg.s->db.str, table_arg.s->table_name.str);
-  return 0;
-}
-
 int ha_mock::load_table(const TABLE &table_arg) {
   DBUG_ASSERT(table_arg.file != nullptr);
+  loaded_tables->add(table_arg.s->db.str, table_arg.s->table_name.str);
   if (loaded_tables->get(table_arg.s->db.str, table_arg.s->table_name.str) ==
       nullptr) {
     my_error(ER_NO_SUCH_TABLE, MYF(0), table_arg.s->db.str,
@@ -259,13 +255,20 @@ static bool OptimizeSecondaryEngine(THD *thd MY_ATTRIBUTE((unused)),
   return false;
 }
 
-static bool CompareJoinCost(
-    THD *thd, const JOIN &join,
-    const Candidate_table_order &table_order MY_ATTRIBUTE((unused)),
-    double optimizer_cost, bool *cheaper, double *secondary_engine_cost) {
+static bool CompareJoinCost(THD *thd, const JOIN &join, double optimizer_cost,
+                            bool *use_best_so_far, bool *cheaper,
+                            double *secondary_engine_cost) {
+  *use_best_so_far = false;
+
   DBUG_EXECUTE_IF("secondary_engine_mock_compare_cost_error", {
     my_error(ER_SECONDARY_ENGINE_PLUGIN, MYF(0), "");
     return true;
+  });
+
+  DBUG_EXECUTE_IF("secondary_engine_mock_choose_first_plan", {
+    *use_best_so_far = true;
+    *cheaper = true;
+    *secondary_engine_cost = optimizer_cost;
   });
 
   // Just use the cost calculated by the optimizer by default.
@@ -274,9 +277,9 @@ static bool CompareJoinCost(
   // This debug flag makes the cost function prefer orders where a table with
   // the alias "X" is closer to the beginning.
   DBUG_EXECUTE_IF("secondary_engine_mock_change_join_order", {
-    double cost = table_order.size();
-    for (size_t i = 0; i < table_order.size(); ++i) {
-      const TABLE_LIST *ref = table_order.table_ref(i);
+    double cost = join.tables;
+    for (size_t i = 0; i < join.tables; ++i) {
+      const TABLE_LIST *ref = join.positions[i].table->table_ref;
       if (std::string(ref->alias) == "X") {
         cost += i;
       }

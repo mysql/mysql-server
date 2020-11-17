@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,41 +23,68 @@
 */
 
 #include "dest_first_available.h"
-#include "mysql/harness/logging/logging.h"
-#include "mysql/harness/stdx/expected.h"
 
-#ifdef _WIN32
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#endif
+#include <cstddef>   // size_t
+#include <iterator>  // advance
+#include <memory>    // make_unique
+#include <mutex>     // lock_guard
+#include <string>
+#include <system_error>  // error_code
 
-IMPORT_LOG_FUNCTIONS()
+#include "mysqlrouter/destination.h"
 
-stdx::expected<mysql_harness::socket_t, std::error_code>
-DestFirstAvailable::get_server_socket(
-    std::chrono::milliseconds connect_timeout,
-    mysql_harness::TCPAddress *address) noexcept {
-  std::error_code last_ec{};
+class FirstAvailableDestination : public Destination {
+ public:
+  FirstAvailableDestination(std::string id, std::string hostname, uint16_t port,
+                            DestFirstAvailable *balancer, size_t ndx)
+      : Destination(std::move(id), std::move(hostname), port),
+        balancer_{balancer},
+        ndx_{ndx} {}
 
-  if (destinations_.empty()) {
-    return stdx::make_unexpected(last_ec);
-  }
-
-  for (size_t i = 0; i < destinations_.size(); ++i) {
-    // We start at the currently available server
-    auto addr = destinations_.at(current_pos_);
-    log_debug("Trying server %s (index %lu)", addr.str().c_str(),
-              static_cast<long unsigned>(i));  // 32bit Linux requires cast
-    auto sock_res = get_mysql_socket(addr, connect_timeout);
-    if (sock_res) {
-      if (address) *address = addr;
-      return sock_res;
-    } else {
-      if (++current_pos_ >= destinations_.size()) current_pos_ = 0;
-      last_ec = sock_res.error();
+  void connect_status(std::error_code ec) override {
+    if (ec != std::error_code{}) {
+      // mark the current ndx as invalid
+      balancer_->mark_ndx_invalid(ndx_);
     }
   }
 
-  return stdx::make_unexpected(last_ec);
+ private:
+  DestFirstAvailable *balancer_;
+
+  size_t ndx_;
+};
+
+Destinations DestFirstAvailable::destinations() {
+  Destinations dests;
+
+  {
+    std::lock_guard<std::mutex> lk(mutex_update_);
+
+    const auto end = destinations_.end();
+    const auto begin = destinations_.begin();
+
+    if (valid_ndx_ >= destinations_.size()) {
+      valid_ndx_ = 0;
+    }
+
+    auto cur = begin;
+
+    std::advance(cur, valid_ndx_);
+
+    // capture last for the 2nd round.
+    const auto last = cur;
+
+    for (size_t ndx{valid_ndx_}; cur != end; ++cur, ++ndx) {
+      dests.push_back(std::make_unique<FirstAvailableDestination>(
+          cur->str(), cur->addr, cur->port, this, ndx));
+    }
+
+    cur = begin;
+    for (size_t ndx{0}; cur != last; ++cur, ++ndx) {
+      dests.push_back(std::make_unique<FirstAvailableDestination>(
+          cur->str(), cur->addr, cur->port, this, ndx));
+    }
+  }
+
+  return dests;
 }

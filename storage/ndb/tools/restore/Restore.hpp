@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,8 @@
 #include <NdbOut.hpp>
 #include "../src/kernel/blocks/backup/BackupFormat.hpp"
 #include <NdbApi.hpp>
-#include <util/ndbzio.h>
+#include "util/ndbxfrm_readfile.h"
+#include "portlib/ndb_file.h"
 #include <util/UtilBuffer.hpp>
 
 #include <ndb_version.h>
@@ -44,6 +45,9 @@
 #ifdef ERROR_INSERT
 #define NDB_RESTORE_ERROR_INSERT_SMALL_BUFFER 1
 #define NDB_RESTORE_ERROR_INSERT_SKIP_ROWS 2
+#define NDB_RESTORE_ERROR_INSERT_FAIL_REPLAY_LOG 3
+#define NDB_RESTORE_ERROR_INSERT_FAIL_RESTORE_TUPLE 4
+
 #endif
 
 enum TableChangesMask
@@ -394,7 +398,9 @@ class RestoreLogIterator;
 
 class BackupFile {
 protected:
-  ndbzio_stream m_file;
+  ndb_file m_file;
+  ndbxfrm_readfile m_xfile;
+
   char m_path[PATH_MAX];
   char m_fileName[PATH_MAX];
   bool m_hostByteOrder;
@@ -442,10 +448,10 @@ protected:
   void setDataFile(const BackupFile & bf, Uint32 no);
   void setLogFile(const BackupFile & bf, Uint32 no);
   
-  Uint32 buffer_get_ptr(void **p_buf_ptr, Uint32 size, Uint32 nmemb);
-  Uint32 buffer_read(void *ptr, Uint32 size, Uint32 nmemb);
-  Uint32 buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nmemb);
-  Uint32 buffer_read_ahead(void *ptr, Uint32 size, Uint32 nmemb);
+  int buffer_get_ptr(void **p_buf_ptr, Uint32 size, Uint32 nmemb);
+  int buffer_read(void *ptr, Uint32 size, Uint32 nmemb);
+  int buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nmemb);
+  int buffer_read_ahead(void *ptr, Uint32 size, Uint32 nmemb);
 
   void setName(const char * path, const char * name);
 
@@ -475,7 +481,7 @@ public:
    * parameter is used to get current position in compressed state.This
    * parameter also works when compressed backup is disabled.
    */
-  Uint64 get_file_pos() const { return m_file.in; }
+  Uint64 get_file_pos() const { return 0; } // { return m_xfrm.get_backing_pos(); }
 #ifdef ERROR_INSERT
   void error_insert(unsigned int code); 
 #endif
@@ -513,7 +519,7 @@ class RestoreMetaData : public BackupFile {
 public:
   RestoreMetaData(const char * path, Uint32 nodeId, Uint32 bNo,
                   Uint32 partId, Uint32 partCount);
-  virtual ~RestoreMetaData();
+  ~RestoreMetaData() override;
   
   int loadContent();
 		  
@@ -544,7 +550,7 @@ public:
   // Constructor
   RestoreDataIterator(const RestoreMetaData &,
                       void (* free_data_callback)(void*), void*);
-  virtual ~RestoreDataIterator();
+  ~RestoreDataIterator() override;
   
   // Read data file fragment header
   bool readFragmentHeader(int & res, Uint32 *fragmentId);
@@ -576,7 +582,7 @@ private:
   bool m_current_table_has_transforms;
 
 protected:
-  virtual void reset_buffers() { reset_extra_storage();}
+  void reset_buffers() override { reset_extra_storage();}
 
   int readTupleData_old(Uint32 *buf_ptr, Uint32 dataLength);
   int readTupleData_packed(Uint32 *buf_ptr, Uint32 dataLength);
@@ -649,7 +655,7 @@ private:
   Uint32 m_rowBuffIndex;
 public:
   RestoreLogIterator(const RestoreMetaData &);
-  virtual ~RestoreLogIterator() {}
+  ~RestoreLogIterator() override {}
 
   bool isSnapshotstartBackup()
   {

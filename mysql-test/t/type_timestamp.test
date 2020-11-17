@@ -381,10 +381,6 @@ SELECT * FROM t1 WHERE a >= '2010-02-01 09:31:02.0';
 SELECT * FROM t1 WHERE '2010-02-01 09:31:02.0' <= a;
 SELECT * FROM t1 WHERE a <= '2010-02-01 09:31:02.0';
 SELECT * FROM t1 WHERE '2010-02-01 09:31:02.0' >= a;
-
---replace_column 1 x 2 x 3 x 6 x 7 x 8 x 9 x 10 x 12 x
-EXPLAIN
-SELECT * FROM t1 WHERE a >= '2010-02-01 09:31:02.0';
 SELECT * FROM t1 WHERE a >= '2010-02-01 09:31:02.0';
 
 CREATE TABLE t2 ( a TIMESTAMP, KEY ( a ) );
@@ -405,10 +401,8 @@ INSERT INTO t2 VALUES( '2010-02-01 09:31:11' );
 --echo # interval here. This reveals itself only in the number of reads 
 --echo # performed.
 FLUSH STATUS;
---replace_column 1 x 2 x 3 x 6 x 7 x 8 x 9 x 10 x 12 x
-EXPLAIN
 SELECT * FROM t2 WHERE a < '2010-02-01 09:31:02.0';
-SELECT * FROM t2 WHERE a < '2010-02-01 09:31:02.0';
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read_next';
 
 DROP TABLE t1, t2;

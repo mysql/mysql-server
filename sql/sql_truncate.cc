@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -478,6 +478,12 @@ void Sql_cmd_truncate_table::truncate_base(THD *thd, TABLE_LIST *table_ref) {
 
   DBUG_ASSERT((!table_ref->table) || (table_ref->table && table_ref->table->s));
   DBUG_ASSERT(m_ticket_downgrade == nullptr);
+
+  /*
+    Truncate is allowed for performance schema tables in both read_only and
+    super_read_only mode.
+  */
+  if (is_perfschema_db(table_ref->db)) thd->set_skip_readonly_check();
 
   dd::Schema_MDL_locker mdl_locker(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -89,11 +89,11 @@ class Server_initializer {
 class Mock_error_handler : public Internal_error_handler {
  public:
   Mock_error_handler(THD *thd, uint expected_error);
-  virtual ~Mock_error_handler();
+  ~Mock_error_handler() override;
 
-  virtual bool handle_condition(THD *thd, uint sql_errno, const char *sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char *msg);
+  bool handle_condition(THD *thd, uint sql_errno, const char *sqlstate,
+                        Sql_condition::enum_severity_level *level,
+                        const char *msg) override;
 
   int handle_called() const { return m_handle_called; }
 

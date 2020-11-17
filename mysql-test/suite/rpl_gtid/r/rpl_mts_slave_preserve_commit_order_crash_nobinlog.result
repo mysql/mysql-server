@@ -142,6 +142,8 @@ include/assert.inc [Verify t2 contain only one row]
 #     successfully replicated to the slave.
 
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 SET GLOBAL slave_parallel_type = 'LOGICAL_CLOCK';
 SET GLOBAL slave_parallel_workers= 4;
 SET GLOBAL slave_preserve_commit_order= ON;

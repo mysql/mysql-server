@@ -35,6 +35,7 @@
 #include <cstring>
 #include <exception>
 #include <map>
+#include <mutex>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -61,6 +62,7 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/sd_notify.h"
 #include "utilities.h"
 IMPORT_LOG_FUNCTIONS()
 
@@ -74,10 +76,13 @@ using mysql_harness::Config;
 using mysql_harness::Path;
 
 using std::ostringstream;
+using namespace std::chrono_literals;
 
 #if !defined(_WIN32)
 #define USE_POSIX_SIGNALS
 #endif
+
+static std::atomic<size_t> num_of_non_ready_services{0};
 
 /**
  * @defgroup Loader Plugin loader
@@ -105,6 +110,8 @@ static std::string shutdown_fatal_error_message;
 
 std::mutex log_reopen_cond_mutex;
 std::condition_variable log_reopen_cond;
+
+std::mutex g_reopen_thread_mtx;
 mysql_harness::LogReopenThread *g_reopen_thread{nullptr};
 
 // application defined pointer to function called at log rename completion
@@ -135,6 +142,8 @@ void request_application_shutdown(const ShutdownReason reason) {
  * @throws std::system_error same as std::unique_lock::lock does
  */
 void request_log_reopen(const std::string dst) {
+  std::lock_guard<std::mutex> lk(g_reopen_thread_mtx);
+
   if (g_reopen_thread) g_reopen_thread->request_reopen(dst);
 }
 
@@ -142,6 +151,8 @@ void request_log_reopen(const std::string dst) {
  * check reopen completed
  */
 bool log_reopen_completed() {
+  std::lock_guard<std::mutex> lk(g_reopen_thread_mtx);
+
   if (g_reopen_thread) return g_reopen_thread->is_completed();
 
   return true;
@@ -151,6 +162,8 @@ bool log_reopen_completed() {
  * get last log reopen error
  */
 std::string log_reopen_get_error() {
+  std::lock_guard<std::mutex> lk(g_reopen_thread_mtx);
+
   if (g_reopen_thread) return g_reopen_thread->get_last_error();
 
   return std::string("");
@@ -481,8 +494,7 @@ Loader::~Loader() {
 void Loader::spawn_signal_handler_thread() {
 #ifdef USE_POSIX_SIGNALS
   std::promise<void> signal_handler_thread_setup_done;
-
-  signal_thread_ = std::thread([&signal_handler_thread_setup_done] {
+  signal_thread_ = std::thread([this] {
     mysql_harness::rename_thread("sig handler");
 
     sigset_t ss;
@@ -490,13 +502,21 @@ void Loader::spawn_signal_handler_thread() {
     sigaddset(&ss, SIGINT);
     sigaddset(&ss, SIGTERM);
     sigaddset(&ss, SIGHUP);
+    sigaddset(&ss, SIGUSR1);
 
-    signal_handler_thread_setup_done.set_value();
     int sig = 0;
-
     while (true) {
+      sig = 0;
       if (0 == sigwait(&ss, &sig)) {
-        if (sig == SIGHUP) {
+        if (sig == SIGUSR1) {
+          {
+            std::unique_lock<std::mutex> lk(signal_thread_ready_m_);
+            signal_thread_ready_ = true;
+
+            signal_thread_ready_cond_.notify_one();
+          }
+          sigdelset(&ss, SIGUSR1);
+        } else if (sig == SIGHUP) {
           request_log_reopen();
         } else {
           harness_assert(sig == SIGINT || sig == SIGTERM);
@@ -512,7 +532,14 @@ void Loader::spawn_signal_handler_thread() {
   });
 
   // wait until the signal handler is setup
-  signal_handler_thread_setup_done.get_future().wait();
+  std::unique_lock<std::mutex> lk(signal_thread_ready_m_);
+  signal_thread_ready_cond_.wait(lk, [this]() {
+    if (!signal_thread_ready_)
+      pthread_kill(signal_thread_.native_handle(), SIGUSR1);
+
+    return signal_thread_ready_;
+  });
+  on_service_ready("signal handler");
 #endif
 }
 
@@ -736,7 +763,7 @@ void Loader::start() {
   // away
   if (external_plugins_to_load_count() == 0) {
     throw std::runtime_error(
-        "Error: MySQL Router not configured to load or start any plugin. "
+        "Error: The service is not configured to load or start any plugin. "
         "Exiting.");
   }
 
@@ -805,15 +832,20 @@ std::exception_ptr Loader::run() {
   // run plugins if initialization didn't fail
   if (!first_eptr) {
     try {
-      std::shared_ptr<void> exit_guard(
-          nullptr, [](void *) { g_reopen_thread = nullptr; });
+      std::shared_ptr<void> exit_guard(nullptr, [](void *) {
+        std::lock_guard<std::mutex> lk(g_reopen_thread_mtx);
+        g_reopen_thread = nullptr;
+      });
 
       start_all();  // if start() throws, exception is forwarded to
                     // main_loop()
 
       // may throw std::system_error
       LogReopenThread log_reopen_thread;
-      g_reopen_thread = &log_reopen_thread;
+      {
+        std::lock_guard<std::mutex> lk(g_reopen_thread_mtx);
+        g_reopen_thread = &log_reopen_thread;
+      }
 
       first_eptr = main_loop();
     } catch (const std::exception &e) {
@@ -969,6 +1001,33 @@ std::exception_ptr Loader::init_all() {
 // forwards first exception triggered by start() to main_loop()
 void Loader::start_all() {
   log_debug("Starting all plugins.");
+
+  for (const ConfigSection *section : config_.sections()) {
+    PluginInfo &plugin = plugins_.at(section->name);
+    if (plugin.plugin()->declares_readiness) {
+      std::string plugin_service_name{section->name};
+      if (!section->key.empty()) {
+        plugin_service_name += ":" + section->key;
+      }
+      log_debug(
+          "Plugin's '%s' service needs to report ready before the whole "
+          "service is ready",
+          plugin_service_name.c_str());
+      num_of_non_ready_services++;
+    }
+  }
+
+#ifdef USE_POSIX_SIGNALS
+  // 1 is for the signal handler that we also want to notify it is ready
+  num_of_non_ready_services++;
+#endif
+
+  // if there are no services that we should wait for let's declare the
+  // readiness right away
+  if (num_of_non_ready_services == 0) {
+    log_debug("Service ready!");
+    notify_ready();
+  }
 
   try {
     // start all the plugins (call plugin's start() function)
@@ -1130,6 +1189,7 @@ std::exception_ptr Loader::stop_all() {
   // This function runs exactly once - it will be called even if all plugins
   // exit by themselves (thus there's nothing to stop).
   log_debug("Shutting down. Stopping all plugins.");
+  notify_stopping();
 
   // iterate over all plugin instances
   std::exception_ptr first_eptr;
@@ -1326,6 +1386,19 @@ void LogReopenThread::request_reopen(const std::string dst) {
   dst_ = dst;
 
   log_reopen_cond.notify_one();
+}
+
+void on_service_ready(const std::string &name) {
+  log_debug("Service '%s' ready", name.c_str());
+  if (--num_of_non_ready_services == 0) {
+    log_debug("Service ready!");
+    notify_ready();
+  }
+}
+
+void on_service_ready(PluginFuncEnv *plugin_env) {
+  return on_service_ready(get_config_section(plugin_env)->name + ":" +
+                          get_config_section(plugin_env)->key);
 }
 
 }  // namespace mysql_harness

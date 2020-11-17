@@ -257,18 +257,6 @@ class Create_field {
 
   /// Whether or not the display width was given explicitly by the user.
   bool m_explicit_display_width{false};
-
-  /// The maximum number of bytes a TINYBLOB can hold.
-  static constexpr size_t TINYBLOB_MAX_SIZE_IN_BYTES{255};
-
-  /// The maximum number of bytes a BLOB can hold.
-  static constexpr size_t BLOB_MAX_SIZE_IN_BYTES{65535};
-
-  /// The maximum number of bytes a MEDIUMBLOB can hold.
-  static constexpr size_t MEDIUMBLOB_MAX_SIZE_IN_BYTES{16777215};
-
-  /// The maximum number of bytes a LONGBLOB can hold.
-  static constexpr size_t LONGBLOB_MAX_SIZE_IN_BYTES{4294967295};
 };
 
 /// @returns whether or not this field is a hidden column that represents a

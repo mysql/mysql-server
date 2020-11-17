@@ -52,7 +52,6 @@ class Listener {
 
   virtual ~Listener() = default;
 
-  virtual void set_state(const State state) = 0;
   virtual const Sync_variable_state &get_state() const = 0;
   virtual void report_properties(On_report_properties on_status) = 0;
   virtual bool report_status() const = 0;

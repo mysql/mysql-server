@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -179,8 +179,12 @@ class Move_thread_to_default_group {
 */
 
 inline bool is_default_resource_group(const char *res_grp_name) {
-  return my_strcasecmp(system_charset_info, "USR_default", res_grp_name) == 0 ||
-         my_strcasecmp(system_charset_info, "SYS_default", res_grp_name) == 0;
+  return my_strcasecmp(system_charset_info,
+                       resourcegroups::USR_DEFAULT_RESOURCE_GROUP_NAME,
+                       res_grp_name) == 0 ||
+         my_strcasecmp(system_charset_info,
+                       resourcegroups::SYS_DEFAULT_RESOURCE_GROUP_NAME,
+                       res_grp_name) == 0;
 }
 
 }  // Anonymous namespace

@@ -1,0 +1,291 @@
+# ==== Purpose ====
+#
+# WL#12649: Automatic reconnection for Async replication between InnoDB Clusters
+#
+# It tests add and delete sender configuration UDF's.
+#
+# ==== Implementation ====
+#
+# For asynchronous_connection_failover_add_source:
+# 1. Check that the parameter count is greater than 3,
+#    i.e. channel_name, hostname and port must be provided.
+# 2. Check that the channel name is provided.
+# 3. Check host parameters values is provided and not empty.
+# 4. Check port parameters values is provided.
+# 5. Check the weight parameter value is integer value between 1-100.
+# 6. Check the default value of weight parameter is 50.
+# 7. Check correct string value is provided for network_namespace.
+#
+# For asynchronous_connection_failover_delete_source:
+# 7. Check that the parameter count is greater than 3,
+# 8  i.e. channel_name, hostname and port must be provided.
+# 9. Check that the channel name is provided.
+# 10. Check host parameters values is provided and not empty.
+# 11. Check port parameters values is provided.
+# 12. Check correct string value is provided for network_namespace.
+# 13. Delete non existing credentials.
+#
+
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+# Checks for add sender configuration UDF
+# i.e. asynchronous_connection_failover_add_source()
+
+--echo #
+--echo # 1. Check that the parameter count is greater than 3 and less then 5,
+--echo #    i.e. channel_name, hostname and port must be provided.
+--echo #
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_source('', '127.0.0.1');
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 3100, 'net', 30, 11);
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+
+--echo #
+--echo # 2. Check that the channel name is provided.
+--echo #
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_source(9, '127.0.0.1', 3100);
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+
+--echo #
+--echo # 3. Check host parameters values is provided and not empty.
+--echo #
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_source('', '', 3100);
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+
+--echo #
+--echo # 4. Check port parameters values is provided.
+--echo #
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', '3100');
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+
+--echo #
+--echo # 5. Check the weight parameter value is integer value between 1-100.
+--echo #
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 3100, '', 0);
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 3100, '', 200);
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 3100, '', '100');
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+
+--echo #
+--echo # 6. Check the default value of weight parameter is 50.
+--echo #
+
+SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 3100);
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover WHERE weight=50, count, 1] = 1
+--source include/assert.inc
+
+
+--echo #
+--echo # 7. Check correct string value is provided for network_namespace.
+--echo #
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 3100, 100);
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
+--source include/assert.inc
+
+
+SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 3100, '');
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
+--source include/assert.inc
+
+
+# Checks for delete sender configuration UDF
+# i.e. asynchronous_connection_failover_delete_source()
+
+--echo #
+--echo # 8. Check that the parameter count is greater than 3 and less then 4,
+--echo #    i.e. channel_name, hostname and port must be provided.
+--echo #
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1');
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
+--source include/assert.inc
+
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', 3100, 'net', 30);
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
+--source include/assert.inc
+
+
+--echo #
+--echo # 9. Check that the channel name is provided.
+--echo #
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_delete_source(9, '127.0.0.1', 3100);
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
+--source include/assert.inc
+
+
+--echo #
+--echo # 10. Check host parameters values is provided and not empty.
+--echo #
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_delete_source('', '', 3100);
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
+--source include/assert.inc
+
+
+--echo #
+--echo # 11. Check port parameters values is provided.
+--echo #
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', '3100');
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
+--source include/assert.inc
+
+
+--echo #
+--echo # 12. Check correct string value is provided for network_namespace.
+--echo #
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', 3100, 100);
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
+--source include/assert.inc
+
+
+SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', 3100, '');
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+
+--echo #
+--echo # 13. Delete non existing credentials.
+--echo #
+
+SELECT asynchronous_connection_failover_delete_source('ch2', '127.0.0.1', 77100);
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+
+--echo #
+--echo # 14. Verify user without SUPER or REPLICATION_SLAVE_ADMIN fails with
+--echo #     ER_SPECIFIC_ACCESS_DENIED_ERROR error when execute
+--echo #     asynchronous_connection_failover_add_source and
+--echo #     asynchronous_connection_failover_delete_source UDF.
+--echo #
+
+CREATE USER 'async_user' IDENTIFIED BY 'pass';
+
+--echo [connection connect_async]
+connect(connect_async, localhost, async_user, pass);
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 3100);
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', 3100);
+
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM mysql.replication_asynchronous_connection_failover;
+
+--disconnect connect_async
+
+
+--echo #
+--echo # 15. Verify user with REPLICATION_SLAVE_ADMIN privilege can execute
+--echo #     asynchronous_connection_failover_add_source and
+--echo #     asynchronous_connection_failover_delete_source UDF.
+--echo #
+
+--source include/rpl_connection_master.inc
+
+GRANT REPLICATION_SLAVE_ADMIN ON *.* TO 'async_user';
+
+--echo [connection connect_async]
+connect(connect_async, localhost, async_user, pass);
+
+SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 3100);
+
+SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', 3100);
+
+--disconnect connect_async
+
+--source include/rpl_connection_master.inc
+DROP USER 'async_user';
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

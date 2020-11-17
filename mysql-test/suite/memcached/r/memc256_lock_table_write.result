@@ -21,6 +21,8 @@ INSERT INTO t1 VALUES ('B', 'Berlin', 0, 0, 0);
 INSERT INTO t1 VALUES ('C', 'Cottbus', 0, 0 ,0);
 INSERT INTO t1 VALUES ('H', 'Hamburg', 0, 0, 0);
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 SET autocommit=0;
 LOCK TABLES t1 WRITE;
 Get D...
@@ -86,6 +88,8 @@ INSERT INTO t1 VALUES ('B', 'Berlin', 0, 0, 0);
 INSERT INTO t1 VALUES ('C', 'Cottbus', 0, 0 ,0);
 INSERT INTO t1 VALUES ('H', 'Hamburg', 0, 0, 0);
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 SET autocommit=0;
 LOCK TABLES t1 WRITE;
 Get D...
@@ -151,6 +155,8 @@ INSERT INTO t1 VALUES ('B', 'Berlin', 0, 0, 0);
 INSERT INTO t1 VALUES ('C', 'Cottbus', 0, 0 ,0);
 INSERT INTO t1 VALUES ('H', 'Hamburg', 0, 0, 0);
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 SET autocommit=0;
 LOCK TABLES t1 WRITE;
 Get D...
@@ -216,6 +222,8 @@ INSERT INTO t1 VALUES ('B', 'Berlin', 0, 0, 0);
 INSERT INTO t1 VALUES ('C', 'Cottbus', 0, 0 ,0);
 INSERT INTO t1 VALUES ('H', 'Hamburg', 0, 0, 0);
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 SET autocommit=0;
 LOCK TABLES t1 WRITE;
 Get D...

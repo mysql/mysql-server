@@ -25,6 +25,8 @@ include/rpl_gr_wait_for_number_of_members.inc
 Occurrences of 'CHANGE MASTER' in the input file: 0
 [connection server2]
 RESET SLAVE ALL FOR CHANNEL 'group_replication_recovery';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 [connection server1]
 DROP TABLE t1;
 SET sql_log_bin=0;

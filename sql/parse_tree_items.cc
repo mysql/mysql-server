@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,7 @@
 
 #include "sql/parse_tree_items.h"
 
-#include <sys/types.h>
+#include <sys/types.h>  // TODO: replace with cstdint
 
 #include "m_string.h"
 #include "my_dbug.h"
@@ -35,6 +35,7 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/item_cmpfunc.h"  // Item_func_eq
 #include "sql/item_create.h"
+#include "sql/item_subselect.h"
 #include "sql/mysqld.h"  // using_udf_functions
 #include "sql/parse_tree_nodes.h"
 #include "sql/protocol.h"
@@ -540,7 +541,7 @@ bool PTI_variable_aux_set_var::itemize(Parse_context *pc, Item **res) {
   return lex->set_var_list.push_back(this);
 }
 
-bool PTI_variable_aux_ident_or_text::itemize(Parse_context *pc, Item **res) {
+bool PTI_user_variable::itemize(Parse_context *pc, Item **res) {
   if (super::itemize(pc, res)) return true;
 
   LEX *lex = pc->thd->lex;
@@ -654,27 +655,34 @@ bool PTI_odbc_date::itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
-bool PTI_limit_option_ident::itemize(Parse_context *pc, Item **res) {
-  if (super::itemize(pc, res)) return true;
+bool PTI_int_splocal::itemize(Parse_context *pc, Item **res) {
+  if (super::itemize(pc, res)) return true;  // OOM
 
-  LEX *lex = pc->thd->lex;
-  sp_head *sp = lex->sphead;
+  LEX *const lex = pc->thd->lex;
+  sp_head *const sp = lex->sphead;
   const char *query_start_ptr =
       sp ? sp->m_parser_data.get_current_stmt_start_ptr() : nullptr;
 
-  Item_splocal *v = create_item_for_sp_var(
-      pc->thd, ident, nullptr, query_start_ptr, ident_loc.start, ident_loc.end);
-  if (v == nullptr) return true;
-
-  lex->safe_to_cache_query = false;
-
+  Item_splocal *v =
+      create_item_for_sp_var(pc->thd, m_name, nullptr, query_start_ptr,
+                             m_location.raw.start, m_location.raw.end);
+  if (v == nullptr) {
+    return true;  // undefined variable or OOM
+  }
   if (v->type() != Item::INT_ITEM) {
-    my_error(ER_WRONG_SPVAR_TYPE_IN_LIMIT, MYF(0));
+    pc->thd->syntax_error_at(m_location, ER_SPVAR_NONINTEGER_TYPE, m_name.str);
     return true;
   }
 
-  v->limit_clause_param = true;
+  lex->safe_to_cache_query = false;
   *res = v;
+  return false;
+}
+
+bool PTI_limit_option_ident::itemize(Parse_context *pc, Item **res) {
+  if (super::itemize(pc, res)) return true;
+  auto *v = down_cast<Item_splocal *>(*res);
+  v->limit_clause_param = true;
   return false;
 }
 
@@ -693,7 +701,6 @@ bool PTI_limit_option_param_marker::itemize(Parse_context *pc, Item **res) {
   */
   DBUG_ASSERT(tmp_param == param_marker);
 
-  param_marker->limit_clause_param = true;
   *res = param_marker;
   return false;
 }

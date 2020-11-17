@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -92,9 +92,9 @@ class Foreign_key_name_error_handler : public Internal_error_handler {
  public:
   Foreign_key_name_error_handler(const char *name_arg) : name(name_arg) {}
 
-  virtual bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *) {
+  bool handle_condition(THD *, uint sql_errno, const char *,
+                        Sql_condition::enum_severity_level *,
+                        const char *) override {
     if (sql_errno == ER_DUP_ENTRY) {
       my_error(ER_FK_DUP_NAME, MYF(0), name);
       return true;

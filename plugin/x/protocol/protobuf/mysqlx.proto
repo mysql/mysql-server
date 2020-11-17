@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -22,11 +22,119 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
+/** @page mysqlx_protocol_messages Messages
+Topics in this section:
+
+-  @ref messages_Message_Structure
+-  @ref messages_Message_Sequence
+-  @ref messages_Common_Messages
+-  @ref Mysqlx::Connection "Connection"
+-  @ref Mysqlx::Session "Session"
+-  @ref Mysqlx::Expect "Expectations"
+-  @ref Mysqlx::Crud "CRUD"
+-  @ref Mysqlx::Sql "SQL"
+-  @ref Mysqlx::Resultset "Resultset"
+-  @ref Mysqlx::Expr "Expressions
+-  @ref Mysqlx::Datatypes "Datatypes"
+-  @ref Mysqlx::Notice "Notice"
+-  @ref Mysqlx::Prepare "Prepared statments"
+-  @ref Mysqlx::Cursor "Cursor"
+
+
+This section provides detailed information about how X %Protocol
+defines messages.
+
+@section messages_Message_Structure Message Structure
+
+Messages have a:
+-  4 byte *length* (little endian)
+-  1 byte *message type*
+-  a ``message_payload`` of length ``.length - 1``
+
+@par Mysqlx.Message
+    Container of all messages that are exchanged between client and server.
+    @n@b Parameters
+-  ``length`` -- length of the whole message
+-  ``message_type`` -- type of the ``message_payload``
+-  ``message_payload`` -- the message's payload encoded using
+   [`Google Protobuf`](https://code.google.com/p/protobuf/) if
+   not otherwise noted.
+
+@code{unparsed}
+struct Message {
+  uint32          length;
+  uint8           message_type;
+  opaque          message_payload[Message.length - 1];
+};
+@endcode
+
+@note
+    The ``message_payload`` is generated from the protobuf files using
+    ``protoc``:
+  @code{shell}
+  $ protoc --cpp_out=protodir mysqlx*.proto
+  @endcode
+-  [``mysqlx.proto``]
+-  [``mysqlx_connection.proto``]
+-  [``mysqlx_session.proto``]
+-  [``mysqlx_crud.proto``]
+-  [``mysqlx_sql.proto``]
+-  [``mysqlx_resultset.proto``]
+-  [``mysqlx_expr.proto``]
+-  [``mysqlx_datatypes.proto``]
+-  [``mysqlx_expect.proto``]
+-  [``mysqlx_notice.proto``]
+
+@par
+
+@note
+    The ``message_type`` can be taken from the
+    @ref Mysqlx::ClientMessages for client-messages and from
+    @ref Mysqlx::ServerMessages of server-side messages.
+    @n In ``C++`` they are exposed in ``mysqlx.pb.h`` in the
+    ``ClientMessages`` class.
+    @code{unparsed}
+    ClientMessages.MsgCase.kMsgConGetCap
+    ClientMessages.kMsgConGetCapFieldNumber
+    @endcode
+
+
+@section messages_Message_Sequence Message Sequence
+
+Messages usually appear in a sequence. Each initial message (one
+referenced by @ref Mysqlx::ClientMessages) is
+associated with a set of possible following messages.
+
+A message sequence either:
+-  finishes successfully if it reaches its end-state or
+-  is aborted with a @ref Mysqlx::Error message
+
+At any time in between local @ref Mysqlx::Notice "Notices"
+may be sent by the server as part of the message sequence.
+
+Global @ref Mysqlx::Notice "Notices" may be sent by the  server at any time.
+
+
+@section messages_Common_Messages Common Messages
+
+@subsection messages_Error_Message Error Message
+
+After the client sent the initial message, the server may send a
+@ref Mysqlx::Error message at any time to terminate the
+current message sequence.
+*/
+
+
+
+
 // tell protobuf 3.0 to use protobuf 2.x rules
 syntax = "proto2";
 
 // ifdef PROTOBUF_LITE: option optimize_for = LITE_RUNTIME;
 
+/**
+@namespace Mysqlx
+*/
 package Mysqlx;
 option java_package = "com.mysql.cj.x.protobuf";
 
@@ -45,13 +153,14 @@ import "google/protobuf/descriptor.proto"; // comment_out_if PROTOBUF_LITE
 //
 
 
-// IDs of messages that can be sent from client to the server
-//
-// .. note::
-//   this message is never sent on the wire. It is only used to let ``protoc``
-//
-//   * generate constants
-//   * check for uniqueness
+/**
+ IDs of messages that can be sent from client to the server.
+
+ @note
+   This message is never sent on the wire. It is only used to let ``protoc``:
+   -  generate constants
+   -  check for uniqueness
+*/
 message ClientMessages {
   enum Type {
     CON_CAPABILITIES_GET = 1;
@@ -89,13 +198,15 @@ message ClientMessages {
   }
 }
 
-// IDs of messages that can be sent from server to client
-//
-// .. note::
-//   this message is never sent on the wire. It is only used to let ``protoc``
-//
-//   * generate constants
-//   * check for uniqueness
+
+/**
+IDs of messages that can be sent from server to client.
+
+@note
+   This message is never sent on the wire. It is only used to let ``protoc``:
+   -  generate constants
+   -  check for uniqueness
+*/
 message ServerMessages {
   enum Type {
     OK = 0;
@@ -128,7 +239,10 @@ extend google.protobuf.MessageOptions {
 }
 // endif
 
-// generic Ok message
+/**
+Generic Ok message.
+*/
+
 message Ok {
   optional string msg = 1;
 
@@ -136,23 +250,29 @@ message Ok {
 }
 
 
-// generic Error message
-//
-// A ``severity`` of ``ERROR`` indicates the current message sequence is
-// aborted for the given error and the session is ready for more.
-//
-// In case of a ``FATAL`` error message the client should not expect
-// the server to continue handling any further messages and should
-// close the connection.
-//
-// :param severity: severity of the error message
-// :param code: error-code
-// :param sql_state: SQL state
-// :param msg: human readable error message
+/**
+Generic Error message.
+
+A ``severity`` of ``ERROR`` indicates the current message
+sequence is aborted for the given error and the session is ready
+for more.
+
+In case of a ``FATAL`` error message the client should not
+expect the server to continue handling any further messages and
+should close the connection.
+*/
+
 message Error {
+  /** severity of the error message */
   optional Severity severity = 1 [ default = ERROR ];
+
+  /** error-code */
   required uint32 code = 2;
+
+  /** SQL state */
   required string sql_state = 4;
+
+  /** human readable error message */
   required string msg = 3;
 
   enum Severity {
@@ -162,3 +282,134 @@ message Error {
 
   option (server_message_id) = ERROR; // comment_out_if PROTOBUF_LITE
 }
+
+
+/** @page mysqlx_protocol X %Protocol
+
+@par Topics in this section:
+
+- @subpage mysqlx_protocol_lifecycle
+- @subpage mysqlx_protocol_authentication
+- @subpage mysqlx_protocol_messages
+- @subpage mysqlx_protocol_expectations
+- @subpage mysqlx_protocol_notices
+- @subpage mysqlx_protocol_xplugin
+- @subpage mysqlx_protocol_use_cases
+- @subpage mysqlx_protocol_implementation
+- @subpage mysqlx_protocol_comparison
+
+
+The X %Protocol is implemented by the X Plugin and the following
+MySQL clients support the protocol:
+
+-  MYSQLXSHELL
+
+-  MySQL for Visual Studio 2.0.2 or higher
+
+-  MySQL Connector/J 6.0.2 or higher
+
+-  MySQL Connector/Net 7.0.2 or higher
+
+-  MySQL Connector/Node.js
+
+@section xprotocol_community_connector How to build a Community Connector
+
+MySQL provides a set of official MySQL Connectors for several popular
+development frameworks and languages like Node.js, .Net, Python, Java, C,
+C++ and more. At the same time, we also encourage community developers to
+create native connectors for their favorite languages. To improve the process
+and encourage creating a community connector going forward, and allow for more
+rapid new feature support within the MySQL communications protocol, we created
+a new protocol called the MySQL X Protocol.
+
+The new X Protocol leverages current industry standards. One of those standards
+in use is protobuf (more formally know as Google Protobuffers).
+The .proto formatted files provide the complete message definitions of the
+X Protocol. Another feature of protobuf is the automatic code generation based
+on those .proto files across a variety of languages for use in community
+developed connectors for MySQL.
+
+These language specific generated files can be used with no restrictions under
+your own terms.
+
+The X Protocol use of .proto makes our protocol design clear and concise,
+no longer requiring the efforts previously required – no longer will you need
+to directly analyze our message format. In addition to the layout of
+the message format, the .proto also defines and documents message sequence
+and flow between the connectors and the MySQL server. The information defined
+in the .proto file makes it easy to implement X protocol support in connector
+code. As those who have written a MySQL connector know, coding the protocol
+is only a small part of the effort required.
+
+Finally, you can focus on the big task of creating a MySQL community
+connector - designing apis, coding, testing, selecting your license, packaging,
+documentation. And, promoting and speaking about your work.
+
+@section xprotocol_mysqlxshell_example X Protocol example
+
+The following figure shows usage of the X %Protocol between MYSQLXSHELL and
+MySQL Server 5.7.12 or higher with the X %Plugin enabled.
+The object _X %Protocol_ on this figure represents rather some concept
+than an implementation object. The aim is to show its role in the process
+of information exchange between the client and the server.
+
+@startuml "X Protocol Overview"
+actor "User"
+box "MySQLx Shell"
+participant "X DevAPI" as devapi
+participant "X Protocol" as xclproto
+end box
+
+box "MySQL Server"
+participant "X Plugin" as xpl
+participant "X Protocol" as xplproto
+participant "Server" as serv
+end box
+
+User -> devapi: Request
+activate devapi
+devapi -> xclproto: Encode request
+activate xclproto
+
+xclproto --> devapi
+deactivate xclproto
+
+devapi -> xpl: Receive request << Network (TCP) >>
+activate xpl
+
+xpl -> xplproto: Decode request
+activate xplproto
+
+xplproto --> xpl
+deactivate xplproto
+
+xpl -> serv: Execute request
+activate serv
+
+serv --> xpl
+deactivate serv
+
+xpl --> devapi: << Network (TCP) >>
+deactivate xpl
+
+devapi --> User
+deactivate devapi
+...
+@enduml
+
+The documentation is based on the source files such as:
+
+-  [``mysqlx.proto``](https://github.com/mysql/mysql-server/tree/8.0/plugin/x/protocol/protobuf/mysqlx.proto)
+-  [``mysqlx_connection.proto``](https://github.com/mysql/mysql-server/tree/8.0/plugin/x/protocol/protobuf/mysqlx_connection.proto)
+-  [``mysqlx_session.proto``](https://github.com/mysql/mysql-server/tree/8.0/plugin/x/protocol/protobuf/mysqlx_session.proto>)
+-  [``mysqlx_crud.proto``](https://github.com/mysql/mysql-server/tree/8.0/plugin/x/protocol/protobuf/mysqlx_crud.proto>)
+-  [``mysqlx_sql.proto``](https://github.com/mysql/mysql-server/tree/8.0/plugin/x/protocol/protobuf/mysqlx_sql.proto>)
+-  [``mysqlx_resultset.proto``](https://github.com/mysql/mysql-server/tree/8.0/plugin/x/protocol/protobuf/mysqlx_resultset.proto>)
+-  [``mysqlx_expr.proto``](https://github.com/mysql/mysql-server/tree/8.0/plugin/x/protocol/protobuf/mysqlx_expr.proto>)
+-  [``mysqlx_datatypes.proto``](https://github.com/mysql/mysql-server/tree/8.0/plugin/x/protocol/protobuf/mysqlx_datatypes.proto>)
+-  [``mysqlx_expect.proto``](https://github.com/mysql/mysql-server/tree/8.0/plugin/x/protocol/protobuf/mysqlx_expect.proto>)
+-  [``mysqlx_notice.proto``](https://github.com/mysql/mysql-server/tree/8.0/plugin/x/protocol/protobuf/mysqlx_notice.proto>)
+-  [``mysqlx_cursor.proto``](https://github.com/mysql/mysql-server/tree/8.0/plugin/x/protocol/protobuf/mysqlx_cursor.proto>)
+-  [``mysqlx_prepare.proto``](https://github.com/mysql/mysql-server/tree/8.0/plugin/x/protocol/protobuf/mysqlx_prepare.proto>)
+
+*/

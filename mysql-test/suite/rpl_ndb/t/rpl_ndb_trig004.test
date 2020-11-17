@@ -8,7 +8,7 @@
 
 # Includes
 -- source include/have_ndb.inc
--- source include/master-slave.inc
+-- source suite/ndb_rpl/ndb_master-slave.inc
 let $engine_type=NDB;
 -- source extra/rpl_tests/rpl_trig004.test
 

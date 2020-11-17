@@ -469,14 +469,18 @@ SET NAMES default;
 #                error.
 #
 CREATE FUNCTION myfunc(dt VARCHAR(50)) RETURNS VARCHAR(32) DETERMINISTIC
-RETURN CONCAT(UNIX_TIMESTAMP(dt));
+BEGIN
+DECLARE dt_local TIMESTAMP(0);
+SET dt_local = dt;
+RETURN CONCAT(UNIX_TIMESTAMP(dt_local));
+END; //
 # Stored function returns seconds without fractional
 # part (e.g. 1546290000)
 SELECT myfunc('2019-01-01 00:00:00');
 myfunc('2019-01-01 00:00:00')
 1546290000
 SELECT myfunc('2019-01-01 00:00:71');
-ERROR 22007: Incorrect datetime value: '2019-01-01 00:00:71'
+ERROR 22007: Incorrect datetime value: '2019-01-01 00:00:71' for column 'dt_local' at row 1
 # Without the fix, the following returned second value with fractional
 # part (e.g. 1546290000.000000).
 SELECT myfunc('2019-01-01 00:00:00');
@@ -488,7 +492,7 @@ PREPARE stmt FROM 'SELECT CONCAT(UNIX_TIMESTAMP(?))';
 SET @var = '2019-01-01 00:00:00';
 EXECUTE stmt USING @var;
 CONCAT(UNIX_TIMESTAMP(?))
-1546290000
+1546290000.000000
 SET @var = '2019-01-01 00:00:71';
 EXECUTE stmt USING @var;
 CONCAT(UNIX_TIMESTAMP(?))
@@ -500,7 +504,7 @@ Warning	1292	Incorrect datetime value: '2019-01-01 00:00:71'
 SET @var = '2019-01-01 00:00:00';
 EXECUTE stmt USING @var;
 CONCAT(UNIX_TIMESTAMP(?))
-1546290000
+1546290000.000000
 DEALLOCATE PREPARE stmt;
 #
 # Bug#30561920 - Handler fails to trigger on error 1049 or SQLSTATE 42000

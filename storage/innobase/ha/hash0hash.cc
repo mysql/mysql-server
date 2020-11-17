@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -132,11 +132,11 @@ void hash_table_free(hash_table_t *table) /*!< in, own: hash table */
 }
 
 #ifndef UNIV_HOTBACKUP
+
 /** Creates a sync object array to protect a hash table. "::sync_obj" can be
 mutexes or rw_locks depening on the type of hash table.
 @param[in]	table		hash table
-@param[in]	type		HASH_TABLE_SYNC_MUTEX or
-                                HASH_TABLE_SYNC_RW_LOCK
+@param[in]	type		HASH_TABLE_SYNC_MUTEX or HASH_TABLE_SYNC_RW_LOCK
 @param[in]	id		latch ID
 @param[in]	n_sync_obj	number of sync objects, must be a power of 2 */
 void hash_create_sync_obj(hash_table_t *table, enum hash_table_sync_t type,

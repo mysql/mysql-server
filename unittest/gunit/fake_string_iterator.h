@@ -1,7 +1,7 @@
 #ifndef UNITTEST_GUNIT_FAKE_STRING_ITERATOR_H_
 #define UNITTEST_GUNIT_FAKE_STRING_ITERATOR_H_
 
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,10 +60,6 @@ class FakeStringIterator final : public TableRowIterator {
     const std::string &value = m_dataset[m_current_index++];
     m_field->store(value.c_str(), value.size(), &my_charset_utf8mb4_0900_ai_ci);
     return 0;
-  }
-
-  std::vector<std::string> DebugString() const override {
-    return {"Fake string iterator"};
   }
 
  private:

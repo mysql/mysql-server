@@ -36,7 +36,6 @@
 #include "storage/ndb/plugin/ndb_log.h"
 #include "storage/ndb/plugin/ndb_schema_trans_guard.h"
 #include "storage/ndb/plugin/ndb_table_guard.h"
-#include "storage/ndb/plugin/ndb_tdc.h"
 #include "storage/ndb/plugin/ndb_thd.h"
 #include "template_utils.h"
 
@@ -1273,29 +1272,6 @@ int ndb_fk_util_rename_foreign_keys(THD *thd, NdbDictionary::Dictionary *dict,
                                      new_db_name, new_table_name);
 }
 
-/**
-  @brief Flush the parent table after a successful addition/deletion
-         to the Foreign Key. This is done to force reload the Parent
-         table's metadata.
-
-  @param thd            thread handle
-  @param parent_db      Parent table's database name
-  @param parent_name    Parent table's name
-*/
-static void flush_parent_table_for_fk(THD *thd, const char *parent_db,
-                                      const char *parent_name) {
-  DBUG_TRACE;
-
-  if (Fk_util::is_mock_name(parent_name)) {
-    /* Parent table is mock - no need to flush */
-    DBUG_PRINT("debug", ("Parent table is a mock - skipped flushing"));
-    return;
-  }
-
-  DBUG_PRINT("debug", ("Flushing table : `%s`.`%s` ", parent_db, parent_name));
-  ndb_tdc_close_cached_table(thd, parent_db, parent_name);
-}
-
 /*
   @brief Guard class for references to indexes in the global
   NdbApi dictionary cache which need to be released(and sometimes
@@ -1593,13 +1569,6 @@ int ha_ndbcluster::create_fks(THD *thd, Ndb *ndb) {
     if (err) {
       return Fk_util::create_failed(ndbfk.getName(), dict->getNdbError());
     }
-
-    /* Flush the parent table out if parent is different from child */
-    if (parent_tab.get_table()->getObjectId() !=
-        child_tab.get_table()->getObjectId()) {
-      /* flush parent table */
-      flush_parent_table_for_fk(thd, parent_db, parent_name);
-    }
   }
 
   ndb_fk_util_resolve_mock_tables(thd, ndb->getDictionary(), m_dbname,
@@ -1830,13 +1799,6 @@ int ha_ndbcluster::inplace__drop_fks(THD *thd, Ndb *ndb, NDBDICT *dict,
           ERR_RETURN(dict->getNdbError());
         }
 
-        /* Flush the parent table out if parent is different from child */
-        if (ndb_fk_casecmp(fk.getParentTable(), fk.getChildTable()) != 0) {
-          char parent_db[FN_LEN + 1];
-          const char *parent_name =
-              fk_split_name(parent_db, fk.getParentTable());
-          flush_parent_table_for_fk(thd, parent_db, parent_name);
-        }
         break;
       }
     }
@@ -1958,25 +1920,16 @@ int ha_ndbcluster::recreate_fk_for_truncate(THD *thd, Ndb *ndb,
     if (err) {
       ERR_RETURN(dict->getNdbError());
     }
-
-    /* Flush the parent table out if parent is different from child */
-    char parent_db[FN_LEN + 1];
-    const char *parent_name = fk_split_name(parent_db, fk.getParentTable());
-    if (ndb_fk_casecmp(parent_name, tab_name) != 0 ||
-        ndb_fk_casecmp(parent_db, ndb->getDatabaseName()) != 0) {
-      flush_parent_table_for_fk(thd, parent_db, parent_name);
-    }
   }
   return 0;
 }
 
 bool ha_ndbcluster::has_fk_dependency(
-    THD *thd, const NdbDictionary::Column *column) const {
+    NdbDictionary::Dictionary *dict,
+    const NdbDictionary::Column *column) const {
   DBUG_TRACE;
-  Ndb *ndb = get_ndb(thd);
-  NDBDICT *dict = ndb->getDictionary();
+  DBUG_PRINT("enter", ("Searching for column %s", column->getName()));
   NdbDictionary::Dictionary::List obj_list;
-  DBUG_PRINT("info", ("Searching for column %s", column->getName()));
   if (dict->listDependentObjects(obj_list, *m_table) == 0) {
     for (unsigned i = 0; i < obj_list.count; i++) {
       const NDBDICT::List::Element &e = obj_list.elements[i];

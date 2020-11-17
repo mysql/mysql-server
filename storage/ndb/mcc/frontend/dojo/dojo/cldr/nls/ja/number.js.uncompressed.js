@@ -1,23 +1,25 @@
 define(
 "dojo/cldr/nls/ja/number", //begin v1.x content
 {
-	"group": ",",
-	"percentSign": "%",
-	"exponential": "E",
 	"scientificFormat": "#E0",
-	"percentFormat": "#,##0%",
-	"list": ";",
 	"infinity": "∞",
-	"minusSign": "-",
-	"decimal": ".",
 	"superscriptingExponent": "×",
+	"list": ";",
+	"percentSign": "%",
+	"minusSign": "-",
+	"decimalFormat-short": "000兆",
 	"nan": "NaN",
-	"perMille": "‰",
-	"decimalFormat": "#,##0.###",
-	"currencyFormat": "¤#,##0.00;(¤#,##0.00)",
 	"plusSign": "+",
+	"currencyFormat": "¤#,##0.00;(¤#,##0.00)",
+	"perMille": "‰",
+	"group": ",",
+	"percentFormat": "#,##0%",
 	"decimalFormat-long": "000兆",
-	"decimalFormat-short": "000兆"
+	"decimalFormat": "#,##0.###",
+	"currencyFormat-short": "¤000兆",
+	"timeSeparator": ":",
+	"decimal": ".",
+	"exponential": "E"
 }
 //end v1.x content
 );

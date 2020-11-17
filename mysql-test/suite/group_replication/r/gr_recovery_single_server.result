@@ -10,6 +10,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 include/rpl_sync.inc
 STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 INSERT INTO t1 VALUES (1);
 
 ################################################################

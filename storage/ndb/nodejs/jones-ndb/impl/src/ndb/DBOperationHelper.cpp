@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,6 @@
 #include <string.h>
 
 #include <node.h>
-#include <node_buffer.h>
 
 #include "adapter_global.h"
 #include "KeyOperation.h"
@@ -35,6 +34,7 @@
 #include "NdbRecordObject.h"
 #include "TransactionImpl.h"
 #include "BlobHandler.h"
+#include "JsValueAccess.h"
 
 enum {
   HELPER_ROW_BUFFER = 0,
@@ -50,10 +50,10 @@ enum {
   HELPER_IS_VALID
 };
 
-void DBOperationHelper_VO(Handle<Object>, KeyOperation &);
-void DBOperationHelper_NonVO(Handle<Object>, KeyOperation &);
+void DBOperationHelper_VO(Isolate *, Local<Object>, KeyOperation &);
+void DBOperationHelper_NonVO(Isolate *, Local<Object>, KeyOperation &);
 
-void setKeysInOp(Handle<Object> spec, KeyOperation & op);
+void setKeysInOp(Isolate *, Local<Object> spec, KeyOperation & op);
 
 
 /* DBOperationHelper takes an array of HelperSpecs.
@@ -67,95 +67,94 @@ void setKeysInOp(Handle<Object> spec, KeyOperation & op);
 void DBOperationHelper(const Arguments &args) {
   EscapableHandleScope scope(args.GetIsolate());
 
-  int length = args[0]->Int32Value();
-  const Local<Object> array = args[1]->ToObject();
-  TransactionImpl *txc = unwrapPointer<TransactionImpl *>(args[2]->ToObject());
-  Handle<Value> oldWrapper = args[3];
+  int length = GetInt32Arg(args, 0);
+  const Local<Object> array = ArgToObject(args, 1);
+  TransactionImpl *txc = unwrapPointer<TransactionImpl *>(ArgToObject(args, 2));
+  Local<Value> oldWrapper = args[3];
 
   BatchImpl * pendingOps = new BatchImpl(txc, length);
 
   for(int i = 0 ; i < length ; i++) {
-    Handle<Object> spec = array->Get(i)->ToObject();
+    Local<Object> spec = ElementToObject(array, i);
 
-    int opcode  = spec->Get(HELPER_OPCODE)->Int32Value();
-    bool is_vo  = spec->Get(HELPER_IS_VO)->ToBoolean()->Value();
-    bool op_ok  = spec->Get(HELPER_IS_VALID)->ToBoolean()->Value();
+    int opcode  = GetInt32Property(spec, HELPER_OPCODE);
+    bool is_vo  = GetBoolProperty(spec, HELPER_IS_VO);
+    bool op_ok  = GetBoolProperty(spec,  HELPER_IS_VALID);
 
     KeyOperation * op = pendingOps->getKeyOperation(i);
     
     if(op_ok) {
       op->opcode = opcode;
-      if(is_vo) DBOperationHelper_VO(spec, *op);
-      else      DBOperationHelper_NonVO(spec, *op);
+      if(is_vo) DBOperationHelper_VO(args.GetIsolate(), spec, *op);
+      else      DBOperationHelper_NonVO(args.GetIsolate(), spec, *op);
     }
   }
   
   if(oldWrapper->IsObject()) {
-    args.GetReturnValue().Set(BatchImpl_Recycle(oldWrapper->ToObject(), pendingOps));
+    args.GetReturnValue().Set(BatchImpl_Recycle(ToObject(args,oldWrapper), pendingOps));
   } else {
     args.GetReturnValue().Set(BatchImpl_Wrapper(pendingOps));
   }
 }
 
 
-void setKeysInOp(Handle<Object> spec, KeyOperation & op) {
+void setKeysInOp(Isolate *iso, Local<Object> spec, KeyOperation & op) {
   Local<Value> v;
-  Local<Object> o;
 
-  v = spec->Get(HELPER_KEY_BUFFER);
+  v = Get(iso, spec, HELPER_KEY_BUFFER);
   if(! v->IsNull()) {
-    o = v->ToObject();
-    op.key_buffer = node::Buffer::Data(o);
+    Local<Object> o = ToObject(iso, v);
+    op.key_buffer = GetBufferData(o);
   }
   
-  v = spec->Get(HELPER_KEY_RECORD);
+  v = Get(iso, spec, HELPER_KEY_RECORD);
   if(! v->IsNull()) {
-    o = v->ToObject();
+    Local<Object> o = ToObject(iso, v);
     op.key_record = unwrapPointer<const Record *>(o);
   }
 }
 
 
-void DBOperationHelper_NonVO(Handle<Object> spec, KeyOperation & op) {
+void DBOperationHelper_NonVO(Isolate *iso,
+                             Local<Object> spec, KeyOperation & op) {
   Local<Value> v;
-  Local<Object> o;
 
-  setKeysInOp(spec, op);
+  setKeysInOp(iso, spec, op);
   
-  v = spec->Get(HELPER_ROW_BUFFER);
+  v = Get(iso, spec, HELPER_ROW_BUFFER);
   if(! v->IsNull()) {
-    o = v->ToObject();
-    op.row_buffer = node::Buffer::Data(o);
+    Local<Object> o = ToObject(iso, v);
+    op.row_buffer = GetBufferData(o);
   }
   
-  v = spec->Get(HELPER_ROW_RECORD);
+  v = Get(iso, spec, HELPER_ROW_RECORD);
   if(! v->IsNull()) {
-    o = v->ToObject();
+    Local<Object> o = ToObject(iso, v);
     const Record * record = unwrapPointer<const Record *>(o);
     op.row_record = record;
 
-    v = spec->Get(HELPER_BLOBS);
+    v = Get(iso, spec, HELPER_BLOBS);
     if(v->IsObject()) {
       if(op.opcode == 1) {
         op.nblobs = op.createBlobReadHandles(record);
       } else {
-        op.nblobs = op.createBlobWriteHandles(v->ToObject(), record);
+        op.nblobs = op.createBlobWriteHandles(ToObject(v), record);
       }
     }
   }
   
-  v = spec->Get(HELPER_LOCK_MODE);
+  v = Get(iso, spec, HELPER_LOCK_MODE);
   if(! v->IsNull()) {
-    int intLockMode = v->Int32Value();
+    int intLockMode = GetInt32Value(iso, v);
     op.lmode = static_cast<NdbOperation::LockMode>(intLockMode);
   }
 
-  v = spec->Get(HELPER_COLUMN_MASK);
+  v = Get(spec, HELPER_COLUMN_MASK);
   if(! v->IsNull()) {
     v8::Array *maskArray = v8::Array::Cast(*v);
     for(unsigned int m = 0 ; m < maskArray->Length() ; m++) {
-      Local<Value> colId = maskArray->Get(m);
-      op.useColumn(colId->Int32Value());
+      Local<Value> colId = Get(iso, maskArray, m);
+      op.useColumn(GetInt32Value(iso, colId));
     }
   }
 
@@ -164,18 +163,19 @@ void DBOperationHelper_NonVO(Handle<Object> spec, KeyOperation & op) {
 }
 
 
-void DBOperationHelper_VO(Handle<Object> spec,  KeyOperation & op) {
+void DBOperationHelper_VO(Isolate *iso,
+                          Local<Object> spec,  KeyOperation & op) {
   DEBUG_MARKER(UDEB_DETAIL);
   Local<Value> v;
   Local<Object> o;
   Local<Object> valueObj;
 
-  v = spec->Get(HELPER_VALUE_OBJECT);
-  valueObj = v->ToObject();
+  v = Get(spec, HELPER_VALUE_OBJECT);
+  valueObj = ToObject(iso, v);
   NdbRecordObject * nro = unwrapPointer<NdbRecordObject *>(valueObj);
 
   /* Set the key record and key buffer from the helper spec */
-  setKeysInOp(spec, op);
+  setKeysInOp(iso, spec, op);
   
   /* Set the row record, row buffer, and mask from the VO */
   op.row_record = nro->getRecord();
@@ -192,7 +192,7 @@ void DBOperationHelper_VO(Handle<Object> spec,  KeyOperation & op) {
   else 
     op.setRowMask(nro->getMaskValue());
 
-  op.nblobs = nro->createBlobWriteHandles(op);
+  op.nblobs = nro->createBlobWriteHandles(iso, op);
 
   DEBUG_PRINT("  VO   %s -- mask: %u lobs: %d", op.getOperationName(), 
               op.u.maskvalue, op.nblobs);
@@ -200,13 +200,13 @@ void DBOperationHelper_VO(Handle<Object> spec,  KeyOperation & op) {
 }
 
 
-void DBOperationHelper_initOnLoad(Handle<Object> target) {
+void DBOperationHelper_initOnLoad(Local<Object> target) {
   DEBUG_MARKER(UDEB_DETAIL);
   DEFINE_JS_FUNCTION(target, "DBOperationHelper", DBOperationHelper);
   Local<Object> OpHelper = Object::New(Isolate::GetCurrent());
   Local<Object> LockModes = Object::New(Isolate::GetCurrent());
 
-  target->Set(NEW_SYMBOL("OpHelper"), OpHelper);
+  SetProp(target, "OpHelper", OpHelper);
   DEFINE_JS_INT(OpHelper, "row_buffer",   HELPER_ROW_BUFFER);
   DEFINE_JS_INT(OpHelper, "key_buffer",   HELPER_KEY_BUFFER);
   DEFINE_JS_INT(OpHelper, "row_record",   HELPER_ROW_RECORD);
@@ -219,7 +219,7 @@ void DBOperationHelper_initOnLoad(Handle<Object> target) {
   DEFINE_JS_INT(OpHelper, "blobs",        HELPER_BLOBS);
   DEFINE_JS_INT(OpHelper, "is_valid",     HELPER_IS_VALID);
 
-  target->Set(NEW_SYMBOL("LockModes"), LockModes);
+  SetProp(target, "LockModes", LockModes);
   DEFINE_JS_INT(LockModes, "EXCLUSIVE", NdbOperation::LM_Exclusive);
   DEFINE_JS_INT(LockModes, "SHARED", NdbOperation::LM_Read);
   DEFINE_JS_INT(LockModes, "COMMITTED", NdbOperation::LM_CommittedRead);

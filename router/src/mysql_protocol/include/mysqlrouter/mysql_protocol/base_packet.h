@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,17 +25,18 @@
 #ifndef MYSQLROUTER_MYSQL_PROTOCOL_BASE_PACKET_INCLUDED
 #define MYSQLROUTER_MYSQL_PROTOCOL_BASE_PACKET_INCLUDED
 
-#include <algorithm>
-#include <climits>
-#include <cstdint>
-#include <iostream>
-#include <stdexcept>
+#include <climits>  // CHAR_BIT
+#include <cstdint>  // size_t
+#include <initializer_list>
+#include <stdexcept>  // range_error
 #include <string>
-#include <utility>
+#include <type_traits>  // enable_if
+#include <utility>      // move, pair
 #include <vector>
 
 #include "constants.h"
 #include "harness_assert.h"
+#include "mysqlrouter/mysql_protocol_export.h"  // MYSQL_PROTOCOL_EXPORT
 
 // GCC 4.8.4 requires all classes to be forward-declared before being used with
 // "friend class <friendee>", if they're in a different namespace than the
@@ -66,7 +67,7 @@ namespace mysql_protocol {
  * such as ErrorPacket and HandshakeResponsePacket.
  *
  */
-class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
+class MYSQL_PROTOCOL_EXPORT Packet {
   /** @note This class exposes several types of methods for data manipulation.
    *
    * Packet buffer operations, they work like standard stream operations:
@@ -84,6 +85,8 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
 
  public:
   using vector_t = std::vector<uint8_t>;
+  using iterator = vector_t::iterator;
+  using const_iterator = vector_t::const_iterator;
 
   ////////////////////////////////////////////////////////////////////////////////
   // constructors, destructors, assignment operators
@@ -113,8 +116,8 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
    * @param buffer Vector of uint8_t
    * @param allow_partial Whether to allow buffers which have incomplete payload
    */
-  explicit Packet(const vector_t &buffer, bool allow_partial = false)
-      : Packet(buffer, Capabilities::ALL_ZEROS, allow_partial) {}
+  explicit Packet(vector_t buffer, bool allow_partial = false)
+      : Packet(std::move(buffer), Capabilities::ALL_ZEROS, allow_partial) {}
 
   /** @overload
    *
@@ -123,7 +126,7 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
    * @param allow_partial Whether to allow buffers which have incomplete payload
    */
   /** @throws mysql_protocol::packet_error */
-  Packet(const vector_t &buffer, Capabilities::Flags capabilities,
+  Packet(vector_t buffer, Capabilities::Flags capabilities,
          bool allow_partial = false);
 
   /** @overload
@@ -139,24 +142,21 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
    * @param capabilities Server or Client capability flags
    */
   Packet(uint8_t sequence_id, Capabilities::Flags capabilities)
-      : vector(),
-        sequence_id_(sequence_id),
-        payload_size_(0),
-        capability_flags_(capabilities) {}
+      : sequence_id_(sequence_id), capability_flags_(capabilities) {}
 
   /** @overload */
   /** @throws mysql_protocol::packet_error */
   Packet(std::initializer_list<uint8_t> ilist);
 
   /** @brief Destructor */
-  virtual ~Packet() {}
+  virtual ~Packet() = default;
 
   /** @brief Copy Constructor */
   Packet(const Packet &) = default;
 
   /** @brief Move Constructor */
   Packet(Packet &&other)
-      : vector(std::move(other)),
+      : msg_(std::move(other.msg_)),
         sequence_id_(other.get_sequence_id()),
         payload_size_(other.get_payload_size()),
         capability_flags_(other.get_capabilities()) {
@@ -170,7 +170,7 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
 
   /** @brief Move Assigment */
   Packet &operator=(Packet &&other) {
-    swap(other);
+    msg_ = std::move(other.msg_);
     sequence_id_ = other.sequence_id_;
     payload_size_ = other.payload_size_;
     capability_flags_ = other.get_capabilities();
@@ -187,7 +187,7 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
   /** @brief Sets current read/write position used by read_*()/write_*() calls
    */
   void seek(size_t position) const {
-    if (position > size()) throw std::range_error("seek past EOF");
+    if (position > msg_.size()) throw std::range_error("seek past EOF");
     position_ = position;
   }
 
@@ -308,14 +308,14 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
    */
   template <class T, typename = std::enable_if<std::is_integral<T>::value>>
   void write_int(T value, size_t length = sizeof(T)) {
-    reserve(size() + length);
+    msg_.reserve(msg_.size() + length);
     while (length-- > 0) {
       // Assignment to temporary variable `b` prevents too aggressive inlining
       // optimization in some compilers (e.g. GCC 4.9.2 on Solaris, with -O2).
       // Without it, `value` wasn't getting updated before push_back() under
       // certain conditions, and resulted in filling packet's buffer with
       // invalid data.
-      uint8_t b = static_cast<uint8_t>(value);
+      const auto b = static_cast<uint8_t>(value);
       update_or_append(b);
       value = static_cast<T>(value >> CHAR_BIT);
     }
@@ -340,6 +340,15 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
   void write_bytes(const Packet::vector_t &bytes) {
     write_bytes_impl(bytes.data(), bytes.size());
   }
+
+  const vector_t &message() const { return msg_; }
+
+  size_t size() const { return msg_.size(); }
+
+  iterator begin() { return msg_.begin(); }
+  const_iterator begin() const { return msg_.begin(); }
+  iterator end() { return msg_.end(); }
+  const_iterator end() const { return msg_.end(); }
 
   /** @brief Adds a string to the given packet
    *
@@ -394,15 +403,15 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
             typename = std::enable_if<std::is_integral<Type>::value>>
   Type read_int_from(size_t position, size_t length = sizeof(Type)) const {
     harness_assert((length >= 1 && length <= 4) || length == 8);
-    if (position + length > size())
+    if (position + length > msg_.size())
       throw std::range_error("start or end beyond EOF");
 
     if (length == 1) {
-      return static_cast<Type>((*this)[position]);
+      return static_cast<Type>(msg_[position]);
     }
 
     uint64_t result = 0;
-    auto it = begin() + static_cast<long>(position + length);
+    auto it = msg_.begin() + static_cast<long>(position + length);
     while (length-- > 0) {
       result <<= 8;
       result |= *--it;
@@ -557,7 +566,7 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
    *
    * Resets the packet and sets the sequence id.
    */
-  void reset() { this->assign({0x0, 0x0, 0x0, sequence_id_}); }
+  void reset() { msg_.assign({0x0, 0x0, 0x0, sequence_id_}); }
 
   /** @brief Updates payload size in packet header
    *
@@ -566,20 +575,22 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
    */
   void update_packet_size();
 
+  vector_t msg_;
+
   /** @brief MySQL packet sequence ID */
-  uint8_t sequence_id_;
+  uint8_t sequence_id_{};
 
   /** @brief Payload of the packet */
   std::vector<uint8_t> payload_;
 
   /** @brief Payload size */
-  uint32_t payload_size_;
+  uint32_t payload_size_{};
 
   /** @brief Capability flags */
   Capabilities::Flags capability_flags_;
 
   /** @brief read/write position for stream operations */
-  mutable size_t position_;
+  mutable size_t position_{};
 
  private:
   /** @throws mysql_protocol::packet_error */
@@ -600,7 +611,7 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
   }
 
   inline void update_or_append(size_t &position, uint8_t value) {
-    update_or_append(*this, position, value);
+    update_or_append(msg_, position, value);
   }
 
   inline void update_or_append(uint8_t value) {
@@ -624,6 +635,10 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
   FRIEND_TEST(::HandshakeResponseParseTest, all);
 #endif
 };
+
+inline bool operator==(const Packet &a, const Packet &b) {
+  return a.message() == b.message();
+}
 
 }  // namespace mysql_protocol
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -354,10 +354,6 @@ ENDIF()
 # Install layout for router, follows the same pattern as above.
 #
 
-IF("${ROUTER_INSTALL_DOCDIR}" STREQUAL "")
-  SET(ROUTER_INSTALL_DOCDIR "${INSTALL_DOCDIR}")
-ENDIF()
-
 IF(NOT ROUTER_INSTALL_LAYOUT)
   SET(DEFAULT_ROUTER_INSTALL_LAYOUT "${INSTALL_LAYOUT}")
 ENDIF()
@@ -389,6 +385,9 @@ IF(WIN32)
 ELSE()
   SET(ROUTER_INSTALL_PLUGINDIR_STANDALONE "lib/mysqlrouter")
 ENDIF()
+SET(ROUTER_INSTALL_LOGROTATEDIR_STANDALONE  ".")
+SET(ROUTER_INSTALL_LOGROTATEFILE_STANDALONE "mysqlrouter-log-rotate")
+SET(ROUTER_INSTALL_DOCDIR_STANDALONE "docs")
 
 #
 # TARGZ layout
@@ -401,8 +400,16 @@ FOREACH(var
     BIN
     LIB
     PLUGIN
+    LOGROTATE
+    DOC
     )
   SET(ROUTER_INSTALL_${var}DIR_TARGZ ${ROUTER_INSTALL_${var}DIR_STANDALONE})
+ENDFOREACH()
+
+FOREACH(var
+    LOGROTATE
+    )
+  SET(ROUTER_INSTALL_${var}FILE_TARGZ ${ROUTER_INSTALL_${var}FILE_STANDALONE})
 ENDFOREACH()
 
 #
@@ -425,6 +432,9 @@ ELSE()
   SET(ROUTER_INSTALL_LIBDIR_RPM     "lib/mysqlrouter/private")
   SET(ROUTER_INSTALL_PLUGINDIR_RPM  "lib/mysqlrouter")
 ENDIF()
+SET(ROUTER_INSTALL_LOGROTATEDIR_RPM  "/etc/logrotate.d")
+SET(ROUTER_INSTALL_LOGROTATEFILE_RPM "mysqlrouter")
+#SET(ROUTER_INSTALL_DOCDIR_RPM       unset - installed directly by RPM)
 
 #
 # DEB layout
@@ -437,6 +447,9 @@ SET(ROUTER_INSTALL_RUNTIMEDIR_DEB "/var/run/mysqlrouter")
 SET(ROUTER_INSTALL_BINDIR_DEB     "bin")
 SET(ROUTER_INSTALL_LIBDIR_DEB     "lib/mysqlrouter/private")
 SET(ROUTER_INSTALL_PLUGINDIR_DEB  "lib/mysqlrouter/plugin")
+SET(ROUTER_INSTALL_LOGROTATEDIR_DEB  "/etc/logrotate.d")
+SET(ROUTER_INSTALL_LOGROTATEFILE_DEB "mysqlrouter")
+SET(ROUTER_INSTALL_DOCDIR_DEB "share/mysqlrouter/docs")
 
 #
 # SVR4 layout
@@ -449,12 +462,20 @@ FOREACH(var
     BIN
     LIB
     PLUGIN
+    LOGROTATE
+    DOC
     )
   SET(ROUTER_INSTALL_${var}DIR_SVR4 ${ROUTER_INSTALL_${var}DIR_STANDALONE})
 ENDFOREACH()
 
-# Set ROUTER_INSTALL_FOODIR variables for chosen layout for example,
-# ROUTER_INSTALL_CONFIGDIR will be defined as
+FOREACH(var
+    LOGROTATE
+    )
+  SET(ROUTER_INSTALL_${var}FILE_SVR4 ${ROUTER_INSTALL_${var}FILE_STANDALONE})
+ENDFOREACH()
+
+# Set ROUTER_INSTALL_FOODIR and ROUTER_INSTALL_FOOFILE variables for chosen layout
+# for example, ROUTER_INSTALL_CONFIGDIR will be defined as
 # ${ROUTER_INSTALL_CONFIGDIR_STANDALONE} by default if STANDALONE
 # layout is chosen.
 FOREACH(directory
@@ -465,9 +486,20 @@ FOREACH(directory
     BIN
     LIB
     PLUGIN
+    LOGROTATE
+    DOC
     )
   SET(ROUTER_INSTALL_${directory}DIR
     ${ROUTER_INSTALL_${directory}DIR_${ROUTER_INSTALL_LAYOUT}}
     CACHE STRING "Router ${directory} installation directory")
   MARK_AS_ADVANCED(ROUTER_INSTALL_${directory}DIR)
+ENDFOREACH()
+
+FOREACH(file
+    LOGROTATE
+    )
+  SET(ROUTER_INSTALL_${file}FILE
+    ${ROUTER_INSTALL_${file}FILE_${ROUTER_INSTALL_LAYOUT}}
+    CACHE STRING "Router ${file} installation filename")
+  MARK_AS_ADVANCED(ROUTER_INSTALL_${file}FILE)
 ENDFOREACH()

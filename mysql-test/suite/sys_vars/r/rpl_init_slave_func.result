@@ -14,7 +14,7 @@ DROP TABLE IF EXISTS t1;
 CREATE TEMPORARY TABLE t1 AS SELECT @@global.init_slave AS my_column;
 DESCRIBE t1;
 Field	Type	Null	Key	Default	Extra
-my_column	varchar(74)	YES		NULL	NULL
+my_column	text	YES		NULL	NULL
 select length(my_column) from t1;
 length(my_column)
 85
@@ -25,16 +25,28 @@ SELECT @@global.init_slave = 'SET @@global.max_connections = @@global.max_connec
 Expect 1
 include/assert.inc [@@global.max_connections = @start_max_connections]
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 RESET MASTER;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 include/assert.inc [@@global.max_connections = @start_max_connections + 1]
 SET @@global.init_slave = "SET @a=5";
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 RESET MASTER;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 SHOW VARIABLES LIKE 'init_slave';
 Variable_name	Value

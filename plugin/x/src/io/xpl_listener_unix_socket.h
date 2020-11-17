@@ -49,7 +49,6 @@ class Listener_unix_socket : public iface::Listener {
   ~Listener_unix_socket() override;
 
   void report_properties(On_report_properties on_prop) override;
-  void set_state(const State state) override;
   const Sync_variable_state &get_state() const override;
   std::string get_configuration_variable() const override;
 

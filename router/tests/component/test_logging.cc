@@ -62,6 +62,15 @@ class RouterLoggingTest : public RouterComponentTest {
   }
 
   TcpPortPool port_pool_;
+
+  ProcessWrapper &launch_router(
+      const std::vector<std::string> &params,
+      int expected_exit_code = EXIT_SUCCESS, bool catch_stderr = true,
+      std::chrono::milliseconds wait_for_notify_ready = -1s) {
+    return ProcessManager::launch_router(params, expected_exit_code,
+                                         catch_stderr, /*with_sudo=*/false,
+                                         wait_for_notify_ready);
+  }
 };
 
 /** @test This test verifies that fatal error messages thrown before switching
@@ -77,7 +86,7 @@ TEST_F(RouterLoggingTest, log_startup_failure_to_console) {
       create_config_file(conf_dir.name(), "[invalid]", &conf_params);
 
   // run the router and wait for it to exit
-  auto &router = launch_router({"-c", conf_file}, 1);
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
   check_exit_code(router, EXIT_FAILURE);
 
   // expect something like this to appear on STDERR
@@ -104,7 +113,7 @@ TEST_F(RouterLoggingTest, log_startup_failure_to_logfile) {
       create_config_file(conf_dir.name(), "[routing]", &params);
 
   // run the router and wait for it to exit
-  auto &router = launch_router({"-c", conf_file}, 1);
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
   check_exit_code(router, EXIT_FAILURE);
 
   // expect something like this to appear in log:
@@ -150,7 +159,7 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
         create_config_file(conf_dir.name(), "[keepalive]\n", &params);
 
     // run the router and wait for it to exit
-    auto &router = launch_router({"-c", conf_file}, 1);
+    auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
     check_exit_code(router, EXIT_FAILURE);
 
     // expect something like this to appear on STDERR
@@ -174,7 +183,7 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
         create_config_file(conf_dir.name(), "[keepalive]\n", &params);
 
     // run the router and wait for it to exit
-    auto &router = launch_router({"-c", conf_file}, 1);
+    auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
     check_exit_code(router, EXIT_FAILURE);
 
     // expect something like this to appear on STDERR
@@ -214,7 +223,7 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
         create_config_file(conf_dir.name(), "[keepalive]\n", &params);
 
     // run the router and wait for it to exit
-    auto &router = launch_router({"-c", conf_file}, 1);
+    auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
     check_exit_code(router, EXIT_FAILURE);
 
     // expect something like this to appear on STDERR
@@ -251,7 +260,7 @@ TEST_F(RouterLoggingTest, multiple_logger_sections) {
       create_config_file(conf_dir.name(), "[logger]\n[logger]\n", &conf_params);
 
   // run the router and wait for it to exit
-  auto &router = launch_router({"-c", conf_file}, 1);
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
   check_exit_code(router, EXIT_FAILURE);
 
   // expect something like this to appear on STDERR
@@ -274,7 +283,7 @@ TEST_F(RouterLoggingTest, logger_section_with_key) {
       create_config_file(conf_dir.name(), "[logger:some_key]\n", &conf_params);
 
   // run the router and wait for it to exit
-  auto &router = launch_router({"-c", conf_file}, 1);
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
   check_exit_code(router, EXIT_FAILURE);
 
   // expect something like this to appear on STDERR
@@ -296,7 +305,7 @@ TEST_F(RouterLoggingTest, bad_loglevel) {
       conf_dir.name(), "[logger]\nlevel = UNKNOWN\n", &conf_params);
 
   // run the router and wait for it to exit
-  auto &router = launch_router({"-c", conf_file}, 1);
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
   check_exit_code(router, EXIT_FAILURE);
 
   // expect something like this to appear on STDERR
@@ -420,6 +429,10 @@ TEST_P(RouterLoggingTestConfig, LoggingTestConfig) {
     } else
       throw;
   }
+
+  SCOPED_TRACE("// stop router to ensure all logs are written");
+  router.send_clean_shutdown_event();
+  EXPECT_NO_THROW(router.wait_for_exit());
 
   const std::string console_log_txt = router.get_full_output();
 
@@ -556,7 +569,7 @@ TEST_P(RouterLoggingTestConfig, LoggingTestConfig) {
 #endif
   } else {
     // No SYSTEM output from Router today, so disable until Router does
-#if 0    
+#if 0
     EXPECT_THAT(file_log_txt, Not(HasSubstr(kSystemLogEntry)))
         << "file:\n"
         << file_log_txt << "\nconsole:\n"
@@ -975,7 +988,7 @@ TEST_P(RouterLoggingConfigError, LoggingConfigError) {
   const std::string conf_file =
       create_config_file(conf_dir.name(), conf_text, &conf_params);
 
-  auto &router = launch_router({"-c", conf_file}, 1);
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
   check_exit_code(router, EXIT_FAILURE);
 
@@ -1228,6 +1241,10 @@ TEST_P(RouterLoggingTestTimestampPrecisionConfig,
     } else
       throw;
   }
+
+  SCOPED_TRACE("// stop router to ensure all logs are written");
+  router.send_clean_shutdown_event();
+  EXPECT_NO_THROW(router.wait_for_exit());
 
   // check the console log if it contains what's expected
   std::string console_log_txt = router.get_full_output();
@@ -1705,7 +1722,7 @@ TEST_F(RouterLoggingTest, very_long_router_name_gets_properly_logged) {
           "-d",
           bootstrap_dir.name(),
       },
-      1);
+      EXIT_FAILURE);
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
@@ -1736,8 +1753,9 @@ TEST_F(RouterLoggingTest, is_debug_logs_disabled_if_no_bootstrap_config_file) {
   const auto server_port = port_pool_.get_next_available();
 
   // launch mock server and wait for it to start accepting connections
-  auto &server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
+  /*auto &server_mock =*/launch_mysql_server_mock(json_stmts, server_port,
+                                                  false);
+  // ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   // launch the router in bootstrap mode
   auto &router = launch_router({
@@ -1880,7 +1898,7 @@ TEST_F(RouterLoggingTest, bootstrap_normal_logs_written_to_stdout) {
       bootstrap_conf.name(), logger_section, &conf_params, "bootstrap.conf", "",
       false);
 
-  auto &router = launch_router(
+  auto &router = ProcessManager::launch_router(
       {
           "--bootstrap=127.0.0.1:" + std::to_string(server_port),
           "--report-host",
@@ -1891,8 +1909,7 @@ TEST_F(RouterLoggingTest, bootstrap_normal_logs_written_to_stdout) {
           "-c",
           conf_file,
       },
-      0, /* expected error code */
-      false /*false = capture only stdout*/);
+      EXIT_SUCCESS, /*catch_stderr=*/false, false, -1s);
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -2006,8 +2023,9 @@ TEST_F(MetadataCacheLoggingTest,
   TempDirectory conf_dir;
 
   // launch the router with metadata-cache configuration
-  auto &router = ProcessManager::launch_router(
-      {"-c", init_keyring_and_config_file(conf_dir.name())});
+  auto &router =
+      launch_router({"-c", init_keyring_and_config_file(conf_dir.name())},
+                    EXIT_SUCCESS, false, -1s);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10000ms));
 
   // expect something like this to appear on STDERR
@@ -2046,7 +2064,8 @@ TEST_F(MetadataCacheLoggingTest,
 
   // launch the router with metadata-cache configuration
   auto &router = ProcessManager::launch_router(
-      {"-c", init_keyring_and_config_file(conf_dir.name())});
+      {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_SUCCESS, true,
+      false, -1s);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
 
   // expect something like this to appear on STDERR
@@ -2083,11 +2102,11 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal) {
   TempDirectory conf_dir;
 
   // launch the router with metadata-cache configuration
-  auto &router = ProcessManager::launch_router(
-      {"-c", init_keyring_and_config_file(conf_dir.name())});
+  auto &router = launch_router(
+      {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_SUCCESS);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10000ms));
 
-  std::this_thread::sleep_for(500ms);
+  RouterComponentTest::sleep_for(500ms);
 
   auto log_file = get_logging_dir();
   log_file.append("mysqlrouter.log");
@@ -2108,7 +2127,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal) {
   unsigned retries = 10;
   const auto kSleep = 100ms;
   do {
-    std::this_thread::sleep_for(kSleep);
+    RouterComponentTest::sleep_for(kSleep);
   } while ((--retries > 0) && !log_file.exists());
 
   EXPECT_TRUE(log_file.exists()) << router.get_full_logfile();
@@ -2123,11 +2142,11 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal_no_file_move) {
   TempDirectory conf_dir;
 
   // launch the router with metadata-cache configuration
-  auto &router = ProcessManager::launch_router(
-      {"-c", init_keyring_and_config_file(conf_dir.name())});
+  auto &router = launch_router(
+      {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_SUCCESS);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10000ms));
 
-  std::this_thread::sleep_for(500ms);
+  RouterComponentTest::sleep_for(500ms);
 
   auto log_file = get_logging_dir();
   log_file.append("mysqlrouter.log");
@@ -2145,7 +2164,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal_no_file_move) {
   std::string log_content_2;
   unsigned step = 0;
   do {
-    std::this_thread::sleep_for(100ms);
+    RouterComponentTest::sleep_for(100ms);
     log_content_2 = router.get_full_logfile();
   } while ((log_content_2 == log_content) && (step++ < 20));
 
@@ -2165,11 +2184,11 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_when_router_restarts) {
   TempDirectory conf_dir;
 
   // launch the router with metadata-cache configuration
-  auto &router = ProcessManager::launch_router(
-      {"-c", init_keyring_and_config_file(conf_dir.name())});
+  auto &router = launch_router(
+      {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_SUCCESS);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10000ms));
 
-  std::this_thread::sleep_for(500ms);
+  RouterComponentTest::sleep_for(500ms);
 
   auto log_file = get_logging_dir();
   log_file.append("mysqlrouter.log");
@@ -2189,10 +2208,10 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_when_router_restarts) {
   chmod(log_file_1.c_str(), S_IRUSR);
 
   // start the router again and check that the new log file got created
-  auto &router2 = ProcessManager::launch_router(
-      {"-c", init_keyring_and_config_file(conf_dir.name())});
+  auto &router2 = launch_router(
+      {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_SUCCESS);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(router2, router_port, 10000ms));
-  std::this_thread::sleep_for(500ms);
+  RouterComponentTest::sleep_for(500ms);
   EXPECT_TRUE(log_file.exists());
 }
 
@@ -2204,17 +2223,17 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_read_only) {
   TempDirectory conf_dir;
 
   // launch the router with metadata-cache configuration
-  auto &router = ProcessManager::launch_router(
+  auto &router = launch_router(
       {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_FAILURE);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10000ms));
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10s));
 
   auto log_file = get_logging_dir();
   log_file.append("mysqlrouter.log");
 
   unsigned retries = 5;
-  const auto kSleep = 100ms;
+  auto kSleep = 100ms;
   do {
-    std::this_thread::sleep_for(kSleep);
+    RouterComponentTest::sleep_for(kSleep);
   } while ((--retries > 0) && !log_file.exists());
 
   EXPECT_TRUE(log_file.exists());
@@ -2252,15 +2271,17 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_stdout) {
   TempDirectory conf_dir;
 
   // launch the router with metadata-cache configuration
-  auto &router = ProcessManager::launch_router(
+  auto &router = launch_router(
       {"-c",
-       init_keyring_and_config_file(conf_dir.name(), /*log_to_console=*/true)});
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10000ms));
+       init_keyring_and_config_file(conf_dir.name(), /*log_to_console=*/true)},
+      EXIT_SUCCESS);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10s));
 
-  std::this_thread::sleep_for(200ms);
+  auto sleep_time = 200ms;
+  RouterComponentTest::sleep_for(sleep_time);
   const auto pid = static_cast<pid_t>(router.get_pid());
   ::kill(pid, SIGHUP);
-  std::this_thread::sleep_for(200ms);
+  RouterComponentTest::sleep_for(sleep_time);
 }
 
 #endif
@@ -2312,7 +2333,7 @@ TEST_P(RouterLoggingTestConfigFilename, LoggingTestConfigFilename) {
       create_config_file(conf_dir.name(), conf_text, &conf_params);
 
   // empty routing section results in a failure, but while logging to file
-  auto &router = launch_router({"-c", conf_file}, 1);
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
   check_exit_code(router, EXIT_FAILURE);
 
   // check the file log if it contains what's expected
@@ -2458,8 +2479,8 @@ TEST_P(RouterLoggingTestConfigFilenameDevices,
       create_config_file(conf_dir.name(), conf_text, &conf_params);
 
   // empty routing section results in a failure, but while logging to file
-  auto &router =
-      launch_router({"-c", conf_file}, 1, test_params.console_to_stderr);
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE,
+                               test_params.console_to_stderr);
   check_exit_code(router, EXIT_FAILURE);
 
   const std::string console_log_txt = router.get_full_output();
@@ -2578,7 +2599,7 @@ TEST_P(RouterLoggingConfigFilenameError, LoggingConfigAbsRelFilenameError) {
       create_config_file(conf_dir.name(), cfg, &conf_params);
 
   // empty routing section results in a failure, but while logging to file
-  auto &router = launch_router({"-c", conf_file}, 1);
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
   check_exit_code(router, EXIT_FAILURE);
 
   // the error happens during the logger initialization so we expect the message
@@ -2889,7 +2910,8 @@ TEST_P(RouterLoggingTestConfigFilenameLoggingFolder,
       create_config_file(conf_dir.name(), cfg, &conf_params);
 
   // empty routing section gives failure while logging to defined sink
-  auto &router = launch_router({"-c", conf_file}, 1, test_params.catch_stderr);
+  auto &router =
+      launch_router({"-c", conf_file}, EXIT_FAILURE, test_params.catch_stderr);
   check_exit_code(router, EXIT_FAILURE);
 
   const std::string console_log_txt = router.get_full_output();
@@ -2987,7 +3009,7 @@ TEST_F(RouterLoggingTest, log_console_destination_empty) {
 
   // empty routing section results in a failure, but while logging to
   // destination
-  auto &router = launch_router({"-c", conf_file}, 1);
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
   check_exit_code(router, EXIT_FAILURE);
 
   // Expect the console log to be used on empty destinaton
@@ -3020,7 +3042,7 @@ TEST_F(RouterLoggingTest, log_console_unused_filename_no_warning) {
 
   // empty routing section results in a failure, but while logging to
   // destination
-  auto &router = launch_router({"-c", conf_file}, 1);
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
   check_exit_code(router, EXIT_FAILURE);
 
   // Expect the console log output to NOT contain warning or log file name
@@ -3055,7 +3077,7 @@ TEST_F(RouterLoggingTest, log_console_non_existing_destination) {
 
   // empty routing section results in a failure, but while logging to
   // destination
-  auto &router = launch_router({"-c", conf_file}, 1);
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
   check_exit_code(router, EXIT_FAILURE);
 
   // Expect the console log output to NOT contain warning or log file name
@@ -3079,7 +3101,7 @@ TEST_F(RouterLoggingTest, log_filename_dev_null_ugly) {
       create_config_file(conf_dir.name(), conf_text, &conf_params);
 
   // empty routing section results in a failure, but while logging to file
-  auto &router = launch_router({"-c", conf_file}, 1);
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
   check_exit_code(router, EXIT_FAILURE);
 
   // expect no default router file created in /dev

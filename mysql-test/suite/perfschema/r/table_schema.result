@@ -47,6 +47,12 @@ def	performance_schema	data_lock_waits	BLOCKING_ENGINE_TRANSACTION_ID	8	NULL	YES
 def	performance_schema	data_lock_waits	BLOCKING_THREAD_ID	9	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned	MUL		select,insert,update,references			NULL
 def	performance_schema	data_lock_waits	BLOCKING_EVENT_ID	10	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	data_lock_waits	BLOCKING_OBJECT_INSTANCE_BEGIN	11	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
+def	performance_schema	error_log	LOGGED	1	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)	PRI		select,insert,update,references			NULL
+def	performance_schema	error_log	THREAD_ID	2	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned	MUL		select,insert,update,references			NULL
+def	performance_schema	error_log	PRIO	3	NULL	NO	enum	7	28	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('System','Error','Warning','Note')	MUL		select,insert,update,references			NULL
+def	performance_schema	error_log	ERROR_CODE	4	NULL	YES	varchar	10	40	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(10)	MUL		select,insert,update,references			NULL
+def	performance_schema	error_log	SUBSYSTEM	5	NULL	YES	varchar	7	28	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(7)	MUL		select,insert,update,references			NULL
+def	performance_schema	error_log	DATA	6	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	text			select,insert,update,references			NULL
 def	performance_schema	events_errors_summary_by_account_by_error	USER	1	NULL	YES	char	32	128	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(32)	MUL		select,insert,update,references			NULL
 def	performance_schema	events_errors_summary_by_account_by_error	HOST	2	NULL	YES	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)			select,insert,update,references			NULL
 def	performance_schema	events_errors_summary_by_account_by_error	ERROR_NUMBER	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
@@ -968,6 +974,14 @@ def	performance_schema	prepared_statements_instances	SUM_SORT_ROWS	32	NULL	NO	bi
 def	performance_schema	prepared_statements_instances	SUM_SORT_SCAN	33	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	prepared_statements_instances	SUM_NO_INDEX_USED	34	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	prepared_statements_instances	SUM_NO_GOOD_INDEX_USED	35	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
+def	performance_schema	processlist	ID	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned	PRI		select,insert,update,references			NULL
+def	performance_schema	processlist	USER	2	NULL	YES	varchar	32	128	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(32)			select,insert,update,references			NULL
+def	performance_schema	processlist	HOST	3	NULL	YES	varchar	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	varchar(255)			select,insert,update,references			NULL
+def	performance_schema	processlist	DB	4	NULL	YES	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)			select,insert,update,references			NULL
+def	performance_schema	processlist	COMMAND	5	NULL	YES	varchar	16	64	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(16)			select,insert,update,references			NULL
+def	performance_schema	processlist	TIME	6	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select,insert,update,references			NULL
+def	performance_schema	processlist	STATE	7	NULL	YES	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)			select,insert,update,references			NULL
+def	performance_schema	processlist	INFO	8	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	longtext			select,insert,update,references			NULL
 def	performance_schema	replication_applier_configuration	CHANNEL_NAME	1	NULL	NO	char	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(64)	PRI		select,insert,update,references			NULL
 def	performance_schema	replication_applier_configuration	DESIRED_DELAY	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	performance_schema	replication_applier_configuration	PRIVILEGE_CHECKS_USER	3	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	User name for the security context of the applier.		NULL
@@ -1026,6 +1040,11 @@ def	performance_schema	replication_applier_status_by_worker	APPLYING_TRANSACTION
 def	performance_schema	replication_applier_status_by_worker	APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_NUMBER	22	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	performance_schema	replication_applier_status_by_worker	APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_MESSAGE	23	NULL	YES	varchar	1024	4096	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(1024)			select,insert,update,references			NULL
 def	performance_schema	replication_applier_status_by_worker	APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_TIMESTAMP	24	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
+def	performance_schema	replication_asynchronous_connection_failover	CHANNEL_NAME	1	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references	The replication channel name that connects source and replica.		NULL
+def	performance_schema	replication_asynchronous_connection_failover	HOST	2	NULL	NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references	The source hostname that the replica will attempt to switch over the replication connection to in case of a failure.		NULL
+def	performance_schema	replication_asynchronous_connection_failover	PORT	3	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int	PRI		select,insert,update,references	The source port that the replica will attempt to switch over the replication connection to in case of a failure.		NULL
+def	performance_schema	replication_asynchronous_connection_failover	NETWORK_NAMESPACE	4	NULL	NO	char	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(64)	PRI		select,insert,update,references	The source network namespace that the replica will attempt to switch over the replication connection to in case of a failure. If its value is empty, connections use the default (global) namespace.		NULL
+def	performance_schema	replication_asynchronous_connection_failover	WEIGHT	5	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select,insert,update,references	The order in which the replica shall try to switch the connection over to when there are failures. Weight can be set to a number between 1 and 100, where 100 is the highest weight and 1 the lowest.		NULL
 def	performance_schema	replication_connection_configuration	CHANNEL_NAME	1	NULL	NO	char	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(64)	PRI		select,insert,update,references			NULL
 def	performance_schema	replication_connection_configuration	HOST	2	NULL	NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)			select,insert,update,references			NULL
 def	performance_schema	replication_connection_configuration	PORT	3	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
@@ -1051,6 +1070,7 @@ def	performance_schema	replication_connection_configuration	NETWORK_NAMESPACE	22
 def	performance_schema	replication_connection_configuration	COMPRESSION_ALGORITHM	23	NULL	NO	char	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(64)			select,insert,update,references	Compression algorithm used for data transfer between master and slave.		NULL
 def	performance_schema	replication_connection_configuration	ZSTD_COMPRESSION_LEVEL	24	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references	Compression level associated with zstd compression algorithm.		NULL
 def	performance_schema	replication_connection_configuration	TLS_CIPHERSUITES	25	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references			NULL
+def	performance_schema	replication_connection_configuration	SOURCE_CONNECTION_AUTO_FAILOVER	26	NULL	NO	enum	1	4	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('1','0')			select,insert,update,references			NULL
 def	performance_schema	replication_connection_status	CHANNEL_NAME	1	NULL	NO	char	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(64)	PRI		select,insert,update,references			NULL
 def	performance_schema	replication_connection_status	GROUP_NAME	2	NULL	NO	char	36	144	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(36)			select,insert,update,references			NULL
 def	performance_schema	replication_connection_status	SOURCE_UUID	3	NULL	NO	char	36	144	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(36)			select,insert,update,references			NULL

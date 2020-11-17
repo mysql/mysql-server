@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -57,20 +57,20 @@ class Protocol final {
    * code that is protocol-specific
    *
    * @param type type of the protocol for which the handler should be created
-   * @param routing_sock_ops socket operations
+   * @param sock_ops socket operations
    *
    * @returns pointer to the created object
    */
-  static BaseProtocol *create(
-      Type type, routing::RoutingSockOpsInterface *routing_sock_ops) {
+  static BaseProtocol *create(Type type,
+                              mysql_harness::SocketOperationsBase *sock_ops) {
     BaseProtocol *result{nullptr};
 
     switch (type) {
       case Type::kClassicProtocol:
-        result = new ClassicProtocol(routing_sock_ops);
+        result = new ClassicProtocol(sock_ops);
         break;
       case Type::kXProtocol:
-        result = new XProtocol(routing_sock_ops);
+        result = new XProtocol(sock_ops);
         break;
       default:
         throw std::invalid_argument("Invalid protocol: " +

@@ -529,10 +529,10 @@ create table t1(f1 char(1));
 insert into t1 values ('a'),('b'),('1');
 select f1 from t1 where f1 in ('a',1);
 f1
-a
 1
-Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'b'
+Warnings:
+a
 select f1, case f1 when 'a' then '+' when 1 then '-' end from t1;
 f1	case f1 when 'a' then '+' when 1 then '-' end
 a	+
@@ -544,9 +544,9 @@ create index t1f1_idx on t1(f1);
 select f1 from t1 where f1 in ('a',1);
 f1
 1
-a
-Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'b'
+Warnings:
+a
 explain select f1 from t1 where f1 in ('a',1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	t1f1_idx	t1f1_idx	2	NULL	3	50.00	Using where; Using index

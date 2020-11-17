@@ -201,10 +201,10 @@ include/assert.inc [Recovery relay log WAS NOT flushed nor rotated]
 flush logs;
 # Check 'server2-bin.000002' is created after execute 'flush logs' statement.
 # Make sure applier logs was flushed after execute 'flush logs' statement.
-# Make sure recovery logs was not flushed after execute 'flush logs' statement.
+# Make sure recovery logs was flushed after execute 'flush logs' statement.
 include/assert.inc [Binary log WAS flushed and rotated]
 include/assert.inc [Applier relay log WAS flushed and rotated]
-include/assert.inc [Recovery relay log WAS NOT flushed nor rotated]
+include/assert.inc [Recovery relay log WAS flushed and rotated]
 include/rpl_sync.inc
 [connection server1]
 # Make sure recovery logs was not flushed after execute 'flush logs' statement.

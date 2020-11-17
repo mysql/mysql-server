@@ -35,12 +35,16 @@ include/assert.inc [TLS_CIPHERSUITES has the value TLS_AES_128_CCM_8_SHA256]
 [connection slave]
 include/stop_slave.inc [FOR CHANNEL 'my_channel']
 RESET SLAVE FOR CHANNEL 'my_channel';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/assert.inc [TLS_CIPHERSUITES has the value TLS_AES_128_CCM_8_SHA256]
 ########################################################################
 # 4. Check replication with TLSv1.3 and different ciphersuite on master
 #    and slave will fail.
 CHANGE MASTER TO MASTER_TLS_CIPHERSUITES='TLS_AES_128_CCM_SHA256', MASTER_RETRY_COUNT=1 FOR CHANNEL 'my_channel';
 START SLAVE IO_THREAD FOR CHANNEL 'my_channel';
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=2026 FOR CHANNEL 'my_channel']
 ########################################################################
 # 5. Check replication with TLSv1.3 and empty ciphersuite on slave will
@@ -52,6 +56,8 @@ ALTER INSTANCE RELOAD TLS;
 CHANGE MASTER TO MASTER_TLS_CIPHERSUITES='' FOR CHANNEL 'my_channel';
 include/assert.inc [TLS_CIPHERSUITES has the value ""]
 START SLAVE IO_THREAD FOR CHANNEL 'my_channel';
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=2026 FOR CHANNEL 'my_channel']
 ########################################################################
 # 6. Clean-up.
@@ -70,6 +76,8 @@ SET SESSION sql_log_bin=1;
 include/rpl_end.inc
 Warnings:
 Note	3084	Replication thread(s) for channel 'channel_1' are already stopped.
-RESET SLAVE ALL FOR CHANNEL 'channel_1';
+RESET REPLICA ALL FOR CHANNEL 'channel_1';
 [connection slave]
 RESET SLAVE ALL FOR CHANNEL 'my_channel';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

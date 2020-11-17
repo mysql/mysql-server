@@ -157,6 +157,7 @@ trx_rollbacks	disabled
 trx_rollbacks_savepoint	disabled
 trx_rollback_active	disabled
 trx_active_transactions	disabled
+trx_allocations	disabled
 trx_on_log_no_waits	disabled
 trx_on_log_waits	disabled
 trx_on_log_wait_loops	disabled

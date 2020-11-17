@@ -19,5 +19,5 @@ include/start_slave.inc
 include/rpl_reset.inc
 include/assert_grep.inc [Found the expected warning line in the error log.]
 include/rpl_end.inc
-RESET SLAVE ALL FOR CHANNEL 'channel_1';
-RESET SLAVE ALL FOR CHANNEL 'channel_3';
+RESET REPLICA ALL FOR CHANNEL 'channel_1';
+RESET REPLICA ALL FOR CHANNEL 'channel_3';

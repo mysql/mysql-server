@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,6 +98,18 @@ class Shared_mem_listener {
                            details for processing this connection.
   */
   Channel_info *listen_for_connection_event();
+
+  /**
+    Spawn admin connection handler thread if separate thread is required to
+    accept admin connections. Currently we do not support
+    shared memory admin connections.
+    Hence this method is noop.
+
+    TODO: Implement for supporting admin connections via shared memory channel.
+
+    @return false as the method is a NOOP.
+  */
+  bool check_and_spawn_admin_connection_handler_thread() const { return false; }
 
   /**
     Close the listener.

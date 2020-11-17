@@ -11,6 +11,7 @@ call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* \\[Repl\\] Slave SQL for chann
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 call mtr.add_suppression("Slave I/O for channel '': The queue event failed for channel '' as an invalid event according to REQUIRE_ROW_FORMAT was found.*");
 call mtr.add_suppression("Slave I/O for channel '': Relay log write failure: could not queue event from master*");
+[connection slave]
 [connection master]
 CREATE TABLE t1 (i INT);
 CREATE TABLE t2 (c1 TEXT);
@@ -26,9 +27,13 @@ INSERT INTO t1 VALUES (0);
 [connection slave]
 CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13122,13507]
 Last_IO_Error = 'Relay log write failure: could not queue event from master'
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/assert_grep.inc [The slave stopped as there was an error in the IO thread with REQUIRE_ROW_FORMAT]
 include/assert.inc [Nothing was insert on the table]
 # No issues when REQUIRE_ROW_FORMAT = 0
@@ -39,6 +44,8 @@ include/sync_slave_sql_with_master.inc
 # Reset for next step
 include/stop_slave.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 [connection master]
 RESET MASTER;
@@ -50,9 +57,13 @@ LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t2;
 [connection slave]
 CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13122,13507]
 Last_IO_Error = 'Relay log write failure: could not queue event from master'
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/assert_grep.inc [The slave stopped as there was an error in the IO thread with REQUIRE_ROW_FORMAT]
 include/assert.inc [Nothing was insert on the table]
 # No issues when REQUIRE_ROW_FORMAT = 0
@@ -63,6 +74,8 @@ include/sync_slave_sql_with_master.inc
 # Reset for next step
 include/stop_slave.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 [connection master]
 RESET MASTER;
@@ -75,9 +88,13 @@ INSERT INTO t1 VALUES (@v);
 [connection slave]
 CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13122,13507]
 Last_IO_Error = 'Relay log write failure: could not queue event from master'
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/assert_grep.inc [The slave stopped as there was an error in the IO thread with REQUIRE_ROW_FORMAT]
 include/assert.inc [Nothing was insert on the table]
 # No issues when REQUIRE_ROW_FORMAT = 0
@@ -88,6 +105,8 @@ include/sync_slave_sql_with_master.inc
 # Reset for next step
 include/stop_slave.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 [connection master]
 RESET MASTER;
@@ -101,9 +120,13 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 [connection slave]
 CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13122,13507]
 Last_IO_Error = 'Relay log write failure: could not queue event from master'
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/assert_grep.inc [The slave stopped as there was an error in the IO thread with REQUIRE_ROW_FORMAT]
 include/assert.inc [Nothing was insert on the table]
 # No issues when REQUIRE_ROW_FORMAT = 0
@@ -114,6 +137,8 @@ include/sync_slave_sql_with_master.inc
 # Reset for next step
 include/stop_slave.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 [connection master]
 RESET MASTER;
@@ -125,9 +150,13 @@ INSERT INTO t3 VALUES();
 [connection slave]
 CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13122,13507]
 Last_IO_Error = 'Relay log write failure: could not queue event from master'
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/assert_grep.inc [The slave stopped as there was an error in the IO thread with REQUIRE_ROW_FORMAT]
 include/assert.inc [Nothing was insert on the table]
 # No issues when REQUIRE_ROW_FORMAT = 0
@@ -138,6 +167,8 @@ include/sync_slave_sql_with_master.inc
 # Reset for next step
 include/stop_slave.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 [connection master]
 RESET MASTER;
@@ -149,9 +180,13 @@ create temporary TABLE temp1 (k INT PRIMARY KEY);
 [connection slave]
 CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13122,13507]
 Last_IO_Error = 'Relay log write failure: could not queue event from master'
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/assert_grep.inc [The slave stopped as there was an error in the IO thread with REQUIRE_ROW_FORMAT]
 include/assert.inc [No temporary table was created]
 # No issues when REQUIRE_ROW_FORMAT = 0
@@ -164,6 +199,8 @@ include/stop_slave.inc
 Warnings:
 Warning	3022	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 [connection master]
 RESET MASTER;
@@ -175,9 +212,13 @@ DROP TEMPORARY TABLE IF EXISTS temp1;
 [connection slave]
 CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13122,13507]
 Last_IO_Error = 'Relay log write failure: could not queue event from master'
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/assert_grep.inc [The slave stopped as there was an error in the IO thread with REQUIRE_ROW_FORMAT]
 include/assert.inc [There is still a temporary table]
 # No issues when REQUIRE_ROW_FORMAT = 0
@@ -188,6 +229,8 @@ include/sync_slave_sql_with_master.inc
 # Reset for next step
 include/stop_slave.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 [connection master]
 RESET MASTER;
@@ -205,6 +248,8 @@ INSERT INTO t4 VALUES(1);
 # 8.1 Check the slave IO thread is running and the data is replicated
 [connection slave]
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Verify the IO_THREAD is ON]
@@ -224,6 +269,8 @@ XA COMMIT 'trx1';
 # 9.1 Check the slave IO thread is running and the data is replicated
 [connection slave]
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Verify the IO_THREAD is ON]
@@ -240,6 +287,8 @@ INSERT INTO t4 VALUES(3);
 # 10.1 Check the slave IO thread is running and the data is replicated
 [connection slave]
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Verify the IO_THREAD is ON]
@@ -261,6 +310,8 @@ COMMIT;
 # 11.1 Check the slave IO thread is running and the data is replicated
 [connection slave]
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Verify the IO_THREAD is ON]
@@ -283,6 +334,8 @@ END |
 # 12.1 Check the slave IO thread is running and the data is replicated
 [connection slave]
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Verify the IO_THREAD is ON]

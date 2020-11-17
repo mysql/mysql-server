@@ -122,7 +122,7 @@ class CacheStorageTest : public ::testing::Test, public Test_MDL_context_owner {
     mdl_destroy();
   }
 
-  virtual void SetUp() {
+  void SetUp() override {
     m_init.SetUp();
     // Mark this as a dd system thread to skip MDL checks/asserts in the dd
     // cache.
@@ -143,7 +143,7 @@ class CacheStorageTest : public ::testing::Test, public Test_MDL_context_owner {
     EXPECT_FALSE(m_mdl_context.has_locks());
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     /*
       Explicit scope + auto releaser to make sure acquired objects are
       released before teardown of the thd.
@@ -166,8 +166,8 @@ class CacheStorageTest : public ::testing::Test, public Test_MDL_context_owner {
     m_init.TearDown();
   }
 
-  virtual void notify_shared_lock(MDL_context_owner *in_use,
-                                  bool needs_thr_lock_abort) {
+  void notify_shared_lock(MDL_context_owner *in_use,
+                          bool needs_thr_lock_abort) override {
     in_use->notify_shared_lock(nullptr, needs_thr_lock_abort);
   }
 
@@ -186,9 +186,9 @@ class CacheStorageTest : public ::testing::Test, public Test_MDL_context_owner {
 template <typename T>
 class CacheTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {}
+  void SetUp() override {}
 
-  virtual void TearDown() {}
+  void TearDown() override {}
 };
 
 typedef ::testing::Types<dd::Charset_impl, dd::Collation_impl,

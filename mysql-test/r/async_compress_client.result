@@ -1,13 +1,13 @@
 ############ Test with zlib algorithm ############
 # case1: default connection with default authentication plugin
-CREATE DATABASE wl13510;
+CREATE DATABASE testdb;
 CREATE USER caching_sha2@localhost IDENTIFIED BY 'caching';
 GRANT ALL ON *.* TO caching_sha2@localhost;
 # connect as caching_sha2
 SELECT USER(), DATABASE();
 USER()	DATABASE()
-caching_sha2@localhost	wl13510
-USE wl13510;
+caching_sha2@localhost	testdb
+USE testdb;
 CREATE TABLE t1(i INT, j VARCHAR(2048));
 INSERT INTO t1 VALUES(1,repeat('a',1000)),(2,repeat('def',600));
 SELECT * FROM t1;
@@ -23,7 +23,7 @@ SPACE(@@global.max_allowed_packet)
 lot_of_spaces
 SET GLOBAL max_allowed_packet=default;
 # connect with wrong password
-connect(localhost,caching_sha2,caching1,wl13510,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,caching_sha2,caching1,testdb,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'caching_sha2'@'localhost' (using password: YES)
 # check for timeout
 SELECT USER();
@@ -40,7 +40,7 @@ SELECT 1;
 # lock the account
 ALTER USER caching_sha2@localhost ACCOUNT LOCK;
 # account is locked so connect should fail
-connect(localhost,caching_sha2,caching,wl13510,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,caching_sha2,caching,testdb,MASTER_PORT,MASTER_SOCKET);
 ERROR HY000: Access denied for user 'caching_sha2'@'localhost'. Account is locked.
 # lock the account
 ALTER USER caching_sha2@localhost ACCOUNT UNLOCK;
@@ -90,18 +90,18 @@ SELECT USER();
 USER()
 native_user@localhost
 DROP USER sha256@localhost, native_user@localhost, caching_sha2@localhost;
-DROP DATABASE wl13510;
+DROP DATABASE testdb;
 # restart:
 ############  Test with zstd algorithm ############
 # case1: default connection with default authentication plugin
-CREATE DATABASE wl13510;
+CREATE DATABASE testdb;
 CREATE USER caching_sha2@localhost IDENTIFIED BY 'caching';
 GRANT ALL ON *.* TO caching_sha2@localhost;
 # connect as caching_sha2
 SELECT USER(), DATABASE();
 USER()	DATABASE()
-caching_sha2@localhost	wl13510
-USE wl13510;
+caching_sha2@localhost	testdb
+USE testdb;
 CREATE TABLE t1(i INT, j VARCHAR(2048));
 INSERT INTO t1 VALUES(1,repeat('a',1000)),(2,repeat('def',600));
 SELECT * FROM t1;
@@ -117,7 +117,7 @@ SPACE(@@global.max_allowed_packet)
 lot_of_spaces
 SET GLOBAL max_allowed_packet=default;
 # connect with wrong password
-connect(localhost,caching_sha2,caching1,wl13510,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,caching_sha2,caching1,testdb,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'caching_sha2'@'localhost' (using password: YES)
 # check for timeout
 SELECT USER();
@@ -134,7 +134,7 @@ SELECT 1;
 # lock the account
 ALTER USER caching_sha2@localhost ACCOUNT LOCK;
 # account is locked so connect should fail
-connect(localhost,caching_sha2,caching,wl13510,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,caching_sha2,caching,testdb,MASTER_PORT,MASTER_SOCKET);
 ERROR HY000: Access denied for user 'caching_sha2'@'localhost'. Account is locked.
 # lock the account
 ALTER USER caching_sha2@localhost ACCOUNT UNLOCK;
@@ -184,5 +184,5 @@ SELECT USER();
 USER()
 native_user@localhost
 DROP USER sha256@localhost, native_user@localhost, caching_sha2@localhost;
-DROP DATABASE wl13510;
+DROP DATABASE testdb;
 # restart:

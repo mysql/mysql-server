@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -267,6 +267,7 @@ int Sql_cmd_common_signal::eval_signal_informations(THD *thd,
     if (set) {
       if (!set->fixed) {
         if (set->fix_fields(thd, &set)) goto end;
+        if (set->propagate_type(thd)) return true;
         m_set_signal_information->m_item[i] = set;
       }
     }

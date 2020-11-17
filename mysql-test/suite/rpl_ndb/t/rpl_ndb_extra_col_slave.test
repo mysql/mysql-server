@@ -6,7 +6,7 @@
 -- source include/not_binlog_transaction_compression_on.inc
 -- source include/have_binlog_format_row.inc
 -- source include/have_ndb.inc
--- source include/master-slave.inc
+-- source suite/ndb_rpl/ndb_master-slave.inc
 CALL mtr.add_suppression("Slave: .*Duplicate column name");
 
 connection slave;

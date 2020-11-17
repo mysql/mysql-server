@@ -16,6 +16,8 @@ DROP TABLE t1;
 #
 SET GLOBAL DEBUG='d,get_master_server_id.ER_NET_READ_INTERRUPTED';
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_start.inc
 [connection master]
 include/sync_slave_io_with_master.inc

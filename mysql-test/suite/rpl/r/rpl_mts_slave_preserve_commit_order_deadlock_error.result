@@ -123,6 +123,8 @@ include/assert_grep.inc [Found 'Duplicate entry' error only once time which prov
 #
 include/stop_slave_io.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 DROP TABLE t1, t2;
 #
 # 4.3 Clear system variables.

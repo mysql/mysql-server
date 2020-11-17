@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <mysql/components/services/log_builtins.h>
 #include <mysql/components/services/log_builtins_filter.h>
+#include <mysql/components/services/log_sink_perfschema.h>
 
 extern REQUIRES_SERVICE_PLACEHOLDER(registry);
 
@@ -40,16 +41,17 @@ REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins_string);
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins_filter);
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins_filter_debug);
+REQUIRES_SERVICE_PLACEHOLDER(log_sink_perfschema);
 
 SERVICE_TYPE(log_builtins) *log_bi = nullptr;
 SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
 SERVICE_TYPE(log_builtins_filter) *log_bf = nullptr;
 SERVICE_TYPE(log_builtins_filter_debug) *log_fd = nullptr;
+SERVICE_TYPE(log_sink_perfschema) *log_ps = nullptr;
 
 static bool inited = false;
 static bool failed = false;
 static bool run_tests = true;
-log_filter_ruleset *test_rules = nullptr;
 
 /**
   delete a rule from the given rule-set
@@ -638,6 +640,12 @@ static void banner() {
                   LOG_ITEM_SQL_ERRSYMBOL, "ER_SERVER_TEST_MESSAGE",
                   LOG_ITEM_LOG_VERBATIM, "using log_message() with errsymbol");
 
+  char my_buff[LOG_BUFF_MAX + 32];
+  memset(my_buff, 'a', sizeof(my_buff));
+  my_buff[LOG_BUFF_MAX + 32 - 1] = 0;
+
+  log_bi->message(LOG_TYPE_ERROR, LOG_ITEM_LOG_VERBATIM, my_buff);
+
   /*
     Fluent C++ API.  Use this free-form constructor if-and-only-if
     you do NOT have error messages registered with the server (and
@@ -801,28 +809,33 @@ DEFINE_METHOD(int, log_service_imp::run,
     setting the failed flag to prevent a potential endless loop!) in case
     another log_sink is active that may show this alert.
   */
-  if (failed) return -1;
+  if (failed) return LOG_SERVICE_NOT_AVAILABLE;
 
-  if ((it = log_bi->line_item_iter_acquire(ll)) == nullptr) return 0;
+  if ((it = log_bi->line_item_iter_acquire(ll)) == nullptr)
+    return LOG_SERVICE_MISC_ERROR; /* purecov: inspected */
 
   li = log_bi->line_item_iter_first(it);
 
+  // Iterate until we're out of items, or out of space in the resulting row.
   while ((li != nullptr) && (out_left > 0)) {
     t = li->type;
 
+    // Sanity-check the item.
     if (log_bi->item_inconsistent(li)) {
       len = log_bs->substitute(out_writepos, out_left,
                                "[%s=log_sink_test: broken item with class %d, "
                                "type %d];",
                                (li->key == nullptr) ? "_null" : li->key,
                                li->item_class, li->type);
-      goto broken_item;
+      t = LOG_ITEM_END;  // do not flag current item-type as added
+      goto broken_item;  // add this notice if there is enough space left
     }
 
     if (t == LOG_ITEM_LOG_PRIO) {
       level = static_cast<enum loglevel>(li->data.data_integer);
     }
 
+    // Write the item according to its item-class.
     switch (li->item_class) {
       case LOG_LEX_STRING:
         if (li->data.data_string.str != nullptr)
@@ -841,25 +854,34 @@ DEFINE_METHOD(int, log_service_imp::run,
                                  li->key, li->data.data_float);
         break;
 
-      default:
-        goto unknown_item;
-        break;
+      default:          // unknown item-class
+        goto skip_item; /* purecov: inspected */
+    }
+
+    // label: item is malformed or otherwise broken; notice inserted instead
+  broken_item:
+
+    // item is too large, skip it
+    if (len >= out_left) {  // "remove" truncated write
+      *out_writepos = '\0'; /* purecov: inspected */
+      goto skip_item;       /* purecov: inspected */
     }
 
     out_types |= t;
 
-  broken_item:
     out_fields++;
     out_left -= len;
     out_writepos += len;
 
-  unknown_item:
+  skip_item:
     li = log_bi->line_item_iter_next(it);
   }
 
   log_bi->line_item_iter_release(it);
 
   if (out_fields > 0) {
+    // If we have prio, but no label, auto-generate a label now.
+    // If there's no space, we'll go on without a label.
     if (!(out_types & LOG_ITEM_LOG_LABEL) && (out_left > 0) &&
         (out_types & LOG_ITEM_LOG_PRIO)) {
       const char *label = log_bi->label_from_prio(level);
@@ -869,8 +891,13 @@ DEFINE_METHOD(int, log_service_imp::run,
           out_writepos, out_left, "[%s=%.*s];",
           log_bi->wellknown_get_name((log_item_type)wellknown_label),
           (int)log_bs->length(label), label);
-      out_left -= len;
-      out_fields++;
+      if (len < out_left) {
+        out_fields++;
+        out_left -= len;
+        out_writepos += len;
+        out_types |= LOG_ITEM_LOG_LABEL;
+      } else
+        *out_writepos = '\0'; /* purecov: inspected */
     }
 
     log_bi->write_errstream(nullptr, out_buff, (size_t)LOG_BUFF_MAX - out_left);
@@ -879,23 +906,66 @@ DEFINE_METHOD(int, log_service_imp::run,
   /*
     Run some tests of the error logging system.
   */
+
+  /*
+    Normally, each filter has its own separate rule-set.
+    This debug-function gets us the rule-set used by the
+    built-in filter, log_filter_internal, that provides
+    log-error-verbosity and log-error-suppression-rules.
+
+    This function must not be used by anything that isn't
+    a test. (Also, this depends on the built-in's characteristic
+    that the built-in ruleset's header never moves or goes away;
+    otherwise a get-function that did not also acquire a lock
+    would be questionable.)
+
+    Conversely, this entire sink should not be used in production.
+  */
+  log_filter_ruleset *test_rules = log_fd->filter_debug_ruleset_get();
+
+  // "This should never happen."
+  if (log_bf->filter_ruleset_lock(test_rules, LOG_BUILTINS_LOCK_EXCLUSIVE) < 0)
+    return LOG_SERVICE_LOCK_ERROR; /* purecov: inspected */
+
   if (run_tests) {
     /*
       We'll be calling the logger below, so let's first
       prevent any more activations of these tests, otherwise,
       we might create an endless loop!
+
+      We're changing this while holding the above X-lock to
+      prevent race conditions.
     */
     run_tests = false;
 
-    test_rules = log_fd->filter_debug_ruleset_get();
+    /*
+      The first rule in the internal filter is,
 
-    bool pause_return = false;
+        IF prio<WARNING THEN RETURN.
+
+      which prevents users from setting configurations
+      (verbosity, suppression-list) in the subsequent
+      rules that drop or modify SYSTEM or ERROR level
+      events.
+
+      For our tests, we temporarily disable that rule,
+      so our tests can in fact drop and modify SYSTEM
+      or ERROR level events.
+
+      If we suspended the first rule, we note the fact
+      in prio_protection_suspended so we'll know to
+      unsuspend the rule once we're down.
+    */
+    bool prio_protection_suspended = false;
     if ((test_rules->count > 0) &&
         (test_rules->rule[0].verb == LOG_FILTER_RETURN) &&
         !(test_rules->rule[0].flags & LOG_FILTER_FLAG_DISABLED)) {
-      pause_return = true;
+      prio_protection_suspended = true;
       test_rules->rule[0].flags |= LOG_FILTER_FLAG_DISABLED;
     }
+
+    // subsequent tests need to re-acquired S- or X-lock as needed
+    log_bf->filter_ruleset_unlock(test_rules);
 
     // log a message from this here external service
     banner();
@@ -915,6 +985,7 @@ DEFINE_METHOD(int, log_service_imp::run,
     /*
       There wasn't actually a failure; we're just testing
       the failure code: this disables this log_writer.
+
       Similar to "run_tests" above, if we had hit a real
       error and wanted to report on it using the error logger,
       we would need to set "failed" before calling the logger
@@ -922,10 +993,22 @@ DEFINE_METHOD(int, log_service_imp::run,
     */
     failed = true;
 
-    // Do not release the rule-set here, as it's not ours.
-    if (pause_return) test_rules->rule[0].flags &= ~LOG_FILTER_FLAG_DISABLED;
-    test_rules = nullptr;
+    /*
+      We do not release the rule-set here, as it's not ours.
+      We do however re-enable the first rule in the set
+      (that normally prevents us from dropping or modifying SYSTEM/ERROR
+      level events) if we previously disabled it.
+    */
+    if (log_bf->filter_ruleset_lock(test_rules, LOG_BUILTINS_LOCK_EXCLUSIVE) <
+        0)
+      return LOG_SERVICE_LOCK_ERROR; /* purecov: inspected */
+
+    if (prio_protection_suspended)
+      test_rules->rule[0].flags &= ~LOG_FILTER_FLAG_DISABLED;
   }
+
+  // release lock on rule-set (held here no matter whether if() fired).
+  log_bf->filter_ruleset_unlock(test_rules);
 
   return out_fields;  // returning number of processed items
 }
@@ -971,6 +1054,23 @@ mysql_service_status_t log_service_init() {
   log_bs = mysql_service_log_builtins_string;
   log_bf = mysql_service_log_builtins_filter;
   log_fd = mysql_service_log_builtins_filter_debug;
+  log_ps = mysql_service_log_sink_perfschema;
+
+  // test the event_add() fail paths for gcov
+  log_ps->event_add(/* microseconds */ 0, /* thread_id */ 1, SYSTEM_LEVEL,
+                    "MY-010000", /* len */ 9, "Server", 6, "valid line", 10);
+  log_ps->event_add(0, 2, 99, "MY-010000", 9, "Server", 6, "bad prio", 8);
+  log_ps->event_add(0, 2, SYSTEM_LEVEL, "MY-010000", 9, "Server", 6, nullptr,
+                    7);
+  log_ps->event_add(0, 2, SYSTEM_LEVEL, "MY-010000", 9, "Server", 6,
+                    "bad length", 0);
+  log_ps->event_add(0, 2, SYSTEM_LEVEL, "MY-010000", 9, nullptr, 6, "bad sys",
+                    7);
+  log_ps->event_add(0, 2, SYSTEM_LEVEL, "MY-010000", 9, "Server", 1000,
+                    "bad sys", 7);
+  log_ps->event_add(0, 2, SYSTEM_LEVEL, nullptr, 9, "Server", 6, "bad err", 7);
+  log_ps->event_add(0, 2, SYSTEM_LEVEL, "MY-010000", 1000, "Server", 6,
+                    "bad err", 7);
 
   // run some examples/tests
   run_tests = true;
@@ -979,7 +1079,7 @@ mysql_service_status_t log_service_init() {
 }
 
 /* flush logs */
-DEFINE_METHOD(int, log_service_imp::flush,
+DEFINE_METHOD(log_service_error, log_service_imp::flush,
               (void **instance MY_ATTRIBUTE((unused)))) {
   int res;
 
@@ -988,7 +1088,7 @@ DEFINE_METHOD(int, log_service_imp::flush,
   res = log_service_init();
   run_tests = false;
 
-  return res;
+  return (!res) ? LOG_SERVICE_SUCCESS : LOG_SERVICE_MISC_ERROR;
 }
 
 /**
@@ -1006,16 +1106,16 @@ DEFINE_METHOD(int, log_service_imp::flush,
                      the server/logging framework. It must be released
                      on close.
 
-  @retval  <0        a new instance could not be created
-  @retval  =0        success, returned hande is valid
+  @retval  LOG_SERVICE_SUCCESS        success, returned hande is valid
+  @retval  otherwise                  a new instance could not be created
 */
-DEFINE_METHOD(int, log_service_imp::open,
+DEFINE_METHOD(log_service_error, log_service_imp::open,
               (log_line * ll MY_ATTRIBUTE((unused)), void **instance)) {
-  if (instance == nullptr) return -1;
+  if (instance == nullptr) return LOG_SERVICE_INVALID_ARGUMENT;
 
   *instance = nullptr;
 
-  return 0;
+  return LOG_SERVICE_SUCCESS;
 }
 
 /**
@@ -1026,12 +1126,12 @@ DEFINE_METHOD(int, log_service_imp::open,
                      it should be released, and the pointer
                      set to nullptr.
 
-  @retval  <0        an error occurred
-  @retval  =0        success
+  @retval  LOG_SERVICE_SUCCESS        success
+  @retval  otherwise                  an error occurred
 */
-DEFINE_METHOD(int, log_service_imp::close,
+DEFINE_METHOD(log_service_error, log_service_imp::close,
               (void **instance MY_ATTRIBUTE((unused)))) {
-  return 0;
+  return LOG_SERVICE_SUCCESS;
 }
 
 /**
@@ -1041,14 +1141,14 @@ DEFINE_METHOD(int, log_service_imp::close,
   @retval  >=0       characteristics (a set of log_service_chistics flags)
 */
 DEFINE_METHOD(int, log_service_imp::characteristics, (void)) {
-  return LOG_SERVICE_SINK;
+  return LOG_SERVICE_SINK | LOG_SERVICE_SINGLETON;
 }
 
 /* implementing a service: log_service */
 BEGIN_SERVICE_IMPLEMENTATION(log_sink_test, log_service)
 log_service_imp::run, log_service_imp::flush, log_service_imp::open,
-    log_service_imp::close,
-    log_service_imp::characteristics END_SERVICE_IMPLEMENTATION();
+    log_service_imp::close, log_service_imp::characteristics, nullptr,
+    nullptr END_SERVICE_IMPLEMENTATION();
 
 /* component provides: just the log_service service, for now */
 BEGIN_COMPONENT_PROVIDES(log_sink_test)
@@ -1058,7 +1158,8 @@ PROVIDES_SERVICE(log_sink_test, log_service), END_COMPONENT_PROVIDES();
 BEGIN_COMPONENT_REQUIRES(log_sink_test)
 REQUIRES_SERVICE(log_builtins), REQUIRES_SERVICE(log_builtins_string),
     REQUIRES_SERVICE(log_builtins_filter),
-    REQUIRES_SERVICE(log_builtins_filter_debug), END_COMPONENT_REQUIRES();
+    REQUIRES_SERVICE(log_builtins_filter_debug),
+    REQUIRES_SERVICE(log_sink_perfschema), END_COMPONENT_REQUIRES();
 
 /* component description */
 BEGIN_COMPONENT_METADATA(log_sink_test)

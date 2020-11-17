@@ -4,7 +4,7 @@
 #
 # $wait_counter - can be set before calling the script, will be reset at the end
 #
-# $explicit_default_counter - can be set before calling the script,
+# $explicit_default_wait_counter - can be set before calling the script,
 #                             reset only at the end of the test, overrides $wait_counter
 #
 # $add_wait_counter - can be set before calling the script,
@@ -14,9 +14,9 @@
 --disable_query_log
 
 --let $counter= 1000
-if ($explicit_default_counter)
+if ($explicit_default_wait_counter)
 {
-  --let $wait_counter= $explicit_default_counter
+  --let $wait_counter= $explicit_default_wait_counter
 }
 if ($VALGRIND_TEST) {
   --let $wait_counter= 20000
@@ -87,7 +87,7 @@ if ($SECONDARY_ENGINE_TEST) {
 
 # Reset $wait_counter so that its value won't be used on subsequent
 # calls, and default will be used instead.
-if (!$explicit_default_counter)
+if (!$explicit_default_wait_counter)
 {
   --let $wait_counter= 0
 }

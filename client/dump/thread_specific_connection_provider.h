@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -42,11 +42,11 @@ class Thread_specific_connection_provider
  public:
   Thread_specific_connection_provider(
       Mysql::Tools::Base::I_connection_factory *connection_factory);
-  ~Thread_specific_connection_provider();
+  ~Thread_specific_connection_provider() override;
 
-  virtual Mysql::Tools::Base::Mysql_query_runner *get_runner(
+  Mysql::Tools::Base::Mysql_query_runner *get_runner(
       std::function<bool(const Mysql::Tools::Base::Message_data &)>
-          *message_handler);
+          *message_handler) override;
 
  private:
   std::mutex mu;

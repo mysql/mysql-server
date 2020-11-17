@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_SRS_SRS_H_INCLUDED
 #define SQL_GIS_SRS_SRS_H_INCLUDED
 
-// Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -235,9 +235,9 @@ class Geographic_srs : public Spatial_reference_system {
     for (Axis_direction &d : m_axes) d = Axis_direction::UNSPECIFIED;
   }
 
-  virtual Srs_type srs_type() const override { return Srs_type::GEOGRAPHIC; }
+  Srs_type srs_type() const override { return Srs_type::GEOGRAPHIC; }
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Geographic_srs(*this);
   }
 
@@ -314,7 +314,7 @@ class Projected_srs : public Spatial_reference_system {
     for (Axis_direction &d : m_axes) d = Axis_direction::UNSPECIFIED;
   }
 
-  virtual Srs_type srs_type() const override { return Srs_type::PROJECTED; }
+  Srs_type srs_type() const override { return Srs_type::PROJECTED; }
 
   /**
     Initialize from parse tree.
@@ -362,13 +362,13 @@ class Projected_srs : public Spatial_reference_system {
 /// transformed to other SRSs.
 class Unknown_projected_srs : public Projected_srs {
  public:
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Unknown_projected_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::UNKNOWN;
   }
 
@@ -398,13 +398,13 @@ class Popular_visualisation_pseudo_mercator_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Popular_visualisation_pseudo_mercator_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::POPULAR_VISUALISATION_PSEUDO_MERCATOR;
   }
 
@@ -431,13 +431,13 @@ class Lambert_azimuthal_equal_area_spherical_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Lambert_azimuthal_equal_area_spherical_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::LAMBERT_AZIMUTHAL_EQUAL_AREA_SPHERICAL;
   }
 
@@ -465,13 +465,13 @@ class Equidistant_cylindrical_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Equidistant_cylindrical_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::EQUIDISTANT_CYLINDRICAL;
   }
 
@@ -499,13 +499,13 @@ class Equidistant_cylindrical_spherical_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Equidistant_cylindrical_spherical_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::EQUIDISTANT_CYLINDRICAL_SPHERICAL;
   }
 
@@ -549,13 +549,13 @@ class Krovak_north_orientated_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Krovak_north_orientated_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::KROVAK_NORTH_ORIENTATED;
   }
 
@@ -635,13 +635,13 @@ class Krovak_modified_srs : public Projected_srs {
         m_c9(NAN),
         m_c10(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Krovak_modified_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::KROVAK_MODIFIED;
   }
 
@@ -721,13 +721,13 @@ class Krovak_modified_north_orientated_srs : public Projected_srs {
         m_c9(NAN),
         m_c10(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Krovak_modified_north_orientated_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::KROVAK_MODIFIED_NORTH_ORIENTATED;
   }
 
@@ -766,13 +766,13 @@ class Lambert_conic_conformal_2sp_michigan_srs : public Projected_srs {
         m_false_northing(NAN),
         m_ellipsoid_scale_factor(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Lambert_conic_conformal_2sp_michigan_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::LAMBERT_CONIC_CONFORMAL_2SP_MICHIGAN;
   }
 
@@ -802,13 +802,13 @@ class Colombia_urban_srs : public Projected_srs {
         m_false_northing(NAN),
         m_projection_plane_height_at_origin(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Colombia_urban_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::COLOMBIA_URBAN;
   }
 
@@ -840,13 +840,13 @@ class Lambert_conic_conformal_1sp_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Lambert_conic_conformal_1sp_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::LAMBERT_CONIC_CONFORMAL_1SP;
   }
 
@@ -883,13 +883,13 @@ class Lambert_conic_conformal_2sp_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Lambert_conic_conformal_2sp_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::LAMBERT_CONIC_CONFORMAL_2SP;
   }
 
@@ -925,13 +925,13 @@ class Lambert_conic_conformal_2sp_belgium_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Lambert_conic_conformal_2sp_belgium_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::LAMBERT_CONIC_CONFORMAL_2SP_BELGIUM;
   }
 
@@ -962,13 +962,13 @@ class Mercator_variant_a_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Mercator_variant_a_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::MERCATOR_VARIANT_A;
   }
 
@@ -996,13 +996,13 @@ class Mercator_variant_b_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Mercator_variant_b_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::MERCATOR_VARIANT_B;
   }
 
@@ -1029,13 +1029,13 @@ class Cassini_soldner_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Cassini_soldner_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::CASSINI_SOLDNER;
   }
 
@@ -1067,13 +1067,13 @@ class Transverse_mercator_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Transverse_mercator_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::TRANSVERSE_MERCATOR;
   }
 
@@ -1105,13 +1105,13 @@ class Transverse_mercator_south_orientated_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Transverse_mercator_south_orientated_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::TRANSVERSE_MERCATOR_SOUTH_ORIENTATED;
   }
 
@@ -1143,13 +1143,13 @@ class Oblique_stereographic_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Oblique_stereographic_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::OBLIQUE_STEREOGRAPHIC;
   }
 
@@ -1180,13 +1180,13 @@ class Polar_stereographic_variant_a_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Polar_stereographic_variant_a_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::POLAR_STEREOGRAPHIC_VARIANT_A;
   }
 
@@ -1213,13 +1213,13 @@ class New_zealand_map_grid_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new New_zealand_map_grid_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::NEW_ZEALAND_MAP_GRID;
   }
 
@@ -1261,13 +1261,13 @@ class Hotine_oblique_mercator_variant_a_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Hotine_oblique_mercator_variant_a_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::HOTINE_OBLIQUE_MERCATOR_VARIANT_A;
   }
 
@@ -1303,13 +1303,13 @@ class Laborde_oblique_mercator_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Laborde_oblique_mercator_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::LABORDE_OBLIQUE_MERCATOR;
   }
 
@@ -1351,13 +1351,13 @@ class Hotine_oblique_mercator_variant_b_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Hotine_oblique_mercator_variant_b_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::HOTINE_OBLIQUE_MERCATOR_VARIANT_B;
   }
 
@@ -1385,13 +1385,13 @@ class Tunisia_mining_grid_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Tunisia_mining_grid_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::TUNISIA_MINING_GRID;
   }
 
@@ -1422,13 +1422,13 @@ class Lambert_conic_near_conformal_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Lambert_conic_near_conformal_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::LAMBERT_CONIC_NEAR_CONFORMAL;
   }
 
@@ -1455,13 +1455,13 @@ class American_polyconic_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new American_polyconic_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::AMERICAN_POLYCONIC;
   }
 
@@ -1505,13 +1505,11 @@ class Krovak_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
-    return new Krovak_srs(*this);
-  }
+  Spatial_reference_system *clone() override { return new Krovak_srs(*this); }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::KROVAK;
   }
 
@@ -1539,13 +1537,13 @@ class Lambert_azimuthal_equal_area_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Lambert_azimuthal_equal_area_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::LAMBERT_AZIMUTHAL_EQUAL_AREA;
   }
 
@@ -1581,13 +1579,13 @@ class Albers_equal_area_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Albers_equal_area_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::ALBERS_EQUAL_AREA;
   }
 
@@ -1621,13 +1619,13 @@ class Transverse_mercator_zoned_grid_system_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Transverse_mercator_zoned_grid_system_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::TRANSVERSE_MERCATOR_ZONED_GRID_SYSTEM;
   }
 
@@ -1658,13 +1656,13 @@ class Lambert_conic_conformal_west_orientated_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Lambert_conic_conformal_west_orientated_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::LAMBERT_CONIC_CONFORMAL_WEST_ORIENTATED;
   }
 
@@ -1691,13 +1689,13 @@ class Bonne_south_orientated_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Bonne_south_orientated_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::BONNE_SOUTH_ORIENTATED;
   }
 
@@ -1726,13 +1724,13 @@ class Polar_stereographic_variant_b_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Polar_stereographic_variant_b_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::POLAR_STEREOGRAPHIC_VARIANT_B;
   }
 
@@ -1761,13 +1759,13 @@ class Polar_stereographic_variant_c_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Polar_stereographic_variant_c_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::POLAR_STEREOGRAPHIC_VARIANT_C;
   }
 
@@ -1794,13 +1792,13 @@ class Guam_projection_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Guam_projection_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::GUAM_PROJECTION;
   }
 
@@ -1827,13 +1825,13 @@ class Modified_azimuthal_equidistant_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Modified_azimuthal_equidistant_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::MODIFIED_AZIMUTHAL_EQUIDISTANT;
   }
 
@@ -1860,13 +1858,13 @@ class Hyperbolic_cassini_soldner_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Hyperbolic_cassini_soldner_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::HYPERBOLIC_CASSINI_SOLDNER;
   }
 
@@ -1895,13 +1893,13 @@ class Lambert_cylindrical_equal_area_spherical_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Lambert_cylindrical_equal_area_spherical_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::LAMBERT_CYLINDRICAL_EQUAL_AREA_SPHERICAL;
   }
 
@@ -1929,13 +1927,13 @@ class Lambert_cylindrical_equal_area_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  virtual Spatial_reference_system *clone() override {
+  Spatial_reference_system *clone() override {
     return new Lambert_cylindrical_equal_area_srs(*this);
   }
 
-  virtual bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
+  bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 
-  virtual Projection_type projection_type() const override {
+  Projection_type projection_type() const override {
     return Projection_type::LAMBERT_CYLINDRICAL_EQUAL_AREA;
   }
 

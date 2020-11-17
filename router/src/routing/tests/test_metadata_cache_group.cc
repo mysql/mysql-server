@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,12 +22,17 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <stdexcept>
-
 #include "dest_metadata_cache.h"
-#include "router_test_helpers.h"
+
+#include <stdexcept>
+#include <string>
+
+#include <gmock/gmock.h>
+
+#include "mysqlrouter/destination.h"
+#include "router_test_helpers.h"  // ASSERT_THROW_LIKE
 #include "routing_mocks.h"
-#include "test/helpers.h"
+#include "test/helpers.h"  // init_test_logger
 
 using metadata_cache::InstanceStatus;
 using metadata_cache::LookupResult;
@@ -38,11 +43,38 @@ using ::testing::_;
 
 using namespace std::chrono_literals;
 
+bool operator==(const std::unique_ptr<Destination> &a, const Destination &b) {
+  return a->hostname() == b.hostname() && a->port() == b.port();
+}
+
+std::ostream &operator<<(std::ostream &os, const Destination &v) {
+  os << "(host: " << v.hostname() << ", port: " << v.port() << ")";
+  return os;
+}
+
+std::ostream &operator<<(std::ostream &os,
+                         const std::unique_ptr<Destination> &v) {
+  os << *(v.get());
+  return os;
+}
+
+std::ostream &operator<<(std::ostream &os, const Destinations &v) {
+  for (const auto &dest : v) {
+    os << dest;
+  }
+  return os;
+}
+
+MATCHER(IsGoodEq, "") {
+  return ::testing::ExplainMatchResult(
+      ::testing::Property(&Destination::good, std::get<1>(arg)),
+      std::get<0>(arg).get(), result_listener);
+}
+
 class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
  public:
-  LookupResult lookup_replicaset(const std::string &replicaset_name) override {
-    (void)replicaset_name;
-
+  LookupResult lookup_replicaset(
+      const std::string & /* replicaset_name */) override {
     return LookupResult(instance_vector_);
   }
 
@@ -69,7 +101,8 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
 
   MOCK_METHOD2(mark_instance_reachability,
                void(const std::string &, InstanceStatus));
-  MOCK_METHOD2(wait_primary_failover, bool(const std::string &, int));
+  MOCK_METHOD2(wait_primary_failover,
+               bool(const std::string &, const std::chrono::seconds &));
 
   // cannot mock it as it has more than 10 parameters
   void cache_init(
@@ -122,16 +155,12 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
 
 class DestMetadataCacheTest : public ::testing::Test {
  protected:
-  using result = stdx::expected<mysql_harness::socket_t, std::error_code>;
-
   void fill_instance_vector(const InstanceVector &iv) {
     metadata_cache_api_.fill_instance_vector(iv);
   }
 
   MetadataCacheAPIStub metadata_cache_api_;
-  MockRoutingSockOps routing_sock_ops_;
-
-  int err_;
+  MockSocketOperations sock_ops_;
 
   const std::string kReplicasetName{"replicaset-name"};
 };
@@ -140,12 +169,12 @@ class DestMetadataCacheTest : public ::testing::Test {
 /*STRATEGY FIRST AVAILABLE               */
 /*****************************************/
 TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnPrimaries) {
-  DestMetadataCacheGroup dest_mc_group(
+  DestMetadataCacheGroup dest(
       "cache-name", kReplicasetName, routing::RoutingStrategy::kFirstAvailable,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -156,17 +185,29 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnPrimaries) {
        3308, 33062},
   });
 
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307)));
+  }
+
+  // first available should not change the order.
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307)));
+  }
 }
 
 TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnSinglePrimary) {
-  DestMetadataCacheGroup dest_mc_group(
+  DestMetadataCacheGroup dest(
       "cache-name", kReplicasetName, routing::RoutingStrategy::kFirstAvailable,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -177,17 +218,28 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnSinglePrimary) {
        3308, 33062},
   });
 
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
+  // only one PRIMARY
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306)));
+  }
+
+  // first available should not change the order.
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306)));
+  }
 }
 
 TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnNoPrimary) {
-  DestMetadataCacheGroup dest_mc_group(
+  DestMetadataCacheGroup dest(
       "cache-name", kReplicasetName, routing::RoutingStrategy::kFirstAvailable,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadOnly, "3306",
@@ -198,17 +250,26 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnNoPrimary) {
        3308, 33062},
   });
 
-  ASSERT_FALSE(dest_mc_group.get_server_socket(0ms));
-  ASSERT_FALSE(dest_mc_group.get_server_socket(0ms));
+  // no PRIMARY
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual, ::testing::SizeIs(0));
+  }
+
+  // first available should not change the order.
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual, ::testing::SizeIs(0));
+  }
 }
 
 TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnSecondaries) {
-  DestMetadataCacheGroup dest_mc_group(
+  DestMetadataCacheGroup dest(
       "cache-name", kReplicasetName, routing::RoutingStrategy::kFirstAvailable,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -219,17 +280,30 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnSecondaries) {
        3308, 33062},
   });
 
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
+  // two SECONDARY's
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
+  }
+
+  // first available should not change the order.
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
+  }
 }
 
 TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnSingleSecondary) {
-  DestMetadataCacheGroup dest_mc_group(
+  DestMetadataCacheGroup dest(
       "cache-name", kReplicasetName, routing::RoutingStrategy::kFirstAvailable,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -240,17 +314,28 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnSingleSecondary) {
        3308, 33062},
   });
 
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3308});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3308});
+  // one SECONDARY
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3308", "3308", 3308)));
+  }
+
+  // first available should not change the order.
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3308", "3308", 3308)));
+  }
 }
 
 TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnNoSecondary) {
-  DestMetadataCacheGroup dest_mc_group(
+  DestMetadataCacheGroup dest(
       "cache-name", kReplicasetName, routing::RoutingStrategy::kFirstAvailable,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -261,18 +346,27 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnNoSecondary) {
        3308, 33062},
   });
 
-  ASSERT_FALSE(dest_mc_group.get_server_socket(0ms));
-  ASSERT_FALSE(dest_mc_group.get_server_socket(0ms));
+  // no SECONDARY
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual, ::testing::SizeIs(0));
+  }
+
+  // first available should not change the order.
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual, ::testing::SizeIs(0));
+  }
 }
 
 TEST_F(DestMetadataCacheTest, StrategyFirstAvailablePrimaryAndSecondary) {
-  DestMetadataCacheGroup dest_mc_group(
+  DestMetadataCacheGroup dest(
       "cache-name", kReplicasetName, routing::RoutingStrategy::kFirstAvailable,
       mysqlrouter::URI(
           "metadata-cache://cache-name/default?role=PRIMARY_AND_SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -283,18 +377,33 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailablePrimaryAndSecondary) {
        3308, 33062},
   });
 
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
+  // all nodes
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
+  }
+
+  // first available should not change the order.
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
+  }
 }
 
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackUnavailableServer) {
-  DestMetadataCacheGroup dest_mc_group(
+  DestMetadataCacheGroup dest(
       "cache-name", kReplicasetName,
       routing::RoutingStrategy::kRoundRobinWithFallback,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::Unavailable,
@@ -305,21 +414,41 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackUnavailableServer) {
        3308, 33062},
   });
 
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3308});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
+  // all available nodes
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
+  }
+
+  // round-robin-with-fallback should change the order.
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3308", "3308", 3308),
+                                       Destination("3307", "3307", 3307)));
+  }
+
+  // round-robin-with-fallback should change the order.
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
+  }
 }
 
 /*****************************************/
 /*STRATEGY ROUND ROBIN                   */
 /*****************************************/
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnPrimaries) {
-  DestMetadataCacheGroup dest_mc_group(
+  DestMetadataCacheGroup dest(
       "cache-name", kReplicasetName, routing::RoutingStrategy::kRoundRobin,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -332,19 +461,50 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnPrimaries) {
        3309, 33063},
   });
 
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3308});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
+  // all PRIMARY nodes
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
+  }
+
+  // round-robin should change the order.
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308),
+                                       Destination("3306", "3306", 3306)));
+  }
+
+  // round-robin should change the order.
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3308", "3308", 3308),
+                                       Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307)));
+  }
+
+  // round-robin should change the order.
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
+  }
 }
 
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnSinglePrimary) {
-  DestMetadataCacheGroup dest_mc_group(
+  DestMetadataCacheGroup dest(
       "cache-name", kReplicasetName, routing::RoutingStrategy::kRoundRobin,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -355,17 +515,28 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnSinglePrimary) {
        3308, 33062},
   });
 
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
+  // the one PRIMARY nodes
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306)));
+  }
+
+  // still the same
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306)));
+  }
 }
 
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinPrimaryMissing) {
-  DestMetadataCacheGroup dest_mc_group(
+  DestMetadataCacheGroup dest(
       "cache-name", kReplicasetName, routing::RoutingStrategy::kRoundRobin,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadOnly, "3307",
@@ -374,17 +545,26 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinPrimaryMissing) {
        3308, 33062},
   });
 
-  ASSERT_FALSE(dest_mc_group.get_server_socket(0ms));
-  ASSERT_FALSE(dest_mc_group.get_server_socket(0ms));
+  // no PRIMARY nodes
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual, ::testing::SizeIs(0));
+  }
+
+  // ... still the same
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual, ::testing::SizeIs(0));
+  }
 }
 
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnSecondaries) {
-  DestMetadataCacheGroup dest_mc_group(
+  DestMetadataCacheGroup dest(
       "cache-name", kReplicasetName, routing::RoutingStrategy::kRoundRobin,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -397,19 +577,50 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnSecondaries) {
        3309, 33063},
   });
 
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3308});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3309});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
+  // all SECONDAY nodes
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308),
+                                       Destination("3309", "3309", 3309)));
+  }
+
+  // round-robin should change the order.
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3308", "3308", 3308),
+                                       Destination("3309", "3309", 3309),
+                                       Destination("3307", "3307", 3307)));
+  }
+
+  // round-robin should change the order.
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3309", "3309", 3309),
+                                       Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
+  }
+
+  // round-robin should change the order.
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308),
+                                       Destination("3309", "3309", 3309)));
+  }
 }
 
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnSingleSecondary) {
-  DestMetadataCacheGroup dest_mc_group(
+  DestMetadataCacheGroup dest(
       "cache-name", kReplicasetName, routing::RoutingStrategy::kRoundRobin,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -420,17 +631,28 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnSingleSecondary) {
        3308, 33062},
   });
 
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3308});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3308});
+  // the one SECONDARY nodes
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3308", "3308", 3308)));
+  }
+
+  // still the same
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3308", "3308", 3308)));
+  }
 }
 
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinSecondaryMissing) {
-  DestMetadataCacheGroup dest_mc_group(
+  DestMetadataCacheGroup dest(
       "cache-name", kReplicasetName, routing::RoutingStrategy::kRoundRobin,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3307",
@@ -439,18 +661,27 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinSecondaryMissing) {
        3308, 33062},
   });
 
-  ASSERT_FALSE(dest_mc_group.get_server_socket(0ms));
-  ASSERT_FALSE(dest_mc_group.get_server_socket(0ms));
+  // no SECONDARY nodes
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual, ::testing::SizeIs(0));
+  }
+
+  // ... still the same
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual, ::testing::SizeIs(0));
+  }
 }
 
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinPrimaryAndSecondary) {
-  DestMetadataCacheGroup dest_mc_group(
+  DestMetadataCacheGroup dest(
       "cache-name", kReplicasetName, routing::RoutingStrategy::kRoundRobin,
       mysqlrouter::URI(
           "metadata-cache://cache-name/default?role=PRIMARY_AND_SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3307",
@@ -461,23 +692,54 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinPrimaryAndSecondary) {
        3309, 33063},
   });
 
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3308});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3309});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
+  // all nodes
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308),
+                                       Destination("3309", "3309", 3309)));
+  }
+
+  // round-robin should change the order.
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3308", "3308", 3308),
+                                       Destination("3309", "3309", 3309),
+                                       Destination("3307", "3307", 3307)));
+  }
+
+  // round-robin should change the order.
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3309", "3309", 3309),
+                                       Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
+  }
+
+  // round-robin should change the order.
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308),
+                                       Destination("3309", "3309", 3309)));
+  }
 }
 
 /*****************************************/
 /*STRATEGY ROUND ROBIN_WITH_FALLBACK     */
 /*****************************************/
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackBasicScenario) {
-  DestMetadataCacheGroup dest_mc_group(
+  DestMetadataCacheGroup dest(
       "cache-name", kReplicasetName,
       routing::RoutingStrategy::kRoundRobinWithFallback,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -489,19 +751,38 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackBasicScenario) {
   });
 
   // we have 2 SECONDARIES up so we expect round robin on them
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3308});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
+  }
+
+  // round-robin-with-fallback should change the order.
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3308", "3308", 3308),
+                                       Destination("3307", "3307", 3307)));
+  }
+
+  // round-robin-with-fallback should change the order.
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
+  }
 }
 
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackSingleSecondary) {
-  DestMetadataCacheGroup dest_mc_group(
+  DestMetadataCacheGroup dest(
       "cache-name", kReplicasetName,
       routing::RoutingStrategy::kRoundRobinWithFallback,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -514,18 +795,28 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackSingleSecondary) {
 
   // we do not fallback to PRIMARIES as long as there is at least single
   // SECONDARY available
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3308});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3308});
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3308", "3308", 3308)));
+  }
+
+  // round-robin-with-fallback should change the order.
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3308", "3308", 3308)));
+  }
 }
 
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackNoSecondary) {
-  DestMetadataCacheGroup dest_mc_group(
+  DestMetadataCacheGroup dest(
       "cache-name", kReplicasetName,
       routing::RoutingStrategy::kRoundRobinWithFallback,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -535,22 +826,33 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackNoSecondary) {
   });
 
   // no SECONDARY available so we expect round-robin on PRIAMRIES
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307)));
+  }
+
+  // round-robin-with-fallback should change the order.
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3306", "3306", 3306)));
+  }
 }
 
 TEST_F(DestMetadataCacheTest,
        StrategyRoundRobinWithFallbackPrimaryAndSecondary) {
   ASSERT_THROW_LIKE(
-      DestMetadataCacheGroup dest_mc_group(
+      DestMetadataCacheGroup dest(
           "cache-name", kReplicasetName,
           routing::RoutingStrategy::kRoundRobinWithFallback,
           mysqlrouter::URI(
               "metadata-cache://cache-name/default?role=PRIMARY_AND_SECONDARY")
               .query,
           BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-          &metadata_cache_api_, &routing_sock_ops_),
+          &metadata_cache_api_, &sock_ops_),
       std::runtime_error,
       "Strategy 'round-robin-with-fallback' is supported only for SECONDARY "
       "routing");
@@ -560,13 +862,13 @@ TEST_F(DestMetadataCacheTest,
 /*allow_primary_reads=yes                */
 /*****************************************/
 TEST_F(DestMetadataCacheTest, AllowPrimaryReadsBasic) {
-  DestMetadataCacheGroup dest_mc_group(
+  DestMetadataCacheGroup dest(
       "cache-name", kReplicasetName, routing::RoutingStrategy::kUndefined,
       mysqlrouter::URI("metadata-cache://cache-name/"
                        "default?role=SECONDARY&allow_primary_reads=yes")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -578,20 +880,50 @@ TEST_F(DestMetadataCacheTest, AllowPrimaryReadsBasic) {
   });
 
   // we expect round-robin on all the servers (PRIMARY and SECONDARY)
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3308});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
+  }
+
+  // round-robin should change the order.
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308),
+                                       Destination("3306", "3306", 3306)));
+  }
+
+  // round-robin should change the order.
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3308", "3308", 3308),
+                                       Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307)));
+  }
+
+  // round-robin should change the order.
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
+  }
 }
 
 TEST_F(DestMetadataCacheTest, AllowPrimaryReadsNoSecondary) {
-  DestMetadataCacheGroup dest_mc_group(
+  DestMetadataCacheGroup dest(
       "cache-name", kReplicasetName, routing::RoutingStrategy::kUndefined,
       mysqlrouter::URI("metadata-cache://cache-name/"
                        "default?role=SECONDARY&allow_primary_reads=yes")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -599,20 +931,30 @@ TEST_F(DestMetadataCacheTest, AllowPrimaryReadsNoSecondary) {
   });
 
   // we expect the PRIMARY being used
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306)));
+  }
+
+  // ... no change
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306)));
+  }
 }
 
 /*****************************************/
 /*DEFAULT_STRATEGIES                     */
 /*****************************************/
 TEST_F(DestMetadataCacheTest, PrimaryDefault) {
-  DestMetadataCacheGroup dest_mc_group(
+  DestMetadataCacheGroup dest(
       "cache-name", kReplicasetName, routing::RoutingStrategy::kUndefined,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -622,18 +964,37 @@ TEST_F(DestMetadataCacheTest, PrimaryDefault) {
   });
 
   // default for PRIMARY should be round-robin on ReadWrite servers
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307)));
+  }
+
+  // .. rotate
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3306", "3306", 3306)));
+  }
+
+  // ... and back
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307)));
+  }
 }
 
 TEST_F(DestMetadataCacheTest, SecondaryDefault) {
-  DestMetadataCacheGroup dest_mc_group(
+  DestMetadataCacheGroup dest(
       "cache-name", kReplicasetName, routing::RoutingStrategy::kUndefined,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -645,19 +1006,38 @@ TEST_F(DestMetadataCacheTest, SecondaryDefault) {
   });
 
   // default for SECONDARY should be round-robin on ReadOnly servers
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3308});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
+  }
+
+  // .. rotate
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3308", "3308", 3308),
+                                       Destination("3307", "3307", 3307)));
+  }
+
+  // ... and back
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
+  }
 }
 
 TEST_F(DestMetadataCacheTest, PrimaryAndSecondaryDefault) {
-  DestMetadataCacheGroup dest_mc_group(
+  DestMetadataCacheGroup dest(
       "cache-name", kReplicasetName, routing::RoutingStrategy::kUndefined,
       mysqlrouter::URI(
           "metadata-cache://cache-name/default?role=PRIMARY_AND_SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -670,10 +1050,40 @@ TEST_F(DestMetadataCacheTest, PrimaryAndSecondaryDefault) {
 
   // default for PRIMARY_AND_SECONDARY should be round-robin on ReadOnly and
   // ReadWrite servers
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3308});
-  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
+  }
+
+  // .. rotate
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308),
+                                       Destination("3306", "3306", 3306)));
+  }
+
+  // ... rotate
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3308", "3308", 3308),
+                                       Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307)));
+  }
+
+  // ... and back
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
+  }
 }
 
 /*****************************************/
@@ -691,7 +1101,7 @@ TEST_F(DestMetadataCacheTest, AllowedNodesNoPrimary) {
       mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -735,32 +1145,33 @@ TEST_F(DestMetadataCacheTest, AllowedNodes2Primaries) {
       mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
-  fill_instance_vector({
+  InstanceVector instances{
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
        3306, 33060},
       {kReplicasetName, "uuid2", metadata_cache::ServerMode::ReadOnly, "3307",
        3307, 33070},
-  });
+  };
+
+  fill_instance_vector(instances);
 
   dest_mc_group.start(nullptr);
 
-  // new metadata - no primary
-  fill_instance_vector({
-      {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
-       3306, 33060},
-      {kReplicasetName, "uuid2", metadata_cache::ServerMode::ReadWrite, "3307",
-       3307, 33070},
-  });
+  // new metadata - 2 primaries
+  instances[1].mode = metadata_cache::ServerMode::ReadWrite;
+  fill_instance_vector(instances);
 
   bool callback_called{false};
   auto check_nodes = [&](const AllowedNodes &nodes,
                          const std::string &reason) -> void {
     // 2 primaries and we are role=PRIMARY
-    ASSERT_EQ(2u, nodes.size());
-    ASSERT_EQ(3306u, nodes[0].port);
-    ASSERT_EQ(3307u, nodes[1].port);
+    ASSERT_THAT(
+        nodes,
+        ::testing::ElementsAre(
+            instances[0].host + ":" + std::to_string(instances[0].port),
+            instances[1].host + ":" + std::to_string(instances[1].port)));
+
     ASSERT_STREQ("metadata change", reason.c_str());
     callback_called = true;
   };
@@ -782,31 +1193,32 @@ TEST_F(DestMetadataCacheTest, AllowedNodesNoSecondaries) {
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
-  fill_instance_vector({
+  InstanceVector instances{
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
        3306, 33060},
       {kReplicasetName, "uuid2", metadata_cache::ServerMode::ReadOnly, "3307",
        3307, 33070},
-  });
+  };
+
+  fill_instance_vector(instances);
 
   dest_mc_group.start(nullptr);
 
-  // new metadata - no primary
-  fill_instance_vector({
-      {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
-       3306, 33060},
-  });
+  // remove last node, leaving only the one primary
+  instances.pop_back();
+  fill_instance_vector(instances);
 
   bool callback_called{false};
   auto check_nodes = [&](const AllowedNodes &nodes,
                          const std::string &reason) -> void {
     // no secondaries and we are role=SECONDARY
-    // by default tho we allow existing connections to the primary so it should
+    // by default we allow existing connections to the primary so it should
     // be in the allowed nodes
-    ASSERT_EQ(1u, nodes.size());
-    ASSERT_EQ(3306u, nodes[0].port);
+    ASSERT_THAT(nodes,
+                ::testing::ElementsAre(instances[0].host + ":" +
+                                       std::to_string(instances[0].port)));
     ASSERT_STREQ("metadata change", reason.c_str());
     callback_called = true;
   };
@@ -818,7 +1230,7 @@ TEST_F(DestMetadataCacheTest, AllowedNodesNoSecondaries) {
 
 /**
  * @test verifies that for the read-only destination r/w node is not among
- * allowed_nodes if  disconnect_on_promoted_to_primary=yes is configured
+ * allowed_nodes if disconnect_on_promoted_to_primary=yes is configured
  *
  */
 TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromoted) {
@@ -829,14 +1241,16 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromoted) {
           "default?role=SECONDARY&disconnect_on_promoted_to_primary=yes")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
-  fill_instance_vector({
+  InstanceVector instances{
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
        3306, 33060},
       {kReplicasetName, "uuid2", metadata_cache::ServerMode::ReadOnly, "3307",
        3307, 33070},
-  });
+  };
+
+  fill_instance_vector(instances);
 
   dest_mc_group.start(nullptr);
 
@@ -848,8 +1262,9 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromoted) {
     // one secondary and we are role=SECONDARY
     // we have disconnect_on_promoted_to_primary=yes configured so primary is
     // not allowed
-    ASSERT_EQ(1u, nodes.size());
-    ASSERT_EQ(3307u, nodes[0].port);
+    ASSERT_THAT(nodes,
+                ::testing::ElementsAre(instances[1].host + ":" +
+                                       std::to_string(instances[1].port)));
     ASSERT_STREQ("metadata change", reason.c_str());
     callback_called = true;
   };
@@ -866,7 +1281,7 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromoted) {
  *
  *      &disconnect_on_promoted_to_primary=no&disconnect_on_promoted_to_primary=yes
  *
- *      is considered the same as
+ * is considered the same as
  *
  *      &disconnect_on_promoted_to_primary=yes
  *
@@ -879,14 +1294,16 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromotedTwice) {
                        "primary=no&disconnect_on_promoted_to_primary=yes")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
-  fill_instance_vector({
+  InstanceVector instances{
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
        3306, 33060},
       {kReplicasetName, "uuid2", metadata_cache::ServerMode::ReadOnly, "3307",
        3307, 33070},
-  });
+  };
+
+  fill_instance_vector(instances);
 
   dest_mc_group.start(nullptr);
 
@@ -897,8 +1314,9 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromotedTwice) {
     // one secondary and we are role=SECONDARY
     // disconnect_on_promoted_to_primary=yes overrides previous value in
     // configuration so primary is not allowed
-    ASSERT_EQ(1u, nodes.size());
-    ASSERT_EQ(3307u, nodes[0].port);
+    ASSERT_THAT(nodes,
+                ::testing::ElementsAre(instances[1].host + ":" +
+                                       std::to_string(instances[1].port)));
     ASSERT_STREQ("metadata change", reason.c_str());
     callback_called = true;
   };
@@ -920,7 +1338,7 @@ TEST_F(DestMetadataCacheTest,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -967,7 +1385,7 @@ TEST_F(DestMetadataCacheTest,
           "default?role=SECONDARY&disconnect_on_metadata_unavailable=yes")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
-      &metadata_cache_api_, &routing_sock_ops_);
+      &metadata_cache_api_, &sock_ops_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -1009,7 +1427,7 @@ TEST_F(DestMetadataCacheTest, InvalidServerNodeRole) {
           mysqlrouter::URI("metadata-cache://cache-name/default?role=INVALID")
               .query,
           BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-          &metadata_cache_api_, &routing_sock_ops_),
+          &metadata_cache_api_, &sock_ops_),
       std::runtime_error, "Invalid server role in metadata cache routing");
 }
 
@@ -1023,7 +1441,7 @@ TEST_F(DestMetadataCacheTest, UnsupportedRoutingStrategy) {
           mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
               .query,
           BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-          &metadata_cache_api_, &routing_sock_ops_),
+          &metadata_cache_api_, &sock_ops_),
       std::runtime_error, "Unsupported routing strategy: next-available");
 }
 
@@ -1035,7 +1453,7 @@ TEST_F(DestMetadataCacheTest, AllowPrimaryReadsWithPrimaryRouting) {
                            "default?role=PRIMARY&allow_primary_reads=yes")
               .query,
           BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
-          &metadata_cache_api_, &routing_sock_ops_),
+          &metadata_cache_api_, &sock_ops_),
       std::runtime_error,
       "allow_primary_reads is supported only for SECONDARY routing");
 }
@@ -1048,7 +1466,7 @@ TEST_F(DestMetadataCacheTest, AllowPrimaryReadsWithRoutingStrategy) {
                            "default?role=SECONDARY&allow_primary_reads=yes")
               .query,
           BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-          &metadata_cache_api_, &routing_sock_ops_),
+          &metadata_cache_api_, &sock_ops_),
       std::runtime_error,
       "allow_primary_reads is only supported for backward compatibility: "
       "without routing_strategy but with mode defined, use "
@@ -1063,7 +1481,7 @@ TEST_F(DestMetadataCacheTest, RoundRobinWitFallbackStrategyWithPrimaryRouting) {
           mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
               .query,
           BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-          &metadata_cache_api_, &routing_sock_ops_),
+          &metadata_cache_api_, &sock_ops_),
       std::runtime_error,
       "Strategy 'round-robin-with-fallback' is supported only for SECONDARY "
       "routing");
@@ -1077,7 +1495,7 @@ TEST_F(DestMetadataCacheTest, ModeWithStrategy) {
           mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
               .query,
           BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
-          &metadata_cache_api_, &routing_sock_ops_),
+          &metadata_cache_api_, &sock_ops_),
       std::runtime_error,
       "option 'mode' is not allowed together with 'routing_strategy' option");
 }
@@ -1089,7 +1507,7 @@ TEST_F(DestMetadataCacheTest, RolePrimaryWrongMode) {
           mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
               .query,
           BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
-          &metadata_cache_api_, &routing_sock_ops_),
+          &metadata_cache_api_, &sock_ops_),
       std::runtime_error, "mode 'read-only' is not valid for 'role=PRIMARY'");
 }
 
@@ -1100,7 +1518,7 @@ TEST_F(DestMetadataCacheTest, RoleSecondaryWrongMode) {
           mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
               .query,
           BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
-          &metadata_cache_api_, &routing_sock_ops_),
+          &metadata_cache_api_, &sock_ops_),
       std::runtime_error,
       "mode 'read-write' is not valid for 'role=SECONDARY'");
 }
@@ -1113,7 +1531,7 @@ TEST_F(DestMetadataCacheTest, RolePrimaryAndSecondaryWrongMode) {
               "metadata-cache://cache-name/default?role=PRIMARY_AND_SECONDARY")
               .query,
           BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
-          &metadata_cache_api_, &routing_sock_ops_),
+          &metadata_cache_api_, &sock_ops_),
       std::runtime_error,
       "mode 'read-write' is not valid for 'role=PRIMARY_AND_SECONDARY'");
 }

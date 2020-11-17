@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,6 @@ SET(ROUTING_SOURCE_FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dest_round_robin.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/routing.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/protocol/classic_protocol.cc
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/connection.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/context.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/mysql_routing_common.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/connection_container.cc

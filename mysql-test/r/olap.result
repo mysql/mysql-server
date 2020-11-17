@@ -818,7 +818,7 @@ EXPLAIN
         -> Group (no aggregates)
             -> Sort: t1.a, t2.b
                 -> Table scan on <temporary>
-                    -> Temporary table
+                    -> Temporary table  (cost=0.80 rows=2)
                         -> Inner hash join (no condition)  (cost=0.80 rows=2)
                             -> Index scan on t1 using PRIMARY  (cost=0.45 rows=2)
                             -> Hash
@@ -1523,24 +1523,40 @@ NULL	NULL	510
 555	NULL	168
 555	55	55
 555	56	113
+EXPLAIN FORMAT=tree SELECT i, j, i+j, AVG(j) over () from t1 GROUP BY i,j
+WITH ROLLUP HAVING i+j is NULL ORDER BY i;
+EXPLAIN
+-> Sort: i
+    -> Table scan on <temporary>
+        -> Temporary table
+            -> Window aggregate with buffering: avg(t1.j) OVER () 
+                -> Filter: ((rollup_group_item(t1.i,0) + rollup_group_item(t1.j,1)) is null)
+                    -> Table scan on <temporary>
+                        -> Temporary table
+                            -> Group (no aggregates)
+                                -> Sort: t1.i, t1.j
+                                    -> Table scan on <temporary>
+                                        -> Temporary table  (cost=1.75 rows=15)
+                                            -> Table scan on t1  (cost=1.75 rows=15)
+
 SELECT i, j, i+j, AVG(j) over () from t1 GROUP BY i,j WITH ROLLUP
 HAVING i+j is NULL ORDER BY i;
 i	j	i+j	AVG(j) over ()
+NULL	NULL	NULL	NULL
 111	NULL	NULL	NULL
 222	NULL	NULL	NULL
 333	NULL	NULL	NULL
 444	NULL	NULL	NULL
 555	NULL	NULL	NULL
-NULL	NULL	NULL	NULL
 SELECT i, j, i+j, FIRST_VALUE(i) over () from t1 GROUP BY i,j WITH ROLLUP
 HAVING i+j is NULL ORDER BY i;
 i	j	i+j	FIRST_VALUE(i) over ()
+NULL	NULL	NULL	111
 111	NULL	NULL	111
 222	NULL	NULL	111
 333	NULL	NULL	111
 444	NULL	NULL	111
 555	NULL	NULL	111
-NULL	NULL	NULL	111
 SELECT i,j FROM t1 GROUP BY i,j WITH ROLLUP HAVING i=111 ORDER BY i;
 i	j
 111	11

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -55,9 +55,9 @@ class PFS_index_users_by_user : public PFS_index_users {
  public:
   PFS_index_users_by_user() : PFS_index_users(&m_key), m_key("USER") {}
 
-  ~PFS_index_users_by_user() {}
+  ~PFS_index_users_by_user() override {}
 
-  virtual bool match(PFS_user *pfs);
+  bool match(PFS_user *pfs) override;
 
  private:
   PFS_key_user m_key;
@@ -73,19 +73,19 @@ class table_users : public cursor_by_user {
   static int delete_all_rows();
 
  protected:
-  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all);
+  int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                      bool read_all) override;
 
  protected:
   table_users();
 
  public:
-  ~table_users() {}
+  ~table_users() override {}
 
-  int index_init(uint idx, bool sorted);
+  int index_init(uint idx, bool sorted) override;
 
  private:
-  virtual int make_row(PFS_user *pfs);
+  int make_row(PFS_user *pfs) override;
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;

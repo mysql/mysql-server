@@ -2723,12 +2723,12 @@ VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	2
 Handler_external_lock	4
 Handler_prepare	2
-Handler_read_key	16
+Handler_read_key	15
 Handler_read_next	1
-Handler_read_rnd	2
-Handler_read_rnd_next	4
+Handler_read_rnd	1
+Handler_read_rnd_next	2
 Handler_update	2
-Handler_write	2
+Handler_write	1
 # 15 read_key
 # 1 read_next, read_rnd
 # 2 read_rnd_next
@@ -3045,6 +3045,7 @@ CALL sp_insert_partition("p8", 111, "Test111");
 ERROR HY000: Found a row not matching the given partition set
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_external_lock	2
+Handler_rollback	1
 # no proc locking since already in proc cache.
 FLUSH STATUS;
 CALL sp_insert_partition("p7,p8", 111, "Test111");
@@ -4142,12 +4143,12 @@ VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	2
 Handler_external_lock	4
 Handler_prepare	2
-Handler_read_key	16
+Handler_read_key	15
 Handler_read_next	1
-Handler_read_rnd	2
-Handler_read_rnd_next	4
+Handler_read_rnd	1
+Handler_read_rnd_next	2
 Handler_update	2
-Handler_write	2
+Handler_write	1
 # Due to the BEFORE UPDATE trigger on t2 that looks at 'a',
 # no locks can be pruned.
 # 15 read_key
@@ -5034,8 +5035,8 @@ a	b
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	1
 Handler_external_lock	4
-Handler_read_key	10
-Handler_read_next	3
+Handler_read_key	13
+Handler_read_next	4
 FLUSH STATUS;
 SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
@@ -5045,8 +5046,8 @@ a	b
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	8
 Handler_external_lock	26
-Handler_read_key	22
-Handler_read_next	9
+Handler_read_key	25
+Handler_read_next	10
 UNLOCK TABLES;
 EXPLAIN SELECT * FROM t2 WHERE a = 7 + sf_a_from_t1b('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5090,8 +5091,8 @@ a	b
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	1
 Handler_external_lock	4
-Handler_read_key	10
-Handler_read_next	3
+Handler_read_key	13
+Handler_read_next	4
 FLUSH STATUS;
 SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
@@ -5101,8 +5102,8 @@ a	b
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	8
 Handler_external_lock	26
-Handler_read_key	22
-Handler_read_next	9
+Handler_read_key	25
+Handler_read_next	10
 UNLOCK TABLES;
 EXPLAIN SELECT * FROM t2 WHERE a = sf_a_from_t1b('1') AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5326,8 +5327,8 @@ sf_add_1(a) - 1	sf_add_hello(b)
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	1
 Handler_external_lock	4
-Handler_read_key	10
-Handler_read_next	3
+Handler_read_key	13
+Handler_read_next	4
 FLUSH STATUS;
 SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
@@ -5337,8 +5338,8 @@ sf_add_1(a) - 1	sf_add_hello(b)
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	8
 Handler_external_lock	26
-Handler_read_key	22
-Handler_read_next	9
+Handler_read_key	25
+Handler_read_next	10
 UNLOCK TABLES;
 EXPLAIN SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = 7 + sf_a_from_t1b('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5382,8 +5383,8 @@ sf_add_1(a) - 1	sf_add_hello(b)
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	1
 Handler_external_lock	4
-Handler_read_key	10
-Handler_read_next	3
+Handler_read_key	13
+Handler_read_next	4
 FLUSH STATUS;
 SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
@@ -5393,8 +5394,8 @@ sf_add_1(a) - 1	sf_add_hello(b)
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	8
 Handler_external_lock	26
-Handler_read_key	22
-Handler_read_next	9
+Handler_read_key	25
+Handler_read_next	10
 UNLOCK TABLES;
 EXPLAIN SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = sf_a_from_t1b('1') AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

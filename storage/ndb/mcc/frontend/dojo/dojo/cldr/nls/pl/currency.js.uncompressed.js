@@ -2,21 +2,23 @@ define(
 "dojo/cldr/nls/pl/currency", //begin v1.x content
 {
 	"HKD_displayName": "dolar hongkoński",
-	"CHF_displayName": "frank szwajcarski",
-	"JPY_symbol": "JPY",
-	"CAD_displayName": "dolar kanadyjski",
-	"HKD_symbol": "HKD",
 	"CNY_displayName": "juan chiński",
-	"USD_symbol": "USD",
-	"AUD_displayName": "dolar australijski",
 	"JPY_displayName": "jen japoński",
-	"CAD_symbol": "CAD",
+	"JPY_symbol": "JPY",
 	"USD_displayName": "dolar amerykański",
-	"CNY_symbol": "CNY",
+	"CAD_symbol": "CAD",
 	"GBP_displayName": "funt szterling",
+	"CHF_displayName": "frank szwajcarski",
+	"CNY_symbol": "CNY",
+	"EUR_displayName": "euro",
 	"GBP_symbol": "GBP",
-	"AUD_symbol": "AUD",
-	"EUR_displayName": "euro"
+	"CAD_displayName": "dolar kanadyjski",
+	"USD_symbol": "USD",
+	"EUR_symbol": "€",
+	"AUD_displayName": "dolar australijski",
+	"CHF_symbol": "CHF",
+	"HKD_symbol": "HKD",
+	"AUD_symbol": "AUD"
 }
 //end v1.x content
 );

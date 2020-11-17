@@ -44,6 +44,8 @@ include/wait_for_slave_sql_to_stop.inc
 include/stop_slave_io.inc
 RESET MASTER;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 include/start_slave.inc
 DROP TABLE t1;

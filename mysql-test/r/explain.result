@@ -148,7 +148,7 @@ explain select * from t1 having 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `f1`,'1' AS `f2` from dual
+Note	1003	/* select#1 */ select '1' AS `f1`,'1' AS `f2` from dual having true
 drop view v1;
 drop table t1;
 CREATE TABLE t1(c INT);

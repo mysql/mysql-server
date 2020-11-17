@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@ namespace Dump {
 class Abstract_object_reader_wrapper : public I_object_reader_wrapper,
                                        public Abstract_chain_element {
  public:
-  void register_object_reader(I_object_reader *new_object_reader);
+  void register_object_reader(I_object_reader *new_object_reader) override;
 
  protected:
   Abstract_object_reader_wrapper(

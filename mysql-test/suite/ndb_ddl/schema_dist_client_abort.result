@@ -12,21 +12,73 @@ a int primary key
 Warnings:
 Warning	1296	Node <nodeid> 'Schema distribution is not ready'
 set GLOBAL debug="-d,ndb_schema_dist_client_not_ready";
+# Verify that there are no leftover entries in
+# mysql.ndb_schema_result table
+nodeid	schema_op_id	participant_nodeid	result	message
+0 rows returned
+
+NDBT_ProgramExit: 0 - OK
+
+# Cleanup
+DROP TABLE t1;
+#
+# Bug#30684839 SCHEMA DISTRIBUTION ABORT IS NOT HANDLED PROPERLY SOMETIMES
+#
+# Setup
+CREATE TABLE t1 (
+a int primary key
+) engine NDB;
+# Setup to trigger the client to detect that it was killed before
+# starting the schema distribution
+set GLOBAL debug="+d,ndb_schema_dist_client_killed_before_write";
+# CREATE TABLE should abort the distribution and fail
+CREATE TABLE t2 (
+a int primary key
+) engine NDB;
+ERROR HY000: Can't create table 't2'
+# ALTER TABLE should abort the distribution but succeed with warnings
+ALTER TABLE t1 ADD COLUMN b int, algorithm = COPY;
+Warnings:
+Warning	1296	Schema distribution failed
+# Remove debug setup
+set GLOBAL debug="-d,ndb_schema_dist_client_killed_before_write";
 DROP TABLE t1;
 # Setup to trigger the client to detect that it was killed while
 # waiting for schema distribuiton to complete
-set GLOBAL debug="+d,ndb_schema_dist_client_killed";
+set GLOBAL debug="+d,ndb_schema_dist_client_killed_after_write";
 # Do schema operation which will cause the client to detect it
-# has been killed
+# has been killed but will proceed to completion nevertheless
 CREATE TABLE t1(
 a int primary key
 ) engine = NDB;
-Warnings:
-Warning	1296	Node <nodeid> 'Client was killed'
-Warning	1296	Node <nodeid> 'Client was killed'
-Warning	1296	Node <nodeid> 'Client was killed'
-Warning	1296	Node <nodeid> 'Client was killed'
-Warning	1296	Node <nodeid> 'Client was killed'
-Warning	1296	Node <nodeid> 'Client was killed'
-set GLOBAL debug="-d,ndb_schema_dist_client_killed";
+set GLOBAL debug="-d,ndb_schema_dist_client_killed_after_write";
+DROP TABLE t1;
+# Shutdown the MySQL Server when the coordinator is waiting on the
+# participants and verify that they are handled smoothly
+# Skip sending ack from participant mysqld2 to make the coordinator wait
+set GLOBAL debug="+d,ndb_skip_participant_ack";
+# Send the CREATE TABLE query to mysqld1
+CREATE TABLE t1 (
+a INT PRIMARY KEY
+) ENGINE = NDB;
+# Wait for the DDL to be logged in ndb_schema table
+# The coordinator is now waiting for the participants
+# Restart it and verify that it shuts down without any issues
+# restart
+set GLOBAL debug="-d,ndb_skip_participant_ack";
+# Verify that there are no leftover entries in
+# mysql.ndb_schema_result table
+nodeid	schema_op_id	participant_nodeid	result	message
+0 rows returned
+
+NDBT_ProgramExit: 0 - OK
+
+# Verify table exists
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Cleanup
 DROP TABLE t1;

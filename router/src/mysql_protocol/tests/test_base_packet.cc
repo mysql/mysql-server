@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,16 +22,15 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <gmock/gmock.h>
+#include "mysqlrouter/mysql_protocol.h"
 
-#include <string.h>
 #include <cstdlib>
 #include <cstring>
 #include <stdexcept>
 
-#include "helpers/router_test_helpers.h"
-#include "mysqlrouter/mysql_protocol.h"
-#include "mysqlrouter/utils.h"
+#include <gmock/gmock.h>
+
+#include "helpers/router_test_helpers.h"  // EXPECT_THROW_LIKE
 
 using std::string;
 using ::testing::ContainerEq;
@@ -45,7 +44,7 @@ class MySQLProtocolPacketTest : public ::testing::Test {
   Packet::vector_t case1 = {0x04, 0x0, 0x0, 0x01, 't', 'e', 's', 't'};
 
  protected:
-  virtual void SetUp() {}
+  void SetUp() override {}
 };
 
 TEST_F(MySQLProtocolPacketTest, Constructors) {
@@ -153,7 +152,7 @@ TEST_F(MySQLProtocolPacketTest, MoveAssigment) {
 TEST_F(MySQLProtocolPacketTest, ConstructWithBuffer) {
   {
     auto p = Packet(case1);
-    ASSERT_THAT(p, ContainerEq(case1));
+    ASSERT_THAT(p.message(), ContainerEq(case1));
     ASSERT_EQ(4UL, p.get_payload_size());
     ASSERT_EQ(1UL, p.get_sequence_id());
   }
@@ -161,7 +160,7 @@ TEST_F(MySQLProtocolPacketTest, ConstructWithBuffer) {
   {
     Packet::vector_t incomplete = {0x04, 0x0, 0x0};
     auto p = Packet(incomplete);
-    ASSERT_THAT(p, ContainerEq(incomplete));
+    ASSERT_THAT(p.message(), ContainerEq(incomplete));
     ASSERT_EQ(0UL, p.get_payload_size());
     ASSERT_EQ(0UL, p.get_sequence_id());
   }
@@ -185,10 +184,11 @@ TEST_F(MySQLProtocolPacketTest, seek_and_tell) {
   EXPECT_EQ(3u, p.tell());
 
   // seek to EOF
-  EXPECT_NO_THROW(p.seek(p.size()));
+  EXPECT_NO_THROW(p.seek(p.message().size()));
 
   // seek past EOF
-  EXPECT_THROW_LIKE(p.seek(p.size() + 1), std::range_error, "seek past EOF");
+  EXPECT_THROW_LIKE(p.seek(p.message().size() + 1), std::range_error,
+                    "seek past EOF");
 }
 
 TEST_F(MySQLProtocolPacketTest, PackInt1Bytes) {
@@ -196,13 +196,14 @@ TEST_F(MySQLProtocolPacketTest, PackInt1Bytes) {
     Packet p{};
     p.seek(0);
     p.write_int<uint8_t>(0);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x0}));
+    ASSERT_THAT(p.message(), ContainerEq(std::vector<uint8_t>{0x0}));
 
     p.write_int<uint8_t>(134);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x0, 0x86}));
+    ASSERT_THAT(p.message(), ContainerEq(std::vector<uint8_t>{0x0, 0x86}));
 
     p.write_int<uint8_t>(255);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x0, 0x86, 0xff}));
+    ASSERT_THAT(p.message(),
+                ContainerEq(std::vector<uint8_t>{0x0, 0x86, 0xff}));
   }
 
   {
@@ -210,13 +211,14 @@ TEST_F(MySQLProtocolPacketTest, PackInt1Bytes) {
     Packet p{};
     p.seek(0);
     p.write_int<int8_t>(0);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x0}));
+    ASSERT_THAT(p.message(), ContainerEq(std::vector<uint8_t>{0x0}));
 
     p.write_int<int8_t>(static_cast<int8_t>(-134));
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x0, 0x7a}));
+    ASSERT_THAT(p.message(), ContainerEq(std::vector<uint8_t>{0x0, 0x7a}));
 
     p.write_int<int8_t>(static_cast<int8_t>(-254));
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x0, 0x7a, 0x02}));
+    ASSERT_THAT(p.message(),
+                ContainerEq(std::vector<uint8_t>{0x0, 0x7a, 0x02}));
   }
 }
 
@@ -225,20 +227,22 @@ TEST_F(MySQLProtocolPacketTest, PackInt2Bytes) {
     Packet p{};
     p.seek(0);
     p.write_int<uint16_t>(0);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x0, 0x00}));
+    ASSERT_THAT(p.message(), ContainerEq(std::vector<uint8_t>{0x0, 0x00}));
 
     // Do not change the 0x0086 constant. Accidentally, it tests for
     // optimization-related bugs in some versions of GCC.
     p.write_int<uint16_t>(0x0086);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x0, 0x00, 0x86, 0x00}));
+    ASSERT_THAT(p.message(),
+                ContainerEq(std::vector<uint8_t>{0x0, 0x00, 0x86, 0x00}));
 
     p.write_int<uint16_t>(300);
-    ASSERT_THAT(
-        p, ContainerEq(std::vector<uint8_t>{0x0, 0x00, 0x86, 0x00, 0x2c, 0x1}));
+    ASSERT_THAT(p.message(), ContainerEq(std::vector<uint8_t>{
+                                 0x0, 0x00, 0x86, 0x00, 0x2c, 0x1}));
 
     p.write_int<uint16_t>(UINT16_MAX);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x0, 0x00, 0x86, 0x00, 0x2c,
-                                                    0x1, 0xff, 0xff}));
+    ASSERT_THAT(p.message(),
+                ContainerEq(std::vector<uint8_t>{0x0, 0x00, 0x86, 0x00, 0x2c,
+                                                 0x1, 0xff, 0xff}));
   }
 
   {
@@ -246,12 +250,12 @@ TEST_F(MySQLProtocolPacketTest, PackInt2Bytes) {
     Packet p{};
     p.seek(0);
     p.write_int<int16_t>(INT16_MIN);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x0, 0x80}));
+    ASSERT_THAT(p.message(), ContainerEq(std::vector<uint8_t>{0x0, 0x80}));
 
     p = {};
     p.seek(0);
     p.write_int<int16_t>(INT16_MAX);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0xff, 0x7f}));
+    ASSERT_THAT(p.message(), ContainerEq(std::vector<uint8_t>{0xff, 0x7f}));
   }
 }
 
@@ -260,35 +264,39 @@ TEST_F(MySQLProtocolPacketTest, PackInt3BytesUnsigned) {
     Packet p;
     p.seek(0);
     p.write_int<uint32_t>(0, 3);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x0, 0x00, 0x00}));
+    ASSERT_THAT(p.message(),
+                ContainerEq(std::vector<uint8_t>{0x0, 0x00, 0x00}));
   }
 
   {
     Packet p;
     p.seek(0);
     p.write_int<uint32_t>(134, 3);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x86, 0x00, 0x00}));
+    ASSERT_THAT(p.message(),
+                ContainerEq(std::vector<uint8_t>{0x86, 0x00, 0x00}));
   }
 
   {
     Packet p;
     p.seek(0);
     p.write_int<uint32_t>(500, 3);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0xf4, 0x1, 0x0}));
+    ASSERT_THAT(p.message(), ContainerEq(std::vector<uint8_t>{0xf4, 0x1, 0x0}));
   }
 
   {
     Packet p;
     p.seek(0);
     p.write_int<uint32_t>(53123, 3);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x83, 0xcf, 0x0}));
+    ASSERT_THAT(p.message(),
+                ContainerEq(std::vector<uint8_t>{0x83, 0xcf, 0x0}));
   }
 
   {
     Packet p;
     p.seek(0);
     p.write_int<uint32_t>((1ULL << (CHAR_BIT * 3)) - 1, 3);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0xff, 0xff, 0xff}));
+    ASSERT_THAT(p.message(),
+                ContainerEq(std::vector<uint8_t>{0xff, 0xff, 0xff}));
   }
 }
 
@@ -296,17 +304,17 @@ TEST_F(MySQLProtocolPacketTest, PackInt3BytesSigned) {
   Packet p;
   p.seek(0);
   p.write_int<int32_t>(-8388608, 3);
-  ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x00, 0x00, 0x80}));
+  ASSERT_THAT(p.message(), ContainerEq(std::vector<uint8_t>{0x00, 0x00, 0x80}));
 
   p = {};
   p.seek(0);
   p.write_int<int32_t>(-1234567, 3);
-  ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x79, 0x29, 0xed}));
+  ASSERT_THAT(p.message(), ContainerEq(std::vector<uint8_t>{0x79, 0x29, 0xed}));
 
   p = {};
   p.seek(0);
   p.write_int<int32_t>(8388607, 3);
-  ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0xff, 0xff, 0x7f}));
+  ASSERT_THAT(p.message(), ContainerEq(std::vector<uint8_t>{0xff, 0xff, 0x7f}));
 }
 
 TEST_F(MySQLProtocolPacketTest, PackInt4ByteUnsigned) {
@@ -314,42 +322,48 @@ TEST_F(MySQLProtocolPacketTest, PackInt4ByteUnsigned) {
     Packet p;
     p.seek(0);
     p.write_int<uint32_t>(0);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x0, 0x00, 0x00, 0x00}));
+    ASSERT_THAT(p.message(),
+                ContainerEq(std::vector<uint8_t>{0x0, 0x00, 0x00, 0x00}));
   }
 
   {
     Packet p;
     p.seek(0);
     p.write_int<uint32_t>(134);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x86, 0x00, 0x00, 0x00}));
+    ASSERT_THAT(p.message(),
+                ContainerEq(std::vector<uint8_t>{0x86, 0x00, 0x00, 0x00}));
   }
 
   {
     Packet p;
     p.seek(0);
     p.write_int<uint32_t>(500);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0xf4, 0x1, 0x00, 0x00}));
+    ASSERT_THAT(p.message(),
+                ContainerEq(std::vector<uint8_t>{0xf4, 0x1, 0x00, 0x00}));
   }
 
   {
     Packet p;
     p.seek(0);
     p.write_int<uint32_t>(53123);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x83, 0xcf, 0x0, 0x0}));
+    ASSERT_THAT(p.message(),
+                ContainerEq(std::vector<uint8_t>{0x83, 0xcf, 0x0, 0x0}));
   }
 
   {
     Packet p;
     p.seek(0);
     p.write_int<uint32_t>(2253123);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x43, 0x61, 0x22, 0x0}));
+    ASSERT_THAT(p.message(),
+                ContainerEq(std::vector<uint8_t>{0x43, 0x61, 0x22, 0x0}));
   }
 
   {
     Packet p;
     p.seek(0);
     p.write_int<uint32_t>(UINT32_MAX);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0xff, 0xff, 0xff, 0xff}));
+    ASSERT_THAT(p.message(),
+                ContainerEq(std::vector<uint8_t>{0xff, 0xff, 0xff, 0xff}));
   }
 }
 
@@ -358,49 +372,56 @@ TEST_F(MySQLProtocolPacketTest, PackInt4ByteSigned) {
     Packet p;
     p.seek(0);
     p.write_int<int32_t>(0);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x0, 0x00, 0x00, 0x00}));
+    ASSERT_THAT(p.message(),
+                ContainerEq(std::vector<uint8_t>{0x0, 0x00, 0x00, 0x00}));
   }
 
   {
     Packet p;
     p.seek(0);
     p.write_int<int32_t>(134);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x86, 0x00, 0x00, 0x00}));
+    ASSERT_THAT(p.message(),
+                ContainerEq(std::vector<uint8_t>{0x86, 0x00, 0x00, 0x00}));
   }
 
   {
     Packet p;
     p.seek(0);
     p.write_int<int32_t>(-500);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x0c, 0xfe, 0xff, 0xff}));
+    ASSERT_THAT(p.message(),
+                ContainerEq(std::vector<uint8_t>{0x0c, 0xfe, 0xff, 0xff}));
   }
 
   {
     Packet p;
     p.seek(0);
     p.write_int<int32_t>(53123);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x83, 0xcf, 0x0, 0x0}));
+    ASSERT_THAT(p.message(),
+                ContainerEq(std::vector<uint8_t>{0x83, 0xcf, 0x0, 0x0}));
   }
 
   {
     Packet p;
     p.seek(0);
     p.write_int<int32_t>(-2253123);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0xbd, 0x9e, 0xdd, 0xff}));
+    ASSERT_THAT(p.message(),
+                ContainerEq(std::vector<uint8_t>{0xbd, 0x9e, 0xdd, 0xff}));
   }
 
   {
     Packet p;
     p.seek(0);
     p.write_int<int32_t>(INT32_MIN);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x00, 0x00, 0x00, 0x80}));
+    ASSERT_THAT(p.message(),
+                ContainerEq(std::vector<uint8_t>{0x00, 0x00, 0x00, 0x80}));
   }
 
   {
     Packet p;
     p.seek(0);
     p.write_int<int32_t>(INT32_MAX);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0xff, 0xff, 0xff, 0x7f}));
+    ASSERT_THAT(p.message(),
+                ContainerEq(std::vector<uint8_t>{0xff, 0xff, 0xff, 0x7f}));
   }
 }
 
@@ -411,42 +432,42 @@ TEST_F(MySQLProtocolPacketTest, write_int_range_test) {
   Packet p_template;
   p_template.seek(0);
   p_template.write_bytes(V8{101, 102, 103, 104});
-  ASSERT_EQ(V8({101, 102, 103, 104}), p_template);
+  ASSERT_EQ(V8({101, 102, 103, 104}), p_template.message());
 
   {
     Packet p = p_template;
     p.seek(0);
     p.write_int<int16_t>(0x0201);
     V8 expected = {1, 2, 103, 104};
-    EXPECT_EQ(expected, p);
+    EXPECT_EQ(expected, p.message());
   }
   {
     Packet p = p_template;
     p.seek(1);
     p.write_int<int16_t>(0x0201);
     V8 expected = {101, 1, 2, 104};
-    EXPECT_EQ(expected, p);
+    EXPECT_EQ(expected, p.message());
   }
   {
     Packet p = p_template;
     p.seek(2);
     p.write_int<int16_t>(0x0201);
     V8 expected = {101, 102, 1, 2};
-    EXPECT_EQ(expected, p);
+    EXPECT_EQ(expected, p.message());
   }
   {
     Packet p = p_template;
     p.seek(3);
     p.write_int<int16_t>(0x0201);
     V8 expected = {101, 102, 103, 1, 2};
-    EXPECT_EQ(expected, p);
+    EXPECT_EQ(expected, p.message());
   }
   {
     Packet p = p_template;
     p.seek(4);
     p.write_int<int16_t>(0x0201);
     V8 expected = {101, 102, 103, 104, 1, 2};
-    EXPECT_EQ(expected, p);
+    EXPECT_EQ(expected, p.message());
   }
 
   // no test past EOF is necessary, because it's not possible to seek that far
@@ -460,13 +481,13 @@ TEST_F(MySQLProtocolPacketTest, PackLenEncodedInt) {
     Packet buf;
     buf.seek(0);
     EXPECT_EQ(1u, buf.write_lenenc_uint(0u));
-    EXPECT_EQ(V8({0u}), buf);
+    EXPECT_EQ(V8({0u}), buf.message());
   }
   {
     Packet buf;
     buf.seek(0);
     EXPECT_EQ(1u, buf.write_lenenc_uint(250u));
-    EXPECT_EQ(V8({250u}), buf);
+    EXPECT_EQ(V8({250u}), buf.message());
   }
 
   // 3-byte
@@ -474,19 +495,19 @@ TEST_F(MySQLProtocolPacketTest, PackLenEncodedInt) {
     Packet buf;
     buf.seek(0);
     EXPECT_EQ(3u, buf.write_lenenc_uint(251u));
-    EXPECT_EQ(V8({0xfc, 251u, 0u}), buf);
+    EXPECT_EQ(V8({0xfc, 251u, 0u}), buf.message());
   }
   {
     Packet buf;
     buf.seek(0);
     EXPECT_EQ(3u, buf.write_lenenc_uint(0x1234));
-    EXPECT_EQ(V8({0xfc, 0x34, 0x12}), buf);
+    EXPECT_EQ(V8({0xfc, 0x34, 0x12}), buf.message());
   }
   {
     Packet buf;
     buf.seek(0);
     EXPECT_EQ(3u, buf.write_lenenc_uint(0xffff));
-    EXPECT_EQ(V8({0xfc, 0xff, 0xff}), buf);
+    EXPECT_EQ(V8({0xfc, 0xff, 0xff}), buf.message());
   }
 
   // 4-byte
@@ -494,19 +515,19 @@ TEST_F(MySQLProtocolPacketTest, PackLenEncodedInt) {
     Packet buf;
     buf.seek(0);
     EXPECT_EQ(4u, buf.write_lenenc_uint(0x010000));
-    EXPECT_EQ(V8({0xfd, 0u, 0u, 1u}), buf);
+    EXPECT_EQ(V8({0xfd, 0u, 0u, 1u}), buf.message());
   }
   {
     Packet buf;
     buf.seek(0);
     EXPECT_EQ(4u, buf.write_lenenc_uint(0x123456));
-    EXPECT_EQ(V8({0xfd, 0x56, 0x34, 0x12}), buf);
+    EXPECT_EQ(V8({0xfd, 0x56, 0x34, 0x12}), buf.message());
   }
   {
     Packet buf;
     buf.seek(0);
     EXPECT_EQ(4u, buf.write_lenenc_uint(0xffffff));
-    EXPECT_EQ(V8({0xfd, 0xff, 0xff, 0xff}), buf);
+    EXPECT_EQ(V8({0xfd, 0xff, 0xff, 0xff}), buf.message());
   }
 
   // 9-byte
@@ -514,13 +535,14 @@ TEST_F(MySQLProtocolPacketTest, PackLenEncodedInt) {
     Packet buf;
     buf.seek(0);
     EXPECT_EQ(9u, buf.write_lenenc_uint(0x01000000));
-    EXPECT_EQ(V8({0xfe, 0u, 0u, 0u, 1u, 0u, 0u, 0u, 0u}), buf);
+    EXPECT_EQ(V8({0xfe, 0u, 0u, 0u, 1u, 0u, 0u, 0u, 0u}), buf.message());
   }
   {
     Packet buf;
     buf.seek(0);
     EXPECT_EQ(9u, buf.write_lenenc_uint(0x1234567890abcdef));
-    EXPECT_EQ(V8({0xfe, 0xef, 0xcd, 0xab, 0x90, 0x78, 0x56, 0x34, 0x12}), buf);
+    EXPECT_EQ(V8({0xfe, 0xef, 0xcd, 0xab, 0x90, 0x78, 0x56, 0x34, 0x12}),
+              buf.message());
   }
 
   // range tests
@@ -529,56 +551,56 @@ TEST_F(MySQLProtocolPacketTest, PackLenEncodedInt) {
     Packet p_template;
     p_template.seek(0);
     p_template.write_bytes(V8{101, 102, 103, 104, 105, 106});
-    ASSERT_EQ(V8({101, 102, 103, 104, 105, 106}), p_template);
+    ASSERT_EQ(V8({101, 102, 103, 104, 105, 106}), p_template.message());
 
     {
       Packet p = p_template;
       p.seek(0);
       p.write_lenenc_uint(0x030201);
       V8 expected = {0xfd, 1, 2, 3, 105, 106};
-      EXPECT_EQ(expected, p);
+      EXPECT_EQ(expected, p.message());
     }
     {
       Packet p = p_template;
       p.seek(1);
       p.write_lenenc_uint(0x030201);
       V8 expected = {101, 0xfd, 1, 2, 3, 106};
-      EXPECT_EQ(expected, p);
+      EXPECT_EQ(expected, p.message());
     }
     {
       Packet p = p_template;
       p.seek(2);
       p.write_lenenc_uint(0x030201);
       V8 expected = {101, 102, 0xfd, 1, 2, 3};
-      EXPECT_EQ(expected, p);
+      EXPECT_EQ(expected, p.message());
     }
     {
       Packet p = p_template;
       p.seek(3);
       p.write_lenenc_uint(0x030201);
       V8 expected = {101, 102, 103, 0xfd, 1, 2, 3};
-      EXPECT_EQ(expected, p);
+      EXPECT_EQ(expected, p.message());
     }
     {
       Packet p = p_template;
       p.seek(4);
       p.write_lenenc_uint(0x030201);
       V8 expected = {101, 102, 103, 104, 0xfd, 1, 2, 3};
-      EXPECT_EQ(expected, p);
+      EXPECT_EQ(expected, p.message());
     }
     {
       Packet p = p_template;
       p.seek(5);
       p.write_lenenc_uint(0x030201);
       V8 expected = {101, 102, 103, 104, 105, 0xfd, 1, 2, 3};
-      EXPECT_EQ(expected, p);
+      EXPECT_EQ(expected, p.message());
     }
     {
       Packet p = p_template;
       p.seek(6);
       p.write_lenenc_uint(0x030201);
       V8 expected = {101, 102, 103, 104, 105, 106, 0xfd, 1, 2, 3};
-      EXPECT_EQ(expected, p);
+      EXPECT_EQ(expected, p.message());
     }
 
     // no test past EOF is necessary, because it's not possible to seek that far
@@ -590,56 +612,56 @@ TEST_F(MySQLProtocolPacketTest, PackInt8BytesUnsigned) {
     Packet p;
     p.seek(0);
     p.write_int<uint64_t>(0);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x0, 0x0, 0x0, 0x0, 0x0,
-                                                    0x0, 0x0, 0x0}));
+    ASSERT_THAT(p.message(), ContainerEq(std::vector<uint8_t>{
+                                 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}));
   }
 
   {
     Packet p;
     p.seek(0);
     p.write_int<uint64_t>(134);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x86, 0x0, 0x0, 0x0, 0x0,
-                                                    0x0, 0x0, 0x0}));
+    ASSERT_THAT(p.message(), ContainerEq(std::vector<uint8_t>{
+                                 0x86, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}));
   }
 
   {
     Packet p;
     p.seek(0);
     p.write_int<uint64_t>(500);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0xf4, 0x1, 0x0, 0x0, 0x0,
-                                                    0x0, 0x0, 0x0}));
+    ASSERT_THAT(p.message(), ContainerEq(std::vector<uint8_t>{
+                                 0xf4, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}));
   }
 
   {
     Packet p;
     p.seek(0);
     p.write_int<uint64_t>(53123);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x83, 0xcf, 0x0, 0x0, 0x0,
-                                                    0x0, 0x0, 0x0}));
+    ASSERT_THAT(p.message(), ContainerEq(std::vector<uint8_t>{
+                                 0x83, 0xcf, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}));
   }
 
   {
     Packet p;
     p.seek(0);
     p.write_int<uint64_t>(2253123);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x43, 0x61, 0x22, 0x0, 0x0,
-                                                    0x0, 0x0, 0x0}));
+    ASSERT_THAT(p.message(), ContainerEq(std::vector<uint8_t>{
+                                 0x43, 0x61, 0x22, 0x0, 0x0, 0x0, 0x0, 0x0}));
   }
 
   {
     Packet p;
     p.seek(0);
     p.write_int<uint64_t>(361417177240330563UL);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x43, 0x61, 0x22, 0x1, 0x2,
-                                                    0x3, 0x4, 0x5}));
+    ASSERT_THAT(p.message(), ContainerEq(std::vector<uint8_t>{
+                                 0x43, 0x61, 0x22, 0x1, 0x2, 0x3, 0x4, 0x5}));
   }
 
   {
     Packet p;
     p.seek(0);
     p.write_int<uint64_t>(4294967295);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0xff, 0xff, 0xff, 0xff, 0x0,
-                                                    0x0, 0x0, 0x0}));
+    ASSERT_THAT(p.message(), ContainerEq(std::vector<uint8_t>{
+                                 0xff, 0xff, 0xff, 0xff, 0x0, 0x0, 0x0, 0x0}));
   }
 }
 
@@ -648,72 +670,75 @@ TEST_F(MySQLProtocolPacketTest, PackInt8BytesSigned) {
     Packet p;
     p.seek(0);
     p.write_int<uint64_t>(0);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x0, 0x0, 0x0, 0x0, 0x0,
-                                                    0x0, 0x0, 0x0}));
+    ASSERT_THAT(p.message(), ContainerEq(std::vector<uint8_t>{
+                                 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}));
   }
 
   {
     Packet p;
     p.seek(0);
     p.write_int<int64_t>(134);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x86, 0x0, 0x0, 0x0, 0x0,
-                                                    0x0, 0x0, 0x0}));
+    ASSERT_THAT(p.message(), ContainerEq(std::vector<uint8_t>{
+                                 0x86, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}));
   }
 
   {
     Packet p;
     p.seek(0);
     p.write_int<int64_t>(-500);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x0c, 0xfe, 0xff, 0xff,
-                                                    0xff, 0xff, 0xff, 0xff}));
+    ASSERT_THAT(p.message(),
+                ContainerEq(std::vector<uint8_t>{0x0c, 0xfe, 0xff, 0xff, 0xff,
+                                                 0xff, 0xff, 0xff}));
   }
 
   {
     Packet p;
     p.seek(0);
     p.write_int<int64_t>(53123);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x83, 0xcf, 0x0, 0x0, 0x0,
-                                                    0x0, 0x0, 0x0}));
+    ASSERT_THAT(p.message(), ContainerEq(std::vector<uint8_t>{
+                                 0x83, 0xcf, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}));
   }
 
   {
     Packet p;
     p.seek(0);
     p.write_int<int64_t>(-2253123);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0xbd, 0x9e, 0xdd, 0xff,
-                                                    0xff, 0xff, 0xff, 0xff}));
+    ASSERT_THAT(p.message(),
+                ContainerEq(std::vector<uint8_t>{0xbd, 0x9e, 0xdd, 0xff, 0xff,
+                                                 0xff, 0xff, 0xff}));
   }
 
   {
     Packet p;
     p.seek(0);
     p.write_int<int64_t>(361417177240330563L);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x43, 0x61, 0x22, 0x1, 0x2,
-                                                    0x3, 0x4, 0x5}));
+    ASSERT_THAT(p.message(), ContainerEq(std::vector<uint8_t>{
+                                 0x43, 0x61, 0x22, 0x1, 0x2, 0x3, 0x4, 0x5}));
   }
 
   {
     Packet p;
     p.seek(0);
     p.write_int<int64_t>(-361417177240330563L);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0xbd, 0x9e, 0xdd, 0xfe,
-                                                    0xfd, 0xfc, 0xfb, 0xfa}));
+    ASSERT_THAT(p.message(),
+                ContainerEq(std::vector<uint8_t>{0xbd, 0x9e, 0xdd, 0xfe, 0xfd,
+                                                 0xfc, 0xfb, 0xfa}));
   }
 
   {
     Packet p;
     p.seek(0);
     p.write_int<int64_t>(4294967295);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0xff, 0xff, 0xff, 0xff, 0x0,
-                                                    0x0, 0x0, 0x0}));
+    ASSERT_THAT(p.message(), ContainerEq(std::vector<uint8_t>{
+                                 0xff, 0xff, 0xff, 0xff, 0x0, 0x0, 0x0, 0x0}));
   }
 
   {
     Packet p;
     p.seek(0);
     p.write_int<int64_t>(-4294967295LL);
-    ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x01, 0x0, 0x0, 0x0, 0xff,
-                                                    0xff, 0xff, 0xff}));
+    ASSERT_THAT(p.message(), ContainerEq(std::vector<uint8_t>{
+                                 0x01, 0x0, 0x0, 0x0, 0xff, 0xff, 0xff, 0xff}));
   }
 }
 
@@ -725,7 +750,7 @@ TEST_F(MySQLProtocolPacketTest, write_bytes) {
   Packet p_template;
   p_template.seek(0);
   p_template.write_bytes(V8{101, 102, 103, 104, 105});
-  ASSERT_EQ(V8({101, 102, 103, 104, 105}), p_template);
+  ASSERT_EQ(V8({101, 102, 103, 104, 105}), p_template.message());
   EXPECT_EQ(5u, p_template.tell());
 
   // write at 0
@@ -735,7 +760,7 @@ TEST_F(MySQLProtocolPacketTest, write_bytes) {
     p.write_bytes(bytes);
 
     V8 expected = {1, 2, 3, 104, 105};
-    EXPECT_EQ(expected, p);
+    EXPECT_EQ(expected, p.message());
     EXPECT_EQ(3u, p.tell());
   }
 
@@ -746,7 +771,7 @@ TEST_F(MySQLProtocolPacketTest, write_bytes) {
     p.write_bytes(bytes);
 
     V8 expected = {101, 1, 2, 3, 105};
-    EXPECT_EQ(expected, p);
+    EXPECT_EQ(expected, p.message());
     EXPECT_EQ(4u, p.tell());
   }
 
@@ -757,7 +782,7 @@ TEST_F(MySQLProtocolPacketTest, write_bytes) {
     p.write_bytes(bytes);
 
     V8 expected = {101, 102, 1, 2, 3};
-    EXPECT_EQ(expected, p);
+    EXPECT_EQ(expected, p.message());
     EXPECT_EQ(5u, p.tell());
   }
 
@@ -768,7 +793,7 @@ TEST_F(MySQLProtocolPacketTest, write_bytes) {
     p.write_bytes(bytes);
 
     V8 expected = {101, 102, 103, 1, 2, 3};
-    EXPECT_EQ(expected, p);
+    EXPECT_EQ(expected, p.message());
     EXPECT_EQ(6u, p.tell());
   }
 
@@ -779,7 +804,7 @@ TEST_F(MySQLProtocolPacketTest, write_bytes) {
     p.write_bytes(bytes);
 
     V8 expected = {101, 102, 103, 104, 1, 2, 3};
-    EXPECT_EQ(expected, p);
+    EXPECT_EQ(expected, p.message());
     EXPECT_EQ(7u, p.tell());
   }
 
@@ -790,7 +815,7 @@ TEST_F(MySQLProtocolPacketTest, write_bytes) {
     p.write_bytes(bytes);
 
     V8 expected = {101, 102, 103, 104, 105, 1, 2, 3};
-    EXPECT_EQ(expected, p);
+    EXPECT_EQ(expected, p.message());
     EXPECT_EQ(8u, p.tell());
   }
 
@@ -801,7 +826,7 @@ TEST_F(MySQLProtocolPacketTest, write_bytes) {
     p.write_bytes({});
 
     V8 expected = {101, 102, 103, 104, 105};
-    EXPECT_EQ(expected, p);
+    EXPECT_EQ(expected, p.message());
     EXPECT_EQ(0u, p.tell());
   }
 
@@ -812,7 +837,7 @@ TEST_F(MySQLProtocolPacketTest, write_bytes) {
     p.write_bytes({});
 
     V8 expected = {101, 102, 103, 104, 105};
-    EXPECT_EQ(expected, p);
+    EXPECT_EQ(expected, p.message());
     EXPECT_EQ(3u, p.tell());
   }
 
@@ -823,7 +848,7 @@ TEST_F(MySQLProtocolPacketTest, write_bytes) {
     p.write_bytes({});
 
     V8 expected = {101, 102, 103, 104, 105};
-    EXPECT_EQ(expected, p);
+    EXPECT_EQ(expected, p.message());
     EXPECT_EQ(5u, p.tell());
   }
 
@@ -1417,12 +1442,16 @@ TEST_F(MySQLProtocolPacketTest, read_lenenc_bytes_from) {
   // throw scenarios for length-encoded uint are tested by
   // read_lenenc_uint_from() test, so here we only need to test for the cases of
   // payload being beyond EOF
+  //
+  std::vector<uint8_t> msg{4, 0x10, 0x20, 0x30, 0x40};
 
-  Packet buf({4, 0x10, 0x20, 0x30, 0x40}, true);
+  Packet buf(msg, true);
 
   EXPECT_NO_THROW(buf.read_lenenc_bytes_from(0));
 
-  buf.pop_back();
+  msg.pop_back();
+
+  buf = Packet(msg, true);
   EXPECT_THROW_LIKE(buf.read_lenenc_bytes_from(0), std::range_error,
                     "start or end beyond EOF");
 }

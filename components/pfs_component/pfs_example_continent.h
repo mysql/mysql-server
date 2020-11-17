@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -97,7 +97,7 @@ class Continent_index_by_name : public Continent_index {
   PSI_plugin_key_string m_name;
   char m_name_buffer[20];
 
-  bool match(Continent_record *record) {
+  bool match(Continent_record *record) override {
     return mysql_service_pfs_plugin_table->match_key_string(
         false, record->name, record->name_length, &m_name);
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
+#include "sql/current_thd.h"
 #include "sql/sql_cmd.h"         /* Sql_cmd */
 #include "sql/sql_data_change.h" /* enum_duplicates */
 #include "sql/sql_exchange.h"    /* sql_exchange */
@@ -50,21 +51,26 @@ class Sql_cmd_load_table final : public Sql_cmd {
                      String *opt_xml_rows_identified_by,
                      const Field_separators &field_separators,
                      const Line_separators &line_separators, ulong skip_lines,
-                     List<Item> *opt_fields_or_vars, List<Item> *opt_set_fields,
-                     List<Item> *opt_set_exprs,
+                     mem_root_deque<Item *> *opt_fields_or_vars,
+                     mem_root_deque<Item *> *opt_set_fields,
+                     mem_root_deque<Item *> *opt_set_exprs,
                      List<String> *opt_set_expr_strings)
       : m_exchange(filename.str, false, filetype),
         m_is_local_file(is_local_file),
         m_on_duplicate(on_duplicate),
         m_table(table),
         m_opt_partitions(opt_partitions),
+        m_opt_fields_or_vars(*THR_MALLOC),
+        m_opt_set_fields(*THR_MALLOC),
+        m_opt_set_exprs(*THR_MALLOC),
         m_opt_set_expr_strings(opt_set_expr_strings) {
-    if (opt_fields_or_vars) m_opt_fields_or_vars = *opt_fields_or_vars;
+    if (opt_fields_or_vars)
+      m_opt_fields_or_vars = std::move(*opt_fields_or_vars);
     DBUG_ASSERT((opt_set_fields == nullptr) ^ (opt_set_exprs != nullptr));
     if (opt_set_fields) {
-      DBUG_ASSERT(opt_set_fields->elements == opt_set_exprs->elements);
-      m_opt_set_fields = *opt_set_fields;
-      m_opt_set_exprs = *opt_set_exprs;
+      DBUG_ASSERT(opt_set_fields->size() == opt_set_exprs->size());
+      m_opt_set_fields = std::move(*opt_set_fields);
+      m_opt_set_exprs = std::move(*opt_set_exprs);
     }
 
     m_exchange.cs = opt_charset;
@@ -87,9 +93,9 @@ class Sql_cmd_load_table final : public Sql_cmd {
   const On_duplicate m_on_duplicate;
   Table_ident *const m_table;
   List<String> *const m_opt_partitions;
-  List<Item> m_opt_fields_or_vars;
-  List<Item> m_opt_set_fields;
-  List<Item> m_opt_set_exprs;
+  mem_root_deque<Item *> m_opt_fields_or_vars;
+  mem_root_deque<Item *> m_opt_set_fields;
+  mem_root_deque<Item *> m_opt_set_exprs;
 
   /**
     A list of strings is maintained to store the SET clause command user strings

@@ -171,14 +171,14 @@ Secondary_engine_execution_count	0
 SET use_secondary_engine = FORCED;
 FLUSH STATUS;
 SELECT * FROM t1;
-ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+Got one of the listed errors
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	0
 SET use_secondary_engine = @save_use_secondary_engine;
 FLUSH STATUS;
 SELECT /*+SET_VAR(use_secondary_engine=FORCED)*/ * FROM t1;
-ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+Got one of the listed errors
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	0

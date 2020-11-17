@@ -74,4 +74,6 @@ DROP TABLE t1;
 SET DEBUG_SYNC= 'RESET';
 include/stop_slave.inc [FOR CHANNEL 'ch3_2']
 RESET SLAVE ALL FOR CHANNEL 'ch3_2';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/group_replication_end.inc

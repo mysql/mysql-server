@@ -24,5 +24,7 @@ CHANGE MASTER TO MASTER_LOG_FILE='binlog-ch2.000001', MASTER_LOG_POS=4 FOR CHANN
 # Execute mysql using the dump as input
 include/stop_slave.inc
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 SET @@global.master_info_repository='SAVE_MI_REPO_TYPE';
 SET @@global.relay_log_info_repository='SAVE_RLI_REPO_TYPE';

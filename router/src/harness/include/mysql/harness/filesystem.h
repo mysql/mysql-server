@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 #include <ostream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 #ifndef _WIN32
 #include <fcntl.h>
@@ -419,11 +420,43 @@ class HARNESS_EXPORT Directory : public Path {
   DirectoryIterator begin();
 
   /**
+   * Constant iterator to first entry.
+   *
+   * @return Returns a constant iterator pointing to the first entry.
+   */
+  DirectoryIterator cbegin() const;
+
+  /**
    * Iterator past-the-end of entries.
    *
    * @return Returns an iterator pointing *past-the-end* of the entries.
    */
   DirectoryIterator end();
+
+  /**
+   * Constant iterator past-the-end of entries.
+   *
+   * @return Returns a constant iterator pointing *past-the-end* of the entries.
+   */
+  DirectoryIterator cend() const;
+
+  /**
+   * Check if the directory is empty.
+   *
+   * @retval true Directory is empty.
+   * @retval false Directory is no empty.
+   */
+  bool is_empty() const;
+
+  /**
+   * Recursively list all paths in a directory.
+   *
+   * Recursively create a list of relative paths from a directory. Path will
+   * be relative to the given directory. Empty directories are also listed.
+   *
+   * @return Recursive list of paths from a direcotry.
+   */
+  std::vector<Path> list_recursive() const;
 
   /**
    * Iterate over entries matching a glob.

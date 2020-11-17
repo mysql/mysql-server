@@ -1001,5 +1001,6 @@ bool Unique_on_insert::init() {
 
 void Unique_on_insert::cleanup() {
   reset(false);
-  free_tmp_table(m_table->in_use, m_table);
+  close_tmp_table(m_table->in_use, m_table);
+  free_tmp_table(m_table);
 }

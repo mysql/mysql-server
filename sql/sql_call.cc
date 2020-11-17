@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,8 +67,14 @@ bool Sql_cmd_call::precheck(THD *thd) {
   return false;
 }
 
-bool Sql_cmd_call::prepare_inner(THD *thd) {
-  // All required SPs should be in cache so no need to look into DB.
+bool Sql_cmd_call::check_privileges(THD *thd) {
+  if (check_routine_access(thd, EXECUTE_ACL, proc_name->m_db.str,
+                           proc_name->m_name.str, true, false))
+    return true;
+
+  if (check_all_table_privileges(thd)) {
+    return true;
+  }
 
   sp_head *sp = sp_find_routine(thd, enum_sp_type::PROCEDURE, proc_name,
                                 &thd->sp_proc_cache, true);
@@ -79,7 +85,47 @@ bool Sql_cmd_call::prepare_inner(THD *thd) {
 
   sp_pcontext *root_parsing_context = sp->get_root_parsing_context();
 
-  uint arg_count = proc_args != nullptr ? proc_args->elements : 0;
+  if (proc_args != nullptr) {
+    int arg_no = 0;
+    for (Item *arg : *proc_args) {
+      sp_variable *spvar = root_parsing_context->find_variable(arg_no);
+      if (arg->type() == Item::TRIGGER_FIELD_ITEM) {
+        Item_trigger_field *itf = down_cast<Item_trigger_field *>(arg);
+        itf->set_required_privilege(spvar->mode == sp_variable::MODE_IN
+                                        ? SELECT_ACL
+                                        : spvar->mode == sp_variable::MODE_OUT
+                                              ? UPDATE_ACL
+                                              : SELECT_ACL | UPDATE_ACL);
+      }
+      if (arg->walk(&Item::check_column_privileges, enum_walk::PREFIX,
+                    pointer_cast<uchar *>(thd)))
+        return true;
+      arg_no++;
+    }
+  }
+  thd->want_privilege = SELECT_ACL;
+  if (lex->select_lex->check_privileges_for_subqueries(thd)) {
+    return true;
+  }
+
+  return false;
+}
+
+bool Sql_cmd_call::prepare_inner(THD *thd) {
+  // All required SPs should be in cache so no need to look into DB.
+
+  SELECT_LEX *const select = lex->select_lex;
+
+  sp_head *sp = sp_find_routine(thd, enum_sp_type::PROCEDURE, proc_name,
+                                &thd->sp_proc_cache, true);
+  if (sp == nullptr) {
+    my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PROCEDURE", proc_name->m_qname.str);
+    return true;
+  }
+
+  sp_pcontext *root_parsing_context = sp->get_root_parsing_context();
+
+  uint arg_count = proc_args != nullptr ? proc_args->size() : 0;
 
   if (root_parsing_context->context_var_count() != arg_count) {
     my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0), "PROCEDURE",
@@ -88,23 +134,48 @@ bool Sql_cmd_call::prepare_inner(THD *thd) {
     return true;
   }
 
-  if (proc_args == nullptr) return false;
-
-  List_iterator<Item> it(*proc_args);
-  Item *item;
+  if (proc_args == nullptr) {
+    lex->unit->set_prepared();
+    return false;
+  }
   int arg_no = 0;
-  while ((item = it++)) {
-    if (item->type() == Item::TRIGGER_FIELD_ITEM) {
-      Item_trigger_field *itf = down_cast<Item_trigger_field *>(item);
-      sp_variable *spvar = root_parsing_context->find_variable(arg_no);
-      if (spvar->mode != sp_variable::MODE_IN)
-        itf->set_required_privilege(spvar->mode == sp_variable::MODE_INOUT);
+  for (Item *&arg : *proc_args) {
+    sp_variable *spvar = root_parsing_context->find_variable(arg_no);
+    if (arg->type() == Item::TRIGGER_FIELD_ITEM) {
+      Item_trigger_field *itf = down_cast<Item_trigger_field *>(arg);
+      itf->set_required_privilege(spvar->mode == sp_variable::MODE_IN
+                                      ? SELECT_ACL
+                                      : spvar->mode == sp_variable::MODE_OUT
+                                            ? UPDATE_ACL
+                                            : SELECT_ACL | UPDATE_ACL);
     }
-    if ((!item->fixed && item->fix_fields(thd, it.ref())) ||
-        item->check_cols(1))
+    if ((!arg->fixed && arg->fix_fields(thd, &arg)) || arg->check_cols(1))
       return true; /* purecov: inspected */
+    if (arg->data_type() == MYSQL_TYPE_INVALID) {
+      switch (Item::type_to_result(spvar->type)) {
+        case INT_RESULT:
+        case REAL_RESULT:
+        case DECIMAL_RESULT:
+          if (arg->propagate_type(
+                  thd,
+                  Type_properties(spvar->type, spvar->field_def.is_unsigned)))
+            return true;
+          break;
+        case STRING_RESULT:
+          if (arg->propagate_type(
+                  thd, Type_properties(spvar->type, spvar->field_def.charset)))
+            return true;
+          break;
+        default:
+          DBUG_ASSERT(false);
+      }
+    }
     arg_no++;
   }
+
+  if (select->apply_local_transforms(thd, true)) return true;
+
+  lex->unit->set_prepared();
 
   return false;
 }

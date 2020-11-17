@@ -3,6 +3,12 @@ create table t1 (a int auto_increment , primary key (a));
 insert into t1 values (NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL);
 update t1 set a=a+10 where a > 34;
 update t1 set a=a+100 where a > 0;
+update t1 set a=a+100 limit 0;
+explain update t1 set a=a+100 limit 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	LIMIT is zero
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = (`test`.`t1`.`a` + 100) limit 0
 update t1 set a=a+100 where a=1 and a=2;
 update t1 set a=b+100 where a=1 and a=2;
 ERROR 42S22: Unknown column 'b' in 'field list'
@@ -916,3 +922,31 @@ affected rows: 2
 info: Rows matched: 2  Changed: 2  Warnings: 0
 DROP VIEW v2;
 DROP TABLE t2, t1;
+Bug#22671310: Generated columns mess up explain of multi-table update
+CREATE TABLE t1(a INTEGER, b INTEGER AS (a));
+CREATE TABLE t2(a INTEGER);
+EXPLAIN
+UPDATE t1 JOIN t2 USING(a) SET t2.a=t2.a+1 WHERE t1.b>0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t2`.`a` = (`test`.`t2`.`a` + 1) where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`b` > 0))
+DROP TABLE t1, t2;
+# Bug#22891840: Error message from update of non-updatable part of
+#               join view is inaccurate
+CREATE TABLE t1(a1 INTEGER PRIMARY KEY, b1 INTEGER);
+CREATE TABLE t2(a2 INTEGER PRIMARY KEY, b2 INTEGER);
+CREATE VIEW vmat2 AS SELECT DISTINCT * FROM t2;
+CREATE VIEW vtr AS
+SELECT * FROM t1 JOIN vmat2 AS dt2 ON t1.a1=dt2.a2;
+UPDATE vtr SET b1=b1+1 WHERE a1=1;
+UPDATE vtr SET b2=b2+1 WHERE a2=1;
+ERROR HY000: The target table vtr of the UPDATE is not updatable
+DROP VIEW vtr, vmat2;
+DROP TABLE t1, t2;
+# Bug#31360425: Segfault in Query_result_update::optimize()
+CREATE TABLE g(c INTEGER, b INTEGER);
+CREATE TABLE t(a INTEGER);
+UPDATE t SET a=1 WHERE EXISTS(SELECT b FROM g WHERE 1 NOT LIKE c FOR UPDATE);
+DROP TABLE g, t;

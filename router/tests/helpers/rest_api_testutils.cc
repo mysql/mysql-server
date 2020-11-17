@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -49,17 +49,22 @@ static const std::string rest_api_openapi_json =
     std::string(rest_api_basepath) + "/swagger.json";
 
 // wait for the endpoint to return 404
-static bool wait_endpoint_404(
-    RestClient &rest_client, const std::string &uri,
-    std::chrono::milliseconds max_wait_time) noexcept {
+// the max_wait_time is increased 10 times for the run with VALGRIND
+bool wait_endpoint_404(RestClient &rest_client, const std::string &uri,
+                       std::chrono::milliseconds max_wait_time) noexcept {
+  auto step_time = kMaxRestEndpointNotAvailableStepTime;
+  if (getenv("WITH_VALGRIND")) {
+    max_wait_time *= 10;
+    step_time *= 10;
+  }
+
   while (max_wait_time.count() > 0) {
     auto req = rest_client.request_sync(HttpMethod::Get, uri);
 
     if (req && req.get_response_code() != 0)
       return (req.get_response_code() == 404);
 
-    auto wait_time =
-        std::min(kMaxRestEndpointNotAvailableStepTime, max_wait_time);
+    const auto wait_time = std::min(step_time, max_wait_time);
     std::this_thread::sleep_for(wait_time);
 
     max_wait_time -= wait_time;
@@ -199,9 +204,14 @@ bool wait_for_rest_endpoint_ready(
     const std::string &uri, const uint16_t http_port,
     const std::string &username, const std::string &password,
     const std::string &http_host, std::chrono::milliseconds max_wait_time,
-    const std::chrono::milliseconds step_time) noexcept {
+    std::chrono::milliseconds step_time) noexcept {
   IOContext io_ctx;
   RestClient rest_client(io_ctx, http_host, http_port, username, password);
+
+  if (getenv("WITH_VALGRIND")) {
+    max_wait_time *= 10;
+    step_time *= 10;
+  }
 
   while (max_wait_time.count() > 0) {
     auto req = rest_client.request_sync(HttpMethod::Get, uri);
@@ -236,27 +246,30 @@ std::string RestApiComponentTest::create_password_file() {
 std::vector<std::string> RestApiComponentTest::get_restapi_config(
     const std::string &component, const std::string &userfile,
     const bool request_authentication, const std::string &realm_name) {
-  std::vector<ConfigBuilder::kv_type> authentication;
+  std::vector<mysql_harness::ConfigBuilder::kv_type> authentication;
   if (request_authentication) {
     authentication.push_back({"require_realm", realm_name});
   }
   const std::vector<std::string> config_sections{
-      ConfigBuilder::build_section("http_server",
-                                   {
-                                       {"port", std::to_string(http_port_)},
-                                   }),
-      ConfigBuilder::build_section(component, authentication),
-      ConfigBuilder::build_section("http_auth_realm:somerealm",
-                                   {
-                                       {"backend", "somebackend"},
-                                       {"method", "basic"},
-                                       {"name", "Some Realm"},
-                                   }),
-      ConfigBuilder::build_section("http_auth_backend:somebackend",
-                                   {
-                                       {"backend", "file"},
-                                       {"filename", userfile},
-                                   }),
+      mysql_harness::ConfigBuilder::build_section(
+          "http_server",
+          {
+              {"port", std::to_string(http_port_)},
+          }),
+      mysql_harness::ConfigBuilder::build_section(component, authentication),
+      mysql_harness::ConfigBuilder::build_section(
+          "http_auth_realm:somerealm",
+          {
+              {"backend", "somebackend"},
+              {"method", "basic"},
+              {"name", "Some Realm"},
+          }),
+      mysql_harness::ConfigBuilder::build_section(
+          "http_auth_backend:somebackend",
+          {
+              {"backend", "file"},
+              {"filename", userfile},
+          }),
   };
   return config_sections;
 }

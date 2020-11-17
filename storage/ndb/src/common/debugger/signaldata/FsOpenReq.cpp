@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,6 +83,8 @@ printFSOPENREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
     fprintf(output, ", read size");
   if (flags & FsOpenReq::OM_DIRECT_SYNC)
     fprintf(output, ", O_DIRECT_SYNC");
+  if (flags & FsOpenReq::OM_ENCRYPT)
+    fprintf(output, ", encrypted");
 
   fprintf(output, "\n");
   return true;

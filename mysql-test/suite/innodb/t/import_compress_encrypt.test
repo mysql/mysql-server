@@ -1,0 +1,206 @@
+# Test "ALTER TABLE ... IMPORT TABLESPACE" in InnoDB
+
+--source include/have_lowercase0.inc
+--source include/have_innodb_16k.inc
+--source include/have_punch_hole.inc
+
+--echo #
+--echo # Bug#31313533 : IMPORT FAILS FOR ENCRYPT AND COMPRESSION ENABLED TDE TABLES
+--echo #
+
+--echo # SETUP
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
+--echo # RESTART WITH KEYRING PLUGIN
+let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
+--source include/restart_mysqld_no_echo.inc
+
+--echo
+--echo # Test 1 : Check that EXPORT and IMPORT is working fine on same FS
+--echo
+
+CREATE TABLE t1(c1 int NOT NULL AUTO_INCREMENT,
+                c2 varchar(65000) DEFAULT NULL,
+                c3 varchar(255) GENERATED ALWAYS AS (substr(c2,2,100)) STORED,
+                c4 varchar(255) GENERATED ALWAYS AS (substr(c2,10,200)) VIRTUAL,
+                b bit(64) DEFAULT NULL,
+                p_c1 bigint DEFAULT NULL,
+                PRIMARY KEY (c1)) ENGINE=Innodb AUTO_INCREMENT=50001 DEFAULT CHARSET=latin1 COMPRESSION='zlib' ENCRYPTION='Y';
+
+--disable_query_log
+--let $i = 1
+while ($i < 6000) {
+  INSERT INTO t1(c2,b,p_c1) VALUES(AES_ENCRYPT("5dd0786a3c7adf503202b8e234a95cbe643bc752028e1792ca8e6ef86c69582eb1cc478670c8e5d6c0133d1b4e5c98017aeb893f9db5f1bff397bc9e0f5fde48","abc"),10,100);
+  --inc $i
+}
+--enable_query_log
+
+SELECT c1, SUBSTRING(c2, 10, 10), SUBSTRING(c3, 10, 10), SUBSTRING(c4, 10, 10), b FROM t1 ORDER BY c1 limit 10;
+
+--echo # Flush tables for export
+FLUSH TABLES t1 FOR EXPORT;
+
+--echo # Copy .cfp .cfg .ibd file to temp
+--copy_file $MYSQLD_DATADIR/test/t1.cfp $MYSQLTEST_VARDIR/tmp/t1.cfp
+--copy_file $MYSQLD_DATADIR/test/t1.cfg $MYSQLTEST_VARDIR/tmp/t1.cfg
+--copy_file $MYSQLD_DATADIR/test/t1.ibd $MYSQLTEST_VARDIR/tmp/t1.ibd
+
+UNLOCK TABLES;
+
+DROP TABLE t1;
+
+CREATE TABLE t1(c1 int NOT NULL AUTO_INCREMENT,
+                c2 varchar(65000) DEFAULT NULL,
+                c3 varchar(255) GENERATED ALWAYS AS (substr(c2,2,100)) STORED,
+                c4 varchar(255) GENERATED ALWAYS AS (substr(c2,10,200)) VIRTUAL,
+                b bit(64) DEFAULT NULL,
+                p_c1 bigint DEFAULT NULL,
+                PRIMARY KEY (c1)) ENGINE=Innodb AUTO_INCREMENT=50001 DEFAULT CHARSET=latin1 COMPRESSION='zlib' ENCRYPTION='Y';
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+--echo # Copy .cfp/.cfg and .ibd files from temp to datadir
+--copy_file $MYSQLTEST_VARDIR/tmp/t1.cfp $MYSQLD_DATADIR/test/t1.cfp
+--copy_file $MYSQLTEST_VARDIR/tmp/t1.cfg $MYSQLD_DATADIR/test/t1.cfg
+--copy_file $MYSQLTEST_VARDIR/tmp/t1.ibd $MYSQLD_DATADIR/test/t1.ibd
+
+--echo # Start import
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+SELECT c1, SUBSTRING(c2, 10, 10), SUBSTRING(c3, 10, 10), SUBSTRING(c4, 10, 10), b FROM t1 ORDER BY c1 limit 10;
+
+--echo # Cleanup
+DROP TABLE t1;
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.cfp
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.cfg
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.ibd
+
+--echo
+--echo # Test 2 : Check that EXPORT and IMPORT is working fine on different FS
+--echo
+
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
+--echo # Copy and unzip the dir having cfg/cfg/ibd file from a different FS Block Size
+--copy_file $MYSQLTEST_VARDIR/std_data/import_8021.zip $MYSQL_TMP_DIR/import_8021.zip
+--file_exists $MYSQL_TMP_DIR/import_8021.zip
+--exec unzip -qo $MYSQL_TMP_DIR/import_8021.zip -d $MYSQL_TMP_DIR
+--file_exists $MYSQL_TMP_DIR/import_8021/t1.cfp
+--file_exists $MYSQL_TMP_DIR/import_8021/t1.cfg
+--file_exists $MYSQL_TMP_DIR/import_8021/t1.ibd
+
+CREATE TABLE t1(c1 int NOT NULL AUTO_INCREMENT,
+                c2 varchar(65000) DEFAULT NULL,
+                c3 varchar(255) GENERATED ALWAYS AS (substr(c2,2,100)) STORED,
+                c4 varchar(255) GENERATED ALWAYS AS (substr(c2,10,200)) VIRTUAL,
+                b bit(64) DEFAULT NULL,
+                p_c1 bigint DEFAULT NULL,
+                PRIMARY KEY (c1)) ENGINE=Innodb AUTO_INCREMENT=50001 DEFAULT CHARSET=latin1 COMPRESSION='zlib' ENCRYPTION='Y';
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+--echo # Copy .cfp/.cfg and .ibd files from temp to datadir
+--copy_file $MYSQL_TMP_DIR/import_8021/t1.cfp $MYSQLD_DATADIR/test/t1.cfp
+--copy_file $MYSQL_TMP_DIR/import_8021/t1.cfg $MYSQLD_DATADIR/test/t1.cfg
+--copy_file $MYSQL_TMP_DIR/import_8021/t1.ibd $MYSQLD_DATADIR/test/t1.ibd
+
+--echo # Start import
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+SELECT c1, SUBSTRING(c2, 10, 10), SUBSTRING(c3, 10, 10), SUBSTRING(c4, 10, 10), b FROM t1 ORDER BY c1 limit 10;
+
+--echo # Cleanup
+DROP TABLE t1;
+
+--echo # Remove copied files
+--file_exists $MYSQL_TMP_DIR/import_8021.zip
+--force-rmdir $MYSQL_TMP_DIR/import_8021
+--remove_file $MYSQL_TMP_DIR/import_8021.zip
+
+--echo
+--echo # Test 3 : Check that IMPORT works fine from previous version on same FS
+--echo
+
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
+--echo # Copy and unzip the dir having cfg/cfg/ibd file from previous version.
+--copy_file $MYSQLTEST_VARDIR/std_data/import2_8021.zip $MYSQL_TMP_DIR/import2_8021.zip
+--file_exists $MYSQL_TMP_DIR/import2_8021.zip
+--exec unzip -qo $MYSQL_TMP_DIR/import2_8021.zip -d $MYSQL_TMP_DIR
+--file_exists $MYSQL_TMP_DIR/import2_8021/t1.cfp
+--file_exists $MYSQL_TMP_DIR/import2_8021/t1.cfg
+--file_exists $MYSQL_TMP_DIR/import2_8021/t1.ibd
+
+CREATE TABLE t1(c1 int NOT NULL AUTO_INCREMENT,
+                c2 varchar(65000) DEFAULT NULL,
+                c3 varchar(255) GENERATED ALWAYS AS (substr(c2,2,100)) STORED,
+                c4 varchar(255) GENERATED ALWAYS AS (substr(c2,10,200)) VIRTUAL,
+                b bit(64) DEFAULT NULL,
+                p_c1 bigint DEFAULT NULL,
+                PRIMARY KEY (c1)) ENGINE=Innodb AUTO_INCREMENT=50001 DEFAULT CHARSET=latin1 COMPRESSION='zlib' ENCRYPTION='Y';
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+--echo # Copy .cfp/.cfg and .ibd files from temp to datadir
+--copy_file $MYSQL_TMP_DIR/import2_8021/t1.cfp $MYSQLD_DATADIR/test/t1.cfp
+--copy_file $MYSQL_TMP_DIR/import2_8021/t1.cfg $MYSQLD_DATADIR/test/t1.cfg
+--copy_file $MYSQL_TMP_DIR/import2_8021/t1.ibd $MYSQLD_DATADIR/test/t1.ibd
+
+--echo # Start import
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+SELECT c1, SUBSTRING(c2, 10, 10), SUBSTRING(c3, 10, 10), SUBSTRING(c4, 10, 10), b FROM t1 ORDER BY c1 limit 10;
+
+--echo # Cleanup
+DROP TABLE t1;
+
+--echo # Remove copied files
+--file_exists $MYSQL_TMP_DIR/import2_8021.zip
+--force-rmdir $MYSQL_TMP_DIR/import2_8021
+--remove_file $MYSQL_TMP_DIR/import2_8021.zip
+
+--echo
+--echo # Test 4 : check table from old version are read correctly after upgrade
+--echo
+
+--echo # Stop the running the server
+--source include/shutdown_mysqld.inc
+
+--echo # Copy and unzip the datadir.
+--copy_file $MYSQLTEST_VARDIR/std_data/data_8021.zip $MYSQL_TMP_DIR/data_8021.zip
+--file_exists $MYSQL_TMP_DIR/data_8021.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data_8021.zip -d $MYSQL_TMP_DIR
+let $DATADIR = $MYSQL_TMP_DIR/data;
+
+--echo # Restart the server against the unzipped datadir
+--replace_result $DATADIR DATADIR $KEYRING_PLUGIN_OPT KEYRING_PLUGIN_OPT
+--let $restart_parameters = restart: --datadir=$DATADIR --innodb-page-size=16k --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/data/keyring $KEYRING_PLUGIN_OPT
+--let $wait_counter=3000
+--source include/start_mysqld.inc
+
+--echo # Verify tables after upgrade
+USE test;
+SHOW CREATE TABLE t1;
+SELECT c1, SUBSTRING(c2, 10, 10), SUBSTRING(c3, 10, 10), SUBSTRING(c4, 10, 10), b FROM t1 ORDER BY c1 limit 10;
+
+--echo # Run some DML statements
+INSERT INTO t1(c2,b,p_c1) VALUES(AES_ENCRYPT("5dd0786a3c7adf503202b8e234a95cbe643bc752028e1792ca8e6ef86c69582eb1cc478670c8e5d6c0133d1b4e5c98017aeb893f9db5f1bff397bc9e0f5fde48","abc"),10,100);
+DELETE FROM t1 WHERE c1=50001;
+
+--echo # Verify results
+SELECT c1, SUBSTRING(c2, 10, 10), SUBSTRING(c3, 10, 10), SUBSTRING(c4, 10, 10), b FROM t1 ORDER BY c1 limit 10;
+
+--echo # Cleanup
+DROP TABLE t1;
+remove_file $MYSQL_TMP_DIR/mysecret_keyring;
+--echo # Shutdown server
+--source include/shutdown_mysqld.inc
+
+--echo # Remove copied files
+--file_exists $MYSQL_TMP_DIR/data_8021.zip
+--force-rmdir $MYSQL_TMP_DIR/data
+--remove_file $MYSQL_TMP_DIR/data_8021.zip
+
+--echo # Restarting server without keyring to restore server state
+let $restart_parameters =;
+--source include/start_mysqld.inc

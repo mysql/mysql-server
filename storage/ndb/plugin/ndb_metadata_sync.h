@@ -58,8 +58,8 @@ class Ndb_metadata_sync {
         m_schema_name;   // Schema name, "" for logfile groups & tablespaces
     std::string m_name;  // Object name, "" for schema objects
     object_detected_type m_type;
-    object_validation_state m_validation_state;  // Used for blacklist only
-    std::string m_reason;  // Reason for the object being blacklisted. Should
+    object_validation_state m_validation_state;  // Used for excluded objects
+    std::string m_reason;  // Reason for the object being excluded. Should
                            // contain fewer than 256 characters. Constraint due
                            // to the size of the corresponding column in the PFS
                            // table
@@ -76,9 +76,8 @@ class Ndb_metadata_sync {
 
   mutable std::mutex m_objects_mutex;  // protects m_objects
   std::list<Detected_object> m_objects;
-  mutable std::mutex m_blacklist_mutex;  // protects m_blacklist
-  std::vector<Detected_object> m_blacklist;
-  std::mutex m_retry_objects_mutex;  // protects m_retry_objects
+  mutable std::mutex m_excluded_objects_mutex;  // protects m_excluded_objects
+  std::vector<Detected_object> m_excluded_objects;
   std::vector<Detected_object> m_retry_objects;
 
   /*
@@ -102,27 +101,25 @@ class Ndb_metadata_sync {
   bool object_sync_pending(const Detected_object &object) const;
 
   /*
-    @brief Check if an object is present in the current blacklist of objects.
+    @brief Check if an object is excluded from detection.
 
     @param object  Details of object to be checked
 
-    @return true if object is in the blacklist, false if not
+    @return true if object is excluded, false if not
   */
-  bool object_blacklisted(const Detected_object &object) const;
+  bool object_excluded(const Detected_object &object) const;
 
   /*
-    @brief Check if an object is present in the current blacklist of objects.
-           Objects present in the blacklist will be ignored
+    @brief Check if an object is excluded from detection.
 
     @param schema_name  Name of the schema
     @param name         Name of the object
     @param type         Type of the object
 
-    @return true if object is in the blacklist, false if not
+    @return true if object is excluded, false if not
   */
-  bool object_blacklisted(const std::string &schema_name,
-                          const std::string &name,
-                          object_detected_type type) const;
+  bool object_excluded(const std::string &schema_name, const std::string &name,
+                       object_detected_type type) const;
 
   /*
     @brief Drop NDB_SHARE
@@ -135,8 +132,8 @@ class Ndb_metadata_sync {
   void drop_ndb_share(const char *schema_name, const char *table_name) const;
 
   /*
-    @brief Get details of an object pending validation from the current
-           blacklist of objects
+    @brief Get details of an object pending validation from the current excluded
+           objects
 
     @param schema_name [out]  Name of the schema
     @param name        [out]  Name of the object
@@ -144,9 +141,9 @@ class Ndb_metadata_sync {
 
     @return true if an object pending validation was found, false if not
   */
-  bool get_blacklist_object_for_validation(std::string &schema_name,
-                                           std::string &name,
-                                           object_detected_type &type);
+  bool get_excluded_object_for_validation(std::string &schema_name,
+                                          std::string &name,
+                                          object_detected_type &type);
 
   /*
     @brief Check if a mismatch still exists for an object
@@ -163,56 +160,24 @@ class Ndb_metadata_sync {
                              object_detected_type type) const;
 
   /*
-    @brief Validate object in the blacklist. The object being validated is
-           either removed from the blacklist if the mismatch doesn't exist any
-           more or kept in the blacklist and marked as validated for this
+    @brief Validate excluded object. The object being validated is either
+           removed from the excluded list if the mismatch doesn't exist any
+           more or kept in the excluded list and marked as validated for this
            validation cycle
 
     @param check_mismatch_result  Denotes whether the mismatch exists or not
 
     @return void
   */
-  void validate_blacklist_object(bool check_mismatch_result);
+  void validate_excluded_object(bool check_mismatch_result);
 
   /*
-    @brief Reset the state of all blacklist objects to pending validation at the
+    @brief Reset the state of all excluded objects to pending validation at the
            end of a validation cycle
 
     @return void
   */
-  void reset_blacklist_state();
-
-  /*
-    @brief Get details of an object pending validation from the current
-           list of objects whose sync is being retried
-
-    @param schema_name [out]  Name of the schema
-    @param name        [out]  Name of the object
-    @param type        [out]  Type of the object
-
-    @return true if an object pending validation was found, false if not
-  */
-  bool get_retry_object_for_validation(std::string &schema_name,
-                                       std::string &name,
-                                       object_detected_type &type);
-
-  /*
-    @brief Validate object in the retry list. The object is removed if the
-           mismatch no longer exists or if the object has been blacklisted
-
-    @param remove_retry_object  Denotes whether the object should be removed
-
-    @return void
-  */
-  void validate_retry_object(bool remove_retry_object);
-
-  /*
-    @brief Reset the state of all retry objects to pending validation at the
-           end of a validation cycle
-
-    @return void
-  */
-  void reset_retry_objects_state();
+  void reset_excluded_objects_state();
 
  public:
   Ndb_metadata_sync() {}
@@ -293,22 +258,22 @@ class Ndb_metadata_sync {
                        object_detected_type &type);
 
   /*
-    @brief Add an object to the blacklist
+    @brief Add an object to the list of excluded objects
 
     @param schema_name  Name of the schema
     @param name         Name of the object
     @param type         Type of the object
-    @param reason       Reason for blacklisting
+    @param reason       Reason for exclusion
 
     @return void
   */
-  void add_object_to_blacklist(const std::string &schema_name,
-                               const std::string &name,
-                               object_detected_type type,
-                               const std::string &reason);
+  void exclude_object_from_sync(const std::string &schema_name,
+                                const std::string &name,
+                                object_detected_type type,
+                                const std::string &reason);
 
   /*
-    @brief Iterate through the blacklist of objects and check if the mismatches
+    @brief Iterate through the excluded objects and check if the mismatches
            are still present or if the user has manually synchronized the
            objects
 
@@ -316,23 +281,31 @@ class Ndb_metadata_sync {
 
     @return void
   */
-  void validate_blacklist(THD *thd);
+  void validate_excluded_objects(THD *thd);
 
   /*
-    @brief Retrieve information about objects currently in the blacklist
+    @brief Clear all excluded objects
+
+    @return void
+  */
+  void clear_excluded_objects();
+
+  /*
+    @brief Retrieve information about currently excluded objects
 
     @param excluded_table  Pointer to excluded objects table object
 
     @return void
   */
-  void retrieve_blacklist(Ndb_sync_excluded_objects_table *excluded_table);
+  void retrieve_excluded_objects(
+      Ndb_sync_excluded_objects_table *excluded_table);
 
   /*
-    @brief Get the count of objects currently in the blacklist
+    @brief Get the count of objects currently excluded
 
-    @return number of blacklisted objects
+    @return number of excluded objects
   */
-  unsigned int get_blacklist_count();
+  unsigned int get_excluded_objects_count();
 
   /*
     @brief Checks if the number of times the synchronization of an object has
@@ -349,14 +322,11 @@ class Ndb_metadata_sync {
                             const std::string &name, object_detected_type type);
 
   /*
-    @brief Iterate through the retry list of objects and check if the objects
-           are still being retried due to temporary errors or not
-
-    @param thd  Thread handle
+    @brief Clear all retry objects
 
     @return void
   */
-  void validate_retry_list(THD *thd);
+  void clear_retry_objects();
 
   /*
     @brief Synchronize a logfile group object between NDB Dictionary and DD
@@ -417,9 +387,9 @@ class Ndb_metadata_sync {
 
 /*
   Called as part of SHOW STATUS or performance_schema queries. Returns
-  information about the number of NDB metadata objects currently in the
-  blacklist
+  information about the number of NDB metadata objects currently excluded from
+  detection.
 */
-int show_ndb_metadata_blacklist_size(THD *, SHOW_VAR *var, char *);
+int show_ndb_metadata_excluded_count(THD *, SHOW_VAR *var, char *);
 
 #endif

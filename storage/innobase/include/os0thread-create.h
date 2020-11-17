@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -170,7 +170,14 @@ class Runnable {
   void init() { m_thread.init(m_promise); }
 };
 
-/** Create a detached thread
+/** Check if thread is stopped
+@param[in]	thread Thread handle.
+@return true if the thread has started, finished tasks and stopped. */
+inline bool thread_is_stopped(const IB_thread &thread) {
+  return (thread.state() == IB_thread::State::STOPPED);
+}
+
+/** Check if thread is active
 @param[in]	thread Thread handle.
 @return true if the thread is active. */
 inline bool thread_is_active(const IB_thread &thread) {

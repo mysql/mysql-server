@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -271,7 +271,7 @@ typedef bool (* ReadFunction)(Uint8*,
 typedef bool (* UpdateFunction)(Uint32*,
                                 KeyReqStruct*,
                                 Uint64);
-  void prepare_scan_ctx(Uint32 scanPtrI);
+  void prepare_scan_ctx(Uint32 scanPtrI) override;
 private:
   
   typedef Tup_fixsize_page Fix_page;
@@ -1921,7 +1921,7 @@ struct TupHeadInfo {
 
 public:
   Dbtup(Block_context&, Uint32 instanceNumber = 0);
-  virtual ~Dbtup();
+  ~Dbtup() override;
 
   /*
    * TUX uses logical tuple address when talking to ACC and LQH.

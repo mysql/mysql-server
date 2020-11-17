@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -396,7 +396,7 @@ class String_error_handler : public IError_handler {
 
     @param message Message to be copied.
   */
-  virtual void error(const char *message, ...)
+  void error(const char *message, ...) override
       MY_ATTRIBUTE((format(printf, 2, 3))) {
     va_list va;
     va_start(va, message);

@@ -85,5 +85,5 @@ Drop table if exists t1;
 SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS=0;
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 include/rpl_end.inc
-RESET SLAVE ALL FOR CHANNEL 'channel_1';
-RESET SLAVE ALL FOR CHANNEL 'channel_3';
+RESET REPLICA ALL FOR CHANNEL 'channel_1';
+RESET REPLICA ALL FOR CHANNEL 'channel_3';

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ class Tablespaces : public Entity_object_table_impl {
 
   Tablespaces();
 
-  virtual Tablespace *create_entity_object(const Raw_record &) const;
+  Tablespace *create_entity_object(const Raw_record &) const override;
 
   static bool update_object_key(Global_name_key *key,
                                 const String_type &tablespace_name);

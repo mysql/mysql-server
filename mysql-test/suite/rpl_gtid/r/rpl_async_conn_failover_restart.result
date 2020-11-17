@@ -1,0 +1,70 @@
+include/master-slave.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# 1. Insert data on server1 and verify that its synced to the server 2.
+#
+[connection server_1]
+CREATE TABLE t1 (a INT) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1);
+include/rpl_sync.inc
+[connection server_2]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
+SET SESSION sql_log_bin= 1;
+include/assert.inc ['There is one row on replica']
+#
+# 2. Verify Asynchronous Replication Connection Failover is initially
+#    disabled. Also verify Asynchronous Replication is initially
+#    connected to server 1.
+#
+include/assert.inc ['Asynchronous Replication Connection Failover is disabled']
+#
+# 3. Enable Asynchronous Replication Connection Failover and set retry
+#    count and retry time to 2 and verify its enabled in
+#    performance_schema.replication_connection_configuration.
+#
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=2, SOURCE_CONNECTION_AUTO_FAILOVER=1;
+include/start_slave.inc
+include/assert.inc ['Asynchronous Replication Connection Failover is enabled']
+#
+# 4. Add asynchronous connection failover server. Verify that they are
+#    inserted successfully in
+#    performance_schema.replication_asynchronous_connection_failover.
+#
+SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', SERVER_MYPORT_3, '', 50);;
+asynchronous_connection_failover_add_source('', '127.0.0.1', SERVER_MYPORT_3, '', 50)
+The UDF asynchronous_connection_failover_add_source() executed successfully.
+include/assert.inc ['There are three rows in performance_schema.replication_asynchronous_connection_failover']
+#
+# 5. Initialize rpl_async_conn_failover_crash dbug sync point and stop
+#    server 1. The initialized dbug sync point will crash server 2.
+#    Reconnect to server 2 and start replica on it.
+#
+include/rpl_start_server.inc [server_number=2]
+SET @debug_saved= @@GLOBAL.DEBUG;
+SET GLOBAL debug = '+d,async_conn_failover_crash';
+include/rpl_stop_server.inc [server_number=1]
+include/rpl_reconnect.inc
+include/start_slave.inc
+#
+# 6. Verify that asynchronous replication channel gets connected to
+#    server 3 and also verify that asynchronous replication tries
+#    connecting to server 1 two (retry_count=2) times.
+#
+include/assert_grep.inc [Assert that the IO thread tried five times connecting to server_1]
+#
+# 7. Clean up
+#
+[connection server_2]
+SET @@GLOBAL.DEBUG= @debug_saved;
+CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER=0;
+include/rpl_start_server.inc [server_number=1]
+[connection server_1]
+DROP TABLE t1;
+[connection server_2]
+DROP TABLE t1;
+include/rpl_end.inc

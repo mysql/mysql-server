@@ -97,7 +97,7 @@ class KeyringFileTest : public ::testing::Test {
  public:
   KeyringFileTest() = default;
 
-  virtual void SetUp() override { delete_file(kKeyringFileName); }
+  void SetUp() override { delete_file(kKeyringFileName); }
 };
 
 /**

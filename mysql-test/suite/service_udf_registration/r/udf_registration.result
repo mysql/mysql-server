@@ -28,7 +28,7 @@ DROP TABLE t1;
 DROP FUNCTION dynamic_udf;
 ERROR HY000: DROP FUNCTION can't drop a dynamically registered user defined function
 # Activating the sync point at udf reference count decrease
-SET DEBUG_SYNC='udf_handler_cleanup_sync SIGNAL pre_cleanup WAIT_FOR continue TIMEOUT 20';
+SET DEBUG_SYNC='udf_handler_destroy_sync SIGNAL pre_cleanup WAIT_FOR continue TIMEOUT 20';
 # now emit a call to lock the UDF
 SELECT dynamic_udf();
 # switch to c1;

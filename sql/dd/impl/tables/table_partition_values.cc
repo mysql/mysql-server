@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,9 +83,9 @@ class Table_partition_values_pk : public Object_key {
         m_column_num(column_num) {}
 
  public:
-  virtual Raw_key *create_access_key(Raw_table *db_table) const;
+  Raw_key *create_access_key(Raw_table *db_table) const override;
 
-  virtual String_type str() const;
+  String_type str() const override;
 
  private:
   int m_partition_id;

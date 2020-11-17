@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@ class PT_handler_close final : public Parse_tree_root {
 
 class PT_handler_read_base : public Parse_tree_root {
  public:
-  virtual ~PT_handler_read_base() = 0;  // force abstract class
+  ~PT_handler_read_base() override = 0;  // force abstract class
 
   PT_handler_read_base(const LEX_CSTRING &table, Item *opt_where_clause,
                        PT_limit_clause *opt_limit_clause)

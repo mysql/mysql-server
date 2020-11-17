@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -485,7 +485,13 @@ find_trn_for_recover_and_check_its_state(THD *thd,
       transaction_cache_search(xid_for_trn_in_recover);
 
   XID_STATE *xs = (transaction ? transaction->xid_state() : nullptr);
-  if (!xs || !xs->is_in_recovery()) {
+
+  /*
+    Check if formatID of transaction matches and transaction is in recovery
+    state.
+  */
+  if (!xs || !xs->get_xid()->eq(xid_for_trn_in_recover) ||
+      !xs->is_in_recovery()) {
     my_error(ER_XAER_NOTA, MYF(0));
     return nullptr;
   } else if (thd->in_active_multi_stmt_transaction()) {
@@ -1251,11 +1257,11 @@ bool Sql_cmd_xa_prepare::execute(THD *thd) {
 */
 
 bool Sql_cmd_xa_recover::trans_xa_recover(THD *thd) {
-  List<Item> field_list;
   Protocol *protocol = thd->get_protocol();
 
   DBUG_TRACE;
 
+  mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(
       new Item_int(NAME_STRING("formatID"), 0, MY_INT32_NUM_DECIMAL_DIGITS));
   field_list.push_back(new Item_int(NAME_STRING("gtrid_length"), 0,
@@ -1264,7 +1270,7 @@ bool Sql_cmd_xa_recover::trans_xa_recover(THD *thd) {
                                     MY_INT32_NUM_DECIMAL_DIGITS));
   field_list.push_back(new Item_empty_string("data", XIDDATASIZE * 2 + 2));
 
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 
@@ -1646,17 +1652,6 @@ static void attach_native_trx(THD *thd) {
     thd->rpl_reattach_engine_ha_data();
   }
 }
-
-/**
-  This is a specific to "slave" applier collection of standard cleanup
-  actions to reset XA transaction states at the end of XA prepare rather than
-  to do it at the transaction commit, see @c ha_commit_one_phase.
-  THD of the slave applier is dissociated from a transaction object in engine
-  that continues to exist there.
-
-  @param  thd current thread
-  @return the value of is_error()
-*/
 
 bool applier_reset_xa_trans(THD *thd) {
   DBUG_TRACE;

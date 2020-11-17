@@ -823,9 +823,9 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`cc`.`pk` AS `pk` from `test`.`cc` where (`test`.`cc`.`col_int_key` > 3)
 SELECT pk FROM cc WHERE col_int_key > 3;
 pk
+3
 5
 6
-3
 EXPLAIN SELECT pk FROM cc WHERE col_int_key > 3 ORDER BY 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	cc	NULL	range	col_int_key	col_int_key	5	NULL	#	#	Using where; Using index; Using filesort
@@ -998,13 +998,13 @@ GROUP BY field1;
 field1
 bb
 ee
-jj
-uu
+gg
 hh
 ii
+jj
 mm
 pp
-gg
+uu
 ww
 DROP TABLE IF EXISTS c,cc;
 SET @save_old_sql_mode= @@sql_mode;
@@ -1225,8 +1225,8 @@ INSERT INTO t(a,b) VALUES(1,'cccc');
 EXPLAIN SELECT /*+ bka() */ 1 AS c FROM t AS b RIGHT JOIN t AS c ON b.a > c.c
 WHERE b.b>c.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	b	NULL	ALL	i0008	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	c	NULL	ALL	i0008	NULL	NULL	NULL	1	100.00	Range checked for each record (index map: 0x1)
+1	SIMPLE	c	NULL	ALL	i0008	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	b	NULL	ALL	i0008	NULL	NULL	NULL	1	100.00	Range checked for each record (index map: 0x1)
 Warnings:
 Note	1003	/* select#1 */ select /*+ BKA(@`select#1`) */ 1 AS `c` from `test`.`t` `c` join `test`.`t` `b` where ((cast(`test`.`b`.`b` as double) > cast(`test`.`c`.`a` as double)) and (cast(`test`.`b`.`a` as double) > cast(`test`.`c`.`c` as double)))
 SELECT /*+ bka() */ 1 AS c FROM t AS b RIGHT JOIN t AS c ON b.a > c.c

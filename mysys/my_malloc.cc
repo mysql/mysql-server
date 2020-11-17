@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -128,7 +128,7 @@ void *my_realloc(PSI_memory_key key, void *ptr, size_t size, myf flags) {
   return nullptr;
 }
 
-void my_claim(const void *ptr) {
+void my_claim(const void *ptr, bool claim) {
   my_memory_header *mh;
 
   if (ptr == nullptr) return;
@@ -136,7 +136,7 @@ void my_claim(const void *ptr) {
   mh = USER_TO_HEADER(const_cast<void *>(ptr));
   DBUG_ASSERT(mh->m_magic == MAGIC);
   mh->m_key =
-      PSI_MEMORY_CALL(memory_claim)(mh->m_key, mh->m_size, &mh->m_owner);
+      PSI_MEMORY_CALL(memory_claim)(mh->m_key, mh->m_size, &mh->m_owner, claim);
 }
 
 void my_free(void *ptr) {
@@ -167,7 +167,8 @@ void *my_realloc(PSI_memory_key key MY_ATTRIBUTE((unused)), void *ptr,
   return my_raw_realloc(ptr, size, flags);
 }
 
-void my_claim(const void *ptr MY_ATTRIBUTE((unused))) { /* Empty */
+void my_claim(const void *ptr MY_ATTRIBUTE((unused)),
+              bool claim MY_ATTRIBUTE((unused))) { /* Empty */
 }
 
 void my_free(void *ptr) { my_raw_free(ptr); }

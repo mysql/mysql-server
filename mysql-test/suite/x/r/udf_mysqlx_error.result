@@ -59,4 +59,6 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+Warnings:
+Warning	4005	User 'x_root'@'localhost' is referenced as a definer account in a stored routine.
 DROP PROCEDURE my_procedure;

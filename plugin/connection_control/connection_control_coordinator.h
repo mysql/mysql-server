@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@ class Connection_event_coordinator
       public Connection_control_alloc {
  public:
   Connection_event_coordinator() { reset(); }
-  ~Connection_event_coordinator() { reset(); }
+  ~Connection_event_coordinator() override { reset(); }
 
   /* Functions to receive notification from server */
   void notify_event(MYSQL_THD thd, Error_handler *error_handler,
@@ -50,11 +50,11 @@ class Connection_event_coordinator
   bool register_event_subscriber(
       Connection_event_observer **subscriber,
       std::vector<opt_connection_control> *sys_vars,
-      std::vector<stats_connection_control> *status_vars);
+      std::vector<stats_connection_control> *status_vars) override;
 
   bool notify_status_var(Connection_event_observer **observer,
                          stats_connection_control status_var,
-                         status_var_action action);
+                         status_var_action action) override;
 
  private:
   void reset();

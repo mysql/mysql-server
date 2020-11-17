@@ -3901,3 +3901,28 @@ JSON_QUOTE(RIGHT(REPEAT(_latin1'\n', 64), 50))
 SELECT CAST(CAST(CAST(CAST(REPEAT('a', 100) AS BINARY) AS JSON) AS CHAR) AS JSON);
 CAST(CAST(CAST(CAST(REPEAT('a', 100) AS BINARY) AS JSON) AS CHAR) AS JSON)
 "base64:type15:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh\nYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ=="
+# Bug#31358486: Assertion `!current_thd->is_error() && has_value' failed
+DO ANY_VALUE(CAST(JSON_TYPE(1) AS JSON));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_type; a JSON string or JSON type is required.
+DO ANY_VALUE(JSON_ARRAY(JSON_QUOTE(-1681986720))) ;
+ERROR HY000: Incorrect type for argument 1 in function json_quote.
+CREATE TABLE sink(i INTEGER);
+INSERT INTO sink SELECT 'x'= JSON_ARRAY(CAST(12345 AS CHAR(4)));
+ERROR 22007: Truncated incorrect CHAR(4) value: '12345'
+INSERT INTO sink SELECT 'x'= JSON_ARRAY(CAST('bad' AS SIGNED));
+ERROR 22007: Truncated incorrect INTEGER value: 'bad'
+INSERT INTO sink SELECT 'x'= JSON_ARRAY(CAST('bad' AS DECIMAL(10,4)));
+ERROR 22007: Truncated incorrect DECIMAL value: 'bad'
+INSERT INTO sink SELECT 'x'= JSON_ARRAY(CAST('bad' AS DATE));
+ERROR 22007: Incorrect datetime value: 'bad'
+INSERT INTO sink SELECT 'x'= JSON_ARRAY(CAST('bad' AS DOUBLE));
+ERROR 22007: Truncated incorrect DOUBLE value: 'bad'
+INSERT INTO sink SELECT 'x'= JSON_ARRAY(ST_GEOMFROMTEXT('MULTIPOINT(1 2 3 4)'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+DROP TABLE sink;
+#
+# Bug#31393934 ASSERTION `OTHER_TYPE != ENUM_JSON_TYPE::J_ERROR' FAILED.
+#
+SELECT JSON_OBJECT("a",1) IN (1,(LEAD(1,70) OVER()));
+JSON_OBJECT("a",1) IN (1,(LEAD(1,70) OVER()))
+NULL

@@ -199,7 +199,10 @@ bool Ndb_dd_sync::remove_deleted_tables() const {
       continue;
     }
 
-    // Fetch list of tables in NDB
+    // Fetch list of tables in NDB. The util tables are skipped since the
+    // ndb_schema, ndb_schema_result, and ndb_sql_metadata tables are handled
+    // separately during binlog setup. The index stat tables are not installed
+    // in the DD.
     std::unordered_set<std::string> tables_in_NDB;
     if (!ndb_get_table_names_in_schema(m_thd_ndb->ndb->getDictionary(),
                                        schema_name, &tables_in_NDB)) {
@@ -979,19 +982,6 @@ bool Ndb_dd_sync::synchronize_databases() const {
 bool Ndb_dd_sync::migrate_table_with_old_extra_metadata(
     const char *schema_name, const char *table_name, void *unpacked_data,
     Uint32 unpacked_len, bool force_overwrite) const {
-#ifndef BUG27543602
-  // Temporary workaround for Bug 27543602
-  if (strcmp("mysql", schema_name) == 0 &&
-      (strcmp("ndb_index_stat_head", table_name) == 0 ||
-       strcmp("ndb_index_stat_sample", table_name) == 0)) {
-    ndb_log_info(
-        "Skipped installation of the ndb_index_stat table '%s.%s'. "
-        "The table can still be accessed using NDB tools",
-        schema_name, table_name);
-    return true;
-  }
-#endif
-
   ndb_log_info(
       "Table '%s.%s' has obsolete extra metadata. "
       "The table is installed into the data dictionary "
@@ -1316,9 +1306,26 @@ bool Ndb_dd_sync::synchronize_schema(const char *schema_name) const {
     return false;
   }
 
-  // Fetch list of NDB tables in NDB
   std::unordered_set<std::string> ndb_tables_in_NDB;
   NdbDictionary::Dictionary *dict = m_thd_ndb->ndb->getDictionary();
+  /*
+    Fetch list of tables in NDB. The util tables are skipped since the
+    ndb_schema, ndb_schema_result, and ndb_sql_metadata tables are handled
+    separately during binlog setup. The index stat tables are not installed in
+    the DD. This is due to an issue after an initial system restart. The binlog
+    thread of the first MySQL Server connecting to the Cluster post an initial
+    restart pokes the index stat thread to create the index stat tables in NDB.
+    This happens only after the synchronization phase during binlog setup which
+    means that the tables aren't synced to the DD of the first MySQL Server
+    connecting to the Cluster. If there are multiple MySQL Servers connecting to
+    the Cluster, there's a race condition where the index stat tables could be
+    synchronized during subsequent MySQL Server connections depending on when
+    the index stat thread creates them in NDB. If the creation occurs in the
+    middle of the sync during binlog setup of a Server, it opens the door to
+    errors in the sync. The contents of these tables are incomprehensible
+    without some kind of parsing and are thus not exposed to the MySQL Server.
+    They remain visible and accessible via the ndb_select_all tool.
+  */
   if (!ndb_get_table_names_in_schema(dict, schema_name, &ndb_tables_in_NDB)) {
     log_NDB_error(dict->getNdbError());
     ndb_log_error("Failed to get list of NDB tables in schema '%s' from NDB",

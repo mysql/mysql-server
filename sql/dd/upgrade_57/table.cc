@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,6 +59,7 @@
 #include "sql/dd/dd_trigger.h"               // dd::create_trigger
 #include "sql/dd/dd_view.h"                  // create_view
 #include "sql/dd/dictionary.h"
+#include "sql/dd/impl/upgrade/server.h"
 #include "sql/dd/impl/utils.h"  // execute_query
 #include "sql/dd/properties.h"
 #include "sql/dd/string_type.h"
@@ -100,8 +101,6 @@
 #include "sql_string.h"
 #include "thr_lock.h"
 
-#include "sql/dd/impl/upgrade/server.h"
-
 class Sroutine_hash_entry;
 
 bool Table_trigger_dispatcher::reorder_57_list(MEM_ROOT *mem_root,
@@ -115,7 +114,7 @@ bool Table_trigger_dispatcher::reorder_57_list(MEM_ROOT *mem_root,
   }
 
   // The individual triggers are mem_root-allocated. We can now empty the list.
-  triggers->empty();
+  triggers->clear();
 
   // And then, we iterate over the chains and re-add the triggers to the list.
   for (int i = 0; i < (int)TRG_EVENT_MAX; i++)
@@ -271,8 +270,8 @@ class Handle_old_incorrect_sql_modes_hook : public Unknown_key_hook {
 
  public:
   Handle_old_incorrect_sql_modes_hook(char *file_path) : m_path(file_path) {}
-  virtual bool process_unknown_string(const char *&unknown_key, uchar *base,
-                                      MEM_ROOT *mem_root, const char *end);
+  bool process_unknown_string(const char *&unknown_key, uchar *base,
+                              MEM_ROOT *mem_root, const char *end) override;
 };
 
 /**
@@ -1976,7 +1975,7 @@ bool migrate_all_frm_to_dd(THD *thd, const char *dbname,
         reported to user at once. Server code has many checks for error in DA.
         if thd->is_error() return true, atempt to upgrade all subsequent tables
         will fail and error log will report error false positives.
-     */
+       */
       thd->clear_error();
       root.ClearForReuse();
     }

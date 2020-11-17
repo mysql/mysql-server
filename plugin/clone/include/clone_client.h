@@ -369,7 +369,7 @@ struct Client_Aux {
 };
 
 struct Remote_Parameters {
-  /** Remote character sets with collation */
+  /** Remote plugins */
   String_Keys m_plugins;
 
   /** Remote character sets with collation */
@@ -377,6 +377,9 @@ struct Remote_Parameters {
 
   /** Remote configurations to validate */
   Key_Values m_configs;
+
+  /** Remote plugins with shared object name */
+  Key_Values m_plugins_with_so;
 };
 
 /** For Remote Clone, "Clone Client" is created at recipient. It receives data
@@ -630,88 +633,54 @@ class Client {
   @return error code */
   int validate_remote_params();
 
+  /** Check if plugin is installed.
+  @param[in]	plugin_name	plugin name
+  @return true iff installed. */
+  bool plugin_is_installed(std::string &plugin_name);
+
+  /**  Check if plugin shared object can be loaded.
+  @param[in]	so_name	shared object name
+  @return true iff able to load. */
+  bool plugin_is_loadable(std::string &so_name);
+
   /** Extract string from network buffer.
   @param[in,out]	packet	network packet
   @param[in,out]	length	packet length
   @param[out]		str	extracted string
   @return error code */
-  int extract_string(const uchar *&packet, size_t &length, String_Key &str) {
-    /* Check length. */
-    if (length >= 4) {
-      auto name_length = uint4korr(packet);
-      length -= 4;
-      packet += 4;
+  int extract_string(const uchar *&packet, size_t &length, String_Key &str);
 
-      /* Check length. */
-      if (length >= name_length) {
-        str.clear();
-        if (name_length > 0) {
-          auto char_str = reinterpret_cast<const char *>(packet);
-          auto str_len = static_cast<size_t>(name_length);
-          str.assign(char_str, str_len);
-
-          length -= name_length;
-          packet += name_length;
-        }
-        return (0);
-      }
-    }
-    /* purecov: begin deadcode */
-    int err = ER_CLONE_PROTOCOL;
-    my_error(err, MYF(0), "Wrong Clone RPC response length for parameters");
-    return (err);
-    /* purecov: end */
-  }
+  /** Extract string from network buffer.
+  @param[in,out]	packet	network packet
+  @param[in,out]	length	packet length
+  @param[out]		keyval	extracted key value pair
+  @return error code */
+  int extract_key_value(const uchar *&packet, size_t &length,
+                        Key_Value &keyval);
 
   /** Extract and add plugin name from network packet.
   @param[in]	packet	network packet
   @param[in]	length	packet length
   @return error code */
-  int add_plugin(const uchar *packet, size_t length) {
-    /* Get plugin name. */
-    String_Key plugin_name;
-    auto err = extract_string(packet, length, plugin_name);
-    if (err == 0) {
-      m_parameters.m_plugins.push_back(plugin_name);
-    }
-    return (err);
-  }
+  int add_plugin(const uchar *packet, size_t length);
+
+  /** Extract and add plugin and shared object name from network packet.
+  @param[in]	packet	network packet
+  @param[in]	length	packet length
+  @return error code */
+  int add_plugin_with_so(const uchar *packet, size_t length);
 
   /** Extract and add charset name from network packet.
   @param[in]	packet	network packet
   @param[in]	length	packet length
   @return error code */
-  int add_charset(const uchar *packet, size_t length) {
-    /* Get character set collation name. */
-    String_Key charset_name;
-    auto err = extract_string(packet, length, charset_name);
-    if (err == 0) {
-      m_parameters.m_charsets.push_back(charset_name);
-    }
-    return (err);
-  }
+  int add_charset(const uchar *packet, size_t length);
 
   /** Extract and add remote configuration from network packet.
   @param[in]	packet	network packet
   @param[in]	length	packet length
   @return error code */
-  int add_config(const uchar *packet, size_t length) {
-    /* Get configuration parameter name. */
-    String_Key config_name;
-    auto err = extract_string(packet, length, config_name);
-    if (err != 0) {
-      return (err); /* purecov: inspected */
-    }
-
-    /* Get configuration parameter value */
-    String_Key config_value;
-    err = extract_string(packet, length, config_value);
-    if (err == 0) {
-      auto key_val = std::make_pair(config_name, config_value);
-      m_parameters.m_configs.push_back(key_val);
-    }
-    return (err);
-  }
+  int add_config(const uchar *packet, size_t length);
 
   /** Set locators returned by remote server
   @param[in]	buffer	serialized locator information

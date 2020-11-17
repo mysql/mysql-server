@@ -25,8 +25,12 @@ INCLUDE_DIRECTORIES(
   ../src
   ${PROJECT_SOURCE_DIR}/src/metadata_cache/include
   ${PROJECT_SOURCE_DIR}/src/mysql_protocol/include
+  ${PROJECT_SOURCE_DIR}/src/harness/tests
   ../../../tests/helpers
 )
+
+# TODO(sgunders): Remove when all GMock tests use MOCK_METHOD().
+STRING(REPLACE "-Wsuggest-override" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 MY_INCLUDE_SYSTEM_DIRECTORIES(PROTOBUF)
 INCLUDE_DIRECTORIES(SYSTEM
@@ -132,6 +136,8 @@ TARGET_COMPILE_DEFINITIONS(${test_target}
 ROUTERTEST_GET_TARGET(test_target "test_routing.cc" ${TEST_MODULE})
 TARGET_COMPILE_DEFINITIONS(${test_target}
   PRIVATE -Dmysql_protocol_DEFINE_STATIC=1)
+TARGET_LINK_LIBRARIES(${test_target}
+  harness_net_ts)
 
 ROUTERTEST_GET_TARGET(test_target "test_x_protocol.cc" ${TEST_MODULE})
 TARGET_COMPILE_DEFINITIONS(${test_target}

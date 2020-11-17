@@ -1,7 +1,7 @@
 #ifndef LOGGER_UTIL_INCLUDED
 #define LOGGER_UTIL_INCLUDED
 /*
-   Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,7 +60,7 @@ class Log : public std::ostream {
         : m_os(str), m_logc(logc), m_enabled(true) {}
     void set_log_class(std::string &s) { m_logc = s; }
     void enabled(bool s) { m_enabled = s; }
-    virtual int sync();
+    int sync() override;
 
    private:
     std::ostream &m_os;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,26 +51,26 @@ class Charset_impl : public Entity_object_impl, public Charset {
       : m_mb_max_length(0), m_default_collation_id(INVALID_OBJECT_ID) {}
 
  public:
-  virtual const Object_table &object_table() const;
+  const Object_table &object_table() const override;
 
   static void register_tables(Open_dictionary_tables_ctx *otx);
 
-  virtual bool validate() const;
+  bool validate() const override;
 
-  virtual bool restore_attributes(const Raw_record &r);
+  bool restore_attributes(const Raw_record &r) override;
 
-  virtual bool store_attributes(Raw_record *r);
+  bool store_attributes(Raw_record *r) override;
 
  public:
   /////////////////////////////////////////////////////////////////////////
   // Default collation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Object_id default_collation_id() const {
+  Object_id default_collation_id() const override {
     return m_default_collation_id;
   }
 
-  virtual void set_default_collation_id(Object_id collation_id) {
+  void set_default_collation_id(Object_id collation_id) override {
     m_default_collation_id = collation_id;
   }
 
@@ -78,7 +78,7 @@ class Charset_impl : public Entity_object_impl, public Charset {
   // mb_max_length
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint mb_max_length() const { return m_mb_max_length; }
+  uint mb_max_length() const override { return m_mb_max_length; }
 
   virtual void set_mb_max_length(uint mb_max_length) {
     m_mb_max_length = mb_max_length;
@@ -88,26 +88,28 @@ class Charset_impl : public Entity_object_impl, public Charset {
   // comment
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &comment() const { return m_comment; }
+  const String_type &comment() const override { return m_comment; }
 
   virtual void set_comment(const String_type &comment) { m_comment = comment; }
 
   // Fix "inherits ... via dominance" warnings
-  virtual Entity_object_impl *impl() { return Entity_object_impl::impl(); }
-  virtual const Entity_object_impl *impl() const {
+  Entity_object_impl *impl() override { return Entity_object_impl::impl(); }
+  const Entity_object_impl *impl() const override {
     return Entity_object_impl::impl();
   }
-  virtual Object_id id() const { return Entity_object_impl::id(); }
-  virtual bool is_persistent() const {
+  Object_id id() const override { return Entity_object_impl::id(); }
+  bool is_persistent() const override {
     return Entity_object_impl::is_persistent();
   }
-  virtual const String_type &name() const { return Entity_object_impl::name(); }
-  virtual void set_name(const String_type &name) {
+  const String_type &name() const override {
+    return Entity_object_impl::name();
+  }
+  void set_name(const String_type &name) override {
     Entity_object_impl::set_name(name);
   }
 
  public:
-  virtual void debug_print(String_type &outb) const {
+  void debug_print(String_type &outb) const override {
     char outbuf[1024];
     sprintf(outbuf,
             "CHARSET OBJECT: {OID: %lld}, name= %s, "
@@ -124,7 +126,7 @@ class Charset_impl : public Entity_object_impl, public Charset {
 
   Object_id m_default_collation_id;
 
-  Charset *clone() const { return new Charset_impl(*this); }
+  Charset *clone() const override { return new Charset_impl(*this); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
 
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/filesystem.h"
+#include "mysql/harness/stdx_export.h"
 
 // (Partial) Implementation of P1883r1
 //
@@ -93,7 +94,7 @@ class path_handle {
   path_handle() = default;
 };
 
-class file_handle {
+class HARNESS_STDX_EXPORT file_handle {
  public:
   using path_type = filesystem::path;
   using path_view_type = filesystem::path;
@@ -145,6 +146,9 @@ class file_handle {
   stdx::expected<void, std::error_code> unlink();
 
   stdx::expected<void, std::error_code> close() noexcept;
+
+  stdx::expected<size_t, std::error_code> write(const char *data,
+                                                const size_t len);
 
   native_handle_type release() noexcept {
     return std::exchange(handle_, invalid_handle);

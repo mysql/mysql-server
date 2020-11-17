@@ -2920,7 +2920,7 @@ define(["../global", "../has", "./config", "require", "module"], function(global
 		//		- flag: String: Descriptor flag. If total version is "1.2.0beta1", will be "beta1"
 		//		- revision: Number: The Git rev from which dojo was pulled
 
-		major: 1, minor: 15, patch: 3, flag: "",
+		major: 1, minor: 15, patch: 4, flag: "",
 		revision: rev ? rev[0] : NaN,
 		toString: function(){
 			var v = dojo.version;
@@ -5495,7 +5495,7 @@ define(["./_base/kernel", "require", "./has", "./_base/array", "./_base/config",
 										var bundle = rollup[p],
 											match = p.match(/(.+)\/([^\/]+)$/),
 											bundleName, bundlePath;
-											
+
 											// If there is no match, the bundle is not a regular bundle from an AMD layer.
 											if (!match){continue;}
 
@@ -5548,8 +5548,8 @@ define(["./_base/kernel", "require", "./has", "./_base/array", "./_base/config",
 												if(requiredBundles.length){
 													preloadingAddLock();
 													contextRequire(requiredBundles, function(){
-														// requiredBundles was constructed by forEachLocale so it contains locales from 
-														// less specific to most specific. 
+														// requiredBundles was constructed by forEachLocale so it contains locales from
+														// less specific to most specific.
 														// the loop starts with the most specific locale, the last one.
 														for(var i = requiredBundles.length - 1; i >= 0 ; i--){
 															bundle = lang.mixin(lang.clone(bundle), arguments[i]);
@@ -5735,6 +5735,12 @@ define(["./_base/kernel", "require", "./has", "./_base/array", "./_base/config",
 				}
 			);
 			return result;
+		};
+	}
+	else {
+		thisModule.getLocalization = function(moduleName, bundleName, locale){
+			var key = moduleName.replace(/\./g, '/') + '/nls/' + bundleName + '/' + (locale || config.locale);
+			return this.cache[key];
 		};
 	}
 

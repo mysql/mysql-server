@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -813,6 +813,25 @@ void MySQLRouter::assert_not_bootstrap_mode(
                              " cannot be used together with -B/--bootstrap");
 }
 
+void MySQLRouter::assert_option_value_in_range(const std::string &value,
+                                               const int min,
+                                               const int max) const {
+  try {
+    std::size_t last_char = 0;
+    auto val = std::stoi(value, &last_char);
+    if (last_char != value.size())
+      throw std::invalid_argument{"invalid value: " + value};
+
+    if (val < min || val > max) {
+      throw std::out_of_range{std::string{"not in allowed range ["} +
+                              std::to_string(min) + ", " + std::to_string(max) +
+                              "]"};
+    }
+  } catch (const std::invalid_argument &e) {
+    throw std::invalid_argument{"invalid value: " + value};
+  }
+}
+
 void MySQLRouter::prepare_command_options() noexcept {
   // General guidelines for naming command line options:
   //
@@ -1244,6 +1263,40 @@ void MySQLRouter::prepare_command_options() noexcept {
       },
       [this](const std::string &) {
         this->assert_bootstrap_mode("--ssl-key");
+      });
+
+  arg_handler_.add_option(
+      OptionNames({"--disable-rest"}),
+      "Disable REST web service for Router monitoring", CmdOptionValueReq::none,
+      "",
+      [this](const std::string &) {
+        this->bootstrap_options_["disable-rest"] = "1";
+      },
+      [this](const std::string &) {
+        this->assert_bootstrap_mode("--disable-rest");
+      });
+
+  arg_handler_.add_option(
+      OptionNames({"--https-port"}),
+      "HTTPS port for Router monitoring REST web service",
+      CmdOptionValueReq::required, "https-port",
+      [this](const std::string &https_port) {
+        this->bootstrap_options_["https-port"] = https_port;
+      },
+      [this](const std::string &https_port) {
+        this->assert_bootstrap_mode("--https-port");
+        if (this->bootstrap_options_.count("disable-rest") != 0) {
+          throw std::runtime_error(
+              "Option --disable-rest is not allowed when using --https-port "
+              "option");
+        }
+        try {
+          assert_option_value_in_range(https_port, 1, 65535);
+        } catch (const std::exception &e) {
+          throw std::runtime_error{
+              std::string{"processing --https-port option failed, "} +
+              e.what()};
+        }
       });
 
   char ssl_mode_vals[128];

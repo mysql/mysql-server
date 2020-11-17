@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -333,7 +333,7 @@ int ha_myisammrg::open(const char *name, int mode MY_ATTRIBUTE((unused)),
   */
   children_l = nullptr;
   children_last_l = nullptr;
-  child_def_list.empty();
+  child_def_list.clear();
   set_my_errno(0);
 
   /* retrieve children table list. */

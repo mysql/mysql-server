@@ -29,7 +29,14 @@
 
 #include <string>
 
+#ifndef _WIN32
+#include <netdb.h>
+#endif
+
+#include "my_hostname.h"
 #include "mysql/service_command.h"
+#include "mysql_com.h"
+
 #include "plugin/x/src/buffering_command_delegate.h"
 #include "plugin/x/src/interface/protocol_encoder.h"
 #include "plugin/x/src/interface/sql_session.h"
@@ -140,7 +147,6 @@ class Sql_data_context : public iface::Sql_session {
       bool allow_expired_passwords);
 
   MYSQL_SESSION mysql_session() const { return m_mysql_session; }
-
   static bool is_api_ready();
   // Get data which are parts of the string printed by
   // USER() function
@@ -161,12 +167,11 @@ class Sql_data_context : public iface::Sql_session {
   // of the buffer holding the string changes. This is due to the security
   // context implementation, which do not update internal data, when
   // the pointer does not change.
-  std::unique_ptr<std::string> m_username;
-  std::unique_ptr<std::string> m_hostname;
-  std::unique_ptr<std::string> m_address;
-  std::unique_ptr<std::string> m_db;
+  char m_username[USERNAME_LENGTH + 1];
+  char m_hostname[HOSTNAME_LENGTH + 1];
+  char m_address[NI_MAXHOST];
+  char m_db[NAME_LEN + 1];
 
-  iface::Protocol_encoder *m_proto;
   MYSQL_SESSION m_mysql_session;
 
   int m_last_sql_errno;

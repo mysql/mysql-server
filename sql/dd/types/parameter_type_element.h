@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@ class Parameter_type_element : virtual public Weak_object {
   typedef tables::Parameter_type_elements DD_table;
 
  public:
-  virtual ~Parameter_type_element() {}
+  ~Parameter_type_element() override {}
 
   /////////////////////////////////////////////////////////////////////////
   // Name

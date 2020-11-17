@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -763,7 +763,7 @@ static bool send_show_create_event(THD *thd, Event_timed *et,
                                    Protocol *protocol) {
   char show_str_buf[10 * STRING_BUFFER_USUAL_SIZE];
   String show_str(show_str_buf, sizeof(show_str_buf), system_charset_info);
-  List<Item> field_list;
+  mem_root_deque<Item *> field_list(thd->mem_root);
   LEX_STRING sql_mode;
   const String *tz_name;
 
@@ -796,7 +796,7 @@ static bool send_show_create_event(THD *thd, Event_timed *et,
   field_list.push_back(
       new Item_empty_string("Database Collation", MY_CS_NAME_SIZE));
 
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 

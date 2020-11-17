@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -483,20 +483,19 @@ has the SQL NULL as its value. NOTE that because we assume that the length
 of a field is a 32-bit integer when we store it, for example, to an undo log
 on disk, we must have also this number fit in 32 bits, also in 64-bit
 computers! */
-#define UNIV_SQL_NULL UINT32_UNDEFINED
+constexpr uint32_t UNIV_SQL_NULL = UINT32_UNDEFINED;
 
 /** Flag to indicate a field which was added instantly */
-#define UNIV_SQL_ADD_COL_DEFAULT (UINT32_UNDEFINED - 1)
+constexpr auto UNIV_SQL_ADD_COL_DEFAULT = UNIV_SQL_NULL - 1;
 
 /** The following number as the length of a logical field means that no
 attribute value for the multi-value index exists in the JSON doc */
-#define UNIV_NO_INDEX_VALUE (UINT32_UNDEFINED - 2)
+constexpr auto UNIV_NO_INDEX_VALUE = UNIV_SQL_ADD_COL_DEFAULT - 1;
 
 /** The follwoing number as the length marker of a logical field, which
 is only used for multi-value field data, means the data itself of the
-field is actually an array. Define it as 0 to prevent any conflict with
-normal data length */
-#define UNIV_MULTI_VALUE_ARRAY_MARKER 0
+field is actually an array. */
+const uint32_t UNIV_MULTI_VALUE_ARRAY_MARKER = UNIV_NO_INDEX_VALUE - 1;
 
 /** Lengths which are not UNIV_SQL_NULL, but bigger than the following
 number indicate that a field contains a reference to an externally

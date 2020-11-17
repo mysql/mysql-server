@@ -71,6 +71,10 @@ void Ndb_metadata_change_monitor::set_check_interval(
 }
 
 void Ndb_metadata_change_monitor::signal_metadata_sync_enabled() {
+  // Clear all excluded objects to enable the detection of all possible
+  // mismatches. This enables the user to easily retry the sync of objects
+  // that had previously failed due to permanent errors
+  ndbcluster_binlog_clear_sync_excluded_objects();
   mysql_mutex_lock(&m_wait_mutex);
   mysql_cond_signal(&m_wait_cond);
   mysql_mutex_unlock(&m_wait_mutex);
@@ -257,9 +261,9 @@ bool Ndb_metadata_change_monitor::detect_schema_changes(
 
 bool Ndb_metadata_change_monitor::detect_table_changes_in_schema(
     THD *thd, const Thd_ndb *thd_ndb, const std::string &schema_name) const {
-  // Fetch list of tables in NDB
   NdbDictionary::Dictionary *dict = thd_ndb->ndb->getDictionary();
   std::unordered_set<std::string> ndb_tables_in_NDB;
+  // Fetch list of tables in NDB
   if (!ndb_get_table_names_in_schema(dict, schema_name, &ndb_tables_in_NDB)) {
     log_NDB_error(dict->getNdbError());
     log_info("Failed to get list of tables in schema '%s' from NDB",
@@ -585,9 +589,7 @@ void Ndb_metadata_change_monitor::do_run() {
 
       log_verbose(10, "Metadata check started");
 
-      ndbcluster_binlog_validate_sync_blacklist(thd);
-
-      ndbcluster_binlog_validate_sync_retry_list(thd);
+      ndbcluster_binlog_validate_sync_excluded_objects(thd);
 
       if (!detect_logfile_group_changes(thd, thd_ndb)) {
         log_info("Failed to detect logfile group metadata changes");
@@ -644,12 +646,14 @@ void Ndb_metadata_change_monitor::do_run() {
             */
             m_mark_sync_complete = true;
           } else {
-            log_info("Metadata synchronization complete");
+            // Clear retry objects
+            ndbcluster_binlog_clear_sync_retry_objects();
             // Set ndb_metadata_sync to false to denote that all changes have
             // been detected and synchronized
             opt_ndb_metadata_sync = false;
             // Reset the flag to its default value
             m_mark_sync_complete = false;
+            log_info("Metadata synchronization complete");
           }
         } else {
           /*

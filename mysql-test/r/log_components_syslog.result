@@ -35,6 +35,19 @@ SET @@global.syseventlog.tag="wl9343";
 SELECT @@global.syseventlog.tag;
 @@global.syseventlog.tag
 wl9343
+# use syslog/eventlog as only sink. this should throw a warning.
+SET @@global.log_error_services="log_sink_syseventlog";
+Warnings:
+Note	4001	None of the log-sinks selected with --log-error-services=... provides a log-parser. The server will not be able to make the previous runs' error-logs available in performance_schema.error_log.
+# show that this sink can log to performance_schema.error_log.
+SELECT "log_sink_syseventlog-mark";
+log_sink_syseventlog-mark
+log_sink_syseventlog-mark
+SELECT error_code, data
+FROM performance_schema.error_log
+WHERE DATA LIKE "%log_sink_syseventlog-mark%" LIMIT 1;
+error_code	data
+MY-010000	Parser saw: SELECT "log_sink_syseventlog-mark"
 SET @@global.log_error_services="log_filter_internal; log_sink_internal; log_sink_syseventlog";
 SELECT "logging to syslog";
 logging to syslog

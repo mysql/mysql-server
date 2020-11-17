@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,27 +22,29 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef _WIN32
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#endif
-
 #include "connection.h"
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
 #include "context.h"
+#include "mock_io_service.h"
+#include "mock_socket_service.h"
+#include "mysql/harness/net_ts/impl/socket_constants.h"
+#include "mysql/harness/net_ts/internet.h"
+#include "mysql/harness/stdx/expected.h"
 #include "protocol/base_protocol.h"
 #include "protocol/classic_protocol.h"
 #include "routing_mocks.h"
 #include "socket_operations.h"
+#include "tcp_address.h"
 #include "tcp_port_pool.h"
 #include "test/helpers.h"
 
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+using namespace std::chrono_literals;
 
 using ::testing::_;
-using ::testing::DoAll;
 using ::testing::Return;
-using ::testing::SetArgPointee;
 
 class MockProtocol : public BaseProtocol {
  public:
@@ -57,51 +59,27 @@ class MockProtocol : public BaseProtocol {
      it is good enough for our needs here. */
   /* MOCK_METHOD8(copy_packets, int(int, int, bool,
      RoutingProtocolBuffer&, int* , bool&, size_t*, bool)); */
-  virtual stdx::expected<size_t, std::error_code> copy_packets(
-      int, int, bool, RoutingProtocolBuffer &, int *, bool &, bool) {
-    return 1;
+  stdx::expected<size_t, std::error_code> copy_packets(int, int, bool,
+                                                       std::vector<uint8_t> &,
+                                                       int *, bool &, bool) {
+    return stdx::make_unexpected(make_error_code(std::errc::connection_reset));
   }
 };
 
-#ifdef _WIN32
-using socket_t = SOCKET;
-#else
-using socket_t = int;
-#endif
-
 class TestRoutingConnection : public testing::Test {
  public:
-  void SetUp() override {
-    protocol_.reset(new MockProtocol);
-    name_ = "routing_name";
-    net_buffer_length_ = routing::kDefaultNetBufferLength;
-    destination_connect_timeout_ = std::chrono::milliseconds(10);
-    client_connect_timeout_ = std::chrono::milliseconds(10);
-    max_connect_errors_ = 100;
-    thread_stack_size_ = 1000;
-    client_socket_ = 3243;  // any number greater than 0
-    server_socket_ = 5345;  // any number greater than 0
-  }
-
   // context
-  std::unique_ptr<MockProtocol> protocol_;
   MockSocketOperations socket_operations_;
-  std::string name_;
-  unsigned int net_buffer_length_;
-  std::chrono::milliseconds destination_connect_timeout_;
-  std::chrono::milliseconds client_connect_timeout_;
+  net::io_context io_ctx_{std::make_unique<MockSocketService>(),
+                          std::make_unique<MockIoService>()};
+  const std::string name_{"routing_name"};
+  const unsigned int net_buffer_length_{routing::kDefaultNetBufferLength};
+  const std::chrono::milliseconds destination_connect_timeout_{10ms};
+  const std::chrono::milliseconds client_connect_timeout_{10ms};
   mysql_harness::TCPAddress bind_address_;
   mysql_harness::Path bind_named_socket_;
-  unsigned long long max_connect_errors_;
-  size_t thread_stack_size_ = 1000;
-
-  // connection
-  socket_t client_socket_;
-  sockaddr_storage client_addr_;
-  socket_t server_socket_;
-  mysql_harness::TCPAddress server_address_;
-
-  mysql_harness::Path bind_named_socket;
+  const unsigned long long max_connect_errors_{100};
+  const size_t thread_stack_size_{1000};
 };
 
 /**
@@ -109,138 +87,78 @@ class TestRoutingConnection : public testing::Test {
  *       Verify if callback is called when run() function completes.
  */
 TEST_F(TestRoutingConnection, IsCallbackCalledAtRunExit) {
-  EXPECT_CALL(socket_operations_, shutdown(testing::_)).Times(2);
-  EXPECT_CALL(socket_operations_, close(testing::_)).Times(2);
-
-  union {
-    sockaddr_storage client_addr_storage;
-    sockaddr_in6 client_addr;
-  };
-  client_addr.sin6_family = AF_INET6;
-  memset(&client_addr.sin6_addr, 0x0, sizeof(client_addr.sin6_addr));
-
-  EXPECT_CALL(*protocol_, on_block_client_host(testing::_, testing::_))
-      .Times(testing::AtLeast(0))
-      .WillRepeatedly(testing::Return(false));
+  MockProtocol protocol;
 
   MySQLRoutingContext context(
-      protocol_.release(), &socket_operations_, name_, net_buffer_length_,
+      new MockProtocol, &socket_operations_, name_, net_buffer_length_,
       destination_connect_timeout_, client_connect_timeout_, bind_address_,
       bind_named_socket_, max_connect_errors_, thread_stack_size_);
 
-  bool is_called = false;
+  auto &sock_ops = *dynamic_cast<MockSocketService *>(io_ctx_.socket_service());
+  auto &io_ops = *dynamic_cast<MockIoService *>(io_ctx_.io_service());
 
-  MySQLRoutingConnection connection(
-      context, client_socket_, client_addr_, server_socket_, server_address_,
-      [&is_called](MySQLRoutingConnection * /* connection */) {
+  constexpr const net::impl::socket::native_handle_type client_socket_handle{
+      25};
+  constexpr const net::impl::socket::native_handle_type server_socket_handle{
+      32};
+
+  EXPECT_CALL(sock_ops, socket(_, _, _))
+      .WillOnce(Return(client_socket_handle))
+      .WillOnce(Return(server_socket_handle));
+
+  // client and server FD add an fd-interest once each
+  EXPECT_CALL(io_ops, add_fd_interest(client_socket_handle, _)).Times(1);
+  EXPECT_CALL(io_ops, add_fd_interest(server_socket_handle, _)).Times(1);
+
+  // pretend the server side is readable.
+  EXPECT_CALL(io_ops, poll_one(_))
+      .WillOnce(Return(net::fd_event{server_socket_handle, POLLIN}))
+      .WillRepeatedly(
+          Return(stdx::make_unexpected(make_error_code(std::errc::timed_out))));
+
+  EXPECT_CALL(*dynamic_cast<MockProtocol *>(&context.get_protocol()),
+              on_block_client_host(server_socket_handle, _));
+
+  EXPECT_CALL(io_ops, notify()).Times(6);
+
+  // each FD is removed once
+  EXPECT_CALL(io_ops, remove_fd(client_socket_handle)).Times(1);
+  EXPECT_CALL(io_ops, remove_fd(server_socket_handle)).Times(1);
+
+  EXPECT_CALL(sock_ops, shutdown(client_socket_handle, _));
+  EXPECT_CALL(sock_ops, shutdown(server_socket_handle, _));
+  EXPECT_CALL(sock_ops, close(client_socket_handle));
+  EXPECT_CALL(sock_ops, close(server_socket_handle));
+
+  net::ip::tcp::socket client_socket(io_ctx_);
+  net::ip::tcp::endpoint client_endpoint;  // ipv4, 0.0.0.0:0
+  net::ip::tcp::socket server_socket(io_ctx_);
+  net::ip::tcp::endpoint server_endpoint;  // ipv4, 0.0.0.0:0
+
+  // open the socket to trigger the socket() call
+  client_socket.open(net::ip::tcp::v4());
+  server_socket.open(net::ip::tcp::v4());
+
+  // test target: if the remove-callback is called, it will set is_called.
+  bool is_called{false};
+
+  MySQLRoutingConnection<net::ip::tcp, net::ip::tcp> connection(
+      context, "some-destination-name", std::move(client_socket),
+      client_endpoint, std::move(server_socket), server_endpoint,
+      [&is_called](MySQLRoutingConnectionBase * /* connection */) {
         is_called = true;
       });
 
-  // disconnect the connection
-  connection.disconnect();
+  // execution the connection until it would block.
+  connection.async_run();
 
-  // run connection in current thread
-  connection.run();
+  // each least the poll_one() should be accounted for.
+  EXPECT_GT(io_ctx_.run(), 0);
 
-  ASSERT_TRUE(is_called);
-}
+  //
+  EXPECT_EQ(context.get_active_routes(), 0);
 
-/**
- * @test
- *       Verify if callback is called when connection is closed.
- */
-TEST_F(TestRoutingConnection, IsCallbackCalledAtThreadExit) {
-  union {
-    sockaddr_storage client_addr_storage;
-    sockaddr_in6 client_addr;
-  };
-  client_addr.sin6_family = AF_INET6;
-  memset(&client_addr.sin6_addr, 0x0, sizeof(client_addr.sin6_addr));
-
-  EXPECT_CALL(socket_operations_, shutdown(testing::_)).Times(2);
-  EXPECT_CALL(socket_operations_, close(testing::_)).Times(2);
-
-  EXPECT_CALL(*protocol_, on_block_client_host(testing::_, testing::_))
-      .Times(testing::AtLeast(0))
-      .WillRepeatedly(testing::Return(false));
-
-  MySQLRoutingContext context(
-      protocol_.release(), &socket_operations_, name_, net_buffer_length_,
-      destination_connect_timeout_, client_connect_timeout_, bind_address_,
-      bind_named_socket_, max_connect_errors_, thread_stack_size_);
-
-  std::atomic_bool is_called{false};
-
-  MySQLRoutingConnection connection(
-      context, client_socket_, client_addr_, server_socket_, server_address_,
-      [&is_called](MySQLRoutingConnection * /* connection */) {
-        is_called = true;
-      });
-
-  // disconnect the thread
-  connection.disconnect();
-
-  // start new connection thread and wait for completion
-  connection.start(false);
-  ASSERT_TRUE(is_called);
-}
-
-/**
- * @test
- *       Verify if callback is called and thread of execution stops
- *       when connection is closed.
- */
-TEST_F(TestRoutingConnection, IsConnectionThreadStopOnDisconnect) {
-  union {
-    sockaddr_storage client_addr_storage;
-    sockaddr_in6 client_addr;
-  };
-  client_addr.sin6_family = AF_INET6;
-  memset(&client_addr.sin6_addr, 0x0, sizeof(client_addr.sin6_addr));
-
-  struct pollfd fds[] = {
-      {client_socket_, POLLIN, 1},
-      {server_socket_, POLLIN, 1},
-  };
-
-  using ::testing::InSequence;
-  EXPECT_CALL(socket_operations_, poll(testing::_, testing::_, testing::_))
-      .WillRepeatedly(testing::DoAll(testing::SetArgPointee<0>(fds[0]),
-                                     testing::Return(1)));
-
-  EXPECT_CALL(socket_operations_, shutdown(testing::_)).Times(2);
-  EXPECT_CALL(socket_operations_, close(testing::_)).Times(2);
-
-  EXPECT_CALL(*protocol_, on_block_client_host(testing::_, testing::_))
-      .Times(testing::AtLeast(0))
-      .WillRepeatedly(testing::Return(false));
-
-  MySQLRoutingContext context(
-      protocol_.release(), &socket_operations_, name_, net_buffer_length_,
-      destination_connect_timeout_, client_connect_timeout_, bind_address_,
-      bind_named_socket_, max_connect_errors_, thread_stack_size_);
-
-  std::atomic_bool is_called{false};
-
-  MySQLRoutingConnection connection(
-      context, client_socket_, client_addr_, server_socket_, server_address_,
-      [&is_called](MySQLRoutingConnection * /* connection */) {
-        is_called = true;
-      });
-
-  // start new connection thread
-  connection.start();
-
-  // wait for a while to let connection thread run
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-  // disconnect the connection
-  connection.disconnect();
-
-  // wait for connection to close
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-  ASSERT_TRUE(is_called);
+  EXPECT_TRUE(is_called);
 }
 
 int main(int argc, char *argv[]) {

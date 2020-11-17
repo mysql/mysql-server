@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,11 +35,11 @@
 class PgmanProxy : public LocalProxy {
 public:
   PgmanProxy(Block_context& ctx);
-  virtual ~PgmanProxy();
+  ~PgmanProxy() override;
   BLOCK_DEFINES(PgmanProxy);
 
 protected:
-  virtual SimulatedBlock* newWorker(Uint32 instanceNo);
+  SimulatedBlock* newWorker(Uint32 instanceNo) override;
 
   // GSN_END_LCPREQ
   struct Ss_END_LCPREQ : SsParallel {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -79,7 +79,7 @@ class System_table_close_guard {
 */
 class Check_table_intact : public Table_check_intact {
  protected:
-  void report_error(uint, const char *fmt, ...)
+  void report_error(uint, const char *fmt, ...) override
       MY_ATTRIBUTE((format(printf, 3, 4)));
 };
 

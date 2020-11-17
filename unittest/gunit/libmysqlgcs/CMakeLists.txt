@@ -59,7 +59,7 @@ SET(GCS_XCOM_TESTS
   xcom/gcs_xcom_notification
   xcom/gcs_xcom_utils
   xcom/gcs_msg_stages
-  xcom/gcs_whitelist
+  xcom/gcs_allowlist
   xcom/gcs_xcom_group_management
   xcom/gcs_xcom_state_exchange
   xcom/gcs_packet

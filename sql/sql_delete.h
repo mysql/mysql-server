@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -92,8 +92,9 @@ class Query_result_delete final : public Query_result_interceptor {
         non_transactional_deleted(false),
         error_handled(false) {}
   bool need_explain_interceptor() const override { return true; }
-  bool prepare(THD *thd, List<Item> &list, SELECT_LEX_UNIT *u) override;
-  bool send_data(THD *thd, List<Item> &items) override;
+  bool prepare(THD *thd, const mem_root_deque<Item *> &list,
+               SELECT_LEX_UNIT *u) override;
+  bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
   void send_error(THD *thd, uint errcode, const char *err) override;
   bool optimize() override;
   bool start_execution(THD *) override {
@@ -120,10 +121,11 @@ class Sql_cmd_delete final : public Sql_cmd_dml {
 
   bool is_single_table_plan() const override { return !multitable; }
 
-  virtual bool accept(THD *thd, Select_lex_visitor *visitor) override;
+  bool accept(THD *thd, Select_lex_visitor *visitor) override;
 
  protected:
   bool precheck(THD *thd) override;
+  bool check_privileges(THD *thd) override;
 
   bool prepare_inner(THD *thd) override;
 

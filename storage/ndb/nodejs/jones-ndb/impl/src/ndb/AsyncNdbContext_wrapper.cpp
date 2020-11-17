@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -29,8 +29,6 @@
 #include "Record.h"
 #include "NativeMethodCall.h"
 #include "NdbWrapperErrors.h"
-
-using namespace v8;
 
 V8WrapperFn createAsyncNdbContext;
 V8WrapperFn shutdown;
@@ -91,7 +89,7 @@ void destroy(const Arguments &args) {
 }
 
 
-void AsyncNdbContext_initOnLoad(Handle<Object> target) {
+void AsyncNdbContext_initOnLoad(Local<Object> target) {
   DEFINE_JS_FUNCTION(target, "AsyncNdbContext", createAsyncNdbContext);
   DEFINE_JS_CONSTANT(target, MULTIWAIT_ENABLED);
 #ifdef USE_OLD_MULTIWAIT_API

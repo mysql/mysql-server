@@ -1119,8 +1119,8 @@ insert into t1 values (_utf8mb4 0xe880bd);
 insert into t1 values (_utf8mb4 0x5b);
 select hex(a) from t1;
 hex(a)
-E880BD
 5B
+E880BD
 drop table t1;
 SET sql_mode = default;
 set names 'latin1';
@@ -1265,6 +1265,8 @@ INSERT INTO t1(id, a, b) VALUES
 SELECT id, a, b FROM t1;
 id	a	b
 1	cccc	50
+10	eeeee	40
+11	bbbbbb	60
 2	cccc	70
 3	cccc	30
 4	cccc	30
@@ -1273,14 +1275,12 @@ id	a	b
 7	dddd	30
 8	aaaa	10
 9	aaaa	50
-10	eeeee	40
-11	bbbbbb	60
 SELECT id, a, b FROM t1 WHERE a BETWEEN 'aaaa' AND 'bbbbbb';
 id	a	b
+11	bbbbbb	60
+6	bbbbbb	40
 8	aaaa	10
 9	aaaa	50
-6	bbbbbb	40
-11	bbbbbb	60
 SELECT id, a FROM t1 WHERE a='bbbbbb';
 id	a
 6	bbbbbb
@@ -1813,9 +1813,9 @@ CONVERT(a, CHAR)	CONVERT(b, CHAR)
 ALTER TABLE t1 ADD INDEX (b);
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) from t1 GROUP BY b;
 CONVERT(a, CHAR)	CONVERT(b, CHAR)
-70002	1065
-70001	1085
 70000	1092
+70001	1085
+70002	1065
 DROP TABLE t1;
 #
 # Bug#26474: Add Sinhala script (Sri Lanka) collation to MySQL

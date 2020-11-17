@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,9 +22,10 @@
 
 #include "parse_tree_handler.h"
 
-#include <string.h>
+#include <cstring>
 
-#include "my_inttypes.h"
+#include "my_alloc.h"
+#include "my_inttypes.h"  // TODO: replace with cstdint
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysqld_error.h"

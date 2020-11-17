@@ -38,6 +38,7 @@ SET(TESTS
   ut0lock_free_hash
   ut0mem
   ut0new
+  srv0conc
 )
 
 SET(ALL_INNODB_TESTS)

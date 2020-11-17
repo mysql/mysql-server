@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,6 +49,7 @@ extern "C" {
  *   if not success
  *      inet_addr
  */
+int Ndb_getInAddr6(struct in6_addr * dst, const char *address);
 int Ndb_getInAddr(struct in_addr * dst, const char *address);
 
 char* Ndb_inet_ntop(int af,
@@ -57,6 +58,16 @@ char* Ndb_inet_ntop(int af,
                     size_t dst_size);
 
 int Ndb_check_socket_hup(NDB_SOCKET_TYPE sock);
+int Ndb_split_string_address_port(const char *arg,
+                               char *host,
+                               size_t hostlen,
+                               char *serv,
+                               size_t servlen);
+
+char* Ndb_combine_address_port(char *buf,
+                               size_t bufsize,
+                               const char *host,
+                               Uint16 port);
 
 #ifdef	__cplusplus
 }

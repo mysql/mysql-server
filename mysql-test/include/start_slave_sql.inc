@@ -1,9 +1,9 @@
 # ==== Purpose ====
 #
-# Issues START SLAVE SQL_THREAD on the current connection. Then waits
+# Issues START REPLICA SQL_THREAD on the current connection. Then waits
 # until the SQL thread has started, or until a timeout is reached.
 #
-# Please use this instead of 'START SLAVE SQL_THREAD', to reduce the
+# Please use this instead of 'START RELICA SQL_THREAD', to reduce the
 # risk of races in test cases.
 #
 #
@@ -41,7 +41,7 @@ if (!$rpl_debug)
 }
 
 
---eval START SLAVE SQL_THREAD $_for_channel_clause
+--eval START REPLICA SQL_THREAD $_for_channel_clause
 
 --source include/wait_for_slave_sql_to_start.inc
 

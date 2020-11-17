@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -270,6 +270,34 @@ static bool persist_i_s_index_stats(THD *thd, const String &schema_name_ptr,
   return store_statistics_record(thd, obj.get());
 }
 
+static bool report_error_except_ignore_dup(THD *thd, const char *object_type) {
+  /*
+    If the statistics table is updated concurrently, there is a chance
+    that ANALYZE TABLE may fail with "Duplicate key error" if a record
+    was inserted in the interval between the check for the existence of
+    the record and the execution of the insert. This is very rare
+    situation. Hence we ignore the error and clear the DA.
+   */
+  if (thd->get_stmt_da()->mysql_errno() == ER_DUP_ENTRY) {
+    /*
+      We cannot push a error handler to ignore the error, because the
+      store() call would still return 'true' (failure) and we would not
+      know if the error reported was ER_DUP_ENTRY.
+
+      The call to reset_condition_info() is required here, otherwise
+      the call mysql_admin_table()->send_analyze_table_errors() would still
+      print the duplicate key error. We cannot ignore ER_DUP_ENTRY in
+      send_analyze_table_errors(), because send_analyze_table_errors() is
+      invoked for more then one purpose.
+     */
+    thd->clear_error();
+    thd->get_stmt_da()->reset_condition_info(thd);
+    return false;
+  }
+
+  my_error(ER_UNABLE_TO_STORE_STATISTICS, MYF(0), object_type);
+  return true;
+}
 }  // Anonymous namespace
 
 namespace dd {
@@ -297,12 +325,8 @@ bool update_table_stats(THD *thd, TABLE_LIST *table) {
       analyze_table->found_next_number_field);
 
   // Store the object
-  if (thd->dd_client()->store(ts_obj.get())) {
-    my_error(ER_UNABLE_TO_STORE_STATISTICS, MYF(0), "table");
-    return true;
-  }
-
-  return false;
+  return thd->dd_client()->store(ts_obj.get()) &&
+         report_error_except_ignore_dup(thd, "table");
 }
 
 bool update_index_stats(THD *thd, TABLE_LIST *table) {
@@ -338,11 +362,10 @@ bool update_index_stats(THD *thd, TABLE_LIST *table) {
           dd::String_type(str, strlen(str)), records);
 
       // Store the object
-      if (thd->dd_client()->store(obj.get())) {
-        my_error(ER_UNABLE_TO_STORE_STATISTICS, MYF(0), "index");
+      if (thd->dd_client()->store(obj.get()) &&
+          report_error_except_ignore_dup(thd, "index")) {
         return true;
       }
-
     }  // Key part info
 
   }  // Keys
@@ -854,7 +877,7 @@ ulonglong Table_statistics::read_stat_by_open_table(
   }
 
 end:
-  lex->unit->cleanup(thd, true);
+  lex->cleanup(thd, true);
 
   /* Restore original LEX value, statement's arena and THD arena values. */
   lex_end(thd->lex);

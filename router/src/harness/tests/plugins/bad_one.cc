@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -54,5 +54,6 @@ mysql_harness::Plugin EXAMPLE_API harness_plugin_routertestplugin_bad_one = {
     0, nullptr, init, deinit,
     nullptr,  // start
     nullptr,  // stop
+    false,    // declares_readiness
 };
 }

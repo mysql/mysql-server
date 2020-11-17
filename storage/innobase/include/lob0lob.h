@@ -273,7 +273,7 @@ struct ref_t {
   void set_ref(byte *ptr) { m_ref = ptr; }
 
   /** Set the external field reference to null.
-  @param[in,out]	mtr	the mini-transaction. */
+  @param[in,out]	mtr	Mini-transaction. */
   void set_null(mtr_t *mtr) {
     mlog_write_string(m_ref, field_ref_zero, FIELD_REF_SIZE, mtr);
   }
@@ -308,9 +308,9 @@ struct ref_t {
 #endif /* UNIV_DEBUG */
 
   /** Set the ownership flag in the blob reference.
-  @param[in]	owner	whether to own or disown.  if owner, unset
-                          the owner flag.
-  @param[in]	mtr	the mini-transaction or NULL.*/
+  @param[in]  owner Whether to own or disown. If owner, unset
+                    the owner flag.
+  @param[in]  mtr   Mini-transaction or NULL.*/
   void set_owner(bool owner, mtr_t *mtr) {
     ulint byte_val = mach_read_from_1(m_ref + BTR_EXTERN_LEN);
 
@@ -325,9 +325,9 @@ struct ref_t {
   }
 
   /** Set the being_modified flag in the field reference.
-  @param[in,out]	ref	the LOB reference
-  @param[in]	modifying	true, if blob is being modified.
-  @param[in]	mtr	the mini-transaction context.*/
+  @param[in,out]  ref       The LOB reference
+  @param[in]      modifying true, if blob is being modified.
+  @param[in]      mtr       Mini-transaction context.*/
   static void set_being_modified(byte *ref, bool modifying, mtr_t *mtr) {
     ulint byte_val = mach_read_from_1(ref + BTR_EXTERN_LEN);
 
@@ -341,8 +341,8 @@ struct ref_t {
   }
 
   /** Set the being_modified flag in the field reference.
-  @param[in]	modifying	true, if blob is being modified.
-  @param[in]	mtr	the mini-transaction context.*/
+  @param[in]  modifying true, if blob is being modified.
+  @param[in]  mtr       Mini-transaction context.*/
   void set_being_modified(bool modifying, mtr_t *mtr) {
     set_being_modified(m_ref, modifying, mtr);
   }
@@ -360,8 +360,8 @@ struct ref_t {
   bool is_being_modified() const { return (is_being_modified(m_ref)); }
 
   /** Set the inherited flag in the field reference.
-  @param[in]	inherited	true, if inherited.
-  @param[in]	mtr		the mini transaction context.*/
+  @param[in]  inherited true, if inherited.
+  @param[in]  mtr       Mini-transaction context.*/
   void set_inherited(bool inherited, mtr_t *mtr) {
     ulint byte_val = mach_read_from_1(m_ref + BTR_EXTERN_LEN);
 
@@ -476,8 +476,8 @@ struct ref_t {
 #ifdef UNIV_DEBUG
   /** Check if the given mtr has necessary latches to update this LOB
   reference.
-  @param[in]	mtr	the mini transaction that needs to
-                          be checked.
+  @param[in]  mtr Mini-transaction that needs to
+                  be checked.
   @return true if valid, false otherwise. */
   bool validate(mtr_t *mtr) {
     ut_ad(m_ref != nullptr);
@@ -508,10 +508,10 @@ struct ref_t {
 
   /** Load the first page of the LOB and mark it as not partially
   updatable anymore.
-  @param[in]	trx		the current transaction
-  @param[in]	mtr		the mini transaction context.
-  @param[in]	index		the index dictionary object.
-  @param[in]	page_size	the page size information. */
+  @param[in]  trx       Current transaction
+  @param[in]  mtr       Mini-transaction context.
+  @param[in]  index     Index dictionary object.
+  @param[in]  page_size Page size information. */
   void mark_not_partially_updatable(trx_t *trx, mtr_t *mtr, dict_index_t *index,
                                     const page_size_t &page_size);
 
@@ -574,8 +574,8 @@ TODO: If the allocation extends the tablespace, it will not be redo logged, in
 any mini-transaction.  Tablespace extension should be redo-logged, so that
 recovery will not fail when the big_rec was written to the extended portion of
 the file, in case the file was somehow truncated in the crash.
-
-@param[in]	trx		current transaction
+@param[in]	trx		the trx doing LOB store. If unavailable it
+                                could be nullptr.
 @param[in,out]	pcur		a persistent cursor. if btr_mtr is restarted,
                                 then this can be repositioned.
 @param[in]	upd		update vector
@@ -648,11 +648,11 @@ ulint btr_rec_get_field_ref_offs(const ulint *offsets, ulint n);
   ((rec) + lob::btr_rec_get_field_ref_offs(offsets, n))
 
 /** Deallocate a buffer block that was reserved for a BLOB part.
-@param[in]	index	index
-@param[in]	block	buffer block
+@param[in]	index	Index
+@param[in]	block	Buffer block
 @param[in]	all	TRUE=remove also the compressed page
                         if there is one
-@param[in]	mtr	mini-transaction to commit */
+@param[in]	mtr	Mini-transaction to commit */
 void blob_free(dict_index_t *index, buf_block_t *block, bool all, mtr_t *mtr);
 
 /** The B-tree context under which the LOB operation is done. */
@@ -882,11 +882,11 @@ class BtrContext {
     return (m_block->frame);
   }
 
-  /** Commit the mini transaction that is holding the latches
+  /** Commit the mini-transaction that is holding the latches
   of the clustered index record block. */
   void commit_btr_mtr() { m_mtr->commit(); }
 
-  /** Start the mini transaction that will be holding the latches
+  /** Start the mini-transaction that will be holding the latches
   of the clustered index record block. */
   void start_btr_mtr() {
     mtr_log_t log_mode = m_mtr->get_log_mode();
@@ -902,16 +902,30 @@ class BtrContext {
 
 #ifndef UNIV_HOTBACKUP
 
-  /** Increment the buffer fix count of the clustered index record
-  block. */
+  /** Increment the buffer fix count of the clustered index record block.
+  This is to be called before commit_btr_mtr() which decrements the count when
+  you want to prevent the block from being freed:
+    rec_block_fix();   // buf_fix_count++
+    commit_btr_mtr();  // releasing mtr internally does buf_fix_count--
+    start_btr_mtr();
+    rec_block_unfix(); // calls btr_block_get() which does buf_fix_count++ and
+                       // then does buf_fix_count--
+  */
   void rec_block_fix() {
     m_rec_offset = page_offset(m_rec);
     m_btr_page_no = page_get_page_no(buf_block_get_frame(m_block));
     buf_block_buf_fix_inc(m_block, __FILE__, __LINE__);
   }
 
-  /** Decrement the buffer fix count of the clustered index record
-  block. */
+  /** Decrement the buffer fix count of the clustered index record block,
+  X-latching it before, so that the overall buffer_fix_count doesn't change.
+  This is done to restore X-latch on the page after mtr restart:
+    rec_block_fix();   // buf_fix_count++
+    commit_btr_mtr();  // releasing mtr internally does buf_fix_count--
+    start_btr_mtr();
+    rec_block_unfix(); // calls btr_block_get() which does buf_fix_count++ and
+                       // then does buf_fix_count--
+  */
   void rec_block_unfix() {
     space_id_t space_id = space();
     page_id_t page_id(space_id, m_btr_page_no);
@@ -926,7 +940,10 @@ class BtrContext {
     page_cur->rec = buf_block_get_frame(page_cur->block) + m_rec_offset;
 
     buf_block_buf_fix_dec(page_cur->block);
-
+    /* This decrement above is paired with increment in rec_block_fix(), and
+    there is another increment done within btr_block_get(), so overall the block
+    should be buffer-fixed and thus safe to be used. */
+    ut_ad(page_cur->block->page.buf_fix_count > 0);
     recalc();
   }
 #endif /* !UNIV_HOTBACKUP */
@@ -974,13 +991,10 @@ class BtrContext {
   }
 
   /** Check if there is enough space in the redo log file.  The btr
-  mini transaction will be restarted. */
+  mini-transaction will be restarted. */
   void check_redolog() {
     is_bulk() ? check_redolog_bulk() : check_redolog_normal();
   }
-
-  /** The btr mini transaction will be restarted. */
-  void restart_mtr() { is_bulk() ? restart_mtr_bulk() : restart_mtr_normal(); }
 
   /** Mark the nth field as externally stored.
   @param[in]	field_no	the field number. */
@@ -1012,7 +1026,7 @@ class BtrContext {
   }
 
   /** Get the associated mini-transaction.
-  @return the mini transaction. */
+  @return the mini-transaction. */
   mtr_t *get_mtr() { return (m_mtr); }
 
   /** Get the pointer to the clustered record block.
@@ -1023,18 +1037,12 @@ class BtrContext {
   void store_position() { btr_pcur_store_position(m_pcur, m_mtr); }
 
   /** Check if there is enough space in log file. Commit and re-start the
-  mini transaction. */
+  mini-transaction. */
   void check_redolog_normal();
 
   /** When bulk load is being done, check if there is enough space in redo
   log file. */
   void check_redolog_bulk();
-
-  /** Commit and re-start the mini transaction. */
-  void restart_mtr_normal();
-
-  /** When bulk load is being done, Commit and re-start the mini transaction. */
-  void restart_mtr_bulk();
 
   /** Recalculate some of the members after restoring the persistent
   cursor. */
@@ -1050,9 +1058,8 @@ class BtrContext {
   /** Write a blob reference of a field into a clustered index record
   in a compressed leaf page. The information must already have been
   updated on the uncompressed page.
-  @param[in]	field_no	the blob field number
-  @param[in]	mtr		the mini transaction to update
-                                  blob page. */
+  @param[in]  field_no  BLOB field number
+  @param[in]  mtr       Mini-transaction to update blob page. */
   void zblob_write_blobref(ulint field_no, mtr_t *mtr) {
     page_zip_write_blob_ptr(get_page_zip(), m_rec, index(), m_offsets, field_no,
                             mtr);
@@ -1421,8 +1428,8 @@ struct DeleteContext : public BtrContext {
 #endif /* UNIV_DEBUG */
 
   /** Acquire an x-latch on the index page containing the clustered
-  index record, in the given mini transaction context.
-  @param[in]	mtr	the mini-transaction context. */
+  index record, in the given mini-transaction context.
+  @param[in]  mtr  Mini-transaction context. */
   void x_latch_rec_page(mtr_t *mtr);
 
   /** the BLOB reference or external field reference. */
@@ -1525,9 +1532,10 @@ ulint btr_copy_externally_stored_field_prefix_func(trx_t *trx,
 
 /** Copies an externally stored field of a record to mem heap.
 The clustered index record must be protected by a lock or a page latch.
+@param[in]	trx		the current trx object or nullptr
 @param[in]	index		the clust index in which lob is read.
 @param[out]	len		length of the whole field
-@param[out]	lob_version	lob version that has been read.
+@param[out]	lob_version	LOB version number.
 @param[in]	data		'internally' stored part of the field
                                 containing also the reference to the external
                                 part; must be protected by a lock or a page
@@ -1623,13 +1631,15 @@ bool rec_check_lobref_space_id(dict_index_t *index, const rec_t *rec,
 #endif /* UNIV_DEBUG */
 
 /** Mark an LOB that it is not partially updatable anymore.
-@param[in]  trx  the current transaction.
-@param[in]  index  the clustered index to which the LOB belongs.
-@param[in]  update  the update vector.
-@param[in]  mtr     the mini transaction context.
+@param[in]  trx     Current transaction.
+@param[in]  index   Clustered index to which the LOB belongs.
+@param[in]  update  Update vector.
+@param[in]  btr_mtr Mini-transaction context holding latches on the B-tree.
+This function does not generate redo log using this btr_mtr.  It only obtains
+the log mode.
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t mark_not_partially_updatable(trx_t *trx, dict_index_t *index,
-                                     const upd_t *update, mtr_t *mtr);
+                                     const upd_t *update, const mtr_t *btr_mtr);
 
 }  // namespace lob
 

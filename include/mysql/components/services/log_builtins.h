@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,12 +34,14 @@
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/service_implementation.h>
+#include <mysql/components/services/log_service.h>
 #include <mysql/components/services/log_shared.h>
 #if defined(MYSQL_DYNAMIC_PLUGIN)
 #include <mysql/service_plugin_registry.h>
 #endif
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 
 #include <my_compiler.h>
 #if defined(MYSQL_SERVER) && !defined(MYSQL_DYNAMIC_PLUGIN)
@@ -380,12 +382,26 @@ DECLARE_METHOD(log_item_type_mask, line_item_types_seen,
                (log_line * ll, log_item_type_mask m));
 
 /**
+  Get log-line's output buffer.
+  If the logger core provides this buffer, the log-service may use it
+  to assemble its output therein and implicitly return it to the core.
+  Participation is required for services that support populating
+  performance_schema.error_log, and optional for all others.
+
+  @param  ll  the log_line to examine
+
+  @retval  nullptr    success, an output buffer is available
+  @retval  otherwise  failure, no output buffer is available
+*/
+DECLARE_METHOD(log_item *, line_get_output_buffer, (log_line * ll));
+
+/**
   Get an iterator for the items in a log_line.
   For now, only one iterator may exist per log_line.
 
   @param  ll  the log_line to examine
 
-  @retval     a log_iterm_iter, or nullptr on failure
+  @retval     a log_iter_iter, or nullptr on failure
 */
 DECLARE_METHOD(log_item_iter *, line_item_iter_acquire, (log_line * ll));
 
@@ -525,9 +541,23 @@ DECLARE_METHOD(longlong, errcode_by_errsymbol, (const char *sym));
 DECLARE_METHOD(const char *, label_from_prio, (int prio));
 
 /**
+  Parse a ISO8601 timestamp and return the number of microseconds
+  since the epoch. Heeds +/- timezone info if present.
+
+  @see make_iso8601_timestamp()
+
+  @param timestamp  an ASCII string containing an ISO8601 timestamp
+  @param len        Length in bytes of the aforementioned string
+
+  @return microseconds since the epoch
+*/
+DECLARE_METHOD(ulonglong, parse_iso8601_timestamp,
+               (const char *timestamp, size_t len));
+
+/**
   open an error log file
 
-  @param       file          if beginning with '.':
+  @param       name_or_ext   if beginning with '.':
                                @@global.log_error, except with this extension
                              otherwise:
                                use this as file name in the same location as
@@ -537,10 +567,15 @@ DECLARE_METHOD(const char *, label_from_prio, (int prio));
 
   @param[out]  my_errstream  an error log handle, or nullptr on failure
 
-  @retval      0             success
-  @retval     !0             failure
+  @retval LOG_SERVICE_SUCCESS                  success
+  @retval LOG_SERVICE_INVALID_ARGUMENT         no my_errstream, or bad log name
+  @retval LOG_SERVICE_OUT_OF_MEMORY            could not allocate file handle
+  @retval LOG_SERVICE_LOCK_ERROR               couldn't lock lock
+  @retval LOG_SERVICE_UNABLE_TO_WRITE          couldn't write to given location
+  @retval LOG_SERVICE_COULD_NOT_MAKE_LOG_NAME  could not make log name
 */
-DECLARE_METHOD(int, open_errstream, (const char *file, void **my_errstream));
+DECLARE_METHOD(log_service_error, open_errstream,
+               (const char *name_or_ext, void **my_errstream));
 
 /**
   write to an error log file previously opened with open_errstream()
@@ -549,10 +584,10 @@ DECLARE_METHOD(int, open_errstream, (const char *file, void **my_errstream));
   @param       buffer        pointer to the string to write
   @param       length        length of the string to write
 
-  @retval  0                 success
-  @retval !0                 failure
+  @retval  LOG_SERVICE_SUCCESS                 success
+  @retval  otherwise                           failure
 */
-DECLARE_METHOD(int, write_errstream,
+DECLARE_METHOD(log_service_error, write_errstream,
                (void *my_errstream, const char *buffer, size_t length));
 
 /**
@@ -570,10 +605,10 @@ DECLARE_METHOD(int, dedicated_errstream, (void *my_errstream));
 
   @param       my_stream  a handle describing the log file
 
-  @retval      0          success
-  @retval     !0          failure
+  @retval     LOG_SERVICE_SUCCESS          success
+  @retval     otherwise                    failure
 */
-DECLARE_METHOD(int, close_errstream, (void **my_errstream));
+DECLARE_METHOD(log_service_error, close_errstream, (void **my_errstream));
 
 END_SERVICE_DEFINITION(log_builtins)
 
@@ -638,9 +673,11 @@ END_SERVICE_DEFINITION(log_builtins_tmp)
   Syslog/Eventlog functions for logging services.
 */
 BEGIN_SERVICE_DEFINITION(log_builtins_syseventlog)
-DECLARE_METHOD(int, open, (const char *name, int option, int facility));
-DECLARE_METHOD(int, write, (enum loglevel level, const char *msg));
-DECLARE_METHOD(int, close, (void));
+DECLARE_METHOD(log_service_error, open,
+               (const char *name, int option, int facility));
+DECLARE_METHOD(log_service_error, write,
+               (enum loglevel level, const char *msg));
+DECLARE_METHOD(log_service_error, close, (void));
 END_SERVICE_DEFINITION(log_builtins_syseventlog)
 
 #ifdef __cplusplus
@@ -1335,10 +1372,15 @@ inline void LogEvent::set_message(const char *fmt, va_list ap) {
   if ((ll != nullptr) && (msg != nullptr)) {
     char buf[LOG_BUFF_MAX];
     if (msg_tag != nullptr) {
-      snprintf(buf, LOG_BUFF_MAX - 1, "%s: \'%s\'", msg_tag, fmt);
+      snprintf(buf, LOG_BUFF_MAX, "%s: \'%s\'", msg_tag, fmt);
       fmt = buf;
     }
-    size_t len = log_msg(msg, LOG_BUFF_MAX - 1, fmt, ap);
+    size_t len = log_msg(msg, LOG_BUFF_MAX, fmt, ap);
+    if (len >= LOG_BUFF_MAX) {
+      const char ellipsis[] = " <...>";
+      len = LOG_BUFF_MAX - 1;
+      strcpy(&msg[LOG_BUFF_MAX - sizeof(ellipsis)], ellipsis);
+    }
     log_set_lexstring(log_line_item_set(this->ll, LOG_ITEM_LOG_MESSAGE), msg,
                       len);
   }

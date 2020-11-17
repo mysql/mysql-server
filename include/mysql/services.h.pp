@@ -276,6 +276,9 @@ typedef PSI_memory_key (*memory_realloc_v1_t)(PSI_memory_key key,
                                               struct PSI_thread **owner);
 typedef PSI_memory_key (*memory_claim_v1_t)(PSI_memory_key key, size_t size,
                                             struct PSI_thread **owner);
+typedef PSI_memory_key (*memory_claim_v2_t)(PSI_memory_key key, size_t size,
+                                            struct PSI_thread **owner,
+                                            bool claim);
 typedef void (*memory_free_v1_t)(PSI_memory_key key, size_t size,
                                  struct PSI_thread *owner);
 typedef struct PSI_memory_info_v1 PSI_memory_info;
@@ -283,7 +286,7 @@ typedef int myf_t;
 typedef void *(*mysql_malloc_t)(PSI_memory_key key, size_t size, myf_t flags);
 typedef void *(*mysql_realloc_t)(PSI_memory_key key, void *ptr, size_t size,
                                  myf_t flags);
-typedef void (*mysql_claim_t)(const void *ptr);
+typedef void (*mysql_claim_t)(const void *ptr, bool claim);
 typedef void (*mysql_free_t)(void *ptr);
 typedef void *(*my_memdup_t)(PSI_memory_key key, const void *from,
                              size_t length, myf_t flags);
@@ -303,7 +306,7 @@ extern "C" struct mysql_malloc_service_st *mysql_malloc_service;
 extern void *my_malloc(PSI_memory_key key, size_t size, myf_t flags);
 extern void *my_realloc(PSI_memory_key key, void *ptr, size_t size,
                         myf_t flags);
-extern void my_claim(const void *ptr);
+extern void my_claim(const void *ptr, bool claim);
 extern void my_free(void *ptr);
 extern void *my_memdup(PSI_memory_key key, const void *from, size_t length,
                        myf_t flags);

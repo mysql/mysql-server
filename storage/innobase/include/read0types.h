@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -58,10 +58,8 @@ class ReadView {
     Destructor */
     ~ids_t() { UT_DELETE_ARRAY(m_ptr); }
 
-    /**
-    Try and increase the size of the array. Old elements are
-    copied across. It is a no-op if n is < current size.
-
+    /** Try and increase the size of the array. Old elements are copied across.
+    It is a no-op if n is < current size.
     @param n 		Make space for n elements */
     void reserve(ulint n);
 

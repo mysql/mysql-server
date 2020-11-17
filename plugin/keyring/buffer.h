@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,13 +35,13 @@ class Buffer : public ISerialized_object {
  public:
   Buffer() : data(nullptr) { mark_as_empty(); }
   Buffer(size_t memory_size) : data(nullptr) { reserve(memory_size); }
-  ~Buffer() {
+  ~Buffer() override {
     if (data != nullptr) delete[] data;
   }
 
   void free();
-  bool get_next_key(IKey **key);
-  bool has_next_key();
+  bool get_next_key(IKey **key) override;
+  bool has_next_key() override;
   void reserve(size_t memory_size);
 
   uchar *data;

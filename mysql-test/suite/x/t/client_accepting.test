@@ -1,0 +1,73 @@
+## Test for Bug#31742798
+#
+#  The goal of this test is to synchronize threat that handles
+#  new X Client and thread that handles GR notifications to
+# occure in the same moment.
+
+## Preamble
+--source include/have_debug.inc
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test data
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/client_accepting.xpl
+import debug_point.macro;
+import connection.macro;
+
+-->echo
+-->echo
+-->echo ## I. Scenario that triggers issue described under: Bug#31742798
+-->echo #
+-->echo # 1. Simulate Group-Replication notification (D1), and hang it
+-->echo #    before processing clients
+-->echo # 2. Make a new X Connection (X2), and hang in after accepting.
+-->echo #    This prevents the session from being created. Synchronization
+-->echo #    points are going to execute thread in order causin crash
+-->echo # 3. Unblock X2, and validate that its possible to authenticate.
+
+-->echo
+-->echo #
+-->echo # I.1
+# This DEBUG point is going to hang next X Connection and notice-dispatch
+callmacro Add_debug_point	GLOBAL	xsync_gr_notice_bug;
+DO emit_member_role_change("VIEW-ID");
+
+
+-->echo
+-->echo #
+-->echo # I.2
+# Make a new session X2 that is going to execute in sync with D1
+newsession X2	-;
+
+-->echo
+-->echo #
+-->echo # I.3
+# Go back to default session (this one is not blocked)
+setsession;
+# Unblock X Connection (X2)
+callmacro Remove_debug_point	GLOBAL	xsync_gr_notice_bug;
+
+# Validate that X2 is working normally
+setsession X2;
+callmacro Verify_its_xprotocol_connection;
+login x_root	;
+EOF
+
+# Install component that provides UDF functions that can be
+# used to simulate GroupReplication notices.
+INSTALL COMPONENT "file://component_mysqlx_global_reset";
+
+# Execute the test
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --file=$MYSQL_TMP_DIR/client_accepting.xpl 2>&1;
+UNINSTALL COMPONENT "file://component_mysqlx_global_reset";
+
+
+
+
+## Cleanup
+--remove_files_wildcard $MYSQL_TMP_DIR *.xpl
+--source include/xplugin_drop_user.inc

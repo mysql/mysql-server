@@ -106,7 +106,7 @@ SET GLOBAL debug = '-d,skip_ndb_metadata_sync';
 --let $max_wait = 60
 --source wait_metadata_synced.inc
 
-# Verify that the objects have been blacklisted
+# Verify that the objects have been excluded
 --sorted_result
 SELECT * FROM performance_schema.ndb_sync_excluded_objects;
 

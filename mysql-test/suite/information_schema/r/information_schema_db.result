@@ -35,6 +35,7 @@ ROLE_ROUTINE_GRANTS
 ROLE_TABLE_GRANTS
 ROUTINES
 SCHEMATA
+SCHEMATA_EXTENSIONS
 SCHEMA_PRIVILEGES
 STATISTICS
 ST_GEOMETRY_COLUMNS
@@ -222,7 +223,7 @@ show create view testdb_1.v7;
 ERROR 42000: SELECT command denied to user 'testdb_2'@'localhost' for table 'v7'
 show create view v4;
 View	Create View	character_set_client	collation_connection
-v4	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_2`@`localhost` SQL SECURITY DEFINER VIEW `v4` AS select `v3`.`f1` AS `f1`,`v3`.`f2` AS `f2` from `testdb_1`.`v3`	utf8mb4	utf8mb4_0900_ai_ci
+v4	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_2`@`localhost` SQL SECURITY DEFINER VIEW `v4` AS select `testdb_1`.`v3`.`f1` AS `f1`,`testdb_1`.`v3`.`f2` AS `f2` from `testdb_1`.`v3`	utf8mb4	utf8mb4_0900_ai_ci
 show fields from v4;
 Field	Type	Null	Key	Default	Extra
 f1	char(4)	YES		NULL	
@@ -235,7 +236,7 @@ Field	Type	Null	Key	Default	Extra
 f1	char(4)	YES		NULL	
 show create view v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_2`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `v1`.`f1` AS `f1` from `testdb_1`.`v1`	utf8mb4	utf8mb4_0900_ai_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_2`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `testdb_1`.`v1`.`f1` AS `f1` from `testdb_1`.`v1`	utf8mb4	utf8mb4_0900_ai_ci
 show create view testdb_1.v1;
 ERROR 42000: SELECT command denied to user 'testdb_2'@'localhost' for table 'v1'
 select table_name from information_schema.columns a
@@ -245,7 +246,7 @@ v2
 select view_definition from information_schema.views a
 where a.table_name = 'v2';
 VIEW_DEFINITION
-select `v1`.`f1` AS `f1` from `testdb_1`.`v1`
+select `testdb_1`.`v1`.`f1` AS `f1` from `testdb_1`.`v1`
 select view_definition from information_schema.views a
 where a.table_name = 'testdb_1.v1';
 VIEW_DEFINITION

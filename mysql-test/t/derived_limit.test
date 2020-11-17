@@ -15,6 +15,7 @@ ANALYZE TABLE t1;
 
 let $query =
 WITH cte AS (SELECT * FROM t1 LIMIT 5) SELECT * FROM cte;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
@@ -23,6 +24,7 @@ eval $query;
 let $query =
 WITH cte AS (SELECT a+20 FROM t1 UNION SELECT a+40 FROM t1 LIMIT 5)
 SELECT * FROM cte;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
@@ -30,6 +32,7 @@ eval $query;
 let $query =
 WITH cte AS (SELECT a+20 FROM t1 UNION ALL SELECT a+40 FROM t1 LIMIT 5)
 SELECT * FROM cte;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
@@ -37,6 +40,7 @@ eval $query;
 let $query =
 WITH cte AS (SELECT a+20 FROM t1 UNION SELECT a+40 FROM t1 LIMIT 15)
 SELECT * FROM cte;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
@@ -45,12 +49,14 @@ eval $query;
 let $query =
 WITH cte AS (SELECT a+20 FROM t1 UNION DISTINCT SELECT a+40 FROM t1 LIMIT 15)
 SELECT * FROM cte;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
 let $query =
 WITH cte AS (SELECT a+20 FROM t1 UNION ALL SELECT a+40 FROM t1 LIMIT 15)
 SELECT * FROM cte;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
@@ -59,12 +65,14 @@ eval $query;
 let $query =
 WITH cte AS (SELECT a FROM t1 UNION ALL SELECT a+2 FROM t1 LIMIT 15)
 SELECT * FROM cte;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
 let $query =
 WITH cte AS (SELECT a FROM t1 UNION SELECT a+2 FROM t1 LIMIT 15)
 SELECT * FROM cte;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
@@ -72,18 +80,21 @@ eval $query;
 
 let $query =
 WITH cte AS (SELECT * FROM t1 LIMIT 5 OFFSET 1) SELECT * FROM cte;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
 let $query =
 WITH cte AS (SELECT a FROM t1 UNION ALL SELECT a+2 FROM t1 LIMIT 15 OFFSET 1)
 SELECT * FROM cte;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
 let $query =
 WITH cte AS (SELECT a FROM t1 UNION SELECT a+2 FROM t1 LIMIT 15 OFFSET 1)
 SELECT * FROM cte;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
@@ -92,12 +103,14 @@ eval $query;
 let $query =
 WITH cte AS (SELECT a FROM t1 UNION ALL SELECT a+2 FROM t1 LIMIT 15 OFFSET 1)
 SELECT * FROM cte LIMIT 4 OFFSET 7;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
 let $query =
 WITH cte AS (SELECT a FROM t1 UNION SELECT a+2 FROM t1 LIMIT 15 OFFSET 1)
 SELECT * FROM cte LIMIT 2 OFFSET 7;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
@@ -106,12 +119,14 @@ eval $query;
 let $query =
 WITH cte AS (SELECT a FROM t1 UNION ALL SELECT a+2 FROM t1 LIMIT 15)
 SELECT * FROM cte LIMIT 4;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
 let $query =
 WITH cte AS (SELECT a FROM t1 UNION SELECT a+2 FROM t1 LIMIT 15)
 SELECT * FROM cte LIMIT 2;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
@@ -120,7 +135,9 @@ eval $query;
 let $query =
 WITH cte AS (SELECT a FROM t1 UNION SELECT a+2 FROM t1 LIMIT 10 OFFSET 8)
  SELECT /*+ no_bnl() */ * FROM cte cte1, cte cte2;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=TREE $query;
+--sorted_result
 eval $query;
 
 # Adding a join: verify that LIMIT and OFFSET applies only to CTE.
@@ -130,7 +147,9 @@ WITH cte AS (SELECT a FROM t1 UNION SELECT a+2 FROM t1 LIMIT 10 OFFSET 8)
 SELECT /*+ no_bnl() */ *
 FROM cte cte1,
      (SELECT 100 UNION SELECT 101) dt;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=TREE $query;
+--sorted_result
 eval $query;
 
 # Recursive CTE.
@@ -138,12 +157,14 @@ eval $query;
 let $query =
 WITH RECURSIVE cte AS (SELECT 1 AS a UNION ALL SELECT a+1 FROM cte LIMIT 5)
 SELECT * FROM cte;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
 let $query =
 WITH RECURSIVE cte AS (SELECT 1 AS a UNION SELECT a+1 FROM cte LIMIT 5)
 SELECT * FROM cte;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
@@ -152,6 +173,7 @@ eval $query;
 let $query =
 WITH RECURSIVE cte AS (SELECT 1 AS a UNION DISTINCT SELECT a+1 FROM cte LIMIT 5)
 SELECT * FROM cte;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
@@ -183,6 +205,7 @@ let $query =
 WITH RECURSIVE cte AS (SELECT 1 AS a UNION ALL
                        SELECT a+1 FROM cte LIMIT 5 OFFSET 1)
   SELECT * FROM cte;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
@@ -190,6 +213,7 @@ let $query =
 WITH RECURSIVE cte AS (SELECT 1 AS a UNION
                        SELECT a+1 FROM cte LIMIT 5 OFFSET 1)
 SELECT * FROM cte;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
@@ -199,6 +223,7 @@ let $query =
 WITH RECURSIVE cte AS (SELECT 1 AS a UNION ALL
                        SELECT a+1 FROM cte LIMIT 5 OFFSET 1)
   SELECT * FROM cte LIMIT 1 OFFSET 2;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
@@ -206,6 +231,7 @@ let $query =
 WITH RECURSIVE cte AS (SELECT 1 AS a UNION
                        SELECT a+1 FROM cte LIMIT 5 OFFSET 1)
 SELECT * FROM cte LIMIT 1 OFFSET 2;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
@@ -215,6 +241,7 @@ let $query =
 WITH RECURSIVE cte AS (SELECT 1 AS a UNION ALL
                        SELECT a+1 FROM cte LIMIT 5)
   SELECT * FROM cte LIMIT 3;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 

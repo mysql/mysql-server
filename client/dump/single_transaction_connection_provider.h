@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -46,9 +46,9 @@ class Single_transaction_connection_provider
       std::function<bool(const Mysql::Tools::Base::Message_data &)>
           *message_handler);
 
-  virtual Mysql::Tools::Base::Mysql_query_runner *create_new_runner(
+  Mysql::Tools::Base::Mysql_query_runner *create_new_runner(
       std::function<bool(const Mysql::Tools::Base::Message_data &)>
-          *message_handler);
+          *message_handler) override;
 
  private:
   std::vector<Mysql::Tools::Base::Mysql_query_runner *> m_runner_pool;

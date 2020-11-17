@@ -92,7 +92,9 @@ eval $query;
 
 # The query should be run using the scanning option for loose index scan.
 # It should only do a few read key calls and many read next calls:
+--skip_if_hypergraph  # Does not support this access method yet.
 SHOW STATUS LIKE 'Handler_read_key';
+--skip_if_hypergraph  # Does not support this access method yet.
 SHOW STATUS LIKE 'Handler_read_next';
 
 DROP TABLE t0, t1;

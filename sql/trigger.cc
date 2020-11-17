@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -73,9 +73,9 @@ class Deprecated_trigger_syntax_handler : public Internal_error_handler {
  public:
   Deprecated_trigger_syntax_handler() : m_trigger_name(nullptr) {}
 
-  virtual bool handle_condition(THD *thd, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *message) {
+  bool handle_condition(THD *thd, uint sql_errno, const char *,
+                        Sql_condition::enum_severity_level *,
+                        const char *message) override {
     if (sql_errno != EE_OUTOFMEMORY && sql_errno != ER_OUT_OF_RESOURCES) {
       if (thd->lex->spname) m_trigger_name = &thd->lex->spname->m_name;
       if (m_trigger_name)

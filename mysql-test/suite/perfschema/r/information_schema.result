@@ -7,6 +7,7 @@ performance_schema	binary_log_transaction_compression_stats	def
 performance_schema	cond_instances	def
 performance_schema	data_lock_waits	def
 performance_schema	data_locks	def
+performance_schema	error_log	def
 performance_schema	events_errors_summary_by_account_by_error	def
 performance_schema	events_errors_summary_by_host_by_error	def
 performance_schema	events_errors_summary_by_thread_by_error	def
@@ -69,12 +70,14 @@ performance_schema	objects_summary_global_by_type	def
 performance_schema	performance_timers	def
 performance_schema	persisted_variables	def
 performance_schema	prepared_statements_instances	def
+performance_schema	processlist	def
 performance_schema	replication_applier_configuration	def
 performance_schema	replication_applier_filters	def
 performance_schema	replication_applier_global_filters	def
 performance_schema	replication_applier_status	def
 performance_schema	replication_applier_status_by_coordinator	def
 performance_schema	replication_applier_status_by_worker	def
+performance_schema	replication_asynchronous_connection_failover	def
 performance_schema	replication_connection_configuration	def
 performance_schema	replication_connection_status	def
 performance_schema	replication_group_member_stats	def
@@ -116,6 +119,7 @@ binary_log_transaction_compression_stats	BASE TABLE	PERFORMANCE_SCHEMA
 cond_instances	BASE TABLE	PERFORMANCE_SCHEMA
 data_lock_waits	BASE TABLE	PERFORMANCE_SCHEMA
 data_locks	BASE TABLE	PERFORMANCE_SCHEMA
+error_log	BASE TABLE	PERFORMANCE_SCHEMA
 events_errors_summary_by_account_by_error	BASE TABLE	PERFORMANCE_SCHEMA
 events_errors_summary_by_host_by_error	BASE TABLE	PERFORMANCE_SCHEMA
 events_errors_summary_by_thread_by_error	BASE TABLE	PERFORMANCE_SCHEMA
@@ -178,12 +182,14 @@ objects_summary_global_by_type	BASE TABLE	PERFORMANCE_SCHEMA
 performance_timers	BASE TABLE	PERFORMANCE_SCHEMA
 persisted_variables	BASE TABLE	PERFORMANCE_SCHEMA
 prepared_statements_instances	BASE TABLE	PERFORMANCE_SCHEMA
+processlist	BASE TABLE	PERFORMANCE_SCHEMA
 replication_applier_configuration	BASE TABLE	PERFORMANCE_SCHEMA
 replication_applier_filters	BASE TABLE	PERFORMANCE_SCHEMA
 replication_applier_global_filters	BASE TABLE	PERFORMANCE_SCHEMA
 replication_applier_status	BASE TABLE	PERFORMANCE_SCHEMA
 replication_applier_status_by_coordinator	BASE TABLE	PERFORMANCE_SCHEMA
 replication_applier_status_by_worker	BASE TABLE	PERFORMANCE_SCHEMA
+replication_asynchronous_connection_failover	BASE TABLE	PERFORMANCE_SCHEMA
 replication_connection_configuration	BASE TABLE	PERFORMANCE_SCHEMA
 replication_connection_status	BASE TABLE	PERFORMANCE_SCHEMA
 replication_group_member_stats	BASE TABLE	PERFORMANCE_SCHEMA
@@ -225,6 +231,7 @@ binary_log_transaction_compression_stats	10	Dynamic
 cond_instances	10	Dynamic
 data_lock_waits	10	Dynamic
 data_locks	10	Dynamic
+error_log	10	Dynamic
 events_errors_summary_by_account_by_error	10	Dynamic
 events_errors_summary_by_host_by_error	10	Dynamic
 events_errors_summary_by_thread_by_error	10	Dynamic
@@ -287,12 +294,14 @@ objects_summary_global_by_type	10	Dynamic
 performance_timers	10	Fixed
 persisted_variables	10	Dynamic
 prepared_statements_instances	10	Dynamic
+processlist	10	Dynamic
 replication_applier_configuration	10	Dynamic
 replication_applier_filters	10	Dynamic
 replication_applier_global_filters	10	Dynamic
 replication_applier_status	10	Fixed
 replication_applier_status_by_coordinator	10	Dynamic
 replication_applier_status_by_worker	10	Dynamic
+replication_asynchronous_connection_failover	10	Fixed
 replication_connection_configuration	10	Dynamic
 replication_connection_status	10	Dynamic
 replication_group_member_stats	10	Dynamic
@@ -335,6 +344,7 @@ binary_log_transaction_compression_stats	0
 cond_instances	0
 data_lock_waits	0
 data_locks	0
+error_log	0
 events_errors_summary_by_account_by_error	0
 events_errors_summary_by_host_by_error	0
 events_errors_summary_by_thread_by_error	0
@@ -394,12 +404,14 @@ mutex_instances	0
 objects_summary_global_by_type	0
 performance_timers	0
 prepared_statements_instances	0
+processlist	0
 replication_applier_configuration	0
 replication_applier_filters	0
 replication_applier_global_filters	0
 replication_applier_status	0
 replication_applier_status_by_coordinator	0
 replication_applier_status_by_worker	0
+replication_asynchronous_connection_failover	0
 replication_connection_configuration	0
 replication_connection_status	0
 replication_group_member_stats	0
@@ -449,6 +461,7 @@ binary_log_transaction_compression_stats	0	0
 cond_instances	0	0
 data_lock_waits	0	0
 data_locks	0	0
+error_log	0	0
 events_errors_summary_by_account_by_error	0	0
 events_errors_summary_by_host_by_error	0	0
 events_errors_summary_by_thread_by_error	0	0
@@ -511,12 +524,14 @@ objects_summary_global_by_type	0	0
 performance_timers	0	0
 persisted_variables	0	0
 prepared_statements_instances	0	0
+processlist	0	0
 replication_applier_configuration	0	0
 replication_applier_filters	0	0
 replication_applier_global_filters	0	0
 replication_applier_status	0	0
 replication_applier_status_by_coordinator	0	0
 replication_applier_status_by_worker	0	0
+replication_asynchronous_connection_failover	0	0
 replication_connection_configuration	0	0
 replication_connection_status	0	0
 replication_group_member_stats	0	0
@@ -558,6 +573,7 @@ binary_log_transaction_compression_stats	0	0	NULL
 cond_instances	0	0	NULL
 data_lock_waits	0	0	NULL
 data_locks	0	0	NULL
+error_log	0	0	NULL
 events_errors_summary_by_account_by_error	0	0	NULL
 events_errors_summary_by_host_by_error	0	0	NULL
 events_errors_summary_by_thread_by_error	0	0	NULL
@@ -620,12 +636,14 @@ objects_summary_global_by_type	0	0	NULL
 performance_timers	0	0	NULL
 persisted_variables	0	0	NULL
 prepared_statements_instances	0	0	NULL
+processlist	0	0	NULL
 replication_applier_configuration	0	0	NULL
 replication_applier_filters	0	0	NULL
 replication_applier_global_filters	0	0	NULL
 replication_applier_status	0	0	NULL
 replication_applier_status_by_coordinator	0	0	NULL
 replication_applier_status_by_worker	0	0	NULL
+replication_asynchronous_connection_failover	0	0	NULL
 replication_connection_configuration	0	0	NULL
 replication_connection_status	0	0	NULL
 replication_group_member_stats	0	0	NULL
@@ -667,6 +685,7 @@ binary_log_transaction_compression_stats	NULL	NULL	NULL
 cond_instances	NULL	NULL	NULL
 data_lock_waits	NULL	NULL	NULL
 data_locks	NULL	NULL	NULL
+error_log	NULL	NULL	NULL
 events_errors_summary_by_account_by_error	NULL	NULL	NULL
 events_errors_summary_by_host_by_error	NULL	NULL	NULL
 events_errors_summary_by_thread_by_error	NULL	NULL	NULL
@@ -729,12 +748,14 @@ objects_summary_global_by_type	NULL	NULL	NULL
 performance_timers	NULL	NULL	NULL
 persisted_variables	NULL	NULL	NULL
 prepared_statements_instances	NULL	NULL	NULL
+processlist	NULL	NULL	NULL
 replication_applier_configuration	NULL	NULL	NULL
 replication_applier_filters	NULL	NULL	NULL
 replication_applier_global_filters	NULL	NULL	NULL
 replication_applier_status	NULL	NULL	NULL
 replication_applier_status_by_coordinator	NULL	NULL	NULL
 replication_applier_status_by_worker	NULL	NULL	NULL
+replication_asynchronous_connection_failover	NULL	NULL	NULL
 replication_connection_configuration	NULL	NULL	NULL
 replication_connection_status	NULL	NULL	NULL
 replication_group_member_stats	NULL	NULL	NULL
@@ -776,6 +797,7 @@ binary_log_transaction_compression_stats	utf8mb4_0900_ai_ci	NULL
 cond_instances	utf8mb4_0900_ai_ci	NULL
 data_lock_waits	utf8mb4_0900_ai_ci	NULL
 data_locks	utf8mb4_0900_ai_ci	NULL
+error_log	utf8mb4_0900_ai_ci	NULL
 events_errors_summary_by_account_by_error	utf8mb4_0900_ai_ci	NULL
 events_errors_summary_by_host_by_error	utf8mb4_0900_ai_ci	NULL
 events_errors_summary_by_thread_by_error	utf8mb4_0900_ai_ci	NULL
@@ -838,12 +860,14 @@ objects_summary_global_by_type	utf8mb4_0900_ai_ci	NULL
 performance_timers	utf8mb4_0900_ai_ci	NULL
 persisted_variables	utf8mb4_0900_ai_ci	NULL
 prepared_statements_instances	utf8mb4_0900_ai_ci	NULL
+processlist	utf8mb4_0900_ai_ci	NULL
 replication_applier_configuration	utf8mb4_0900_ai_ci	NULL
 replication_applier_filters	utf8mb4_0900_ai_ci	NULL
 replication_applier_global_filters	utf8mb4_0900_ai_ci	NULL
 replication_applier_status	utf8mb4_0900_ai_ci	NULL
 replication_applier_status_by_coordinator	utf8mb4_0900_ai_ci	NULL
 replication_applier_status_by_worker	utf8mb4_0900_ai_ci	NULL
+replication_asynchronous_connection_failover	utf8mb4_0900_ai_ci	NULL
 replication_connection_configuration	utf8mb4_0900_ai_ci	NULL
 replication_connection_status	utf8mb4_0900_ai_ci	NULL
 replication_group_member_stats	utf8mb4_0900_ai_ci	NULL
@@ -885,6 +909,7 @@ binary_log_transaction_compression_stats
 cond_instances	
 data_lock_waits	
 data_locks	
+error_log	
 events_errors_summary_by_account_by_error	
 events_errors_summary_by_host_by_error	
 events_errors_summary_by_thread_by_error	
@@ -947,12 +972,14 @@ objects_summary_global_by_type
 performance_timers	
 persisted_variables	
 prepared_statements_instances	
+processlist	
 replication_applier_configuration	
 replication_applier_filters	
 replication_applier_global_filters	
 replication_applier_status	
 replication_applier_status_by_coordinator	
 replication_applier_status_by_worker	
+replication_asynchronous_connection_failover	
 replication_connection_configuration	
 replication_connection_status	
 replication_group_member_stats	
@@ -994,6 +1021,7 @@ binary_log_transaction_compression_stats
 cond_instances	
 data_lock_waits	
 data_locks	
+error_log	
 events_errors_summary_by_account_by_error	
 events_errors_summary_by_host_by_error	
 events_errors_summary_by_thread_by_error	
@@ -1056,12 +1084,14 @@ objects_summary_global_by_type
 performance_timers	
 persisted_variables	
 prepared_statements_instances	
+processlist	
 replication_applier_configuration	
 replication_applier_filters	
 replication_applier_global_filters	
 replication_applier_status	
 replication_applier_status_by_coordinator	
 replication_applier_status_by_worker	
+replication_asynchronous_connection_failover	
 replication_connection_configuration	
 replication_connection_status	
 replication_group_member_stats	

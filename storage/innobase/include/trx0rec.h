@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -280,16 +280,19 @@ void trx_undo_read_v_cols(const dict_table_t *table, const byte *ptr,
                           const dtuple_t *row, bool in_purge, bool online,
                           const ulint *col_map, mem_heap_t *heap);
 
-/** Read virtual column index from undo log if the undo log contains such
-info, and verify the column is still indexed, and output its position
+/** Read virtual column index from undo log or online log if the log
+contains such info, and in the undo log case, verify the column is
+still indexed, and output its position
 @param[in]	table		the table
 @param[in]	ptr		undo log pointer
 @param[in]	first_v_col	if this is the first virtual column, which
                                 has the version marker
-@param[in,out]	is_undo_log	his function is used to parse both undo log,
+@param[in,out]	is_undo_log	this function is used to parse both undo log,
                                 and online log for virtual columns. So
-                                check to see if this is undo log
-@param[out]	field_no	the column number
+                                check to see if this is undo log. When
+                                first_v_col is true, is_undo_log is output,
+                                when first_v_col is false, is_undo_log is input
+@param[in,out]	field_no	the column number
 @return remaining part of undo log record after reading these values */
 const byte *trx_undo_read_v_idx(const dict_table_t *table, const byte *ptr,
                                 bool first_v_col, bool *is_undo_log,
@@ -397,9 +400,11 @@ size_t trx_undo_max_free_space();
 @return true if this is a multi-value virtual column log, otherwise false */
 bool trx_undo_rec_is_multi_value(const byte *undo_rec);
 
-/** Read from an undo log record a non-virtual column value.
-@param[in,out]	ptr	pointer to remaining part of the undo record
-@param[in,out]	field	stored field
+/** Read from an undo log record of a multi-value virtual column.
+@param[in]	ptr	pointer to remaining part of the undo record
+@param[in,out]	field	stored field, nullptr if the col is no longer
+                        indexed or existing, in the latter case,
+                        this function will only skip the log
 @param[in,out]	heap	memory heap
 @return remaining part of undo log record after reading these values */
 const byte *trx_undo_rec_get_multi_value(const byte *ptr, dfield_t *field,

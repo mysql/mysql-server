@@ -580,7 +580,7 @@ SHOW CREATE TABLE test.t1;
 
 --let $program= $MYSQL_PUMP --include-databases=test --include-tables=t1
 
---exec $PROGRAM >> $MYSQL_TMP_DIR/mysqlpump.sql
+--exec $PROGRAM > $MYSQL_TMP_DIR/mysqlpump.sql
 
 DROP TABLE `test`.`t1`;
 

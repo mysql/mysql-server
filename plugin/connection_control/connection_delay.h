@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,7 +94,7 @@ class Connection_delay_event : public Connection_event_records {
   Connection_delay_event();
 
   /** Destructor. Removes all entries from hash before destroying hash */
-  ~Connection_delay_event() {
+  ~Connection_delay_event() override {
     reset_all();
     lf_hash_destroy(&m_entries);
   }
@@ -102,10 +102,10 @@ class Connection_delay_event : public Connection_event_records {
   void fill_IS_table(TABLE_LIST *tables);
 
   /* Overridden function */
-  bool create_or_update_entry(const Sql_string &s);
-  bool remove_entry(const Sql_string &s);
-  bool match_entry(const Sql_string &s, void *value);
-  void reset_all();
+  bool create_or_update_entry(const Sql_string &s) override;
+  bool remove_entry(const Sql_string &s) override;
+  bool match_entry(const Sql_string &s, void *value) override;
+  void reset_all() override;
 
  private:
   /** Hash for storing Connection_event_record per user */
@@ -126,7 +126,7 @@ class Connection_delay_action : public Connection_event_observer,
                           size_t status_vars_size, mysql_rwlock_t *lock);
 
   /** Destructor */
-  ~Connection_delay_action() {
+  ~Connection_delay_action() override {
     deinit();
     m_lock = nullptr;
   }
@@ -186,10 +186,10 @@ class Connection_delay_action : public Connection_event_observer,
   bool notify_event(MYSQL_THD thd,
                     Connection_event_coordinator_services *coordinator,
                     const mysql_event_connection *connection_event,
-                    Error_handler *error_handler);
+                    Error_handler *error_handler) override;
   bool notify_sys_var(Connection_event_coordinator_services *coordinator,
                       opt_connection_control variable, void *new_value,
-                      Error_handler *error_handler);
+                      Error_handler *error_handler) override;
 
  private:
   void deinit();

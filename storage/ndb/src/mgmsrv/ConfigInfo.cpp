@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,6 @@
 
 #include <ndb_global.h>
 
-#include <NdbTCP.h>
 #include "ConfigInfo.hpp"
 #include <mgmapi_config_parameters.h>
 #include <ndb_limits.h>
@@ -33,9 +32,6 @@
 #include <Bitmask.hpp>
 #include <ndb_opts.h>
 #include <ndb_version.h>
-#include <ConfigObject.hpp>
-#include <unordered_map>
-#include <string>
 #include "../src/kernel/vm/mt-asm.h"
 
 #include <portlib/ndb_localtime.h>
@@ -99,7 +95,6 @@ static bool fixPortNumber(InitConfigFileParser::Context & ctx, const char *);
 static bool fixShmKey(InitConfigFileParser::Context & ctx, const char *);
 static bool checkDbConstraints(InitConfigFileParser::Context & ctx, const char *);
 static bool checkConnectionConstraints(InitConfigFileParser::Context &, const char *);
-static bool checkTCPConstraints(InitConfigFileParser::Context &, const char *);
 static bool fixNodeHostname(InitConfigFileParser::Context & ctx, const char * data);
 static bool fixHostname(InitConfigFileParser::Context & ctx, const char * data);
 static bool fixNodeId(InitConfigFileParser::Context & ctx, const char * data);
@@ -172,11 +167,6 @@ ConfigInfo::m_SectionRules[] = {
   { "TCP",  checkConnectionConstraints, 0 },
   { "SHM",  checkConnectionConstraints, 0 },
 
-  { "TCP",  checkTCPConstraints, "HostName1" },
-  { "TCP",  checkTCPConstraints, "HostName2" },
-  { "SHM",  checkTCPConstraints, "HostName1" },
-  { "SHM",  checkTCPConstraints, "HostName2" },
-  
   { "*",    checkMandatory, 0 }
 };
 const int ConfigInfo::m_NoOfRules = sizeof(m_SectionRules)/sizeof(SectionRule);
@@ -1818,6 +1808,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "false",
     "false",
     "true"},
+
+  {
+    CFG_DB_REQUIRE_ENCRYPTED_BACKUP,
+    "RequireEncryptedBackup",
+    DB_TOKEN,
+    "If set to one only encrypted backups are allowed. If zero both encrypted "
+    "and unencrypted backups are allowed.",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    "1"},
 
   {
     CFG_EXTRA_SEND_BUFFER_MEMORY,
@@ -3490,6 +3493,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL)
   },
 
+  {
+     CFG_CONNECTION_UNRES_HOSTS,
+     "AllowUnresolvedHostnames",
+     "TCP",
+     "Allow startup to continue with unresolved hostnames in configuration",
+     ConfigInfo::CI_USED,
+     false,
+     ConfigInfo::CI_BOOL,
+     "false",
+     "false", "true"
+   },
+
   /****************************************************************************
    * SHM
    ***************************************************************************/
@@ -4574,17 +4589,17 @@ public:
 class PrettyPrinter : public ConfigPrinter {
 public:
   PrettyPrinter(FILE* out = stdout) : ConfigPrinter(out) {}
-  virtual ~PrettyPrinter() {}
+  ~PrettyPrinter() override {}
 
-  virtual void section_start(const char* name, const char* alias,
-                             const char* primarykeys = NULL) {
+  void section_start(const char* name, const char* alias,
+                     const char* primarykeys = NULL) override {
     fprintf(m_out, "****** %s ******\n\n", name);
   }
 
-  virtual void parameter(const char* section_name,
+  void parameter(const char* section_name,
                          const Properties* section,
                          const char* param_name,
-                         const ConfigInfo& info)
+                         const ConfigInfo& info) override
   {
     // Don't print deprecated parameters
     const Uint32 status = info.getStatus(section, param_name);
@@ -4698,11 +4713,11 @@ class XMLPrinter : public ConfigPrinter {
 
 public:
   XMLPrinter(FILE* out = stdout) : ConfigPrinter(out), m_indent(0) {}
-  virtual ~XMLPrinter() {
+  ~XMLPrinter() override {
     assert(m_indent == 0);
   }
 
-  virtual void start() {
+  void start() override {
     BaseString buf;
     Properties pairs;
     pairs.put("protocolversion", "1");
@@ -4720,14 +4735,14 @@ public:
     print_xml("configvariables", pairs, false);
     m_indent++;
   }
-  virtual void end() {
+  void end() override {
     m_indent--;
     Properties pairs;
     print_xml("/configvariables", pairs, false);
   }
 
-  virtual void section_start(const char* name, const char* alias,
-                             const char* primarykeys = NULL) {
+  void section_start(const char* name, const char* alias,
+                     const char* primarykeys = NULL) override {
     Properties pairs;
     pairs.put("name", alias ? alias : name);
     if (primarykeys)
@@ -4735,16 +4750,16 @@ public:
     print_xml("section", pairs, false);
     m_indent++;
   }
-  virtual void section_end(const char* name) {
+  void section_end(const char* name) override {
     m_indent--;
     Properties pairs;
     print_xml("/section", pairs, false);
   }
 
-  virtual void parameter(const char* section_name,
-                         const Properties* section,
-                         const char* param_name,
-                         const ConfigInfo& info){
+  void parameter(const char* section_name,
+                 const Properties* section,
+                 const char* param_name,
+                 const ConfigInfo& info) override{
     BaseString buf;
     Properties pairs;
     pairs.put("name", param_name);
@@ -4991,7 +5006,9 @@ static bool checkLocalhostHostnameMix(InitConfigFileParser::Context & ctx, const
     DBUG_RETURN(true);
 
   Uint32 localhost_used= 0;
-  if(!strcmp(hostname, "localhost") || !strcmp(hostname, "127.0.0.1")){
+  if(!strcmp(hostname, "localhost") ||
+     !strcmp(hostname, "127.0.0.1") ||
+     !strcmp(hostname, "::1")){
     localhost_used= 1;
     ctx.m_userProperties.put("$computer-localhost-used", localhost_used);
     if(!ctx.m_userProperties.get("$computer-localhost", &hostname))
@@ -5878,45 +5895,6 @@ uniqueConnection(InitConfigFileParser::Context & ctx, const char * data)
   return true;
 }
 
-static bool
-checkTCPConstraints(InitConfigFileParser::Context & ctx, const char * data){
-  
-  const char * host;
-  struct in_addr addr;
-  static std::unordered_map<std::string, bool> host_map;
-  bool ret = true;
-
-  if (ctx.m_currentSection->get(data, &host) && (strlen(host) > 0))
-  {
-    /**
-     * First an attempt is made to look into the hash table for a hostname and
-     * only if it's not found, we call Ndb_getInAddr().
-     */
-    auto ent = host_map.find(host);
-    if (ent != host_map.end())
-    {
-      const bool valid_host = ent->second;
-      ret = valid_host;
-    }
-    else if (Ndb_getInAddr(&addr, host) == 0)
-    {
-      host_map[host] = true;
-    }
-    else
-    {
-      host_map[host] = false;
-      ret = false;
-    }
-  }
-  if (!ret)
-  {
-    ctx.reportError("Unable to lookup/illegal hostname %s"
-              " - [%s] starting at line: %d",
-              host, ctx.fname, ctx.m_sectionLineno);
-  }
-  return ret;
-}
-
 static
 bool
 transform(InitConfigFileParser::Context & ctx,
@@ -6449,7 +6427,7 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
       {
         if (ng == NDB_NO_NODEGROUP)
         {
-          break;
+          continue;
         }
         else if (ng >= MAX_NDB_NODES)
         {

@@ -14,6 +14,8 @@ create table t1 (a int auto_increment , primary key (a));
 insert into t1 values (NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL); 
 update t1 set a=a+10 where a > 34;
 update t1 set a=a+100 where a > 0;
+update t1 set a=a+100 limit 0;
+explain update t1 set a=a+100 limit 0;
 
 # Some strange updates to test some otherwise unused code
 update t1 set a=a+100 where a=1 and a=2;
@@ -169,25 +171,30 @@ insert into t1 (a) values (0),(0),(0),(0),(0),(0),(0),(0);
 
 flush status;
 select a from t1 order by a limit 1;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'handler_read%';
 
 flush status;
 update t1 set a=9999 order by a limit 1;
 update t1 set b=9999 order by a limit 1;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'handler_read%';
 
 flush status;
 delete from t1 order by a, b desc limit 1;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'handler_read%';
 
 flush status;
 delete from t1 order by a desc, b desc limit 1;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'handler_read%';
 
 alter table t1 disable keys;
 
 flush status;
 delete from t1 order by a limit 1;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'handler_read%';
 
 select * from t1;
@@ -223,6 +230,7 @@ create table t2 (a int, filler1 char(200), filler2 char(200), key(a));
 insert into t2 select A.a + 10*B.a, 'filler','filler' from t1 A, t1 B;
 flush status;
 update t2 set a=3 where a=2;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'handler_read%';
 drop table t1, t2;
 
@@ -268,12 +276,16 @@ INSERT INTO t1(user_id) SELECT user_id FROM t1;
 
 flush status;
 SELECT user_id FROM t1 WHERE request_id=9999999999999; 
+--skip_if_hypergraph  # Depends on the query plan.
 show status like '%Handler_read%';
 SELECT user_id FROM t1 WHERE request_id=999999999999999999999999999999; 
+--skip_if_hypergraph  # Depends on the query plan.
 show status like '%Handler_read%';
 UPDATE t1 SET user_id=null WHERE request_id=9999999999999;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like '%Handler_read%';
 UPDATE t1 SET user_id=null WHERE request_id=999999999999999999999999999999;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like '%Handler_read%';
 
 DROP TABLE t1;
@@ -696,3 +708,37 @@ UPDATE IGNORE t2 SET f2 = 400;
 
 DROP VIEW v2;
 DROP TABLE t2, t1;
+
+--echo Bug#22671310: Generated columns mess up explain of multi-table update
+
+CREATE TABLE t1(a INTEGER, b INTEGER AS (a));
+CREATE TABLE t2(a INTEGER);
+EXPLAIN
+UPDATE t1 JOIN t2 USING(a) SET t2.a=t2.a+1 WHERE t1.b>0;
+DROP TABLE t1, t2;
+
+--echo # Bug#22891840: Error message from update of non-updatable part of
+--echo #               join view is inaccurate
+
+CREATE TABLE t1(a1 INTEGER PRIMARY KEY, b1 INTEGER);
+CREATE TABLE t2(a2 INTEGER PRIMARY KEY, b2 INTEGER);
+
+CREATE VIEW vmat2 AS SELECT DISTINCT * FROM t2;
+
+CREATE VIEW vtr AS
+SELECT * FROM t1 JOIN vmat2 AS dt2 ON t1.a1=dt2.a2;
+
+UPDATE vtr SET b1=b1+1 WHERE a1=1;
+
+--error ER_NON_UPDATABLE_TABLE
+UPDATE vtr SET b2=b2+1 WHERE a2=1;
+
+DROP VIEW vtr, vmat2;
+DROP TABLE t1, t2;
+
+--echo # Bug#31360425: Segfault in Query_result_update::optimize()
+
+CREATE TABLE g(c INTEGER, b INTEGER);
+CREATE TABLE t(a INTEGER);
+UPDATE t SET a=1 WHERE EXISTS(SELECT b FROM g WHERE 1 NOT LIKE c FOR UPDATE);
+DROP TABLE g, t;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -213,7 +213,7 @@ class Parameterized_notification : public Gcs_xcom_notification {
     Destructor for Parameterized_notification.
   */
 
-  virtual ~Parameterized_notification() {}
+  ~Parameterized_notification() override {}
 
   /**
     Task implemented by this notification which calls do_execute.
@@ -221,7 +221,7 @@ class Parameterized_notification : public Gcs_xcom_notification {
     Return whether the notification should stop the engine or not.
   */
 
-  bool operator()() {
+  bool operator()() override {
     do_execute();
 
     return stop;
@@ -262,14 +262,14 @@ class Finalize_notification : public Parameterized_notification<true> {
     Destructor for Finalize_notification.
   */
 
-  ~Finalize_notification();
+  ~Finalize_notification() override;
 
  private:
   /**
     Task implemented by this notification.
   */
 
-  void do_execute();
+  void do_execute() override;
 
   /**
     Pointer to the MySQL GCS Engine.
@@ -304,14 +304,14 @@ class Initialize_notification : public Parameterized_notification<false> {
     Destructor for Initialize_notification.
   */
 
-  ~Initialize_notification();
+  ~Initialize_notification() override;
 
  private:
   /**
     Task implemented by this notification.
   */
 
-  void do_execute();
+  void do_execute() override;
 
   /*
     Pointer to a function that contains that actual core of the
@@ -355,7 +355,7 @@ class Data_notification : public Parameterized_notification<false> {
     Destructor for Data_notification
   */
 
-  ~Data_notification();
+  ~Data_notification() override;
 
  private:
   /**
@@ -363,7 +363,7 @@ class Data_notification : public Parameterized_notification<false> {
     with the parameters provided in the contructor.
   */
 
-  void do_execute();
+  void do_execute() override;
 
   /*
     Pointer to a function that contains that actual core of the
@@ -427,14 +427,14 @@ class Status_notification : public Parameterized_notification<false> {
     Destructor for Status_notification.
   */
 
-  ~Status_notification();
+  ~Status_notification() override;
 
  private:
   /**
     Task implemented by this notification.
   */
 
-  void do_execute();
+  void do_execute() override;
 
   /*
     Pointer to a function that contains that actual core of the
@@ -486,14 +486,14 @@ class Global_view_notification : public Parameterized_notification<false> {
     Destructor for Global_view_notification.
   */
 
-  ~Global_view_notification();
+  ~Global_view_notification() override;
 
  private:
   /**
     Task implemented by this notification.
   */
 
-  void do_execute();
+  void do_execute() override;
 
   /*
     Pointer to a function that contains that actual core of the
@@ -562,14 +562,14 @@ class Local_view_notification : public Parameterized_notification<false> {
   /**
     Destructor for Local_view_notification.
   */
-  ~Local_view_notification();
+  ~Local_view_notification() override;
 
  private:
   /**
     Task implemented by this notification.
   */
 
-  void do_execute();
+  void do_execute() override;
 
   /*
     Pointer to a function that contains that actual core of the
@@ -622,14 +622,14 @@ class Control_notification : public Parameterized_notification<false> {
   /**
     Destructor for Control_notification.
   */
-  ~Control_notification();
+  ~Control_notification() override;
 
  private:
   /**
     Task implemented by this notification.
   */
 
-  void do_execute();
+  void do_execute() override;
 
   /*
     Pointer to a function that contains that actual core of the
@@ -670,14 +670,14 @@ class Expel_notification : public Parameterized_notification<false> {
     Destructor for Expel_notification.
   */
 
-  ~Expel_notification();
+  ~Expel_notification() override;
 
  private:
   /**
     Task implemented by this notification.
   */
 
-  void do_execute();
+  void do_execute() override;
 
   /*
     Pointer to a function that contains that actual core of the
@@ -717,14 +717,14 @@ class Protocol_change_notification : public Parameterized_notification<false> {
   /**
     Destructor for Protocol_change_notification.
   */
-  ~Protocol_change_notification();
+  ~Protocol_change_notification() override;
 
  private:
   /**
     Task implemented by this notification.
   */
 
-  void do_execute();
+  void do_execute() override;
 
   /*
     Pointer to a function that contains that actual core of the

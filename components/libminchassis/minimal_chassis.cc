@@ -259,7 +259,7 @@ bool minimal_chassis_deinit(SERVICE_TYPE_NO_CONST(registry) * registry,
   flag.
   The global services are mysql_runtime_error, mysql_psi_system_v1 and
   mysql_rwlock_v1.
-  If the use_related is ON then the globals are leaded with minimal chassis
+  If the use_related is ON then the globals are loaded with minimal chassis
   service implementations else they are loaded with the default service
   implementations
 

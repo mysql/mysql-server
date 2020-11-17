@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <stdarg.h>
 
+#include "log_builtins_internal.h"
+
 #ifdef IN_DOXYGEN
 #include <mysql/components/services/log_builtins.h>
+#else
+#include <mysql/components/services/log_service.h>
 #endif
 
 /**
@@ -41,26 +45,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 */
 
 #include <mysql/components/services/log_shared.h>
-
-enum log_sink_buffer_flush_mode {
-  LOG_BUFFER_DISCARD_ONLY,
-  LOG_BUFFER_PROCESS_AND_DISCARD,
-  LOG_BUFFER_REPORT_AND_KEEP
-};
-
-enum log_error_stage {
-  LOG_ERROR_STAGE_BUFFERING_EARLY,              ///< no log-destination yet
-  LOG_ERROR_STAGE_BUFFERING_UNIPLEX,            ///< 1 sink, or individual files
-  LOG_ERROR_STAGE_BUFFERING_MULTIPLEX,          ///< 2+ sinks writing to stderr
-  LOG_ERROR_STAGE_EXTERNAL_SERVICES_AVAILABLE,  ///< external services available
-  LOG_ERROR_STAGE_SHUTTING_DOWN                 ///< no external components
-};
-
-/// Set error-logging stage hint (e.g. are loadable services available yet?).
-void log_error_stage_set(enum log_error_stage les);
-
-/// What mode is error-logging in (e.g. are loadable services available yet)?
-enum log_error_stage log_error_stage_get(void);
 
 /**
   Name of internal filtering engine (so we may recognize it when the
@@ -88,47 +72,6 @@ enum log_error_stage log_error_stage_get(void);
   Default services pipeline for log_builtins_error_stack().
 */
 #define LOG_ERROR_SERVICES_DEFAULT LOG_BUILTINS_FILTER "; " LOG_BUILTINS_SINK
-
-/**
-  Release all buffered log-events (discard_error_log_messages()),
-  optionally after running them through the error log stack first
-  (flush_error_log_messages()). Safe to call repeatedly (though
-  subsequent calls will only output anything if further events
-  occurred after the previous flush).
-
-  @param  mode  LOG_BUFFER_DISCARD_ONLY (to just
-                throw away the buffered events), or
-                LOG_BUFFER_PROCESS_AND_DISCARD to
-                filter/print them first, or
-                LOG_BUFFER_REPORT_AND_KEEP to print
-                an intermediate report on time-out
-*/
-void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode);
-
-/**
-  Maximum number of key/value pairs in a log event.
-  May be changed or abolished later.
-*/
-#define LOG_ITEM_MAX 64
-
-/**
-  Iterator over the key/value pairs of a log_line.
-  At present, only one iter may exist per log_line.
-*/
-typedef struct _log_item_iter {
-  struct _log_line *ll;  ///< log_line this is the iter for
-  int index;             ///< index of current key/value pair
-} log_item_iter;
-
-/**
-  log_line ("log event")
-*/
-typedef struct _log_line {
-  log_item_type_mask seen;      ///< bit field flagging item-types contained
-  log_item_iter iter;           ///< iterator over key/value pairs
-  int count;                    ///< number of key/value pairs ("log items")
-  log_item item[LOG_ITEM_MAX];  ///< log items
-} log_line;
 
 // see include/mysql/components/services/log_builtins.h
 
@@ -175,6 +118,8 @@ class log_builtins_imp {
   static DEFINE_METHOD(log_item_type_mask, line_item_types_seen,
                        (log_line * ll, log_item_type_mask m));
 
+  static DEFINE_METHOD(log_item *, line_get_output_buffer, (log_line * ll));
+
   static DEFINE_METHOD(log_item_iter *, line_item_iter_acquire,
                        (log_line * ll));
   static DEFINE_METHOD(void, line_item_iter_release, (log_item_iter * it));
@@ -195,15 +140,19 @@ class log_builtins_imp {
 
   static DEFINE_METHOD(const char *, label_from_prio, (int prio));
 
-  static DEFINE_METHOD(int, open_errstream,
+  static DEFINE_METHOD(ulonglong, parse_iso8601_timestamp,
+                       (const char *timestamp, size_t len));
+
+  static DEFINE_METHOD(log_service_error, open_errstream,
                        (const char *file, void **my_errstream));
 
-  static DEFINE_METHOD(int, write_errstream,
+  static DEFINE_METHOD(log_service_error, write_errstream,
                        (void *my_errstream, const char *buffer, size_t length));
 
   static DEFINE_METHOD(int, dedicated_errstream, (void *my_errstream));
 
-  static DEFINE_METHOD(int, close_errstream, (void **my_errstream));
+  static DEFINE_METHOD(log_service_error, close_errstream,
+                       (void **my_errstream));
 };
 
 /**
@@ -247,9 +196,11 @@ class log_builtins_tmp_imp {
 */
 class log_builtins_syseventlog_imp {
  public: /* Service Implementations */
-  static DEFINE_METHOD(int, open, (const char *name, int option, int facility));
-  static DEFINE_METHOD(int, write, (enum loglevel level, const char *msg));
-  static DEFINE_METHOD(int, close, (void));
+  static DEFINE_METHOD(log_service_error, open,
+                       (const char *name, int option, int facility));
+  static DEFINE_METHOD(log_service_error, write,
+                       (enum loglevel level, const char *msg));
+  static DEFINE_METHOD(log_service_error, close, (void));
 };
 
 #endif /* LOG_BUILTINS_IMP_H */

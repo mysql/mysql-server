@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,27 +76,27 @@ class Gcs_xcom_statistics : public Gcs_statistics_interface,
                             public Gcs_xcom_statistics_updater {
  public:
   explicit Gcs_xcom_statistics();
-  virtual ~Gcs_xcom_statistics();
+  ~Gcs_xcom_statistics() override;
 
   // Implementation of Gcs_statistics_interface
-  long get_total_messages_sent();
+  long get_total_messages_sent() override;
 
-  long get_total_bytes_sent();
+  long get_total_bytes_sent() override;
 
-  long get_total_messages_received();
+  long get_total_messages_received() override;
 
-  long get_total_bytes_received();
+  long get_total_bytes_received() override;
 
-  long get_min_message_length();
+  long get_min_message_length() override;
 
-  long get_max_message_length();
+  long get_max_message_length() override;
 
-  long get_last_message_timestamp();
+  long get_last_message_timestamp() override;
 
   // Implementation of Gcs_xcom_statistics_updater
-  void update_message_sent(unsigned long long message_length);
+  void update_message_sent(unsigned long long message_length) override;
 
-  void update_message_received(long message_length);
+  void update_message_received(long message_length) override;
 
  private:
   long total_messages_sent;

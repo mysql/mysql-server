@@ -54,7 +54,7 @@ static int audit_cache_clean_event_notify(MYSQL_THD thd,
   if (event_class == MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS) {
     auto server_obj_with_lock = modules::Module_mysqlx::get_instance_server();
 
-    if (server_obj_with_lock.container()) server_obj_with_lock->stop(false);
+    if (server_obj_with_lock.container()) server_obj_with_lock->stop();
     return 0;
   }
 

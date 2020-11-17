@@ -106,14 +106,13 @@ static void row_ext_cache_fill_func(const dict_index_t *index, row_ext_t *ext,
 @param[in]	index	the index to which LOB belongs.
 @param[in]	n_ext	number of externally stored columns
 @param[in]	ext	col_no's of externally stored columns in the InnoDB
-                        table object, as reported by dict_col_get_no(); NOT
-                        relative to the records in the clustered index
+table object, as reported by dict_col_get_no(); NOT relative to the records
+in the clustered index
 @param[in]	flags	table->flags
 @param[in]	tuple	data tuple containing the field references of the
-                        externally stored columns; must be indexed by col_no;
-                        the clustered index record must be covered by a lock
-                        or a page latch to prevent deletion (rollback
-                        or purge) */
+externally stored columns; must be indexed by col_no; the clustered index record
+must be covered by a lock or a page latch to prevent deletion (rollback
+or purge) */
 #ifdef UNIV_DEBUG
 /**
 @param[in]	is_sdi	true for SDI Indexes */

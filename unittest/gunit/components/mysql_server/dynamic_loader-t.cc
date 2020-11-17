@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@ using loader_type_t = SERVICE_TYPE_NO_CONST(dynamic_loader);
 
 class dynamic_loader : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     reg = NULL;
     loader = NULL;
     ASSERT_FALSE(minimal_chassis_init(&reg, NULL));
@@ -46,7 +46,7 @@ class dynamic_loader : public ::testing::Test {
                                   const_cast<loader_type_t **>(&loader))));
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     if (reg) {
       ASSERT_FALSE(reg->release(
           reinterpret_cast<my_h_service>(const_cast<registry_type_t *>(reg))));

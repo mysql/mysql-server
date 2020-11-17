@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -216,7 +216,7 @@ Update_dictionary_tables_ctx::~Update_dictionary_tables_ctx() {
   m_thd->lex = m_lex_saved;
 
   // Restore auto_inc_intervals_in_cur_stmt_for_binlog
-  m_auto_inc_intervals_in_cur_stmt_for_binlog_saved.empty();  // XXX: remove?
+  m_auto_inc_intervals_in_cur_stmt_for_binlog_saved.clear();  // XXX: remove?
   m_auto_inc_intervals_in_cur_stmt_for_binlog_saved.swap(
       &m_thd->auto_inc_intervals_in_cur_stmt_for_binlog);
 

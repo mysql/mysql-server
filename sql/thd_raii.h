@@ -366,6 +366,28 @@ class Prepared_stmt_arena_holder {
 };
 
 /**
+  RAII class for pushed LEX object.
+*/
+class Pushed_lex_guard {
+ public:
+  Pushed_lex_guard(THD *thd, LEX *new_lex) : m_thd(thd), m_old_lex(thd->lex) {
+    thd->lex = new_lex;
+    lex_start(thd);
+  }
+  ~Pushed_lex_guard() {
+    // Clean up this statement context and restore the old one:
+    m_thd->lex->cleanup(m_thd, true);
+    lex_end(m_thd->lex);
+
+    m_thd->lex = m_old_lex;
+  }
+
+ private:
+  THD *const m_thd;
+  LEX *m_old_lex;
+};
+
+/**
   RAII class for column privilege checking
 */
 class Column_privilege_tracker {

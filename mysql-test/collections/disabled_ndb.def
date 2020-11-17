@@ -28,9 +28,6 @@ ndb.ndb_insert            : BUG#16021097 INSERT .. SELECT WITH KEY VIOLATION DOE
 ndb.ndb_row_count         : BUG#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
 ndb.ndb_parallel_undo_log : BUG#28794807 FIX NDB.NDB_PARALLEL_UNDO_LOG TESTCASE FAILURE
 
-# Problem with ndb_index_stat tables missing from DD
-ndb.ndb_statistics0 : BUG#27543602 NDB_INDEX_STAT* TABLES ARE MISSING FROM DD AFTER AN INITIAL SYSTEM RESTART
-
 # Failure to acquire MDL lock properly during drop database with uppercase
 # database name, affects lower_case_table_names=2 platform
 ndb.ndb_addnode_restart @darwin: BUG#27307793 IDENTIFIERS AND LOWER_CASE_TABLE_NAMES=2 INCONCISTENCY
@@ -52,3 +49,11 @@ ndb.ndb_read_location_domain : BUG#27935436 NDB_READ_LOCATION_DOMAIN FAILURE IN 
 
 # Problem with upper case database names with lower_case_table_names = 2
 ndb.ndb_database_lctn @darwin: Bug#30455400 INCORRECT SCHEMA NAME PASSED TO HA_BINLOG_LOG_QUERY DURING ALTER DATABASE
+
+# ndb_opt suite tests
+# Problem with a race condition between an API node connecting to the Cluster
+# and running SHOW STATUS from the ndb_mgm client
+ndb_opt.index_stat_restart : Bug#31506562 API_VERSION_REQ RETURNS INVALID VERSIONS
+
+# The test is not stable in Solaris x86 platforms
+ndb.clusterj @solaris : BUG#31521587 CLUSTERJ FAILS IN SOLARIS IN PB2

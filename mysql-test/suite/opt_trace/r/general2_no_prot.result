@@ -1189,7 +1189,7 @@ TRACE
               "key_size": "XXX",
               "row_size": "XXX",
               "max_rows_per_buffer": "XXX",
-              "num_rows_estimate": 18446744073709551615,
+              "num_rows_estimate": 15,
               "num_rows_found": 4,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
@@ -1532,16 +1532,6 @@ select * from information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 select 1	{
   "steps": [
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "expanded_query": "/* select#1 */ select 1 AS `1`"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
     {
       "join_optimization": {
         "select#": 1,
@@ -2216,27 +2206,6 @@ set b@1 (select (2 + x@0))	{
           }
         ] /* steps */
       } /* join_preparation */
-    },
-    {
-      "subselect_execution": {
-        "select#": 2,
-        "steps": [
-          {
-            "join_optimization": {
-              "select#": 2,
-              "steps": [
-              ] /* steps */
-            } /* join_optimization */
-          },
-          {
-            "join_execution": {
-              "select#": 2,
-              "steps": [
-              ] /* steps */
-            } /* join_execution */
-          }
-        ] /* steps */
-      } /* subselect_execution */
     }
   ] /* steps */
 }	0	0
@@ -3756,7 +3725,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                       "table": "`t2`",
                       "field": "ID",
                       "equals": "`t1`.`OBJECTID`",
-                      "null_rejecting": false
+                      "null_rejecting": true
                     },
                     {
                       "table": "`t2`",
@@ -3768,7 +3737,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                       "table": "`t3`",
                       "field": "ID",
                       "equals": "`t1`.`OBJECTID`",
-                      "null_rejecting": false
+                      "null_rejecting": true
                     },
                     {
                       "table": "`t3`",
@@ -4326,13 +4295,13 @@ link_alias_148._field_156	{
                 "table": "`t3`",
                 "field": "t3_id",
                 "equals": "1",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`t4`",
                 "field": "seq_0_id",
                 "equals": "1",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`t7` `link_alias_142`",
@@ -4344,7 +4313,7 @@ link_alias_148._field_156	{
                 "table": "`t6`",
                 "field": "seq_0_id",
                 "equals": "1",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`t1` `link_alias_133`",
@@ -4356,7 +4325,7 @@ link_alias_148._field_156	{
                 "table": "`t2`",
                 "field": "seq_0_id",
                 "equals": "1",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`t5` `link_alias_148`",
@@ -5339,8 +5308,8 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
               "memory_available": 262144,
               "key_size": "XXX",
               "row_size": "XXX",
-              "max_rows_per_buffer": 18,
-              "num_rows_estimate": 18,
+              "max_rows_per_buffer": "XXX",
+              "num_rows_estimate": 18446744073709551615,
               "num_rows_found": 8,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
@@ -5430,7 +5399,7 @@ select * from t1,t2 where t1.a+t2.c=cos(10) and t2.b=2	{
                 "table": "`t2`",
                 "field": "b",
                 "equals": "2",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },
@@ -5480,6 +5449,10 @@ insert into t1 values(1),(2),(3);
 create database mysqltest2;
 create table mysqltest2.t2(a int);
 insert into mysqltest2.t2 values(1),(2);
+analyze table t1, mysqltest2.t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+mysqltest2.t2	analyze	status	OK
 select * from t1,mysqltest2.t2;
 a	a
 1	1

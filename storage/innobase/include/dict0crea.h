@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -92,7 +92,7 @@ UNIV_INLINE
 dberr_t dict_create_add_foreign_id(ulint *id_nr, const char *name,
                                    dict_foreign_t *foreign);
 
-/** Check if a foreign constraint is on columns server as base columns
+/** Check if a foreign constraint is on columns served as base columns
 of any stored column. This is to prevent creating SET NULL or CASCADE
 constraint on such columns
 @param[in]	local_fk_set	set of foreign key objects, to be added to

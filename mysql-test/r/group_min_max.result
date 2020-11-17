@@ -1527,7 +1527,7 @@ explain select a1,a2,b,min(c),max(c) from t1
 where exists ( select * from t2 where t2.c = t1.c )
 group by a1,a2,b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	idx_t1_1,idx_t1_2	idx_t1_1	163	NULL	128	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	idx_t1_1,idx_t1_2	idx_t1_1	163	NULL	128	100.00	Using index
 1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	17	test.t1.c	1	100.00	NULL
 2	MATERIALIZED	t2	NULL	index	NULL	idx_t2_1	163	NULL	164	100.00	Using index
 Warnings:
@@ -3367,7 +3367,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1_1	NULL	index	a	a	10	NULL	32	100.00	Using index; Using temporary; Using filesort
 1	SIMPLE	t1_2	NULL	index	NULL	a	10	NULL	32	100.00	Using index; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select count(distinct `test`.`t1_1`.`a`) AS `COUNT(DISTINCT t1_1.a)` from `test`.`t1` `t1_1` join `test`.`t1` `t1_2` group by `test`.`t1_1`.`a`
+Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT t1_1.a)` from `test`.`t1` `t1_1` join `test`.`t1` `t1_2` group by `test`.`t1_1`.`a`
 SELECT COUNT(DISTINCT t1_1.a) FROM t1 t1_1, t1 t1_2 GROUP BY t1_1.a;
 COUNT(DISTINCT t1_1.a)
 1
@@ -4419,3 +4419,13 @@ SET optimizer_trace=DEFAULT;
 SET end_markers_in_json=DEFAULT;
 DROP TABLE a;
 # End of test for Bug#24423143
+#
+# Bug #31475700 REGRESSION: MEMORY LEAK AFTER
+#               ITEM_SUM_HYBRID::MIN_MAX_UPDATE_STR_FIELD
+#
+CREATE TABLE t(a TEXT);
+INSERT t VALUES('a'),('a');
+SELECT a, MAX(TRIM('1' FROM ~1)) FROM t GROUP BY a;
+a	MAX(TRIM('1' FROM ~1))
+a	8446744073709551614
+DROP TABLE t;

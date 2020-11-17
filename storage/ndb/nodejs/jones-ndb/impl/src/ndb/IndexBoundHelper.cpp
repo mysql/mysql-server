@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -25,13 +25,10 @@
 
 #include <NdbApi.hpp>
 
-#include <node_buffer.h>
-
 #include "adapter_global.h"
 #include "js_wrapper_macros.h"
 #include "JsWrapper.h"
-
-using namespace v8;
+#include "JsValueAccess.h"
 
 
 enum {
@@ -64,57 +61,56 @@ void newIndexBound(const Arguments &args) {
     new NdbIndexScanOperation::IndexBound;
   Local<Value> jsBound = IndexBoundEnvelope.wrap(bound);
 
-  const Local<Object> spec = args[0]->ToObject();
+  const Local<Object> spec = ArgToObject(args, 0);
   Local<Value> v;
   Local<Object> o;
 
-
   bound->low_key = 0;
-  v = spec->Get(BOUND_LOW_KEY);
+  v = Get(spec, BOUND_LOW_KEY);
   if(v->IsNull()) {
     bound->low_key = 0;
   } else {
-    o = v->ToObject();
-    bound->low_key = node::Buffer::Data(o);
+    o = ToObject(args, v);
+    bound->low_key = GetBufferData(o);
   }
 
   bound->low_key_count = 0;
-  v = spec->Get(BOUND_LOW_KEY_COUNT);
+  v = Get(spec, BOUND_LOW_KEY_COUNT);
   if(! v->IsNull()) {
-    bound->low_key_count = v->Uint32Value();
+    bound->low_key_count = GetInt32Value(args, v);
   }
   
   bound->low_inclusive = false;
-  v = spec->Get(BOUND_LOW_INCLUSIVE);
+  v = Get(spec, BOUND_LOW_INCLUSIVE);
   if(! v->IsNull()) {
-    bound->low_inclusive = v->BooleanValue();
+    bound->low_inclusive = GetBoolValue(args, v);
   }
   
   bound->high_key = 0;
-  v = spec->Get(BOUND_HIGH_KEY);
+  v = Get(spec, BOUND_HIGH_KEY);
   if(v->IsNull()) {
     bound->high_key = 0;
   } else {
-    o = v->ToObject();
-    bound->high_key = node::Buffer::Data(o);
+    o = ToObject(args, v);
+    bound->high_key = GetBufferData(o);
   }
   
   bound->high_key_count = 0;
-  v = spec->Get(BOUND_HIGH_KEY_COUNT);
+  v = Get(spec, BOUND_HIGH_KEY_COUNT);
   if(! v->IsNull()) {
-    bound->high_key_count = v->Uint32Value();
+    bound->high_key_count = GetInt32Value(args, v);
   }
   
   bound->high_inclusive = false;
-  v = spec->Get(BOUND_HIGH_INCLUSIVE);
+  v = Get(spec, BOUND_HIGH_INCLUSIVE);
   if(! v->IsNull()) {
-    bound->high_inclusive = v->BooleanValue();
+    bound->high_inclusive = GetBoolValue(args, v);
   }
   
   bound->range_no = 0;
-  v = spec->Get(BOUND_RANGE_NO);
+  v = Get(spec, BOUND_RANGE_NO);
   if(! v->IsNull()) {
-    bound->range_no = v->Uint32Value();
+    bound->range_no = GetInt32Value(args, v);
   }
 
   debug_print_bound(bound);
@@ -123,16 +119,14 @@ void newIndexBound(const Arguments &args) {
 }
 
 
-
-void IndexBound_initOnLoad(Handle<Object> target) {
+void IndexBound_initOnLoad(Local<Object> target) {
   Local<Object> ibObj = Object::New(Isolate::GetCurrent());
-  Local<String> ibKey = NEW_SYMBOL("IndexBound");
-  target->Set(ibKey, ibObj);
+  SetProp(target, "IndexBound", ibObj);
 
   DEFINE_JS_FUNCTION(ibObj, "create", newIndexBound);
 
   Local<Object> BoundHelper = Object::New(Isolate::GetCurrent());
-  ibObj->Set(NEW_SYMBOL("helper"), BoundHelper);
+  SetProp(ibObj, "helper", BoundHelper);
 
   DEFINE_JS_INT(BoundHelper, "low_key", BOUND_LOW_KEY);
   DEFINE_JS_INT(BoundHelper, "low_key_count", BOUND_LOW_KEY_COUNT);

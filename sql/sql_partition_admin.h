@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@ class Sql_cmd_alter_table_exchange_partition
  public:
   using Sql_cmd_common_alter_table::Sql_cmd_common_alter_table;
 
-  bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
  private:
   bool exchange_partition(THD *thd, TABLE_LIST *, Alter_info *);
@@ -57,12 +57,12 @@ class Sql_cmd_alter_table_analyze_partition final
   Sql_cmd_alter_table_analyze_partition(THD *thd, Alter_info *alter_info)
       : Sql_cmd_analyze_table(thd, alter_info, Histogram_command::NONE, 0) {}
 
-  ~Sql_cmd_alter_table_analyze_partition() {}
+  ~Sql_cmd_alter_table_analyze_partition() override {}
 
-  bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
   /* Override SQLCOM_ANALYZE, since it is an ALTER command */
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_ALTER_TABLE;
   }
 };
@@ -74,10 +74,10 @@ class Sql_cmd_alter_table_check_partition final : public Sql_cmd_check_table {
  public:
   using Sql_cmd_check_table::Sql_cmd_check_table;
 
-  bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
   /* Override SQLCOM_CHECK, since it is an ALTER command */
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_ALTER_TABLE;
   }
 };
@@ -90,10 +90,10 @@ class Sql_cmd_alter_table_optimize_partition final
  public:
   using Sql_cmd_optimize_table::Sql_cmd_optimize_table;
 
-  bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
   /* Override SQLCOM_OPTIMIZE, since it is an ALTER command */
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_ALTER_TABLE;
   }
 };
@@ -105,10 +105,10 @@ class Sql_cmd_alter_table_repair_partition final : public Sql_cmd_repair_table {
  public:
   using Sql_cmd_repair_table::Sql_cmd_repair_table;
 
-  bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
   /* Override SQLCOM_REPAIR, since it is an ALTER command */
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_ALTER_TABLE;
   }
 };
@@ -120,10 +120,10 @@ class Sql_cmd_alter_table_truncate_partition final : public Sql_cmd_ddl_table {
  public:
   using Sql_cmd_ddl_table::Sql_cmd_ddl_table;
 
-  bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
   /* Override SQLCOM_TRUNCATE, since it is an ALTER command */
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_ALTER_TABLE;
   }
 };

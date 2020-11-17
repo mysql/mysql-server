@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,22 +77,22 @@ class table_binary_log_transaction_compression_stats : public PFS_engine_table {
     @param read_all         true if all columns are read.
   */
 
-  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all);
+  int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                      bool read_all) override;
 
   table_binary_log_transaction_compression_stats();
 
  public:
-  ~table_binary_log_transaction_compression_stats();
+  ~table_binary_log_transaction_compression_stats() override;
 
   /** Table share. */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
   static int delete_all_rows();
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+  int rnd_next() override;
+  int rnd_pos(const void *pos) override;
+  void reset_position(void) override;
 };
 
 /** @} */

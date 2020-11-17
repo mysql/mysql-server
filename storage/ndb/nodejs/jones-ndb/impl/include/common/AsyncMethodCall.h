@@ -1,5 +1,6 @@
+
 /*
- Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2020 Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +32,7 @@
 
 using v8::Function;
 using v8::Value;
-using v8::Handle;
+using v8::Local;
 using v8::Isolate;
 
 
@@ -78,11 +79,11 @@ class AsyncCall {
     Isolate * isolate;
 
     /* Protected constructor chain from AsyncAsyncCall */
-    AsyncCall(Isolate * i, Handle<Function> cb) :
+    AsyncCall(Isolate * i, Local<Function> cb) :
       isolate(i)
     {
       callback.Reset(isolate, cb);
-    };
+    }
 
   public:
     AsyncCall(Isolate * i, Local<Value> callbackFunc) :
@@ -157,8 +158,8 @@ class AsyncCall_Returning : public AsyncCall,
 {
 protected:
   /* Protected Constructor Chain */
-  AsyncCall_Returning<RETURN_TYPE>(Isolate * isol, Handle<Function> callback) :
-    AsyncCall(isol, callback), ReturnValueHandler<RETURN_TYPE>(), error(0)  {}
+  AsyncCall_Returning<RETURN_TYPE>(Isolate * isol, Local<Function> jsCallback) :
+    AsyncCall(isol, jsCallback), ReturnValueHandler<RETURN_TYPE>(), error(0)  {}
     
 public:
   /* Member variables */
@@ -166,11 +167,11 @@ public:
   RETURN_TYPE return_val;
 
   /* Constructors */
-  AsyncCall_Returning<RETURN_TYPE>(Isolate * isol, Local<Value> callback) :
-    AsyncCall(isol, callback), ReturnValueHandler<RETURN_TYPE>(), error(0)  {}
+  AsyncCall_Returning<RETURN_TYPE>(Isolate * isol, Local<Value> jsCallback) :
+    AsyncCall(isol, jsCallback), ReturnValueHandler<RETURN_TYPE>(), error(0)  {}
 
-  AsyncCall_Returning<RETURN_TYPE>(Isolate * isol, Local<Value> callback, RETURN_TYPE rv) :
-    AsyncCall(isol, callback), ReturnValueHandler<RETURN_TYPE>(), error(0),
+  AsyncCall_Returning<RETURN_TYPE>(Isolate * isol, Local<Value> jsCallback, RETURN_TYPE rv) :
+    AsyncCall(isol, jsCallback), ReturnValueHandler<RETURN_TYPE>(), error(0),
     return_val(rv)                                                          {}
 
   /* Destructor */
@@ -186,16 +187,21 @@ public:
 
   /* doAsyncCallback() is an async callback, run by main_thread_complete().
   */
-  void doAsyncCallback(Local<Object> context) {
+  void doAsyncCallback(Local<Object> recv) override {
     EscapableHandleScope scope(AsyncCall::isolate);
-    Handle<Value> cb_args[2];
+    Local<Value> cb_args[2];
 
     if(error) cb_args[0] = error->toJS();
     else      cb_args[0] = Null(AsyncCall::isolate);
 
     cb_args[1] = this->getJsValue(AsyncCall::isolate, return_val);
 
-    ToLocal(& callback)->Call(context, 2, cb_args);
+    doAsyncCallback(recv, 2, cb_args);
+  }
+
+  void doAsyncCallback(Local<Object> recv, int argc, Local<Value> argv[]) {
+    Local<v8::Context> ctx = AsyncCall::isolate->GetCurrentContext();
+    callback.Get(isolate)->Call(ctx, recv, argc, argv).ToLocalChecked();
   }
 };
 
@@ -222,7 +228,7 @@ public:
   }
 
   /* Methods */
-  void handleErrors(void) {
+  void handleErrors(void) override {
     if(errorHandler) AsyncCall_Returning<R>::error = 
       errorHandler(AsyncCall_Returning<R>::return_val, native_obj);
   }
@@ -230,11 +236,11 @@ public:
 protected:
   /* Alternative constructor used only by AsyncAsyncCall */
   NativeMethodCall<R, C>(C * obj, 
-                         Handle<Function> callback,
+                         Local<Function> jsCallback,
                          errorHandler_fn_t errHandler) :
-    AsyncCall_Returning<R>(v8::Isolate::GetCurrent(), callback),
+    AsyncCall_Returning<R>(v8::Isolate::GetCurrent(), jsCallback),
     native_obj(obj),
-    errorHandler(errHandler)                                {};
+    errorHandler(errHandler)                                {}
 };
 
 
@@ -246,12 +252,12 @@ public:
   typedef NativeCodeError * (*errorHandler_fn_t)(R, C *);
 
   /* Constructor */
-  AsyncAsyncCall<R, C>(C * obj, Handle<Function> callback,
+  AsyncAsyncCall<R, C>(C * obj, Local<Function> jsCallback,
                        errorHandler_fn_t errHandler) :
-    NativeMethodCall<R, C>(obj, callback, errHandler)       {};
+    NativeMethodCall<R, C>(obj, jsCallback, errHandler)     {}
   
   /* Methods */
-  void run(void) {};
+  void run(void) override {}
 };
 
 
@@ -266,7 +272,7 @@ public:
   
   /* Constructor */
   NativeVoidMethodCall<C>(const Arguments &args, int callback_idx) :
-    AsyncCall_Returning<int>(args.GetIsolate(), args[callback_idx], 1)  /*callback*/
+    AsyncCall_Returning<int>(args.GetIsolate(), args[callback_idx], 1)
   {
     native_obj = unwrapPointer<C *>(args.Holder());
     DEBUG_ASSERT(native_obj != NULL);

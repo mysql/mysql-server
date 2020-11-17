@@ -849,13 +849,13 @@ ib_err_t ib_sdi_create(space_id_t tablespace_id);
 /** Drop SDI Index from tablespace. This should be used only when SDI
 is corrupted.
 @param[in]	tablespace_id	InnoDB tablespace id
-@return DB_SUCCESS if dropping of SDI indexes  is successful, else error */
+@return DB_SUCCESS if dropping of SDI indexes is successful, else error */
 ib_err_t ib_sdi_drop(space_id_t tablespace_id);
 
-/** Flush SDI in a tablespace. The pages of a SDI copy modified by the
+/** Flush SDI in a tablespace. The pages of a SDI Index modified by the
 transaction will be flushed to disk.
 @param[in]	space_id	tablespace id
-@return DB_SUCCESS always*/
+@return DB_SUCCESS always */
 ib_err_t ib_sdi_flush(space_id_t space_id);
 
 #ifdef UNIV_MEMCACHED_SDI
@@ -906,7 +906,7 @@ ib_err_t ib_memc_sdi_get_keys(ib_crsr_t crsr, const char *key, void *sdi,
 
 /** Check the table whether it contains virtual columns.
 @param[in]	crsr	InnoDB Cursor
-@return true if table contains virtual column else false. */
+@return true if the table contains virtual column else failure. */
 ib_bool_t ib_is_virtual_table(ib_crsr_t crsr);
 
 #ifdef UNIV_MEMCACHED_SDI

@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -81,17 +81,20 @@ override_dh_auto_install:
 	install -m 0644 debian/extra/mysql-helpers debian/tmp/usr/share/mysql-@MYSQL_BASE_VERSION@/
 	# add apparmor profile
 	@DEB_RULES_INSTALL_APPARMOR@
-	# add systemd script
+	@DEB_RULES_INSTALL_APPARMOR_ROUTER@
+	# add systemd scripts
 	install -m 0755 debian/extra/mysql-systemd-start debian/tmp/usr/share/mysql-@MYSQL_BASE_VERSION@/
+	@DEB_RULES_INSTALL_ROUTER_SYSTEMD@
 	touch $@
 
 override_dh_installinit:
 	@echo "RULES.$@"
 	@DEB_RULES_APPARMOR_LOAD@
+	@DEB_RULES_APPARMOR_LOAD_ROUTER@
 	dh_systemd_enable --name=mysql
 	dh_installinit --name=mysql -- defaults 19 21
 	dh_installinit --name=mysql@ -- disable
-	dh_installinit --name=mysqlrouter -- defaults 19 21
+	@DEB_RULES_INSTALLINIT_ROUTER@
 	dh_systemd_start --restart-after-upgrade
 	touch $@
 

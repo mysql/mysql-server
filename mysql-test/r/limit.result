@@ -22,7 +22,7 @@ a
 16
 EXPLAIN FORMAT=TREE SELECT * FROM t1 LIMIT 5 OFFSET 1;
 EXPLAIN
--> Limit/Offset: 5/1 row(s)
+-> Limit/Offset: 5/1 row(s)  (cost=1.15 rows=5)
     -> Table scan on t1  (cost=1.15 rows=9)
 
 (SELECT * FROM t1 LIMIT 7) ORDER BY a DESC LIMIT 4;
@@ -576,16 +576,16 @@ drop table t1;
 prepare s from "select 1 limit ?";
 set @a='qwe';
 execute s using @a;
-1
+ERROR HY000: Incorrect arguments to EXECUTE
 set @a=-1;
 execute s using @a;
-ERROR HY000: Incorrect arguments to EXECUTE
+ERROR 22003: unsigned integer value is out of range in 'EXECUTE'
 prepare s from "select 1 limit 1, ?";
 execute s using @a;
-ERROR HY000: Incorrect arguments to EXECUTE
+ERROR 22003: unsigned integer value is out of range in 'EXECUTE'
 prepare s from "select 1 limit ?, ?";
 execute s using @a, @a;
-ERROR HY000: Incorrect arguments to EXECUTE
+ERROR 22003: unsigned integer value is out of range in 'EXECUTE'
 set @a=14632475938453979136;
 execute s using @a, @a;
 1
@@ -623,7 +623,7 @@ EXPLAIN
     -> Group aggregate: json_objectagg(NULL,'')
         -> Nested loop inner join  (cost=1.35 rows=4)
             -> Sort: t1.pk  (cost=0.45 rows=2)
-                -> Table scan on t1
+                -> Table scan on t1  (cost=0.45 rows=2)
             -> Table scan on t2  (cost=0.35 rows=2)
 
 SELECT JSON_OBJECTAGG(NULL, '') FROM t1, t1 AS t2 GROUP BY t1.pk LIMIT 2 OFFSET 5;
@@ -696,10 +696,10 @@ JOIN b ON a.col_varchar_255 = b.col_varchar_10
 WHERE b.pk <= a.col_int
 ORDER BY a.pk LIMIT 10;
 EXPLAIN
--> Limit: 10 row(s)
+-> Limit: 10 row(s)  (cost=1.21 rows=0)
     -> Nested loop inner join  (cost=1.21 rows=0)
         -> Sort: a.pk  (cost=0.70 rows=2)
-            -> Table scan on a
+            -> Table scan on a  (cost=0.70 rows=2)
         -> Filter: ((b.pk <= a.col_int) and (a.col_varchar_255 = b.col_varchar_10))  (cost=0.50 rows=0)
             -> Index range scan on b (re-planned for each iteration)  (cost=0.50 rows=0)
 
@@ -720,12 +720,56 @@ JOIN b ON a.col_varchar_255 = b.col_varchar_10
 WHERE b.pk <= a.col_int
 ORDER BY a.pk LIMIT 10;
 EXPLAIN
--> Limit: 10 row(s)
+-> Limit: 10 row(s)  (cost=423.65 rows=0)
     -> Nested loop inner join  (cost=423.65 rows=0)
         -> Sort: a.pk  (cost=415.10 rows=4096)
-            -> Table scan on a
+            -> Table scan on a  (cost=415.10 rows=4096)
         -> Filter: ((b.pk <= a.col_int) and (a.col_varchar_255 = b.col_varchar_10))  (cost=8.55 rows=0)
             -> Index range scan on b (re-planned for each iteration)  (cost=8.55 rows=0)
 
 DROP TABLE a;
 DROP TABLE b;
+# Bug#31667061: Inconsistent behavior of @@SQL_SELECT_LIMIT
+#               with prepared statements
+CREATE TABLE t1(id INTEGER);
+INSERT INTO t1 (id) VALUES (1), (2), (3);
+SET @@sql_select_limit=1;
+PREPARE stmt FROM "SELECT * FROM t1 WHERE id > ?";
+SET @a = 0;
+EXECUTE stmt using @a;
+id
+1
+set @@sql_select_limit=2;
+EXECUTE stmt using @a;
+id
+1
+2
+set @@sql_select_limit=DEFAULT;
+EXECUTE stmt USING @a;
+id
+1
+2
+3
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
+CREATE TABLE t1(id INTEGER, c1 INTEGER, c2 INTEGER, c3 INTEGER);
+INSERT INTO t1 VALUES(1,1,1,1),(2,2,2,2),(3,9,9,9),(4,10,10,10),(6,1,2,888);
+PREPARE stmt FROM
+"(SELECT * FROM t1 LIMIT 2) UNION ALL (SELECT * FROM t1 ORDER BY 1)";
+SET @@sql_select_limit=2;
+EXECUTE stmt;
+id	c1	c2	c3
+1	1	1	1
+2	2	2	2
+SET @@sql_select_limit=DEFAULT;
+EXECUTE stmt;
+id	c1	c2	c3
+1	1	1	1
+2	2	2	2
+1	1	1	1
+2	2	2	2
+3	9	9	9
+4	10	10	10
+6	1	2	888
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;

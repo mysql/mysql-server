@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,13 +23,16 @@
 #ifndef SORT_PARAM_INCLUDED
 #define SORT_PARAM_INCLUDED
 
+#include <algorithm>
+
 #include "field_types.h"   // enum_field_types
 #include "my_base.h"       // ha_rows
 #include "my_byteorder.h"  // uint4korr
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_io.h"          // mysql_com.h needs my_socket
-#include "mysql_com.h"      // Item_result
+#include "my_io.h"      // mysql_com.h needs my_socket
+#include "mysql_com.h"  // Item_result
+#include "prealloced_array.h"
 #include "sql/sql_array.h"  // Bounds_checked_array
 #include "sql/sql_const.h"
 #include "sql/sql_sort.h"  // Filesort_info
@@ -106,7 +109,6 @@ struct st_sort_field {
 
 struct Sort_addon_field { /* Sort addon packed field */
   Field *field;           /* Original field */
-  uint offset;            /* Offset from the last sorted field */
   uint null_offset;       /* Offset to to null bit from the last sorted field */
   uint max_length;        /* Maximum length in the sort buffer */
   uint8 null_bit;         /* Null bit mask for the field */
@@ -152,7 +154,26 @@ class Addon_fields {
 
   void set_using_packed_addons(bool val) { m_using_packed_addons = val; }
 
+  void set_first_addon_relative_offset(int offset) {
+    m_first_addon_relative_offset = offset;
+  }
+  int first_addon_offset() const {
+    return skip_bytes() + m_first_addon_relative_offset;
+  }
+
   bool using_packed_addons() const { return m_using_packed_addons; }
+
+  /**
+    How many bytes to skip to get to the actual data; first NULL flags
+    (for tables and addon fields) and then the actual addons.
+   */
+  size_t skip_bytes() const {
+    if (m_using_packed_addons) {
+      return Addon_fields::size_of_length_field;
+    } else {
+      return 0;
+    }
+  }
 
   /**
     @returns Total number of bytes used for packed addon fields.
@@ -178,37 +199,44 @@ class Addon_fields {
   uchar *m_addon_buf;          ///< Buffer for unpacking addon fields.
   uint m_addon_buf_length;     ///< Length of the buffer.
   bool m_using_packed_addons;  ///< Are we packing the addon fields?
+
+  /// Number of bytes from after skip_bytes() to the beginning of the first
+  /// addon field.
+  int m_first_addon_relative_offset = 0;
 };
 
+/* clang-format off */
 /**
   There are several record formats for sorting:
 @verbatim
-    |<key a><key b>...    | <rowid> |
-    / m_fixed_sort_length / ref_len /
+    |<key a><key b>...    | ( <null row flag> | <rowid> | ) * num_tables
+    / m_fixed_sort_length / (  0 or 1 bytes   | ref_len / )
 @endverbatim
 
   or with "addon fields"
 @verbatim
     |<key a><key b>...    |<null bits>|<field a><field b>...|
-    / m_fixed_sort_length /         addon_length            /
+    / m_fixed_sort_length /        addon_length             /
 @endverbatim
 
   The packed format for "addon fields"
 @verbatim
     |<key a><key b>...    |<length>|<null bits>|<field a><field b>...|
-    / m_fixed_sort_length /         addon_length                     /
+    / m_fixed_sort_length /             addon_length                 /
 @endverbatim
 
-  All the formats above have fixed-size keys, with appropriate padding.
-  Fixed-size keys can be compared/sorted using memcmp().
+  For packed addon fields, fields are not stored if the table is nullable and
+  has its NULL bit set.
+
+  All the figures above are depicted for the case of fixed-size keys, with
+  appropriate padding. Fixed-size keys can be compared/sorted using memcmp().
 
   The packed (variable length) format for keys:
 @verbatim
-    |<keylen>|<varkey a><key b>...<hash>|<rowid>  or <addons>     |
-    / 4 bytes/   keylen bytes           / ref_len or addon_length /
+    |<keylen>|<varkey a><key b>...<hash>|<(null_row,rowid) * num_tables>  or <addons>   |
+    / 4 bytes/   keylen bytes           / (0/1 + ref_len) * num_tables or addon_length /
 @endverbatim
 
-  This format is currently only used if we are sorting JSON data.
   Variable-size keys must be compared piece-by-piece, using type information
   about each individual key part, @see cmp_varlen_keys.
 
@@ -216,9 +244,6 @@ class Addon_fields {
   followed by a (possibly composite) payload.
   The key is used for sorting data. Once sorting is done, the payload is
   stored in some buffer, and read by some RowIterator.
-
-  For fixed-size keys, with @<rowid@> payload, the @<rowid@> is also
-  considered to be part of the key.
 
 <dl>
 <dt>@<key@>
@@ -231,8 +256,11 @@ class Addon_fields {
                 which should cover most use cases: addon data <= 65535 bytes.
                 This is the same as max record size in MySQL.
 <dt>@<null bits@>
-          <dd>  One bit for each nullable field, indicating whether the field
-                is null or not. May have size zero if no fields are nullable.
+          <dd>  One bit for each nullable table and field, indicating whether
+                the table/field is NULL or not. May have size zero if no fields
+                or rows are nullable. NULL bits for rows (on nullable tables),
+                if any, always come before NULL bits for fields.
+
 <dt>@<field xx@>
           <dd>  Are stored with field->pack(), and retrieved with
                 field->unpack().
@@ -258,16 +286,16 @@ class Addon_fields {
                 key length. Does not exist if the field is NULL.
 </dl>
  */
+/* clang-format on */
 class Sort_param {
   uint m_fixed_rec_length{0};   ///< Maximum length of a record, see above.
   uint m_fixed_sort_length{0};  ///< Maximum number of bytes used for sorting.
  public:
-  uint ref_length{0};        // Length of record ref.
+  uint sum_ref_length{0};    // Length of record ref.
   uint m_addon_length{0};    // Length of added packed fields.
   uint fixed_res_length{0};  // Length of records in final sorted file/buffer.
   uint max_rows_per_buffer{0};  // Max (unpacked) rows / buffer.
   ha_rows max_rows{0};          // Select limit, or HA_POS_ERROR if unlimited.
-  TABLE *sort_form{nullptr};    // For quicker make_sortkey.
   bool use_hash{false};         // Whether to use hash to distinguish cut JSON
   bool m_force_stable_sort{false};  // Keep relative order of equal elements
   bool m_remove_duplicates{
@@ -296,7 +324,8 @@ class Sort_param {
   /// optimization). If we want to change this, we can probably have
   /// make_sortkey() check the read set at runtime, at the cost of slightly less
   /// precise estimation of packed row size.
-  void decide_addon_fields(Filesort *file_sort, TABLE *table,
+  void decide_addon_fields(Filesort *file_sort,
+                           const Prealloced_array<TABLE *, 4> &tables,
                            bool sort_positions);
 
   /**
@@ -306,14 +335,23 @@ class Sort_param {
                               subsequent invocations of filesort()
     @param sf_array  initialization value for local_sortorder
     @param sortlen   length of sorted columns
-    @param table     table to be sorted
+    @param tables    tables to be sorted
     @param maxrows   HA_POS_ERROR or possible LIMIT value
     @param remove_duplicates if true, items with duplicate keys will be removed
   */
   void init_for_filesort(Filesort *file_sort,
                          Bounds_checked_array<st_sort_field> sf_array,
-                         uint sortlen, TABLE *table, ha_rows maxrows,
-                         bool remove_duplicates);
+                         uint sortlen,
+                         const Prealloced_array<TABLE *, 4> &tables,
+                         ha_rows maxrows, bool remove_duplicates);
+
+  /**
+    Initialize this struct for unit testing.
+  */
+  void init_for_unittest(Bounds_checked_array<st_sort_field> sf_array) {
+    local_sortorder = sf_array;
+    m_num_varlen_keys = count_varlen_keys();
+  }
 
   /// Enables the packing of addons if possible.
   void try_to_pack_addons();
@@ -339,20 +377,22 @@ class Sort_param {
     Stores key fields in *dst.
     Then appends either *ref_pos (the @<rowid@>) or the "addon fields".
     @param  [out] dst   Where to store the result
-    @param  ref_pos     Where to find the @<rowid@>
+    @param  tables      Tables to get @<rowid@> from
     @param  [in,out] longest_addons
        The longest addon field row (sum of all addon fields for any single
        given row) found.
     @returns Number of bytes stored, or UINT_MAX if the result could not
       provably fit within the destination buffer.
    */
-  uint make_sortkey(Bounds_checked_array<uchar> dst, const uchar *ref_pos,
+  uint make_sortkey(Bounds_checked_array<uchar> dst,
+                    const Prealloced_array<TABLE *, 4> &tables,
                     size_t *longest_addons);
 
   // Adapter for Bounded_queue.
-  uint make_sortkey(uchar *dst, size_t dst_len, const uchar *ref_pos) {
+  uint make_sortkey(uchar *dst, size_t dst_len,
+                    const Prealloced_array<TABLE *, 4> &tables) {
     size_t longest_addons = 0;  // Unused.
-    return make_sortkey(Bounds_checked_array<uchar>(dst, dst_len), ref_pos,
+    return make_sortkey(Bounds_checked_array<uchar>(dst, dst_len), tables,
                         &longest_addons);
   }
 
@@ -363,7 +403,7 @@ class Sort_param {
   uchar *get_start_of_payload(uchar *p) const {
     size_t offset = using_varlen_keys() ? uint4korr(p) : max_compare_length();
     if (!using_addon_fields() && !using_varlen_keys())
-      offset -= ref_length;  // The reference is also part of the sort key.
+      offset -= sum_ref_length;  // The reference is also part of the sort key.
     return p + offset;
   }
 
@@ -412,7 +452,11 @@ class Sort_param {
 
  private:
   /// Counts number of varlen keys
-  int count_varlen_keys() const;
+  int count_varlen_keys() const {
+    return std::count_if(local_sortorder.begin(), local_sortorder.end(),
+                         [](const auto &sf) { return sf.is_varlen; });
+  }
+
   /// Counts number of JSON keys
   int count_json_keys() const;
 

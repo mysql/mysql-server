@@ -99,6 +99,8 @@ FLUSH LOGS;
 CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= MASTER_PORT, MASTER_USER= 'root',MASTER_LOG_FILE = 'FILE', MASTER_LOG_POS = POS ;
 ERROR HY000: CHANGE MASTER cannot be executed when the slave was stopped with an error or killed in MTS mode. Consider using RESET SLAVE or START SLAVE UNTIL.
 reset slave;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= MASTER_PORT, MASTER_USER= 'root',MASTER_LOG_FILE = 'FILE', MASTER_LOG_POS = POS ;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.

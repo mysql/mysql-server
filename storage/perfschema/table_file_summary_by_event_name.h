@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ class PFS_index_file_summary_by_event_name : public PFS_engine_index {
   PFS_index_file_summary_by_event_name()
       : PFS_engine_index(&m_key), m_key("EVENT_NAME") {}
 
-  ~PFS_index_file_summary_by_event_name() {}
+  ~PFS_index_file_summary_by_event_name() override {}
 
   bool match(const PFS_file_class *pfs);
 
@@ -78,22 +78,22 @@ class table_file_summary_by_event_name : public PFS_engine_table {
   static int delete_all_rows();
   static ha_rows get_row_count();
 
-  virtual void reset_position(void);
+  void reset_position(void) override;
 
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
+  int rnd_next() override;
+  int rnd_pos(const void *pos) override;
 
-  virtual int index_init(uint idx, bool sorted);
-  virtual int index_next();
+  int index_init(uint idx, bool sorted) override;
+  int index_next() override;
 
  private:
-  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all);
+  int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                      bool read_all) override;
 
   table_file_summary_by_event_name();
 
  public:
-  ~table_file_summary_by_event_name() {}
+  ~table_file_summary_by_event_name() override {}
 
  private:
   int make_row(PFS_file_class *klass);

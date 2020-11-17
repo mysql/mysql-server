@@ -221,7 +221,7 @@ The router log file says:
     2017-01-24 12:28:30 INFO    [7fc57dfec700] Connected with metadata server running on 127.0.0.1:5500
     2017-01-24 12:28:30 INFO    [7fc57dfec700] Changes detected in cluster 'test' after metadata refresh
     2017-01-24 12:28:30 INFO    [7fc57dfec700] Metadata for cluster 'test' has 1 replicasets:
-    2017-01-24 12:28:30 INFO    [7fc57dfec700] 'default' (3 members, single-master)
+    2017-01-24 12:28:30 INFO    [7fc57dfec700] 'default' (3 members, single-primary)
     2017-01-24 12:28:30 INFO    [7fc57dfec700]     localhost:5100 / 50000 - role=HA mode=RW
     2017-01-24 12:28:30 INFO    [7fc57dfec700]     localhost:5110 / 50100 - role=HA mode=RO
     2017-01-24 12:28:30 INFO    [7fc57dfec700]     localhost:5120 / 50200 - role=HA mode=RO

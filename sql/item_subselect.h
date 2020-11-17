@@ -1,7 +1,7 @@
 #ifndef ITEM_SUBSELECT_INCLUDED
 #define ITEM_SUBSELECT_INCLUDED
 
-/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,10 +25,14 @@
 
 /* subselect Item */
 
-#include <stddef.h>
 #include <sys/types.h>
 
+#include <cstddef>
+#include <memory>  // unique_ptr
+#include <vector>
+
 #include "field_types.h"  // enum_field_types
+#include "my_alloc.h"     // Destroy_only
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
@@ -37,12 +41,14 @@
 #include "mysql_time.h"
 #include "sql/comp_creator.h"
 #include "sql/enum_query_type.h"
-#include "sql/item.h"  // Item_result_field
+#include "sql/item.h"            // Item_result_field
+#include "sql/parse_location.h"  // POS
 #include "sql/parse_tree_node_base.h"
-#include "sql/row_iterator.h"
+#include "sql/row_iterator.h"  // IWYU pragma: keep
 #include "sql/sql_const.h"
 #include "template_utils.h"
 
+class Comp_creator;
 class Field;
 class Item_func_not_all;
 class Item_in_optimizer;
@@ -52,15 +58,18 @@ class PT_subquery;
 class QEP_TAB;
 class Query_result_interceptor;
 class Query_result_subquery;
+class Query_result_union;
 class SELECT_LEX;
 class SELECT_LEX_UNIT;
 class String;
+class SubqueryWithResult;
 class THD;
 class Temp_table_param;
 class my_decimal;
-class SubqueryWithResult;
 class subselect_indexsubquery_engine;
+struct AccessPath;
 struct TABLE_LIST;
+
 template <class T>
 class List;
 
@@ -110,7 +119,7 @@ class Item_subselect : public Item_result_field {
   const QEP_TAB *get_qep_tab() const;
 
   void create_iterators(THD *thd);
-  virtual RowIterator *root_iterator() const { return nullptr; }
+  virtual AccessPath *root_access_path() const { return nullptr; }
 
  protected:
   /*
@@ -178,14 +187,7 @@ class Item_subselect : public Item_result_field {
   bool assigned() const { return value_assigned; }
   void assigned(bool a) { value_assigned = a; }
   enum Type type() const override;
-  bool is_null() override {
-    /*
-      TODO : Implement error handling for this function as
-      update_null_value() can return error.
-    */
-    (void)update_null_value();
-    return null_value;
-  }
+  bool is_null() override { return update_null_value() || null_value; }
   bool fix_fields(THD *thd, Item **ref) override;
   void fix_after_pullout(SELECT_LEX *parent_select,
                          SELECT_LEX *removed_select) override;
@@ -273,8 +275,6 @@ class Item_singlerow_subselect : public Item_subselect {
   Item_cache *value, **row;
   bool no_rows;  ///< @c no_rows_in_result
  public:
-  TABLE_LIST *m_derived_replacement{nullptr};  ///< when subquery is transformed
-
   Item_singlerow_subselect(SELECT_LEX *select_lex);
   Item_singlerow_subselect()
       : Item_subselect(), value(nullptr), row(nullptr), no_rows(false) {}
@@ -320,6 +320,7 @@ class Item_singlerow_subselect : public Item_subselect {
   void bring_value() override;
 
   bool collect_scalar_subqueries(uchar *) override;
+  virtual bool is_maxmin() const { return false; }
 
   /**
     Argument for walk method replace_scalar_subquery
@@ -370,6 +371,7 @@ class Item_maxmin_subselect final : public Item_singlerow_subselect {
   bool any_value() { return was_values; }
   void register_value() { was_values = true; }
   void reset_value_registration() override { was_values = false; }
+  bool is_maxmin() const override { return true; }
 };
 
 /* exists subselect */
@@ -681,7 +683,7 @@ class Item_in_subselect : public Item_exists_subselect {
   */
   bool finalize_materialization_transform(THD *thd, JOIN *join);
 
-  RowIterator *root_iterator() const override;
+  AccessPath *root_access_path() const override;
 
   friend class Item_ref_null_helper;
   friend class Item_is_not_null_test;
@@ -765,7 +767,8 @@ class SubqueryWithResult {
 
   SELECT_LEX_UNIT *unit; /* corresponding unit structure */
 
-  void set_row(List<Item> &item_list, Item_cache **row, bool never_empty);
+  void set_row(const mem_root_deque<Item *> &item_list, Item_cache **row,
+               bool never_empty);
 
   friend class subselect_hash_sj_engine;
 };
@@ -858,8 +861,12 @@ class subselect_hash_sj_engine final : public subselect_indexsubquery_engine {
   enum nulls_exist mat_table_has_nulls;
   SELECT_LEX_UNIT *const unit;
   unique_ptr_destroy_only<RowIterator> m_iterator;
+  AccessPath *m_root_access_path;
   /* Temp table context of the outer select's JOIN. */
   Temp_table_param *tmp_param;
+
+  /// Saved result object, must be restored after use
+  Query_result_interceptor *saved_result{nullptr};
 
  public:
   subselect_hash_sj_engine(Item_in_subselect *in_predicate,
@@ -870,14 +877,14 @@ class subselect_hash_sj_engine final : public subselect_indexsubquery_engine {
         tmp_param(nullptr) {}
   ~subselect_hash_sj_engine() override;
 
-  bool setup(THD *thd, List<Item> *tmp_columns);
+  bool setup(THD *thd, const mem_root_deque<Item *> &tmp_columns);
   void cleanup(THD *thd) override;
   bool exec(THD *thd) override;
   void print(const THD *thd, String *str, enum_query_type query_type) override;
   enum_engine_type engine_type() const override { return HASH_SJ_ENGINE; }
 
   const QEP_TAB *get_qep_tab() const { return tab; }
-  RowIterator *root_iterator() const { return m_iterator.get(); }
+  AccessPath *root_access_path() const { return m_root_access_path; }
   void create_iterators(THD *thd) override;
 };
 

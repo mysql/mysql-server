@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,20 +64,22 @@ SocketServer::~SocketServer() {
   }
 }
 
+
 bool
 SocketServer::tryBind(unsigned short port, const char * intface) {
-  struct sockaddr_in servaddr;
+  struct sockaddr_in6 servaddr;
   memset(&servaddr, 0, sizeof(servaddr));
-  servaddr.sin_family = AF_INET;
-  servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-  servaddr.sin_port = htons(port);
-  
+  servaddr.sin6_family = AF_INET6;
+  servaddr.sin6_addr = in6addr_any;
+  servaddr.sin6_port = htons(port);
+
   if(intface != 0){
-    if(Ndb_getInAddr(&servaddr.sin_addr, intface))
+    if(Ndb_getInAddr6(&servaddr.sin6_addr, intface))
       return false;
   }
 
-  const NDB_SOCKET_TYPE sock = ndb_socket_create(AF_INET, SOCK_STREAM, 0);
+  const NDB_SOCKET_TYPE sock =
+      ndb_socket_create_dual_stack(SOCK_STREAM, 0);
   if (!ndb_socket_valid(sock))
     return false;
 
@@ -89,7 +91,7 @@ SocketServer::tryBind(unsigned short port, const char * intface) {
     ndb_socket_close(sock);
     return false;
   }
-  
+
   if (ndb_bind_inet(sock, &servaddr) == -1) {
     ndb_socket_close(sock);
     return false;
@@ -101,27 +103,28 @@ SocketServer::tryBind(unsigned short port, const char * intface) {
 
 #define MAX_SOCKET_SERVER_TCP_BACKLOG 64
 bool
-SocketServer::setup(SocketServer::Service * service, 
-		    unsigned short * port,
-		    const char * intface){
+SocketServer::setup(SocketServer::Service * service,
+        unsigned short * port,
+        const char * intface){
   DBUG_ENTER("SocketServer::setup");
   DBUG_PRINT("enter",("interface=%s, port=%u", intface, *port));
-  struct sockaddr_in servaddr;
+  struct sockaddr_in6 servaddr;
   memset(&servaddr, 0, sizeof(servaddr));
-  servaddr.sin_family = AF_INET;
-  servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-  servaddr.sin_port = htons(*port);
-  
+  servaddr.sin6_family = AF_INET6;
+  servaddr.sin6_addr = in6addr_any;
+  servaddr.sin6_port = htons(*port);
+
   if(intface != 0){
-    if(Ndb_getInAddr(&servaddr.sin_addr, intface))
+    if(Ndb_getInAddr6(&servaddr.sin6_addr, intface))
       DBUG_RETURN(false);
   }
-  
-  const NDB_SOCKET_TYPE sock = ndb_socket_create(AF_INET, SOCK_STREAM, 0);
+
+  const NDB_SOCKET_TYPE sock =
+      ndb_socket_create_dual_stack(SOCK_STREAM, 0);
   if (!ndb_socket_valid(sock))
   {
     DBUG_PRINT("error",("socket() - %d - %s",
-			socket_errno, strerror(socket_errno)));
+      socket_errno, strerror(socket_errno)));
     DBUG_RETURN(false);
   }
 
@@ -131,31 +134,31 @@ SocketServer::setup(SocketServer::Service * service,
   if (ndb_socket_reuseaddr(sock, true) == -1)
   {
     DBUG_PRINT("error",("setsockopt() - %d - %s",
-			errno, strerror(errno)));
+      errno, strerror(errno)));
     ndb_socket_close(sock);
     DBUG_RETURN(false);
   }
 
   if (ndb_bind_inet(sock, &servaddr) == -1) {
     DBUG_PRINT("error",("bind() - %d - %s",
-			socket_errno, strerror(socket_errno)));
+      socket_errno, strerror(socket_errno)));
     ndb_socket_close(sock);
     DBUG_RETURN(false);
   }
 
   /* Get the address and port we bound to */
-  struct sockaddr_in serv_addr;
+  struct sockaddr_in6 serv_addr;
   ndb_socket_len_t addr_len = sizeof(serv_addr);
   if(ndb_getsockname(sock, (struct sockaddr *) &serv_addr, &addr_len))
   {
     ndbout_c("An error occurred while trying to find out what"
-	     " port we bound to. Error: %d - %s",
+       " port we bound to. Error: %d - %s",
              ndb_socket_errno(), strerror(ndb_socket_errno()));
     ndb_socket_close(sock);
     DBUG_RETURN(false);
   }
-  *port = ntohs(serv_addr.sin_port);
-  setOwnProcessInfoServerAddress(& serv_addr.sin_addr);
+  *port = ntohs(serv_addr.sin6_port);
+  setOwnProcessInfoServerAddress((sockaddr*)& serv_addr);
 
   DBUG_PRINT("info",("bound to %u", *port));
 
@@ -163,7 +166,7 @@ SocketServer::setup(SocketServer::Service * service,
                       MAX_SOCKET_SERVER_TCP_BACKLOG : m_maxSessions) == -1)
   {
     DBUG_PRINT("error",("listen() - %d - %s",
-			socket_errno, strerror(socket_errno)));
+      socket_errno, strerror(socket_errno)));
     ndb_socket_close(sock);
     DBUG_RETURN(false);
   }
@@ -181,6 +184,7 @@ SocketServer::setup(SocketServer::Service * service,
 
   DBUG_RETURN(true);
 }
+
 
 bool
 SocketServer::doAccept()

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -538,7 +538,11 @@ bool is_gtid_committed(const Gtid &gtid) {
 
   DBUG_ASSERT(global_gtid_mode.get() != Gtid_mode::OFF);
 
-  return gtid_state->is_executed(gtid);
+  gtid_state->lock_sidno(gtid.sidno);
+  bool result = gtid_state->is_executed(gtid);
+  gtid_state->unlock_sidno(gtid.sidno);
+
+  return result;
 }
 
 unsigned long get_slave_max_allowed_packet() {

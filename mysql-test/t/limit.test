@@ -244,15 +244,16 @@ drop table t1;
 
 prepare s from "select 1 limit ?";
 set @a='qwe';
+--error ER_WRONG_ARGUMENTS
 execute s using @a;
 set @a=-1;
---error ER_WRONG_ARGUMENTS
+--error ER_DATA_OUT_OF_RANGE
 execute s using @a;
 prepare s from "select 1 limit 1, ?";
---error ER_WRONG_ARGUMENTS
+--error ER_DATA_OUT_OF_RANGE
 execute s using @a;
 prepare s from "select 1 limit ?, ?";
---error ER_WRONG_ARGUMENTS
+--error ER_DATA_OUT_OF_RANGE
 execute s using @a, @a;
 set @a=14632475938453979136;
 execute s using @a, @a;
@@ -414,3 +415,30 @@ eval explain format=tree $query;
 
 DROP TABLE a;
 DROP TABLE b;
+
+--echo # Bug#31667061: Inconsistent behavior of @@SQL_SELECT_LIMIT
+--echo #               with prepared statements
+
+CREATE TABLE t1(id INTEGER);
+INSERT INTO t1 (id) VALUES (1), (2), (3);
+SET @@sql_select_limit=1;
+PREPARE stmt FROM "SELECT * FROM t1 WHERE id > ?";
+SET @a = 0;
+EXECUTE stmt using @a;
+set @@sql_select_limit=2;
+EXECUTE stmt using @a;
+set @@sql_select_limit=DEFAULT;
+EXECUTE stmt USING @a;
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
+
+CREATE TABLE t1(id INTEGER, c1 INTEGER, c2 INTEGER, c3 INTEGER);
+INSERT INTO t1 VALUES(1,1,1,1),(2,2,2,2),(3,9,9,9),(4,10,10,10),(6,1,2,888);
+PREPARE stmt FROM
+"(SELECT * FROM t1 LIMIT 2) UNION ALL (SELECT * FROM t1 ORDER BY 1)";
+SET @@sql_select_limit=2;
+EXECUTE stmt;
+SET @@sql_select_limit=DEFAULT;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;

@@ -15,17 +15,13 @@ SELECT * FROM t1;
 
 --echo # Transaction trx1
 START TRANSACTION;
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES (2, 2, 3) ON DUPLICATE KEY UPDATE c=VALUES(c);
---enable_ps_protocol
 COMMIT;
 
 --echo # Transaction trx2
 START TRANSACTION;
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES (2, 1, 2) ON DUPLICATE KEY UPDATE c=VALUES(c);
 INSERT INTO t1 VALUES (2, 3, 4) ON DUPLICATE KEY UPDATE c=VALUES(c);
---enable_ps_protocol
 COMMIT;
 
 --echo # Result:
@@ -45,17 +41,13 @@ SELECT * FROM t1;
 
 --echo # Transaction trx2
 START TRANSACTION;
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES (2, 1, 2) ON DUPLICATE KEY UPDATE c=VALUES(c);
 INSERT INTO t1 VALUES (2, 3, 4) ON DUPLICATE KEY UPDATE c=VALUES(c);
---enable_ps_protocol
 COMMIT;
 
 --echo # Transaction trx1
 START TRANSACTION;
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES (2, 2, 3) ON DUPLICATE KEY UPDATE c=VALUES(c);
---enable_ps_protocol
 COMMIT;
 
 --echo # Result:
@@ -90,17 +82,13 @@ SELECT * FROM t1;
 
 --echo # Transaction trx1:
 START TRANSACTION;
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES (2, 1, 2) ON DUPLICATE KEY UPDATE c=VALUES(c);
---enable_ps_protocol
 SELECT * FROM t1;
 
 --echo # Connection other:
 --connect (other,localhost,root,,test,,)
 --send
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES (2, 2, 3) ON DUPLICATE KEY UPDATE c=VALUES(c);
---enable_ps_protocol
 
 --echo # Connection default:
 --connection default
@@ -113,9 +101,7 @@ let $wait_condition=
 
 --source include/wait_condition.inc
 
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES (2, 3, 4) ON DUPLICATE KEY UPDATE c=VALUES(c);
---enable_ps_protocol
 SELECT * FROM t1;
 COMMIT;
 
@@ -143,17 +129,13 @@ SELECT * FROM t1;
 
 --echo # Transaction trx1
 START TRANSACTION;
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES (2, 2, 3) ON DUPLICATE KEY UPDATE c=VALUES(c);
---enable_ps_protocol
 COMMIT;
 
 --echo # Transaction trx2
 START TRANSACTION;
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES (1, 2, 2) ON DUPLICATE KEY UPDATE c=VALUES(c);
 INSERT INTO t1 VALUES (3, 2, 4) ON DUPLICATE KEY UPDATE c=VALUES(c);
---enable_ps_protocol
 COMMIT;
 
 --echo # Result:
@@ -172,17 +154,13 @@ SELECT * FROM t1;
 
 --echo # Transaction trx2
 START TRANSACTION;
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES (1, 2, 2) ON DUPLICATE KEY UPDATE c=VALUES(c);
 INSERT INTO t1 VALUES (3, 2, 4) ON DUPLICATE KEY UPDATE c=VALUES(c);
---enable_ps_protocol
 COMMIT;
 
 --echo # Transaction trx1
 START TRANSACTION;
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES (2, 2, 3) ON DUPLICATE KEY UPDATE c=VALUES(c);
---enable_ps_protocol
 COMMIT;
 
 --echo # Result:
@@ -203,9 +181,7 @@ SELECT * FROM t1;
 
 --echo # Transaction trx1:
 START TRANSACTION;
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES (1, 2, 2) ON DUPLICATE KEY UPDATE c=VALUES(c);
---enable_ps_protocol
 SELECT * FROM t1;
 
 --echo # Connection other:
@@ -218,9 +194,7 @@ COMMIT;
 
 --echo # Connection default:
 --connection default
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES (3, 2, 4) ON DUPLICATE KEY UPDATE c=VALUES(c);
---enable_ps_protocol
 COMMIT;
 
 --echo # Result:
@@ -241,9 +215,7 @@ SELECT * FROM t1;
 --echo # Connection other:
 connection other;
 START TRANSACTION;
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES(2, 10, 200) ON DUPLICATE KEY UPDATE f3 = 120;
---enable_ps_protocol
 
 --echo # Connection default
 connection default;

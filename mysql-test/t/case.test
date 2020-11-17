@@ -347,3 +347,13 @@ SELECT CONCAT(IFNULL(t3, d)) AS col1 FROM t1 GROUP BY col1;
 SET TIMESTAMP=DEFAULT;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Test for a memory leak in WL#6570
+--echo #
+
+CREATE TABLE t1 (a VARCHAR(110));
+INSERT INTO t1 VALUES (REPEAT("a",100));
+SELECT (t1.a,t1.a) IN (('a','c'),('a','b')) END FROM t1;
+SELECT CASE t1.a WHEN 'a' THEN 'c' ELSE 'd' END FROM t1;
+DROP TABLE t1;

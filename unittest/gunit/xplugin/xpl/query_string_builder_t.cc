@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -181,7 +181,7 @@ class Query_string_builder_multiple_tags_param_testsuite
     : public Query_string_builder_testsuite,
       public ::testing::WithParamInterface<Query_and_expected_values> {
  public:
-  void SetUp() {
+  void SetUp() override {
     values = GetParam().m_values;
     expected_query = &GetParam().m_expected[0];
 

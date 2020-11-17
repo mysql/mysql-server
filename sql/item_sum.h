@@ -1,7 +1,7 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
 
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,14 +25,15 @@
 
 /* classes for sum functions */
 
-#include <limits.h>
-#include <math.h>
-#include <stddef.h>
-#include <stdio.h>
 #include <sys/types.h>
+
+#include <climits>
+#include <cmath>
+#include <cstdio>
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "field_types.h"  // enum_field_types
 #include "m_ctype.h"
@@ -53,12 +54,13 @@
 #include "sql/item_func.h"  // Item_int_func
 #include "sql/mem_root_array.h"
 #include "sql/my_decimal.h"
-#include "sql/parse_tree_node_base.h"
-#include "sql/parse_tree_nodes.h"  // PT_window
+#include "sql/parse_location.h"     // POS
+#include "sql/parse_tree_window.h"  // PT_window
 #include "sql/sql_base.h"
 #include "sql/sql_const.h"
 #include "sql/sql_list.h"
-#include "sql/sql_udf.h"  // udf_handler
+#include "sql/sql_udf.h"     // udf_handler
+#include "sql/thr_malloc.h"  // THR_MALLOC
 #include "sql/window_lex.h"
 #include "sql_string.h"
 #include "template_utils.h"
@@ -69,11 +71,13 @@ class Json_array;
 class Json_object;
 class Json_wrapper;
 class PT_item_list;
+class PT_order_list;
 class SELECT_LEX;
 class THD;
 class Temp_table_param;
 class Window;
 struct ORDER;
+struct Parse_context;
 struct TABLE;
 struct Window_evaluation_requirements;
 
@@ -387,8 +391,9 @@ class Aggregator {
   the WF's val_*() to accumulate it.
 */
 
-class Item_sum : public Item_result_field {
+class Item_sum : public Item_result_field, public Func_args_handle {
   typedef Item_result_field super;
+  typedef Func_args_handle super2;
 
   friend class Aggregator_distinct;
   friend class Aggregator_simple;
@@ -491,9 +496,12 @@ class Item_sum : public Item_result_field {
   nesting_map save_deny_window_func;
 
  protected:
-  uint arg_count;
-  Item **args, *tmp_args[2];
   table_map used_tables_cache;
+  /**
+    True means that this field has been evaluated during optimization.
+    When set, used_tables() returns zero and const_item() returns true.
+    The value must be reset to false after execution.
+  */
   bool forced_const;
   static ulonglong ram_limitation(THD *thd);
 
@@ -503,24 +511,22 @@ class Item_sum : public Item_result_field {
 
   Item_sum(const POS &pos, PT_window *w)
       : super(pos),
+        super2(nullptr, 0),
         m_window(w),
         m_window_resolved(false),
         next_sum(nullptr),
         allow_group_via_temp_table(true),
-        arg_count(0),
-        args(nullptr),
         used_tables_cache(0),
         forced_const(false) {
     init_aggregator();
   }
 
   Item_sum(Item *a)
-      : m_window(nullptr),
+      : super2(1),
+        m_window(nullptr),
         m_window_resolved(false),
         next_sum(nullptr),
         allow_group_via_temp_table(true),
-        arg_count(1),
-        args(tmp_args),
         used_tables_cache(0),
         forced_const(false) {
     args[0] = a;
@@ -530,12 +536,11 @@ class Item_sum : public Item_result_field {
 
   Item_sum(const POS &pos, Item *a, PT_window *w)
       : super(pos),
+        super2(1),
         m_window(w),
         m_window_resolved(false),
         next_sum(nullptr),
         allow_group_via_temp_table(true),
-        arg_count(1),
-        args(tmp_args),
         used_tables_cache(0),
         forced_const(false) {
     args[0] = a;
@@ -544,12 +549,11 @@ class Item_sum : public Item_result_field {
 
   Item_sum(const POS &pos, Item *a, Item *b, PT_window *w)
       : super(pos),
+        super2(2),
         m_window(w),
         m_window_resolved(false),
         next_sum(nullptr),
         allow_group_via_temp_table(true),
-        arg_count(2),
-        args(tmp_args),
         used_tables_cache(0),
         forced_const(false) {
     args[0] = a;
@@ -596,15 +600,26 @@ class Item_sum : public Item_result_field {
   virtual void update_field() = 0;
   virtual bool keep_field_type() const { return false; }
   bool resolve_type(THD *) override;
-  virtual Item *result_item(Field *field) { return new Item_field(field); }
-  table_map used_tables() const override { return used_tables_cache; }
+  virtual Item *result_item(Field *field) {
+    Item_field *item = new Item_field(field);
+    if (item == nullptr) return nullptr;
+    // Aggregated fields have no reference to an underlying table
+    DBUG_ASSERT(item->orig_db_name() == nullptr &&
+                item->orig_table_name() == nullptr);
+    // Break the connection to the original field since this is an aggregation
+    item->set_orig_field_name(nullptr);
+    return item;
+  }
+  table_map used_tables() const override {
+    return forced_const ? 0 : used_tables_cache;
+  }
   void update_used_tables() override;
   void fix_after_pullout(SELECT_LEX *parent_select,
                          SELECT_LEX *removed_select) override;
   void add_used_tables_for_aggr_func();
   bool is_null() override { return null_value; }
   void make_const() {
-    used_tables_cache = 0;
+    // "forced_const" will make used_tables() return zero for this object
     forced_const = true;
   }
   void print(const THD *thd, String *str,
@@ -633,6 +648,7 @@ class Item_sum : public Item_result_field {
   struct Collect_grouped_aggregate_info {
     /// accumulated all aggregates found
     std::vector<Item_sum *> list;
+    std::set<Item_sum *> aggregates_that_were_hidden;
     /**
       The query block we walk from. All found aggregates must aggregate in
       this; if some aggregate in outer query blocks, break off transformation.
@@ -658,8 +674,7 @@ class Item_sum : public Item_result_field {
   bool check_sum_func(THD *thd, Item **ref);
 
   virtual Item *get_arg(uint i) { return args[i]; }
-  virtual Item *set_arg(uint i, THD *thd, Item *new_val);
-  virtual uint get_arg_count() const { return arg_count; }
+  virtual Item *set_arg(THD *thd, uint i, Item *new_val);
   /// @todo delete this when we no longer support temporary transformations
   Item **get_arg_ptr(uint i) { return &args[i]; }
 
@@ -711,7 +726,7 @@ class Item_sum : public Item_result_field {
   /**
     Only relevant for aggregates qua window functions. Checks semantics after
     windows have been set up and checked. Window functions have specific
-    requirements on the window specifications.
+    requirements on the window specifications. Used at resolution time.
 
     @param thd                    Current thread
     @param select                 The current select
@@ -719,11 +734,22 @@ class Item_sum : public Item_result_field {
 
     @returns true if error
    */
-  virtual bool check_wf_semantics(THD *thd, SELECT_LEX *select,
-                                  Window_evaluation_requirements *reqs);
+  virtual bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+                                   Window_evaluation_requirements *reqs);
+
+  /**
+    Like check_wf_semantics1.
+    For checks which cannot be done in resolution phase (mostly those for
+    input parameters which can be '?' and must be >=0: value isn't known
+    before execution phase).
+  */
+  virtual bool check_wf_semantics2(
+      Window_evaluation_requirements *reqs MY_ATTRIBUTE((unused))) {
+    return false;
+  }
 
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
-                      List<Item> &fields) override;
+                      mem_root_deque<Item *> *fields) override;
 
   void cleanup() override;
 
@@ -940,6 +966,9 @@ class Item_sum_num : public Item_sum {
 
   Item_sum_num(THD *thd, Item_sum_num *item)
       : Item_sum(thd, item), is_evaluated(item->is_evaluated) {}
+  enum_field_types default_data_type() const override {
+    return MYSQL_TYPE_DOUBLE;
+  }
   bool fix_fields(THD *, Item **) override;
   longlong val_int() override {
     DBUG_ASSERT(fixed == 1);
@@ -972,14 +1001,6 @@ class Item_sum_int : public Item_sum_num {
     set_data_type_longlong();
   }
 
-  bool resolve_type(THD *) override {
-    maybe_null = false;
-    for (uint i = 0; i < arg_count; i++) {
-      maybe_null |= args[i]->maybe_null;
-    }
-    null_value = false;
-    return false;
-  }
   double val_real() override {
     DBUG_ASSERT(fixed);
     return static_cast<double>(val_int());
@@ -1033,8 +1054,8 @@ class Item_sum_sum : public Item_sum_num {
   String *val_str(String *str) override;
   my_decimal *val_decimal(my_decimal *) override;
   enum Item_result result_type() const override { return hybrid_type; }
-  bool check_wf_semantics(THD *thd, SELECT_LEX *select,
-                          Window_evaluation_requirements *reqs) override;
+  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+                           Window_evaluation_requirements *reqs) override;
   void reset_field() override;
   void update_field() override;
   void no_rows_in_result() override {}
@@ -1074,7 +1095,8 @@ class Item_sum_count : public Item_sum_int {
   enum Sumfunctype sum_func() const override {
     return has_with_distinct() ? COUNT_DISTINCT_FUNC : COUNT_FUNC;
   }
-  bool resolve_type(THD *) override {
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, -1)) return true;
     maybe_null = false;
     null_value = false;
     return false;
@@ -1145,14 +1167,7 @@ class Item_sum_num_field : public Item_sum_hybrid_field {
   bool get_time(MYSQL_TIME *ltime) override {
     return get_time_from_numeric(ltime); /* Decimal or real */
   }
-  bool is_null() override {
-    /*
-      TODO : Implement error handling for this function as
-      update_null_value() can return error.
-    */
-    (void)update_null_value();
-    return null_value;
-  }
+  bool is_null() override { return update_null_value() || null_value; }
 };
 
 class Item_avg_field : public Item_sum_num_field {
@@ -1233,10 +1248,8 @@ class Item_sum_json : public Item_sum {
   void reset_field() override;
   void update_field() override;
 
-  bool check_wf_semantics(THD *thd MY_ATTRIBUTE((unused)),
-                          SELECT_LEX *select MY_ATTRIBUTE((unused)),
-                          Window_evaluation_requirements *reqs
-                              MY_ATTRIBUTE((unused))) override;
+  bool check_wf_semantics1(THD *, SELECT_LEX *,
+                           Window_evaluation_requirements *) override;
 };
 
 /// Implements aggregation of values into an array.
@@ -1292,8 +1305,8 @@ class Item_sum_json_object final : public Item_sum_json {
   void clear() override;
   bool add() override;
   Item *copy_or_same(THD *thd) override;
-  bool check_wf_semantics(THD *thd, SELECT_LEX *select,
-                          Window_evaluation_requirements *reqs) override;
+  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+                           Window_evaluation_requirements *reqs) override;
 };
 
 class Item_sum_avg final : public Item_sum_sum {
@@ -1469,8 +1482,8 @@ class Item_sum_variance : public Item_sum_num {
     count = 0;
     Item_sum_num::cleanup();
   }
-  bool check_wf_semantics(THD *thd, SELECT_LEX *select,
-                          Window_evaluation_requirements *reqs) override;
+  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+                           Window_evaluation_requirements *reqs) override;
 };
 
 class Item_sum_std;
@@ -1648,7 +1661,7 @@ class Item_sum_hybrid : public Item_sum {
   bool fix_fields(THD *, Item **) override;
   void clear() override;
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
-                      List<Item> &fields) override;
+                      mem_root_deque<Item *> *fields) override;
   double val_real() override;
   longlong val_int() override;
   longlong val_time_temporal() override;
@@ -1669,8 +1682,8 @@ class Item_sum_hybrid : public Item_sum {
   bool uses_only_one_row() const override { return m_optimize; }
   bool add() override;
   Item *copy_or_same(THD *thd) override;
-  bool check_wf_semantics(THD *thd, SELECT_LEX *select,
-                          Window_evaluation_requirements *r) override;
+  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+                           Window_evaluation_requirements *r) override;
 
  private:
   /*
@@ -1927,7 +1940,10 @@ class Item_udf_sum : public Item_sum {
   }
   Item_udf_sum(THD *thd, Item_udf_sum *item)
       : Item_sum(thd, item), udf(item->udf) {
-    udf.not_original = true;
+    udf.m_original = false;
+  }
+  ~Item_udf_sum() override {
+    if (udf.is_initialized()) udf.free_handler();
   }
 
   bool itemize(Parse_context *pc, Item **res) override;
@@ -2132,7 +2148,9 @@ class Item_func_group_concat final : public Item_sum {
                          PT_window *w);
 
   Item_func_group_concat(THD *thd, Item_func_group_concat *item);
-  ~Item_func_group_concat() override;
+  ~Item_func_group_concat() override {
+    DBUG_ASSERT(original != nullptr || unique_filter == nullptr);
+  }
 
   bool itemize(Parse_context *pc, Item **res) override;
   void cleanup() override;
@@ -2179,10 +2197,8 @@ class Item_func_group_concat final : public Item_sum {
     return false;
   }
 
-  bool check_wf_semantics(THD *thd MY_ATTRIBUTE((unused)),
-                          SELECT_LEX *select MY_ATTRIBUTE((unused)),
-                          Window_evaluation_requirements *reqs
-                              MY_ATTRIBUTE((unused))) override {
+  bool check_wf_semantics1(THD *, SELECT_LEX *,
+                           Window_evaluation_requirements *) override {
     unsupported_as_wf();
     return true;
   }
@@ -2258,10 +2274,8 @@ class Item_row_number : public Item_non_framing_wf {
 
   Item_result result_type() const override { return INT_RESULT; }
 
-  bool check_wf_semantics(THD *thd MY_ATTRIBUTE((unused)),
-                          SELECT_LEX *select MY_ATTRIBUTE((unused)),
-                          Window_evaluation_requirements *reqs
-                              MY_ATTRIBUTE((unused))) override {
+  bool check_wf_semantics1(THD *, SELECT_LEX *,
+                           Window_evaluation_requirements *) override {
     return false;
   }
 };
@@ -2289,6 +2303,8 @@ class Item_rank : public Item_non_framing_wf {
     unsigned_flag = true;
   }
 
+  ~Item_rank() override;
+
   const char *func_name() const override {
     return m_dense ? "dense_rank" : "rank";
   }
@@ -2307,16 +2323,12 @@ class Item_rank : public Item_non_framing_wf {
   my_decimal *val_decimal(my_decimal *buff) override;
   String *val_str(String *) override;
 
-  bool check_wf_semantics(THD *thd, SELECT_LEX *select,
-                          Window_evaluation_requirements *reqs) override;
+  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+                           Window_evaluation_requirements *reqs) override;
   /**
     Clear state for a new partition
   */
   void clear() override;
-  /**
-    Cleanup after query, free up resources
-  */
-  void cleanup() override;
   Item_result result_type() const override { return INT_RESULT; }
 };
 
@@ -2337,8 +2349,8 @@ class Item_cume_dist : public Item_non_framing_wf {
     return false;
   }
 
-  bool check_wf_semantics(THD *thd, SELECT_LEX *select,
-                          Window_evaluation_requirements *reqs) override;
+  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+                           Window_evaluation_requirements *reqs) override;
 
   bool needs_card() const override { return true; }
   void clear() override {}
@@ -2369,6 +2381,7 @@ class Item_percent_rank : public Item_non_framing_wf {
         m_peers(0),
         m_last_peer_visited(false) {}
 
+  ~Item_percent_rank() override;
   const char *func_name() const override { return "percent_rank"; }
   enum Sumfunctype sum_func() const override { return PERCENT_RANK_FUNC; }
 
@@ -2377,12 +2390,11 @@ class Item_percent_rank : public Item_non_framing_wf {
     return false;
   }
 
-  bool check_wf_semantics(THD *thd, SELECT_LEX *select,
-                          Window_evaluation_requirements *reqs) override;
+  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+                           Window_evaluation_requirements *reqs) override;
   bool needs_card() const override { return true; }
 
   void clear() override;
-  void cleanup() override;
   longlong val_int() override;
   double val_real() override;
   String *val_str(String *) override;
@@ -2406,7 +2418,8 @@ class Item_ntile : public Item_non_framing_wf {
   const char *func_name() const override { return "ntile"; }
   enum Sumfunctype sum_func() const override { return NTILE_FUNC; }
 
-  bool resolve_type(THD *thd MY_ATTRIBUTE((unused))) override {
+  bool resolve_type(THD *thd) override {
+    if (args[0]->propagate_type(thd, MYSQL_TYPE_LONGLONG, true)) return true;
     set_data_type_longlong();
     return false;
   }
@@ -2418,8 +2431,9 @@ class Item_ntile : public Item_non_framing_wf {
   my_decimal *val_decimal(my_decimal *buff) override;
   String *val_str(String *) override;
 
-  bool check_wf_semantics(THD *thd, SELECT_LEX *select,
-                          Window_evaluation_requirements *reqs) override;
+  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+                           Window_evaluation_requirements *reqs) override;
+  bool check_wf_semantics2(Window_evaluation_requirements *reqs) override;
   Item_result result_type() const override { return INT_RESULT; }
   void clear() override {}
   bool needs_card() const override { return true; }
@@ -2470,8 +2484,9 @@ class Item_lead_lag : public Item_non_framing_wf {
   bool resolve_type(THD *thd) override;
   bool fix_fields(THD *thd, Item **items) override;
   void clear() override;
-  bool check_wf_semantics(THD *thd, SELECT_LEX *select,
-                          Window_evaluation_requirements *reqs) override;
+  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+                           Window_evaluation_requirements *reqs) override;
+  bool check_wf_semantics2(Window_evaluation_requirements *reqs) override;
   enum Item_result result_type() const override { return m_hybrid_type; }
 
   longlong val_int() override;
@@ -2496,7 +2511,7 @@ class Item_lead_lag : public Item_non_framing_wf {
   }
 
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
-                      List<Item> &fields) override;
+                      mem_root_deque<Item *> *fields) override;
 
   void set_has_value(bool value) { m_has_value = value; }
   bool has_value() const { return m_has_value; }
@@ -2545,8 +2560,8 @@ class Item_first_last_value : public Item_sum {
   bool resolve_type(THD *thd) override;
   bool fix_fields(THD *thd, Item **items) override;
   void clear() override;
-  bool check_wf_semantics(THD *thd, SELECT_LEX *select,
-                          Window_evaluation_requirements *reqs) override;
+  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+                           Window_evaluation_requirements *reqs) override;
   enum Item_result result_type() const override { return m_hybrid_type; }
 
   longlong val_int() override;
@@ -2566,7 +2581,7 @@ class Item_first_last_value : public Item_sum {
   }
 
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
-                      List<Item> &fields) override;
+                      mem_root_deque<Item *> *fields) override;
   bool uses_only_one_row() const override { return true; }
 
  private:
@@ -2613,8 +2628,9 @@ class Item_nth_value : public Item_sum {
   bool setup_nth();
   void clear() override;
 
-  bool check_wf_semantics(THD *thd, SELECT_LEX *select,
-                          Window_evaluation_requirements *reqs) override;
+  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+                           Window_evaluation_requirements *reqs) override;
+  bool check_wf_semantics2(Window_evaluation_requirements *reqs) override;
 
   enum Item_result result_type() const override { return m_hybrid_type; }
 
@@ -2635,7 +2651,7 @@ class Item_nth_value : public Item_sum {
   }
 
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
-                      List<Item> &fields) override;
+                      mem_root_deque<Item *> *fields) override;
   bool uses_only_one_row() const override { return true; }
 
  private:
@@ -2687,8 +2703,9 @@ class Item_rollup_sum_switcher final : public Item_sum {
       args[i++] = &item;
     }
     item_name = master()->item_name;
-    aggr_select = master()->aggr_select;
     base_select = master()->base_select;
+    aggr_select = master()->aggr_select;
+    hidden = master()->hidden;
     set_distinct(master()->has_with_distinct());
     set_data_type_from_item(master());
   }
@@ -2738,14 +2755,14 @@ class Item_rollup_sum_switcher final : public Item_sum {
   // Used when create_tmp_table() needs to delay application of aggregate
   // functions to a later stage in the query processing.
   Item *get_arg(uint i) override { return master()->get_arg(i); }
-  Item *set_arg(uint i, THD *thd, Item *new_val) override {
+  Item *set_arg(THD *thd, uint i, Item *new_val) override {
     Item *ret = nullptr;
     for (int j = 0; j < m_num_levels; ++j) {
-      ret = child(j)->set_arg(i, thd, new_val);
+      ret = child(j)->set_arg(thd, i, new_val);
     }
     return ret;  // Return the last one, arbitrarily.
   }
-  uint get_arg_count() const override { return master()->get_arg_count(); }
+  uint argument_count() const override { return master()->argument_count(); }
 
   // Used by AggregateIterator.
   void set_current_rollup_level(int level) { m_current_rollup_level = level; }

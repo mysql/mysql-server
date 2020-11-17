@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@ class PFS_index_events_transactions : public PFS_engine_index {
         m_key_1("THREAD_ID"),
         m_key_2("EVENT_ID") {}
 
-  ~PFS_index_events_transactions() {}
+  ~PFS_index_events_transactions() override {}
 
   bool match(PFS_thread *pfs);
   bool match(PFS_events *pfs);
@@ -146,13 +146,13 @@ struct pos_events_transactions_history : public PFS_double_index {
 */
 class table_events_transactions_common : public PFS_engine_table {
  protected:
-  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all);
+  int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                      bool read_all) override;
 
   table_events_transactions_common(const PFS_engine_table_share *share,
                                    void *pos);
 
-  ~table_events_transactions_common() {}
+  ~table_events_transactions_common() override {}
 
   int make_row(PFS_events_transactions *statement);
 
@@ -170,20 +170,20 @@ class table_events_transactions_current
   static int delete_all_rows();
   static ha_rows get_row_count();
 
-  virtual void reset_position(void);
+  void reset_position(void) override;
 
-  virtual int rnd_init(bool scan);
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
+  int rnd_init(bool scan) override;
+  int rnd_next() override;
+  int rnd_pos(const void *pos) override;
 
-  virtual int index_init(uint idx, bool sorted);
-  virtual int index_next();
+  int index_init(uint idx, bool sorted) override;
+  int index_next() override;
 
  protected:
   table_events_transactions_current();
 
  public:
-  ~table_events_transactions_current() {}
+  ~table_events_transactions_current() override {}
 
  private:
   friend class table_events_transactions_history;
@@ -212,20 +212,20 @@ class table_events_transactions_history
   static int delete_all_rows();
   static ha_rows get_row_count();
 
-  virtual void reset_position(void);
+  void reset_position(void) override;
 
-  virtual int rnd_init(bool scan);
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
+  int rnd_init(bool scan) override;
+  int rnd_next() override;
+  int rnd_pos(const void *pos) override;
 
-  virtual int index_init(uint idx, bool sorted);
-  virtual int index_next();
+  int index_init(uint idx, bool sorted) override;
+  int index_next() override;
 
  protected:
   table_events_transactions_history();
 
  public:
-  ~table_events_transactions_history() {}
+  ~table_events_transactions_history() override {}
 
  private:
   /** Table share lock. */
@@ -251,16 +251,16 @@ class table_events_transactions_history_long
   static int delete_all_rows();
   static ha_rows get_row_count();
 
-  virtual int rnd_init(bool scan);
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+  int rnd_init(bool scan) override;
+  int rnd_next() override;
+  int rnd_pos(const void *pos) override;
+  void reset_position(void) override;
 
  protected:
   table_events_transactions_history_long();
 
  public:
-  ~table_events_transactions_history_long() {}
+  ~table_events_transactions_history_long() override {}
 
  private:
   /** Table share lock. */

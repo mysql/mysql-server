@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -102,7 +102,6 @@ class Window {
   PT_order_list *const m_partition_by;  ///< \<window partition clause\>
   PT_order_list *const m_order_by;      ///< \<window order clause\>
   ORDER *m_sorting_order;               ///< merged partition/order by
-  bool m_sort_redundant;                ///< Can use sort from previous w
   PT_frame *const m_frame;              ///< \<window frame clause\>
   Item_string *m_name;                  ///< \<window name\>
   /**
@@ -598,7 +597,6 @@ class Window {
         m_partition_by(part),
         m_order_by(ord),
         m_sorting_order(nullptr),
-        m_sort_redundant(false),
         m_frame(frame),
         m_name(name),
         m_def_pos(0),
@@ -700,7 +698,7 @@ class Window {
 
   /**
     Get the ORDER BY, if any. That is, the first we find along
-    the ancestor chain. Uniqueness checked in #setup_windows
+    the ancestor chain. Uniqueness checked in #setup_windows1
     SQL 2011 7.11 GR 1.b.i.5.A-C
   */
   const PT_order_list *effective_order_by() const {
@@ -781,9 +779,15 @@ class Window {
 
   /**
     Check that the semantic requirements for window functions over this
-    window are fulfilled, and accumulate evaluation requirements
+    window are fulfilled, and accumulate evaluation requirements.
+    This is run at resolution.
   */
-  bool check_window_functions(THD *thd, SELECT_LEX *select);
+  bool check_window_functions1(THD *thd, SELECT_LEX *select);
+  /**
+    Like check_window_functions1() but contains checks which must wait until
+    the start of the execution phase.
+  */
+  bool check_window_functions2(THD *thd);
 
   /**
     For RANGE frames we need to do computations involving add/subtract and
@@ -865,7 +869,7 @@ class Window {
   static bool resolve_reference(THD *thd, Item_sum *wf, PT_window **m_window);
 
   /**
-    Semantic checking of windows.
+    Semantic checking of windows. Run at resolution.
 
     * Process any window inheritance, that is a window, that in its
     specification refer to another named window.
@@ -896,16 +900,27 @@ class Window {
     @param select           The select for which we are doing windowing
     @param ref_item_array   The base ref items
     @param tables           The list of tables involved
-    @param fields           The list of selected fields
-    @param all_fields       The list of all fields, including hidden ones
+    @param fields           The list of all fields, including hidden ones
     @param windows          The list of windows defined for this select
 
     @return false if success, true if error
   */
-  static bool setup_windows(THD *thd, SELECT_LEX *select,
-                            Ref_item_array ref_item_array, TABLE_LIST *tables,
-                            List<Item> &fields, List<Item> &all_fields,
-                            List<Window> &windows);
+  static bool setup_windows1(THD *thd, SELECT_LEX *select,
+                             Ref_item_array ref_item_array, TABLE_LIST *tables,
+                             mem_root_deque<Item *> *fields,
+                             List<Window> &windows);
+  /**
+    Like setup_windows1() but contains operations which must wait until
+    the start of the execution phase.
+
+    @param thd              The session's execution thread
+    @param select           The select for which we are doing windowing
+    @param windows          The list of windows defined for this select
+
+    @return false if success, true if error
+  */
+  static bool setup_windows2(THD *thd, SELECT_LEX *select,
+                             List<Window> &windows);
 
   /**
     Remove unused window definitions. Do this only after syntactic and
@@ -922,16 +937,15 @@ class Window {
     @param thd              The session's execution thread
     @param ref_item_array   The base ref items
     @param tables           The list of tables involved
-    @param fields           The list of selected fields
-    @param all_fields       The list of all fields, including hidden ones
+    @param fields           The list of all fields, including hidden ones
     @param o                A list of order by expressions
     @param partition_order  If true, o represent a windowing PARTITION BY,
            else it represents a windowing ORDER BY
     @returns false if success, true if error
   */
   bool resolve_window_ordering(THD *thd, Ref_item_array ref_item_array,
-                               TABLE_LIST *tables, List<Item> &fields,
-                               List<Item> &all_fields, ORDER *o,
+                               TABLE_LIST *tables,
+                               mem_root_deque<Item *> *fields, ORDER *o,
                                bool partition_order);
   /**
     Return true if this window's name is not unique in windows
@@ -961,8 +975,8 @@ class Window {
     @return true if we have such a clause, which means we need to sort the
             input table before evaluating the window functions, unless it has
             been made redundant by a previous windowing step, cf.
-            m_sort_redundant, or due to a single row result set, cf.
-            SELECT_LEX::is_implicitly_grouped().
+            reorder_and_eliminate_sorts, or due to a single row result set,
+            cf. SELECT_LEX::is_implicitly_grouped().
   */
   bool needs_sorting() const { return m_sorting_order != nullptr; }
 
@@ -1293,6 +1307,11 @@ class Window {
   void cleanup(THD *thd);
 
   /**
+    Free structures that were set up during preparation of window functions
+  */
+  void destroy();
+
+  /**
    Reset window state for a new partition.
 
    Reset the temporary storage used for window frames, typically when we find
@@ -1370,16 +1389,8 @@ class Window {
     windows.
 
     @param windows     list of windows
-    @param first_exec  if true, the as done a part of a first prepare, not a
-                       reprepare. On a reprepare the analysis part will be
-                       skipped, since the flag m_sort_redundant flag is stable
-                       across prepares.
-    @todo in WL#6570 we may set m_sorting_order only once, during preparation,
-    then Window::m_sort_redundant could be removed, as well as the first_exec
-    argument.
   */
-  static void reorder_and_eliminate_sorts(List<Window> &windows,
-                                          bool first_exec);
+  static void reorder_and_eliminate_sorts(List<Window> &windows);
 
   /**
     Return true of the physical[1] sort orderings for the two windows are the
@@ -1409,17 +1420,22 @@ class Window {
   bool check_constant_bound(THD *thd, PT_border *border);
 
   /**
-    Check that frame borders are sane, e.g. they are not negative .
+    Check that frame borders are sane; resolution phase.
 
     @param thd      Session thread
-    @param w        The window whose frame we are checking
-    @param f        The frame to check, if any
-    @param prepare  false at EXECUTE ps prepare time, else true
 
-   @returns true if error
+    @returns true if error
   */
-  static bool check_border_sanity(THD *thd, Window *w, const PT_frame *f,
-                                  bool prepare);
+  bool check_border_sanity1(THD *thd);
+  /**
+    Like check_border_sanity1() but contains checks which must wait until
+    the start of the execution phase.
+
+    @param thd      Session thread
+
+    @returns true if error
+  */
+  bool check_border_sanity2(THD *thd);
 };
 
 /**

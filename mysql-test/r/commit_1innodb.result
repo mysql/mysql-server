@@ -246,8 +246,8 @@ call bug12713_call();
 ERROR 23000: Duplicate entry '24' for key 't2.a'
 select * from t2;
 a
-24
 1024
+24
 rollback;
 select * from t2;
 a
@@ -300,9 +300,9 @@ end|
 insert into t2 (a) values (1028);
 call bug12713_dump_spvars ();
 Exception trapped
+1028
 Exception trapped
 a
-1028
 rollback;
 select * from t2;
 a

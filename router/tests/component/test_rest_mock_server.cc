@@ -38,6 +38,7 @@
 #include "mysql_session.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
+#include "router_component_testutils.h"
 #include "tcp_port_pool.h"
 
 #include "mysqlrouter/rest_client.h"
@@ -816,9 +817,7 @@ TEST_F(RestMockServerRestServerMockTest, delete_all_connections) {
   EXPECT_EQ(resp_body.length(), 0u);
 
   SCOPED_TRACE("// check connection is killed");
-  EXPECT_THROW_LIKE(client.query_one("select @@port"),
-                    mysqlrouter::MySQLSession::Error,
-                    "Lost connection to MySQL server during query");
+  wait_connection_dropped(client);
 }
 
 TEST_F(RestMockServerRestServerMockTest, auth_succeeds_require_user_and_pass) {

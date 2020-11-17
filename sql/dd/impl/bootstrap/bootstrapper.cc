@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -860,6 +860,14 @@ bool initialize_dictionary(THD *thd, bool is_dd_upgrade_57,
       verify_contents(thd) | update_versions(thd, is_dd_upgrade_57))
     return true;
 
+  DBUG_EXECUTE_IF(
+      "schema_read_only",
+      if (dd::execute_query(thd, "CREATE SCHEMA schema_read_only") ||
+          dd::execute_query(thd, "ALTER SCHEMA schema_read_only READ ONLY=1") ||
+          dd::execute_query(thd, "CREATE TABLE schema_read_only.t(i INT)") ||
+          dd::execute_query(thd, "DROP SCHEMA schema_read_only"))
+          DBUG_ASSERT(false););
+
   bootstrap::DD_bootstrap_ctx::instance().set_stage(bootstrap::Stage::FINISHED);
 
   return false;
@@ -929,6 +937,15 @@ bool restart(THD *thd) {
       update_versions(thd, false)) {
     return true;
   }
+
+  DBUG_EXECUTE_IF(
+      "schema_read_only",
+      if (dd::execute_query(thd, "CREATE SCHEMA schema_read_only") ||
+          dd::execute_query(thd, "ALTER SCHEMA schema_read_only READ ONLY=1") ||
+          dd::execute_query(thd, "CREATE TABLE schema_read_only.t(i INT)") ||
+          dd::execute_query(thd, "DROP SCHEMA schema_read_only") ||
+          dd::execute_query(thd, "CREATE TABLE IF NOT EXISTS S.restart(i INT)"))
+          DBUG_ASSERT(false););
 
   bootstrap::DD_bootstrap_ctx::instance().set_stage(bootstrap::Stage::FINISHED);
   LogErr(INFORMATION_LEVEL, ER_DD_VERSION_FOUND, d->get_actual_dd_version(thd));

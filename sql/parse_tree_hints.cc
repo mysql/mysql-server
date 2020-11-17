@@ -22,14 +22,16 @@
 
 #include "sql/parse_tree_hints.h"
 
-#include <stddef.h>
-#include <string.h>
+#include <cstddef>
+#include <cstdio>
+#include <cstring>
 
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
-#include "mysql/components/services/log_shared.h"
 #include "mysqld_error.h"
 #include "sql/derror.h"
 #include "sql/item_subselect.h"

@@ -1,0 +1,13 @@
+!include suite/ndb_opt/my.cnf
+
+[cluster_config]
+
+# Scale for the RQG tables:
+DataMemory = 256M
+MaxNoOfOrderedIndexes = 512
+
+# Enforce a tiny batchsize to smoke out batch related problems 
+BatchSize = 1
+
+# Node config normally used in RQG testing
+ThreadConfig=tc={count=1},ldm={count=1}

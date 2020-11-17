@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,216 +65,132 @@
 using std::string;
 using std::vector;
 
-SortFileIndirectIterator::SortFileIndirectIterator(THD *thd, TABLE *table,
-                                                   IO_CACHE *tempfile,
-                                                   bool request_cache,
-                                                   bool ignore_not_found_rows,
-                                                   ha_rows *examined_rows)
-    : TableRowIterator(thd, table),
+SortFileIndirectIterator::SortFileIndirectIterator(
+    THD *thd, Prealloced_array<TABLE *, 4> tables, IO_CACHE *tempfile,
+    bool ignore_not_found_rows, bool has_null_flags, ha_rows *examined_rows)
+    : RowIterator(thd),
       m_io_cache(tempfile),
       m_examined_rows(examined_rows),
-      m_record(table->record[0]),
-      m_ref_pos(table->file->ref),
+      m_tables(std::move(tables)),
       m_ignore_not_found_rows(ignore_not_found_rows),
-      m_using_cache(request_cache),
-      m_ref_length(table->file->ref_length) {}
+      m_has_null_flags(has_null_flags) {}
 
 SortFileIndirectIterator::~SortFileIndirectIterator() {
-  (void)table()->file->ha_index_or_rnd_end();
+  for (TABLE *table : m_tables) {
+    (void)table->file->ha_index_or_rnd_end();
+  }
 
   close_cached_file(m_io_cache);
   my_free(m_io_cache);
 }
 
 bool SortFileIndirectIterator::Init() {
-  // The sort's source iterator could have initialized an index
-  // read, and it won't call end until it's destroyed (which we
-  // can't do before destroying SortingIterator, since we may need
-  // to scan/sort multiple times). Thus, as a small hack, we need
-  // to reset it here.
-  table()->file->ha_index_or_rnd_end();
+  m_sum_ref_length = 0;
 
-  // Item_func_match::val_real() seemingly uses the existence of
-  // table->file->ft_handler as check for whether the match score
-  // is already present (which is the case when scanning the base
-  // table, but not when running this iterator), so we need to
-  // clear it out.
-  table()->file->ft_end();
+  for (TABLE *table : m_tables) {
+    // The sort's source iterator could have initialized an index
+    // read, and it won't call end until it's destroyed (which we
+    // can't do before destroying SortingIterator, since we may need
+    // to scan/sort multiple times). Thus, as a small hack, we need
+    // to reset it here.
+    table->file->ha_index_or_rnd_end();
 
-  int error = table()->file->ha_rnd_init(false);
-  if (error) {
-    PrintError(error);
-    return true;
+    // Item_func_match::val_real() seemingly uses the existence of
+    // table->file->ft_handler as check for whether the match score
+    // is already present (which is the case when scanning the base
+    // table, but not when running this iterator), so we need to
+    // clear it out.
+    table->file->ft_end();
+
+    int error = table->file->ha_rnd_init(false);
+    if (error) {
+      table->file->print_error(error, MYF(0));
+      return true;
+    }
+
+    if (m_has_null_flags && table->is_nullable()) {
+      ++m_sum_ref_length;
+    }
+    m_sum_ref_length += table->file->ref_length;
+  }
+  if (m_ref_pos == nullptr) {
+    m_ref_pos = thd()->mem_root->ArrayAlloc<uchar>(m_sum_ref_length);
   }
 
-  if (m_using_cache && thd()->variables.read_rnd_buff_size &&
-      !(table()->file->ha_table_flags() & HA_FAST_KEY_READ) &&
-      (table()->db_stat & HA_READ_ONLY ||
-       table()->reginfo.lock_type <= TL_READ_NO_INSERT) &&
-      (ulonglong)table()->s->reclength *
-              (table()->file->stats.records + table()->file->stats.deleted) >
-          (ulonglong)MIN_FILE_LENGTH_TO_USE_ROW_CACHE &&
-      m_io_cache->end_of_file / m_ref_length * table()->s->reclength >
-          (my_off_t)MIN_ROWS_TO_USE_TABLE_CACHE &&
-      !table()->s->blob_fields && m_ref_length <= MAX_REFLENGTH) {
-    m_using_cache = !InitCache();
-  } else {
-    m_using_cache = false;
-  }
-
-  DBUG_PRINT("info", ("using cache: %d", m_using_cache));
   return false;
 }
 
-/**
-  Initialize caching of records from temporary file.
+void SortFileIndirectIterator::SetNullRowFlag(bool is_null_row) {
+  for (TABLE *table : m_tables) {
+    if (is_null_row) {
+      table->set_null_row();
+    } else {
+      table->reset_null_row();
+    }
+  }
+}
 
-  @retval
-    false OK, use caching.
-    true  Buffer is too small, or cannot be allocated.
-          Skip caching, and read records directly from temporary file.
- */
-bool SortFileIndirectIterator::InitCache() {
-  m_struct_length = 3 + MAX_REFLENGTH;
-  m_reclength = ALIGN_SIZE(table()->s->reclength + 1);
-  if (m_reclength < m_struct_length) m_reclength = ALIGN_SIZE(m_struct_length);
-
-  m_error_offset = table()->s->reclength;
-  m_cache_records =
-      thd()->variables.read_rnd_buff_size / (m_reclength + m_struct_length);
-  uint rec_cache_size = m_cache_records * m_reclength;
-  m_rec_cache_size = m_cache_records * m_ref_length;
-
-  if (m_cache_records <= 2) {
-    return true;
+static int HandleError(THD *thd, TABLE *table, int error) {
+  if (thd->killed) {
+    thd->send_kill_message();
+    return 1;
   }
 
-  m_cache.reset((uchar *)my_malloc(
-      key_memory_READ_RECORD_cache,
-      rec_cache_size + m_cache_records * m_struct_length, MYF(0)));
-  if (m_cache == nullptr) {
-    return true;
+  if (error == HA_ERR_END_OF_FILE || error == HA_ERR_KEY_NOT_FOUND) {
+    table->set_no_row();
+    return -1;
+  } else {
+    table->file->print_error(error, MYF(0));
+    return 1;
   }
-  DBUG_PRINT("info", ("Allocated buffer for %d records", m_cache_records));
-  m_read_positions = m_cache.get() + rec_cache_size;
-  m_cache_pos = m_cache_end = m_cache.get();
-  return false;
 }
 
 int SortFileIndirectIterator::Read() {
-  if (m_using_cache) {
-    return CachedRead();
-  } else {
-    return UncachedRead();
-  }
-}
-
-int SortFileIndirectIterator::UncachedRead() {
   for (;;) {
-    if (my_b_read(m_io_cache, m_ref_pos, m_ref_length))
+    if (my_b_read(m_io_cache, m_ref_pos, m_sum_ref_length))
       return -1; /* End of file */
-    int tmp = table()->file->ha_rnd_pos(m_record, m_ref_pos);
-    if (tmp == 0) {
-      if (m_examined_rows != nullptr) {
-        ++*m_examined_rows;
-      }
-      return 0;
-    }
-    /* The following is extremely unlikely to happen */
-    if (tmp == HA_ERR_RECORD_DELETED ||
-        (tmp == HA_ERR_KEY_NOT_FOUND && m_ignore_not_found_rows))
-      continue;
-    return HandleError(tmp);
-  }
-}
-
-int SortFileIndirectIterator::CachedRead() {
-  uint i;
-  ulong length;
-  my_off_t rest_of_file;
-  int16 error;
-  uchar *position, *ref_position, *record_pos;
-  ulong record;
-
-  for (;;) {
-    if (m_cache_pos != m_cache_end) {
-      if (m_cache_pos[m_error_offset]) {
-        error = shortget(m_cache_pos);
-        if (error == HA_ERR_KEY_NOT_FOUND && m_ignore_not_found_rows) {
-          m_cache_pos += m_reclength;
+    uchar *ref_pos = m_ref_pos;
+    bool skip = false;
+    for (TABLE *table : m_tables) {
+      if (m_has_null_flags && table->is_nullable()) {
+        if (*ref_pos++) {
+          table->set_null_row();
+          ref_pos += table->file->ref_length;
           continue;
+        } else {
+          table->reset_null_row();
         }
-        PrintError(error);
-      } else {
-        error = 0;
-        memcpy(m_record, m_cache_pos, (size_t)table()->s->reclength);
       }
-      m_cache_pos += m_reclength;
-      if (error == 0 && m_examined_rows != nullptr) {
-        ++*m_examined_rows;
+
+      int tmp = table->file->ha_rnd_pos(table->record[0], ref_pos);
+      ref_pos += table->file->ref_length;
+      /* The following is extremely unlikely to happen */
+      if (tmp == HA_ERR_RECORD_DELETED ||
+          (tmp == HA_ERR_KEY_NOT_FOUND && m_ignore_not_found_rows)) {
+        skip = true;
+        break;
+      } else if (tmp != 0) {
+        return HandleError(thd(), table, tmp);
       }
-      return ((int)error);
     }
-    length = m_rec_cache_size;
-    rest_of_file = m_io_cache->end_of_file - my_b_tell(m_io_cache);
-    if ((my_off_t)length > rest_of_file) length = (ulong)rest_of_file;
-    if (!length || my_b_read(m_io_cache, m_cache.get(), length)) {
-      DBUG_PRINT("info", ("Found end of file"));
-      return -1; /* End of file */
+    if (skip) {
+      continue;
     }
-
-    length /= m_ref_length;
-    position = m_cache.get();
-    ref_position = m_read_positions;
-    for (i = 0; i < length; i++, position += m_ref_length) {
-      memcpy(ref_position, position, (size_t)m_ref_length);
-      ref_position += MAX_REFLENGTH;
-      int3store(ref_position, (long)i);
-      ref_position += 3;
+    if (m_examined_rows != nullptr) {
+      ++*m_examined_rows;
     }
-    size_t ref_length = m_ref_length;
-    DBUG_ASSERT(ref_length <= MAX_REFLENGTH);
-    varlen_sort(m_read_positions, m_read_positions + length * m_struct_length,
-                m_struct_length, [ref_length](const uchar *a, const uchar *b) {
-                  return memcmp(a, b, ref_length) < 0;
-                });
-
-    position = m_read_positions;
-    for (i = 0; i < length; i++) {
-      memcpy(m_ref_pos, position, (size_t)m_ref_length);
-      position += MAX_REFLENGTH;
-      record = uint3korr(position);
-      position += 3;
-      record_pos = m_cache.get() + record * m_reclength;
-      error = (int16)table()->file->ha_rnd_pos(record_pos, m_ref_pos);
-      if (error) {
-        record_pos[m_error_offset] = 1;
-        shortstore(record_pos, error);
-        DBUG_PRINT("error", ("Got error: %d:%d when reading row", my_errno(),
-                             (int)error));
-      } else
-        record_pos[m_error_offset] = 0;
-    }
-    m_cache_pos = m_cache.get();
-    m_cache_end = m_cache_pos + length * m_reclength;
+    return 0;
   }
-}
-
-vector<string> SortFileIndirectIterator::DebugString() const {
-  // Not used, because sort result iterator is not decided at EXPLAIN time
-  // (we can't know whether the buffer would stay in RAM or not).
-  return {string("Read sorted data: Row IDs from file, records from ") +
-          table()->alias};
 }
 
 template <bool Packed_addon_fields>
-SortFileIterator<Packed_addon_fields>::SortFileIterator(THD *thd, TABLE *table,
-                                                        IO_CACHE *tempfile,
-                                                        Filesort_info *sort,
-                                                        ha_rows *examined_rows)
-    : TableRowIterator(thd, table),
+SortFileIterator<Packed_addon_fields>::SortFileIterator(
+    THD *thd, Prealloced_array<TABLE *, 4> tables, IO_CACHE *tempfile,
+    Filesort_info *sort, ha_rows *examined_rows)
+    : RowIterator(thd),
       m_rec_buf(sort->addon_fields->get_addon_buf()),
-      m_ref_length(sort->addon_fields->get_addon_buf_length()),
+      m_buf_length(sort->addon_fields->get_addon_buf_length()),
+      m_tables(std::move(tables)),
       m_io_cache(tempfile),
       m_sort(sort),
       m_examined_rows(examined_rows) {}
@@ -316,10 +232,10 @@ int SortFileIterator<Packed_addon_fields>::Read() {
     if (my_b_read(m_io_cache, destination + len_sz, res_length - len_sz))
       return -1; /* purecov: inspected */
   } else {
-    if (my_b_read(m_io_cache, destination, m_ref_length)) return -1;
+    if (my_b_read(m_io_cache, destination, m_buf_length)) return -1;
   }
 
-  m_sort->unpack_addon_fields<Packed_addon_fields>(destination);
+  m_sort->unpack_addon_fields<Packed_addon_fields>(m_tables, destination);
 
   if (m_examined_rows != nullptr) {
     ++*m_examined_rows;
@@ -328,21 +244,25 @@ int SortFileIterator<Packed_addon_fields>::Read() {
 }
 
 template <bool Packed_addon_fields>
-vector<string> SortFileIterator<Packed_addon_fields>::DebugString() const {
-  // Not used, because sort result iterator is not decided at EXPLAIN time
-  // (we can't know whether the buffer would stay in RAM or not).
-  return {string("Read sorted data from file (originally from ") +
-          table()->alias + ")"};
+void SortFileIterator<Packed_addon_fields>::SetNullRowFlag(bool is_null_row) {
+  for (TABLE *table : m_tables) {
+    if (is_null_row) {
+      table->set_null_row();
+    } else {
+      table->reset_null_row();
+    }
+  }
 }
 
 template <bool Packed_addon_fields>
 SortBufferIterator<Packed_addon_fields>::SortBufferIterator(
-    THD *thd, TABLE *table, Filesort_info *sort, Sort_result *sort_result,
-    ha_rows *examined_rows)
-    : TableRowIterator(thd, table),
+    THD *thd, Prealloced_array<TABLE *, 4> tables, Filesort_info *sort,
+    Sort_result *sort_result, ha_rows *examined_rows)
+    : RowIterator(thd),
       m_sort(sort),
       m_sort_result(sort_result),
-      m_examined_rows(examined_rows) {}
+      m_examined_rows(examined_rows),
+      m_tables(std::move(tables)) {}
 
 template <bool Packed_addon_fields>
 SortBufferIterator<Packed_addon_fields>::~SortBufferIterator() {
@@ -382,7 +302,7 @@ int SortBufferIterator<Packed_addon_fields>::Read() {
 
   uchar *record = m_sort->get_sorted_record(m_unpack_counter++);
   uchar *payload = get_start_of_payload(m_sort, record);
-  m_sort->unpack_addon_fields<Packed_addon_fields>(payload);
+  m_sort->unpack_addon_fields<Packed_addon_fields>(m_tables, payload);
   if (m_examined_rows != nullptr) {
     ++*m_examined_rows;
   }
@@ -390,54 +310,66 @@ int SortBufferIterator<Packed_addon_fields>::Read() {
 }
 
 template <bool Packed_addon_fields>
-vector<string> SortBufferIterator<Packed_addon_fields>::DebugString() const {
-  // Not used, because sort result iterator is not decided at EXPLAIN time
-  // (we can't know whether the buffer would stay in RAM or not).
-  return {string("Read sorted data from memory (originally from ") +
-          table()->alias + ")"};
+void SortBufferIterator<Packed_addon_fields>::SetNullRowFlag(bool is_null_row) {
+  for (TABLE *table : m_tables) {
+    if (is_null_row) {
+      table->set_null_row();
+    } else {
+      table->reset_null_row();
+    }
+  }
 }
 
 SortBufferIndirectIterator::SortBufferIndirectIterator(
-    THD *thd, TABLE *table, Sort_result *sort_result,
-    bool ignore_not_found_rows, ha_rows *examined_rows)
-    : TableRowIterator(thd, table),
+    THD *thd, Prealloced_array<TABLE *, 4> tables, Sort_result *sort_result,
+    bool ignore_not_found_rows, bool has_null_flags, ha_rows *examined_rows)
+    : RowIterator(thd),
       m_sort_result(sort_result),
-      m_ref_length(table->file->ref_length),
+      m_tables(std::move(tables)),
       m_examined_rows(examined_rows),
-      m_record(table->record[0]),
-      m_ignore_not_found_rows(ignore_not_found_rows) {}
+      m_ignore_not_found_rows(ignore_not_found_rows),
+      m_has_null_flags(has_null_flags) {}
 
 SortBufferIndirectIterator::~SortBufferIndirectIterator() {
   m_sort_result->sorted_result.reset();
   DBUG_ASSERT(!m_sort_result->sorted_result_in_fsbuf);
   m_sort_result->sorted_result_in_fsbuf = false;
 
-  (void)table()->file->ha_index_or_rnd_end();
+  for (TABLE *table : m_tables) {
+    (void)table->file->ha_index_or_rnd_end();
+  }
 }
 
 bool SortBufferIndirectIterator::Init() {
-  // The sort's source iterator could have initialized an index
-  // read, and it won't call end until it's destroyed (which we
-  // can't do before destroying SortingIterator, since we may need
-  // to scan/sort multiple times). Thus, as a small hack, we need
-  // to reset it here.
-  table()->file->ha_index_or_rnd_end();
+  m_sum_ref_length = 0;
+  for (TABLE *table : m_tables) {
+    // The sort's source iterator could have initialized an index
+    // read, and it won't call end until it's destroyed (which we
+    // can't do before destroying SortingIterator, since we may need
+    // to scan/sort multiple times). Thus, as a small hack, we need
+    // to reset it here.
+    table->file->ha_index_or_rnd_end();
 
-  // Item_func_match::val_real() seemingly uses the existence of
-  // table->file->ft_handler as check for whether the match score
-  // is already present (which is the case when scanning the base
-  // table, but not when running this iterator), so we need to
-  // clear it out.
-  table()->file->ft_end();
+    // Item_func_match::val_real() seemingly uses the existence of
+    // table->file->ft_handler as check for whether the match score
+    // is already present (which is the case when scanning the base
+    // table, but not when running this iterator), so we need to
+    // clear it out.
+    table->file->ft_end();
 
-  int error = table()->file->ha_rnd_init(false);
-  if (error) {
-    PrintError(error);
-    return true;
+    int error = table->file->ha_rnd_init(false);
+    if (error) {
+      table->file->print_error(error, MYF(0));
+      return true;
+    }
+
+    if (m_has_null_flags && table->is_nullable()) {
+      ++m_sum_ref_length;
+    }
+    m_sum_ref_length += table->file->ref_length;
   }
   m_cache_pos = m_sort_result->sorted_result.get();
-  m_cache_end =
-      m_cache_pos + m_sort_result->found_records * table()->file->ref_length;
+  m_cache_end = m_cache_pos + m_sort_result->found_records * m_sum_ref_length;
   return false;
 }
 
@@ -445,38 +377,60 @@ int SortBufferIndirectIterator::Read() {
   for (;;) {
     if (m_cache_pos == m_cache_end) return -1; /* End of file */
     uchar *cache_pos = m_cache_pos;
-    m_cache_pos += m_ref_length;
+    m_cache_pos += m_sum_ref_length;
 
-    int tmp = table()->file->ha_rnd_pos(m_record, cache_pos);
-    if (tmp == 0) {
-      if (m_examined_rows != nullptr) {
-        ++*m_examined_rows;
+    bool skip = false;
+    for (TABLE *table : m_tables) {
+      if (m_has_null_flags && table->is_nullable()) {
+        if (*cache_pos++) {
+          table->set_null_row();
+          cache_pos += table->file->ref_length;
+          continue;
+        } else {
+          table->reset_null_row();
+        }
       }
-      return 0;
+      int tmp = table->file->ha_rnd_pos(table->record[0], cache_pos);
+      cache_pos += table->file->ref_length;
+      /* The following is extremely unlikely to happen */
+      if (tmp == HA_ERR_RECORD_DELETED ||
+          (tmp == HA_ERR_KEY_NOT_FOUND && m_ignore_not_found_rows)) {
+        skip = true;
+        break;
+      } else if (tmp != 0) {
+        return HandleError(thd(), table, tmp);
+      }
     }
-
-    /* The following is extremely unlikely to happen */
-    if (tmp == HA_ERR_RECORD_DELETED ||
-        (tmp == HA_ERR_KEY_NOT_FOUND && m_ignore_not_found_rows))
+    if (skip) {
       continue;
-    return HandleError(tmp);
+    }
+    if (m_examined_rows != nullptr) {
+      ++*m_examined_rows;
+    }
+    return 0;
   }
 }
 
-vector<string> SortBufferIndirectIterator::DebugString() const {
-  // Not used, because sort result iterator is not decided at EXPLAIN time
-  // (we can't know whether the buffer would stay in RAM or not).
-  return {string("Read sorted data: Row IDs from memory, records from ") +
-          table()->alias};
+void SortBufferIndirectIterator::SetNullRowFlag(bool is_null_row) {
+  for (TABLE *table : m_tables) {
+    if (is_null_row) {
+      table->set_null_row();
+    } else {
+      table->reset_null_row();
+    }
+  }
 }
 
-SortingIterator::SortingIterator(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
+SortingIterator::SortingIterator(THD *thd, Filesort *filesort,
                                  unique_ptr_destroy_only<RowIterator> source,
+                                 ha_rows num_rows_estimate,
+                                 table_map tables_to_get_rowid_for,
                                  ha_rows *examined_rows)
     : RowIterator(thd),
       m_filesort(filesort),
-      m_qep_tab(qep_tab),
       m_source_iterator(move(source)),
+      m_num_rows_estimate(num_rows_estimate),
+      m_tables_to_get_rowid_for(tables_to_get_rowid_for),
       m_examined_rows(examined_rows) {}
 
 SortingIterator::~SortingIterator() {
@@ -515,7 +469,7 @@ bool SortingIterator::Init() {
 
   // Prepare the result iterator for actually reading the data. Read()
   // will proxy to it.
-  TABLE *table = m_filesort->table;
+  const Prealloced_array<TABLE *, 4> &tables = m_filesort->tables;
   if (m_sort_result.io_cache && my_b_inited(m_sort_result.io_cache)) {
     // Test if ref-records was used
     if (m_fs_info.using_addon_fields()) {
@@ -523,25 +477,20 @@ bool SortingIterator::Init() {
       if (m_fs_info.addon_fields->using_packed_addons())
         m_result_iterator.reset(
             new (&m_result_iterator_holder.sort_file_packed_addons)
-                SortFileIterator<true>(thd(), table, m_sort_result.io_cache,
+                SortFileIterator<true>(thd(), tables, m_sort_result.io_cache,
                                        &m_fs_info, m_examined_rows));
       else
         m_result_iterator.reset(
             new (&m_result_iterator_holder.sort_file)
-                SortFileIterator<false>(thd(), table, m_sort_result.io_cache,
+                SortFileIterator<false>(thd(), tables, m_sort_result.io_cache,
                                         &m_fs_info, m_examined_rows));
     } else {
-      /*
-        m_fs_info->addon_field is checked because if we use addon fields,
-        it doesn't make sense to use cache - we don't read from the table
-        and m_fs_info->io_cache is read sequentially
-      */
-      bool request_cache = !m_fs_info.using_addon_fields();
       m_result_iterator.reset(
           new (&m_result_iterator_holder.sort_file_indirect)
-              SortFileIndirectIterator(
-                  thd(), table, m_sort_result.io_cache, request_cache,
-                  /*ignore_not_found_rows=*/false, m_examined_rows));
+              SortFileIndirectIterator(thd(), tables, m_sort_result.io_cache,
+                                       /*ignore_not_found_rows=*/false,
+                                       /*has_null_flags=*/true,
+                                       m_examined_rows));
     }
     m_sort_result.io_cache =
         nullptr;  // The result iterator has taken ownership.
@@ -553,19 +502,20 @@ bool SortingIterator::Init() {
       if (m_fs_info.addon_fields->using_packed_addons())
         m_result_iterator.reset(
             new (&m_result_iterator_holder.sort_buffer_packed_addons)
-                SortBufferIterator<true>(thd(), table, &m_fs_info,
+                SortBufferIterator<true>(thd(), tables, &m_fs_info,
                                          &m_sort_result, m_examined_rows));
       else
         m_result_iterator.reset(
             new (&m_result_iterator_holder.sort_buffer)
-                SortBufferIterator<false>(thd(), table, &m_fs_info,
+                SortBufferIterator<false>(thd(), tables, &m_fs_info,
                                           &m_sort_result, m_examined_rows));
     } else {
       DBUG_PRINT("info", ("using SortBufferIndirectIterator (sort)"));
       m_result_iterator.reset(
           new (&m_result_iterator_holder.sort_buffer_indirect)
-              SortBufferIndirectIterator(thd(), table, &m_sort_result,
+              SortBufferIndirectIterator(thd(), tables, &m_sort_result,
                                          /*ignore_not_found_rows=*/false,
+                                         /*has_null_flags=*/true,
                                          m_examined_rows));
     }
   }
@@ -590,79 +540,54 @@ int SortingIterator::DoSort() {
       (IO_CACHE *)my_malloc(key_memory_TABLE_sort_io_cache, sizeof(IO_CACHE),
                             MYF(MY_WME | MY_ZEROFILL));
 
-  if (m_qep_tab != nullptr) {
-    JOIN *join = m_qep_tab->join();
-    if (join != nullptr && join->unit->root_iterator() == nullptr) {
-      /* Fill schema tables with data before filesort if it's necessary */
-      if ((join->select_lex->active_options() & OPTION_SCHEMA_TABLE) &&
-          get_schema_tables_result(join, PROCESSED_BY_CREATE_SORT_INDEX))
-        return -1;
-    }
-  }
-
   ha_rows found_rows;
-  bool error = filesort(thd(), m_filesort, m_source_iterator.get(), &m_fs_info,
-                        &m_sort_result, &found_rows);
-  if (m_qep_tab != nullptr) {
-    m_qep_tab->set_records(found_rows);  // For SQL_CALC_FOUND_ROWS
+  bool error = filesort(thd(), m_filesort, m_source_iterator.get(),
+                        m_tables_to_get_rowid_for, m_num_rows_estimate,
+                        &m_fs_info, &m_sort_result, &found_rows);
+  for (TABLE *table : m_filesort->tables) {
+    table->set_keyread(false);  // Restore if we used indexes
   }
-  m_filesort->table->set_keyread(false);  // Restore if we used indexes
   return error;
 }
 
 template <bool Packed_addon_fields>
-inline void Filesort_info::unpack_addon_fields(uchar *buff) {
-  Sort_addon_field *addonf = addon_fields->begin();
+inline void Filesort_info::unpack_addon_fields(
+    const Prealloced_array<TABLE *, 4> &tables, uchar *buff) {
+  const uchar *nulls = buff + addon_fields->skip_bytes();
 
-  const uchar *start_of_record = buff + addonf->offset;
+  // Unpack table NULL flags.
+  int table_idx = 0;
+  for (TABLE *table : tables) {
+    if (table->is_nullable()) {
+      if (nulls[table_idx / 8] & (1 << (table_idx & 7))) {
+        table->set_null_row();
+      } else {
+        table->reset_null_row();
+      }
+      ++table_idx;
+    }
+  }
 
-  for (; addonf != addon_fields->end(); ++addonf) {
-    Field *field = addonf->field;
-    if (addonf->null_bit && (addonf->null_bit & buff[addonf->null_offset])) {
+  // Unpack the actual addon fields (if any).
+  const uchar *start_of_record = buff + addon_fields->first_addon_offset();
+  for (const Sort_addon_field &addonf : *addon_fields) {
+    Field *field = addonf.field;
+    const bool is_null =
+        addonf.null_bit && (addonf.null_bit & nulls[addonf.null_offset]);
+    if (is_null) {
       field->set_null();
-      continue;
     }
-    field->set_notnull();
-    if (Packed_addon_fields)
-      start_of_record = field->unpack(start_of_record);
-    else
-      field->unpack(buff + addonf->offset);
-  }
-}
-
-vector<string> SortingIterator::DebugString() const {
-  string ret;
-  if (m_filesort->using_addon_fields()) {
-    ret = "Sort";
-  } else {
-    ret = "Sort row IDs";
-  }
-  if (m_filesort->m_remove_duplicates) {
-    ret += " with duplicate removal: ";
-  } else {
-    ret += ": ";
-  }
-
-  bool first = true;
-  for (unsigned i = 0; i < m_filesort->sort_order_length(); ++i) {
-    if (first) {
-      first = false;
+    if (Packed_addon_fields) {
+      if (!is_null && !field->table->has_null_row()) {
+        field->set_notnull();
+        start_of_record = field->unpack(start_of_record);
+      }
     } else {
-      ret += ", ";
-    }
-
-    const st_sort_field *order = &m_filesort->sortorder[i];
-    ret += ItemToString(order->item);
-    if (order->reverse) {
-      ret += " DESC";
+      if (!is_null) {
+        field->set_notnull();
+        field->unpack(start_of_record);
+      }
+      start_of_record += addonf.max_length;
     }
   }
-  if (m_filesort->limit != HA_POS_ERROR) {
-    char buf[256];
-    snprintf(buf, sizeof(buf), ", limit input to %llu row(s) per chunk",
-             m_filesort->limit);
-    ret += buf;
-  }
-
-  return {ret};
 }

@@ -1,0 +1,16 @@
+# Tests to check behavior of ACL DDLs when run concurrently with
+# 1. Orinary SELECT queries involving ACL tables
+# 2. Locking SELECT queries involving ACL tables
+# Behavior is checked under different isolation level.
+
+# Run it only if --big-test option is specified
+--source include/big_test.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--let ISOLATION_LEVEL=READ-UNCOMMITTED
+--source ../include/acl_tables_locking_tests_big_positive.inc
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

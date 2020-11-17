@@ -920,7 +920,7 @@ field4,field5,field6	{
           },
           {
             "derived": {
-              "table": "``.`` `alias2`",
+              "table": "`` `alias2`",
               "select#": 5,
               "merged": true
             } /* derived */
@@ -1061,8 +1061,8 @@ field4,field5,field6	{
           {
             "table_dependencies": [
               {
-                "table": "`t5` `alias1`",
-                "row_may_be_null": true,
+                "table": "`t4` `alias3`",
+                "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
                 ] /* depends_on_map_bits */
@@ -1082,8 +1082,8 @@ field4,field5,field6	{
                 ] /* depends_on_map_bits */
               },
               {
-                "table": "`t4` `alias3`",
-                "row_may_be_null": false,
+                "table": "`t5` `alias1`",
+                "row_may_be_null": true,
                 "map_bit": 3,
                 "depends_on_map_bits": [
                 ] /* depends_on_map_bits */
@@ -1092,18 +1092,6 @@ field4,field5,field6	{
           },
           {
             "ref_optimizer_key_uses": [
-              {
-                "table": "`t4` `sq3_alias2`",
-                "field": "pk",
-                "equals": "`alias3`.`col_int_key`",
-                "null_rejecting": true
-              },
-              {
-                "table": "`t4` `sq3_alias2`",
-                "field": "col_varchar_key",
-                "equals": "`alias3`.`col_varchar_key`",
-                "null_rejecting": true
-              },
               {
                 "table": "`t4` `alias3`",
                 "field": "col_varchar_key",
@@ -1115,11 +1103,44 @@ field4,field5,field6	{
                 "field": "col_int_key",
                 "equals": "`sq3_alias2`.`pk`",
                 "null_rejecting": true
+              },
+              {
+                "table": "`t4` `sq3_alias2`",
+                "field": "pk",
+                "equals": "`alias3`.`col_int_key`",
+                "null_rejecting": true
+              },
+              {
+                "table": "`t4` `sq3_alias2`",
+                "field": "col_varchar_key",
+                "equals": "`alias3`.`col_varchar_key`",
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },
           {
             "rows_estimation": [
+              {
+                "table": "`t4` `alias3`",
+                "rows": 1,
+                "cost": 1,
+                "table_type": "system",
+                "empty": false
+              },
+              {
+                "table": "`t5` `sq3_alias1`",
+                "table_scan": {
+                  "rows": 3,
+                  "cost": 0.5085
+                } /* table_scan */
+              },
+              {
+                "table": "`t4` `sq3_alias2`",
+                "rows": 1,
+                "cost": 1,
+                "table_type": "system",
+                "empty": false
+              },
               {
                 "table": "`t5` `alias1`",
                 "range_analysis": {
@@ -1152,27 +1173,6 @@ field4,field5,field6	{
                 } /* range_analysis */,
                 "rows": 0,
                 "cause": "impossible_where_condition"
-              },
-              {
-                "table": "`t5` `sq3_alias1`",
-                "table_scan": {
-                  "rows": 3,
-                  "cost": 0.5085
-                } /* table_scan */
-              },
-              {
-                "table": "`t4` `sq3_alias2`",
-                "rows": 1,
-                "cost": 1,
-                "table_type": "system",
-                "empty": false
-              },
-              {
-                "table": "`t4` `alias3`",
-                "rows": 1,
-                "cost": 1,
-                "table_type": "system",
-                "empty": false
               }
             ] /* rows_estimation */
           },
@@ -1180,8 +1180,8 @@ field4,field5,field6	{
             "considered_execution_plans": [
               {
                 "plan_prefix": [
-                  "`t4` `sq3_alias2`",
                   "`t4` `alias3`",
+                  "`t4` `sq3_alias2`",
                   "`t5` `alias1`"
                 ] /* plan_prefix */,
                 "table": "`t5` `sq3_alias1`",
@@ -3070,25 +3070,25 @@ TRACE
                 "table": "`q`",
                 "field": "a",
                 "equals": "1",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`q`",
                 "field": "a",
                 "equals": "1",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`q` `q1`",
                 "field": "a",
                 "equals": "2",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`q` `q1`",
                 "field": "a",
                 "equals": "2",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },

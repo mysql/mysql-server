@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -78,6 +78,17 @@ class Named_pipe_listener {
   true failed to change access.
   */
   bool update_named_pipe_full_access_group(const char *new_group_name);
+
+  /**
+    Spawn admin connection handler thread if separate thread is required to
+    accept admin connections. Currently we do not support named pipe admin
+    connections. Hence this method is noop.
+
+    TODO: Implement when admin connections via named pipe is to be supported.
+
+    @return false as the method is a NOOP.
+  */
+  bool check_and_spawn_admin_connection_handler_thread() const { return false; }
 
   /**
     Close the listener

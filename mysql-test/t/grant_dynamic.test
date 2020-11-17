@@ -5,6 +5,8 @@
 
 call mtr.add_suppression(".*The system table mysql.global_grants.*");
 call mtr.add_suppression("ACL table mysql.global_grants missing. Some operations may fail.");
+call mtr.add_suppression("An empty or illegal privilege identifier was ignored when global privileges were read from disk.");
+CREATE TABLE mysql.backup_global_grants AS SELECT * FROM mysql.global_grants;
 
 --echo #
 --echo # Bug25303916 WL8131:FLUSH DOES NOT UPDATE THE GRANT STATUS IN
@@ -635,3 +637,8 @@ FLUSH PRIVILEGES;
 DELETE FROM mysql.global_grants WHERE user = '' AND host = '' AND priv = ' ';
 FLUSH PRIVILEGES;
 
+--echo # restore the global_grants table
+DELETE FROM mysql.global_grants;
+INSERT INTO mysql.global_grants SELECT * FROM mysql.backup_global_grants;
+FLUSH PRIVILEGES;
+DROP TABLE mysql.backup_global_grants;

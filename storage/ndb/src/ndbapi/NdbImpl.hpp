@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,7 +98,7 @@ class NdbImpl : public trp_client
 {
 public:
   NdbImpl(Ndb_cluster_connection *, Ndb&);
-  ~NdbImpl();
+  ~NdbImpl() override;
 
   int send_event_report(bool is_poll_owner, Uint32 *data, Uint32 length);
   int send_dump_state_all(Uint32 *dumpStateCodeArray, Uint32 len);
@@ -261,10 +261,10 @@ public:
   /**
    * trp_client interface
    */
-  virtual void trp_deliver_signal(const NdbApiSignal*,
-                                  const LinearSectionPtr p[3]);
-  virtual void trp_wakeup();
-  virtual void recordWaitTimeNanos(Uint64 nanos);
+  void trp_deliver_signal(const NdbApiSignal*,
+                          const LinearSectionPtr p[3]) override;
+  void trp_wakeup() override;
+  void recordWaitTimeNanos(Uint64 nanos) override;
 
   void drop_batched_fragments(AssembleBatchedFragments* batched_fragments);
   Int32 assemble_data_event_signal(AssembleBatchedFragments* batched_fragments, NdbApiSignal* signal, LinearSectionPtr ptr[3]);

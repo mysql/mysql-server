@@ -1,7 +1,7 @@
 #ifndef SQL_ROW_ITERATOR_H_
 #define SQL_ROW_ITERATOR_H_
 
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -126,55 +126,11 @@ class RowIterator {
   // or just ignore it. The right behavior depends on the iterator.
   virtual void UnlockRow() = 0;
 
-  struct Child {
-    RowIterator *iterator;
-
-    // Normally blank. If not blank, a heading for this iterator
-    // saying what kind of role it has to the parent if it is not
-    // obvious. E.g., FilterIterator can print iterators that are
-    // children because they come out of subselect conditions.
-    std::string description;
-  };
-
-  /// List of zero or more iterators which are direct children of this one.
-  /// By convention, if there are multiple ones (ie., we're doing a join),
-  /// the outer iterator is listed first. So for a LEFT JOIN b, we'd list
-  /// a before b.
-  virtual std::vector<Child> children() const { return std::vector<Child>(); }
-
-  /// Returns a short string (used for EXPLAIN FORMAT=tree) with user-readable
-  /// information for this iterator. When implementing these, try to avoid
-  /// internal jargon (e.g. “eq_ref”); prefer things that read like normal,
-  /// technical English (e.g. “single-row index lookup”).
-  ///
-  /// For certain complex operations, such as MaterializeIterator, there can be
-  /// multiple strings. If so, they are interpreted as nested operations,
-  /// with the outermost, last-done operation first and the other ones indented
-  /// as if they were child iterators.
-  ///
-  /// Callers should use FullDebugString() below, which adds costs
-  /// (see set_estimated_cost() etc.) if present.
-  virtual std::vector<std::string> DebugString() const = 0;
-
   virtual std::string TimingString() const {
     // Valid for TimingIterator only.
     DBUG_ASSERT(false);
     return "";
   }
-
-  // If this is the root iterator of a join, points back to the join object.
-  // This has one single purpose: EXPLAIN uses it to be able to get the SELECT
-  // list and print out any subselects in it; they are not children of
-  // the iterator per se, but need to be printed with it.
-  //
-  // We could have stored the list of these extra subselect iterators directly
-  // on the iterator (it breaks the abstraction a bit to refer to JOIN here),
-  // but setting a single pointer is cheaper, especially considering that most
-  // queries are not EXPLAIN queries and we don't want the overhead for them.
-  JOIN *join_for_explain() const { return m_join_for_explain; }
-
-  // Should be called by JOIN::create_iterators() only.
-  void set_join_for_explain(JOIN *join) { m_join_for_explain = join; }
 
   /**
     Start performance schema batch mode, if supported (otherwise ignored).
@@ -223,25 +179,6 @@ class RowIterator {
    */
   virtual void EndPSIBatchModeIfStarted() {}
 
-  // The information below is used for EXPLAIN only. We store it on the
-  // iterators, because it corresponds naturally 1:1 to the them.
-  // However, RowIterator is an execution structure, and as such, estimated
-  // costs don't really belong here. When we go to an optimizer that plans
-  // natively using iterators, we should have a class setup where
-  // each execution iterator has a corresponding planning structure
-  // (e.g. TableScanIterator vs. PlannedTableScan), and the costs should move
-  // to the planning structures.
-
-  void set_estimated_cost(double estimated_cost) {
-    m_estimated_cost = estimated_cost;
-  }
-  double estimated_cost() const { return m_estimated_cost; }
-
-  void set_expected_rows(double expected_rows) {
-    m_expected_rows = expected_rows;
-  }
-  double expected_rows() const { return m_expected_rows; }
-
   /**
     If this iterator is wrapping a different iterator (e.g. TimingIterator<T>)
     and you need to down_cast<> to a specific iterator type, this allows getting
@@ -255,9 +192,6 @@ class RowIterator {
 
  private:
   THD *const m_thd;
-  JOIN *m_join_for_explain = nullptr;
-  double m_estimated_cost = -1.0;
-  double m_expected_rows = -1.0;
 };
 
 class TableRowIterator : public RowIterator {
@@ -268,7 +202,6 @@ class TableRowIterator : public RowIterator {
   void SetNullRowFlag(bool is_null_row) override;
   void StartPSIBatchMode() override;
   void EndPSIBatchModeIfStarted() override;
-  std::vector<Child> children() const override;
 
  protected:
   int HandleError(int error);
@@ -280,11 +213,6 @@ class TableRowIterator : public RowIterator {
 
   friend class AlternativeIterator;
 };
-
-// Return iterator.DebugString(), but with cost and timing information appended
-// in textual form, if available.
-std::vector<std::string> FullDebugString(const THD *thd,
-                                         const RowIterator &iterator);
 
 // Used to describe what kind of join an iterator is executing.
 enum class JoinType { INNER, OUTER, ANTI, SEMI };

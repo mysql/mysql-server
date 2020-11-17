@@ -32,8 +32,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 class ClassicProtocol : public BaseProtocol {
  public:
-  ClassicProtocol(routing::RoutingSockOpsInterface *routing_sock_ops)
-      : BaseProtocol(routing_sock_ops) {}
+  ClassicProtocol(mysql_harness::SocketOperationsBase *sock_ops)
+      : BaseProtocol(sock_ops) {}
 
   /** @brief Function that gets called when the client is being blocked
    *
@@ -73,7 +73,7 @@ class ClassicProtocol : public BaseProtocol {
    */
   stdx::expected<size_t, std::error_code> copy_packets(
       int sender, int receiver, bool sender_is_readable,
-      RoutingProtocolBuffer &buffer, int *curr_pktnr, bool &handshake_done,
+      std::vector<uint8_t> &buffer, int *curr_pktnr, bool &handshake_done,
       bool from_server) override;
 
   /** @brief Sends error message to the provided receiver.

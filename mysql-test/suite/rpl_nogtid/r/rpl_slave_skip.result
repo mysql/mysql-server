@@ -5,6 +5,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 **** On Slave ****
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_to_stop.inc
 **** On Master ****
 SET SESSION BINLOG_FORMAT='ROW';
@@ -43,11 +45,15 @@ c	d
 3	54
 **** On Slave ****
 START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=MASTER_LOG_POS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 include/check_slave_param.inc [Exec_Master_Log_Pos]
 include/check_slave_no_error.inc
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 SELECT * FROM t1;
 a	b
@@ -60,8 +66,12 @@ c	d
 2	8
 3	27
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_to_stop.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 SET SESSION BINLOG_FORMAT=STATEMENT;
 SET @foo = 12;
@@ -73,9 +83,13 @@ master-bin.000001	#	User var	#	#	@`foo`=12
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES(@foo, 2*@foo)
 master-bin.000001	#	Query	#	#	COMMIT
 START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=MASTER_LOG_POS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 **** On Master ****
 DROP TABLE t1, t2;

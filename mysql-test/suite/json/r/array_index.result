@@ -213,17 +213,17 @@ explain select * from t1 where json_contains(doc->"$","[1,2,3]");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	i1	i1	9	NULL	3	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`doc` AS `doc` from `test`.`t1` where json_contains(cast(json_extract(`test`.`t1`.`doc`,_utf8mb4'$') as unsigned array),json'[1, 2, 3]')
+Note	1003	/* select#1 */ select `test`.`t1`.`doc` AS `doc` from `test`.`t1` where json_contains(cast(json_extract(`doc`,_utf8mb4'$') as unsigned array),json'[1, 2, 3]')
 explain select * from t1 where json_overlaps(doc->"$","[1,2,3]");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	i1	i1	9	NULL	3	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`doc` AS `doc` from `test`.`t1` where json_overlaps(cast(json_extract(`test`.`t1`.`doc`,_utf8mb4'$') as unsigned array),json'[1, 2, 3]')
+Note	1003	/* select#1 */ select `test`.`t1`.`doc` AS `doc` from `test`.`t1` where json_overlaps(cast(json_extract(`doc`,_utf8mb4'$') as unsigned array),json'[1, 2, 3]')
 explain select * from t1 where json_overlaps("[1,2,3]", doc->"$");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	i1	i1	9	NULL	3	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`doc` AS `doc` from `test`.`t1` where json_overlaps(json'[1, 2, 3]',cast(json_extract(`test`.`t1`.`doc`,_utf8mb4'$') as unsigned array))
+Note	1003	/* select#1 */ select `test`.`t1`.`doc` AS `doc` from `test`.`t1` where json_overlaps(json'[1, 2, 3]',cast(json_extract(`doc`,_utf8mb4'$') as unsigned array))
 drop table t2, t1, t;
 create table t2(j json, key k ((cast(j->'$[*]' as char(10) array))));
 insert into t2 values (json_array('abc')), (json_array('ABC'));
@@ -237,7 +237,7 @@ explain select * from t2 where "abc" member of (j->'$[*]');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ref	k	k	43	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`j` AS `j` from `test`.`t2` where json'"abc"' member of (cast(json_extract(`test`.`t2`.`j`,_utf8mb4'$[*]') as char(10) array))
+Note	1003	/* select#1 */ select `test`.`t2`.`j` AS `j` from `test`.`t2` where json'"abc"' member of (cast(json_extract(`j`,_utf8mb4'$[*]') as char(10) array))
 explain select * from t2 ignore key(k) where "abc" member of (j->'$[*]');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
@@ -254,7 +254,7 @@ explain select * from t1 where 1 member of (j->"$.id");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	i2	i2	9	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where json'1' member of (cast(json_extract(`test`.`t1`.`j`,_utf8mb4'$.id') as unsigned array))
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where json'1' member of (cast(json_extract(`j`,_utf8mb4'$.id') as unsigned array))
 select * from t1 where '1' member of (j->"$.id");
 j
 {"id": 1}
@@ -262,7 +262,7 @@ explain select * from t1 where '1' member of (j->"$.id");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	i1	i1	43	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where json'"1"' member of (cast(json_extract(`test`.`t1`.`j`,_utf8mb4'$.id') as char(10) array))
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where json'"1"' member of (cast(json_extract(`j`,_utf8mb4'$.id') as char(10) array))
 drop table t1;
 create table t(j json, key k ((cast(json_array(j) as unsigned array))));
 insert into t values ('1');
@@ -273,7 +273,7 @@ explain select * from t where 1 member of  (json_array(j));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	NULL	ref	k	k	9	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`j` AS `j` from `test`.`t` where json'1' member of (cast(json_array(`test`.`t`.`j`) as unsigned array))
+Note	1003	/* select#1 */ select `test`.`t`.`j` AS `j` from `test`.`t` where json'1' member of (cast(json_array(`j`) as unsigned array))
 drop table t;
 create table t1(x varchar(10), key k ((cast(concat(x,x) as unsigned array))));
 insert into t1 values ('1');
@@ -342,7 +342,7 @@ explain select * from t where json_contains(j->'$', '1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	NULL	range	i1	i1	9	NULL	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`j` AS `j` from `test`.`t` where json_contains(cast(json_extract(`test`.`t`.`j`,_utf8mb4'$') as unsigned array),json'[1]')
+Note	1003	/* select#1 */ select `test`.`t`.`j` AS `j` from `test`.`t` where json_contains(cast(json_extract(`j`,_utf8mb4'$') as unsigned array),json'[1]')
 select * from t where json_contains(j->'$', '{"a":1}');
 j
 select * from t where j->'$'= 1;
@@ -490,7 +490,7 @@ explain select * from t1 where 5 member of (f1->"$[*]");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	i1	i1	9	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` where json'5' member of (cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$[*]') as unsigned array))
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` where json'5' member of (cast(json_extract(`f1`,_utf8mb4'$[*]') as unsigned array))
 select * from t1 where f1->"$[0]" member of ('[1,3,9]');
 id	f1
 1	[1, 3]
@@ -520,7 +520,7 @@ explain select * from t1 force index(i1) where json_contains(f1->"$[*]", "[4,3]"
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	i1	i1	9	NULL	15	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json_contains(cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$[*]') as unsigned array),json'[4, 3]')
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json_contains(cast(json_extract(`f1`,_utf8mb4'$[*]') as unsigned array),json'[4, 3]')
 select * from t1 force index(i1) where json_contains(f1->"$[*]", "[5,7]");
 id	f1
 4	[5, 7]
@@ -529,7 +529,7 @@ explain select * from t1 force index(i1) where json_contains(f1->"$[*]", "[5,7]"
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	i1	i1	9	NULL	14	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json_contains(cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$[*]') as unsigned array),json'[5, 7]')
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json_contains(cast(json_extract(`f1`,_utf8mb4'$[*]') as unsigned array),json'[5, 7]')
 select * from t1 force index(i1) where json_contains(f1->"$[*]", "[7]");
 id	f1
 3	[3, 3, 4, 4, 7]
@@ -545,7 +545,7 @@ explain select * from t1 force index(i1) where json_contains(f1->"$[*]", "[7]");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	i1	i1	9	NULL	9	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json_contains(cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$[*]') as unsigned array),json'[7]')
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json_contains(cast(json_extract(`f1`,_utf8mb4'$[*]') as unsigned array),json'[7]')
 set @save_opt=@@optimizer_switch;
 set @@optimizer_switch="mrr=off";
 select * from t1 force index(i1) where json_contains(f1->"$[*]", "[4,3]");
@@ -560,7 +560,7 @@ explain select * from t1 force index(i1) where json_contains(f1->"$[*]", "[4,3]"
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	i1	i1	9	NULL	15	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json_contains(cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$[*]') as unsigned array),json'[4, 3]')
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json_contains(cast(json_extract(`f1`,_utf8mb4'$[*]') as unsigned array),json'[4, 3]')
 select * from t1 force index(i1) where json_contains(f1->"$[*]", "[5,7]");
 id	f1
 4	[5, 7]
@@ -569,7 +569,7 @@ explain select * from t1 force index(i1) where json_contains(f1->"$[*]", "[5,7]"
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	i1	i1	9	NULL	14	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json_contains(cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$[*]') as unsigned array),json'[5, 7]')
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json_contains(cast(json_extract(`f1`,_utf8mb4'$[*]') as unsigned array),json'[5, 7]')
 select * from t1 force index(i1) where json_contains(f1->"$[*]", "[7]");
 id	f1
 3	[3, 3, 4, 4, 7]
@@ -585,7 +585,7 @@ explain select * from t1 force index(i1) where json_contains(f1->"$[*]", "[7]");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	i1	i1	9	NULL	9	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json_contains(cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$[*]') as unsigned array),json'[7]')
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json_contains(cast(json_extract(`f1`,_utf8mb4'$[*]') as unsigned array),json'[7]')
 select * from t1 force index(i1) where 99 member of  (f1->"$[*]");
 id	f1
 20	[98, 99]
@@ -597,7 +597,7 @@ explain select * from t1 force index(i1) where json_contains(f1->"$[*]", "[100]"
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	i1	i1	9	NULL	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json_contains(cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$[*]') as unsigned array),json'[100]')
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json_contains(cast(json_extract(`f1`,_utf8mb4'$[*]') as unsigned array),json'[100]')
 set @@optimizer_switch=@save_opt;
 # Check that index applicability conditions aren't met as expected
 explain select * from t1 force index(i1) where json_contains("[1,2,3,4]", "[4,3]");
@@ -681,7 +681,7 @@ explain select * from t1 where 5 member of (f1->"$");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	i1	i1	9	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` where json'5' member of (cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$') as signed array))
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` where json'5' member of (cast(json_extract(`f1`,_utf8mb4'$') as signed array))
 select * from t1 force index(i1) where 99 member of (f1->"$[*]");
 id	f1
 12	[98, 99]
@@ -729,7 +729,7 @@ explain select * from t1 where "qwe" member of (f1->"$[*]");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	i1	i1	43	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where json'"qwe"' member of (cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$[*]') as char(10) array))
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where json'"qwe"' member of (cast(json_extract(`f1`,_utf8mb4'$[*]') as char(10) array))
 select * from t1 force index(i1) where "bnm" member of  (f1->"$[*]");
 f1
 ["bnm", "sdfqwe"]
@@ -741,7 +741,7 @@ explain select * from t1 force index(i1) where "bvc" member of (f1->"$[*]");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	i1	i1	43	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json'"bvc"' member of (cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$[*]') as char(10) array))
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json'"bvc"' member of (cast(json_extract(`f1`,_utf8mb4'$[*]') as char(10) array))
 delete from t1;
 drop table t1;
 Test CAST( .. AS BINARY(X) ARRAY)
@@ -777,7 +777,7 @@ explain select * from t1 where "qwe" member of (f1->"$[*]");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	i1	i1	13	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where json'"base64:type15:cXdl"' member of (cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$[*]') as binary(10) array))
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where json'"base64:type15:cXdl"' member of (cast(json_extract(`f1`,_utf8mb4'$[*]') as binary(10) array))
 select * from t1 force index(i1) where "bnm" member of (f1->"$[*]");
 f1
 ["bnm", "sdfqwe"]
@@ -789,7 +789,7 @@ explain select * from t1 force index(i1) where "bvc" member of (f1->"$[*]");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	i1	i1	13	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json'"base64:type15:YnZj"' member of (cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$[*]') as binary(10) array))
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json'"base64:type15:YnZj"' member of (cast(json_extract(`f1`,_utf8mb4'$[*]') as binary(10) array))
 delete from t1;
 drop table t1;
 Test CAST( .. AS DECIMAL ARRAY)
@@ -842,7 +842,7 @@ explain select * from t1 where 1.33 member of (f1->"$");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	i1	i1	6	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` where json'1.3300' member of (cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$') as decimal(10, 4) array))
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` where json'1.3300' member of (cast(json_extract(`f1`,_utf8mb4'$') as decimal(10, 4) array))
 select * from t1 force index(i1) where 99 member of (f1->"$[*]");
 id	f1
 9	[98.000, 99]
@@ -857,6 +857,20 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where <cache>(100) member of (json_extract(`test`.`t1`.`f1`,'$[*]'))
 delete from t1;
 drop table t1;
+#Test CAST( .. AS YEAR ARRAY)
+create table t1 (id int not null key auto_increment, f1 json);
+create index i1 on t1((cast(f1->"$" as YEAR array)));
+ERROR 42000: This version of MySQL doesn't yet support 'CAST-ing data to array of YEAR'
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `f1` json DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+create table t1 (id int not null key auto_increment, f1 json, key i1 ((cast(f1->"$" as YEAR array)));
+ERROR 42000: This version of MySQL doesn't yet support 'CAST-ing data to array of YEAR'
 Test CAST( .. AS DATE ARRAY)
 create table t1 (id int not null key auto_increment, f1 json);
 create index i1 on t1((cast(f1->"$" as date array)));
@@ -896,7 +910,7 @@ explain select * from t1 where cast('01-02-03' as date) member of (f1->"$");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	i1	i1	4	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` where json'"2001-02-03"' member of (cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$') as date array))
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` where json'"2001-02-03"' member of (cast(json_extract(`f1`,_utf8mb4'$') as date array))
 select * from t1 force index(i1) where cast('01-01-12' as date) member of (f1->"$");
 id	f1
 6	["2001-01-12", "2001-01-13"]
@@ -912,7 +926,7 @@ cast('01-01-14' as date) member of (f1->"$");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	i1	i1	4	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json'"2001-01-14"' member of (cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$') as date array))
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json'"2001-01-14"' member of (cast(json_extract(`f1`,_utf8mb4'$') as date array))
 delete from t1;
 drop table t1;
 Test CAST( .. AS TIME ARRAY)
@@ -969,7 +983,7 @@ explain select * from t1 where cast('01:02:03' as time) member of (f1->"$");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	i1	i1	4	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` where json'"01:02:03.000000"' member of (cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$') as time array))
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` where json'"01:02:03.000000"' member of (cast(json_extract(`f1`,_utf8mb4'$') as time array))
 select * from t1 force index(i1) where
 cast('01:12:54' as time) member of (f1->"$");
 id	f1
@@ -986,7 +1000,7 @@ cast('01:12:56' as time) member of (f1->"$");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	i1	i1	4	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json'"01:12:56.000000"' member of (cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$') as time array))
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json'"01:12:56.000000"' member of (cast(json_extract(`f1`,_utf8mb4'$') as time array))
 delete from t1;
 drop table t1;
 Test CAST( .. AS DATETIME ARRAY)
@@ -1044,7 +1058,7 @@ of (f1->"$");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	i1	i1	6	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` where json'"2001-01-01 01:02:03.000000"' member of (cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$') as datetime array))
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` where json'"2001-01-01 01:02:03.000000"' member of (cast(json_extract(`f1`,_utf8mb4'$') as datetime array))
 select * from t1 force index(i1) where
 cast('01-01-01 01:12:54' as datetime) member of (f1->"$");
 id	f1
@@ -1062,7 +1076,7 @@ cast('01-01-01 01:12:56' as datetime)  member of (f1->"$");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	i1	i1	6	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json'"2001-01-01 01:12:56.000000"' member of (cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$') as datetime array))
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json'"2001-01-01 01:12:56.000000"' member of (cast(json_extract(`f1`,_utf8mb4'$') as datetime array))
 delete from t1;
 drop table t1;
 select json_overlaps(cast('[1,2,3]' as json), cast('[3,4,5]' as json));
@@ -1178,7 +1192,7 @@ explain select * from t1 where json_overlaps(cast('[4,6]' as json), f1->'$[*]');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	i1	i1	9	NULL	3	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` where json_overlaps(json'[4, 6]',cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$[*]') as signed array))
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` where json_overlaps(json'[4, 6]',cast(json_extract(`f1`,_utf8mb4'$[*]') as signed array))
 select * from t1 where json_overlaps(f1->'$[*]', cast('[2,5]' as json));
 id	f1
 5	[5, 7]
@@ -1188,7 +1202,7 @@ explain select * from t1 where json_overlaps(f1->'$[*]', cast('[2,5]' as json));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	i1	i1	9	NULL	3	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` where json_overlaps(cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$[*]') as signed array),json'[2, 5]')
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` where json_overlaps(cast(json_extract(`f1`,_utf8mb4'$[*]') as signed array),json'[2, 5]')
 drop table t1;
 create table t1 (f1 json, id varchar(255) as (f1->"$[0]") stored not null primary key );
 create index i1 on t1((cast(f1->"$[*]" as unsigned array)));
@@ -1279,7 +1293,7 @@ where json_overlaps(f1->'$[*]', '[4,3,7]') order by id;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	i1	i1	9	NULL	54	100.00	Using where; Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`id` AS `id` from `test`.`t1` FORCE INDEX (`i1`) where json_overlaps(cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$[*]') as unsigned array),json'[4, 3, 7]') order by `test`.`t1`.`id`
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`id` AS `id` from `test`.`t1` FORCE INDEX (`i1`) where json_overlaps(cast(json_extract(`f1`,_utf8mb4'$[*]') as unsigned array),json'[4, 3, 7]') order by `test`.`t1`.`id`
 prepare stmt from "select * from t1 force index(i1)
 where json_overlaps(f1->'$[*]', '[4,3,7]') order by id";
 execute stmt;
@@ -1330,7 +1344,7 @@ where json_overlaps(f1->'$[*]', '[4,3,7]') order by id;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	i1	i1	9	NULL	54	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` FORCE INDEX (`i1`) where json_overlaps(cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$[*]') as unsigned array),json'[4, 3, 7]')
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` FORCE INDEX (`i1`) where json_overlaps(cast(json_extract(`f1`,_utf8mb4'$[*]') as unsigned array),json'[4, 3, 7]')
 prepare stmt from "select count(*) from t1 force index(i1)
 where json_overlaps(f1->'$[*]', '[4,3,7]') order by id";
 execute stmt;
@@ -1419,7 +1433,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	tt	NULL	range	i1	i1	9	NULL	54	100.00	Using where
 Warnings:
 Warning	1739	Cannot use range access on index 'PRIMARY' due to type or collation conversion on field 'id'
-Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t1`,`tt`) NO_BNL(`t1`@`select#1`) NO_BNL(`tt`@`select#1`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`id` AS `id`,`test`.`tt`.`f1` AS `f1`,`test`.`tt`.`id` AS `id` from `test`.`t1` join `test`.`t1` `tt` FORCE INDEX (`i1`) where (json_overlaps(cast(json_extract(`test`.`tt`.`f1`,_utf8mb4'$[*]') as unsigned array),json'[4, 3, 7]') and (`test`.`t1`.`id` in (1,2))) order by `test`.`t1`.`id`,`test`.`tt`.`id`
+Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t1`,`tt`) NO_BNL(`t1`@`select#1`) NO_BNL(`tt`@`select#1`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`id` AS `id`,`test`.`tt`.`f1` AS `f1`,`test`.`tt`.`id` AS `id` from `test`.`t1` join `test`.`t1` `tt` FORCE INDEX (`i1`) where (json_overlaps(cast(json_extract(`f1`,_utf8mb4'$[*]') as unsigned array),json'[4, 3, 7]') and (`test`.`t1`.`id` in (1,2))) order by `test`.`t1`.`id`,`test`.`tt`.`id`
 prepare stmt from "select /*+ NO_BNL(t1,tt) JOIN_ORDER(t1,tt) */ * from t1 join t1 as tt force index(i1)
 where json_overlaps(tt.f1->'$[*]', '[4,3,7]') and t1.id in (1,2) order by t1.id,tt.id";
 execute stmt;
@@ -1508,7 +1522,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	tt	NULL	range	i1	i1	9	NULL	54	100.00	Using where
 Warnings:
 Warning	1739	Cannot use range access on index 'PRIMARY' due to type or collation conversion on field 'id'
-Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t1`,`tt`) NO_BNL(`t1`@`select#1`) NO_BNL(`tt`@`select#1`) */ count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `tt` FORCE INDEX (`i1`) where (json_overlaps(cast(json_extract(`test`.`tt`.`f1`,_utf8mb4'$[*]') as unsigned array),json'[4, 3, 7]') and (`test`.`t1`.`id` in (1,2)))
+Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t1`,`tt`) NO_BNL(`t1`@`select#1`) NO_BNL(`tt`@`select#1`) */ count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `tt` FORCE INDEX (`i1`) where (json_overlaps(cast(json_extract(`f1`,_utf8mb4'$[*]') as unsigned array),json'[4, 3, 7]') and (`test`.`t1`.`id` in (1,2)))
 prepare stmt from "select /*+ NO_BNL(t1,tt) JOIN_ORDER(t1,tt) */ count(*) from t1 join t1 as tt force index(i1)
 where json_overlaps(tt.f1->'$[*]', '[4,3,7]') and t1.id in (1,2) order by t1.id,tt.id";
 execute stmt;
@@ -1561,7 +1575,7 @@ where json_overlaps(f1->"$[*]", "[4,3,7]") order by id;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	i1	i1	9	NULL	54	100.00	Using where; Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`id` AS `id` from `test`.`t1` FORCE INDEX (`i1`) where json_overlaps(cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$[*]') as unsigned array),json'[4, 3, 7]') order by `test`.`t1`.`id`
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`id` AS `id` from `test`.`t1` FORCE INDEX (`i1`) where json_overlaps(cast(json_extract(`f1`,_utf8mb4'$[*]') as unsigned array),json'[4, 3, 7]') order by `test`.`t1`.`id`
 select count(*) from t1 force index(i1)
 where json_overlaps(f1->"$[*]", "[4,3,7]") order by id;
 count(*)
@@ -1571,7 +1585,7 @@ where json_overlaps(f1->"$[*]", "[4,3,7]") order by id;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	i1	i1	9	NULL	54	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` FORCE INDEX (`i1`) where json_overlaps(cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$[*]') as unsigned array),json'[4, 3, 7]')
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` FORCE INDEX (`i1`) where json_overlaps(cast(json_extract(`f1`,_utf8mb4'$[*]') as unsigned array),json'[4, 3, 7]')
 drop table t1;
 create table t1 (f1 json,
 id varchar(255) as (f1->"$[0]") stored not null primary key );
@@ -1607,7 +1621,7 @@ where json_overlaps(f1->"$[*]", "[4,3,7]") order by id;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	i1	i1	9	NULL	9	100.00	Using where; Using MRR; Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`id` AS `id` from `test`.`t1` FORCE INDEX (`i1`) where json_overlaps(cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$[*]') as unsigned array),json'[4, 3, 7]') order by `test`.`t1`.`id`
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`id` AS `id` from `test`.`t1` FORCE INDEX (`i1`) where json_overlaps(cast(json_extract(`f1`,_utf8mb4'$[*]') as unsigned array),json'[4, 3, 7]') order by `test`.`t1`.`id`
 drop table t1;
 create table t(j json, key k ((cast(j->'$[*]' as unsigned array))));
 insert into t values('[2,2,3]');
@@ -1704,7 +1718,7 @@ explain select * from t1 where json_overlaps(j->'$[*]', '[2,3,4, null]');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	k	k	9	NULL	3	100.00	Using where; Using MRR
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where json_overlaps(cast(json_extract(`test`.`t1`.`j`,_utf8mb4'$[*]') as unsigned array),json'[2, 3, 4, null]')
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where json_overlaps(cast(json_extract(`j`,_utf8mb4'$[*]') as unsigned array),json'[2, 3, 4, null]')
 select * from t1 where json_overlaps(j->'$[*]', '[2,3,4, "asd"]');
 j
 [1, 2, 3]
@@ -1762,7 +1776,7 @@ explain select * from t1 where cast('11:11:11' as time) member of (j7->'$[*]');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	mv_idx_time	mv_idx_time	4	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`j7` AS `j7`,`test`.`t1`.`j8` AS `j8`,`test`.`t1`.`ttt` AS `ttt` from `test`.`t1` where json'"11:11:11.000000"' member of (cast(json_extract(`test`.`t1`.`j7`,_utf8mb4'$[*]') as time array))
+Note	1003	/* select#1 */ select `test`.`t1`.`j7` AS `j7`,`test`.`t1`.`j8` AS `j8`,`test`.`t1`.`ttt` AS `ttt` from `test`.`t1` where json'"11:11:11.000000"' member of (cast(json_extract(`j7`,_utf8mb4'$[*]') as time array))
 drop table t1;
 set @save_mode= @@sql_mode;
 set sql_mode='';
@@ -1868,7 +1882,7 @@ EXPLAIN SELECT * FROM t1 WHERE JSON_OVERLAPS(CAST('[2,2]' AS JSON), j->'$[*]');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	mv_idx	mv_idx	9	NULL	1	100.00	Using where; Using MRR
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where json_overlaps(json'[2, 2]',cast(json_extract(`test`.`t1`.`j`,_utf8mb4'$[*]') as signed array))
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where json_overlaps(json'[2, 2]',cast(json_extract(`j`,_utf8mb4'$[*]') as signed array))
 DROP TABLE t1;
 #
 # Bug#28929529: SERVER CRASH WITH MEMBER OF() FUNCTION
@@ -1900,7 +1914,7 @@ EXPLAIN SELECT col_key FROM t1 WHERE
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index_merge	idx_col_key,mv_idx	mv_idx,idx_col_key	9,7	NULL	2	100.00	Using sort_union(mv_idx,idx_col_key); Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col_key` AS `col_key` from `test`.`t1` where (json_overlaps(json'[9444]',cast(json_extract(`test`.`t1`.`col_jsn`,_utf8mb4'$[*]') as unsigned array)) or (`test`.`t1`.`col_key` = 't'))
+Note	1003	/* select#1 */ select `test`.`t1`.`col_key` AS `col_key` from `test`.`t1` where (json_overlaps(json'[9444]',cast(json_extract(`col_jsn`,_utf8mb4'$[*]') as unsigned array)) or (`test`.`t1`.`col_key` = 't'))
 DROP TABLE t1;
 #
 # Bug#28960833: SIG11 IN FILESORT::MAKE_SORTORDER() AT SQL/FILESORT.CC
@@ -1944,7 +1958,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ref	mv_idx	mv_idx	163	const	1	100.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col_int_key` AS `field1`,`test`.`t2`.`col_int` AS `field2` from `test`.`t2` join `test`.`t1` where json'"1"' member of (cast(json_extract(`test`.`t1`.`col_jsonn`,_utf8mb4'$[*]') as char(40) array))
+Note	1003	/* select#1 */ select `test`.`t1`.`col_int_key` AS `field1`,`test`.`t2`.`col_int` AS `field2` from `test`.`t2` join `test`.`t1` where json'"1"' member of (cast(json_extract(`col_jsonn`,_utf8mb4'$[*]') as char(40) array))
 SELECT t1.col_int_key AS field1, t2.col_int AS field2 FROM t2 LEFT
 JOIN t1 ON 1 WHERE (CAST("1" AS JSON) MEMBER OF( t1.col_jsonn->'$[*]'));
 field1	field2
@@ -2021,7 +2035,7 @@ JSON_OVERLAPS(JSON_ARRAY('12:38:26', '17:42:23'), col_jsonn->'$[6][*]');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	c1	NULL	index_merge	mv_idx_char,mv_idx_time	mv_idx_char,mv_idx_time	43,4	NULL	3	100.00	Using sort_union(mv_idx_char,mv_idx_time); Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`c1`.`col_int` AS `col_int` from `test`.`c1` where (json_contains(cast(json_extract(`test`.`c1`.`col_jsonn`,_utf8mb4'$[2][*]') as char(10) array),json'["2030-11-16"]') or json_overlaps(json'["12:38:26.000000", "17:42:23.000000"]',cast(json_extract(`test`.`c1`.`col_jsonn`,_utf8mb4'$[6][*]') as time array)))
+Note	1003	/* select#1 */ select `test`.`c1`.`col_int` AS `col_int` from `test`.`c1` where (json_contains(cast(json_extract(`col_jsonn`,_utf8mb4'$[2][*]') as char(10) array),json'["2030-11-16"]') or json_overlaps(json'["12:38:26.000000", "17:42:23.000000"]',cast(json_extract(`col_jsonn`,_utf8mb4'$[6][*]') as time array)))
 DROP TABLE c1;
 #
 # Bug#29114081: ERROR WHILE READING TABLE
@@ -2071,7 +2085,7 @@ AND ( alias1 . pk = alias2 . pk AND alias1 . pk = 8 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
-Note	1003	/* select#1 */ select '8' AS `field1`,'8' AS `field3` from `test`.`c` `alias1` join `test`.`c` `alias2` semi join (`test`.`a` `sq2_alias2`) where (json_overlaps(json'["base64:type15:VE9vcUxzdQ=="]',cast(json_extract(`test`.`sq2_alias2`.`col_jsonn`,_utf8mb4'$[*]') as binary(10) array)) and multiple equal(8) and multiple equal('1'))
+Note	1003	/* select#1 */ select '8' AS `field1`,'8' AS `field3` from `test`.`c` `alias1` join `test`.`c` `alias2` semi join (`test`.`a` `sq2_alias2`) where (json_overlaps(json'["base64:type15:VE9vcUxzdQ=="]',cast(json_extract(`col_jsonn`,_utf8mb4'$[*]') as binary(10) array)) and multiple equal(8) and multiple equal('1'))
 DROP TABLE a,c;
 #
 # Bug#29303026: TOO MANY RESULTS FROM UNIQUE MULTI-VALUE INDEX
@@ -2085,7 +2099,7 @@ explain select * from t where json_overlaps('["1",1]', j->'$[*]');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	NULL	range	functional_index	functional_index	43	NULL	1	100.00	Using where; Using MRR
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`j` AS `j` from `test`.`t` where json_overlaps(json'["1", "1"]',cast(json_extract(`test`.`t`.`j`,_utf8mb4'$[*]') as char(10) array))
+Note	1003	/* select#1 */ select `test`.`t`.`j` AS `j` from `test`.`t` where json_overlaps(json'["1", "1"]',cast(json_extract(`j`,_utf8mb4'$[*]') as char(10) array))
 drop table t;
 #
 # Bug#29582655: ASSERTION FAILURE: `!THD->IS_ERROR()'
@@ -2147,7 +2161,7 @@ JSON_CONTAINS(doc->'$.dateField',JSON_QUOTE('2019-2-1'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	dateArrayIndex	dateArrayIndex	4	NULL	1	100.00	Using where; Using MRR
 Warnings:
-Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.dateField') AS `doc->'$.dateField'` from `test`.`t1` where json_contains(cast(json_extract(`test`.`t1`.`doc`,_utf8mb4'$.dateField') as date array),json'["2019-02-01"]')
+Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.dateField') AS `doc->'$.dateField'` from `test`.`t1` where json_contains(cast(json_extract(`doc`,_utf8mb4'$.dateField') as date array),json'["2019-02-01"]')
 SELECT doc->'$.dateField' FROM t1 WHERE
 JSON_CONTAINS(doc->'$.dateField',JSON_ARRAY('2019-2-1','2019-3-1'));
 doc->'$.dateField'
@@ -2157,7 +2171,7 @@ JSON_CONTAINS(doc->'$.dateField',JSON_ARRAY('2019-2-1','2019-3-1'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	dateArrayIndex	dateArrayIndex	4	NULL	2	100.00	Using where; Using MRR
 Warnings:
-Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.dateField') AS `doc->'$.dateField'` from `test`.`t1` where json_contains(cast(json_extract(`test`.`t1`.`doc`,_utf8mb4'$.dateField') as date array),json'["2019-02-01", "2019-03-01"]')
+Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.dateField') AS `doc->'$.dateField'` from `test`.`t1` where json_contains(cast(json_extract(`doc`,_utf8mb4'$.dateField') as date array),json'["2019-02-01", "2019-03-01"]')
 SELECT doc->'$.dateField' FROM t1 WHERE
 '2019-2-1' MEMBER OF (doc->'$.dateField');
 doc->'$.dateField'
@@ -2167,7 +2181,7 @@ EXPLAIN SELECT doc->'$.dateField' FROM t1 WHERE
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	dateArrayIndex	dateArrayIndex	4	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.dateField') AS `doc->'$.dateField'` from `test`.`t1` where json'"2019-02-01"' member of (cast(json_extract(`test`.`t1`.`doc`,_utf8mb4'$.dateField') as date array))
+Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.dateField') AS `doc->'$.dateField'` from `test`.`t1` where json'"2019-02-01"' member of (cast(json_extract(`doc`,_utf8mb4'$.dateField') as date array))
 SELECT doc->'$.dateField' FROM t1 WHERE
 DATE'2019-2-1' MEMBER OF (doc->'$.dateField');
 doc->'$.dateField'
@@ -2177,7 +2191,7 @@ DATE'2019-2-1' MEMBER OF (doc->'$.dateField');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	dateArrayIndex	dateArrayIndex	4	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.dateField') AS `doc->'$.dateField'` from `test`.`t1` where json'"2019-02-01"' member of (cast(json_extract(`test`.`t1`.`doc`,_utf8mb4'$.dateField') as date array))
+Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.dateField') AS `doc->'$.dateField'` from `test`.`t1` where json'"2019-02-01"' member of (cast(json_extract(`doc`,_utf8mb4'$.dateField') as date array))
 SELECT doc->'$.dateField' FROM t1 WHERE
 'asd2019' MEMBER OF (doc->'$.dateField');
 doc->'$.dateField'
@@ -2209,7 +2223,7 @@ JSON_CONTAINS(doc->'$.datetimeField',JSON_QUOTE('2017-12-29 23:59:59'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	datetimeArrayIndex	datetimeArrayIndex	6	NULL	1	100.00	Using where; Using MRR
 Warnings:
-Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.datetimeField') AS `doc->'$.datetimeField'` from `test`.`t1` where json_contains(cast(json_extract(`test`.`t1`.`doc`,_utf8mb4'$.datetimeField') as datetime array),json'["2017-12-29 23:59:59.000000"]')
+Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.datetimeField') AS `doc->'$.datetimeField'` from `test`.`t1` where json_contains(cast(json_extract(`doc`,_utf8mb4'$.datetimeField') as datetime array),json'["2017-12-29 23:59:59.000000"]')
 SELECT doc->'$.datetimeField' FROM t1 WHERE
 JSON_CONTAINS(doc->'$.datetimeField',
 JSON_ARRAY('2017-12-29 23:59:59','2017-12-30 23:59:59'));
@@ -2221,7 +2235,7 @@ JSON_ARRAY('2017-12-29 23:59:59','2017-12-30 23:59:59'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	datetimeArrayIndex	datetimeArrayIndex	6	NULL	2	100.00	Using where; Using MRR
 Warnings:
-Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.datetimeField') AS `doc->'$.datetimeField'` from `test`.`t1` where json_contains(cast(json_extract(`test`.`t1`.`doc`,_utf8mb4'$.datetimeField') as datetime array),json'["2017-12-29 23:59:59.000000", "2017-12-30 23:59:59.000000"]')
+Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.datetimeField') AS `doc->'$.datetimeField'` from `test`.`t1` where json_contains(cast(json_extract(`doc`,_utf8mb4'$.datetimeField') as datetime array),json'["2017-12-29 23:59:59.000000", "2017-12-30 23:59:59.000000"]')
 SELECT doc->'$.datetimeField' FROM t1 WHERE
 '2017-12-29 23:59:59' MEMBER OF (doc->'$.datetimeField');
 doc->'$.datetimeField'
@@ -2231,7 +2245,7 @@ EXPLAIN SELECT doc->'$.datetimeField' FROM t1 WHERE
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	datetimeArrayIndex	datetimeArrayIndex	6	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.datetimeField') AS `doc->'$.datetimeField'` from `test`.`t1` where json'"2017-12-29 23:59:59.000000"' member of (cast(json_extract(`test`.`t1`.`doc`,_utf8mb4'$.datetimeField') as datetime array))
+Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.datetimeField') AS `doc->'$.datetimeField'` from `test`.`t1` where json'"2017-12-29 23:59:59.000000"' member of (cast(json_extract(`doc`,_utf8mb4'$.datetimeField') as datetime array))
 SELECT doc->'$.datetimeField' FROM t1 WHERE
 TIMESTAMP'2017-12-29 23:59:59' MEMBER OF (doc->'$.datetimeField');
 doc->'$.datetimeField'
@@ -2241,7 +2255,7 @@ TIMESTAMP'2017-12-29 23:59:59' MEMBER OF (doc->'$.datetimeField');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	datetimeArrayIndex	datetimeArrayIndex	6	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.datetimeField') AS `doc->'$.datetimeField'` from `test`.`t1` where json'"2017-12-29 23:59:59.000000"' member of (cast(json_extract(`test`.`t1`.`doc`,_utf8mb4'$.datetimeField') as datetime array))
+Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.datetimeField') AS `doc->'$.datetimeField'` from `test`.`t1` where json'"2017-12-29 23:59:59.000000"' member of (cast(json_extract(`doc`,_utf8mb4'$.datetimeField') as datetime array))
 # TIME
 SELECT doc->'$.timeField' FROM t1 WHERE
 JSON_CONTAINS(doc->'$.timeField',JSON_QUOTE('11:11'));
@@ -2260,7 +2274,7 @@ JSON_CONTAINS(doc->'$.timeField',JSON_QUOTE('11:11'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	timeArrayIndex	timeArrayIndex	4	NULL	1	100.00	Using where; Using MRR
 Warnings:
-Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.timeField') AS `doc->'$.timeField'` from `test`.`t1` where json_contains(cast(json_extract(`test`.`t1`.`doc`,_utf8mb4'$.timeField') as time array),json'["11:11:00.000000"]')
+Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.timeField') AS `doc->'$.timeField'` from `test`.`t1` where json_contains(cast(json_extract(`doc`,_utf8mb4'$.timeField') as time array),json'["11:11:00.000000"]')
 SELECT doc->'$.timeField' FROM t1 WHERE
 JSON_CONTAINS(doc->'$.timeField',JSON_ARRAY('11:11','12:11'));
 doc->'$.timeField'
@@ -2270,7 +2284,7 @@ JSON_CONTAINS(doc->'$.timeField',JSON_ARRAY('11:11','12:11'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	timeArrayIndex	timeArrayIndex	4	NULL	2	100.00	Using where; Using MRR
 Warnings:
-Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.timeField') AS `doc->'$.timeField'` from `test`.`t1` where json_contains(cast(json_extract(`test`.`t1`.`doc`,_utf8mb4'$.timeField') as time array),json'["11:11:00.000000", "12:11:00.000000"]')
+Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.timeField') AS `doc->'$.timeField'` from `test`.`t1` where json_contains(cast(json_extract(`doc`,_utf8mb4'$.timeField') as time array),json'["11:11:00.000000", "12:11:00.000000"]')
 SELECT doc->'$.timeField' FROM t1 WHERE
 '11:11' MEMBER OF (doc->'$.timeField');
 doc->'$.timeField'
@@ -2280,7 +2294,7 @@ EXPLAIN SELECT doc->'$.timeField' FROM t1 WHERE
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	timeArrayIndex	timeArrayIndex	4	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.timeField') AS `doc->'$.timeField'` from `test`.`t1` where json'"11:11:00.000000"' member of (cast(json_extract(`test`.`t1`.`doc`,_utf8mb4'$.timeField') as time array))
+Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.timeField') AS `doc->'$.timeField'` from `test`.`t1` where json'"11:11:00.000000"' member of (cast(json_extract(`doc`,_utf8mb4'$.timeField') as time array))
 SELECT doc->'$.timeField' FROM t1 WHERE
 TIME'11:11' MEMBER OF (doc->'$.timeField');
 doc->'$.timeField'
@@ -2290,7 +2304,7 @@ TIME'11:11' MEMBER OF (doc->'$.timeField');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	timeArrayIndex	timeArrayIndex	4	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.timeField') AS `doc->'$.timeField'` from `test`.`t1` where json'"11:11:00.000000"' member of (cast(json_extract(`test`.`t1`.`doc`,_utf8mb4'$.timeField') as time array))
+Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.timeField') AS `doc->'$.timeField'` from `test`.`t1` where json'"11:11:00.000000"' member of (cast(json_extract(`doc`,_utf8mb4'$.timeField') as time array))
 DROP TABLE t1;
 CREATE TABLE t(i INT, j JSON);
 INSERT INTO t VALUES

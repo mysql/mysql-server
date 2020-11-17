@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,12 +34,13 @@
 #include "my_base.h"  // ha_extra_function
 #include "my_inttypes.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
-#include "prealloced_array.h"  // Prealloced_array
-#include "sql/mdl.h"           // MDL_savepoint
-#include "sql/sql_array.h"     // Bounds_checked_array
-#include "sql/sql_const.h"     // enum_resolution_type
-#include "sql/trigger_def.h"   // enum_trigger_event_type
-#include "thr_lock.h"          // thr_lock_type
+#include "prealloced_array.h"        // Prealloced_array
+#include "sql/locked_tables_list.h"  // enum_locked_tables_mode
+#include "sql/mdl.h"                 // MDL_savepoint
+#include "sql/sql_array.h"           // Bounds_checked_array
+#include "sql/sql_const.h"           // enum_resolution_type
+#include "sql/trigger_def.h"         // enum_trigger_event_type
+#include "thr_lock.h"                // thr_lock_type
 
 class COPY_INFO;
 class Field;
@@ -65,6 +66,8 @@ template <class T>
 class List;
 template <class T>
 class List_iterator;
+template <class T>
+class Mem_root_array;
 
 typedef Bounds_checked_array<Item *> Ref_item_array;
 namespace dd {
@@ -198,25 +201,31 @@ TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name);
 TABLE *find_temporary_table(THD *thd, const TABLE_LIST *tl);
 void close_thread_tables(THD *thd);
 bool fill_record_n_invoke_before_triggers(
-    THD *thd, COPY_INFO *optype_info, List<Item> &fields, List<Item> &values,
-    TABLE *table, enum enum_trigger_event_type event, int num_fields,
+    THD *thd, COPY_INFO *optype_info, const mem_root_deque<Item *> &fields,
+    const mem_root_deque<Item *> &values, TABLE *table,
+    enum enum_trigger_event_type event, int num_fields,
     bool raise_autoinc_has_expl_non_null_val, bool *is_row_changed);
 bool fill_record_n_invoke_before_triggers(THD *thd, Field **field,
-                                          List<Item> &values, TABLE *table,
+                                          const mem_root_deque<Item *> &values,
+                                          TABLE *table,
                                           enum enum_trigger_event_type event,
                                           int num_fields);
 bool resolve_var_assignments(THD *thd, LEX *lex);
-bool insert_fields(THD *thd, Name_resolution_context *context,
-                   const char *db_name, const char *table_name,
-                   List_iterator<Item> *it, bool any_privileges);
-bool setup_fields(THD *thd, Ref_item_array ref_item_array, List<Item> &item,
-                  ulong privilege, List<Item> *sum_func_list,
-                  bool allow_sum_func, bool column_update);
-bool fill_record(THD *thd, TABLE *table, List<Item> &fields, List<Item> &values,
-                 MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap,
+bool insert_fields(THD *thd, SELECT_LEX *select_lex, const char *db_name,
+                   const char *table_name, mem_root_deque<Item *> *fields,
+                   mem_root_deque<Item *>::iterator *it, bool any_privileges);
+bool setup_fields(THD *thd, ulong want_privilege, bool allow_sum_func,
+                  bool split_sum_funcs, bool column_update,
+                  const mem_root_deque<Item *> *typed_items,
+                  mem_root_deque<Item *> *fields,
+                  Ref_item_array ref_item_array);
+bool fill_record(THD *thd, TABLE *table, const mem_root_deque<Item *> &fields,
+                 const mem_root_deque<Item *> &values, MY_BITMAP *bitmap,
+                 MY_BITMAP *insert_into_fields_bitmap,
                  bool raise_autoinc_has_expl_non_null_val);
-bool fill_record(THD *thd, TABLE *table, Field **field, List<Item> &values,
-                 MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap,
+bool fill_record(THD *thd, TABLE *table, Field **field,
+                 const mem_root_deque<Item *> &values, MY_BITMAP *bitmap,
+                 MY_BITMAP *insert_into_fields_bitmap,
                  bool raise_autoinc_has_expl_non_null_val);
 
 bool check_record(THD *thd, Field **ptr);
@@ -247,7 +256,8 @@ Field *find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
 Field *find_field_in_table(TABLE *table, const char *name, size_t length,
                            bool allow_rowid, uint *cached_field_index_ptr);
 Field *find_field_in_table_sef(TABLE *table, const char *name);
-Item **find_item_in_list(THD *thd, Item *item, List<Item> &items, uint *counter,
+Item **find_item_in_list(THD *thd, Item *item, mem_root_deque<Item *> *items,
+                         uint *counter,
                          find_item_error_report_type report_error,
                          enum_resolution_type *resolution);
 bool setup_natural_join_row_types(THD *thd,
@@ -397,13 +407,13 @@ class Prelocking_strategy {
 
 class DML_prelocking_strategy : public Prelocking_strategy {
  public:
-  virtual bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
-                              Sroutine_hash_entry *rt, sp_head *sp,
-                              bool *need_prelocking);
-  virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
-                            TABLE_LIST *table_list, bool *need_prelocking);
-  virtual bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
-                           TABLE_LIST *table_list, bool *need_prelocking);
+  bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
+                      Sroutine_hash_entry *rt, sp_head *sp,
+                      bool *need_prelocking) override;
+  bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
+                    TABLE_LIST *table_list, bool *need_prelocking) override;
+  bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
+                   TABLE_LIST *table_list, bool *need_prelocking) override;
 };
 
 /**
@@ -412,8 +422,8 @@ class DML_prelocking_strategy : public Prelocking_strategy {
 */
 
 class Lock_tables_prelocking_strategy : public DML_prelocking_strategy {
-  virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
-                            TABLE_LIST *table_list, bool *need_prelocking);
+  bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
+                    TABLE_LIST *table_list, bool *need_prelocking) override;
 };
 
 /**
@@ -426,13 +436,13 @@ class Lock_tables_prelocking_strategy : public DML_prelocking_strategy {
 
 class Alter_table_prelocking_strategy : public Prelocking_strategy {
  public:
-  virtual bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
-                              Sroutine_hash_entry *rt, sp_head *sp,
-                              bool *need_prelocking);
-  virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
-                            TABLE_LIST *table_list, bool *need_prelocking);
-  virtual bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
-                           TABLE_LIST *table_list, bool *need_prelocking);
+  bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
+                      Sroutine_hash_entry *rt, sp_head *sp,
+                      bool *need_prelocking) override;
+  bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
+                    TABLE_LIST *table_list, bool *need_prelocking) override;
+  bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
+                   TABLE_LIST *table_list, bool *need_prelocking) override;
 };
 
 inline bool open_tables(THD *thd, TABLE_LIST **tables, uint *counter,
@@ -554,5 +564,17 @@ class Open_table_context {
   */
   bool m_has_protection_against_grl;
 };
+
+/**
+  Check if given TABLE_LIST is a acl table and is being read and not
+  in LOCK TABLE mode.
+
+    @param tl   TABLE_LIST pointing to the table.
+    @param ltm  THD->locked_tables_mode enum.
+
+    @return true if acl table is being read, otherwise false.
+*/
+bool is_acl_table_in_non_LTM(const TABLE_LIST *tl,
+                             enum enum_locked_tables_mode ltm);
 
 #endif /* SQL_BASE_INCLUDED */

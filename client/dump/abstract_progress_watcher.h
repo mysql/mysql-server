@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -46,21 +46,23 @@ namespace Dump {
 class Abstract_progress_watcher : public virtual I_progress_watcher,
                                   public Abstract_chain_element {
  public:
-  void new_chain_created(Item_processing_data *new_chain_process_data);
+  void new_chain_created(Item_processing_data *new_chain_process_data) override;
 
-  void object_processing_started(Item_processing_data *process_data);
+  void object_processing_started(Item_processing_data *process_data) override;
 
-  void object_processing_ended(Item_processing_data *finished_process_data);
+  void object_processing_ended(
+      Item_processing_data *finished_process_data) override;
 
-  void crawler_completed(I_crawler *crawler);
+  void crawler_completed(I_crawler *crawler) override;
 
   // Fix "inherits ... via dominance" warnings
-  void register_progress_watcher(I_progress_watcher *new_progress_watcher) {
+  void register_progress_watcher(
+      I_progress_watcher *new_progress_watcher) override {
     Abstract_chain_element::register_progress_watcher(new_progress_watcher);
   }
 
   // Fix "inherits ... via dominance" warnings
-  uint64 get_id() const { return Abstract_chain_element::get_id(); }
+  uint64 get_id() const override { return Abstract_chain_element::get_id(); }
 
  protected:
   Abstract_progress_watcher(
@@ -86,7 +88,8 @@ class Abstract_progress_watcher : public virtual I_progress_watcher,
   Progress_data m_last_progress;
 
   // Fix "inherits ... via dominance" warnings
-  void item_completion_in_child_callback(Item_processing_data *item_processed) {
+  void item_completion_in_child_callback(
+      Item_processing_data *item_processed) override {
     Abstract_chain_element::item_completion_in_child_callback(item_processed);
   }
 

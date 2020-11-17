@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,11 +51,11 @@ class Debug_options : public Abstract_options_provider {
     Creates all options that will be provided.
     Implementation of Abstract_options_provider virtual method.
    */
-  virtual void create_options();
+  void create_options() override;
   /**
     Callback to be called when command-line options parsing have finished.
   */
-  virtual void options_parsed();
+  void options_parsed() override;
 
  private:
   void debug_option_callback(char *argument MY_ATTRIBUTE((unused)));

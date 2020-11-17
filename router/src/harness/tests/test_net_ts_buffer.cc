@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,15 +24,11 @@
 
 #include "mysql/harness/net_ts/buffer.h"
 
+#include <cstring>  // memset
 #include <list>
 
 #include <gtest/gtest.h>
 
-#if !defined(__SUNPRO_CC)
-// devstudio 12.6 fails on x86_64 (on sparc, it passes) with:
-//
-// >> Assertion:   (../lnk/substitute.cc, line 1610)
-//     while processing .../test_net_ts_buffer.cc at line 31.
 static_assert(net::is_mutable_buffer_sequence<net::mutable_buffer>::value,
               "net::mutable_buffer MUST be a mutable_buffer_sequence");
 
@@ -61,9 +57,8 @@ static_assert(
     net::is_const_buffer_sequence<
         net::prepared_buffers<net::const_buffer>>::value,
     "net::prepared_buffers<net::const_buffer> MUST be a const_buffer_sequence");
-#endif
 
-TEST(dynamic_string_bufffer, size_empty) {
+TEST(dynamic_string_buffer, size_empty) {
   std::string s;
   auto sb = net::dynamic_buffer(s);
 
@@ -71,7 +66,7 @@ TEST(dynamic_string_bufffer, size_empty) {
   EXPECT_EQ(sb.capacity(), s.capacity());
 }
 
-TEST(dynamic_string_bufffer, size_non_empty) {
+TEST(dynamic_string_buffer, size_non_empty) {
   std::string s("aaaaaaaa");
   auto sb = net::dynamic_buffer(s);
 
@@ -79,51 +74,52 @@ TEST(dynamic_string_bufffer, size_non_empty) {
   EXPECT_EQ(sb.capacity(), s.capacity());
 }
 
-// prepare() should lead to a resize of the buffer
-TEST(dynamic_string_bufffer, prepare_from_empty) {
+TEST(dynamic_string_buffer, grow_from_empty) {
   std::string s;
   auto dyn_buf = net::dynamic_buffer(s);
 
   EXPECT_EQ(dyn_buf.size(), 0);
 
-  auto b = dyn_buf.prepare(16);
+  dyn_buf.grow(16);
 
-  EXPECT_EQ(b.size(), 16);
+  EXPECT_EQ(dyn_buf.size(), 16);
 
-  // another 16, but we havn't commit()ed the last one
-  b = dyn_buf.prepare(16);
+  dyn_buf.grow(16);
 
-  EXPECT_EQ(b.size(), 16);
+  EXPECT_EQ(dyn_buf.size(), 32);
 }
 
-TEST(dynamic_string_bufffer, commit) {
+TEST(dynamic_string_buffer, commit) {
   std::string s;
   auto dyn_buf = net::dynamic_buffer(s);
 
   EXPECT_EQ(dyn_buf.size(), 0);
 
-  auto b = dyn_buf.prepare(16);
+  dyn_buf.grow(16);
 
-  // prepare should return a buffer of the expected size
-  EXPECT_EQ(b.size(), 16);
+  {
+    auto b = dyn_buf.data(0, 16);
 
-  std::memset(b.data(), 'a', b.size());
+    // prepare should return a buffer of the expected size
+    EXPECT_EQ(b.size(), 16);
 
-  // commit, to move the buffer forward
-  dyn_buf.commit(b.size());
+    std::memset(b.data(), 'a', b.size());
 
-  // underlying storage should have the expected content.
-  EXPECT_STREQ(s.c_str(), "aaaaaaaaaaaaaaaa");
+    // underlying storage should have the expected content.
+    EXPECT_STREQ(s.c_str(), "aaaaaaaaaaaaaaaa");
+  }
 
   SCOPED_TRACE("// prepare next block");
 
-  b = dyn_buf.prepare(16);
+  {
+    dyn_buf.grow(16);
 
-  EXPECT_EQ(b.size(), 16);
+    auto b = dyn_buf.data(16, 16);
 
-  std::memset(b.data(), 'b', b.size());
+    EXPECT_EQ(b.size(), 16);
 
-  dyn_buf.commit(b.size());
+    std::memset(b.data(), 'b', b.size());
+  }
 
   EXPECT_EQ(dyn_buf.size(), 32);
   EXPECT_EQ(s.size(), 32);
@@ -132,7 +128,7 @@ TEST(dynamic_string_bufffer, commit) {
 }
 
 // consume() always succeeds
-TEST(dynamic_string_bufffer, consume_from_empty) {
+TEST(dynamic_string_buffer, consume_from_empty) {
   std::string s;
   auto dyn_buf = net::dynamic_buffer(s);
   EXPECT_EQ(dyn_buf.size(), 0);
@@ -145,7 +141,7 @@ TEST(dynamic_string_bufffer, consume_from_empty) {
   EXPECT_EQ(dyn_buf.size(), 0);
 }
 
-TEST(dynamic_string_bufffer, consume_from_non_empty) {
+TEST(dynamic_string_buffer, consume_from_non_empty) {
   std::string s("aabb");
   auto dyn_buf = net::dynamic_buffer(s);
 
@@ -165,23 +161,36 @@ TEST(dynamic_string_bufffer, consume_from_non_empty) {
   EXPECT_EQ(s.size(), 0);
 }
 
-TEST(dynamic_string_bufffer, prepare_and_consume) {
+TEST(dynamic_string_buffer, grow_and_consume) {
   std::string s;
   auto dyn_buf = net::dynamic_buffer(s);
 
   // add 'aaaa' into the string
-  auto b = dyn_buf.prepare(4);
-  std::memset(b.data(), 'a', b.size());
-  dyn_buf.commit(b.size());
+  {
+    auto orig_size = dyn_buf.size();
+    auto grow_size = 4;
+    dyn_buf.grow(grow_size);
+    EXPECT_EQ(dyn_buf.size(), orig_size + grow_size);
+
+    auto b = dyn_buf.data(orig_size, grow_size);
+    std::memset(b.data(), 'a', b.size());
+  }
   EXPECT_EQ(s, "aaaa");
 
   EXPECT_EQ(dyn_buf.size(), 4);
-  b = dyn_buf.prepare(4);
-  std::memset(b.data(), 'b', b.size());
-  dyn_buf.commit(b.size());
 
-  EXPECT_EQ(dyn_buf.size(), 8);
+  {
+    auto orig_size = dyn_buf.size();
+    auto grow_size = 4;
+
+    dyn_buf.grow(grow_size);
+    EXPECT_EQ(dyn_buf.size(), orig_size + grow_size);
+
+    auto b = dyn_buf.data(orig_size, grow_size);
+    std::memset(b.data(), 'b', b.size());
+  }
   EXPECT_EQ(s, "aaaabbbb");
+  EXPECT_EQ(dyn_buf.size(), 8);
 
   // consume 2 bytes
   dyn_buf.consume(2);
@@ -190,9 +199,16 @@ TEST(dynamic_string_bufffer, prepare_and_consume) {
   EXPECT_EQ(s, "aabbbb");
 
   // and append something again
-  b = dyn_buf.prepare(2);
-  std::memset(b.data(), 'a', b.size());
-  dyn_buf.commit(b.size());
+  {
+    auto orig_size = dyn_buf.size();
+    auto grow_size = 2;
+
+    dyn_buf.grow(grow_size);
+    EXPECT_EQ(dyn_buf.size(), orig_size + grow_size);
+
+    auto b = dyn_buf.data(orig_size, grow_size);
+    std::memset(b.data(), 'a', b.size());
+  }
 
   EXPECT_EQ(dyn_buf.size(), 8);
   EXPECT_EQ(s, "aabbbbaa");

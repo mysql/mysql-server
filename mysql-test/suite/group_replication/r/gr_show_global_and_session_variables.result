@@ -7,8 +7,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 include/start_and_bootstrap_group_replication.inc
 include/stop_group_replication.inc
 
-# Test#1: Basic check that there are 57 GR variables.
-include/assert.inc [There are 57 GR variables at present.]
+# Test#1: Basic check that there are 58 GR variables.
+include/assert.inc [There are 58 GR variables at present.]
 
 # Test#2: Verify group replication related variables at GLOBAL scope.
 SET @@SESSION.group_replication_allow_local_lower_version_join= 1;
@@ -29,8 +29,8 @@ SET @@SESSION.group_replication_group_name= "aaaaaaaa-cccc-bbbb-cccc-aaaaaaaaaaa
 ERROR HY000: Variable 'group_replication_group_name' is a GLOBAL variable and should be set with SET GLOBAL
 SET @@SESSION.group_replication_gtid_assignment_block_size= 1;
 ERROR HY000: Variable 'group_replication_gtid_assignment_block_size' is a GLOBAL variable and should be set with SET GLOBAL
-SET @@SESSION.group_replication_ip_whitelist= "AUTOMATIC";
-ERROR HY000: Variable 'group_replication_ip_whitelist' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_ip_allowlist= "AUTOMATIC";
+ERROR HY000: Variable 'group_replication_ip_allowlist' is a GLOBAL variable and should be set with SET GLOBAL
 SET @@SESSION.group_replication_local_address= "";
 ERROR HY000: Variable 'group_replication_local_address' is a GLOBAL variable and should be set with SET GLOBAL
 SET @@SESSION.group_replication_group_seeds= "";
@@ -138,10 +138,10 @@ include/assert.inc [Verify GLOBAL value of group_replication_gtid_assignment_blo
 include/assert.inc [Verify GLOBAL value of group_replication_gtid_assignment_block_size]
 include/assert.inc [Verify SESSION value of group_replication_gtid_assignment_block_size]
 include/assert.inc [Verify SESSION value of group_replication_gtid_assignment_block_size]
-include/assert.inc [Verify GLOBAL value of group_replication_ip_whitelist]
-include/assert.inc [Verify GLOBAL value of group_replication_ip_whitelist]
-include/assert.inc [Verify SESSION value of group_replication_ip_whitelist]
-include/assert.inc [Verify SESSION value of group_replication_ip_whitelist]
+include/assert.inc [Verify GLOBAL value of group_replication_ip_allowlist]
+include/assert.inc [Verify GLOBAL value of group_replication_ip_allowlist]
+include/assert.inc [Verify SESSION value of group_replication_ip_allowlist]
+include/assert.inc [Verify SESSION value of group_replication_ip_allowlist]
 include/assert.inc [Verify GLOBAL value of group_replication_local_address]
 include/assert.inc [Verify GLOBAL value of group_replication_local_address]
 include/assert.inc [Verify SESSION value of group_replication_local_address]

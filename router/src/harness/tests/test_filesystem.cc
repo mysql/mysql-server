@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,20 +25,22 @@
 #include "mysql/harness/filesystem.h"
 
 ////////////////////////////////////////
-// Test system include files
-#include "test/helpers.h"
-
-////////////////////////////////////////
-// Third-party include files
-#include "gtest/gtest.h"
-
-////////////////////////////////////////
 // Standard include files
 
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
+#include <system_error>
 #include <vector>
+
+////////////////////////////////////////
+// Third-party include files
+#include <gmock/gmock-matchers.h>
+#include <gtest/gtest.h>
+
+////////////////////////////////////////
+// Test system include files
+#include "test/helpers.h"
 
 using std::back_inserter;
 using std::cout;
@@ -153,6 +155,103 @@ TEST(TestFilesystem, TestDirectory) {
     decltype(expect) result(directory.glob("tests-bad*.cfg"), directory.end());
     EXPECT_SETEQ(expect, result);
   }
+}
+
+TEST(TestFilesystem, list_recursive_empty) {
+  const std::string dir_name = mysql_harness::get_tmp_dir("tmp");
+  std::shared_ptr<void> exit_guard(
+      nullptr, [&](void *) { mysql_harness::delete_dir_recursive(dir_name); });
+
+  Directory test{dir_name};
+  const auto &result = test.list_recursive();
+  EXPECT_EQ(result.size(), 0);
+}
+
+TEST(TestFilesystem, list_recursive_empty_directories) {
+  const std::string dir_name = mysql_harness::get_tmp_dir("tmp");
+  std::shared_ptr<void> exit_guard(
+      nullptr, [&](void *) { mysql_harness::delete_dir_recursive(dir_name); });
+
+  mysql_harness::mkdir(Path{dir_name}.join("x").c_str(), 0700);
+  mysql_harness::mkdir(Path{dir_name}.join("y").c_str(), 0700);
+  Directory test{dir_name};
+
+  const auto &result = test.list_recursive();
+  EXPECT_EQ(result.size(), 2);
+  EXPECT_THAT(result, ::testing::UnorderedElementsAre(Path{"x"}, Path{"y"}));
+}
+
+TEST(TestFilesystem, list_recursive_only_files) {
+  const std::string dir_name = mysql_harness::get_tmp_dir("tmp");
+  std::shared_ptr<void> exit_guard(
+      nullptr, [&](void *) { mysql_harness::delete_dir_recursive(dir_name); });
+
+  Directory test{dir_name};
+
+  std::ofstream file1(Path{dir_name}.join("f1").str());
+  std::ofstream file2(Path{dir_name}.join("f2").str());
+  std::ofstream file3(Path{dir_name}.join("f3").str());
+
+  const auto &result = test.list_recursive();
+  EXPECT_EQ(result.size(), 3);
+  EXPECT_THAT(result, ::testing::UnorderedElementsAre(Path{"f1"}, Path{"f2"},
+                                                      Path{"f3"}));
+}
+
+TEST(TestFilesystem, list_recursive_multiple_levels) {
+  const std::string dir_name = mysql_harness::get_tmp_dir("tmp");
+  std::shared_ptr<void> exit_guard(
+      nullptr, [&](void *) { mysql_harness::delete_dir_recursive(dir_name); });
+
+  Directory test{dir_name};
+
+  mysql_harness::mkdir(Path{dir_name}.join("x").c_str(), 0700);
+  mysql_harness::mkdir(Path{dir_name}.join("x").join("x2").c_str(), 0700);
+  mysql_harness::mkdir(Path{dir_name}.join("y").c_str(), 0700);
+  mysql_harness::mkdir(Path{dir_name}.join("z").c_str(), 0700);
+  std::ofstream file1(Path{dir_name}.join("x").join("x2").join("xf").str());
+  std::ofstream file2(Path{dir_name}.join("f").str());
+  std::ofstream file3(Path{dir_name}.join("z").join("zf1").str());
+  std::ofstream file4(Path{dir_name}.join("z").join("zf2").str());
+  std::ofstream file5(Path{dir_name}.join("z").join("zf3").str());
+
+  const auto &result = test.list_recursive();
+  EXPECT_EQ(result.size(), 6);
+  EXPECT_THAT(result, ::testing::UnorderedElementsAre(
+                          Path{"y"}, Path{"z"}.join("zf1"),
+                          Path{"z"}.join("zf2"), Path{"z"}.join("zf3"),
+                          Path{"x"}.join("x2").join("xf"), Path{"f"}));
+}
+
+TEST(TestFilesystem, is_empty_true) {
+  const std::string dir_name = mysql_harness::get_tmp_dir("tmp");
+  std::shared_ptr<void> exit_guard(
+      nullptr, [&](void *) { mysql_harness::delete_dir_recursive(dir_name); });
+
+  Directory test{dir_name};
+  EXPECT_TRUE(test.is_empty());
+}
+
+TEST(TestFilesystem, is_empty_dir_with_empty_subdir) {
+  const std::string dir_name = mysql_harness::get_tmp_dir("tmp");
+  std::shared_ptr<void> exit_guard(
+      nullptr, [&](void *) { mysql_harness::delete_dir_recursive(dir_name); });
+
+  Directory test{dir_name};
+  mysql_harness::mkdir(Path{dir_name}.join("foo").c_str(), 0700);
+
+  EXPECT_FALSE(test.is_empty());
+}
+
+TEST(TestFilesystem, is_empty_dir_with_file) {
+  const std::string dir_name = mysql_harness::get_tmp_dir("tmp");
+  std::shared_ptr<void> exit_guard(
+      nullptr, [&](void *) { mysql_harness::delete_dir_recursive(dir_name); });
+
+  Directory test{dir_name};
+  std::ofstream file(Path{dir_name}.join("bar").str());
+
+  EXPECT_FALSE(test.is_empty());
 }
 
 // unfortunately it's not (reasonably) possible to make folders read-only on

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -72,35 +72,37 @@ class Assign_visitor : public Default_visitor {
   }
 
  private:  // Visitor
-  void visit_integer(const int64_t value) {
+  void visit_integer(const int64_t value) override {
     store_and_mark(&m_destination, &value);
   }
-  void visit_uinteger(const uint64_t value) {
+  void visit_uinteger(const uint64_t value) override {
     store_and_mark(&m_destination, &value);
   }
-  void visit_double(const double value) {
+  void visit_double(const double value) override {
     store_and_mark(&m_destination, &value);
   }
-  void visit_float(const float value) {
+  void visit_float(const float value) override {
     store_and_mark(&m_destination, &value);
   }
-  void visit_bool(const bool value) { store_and_mark(&m_destination, &value); }
-  void visit_object(const Argument_object &value) {
+  void visit_bool(const bool value) override {
     store_and_mark(&m_destination, &value);
   }
-  void visit_uobject(const Argument_uobject &value) {
+  void visit_object(const Argument_object &value) override {
     store_and_mark(&m_destination, &value);
   }
-  void visit_array(const Argument_array &value) {
+  void visit_uobject(const Argument_uobject &value) override {
     store_and_mark(&m_destination, &value);
   }
-  void visit_string(const std::string &value) {
+  void visit_array(const Argument_array &value) override {
+    store_and_mark(&m_destination, &value);
+  }
+  void visit_string(const std::string &value) override {
     store_and_mark(&m_destination, &value);
   }
   void visit_octet(const std::string &value) {
     store_and_mark(&m_destination, &value);
   }
-  void visit_decimal(const std::string &value) {
+  void visit_decimal(const std::string &value) override {
     store_and_mark(&m_destination, &value);
   }
 };

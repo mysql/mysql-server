@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,11 +34,11 @@ class MemberVersionTest : public ::testing::Test {
  protected:
   MemberVersionTest() {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     version = new Member_version(0x010206);  // version: 1.2.6
   }
 
-  virtual void TearDown() { delete version; }
+  void TearDown() override { delete version; }
 
   Member_version *version;
 };

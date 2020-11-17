@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,13 +45,13 @@ using ::testing::StrEq;
 
 class Buffered_file_io_test : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     keyring_file_data_key = PSI_NOT_INSTRUMENTED;
     keyring_backup_file_data_key = PSI_NOT_INSTRUMENTED;
     logger = new Mock_logger;
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     fake_mysql_plugin.name.str = const_cast<char *>("FakeKeyringPlugin");
     fake_mysql_plugin.name.length = strlen("FakeKeyringPlugin");
     delete logger;

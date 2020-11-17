@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -63,6 +63,9 @@ IF (WITH_NDBCLUSTER)
   SET (DEB_BASE_VERSION ${MYSQL_CLUSTER_VERSION})
   SET (DEB_CONTROL_SERVER_CONFLICT_NDB "mysql-community-server, mysql-commercial-server")
   SET (DEB_CONTROL_CLIENT_CONFLICT_NDB "mysql-community-client, mysql-commercial-client")
+  SET (DEB_NOMEB "1")
+  SET (DEB_NOROUTER "1")
+  SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DWITH_MEB=0 -DWITH_ROUTER=0")
 ELSE()
   SET (DEB_BASE_PRODUCT "")
   SET (DEB_BASE_PRODUCTC "")
@@ -99,6 +102,7 @@ usr/lib/mysql/plugin/data_masking.so
 usr/lib/mysql/plugin/keyring_okv.so
 usr/lib/mysql/plugin/keyring_encrypted_file.so
 usr/lib/mysql/plugin/keyring_hashicorp.so
+usr/lib/mysql/plugin/keyring_oci.so
 usr/lib/mysql/plugin/openssl_udf.so
 usr/lib/mysql/plugin/thread_pool.so
 usr/lib/mysql/plugin/firewall.so
@@ -117,6 +121,10 @@ usr/lib/mysql/plugin/keyring_aws.so
   ENDIF()
   SET (DEB_REMOVEPATTERN "gpl.in")
   INCLUDE (deb_commercial.cmake)
+
+  IF (NOT DEFINED DEB_NOMEB)
+    INCLUDE(deb_meb.cmake)
+  ENDIF()
 ELSE()
   SET (DEB_PRODUCT "${DEB_BASE_PRODUCT}community")
   SET (DEB_COPYRIGHT_UPSTREAMNAME "MySQL Server ${MYSQL_BASE_VERSION}")
@@ -212,7 +220,8 @@ SET (DEB_CONTROL_BDEPS "")
 SET (DEB_RULES_INSTALL_APPARMOR "")
 SET (DEB_RULES_APPARMOR_LOAD "")
 SET (DEB_INSTALL_SERVER_APPARMOR "")
-SET (DEB_INIT_APPARMOR "")
+SET (DEB_INIT_SERVER_APPARMOR "")
+SET (DEB_INIT_ROUTER_APPARMOR "")
 # Only used on Ubuntu 16.04 for manually created debug symbol packages
 SET (DEB_CONTROL_DBGSYM "")
 SET (DEB_RULES_STRIP "")
@@ -225,20 +234,13 @@ ENDIF()
 # Enable various apparmor systems for Ubuntu
 IF(DEB_ID STREQUAL "ubuntu")
   SET (DEB_CONTROL_BDEPS ", dh-apparmor")
-  SET (DEB_RULES_INSTALL_APPARMOR
-    "
-	install -g root -o root -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld
-	install -g root -o root -m 0644 -D debian/extra/apparmor-profile-router debian/tmp/etc/apparmor.d/usr.bin.mysqlrouter
-")
-  SET (DEB_RULES_APPARMOR_LOAD
-  "
-	dh_apparmor -pmysql-${DEB_PRODUCTNAME}-server --profile-name=usr.sbin.mysqld
-	dh_apparmor -pmysql-router-${DEB_PRODUCTNAME} --profile-name=usr.bin.mysqlrouter
-  ")
+  SET (DEB_RULES_INSTALL_APPARMOR "install -g root -o root -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld")
+  SET (DEB_RULES_APPARMOR_LOAD "dh_apparmor -pmysql-${DEB_PRODUCTNAME}-server --profile-name=usr.sbin.mysqld")
   SET (DEB_INSTALL_SERVER_APPARMOR "etc/apparmor.d/usr.sbin.mysqld")
   SET (DEB_INSTALL_ROUTER_APPARMOR "etc/apparmor.d/usr.bin.mysqlrouter")
-  SET (DEB_INIT_APPARMOR "/lib/apparmor/profile-load usr.sbin.mysqld")
-  
+  SET (DEB_INIT_SERVER_APPARMOR "/lib/apparmor/profile-load usr.sbin.mysqld")
+  SET (DEB_INIT_ROUTER_APPARMOR "/lib/apparmor/profile-load usr.bin.mysqlrouter")
+
   # Ubuntu 16.04 doesn't automatically create debug symbol packages
   IF(DEB_CODENAME STREQUAL "xenial")
     SET (DEB_CONTROL_DBGSYM ${DEB_CONTROL_DBGSYM_DEFAULT})

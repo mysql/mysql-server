@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,7 +71,7 @@ sp_rcontext::~sp_rcontext() {
 
   delete_container_pointers(m_activated_handlers);
   delete_container_pointers(m_visible_handlers);
-  pop_all_cursors();
+  DBUG_ASSERT(m_ccount == 0);
 
   // Leave m_var_items and m_case_expr_holders untouched.
   // They are allocated in mem roots and will be freed accordingly.
@@ -174,7 +174,11 @@ bool sp_rcontext::push_cursor(sp_instr_cpush *i) {
 void sp_rcontext::pop_cursors(uint count) {
   DBUG_ASSERT(m_ccount >= count);
 
-  while (count--) delete m_cstack[--m_ccount];
+  while (count--) {
+    m_ccount--;
+    if (m_cstack[m_ccount]->is_open()) m_cstack[m_ccount]->close();
+    delete m_cstack[m_ccount];
+  }
 }
 
 bool sp_rcontext::push_handler(sp_handler *handler, uint first_ip) {
@@ -449,31 +453,36 @@ bool sp_rcontext::set_case_expr(THD *thd, int case_expr_id,
 */
 
 bool sp_cursor::open(THD *thd) {
-  if (m_server_side_cursor) {
+  if (m_server_side_cursor != nullptr) {
     my_error(ER_SP_CURSOR_ALREADY_OPEN, MYF(0));
     return true;
   }
 
-  return mysql_open_cursor(thd, &m_result, &m_server_side_cursor);
+  bool rc = mysql_open_cursor(thd, &m_result, &m_server_side_cursor);
+
+  // If execution failed, ensure that the cursor is closed.
+  if (rc && m_server_side_cursor != nullptr) {
+    m_server_side_cursor->close();
+    m_server_side_cursor = nullptr;
+  }
+  return rc;
 }
 
 bool sp_cursor::close() {
-  if (!m_server_side_cursor) {
+  if (m_server_side_cursor == nullptr) {
     my_error(ER_SP_CURSOR_NOT_OPEN, MYF(0));
     return true;
   }
 
-  destroy();
+  m_server_side_cursor->close();
+  m_server_side_cursor = nullptr;
   return false;
 }
 
-void sp_cursor::destroy() {
-  delete m_server_side_cursor;
-  m_server_side_cursor = nullptr;
-}
+void sp_cursor::destroy() { DBUG_ASSERT(m_server_side_cursor == nullptr); }
 
 bool sp_cursor::fetch(List<sp_variable> *vars) {
-  if (!m_server_side_cursor) {
+  if (m_server_side_cursor == nullptr) {
     my_error(ER_SP_CURSOR_NOT_OPEN, MYF(0));
     return true;
   }
@@ -511,31 +520,31 @@ bool sp_cursor::fetch(List<sp_variable> *vars) {
 // sp_cursor::Query_fetch_into_spvars implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-bool sp_cursor::Query_fetch_into_spvars::prepare(THD *thd, List<Item> &fields,
-                                                 SELECT_LEX_UNIT *u) {
+bool sp_cursor::Query_fetch_into_spvars::prepare(
+    THD *thd, const mem_root_deque<Item *> &fields, SELECT_LEX_UNIT *u) {
   /*
     Cache the number of columns in the result set in order to easily
     return an error if column count does not match value count.
   */
-  field_count = fields.elements;
+  field_count = CountVisibleFields(fields);
   return Query_result_interceptor::prepare(thd, fields, u);
 }
 
-bool sp_cursor::Query_fetch_into_spvars::send_data(THD *thd,
-                                                   List<Item> &items) {
+bool sp_cursor::Query_fetch_into_spvars::send_data(
+    THD *thd, const mem_root_deque<Item *> &items) {
   List_iterator_fast<sp_variable> spvar_iter(*spvar_list);
-  List_iterator_fast<Item> item_iter(items);
+  auto item_iter = VisibleFields(items).begin();
   sp_variable *spvar;
-  Item *item;
 
-  /* Must be ensured by the caller */
-  DBUG_ASSERT(spvar_list->elements == items.elements);
+  DBUG_ASSERT(items.size() == CountVisibleFields(items));
+  DBUG_ASSERT(spvar_list->size() == items.size());
 
   /*
     Assign the row fetched from a server side cursor to stored
     procedure variables.
   */
-  for (; spvar = spvar_iter++, item = item_iter++;) {
+  while ((spvar = spvar_iter++)) {
+    Item *item = *item_iter++;
     if (thd->sp_runtime_ctx->set_variable(thd, spvar->offset, &item))
       return true;
   }

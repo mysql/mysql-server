@@ -2,12 +2,12 @@
 .\"     Title: \fBibd2sdi\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/01/2020
+.\"      Date: 09/04/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBIBD2SDI\FR" "1" "06/01/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBIBD2SDI\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -130,7 +130,7 @@ See http://dev\&.mysql\&.com/doc/refman/8\&.0/en/ibd2sdi\&.html for usage hints\
   \-v, \-\-version       Display version information and exit\&.
   \-#, \-\-debug[=name]  Output debug log\&. See
                       http://dev\&.mysql\&.com/doc/refman/8\&.0/en/dbug\-package\&.html
-  \-d, \-\-dump\-file=name 
+  \-d, \-\-dump\-file=name
                       Dump the tablespace SDI into the file passed by user\&.
                       Without the filename, it will default to stdout
   \-s, \-\-skip\-data     Skip retrieving data from SDI records\&. Retrieve only id
@@ -138,7 +138,7 @@ See http://dev\&.mysql\&.com/doc/refman/8\&.0/en/ibd2sdi\&.html for usage hints\
   \-i, \-\-id=#          Retrieve the SDI record matching the id passed by user\&.
   \-t, \-\-type=#        Retrieve the SDI records matching the type passed by
                       user\&.
-  \-c, \-\-strict\-check=name 
+  \-c, \-\-strict\-check=name
                       Specify the strict checksum algorithm by the user\&.
                       Allowed values are innodb, crc32, none\&.
   \-n, \-\-no\-check      Ignore the checksum verification\&.
@@ -197,7 +197,7 @@ ibd2sdi  Ver 8\&.0\&.3\-dmr for Linux on x86_64 (Source distribution)
 \fB\-\-debug[=\fR\fB\fIdebug_options\fR\fR\fB]\fR,
 \fB\-# [\fR\fB\fIdebug_options\fR\fR\fB]\fR
 Prints a debug log\&. For debug options, refer to
-Section\ \&29.5.4, \(lqThe DBUG Package\(rq\&.
+Section\ \&5.9.4, \(lqThe DBUG Package\(rq\&.
 .sp
 .if n \{\
 .RS 4

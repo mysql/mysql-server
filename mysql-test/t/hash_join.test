@@ -2299,3 +2299,27 @@ ANALYZE TABLE t1;
 EXPLAIN ANALYZE SELECT t1.a FROM t1 LEFT JOIN t1 AS t2 ON TRUE WHERE t2.a IS NULL;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #31563414: REGRESSION: ITEM_FUNC_EQ::APPEND_JOIN_KEY_FOR_HASH_JOIN CONST: ASSERTION `FALSE' FAILED.
+--echo #
+
+CREATE TABLE t1 (a INTEGER NOT NULL);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+ANALYZE TABLE t1;
+
+let $query =
+  SELECT *
+    FROM t1 AS a
+    LEFT JOIN t1 AS b ON FALSE
+    LEFT JOIN t1 AS c ON b.a=c.a;
+
+# Check that we get two prunings; first, prune away b due to the ON FALSE
+# join condition, and then, prune away c due to the equijoin condition
+# requiring b.
+--skip_if_hypergraph
+eval EXPLAIN FORMAT=tree $query;
+
+eval $query;
+
+DROP TABLE t1;

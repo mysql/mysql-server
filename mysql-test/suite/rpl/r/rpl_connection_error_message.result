@@ -11,6 +11,8 @@ Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 START SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=1045]
 ---- Check performance_schema ----
 include/assert.inc [Error should contain the reason (Access denied for user foo) for connection failure]
@@ -22,6 +24,8 @@ include/assert.inc [Error should be the same in both SSS and P_S]
 [connection slave]
 CHANGE MASTER TO MASTER_PORT = 1;
 START SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=2003 # CR_CONN_HOST_ERROR]
 ---- Check performance_schema ----
 include/assert.inc [Error should contain the reason (Cant connect to MySQL server on) for connection failure]
@@ -33,6 +37,8 @@ include/assert.inc [Error should be the same in both SSS and P_S]
 [connection slave]
 CHANGE MASTER TO MASTER_HOST = '999.999.999.999';
 START SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=2005 # CR_UNKNOWN_HOST]
 ---- Check performance_schema ----
 include/assert.inc [Error should contain the reason (Unknown MySQL server host) for connection failure]
@@ -42,6 +48,8 @@ include/assert.inc [Error should contain the reason (Unknown MySQL server host) 
 include/assert.inc [Error should be the same in both SSS and P_S]
 #### Clean up ####
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = PORT, MASTER_USER = 'root';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.

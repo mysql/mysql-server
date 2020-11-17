@@ -816,6 +816,33 @@ eval $query;
 
 DROP TABLE t1;
 
+--echo # Bug#28910365 Segfault at Item_cache::walk() on 2nd execution
+
+CREATE TABLE t1 (
+pk int NOT NULL,
+col_int int DEFAULT NULL
+);
+
+CREATE TABLE t2 (
+pk int NOT NULL,
+col_int int DEFAULT NULL
+);
+
+INSERT INTO t2 VALUES (1, 2);
+
+PREPARE st FROM
+"DELETE outr1.*
+ FROM t1 AS outr1 RIGHT OUTER JOIN t2 AS outr2
+      ON outr1.col_int = outr2.col_int
+ WHERE (0, 3) NOT IN (SELECT innr1.pk AS x, innr1.col_int AS y
+                      FROM t2 AS innr1
+                      WHERE outr1.col_int = 25)";
+EXECUTE st;
+EXECUTE st;
+
+DEALLOCATE PREPARE st;
+DROP TABLE t1, t2;
+
 --echo #
 --echo # Bug #30250091: CONDITIONS WITHIN MATERIALIZED SEMIJOINS ARE FLOATING UP
 --echo #
@@ -1210,3 +1237,289 @@ WHERE 11 NOT IN
 (SELECT col_int_key FROM t1);
 
 DROP TABLE t1;
+
+--echo # Bug#30753397 ASSERTION `!TR->DERIVED_WHERE_COND || TR->DERIVED_WHERE_COND->FIXED' FAILED.
+--echo #
+
+CREATE TABLE t(a INT);
+SELECT 1=
+(
+  SELECT 1 FROM
+  (
+    SELECT 1 FROM t
+    LEFT JOIN
+    (
+      SELECT 1 FROM t
+      WHERE NOT EXISTS
+            (
+              SELECT 1 FROM t WINDOW w1 AS (PARTITION BY a)
+            )
+    ) AS x
+    ON 1 > 2
+  ) AS z
+);
+DROP TABLE t;
+
+--echo # Bug#30899681 Mysqld got signal 11 at Item::walk() 
+
+CREATE TABLE t1 (
+ col_varchar varchar(1),
+ col_varchar_key varchar (1),
+ key (col_varchar_key)
+);
+
+CREATE TABLE t2 (
+ col_varchar varchar(1),
+ col_int_key int,
+ key (col_int_key)
+);
+
+INSERT INTO t2 VALUES ('t', 2);
+
+CREATE TABLE t3 (
+ pk integer auto_increment,
+ col_int int,
+ col_varchar_key varchar(1),
+ primary key (pk),
+ key (col_varchar_key)
+);
+
+INSERT INTO t3 (col_int, col_varchar_key) VALUES
+ (2, 'e'), (NULL, 'n'), (2, NULL), (0, 'a'), (NULL, 'd'), (1, 's'),
+ (NULL, 'v'), (7, 'l'), (118, NULL), (NULL, 'l'), (8, 'c'), (4, 'a'),
+ (8, 'r'), (1, 'q'), (3, 'o'), (NULL, 'q'), (2, 'j'), (6, 'f'),
+ (5, 'e'), (7, 'p');
+
+CREATE TABLE t4 (
+ col_int_key int,
+ col_varchar varchar(1),
+ key (col_int_key)
+);
+
+INSERT INTO t4 VALUES
+ (5, 'k'), (5, 'g'), (5, 'k'), (1, 'e'), (9, 'b'), (NULL, 'b'),
+ (141, 'w'), (0, 'i'), (240, 'x'), (1, 'h'), (NULL, 'p'), (201, 'v'),
+ (5, 'e'), (NULL, 'e'), (2, 'a'), (3, 'r'), (NULL, 'f'), (8, 's'),
+ (7, 'k'), (6, 'k');
+
+CREATE TABLE t5 (
+ col_int int,
+ col_varchar_key varchar(1),
+ pk integer auto_increment,
+ primary key(pk)
+);
+
+INSERT INTO t5 (col_int, col_varchar_key) VALUES
+ (9, 'g'), (8, 'c'), (2, 'k'), (3, 'g'), (NULL, 'm'), (2, 'c'),
+ (1, 'o'), (NULL, 'r'), (0, 'u'), (7, 'z'), (4, 'd'), (1, 'q'),
+ (3, 't'), (NULL, 'x'), (1, 'g'), (8, 'e'), (2, 'f'), (9, NULL),
+ (229, 't'), (2, 'i'), (127, 'x'), (75, 'u'), (4, 'r'), (4, 'y'),
+ (NULL, 'y'), (7, 'n'), (8, 'h'), (0, 'e'), (9, 'h'), (4, 'v'),
+ (4, 'o'), (0, 'w'), (9, NULL), (7, NULL), (7, 'd'), (74, 's'),
+ (1, 'j'), (9, 'k'), (5, 'g'), (3, 'o'), (5, 'b'), (1, 'l'),
+ (3, 'u'), (0, 'v'), (7, 'y'), (9, 'g'), (6, 'i'), (9, 'f'),
+ (3, 'u'), (4, 'q'), (NULL, NULL), (0, 'k'), (NULL, 'l'), (2, 'q'),
+ (7, 'r'), (5, 't'), (2, 'h'), (2, NULL), (NULL, 'z'), (7, 'c'),
+ (NULL, 'd'), (242, 'h'), (7, 'e'), (5, 'e'), (7, 's'), (9, 'u'),
+ (250, 'z'), (9, 'n'), (7, 'j'), (3, 's'), (8, 'e'), (6, NULL),
+ (NULL, 'i'),  (1, 'n'), (3, 'k'), (7, 'n'), (1, 'w'), (8, 'x'),
+ (1, 'b'), (9, NULL), (4, 'o'), (3, 'i'), (9, 'n'), (91, 'c'),
+ (5, 'j'), (8, 'g'), (7, 'c'), (9, NULL), (8, 'd'), (NULL, 'h'),
+ (4, 'k'), (1, 'r'), (33, 'k'), (8, 'n'), (4, 'h'), (2, 'q'),
+ (9, 'p'), (1, NULL), (8, 'n'), (0, 'j');
+
+SET @var1 = 'h', @var2 =  66 ;
+
+PREPARE ps FROM '
+SELECT (SELECT SUM(sq1_t1.col_int) AS sq1_field1
+        FROM t3 AS sq1_t1 INNER JOIN t1 AS sq1_t2
+             ON sq1_t2.col_varchar_key = sq1_t1.col_varchar_key
+        WHERE sq1_t2.col_varchar < sq1_t2.col_varchar OR
+              sq1_t2.col_varchar <>  ?
+       ) AS field1
+FROM t5 AS table1 LEFT OUTER JOIN t4 AS table2
+     ON table2.col_int_key = table1.col_int
+WHERE table1.pk > ANY
+       (SELECT sq2_t1.pk AS sq2_field1
+        FROM t3 AS sq2_t1 STRAIGHT_JOIN t2 AS sq2_t2
+             ON sq2_t2.col_int_key = sq2_t1.pk
+        WHERE sq2_t2.col_varchar >= table2.col_varchar AND
+              sq2_t2.col_varchar <= table1.col_varchar_key
+       ) AND
+      table1.pk = ?';
+
+EXECUTE ps USING @var1, @var2;
+EXECUTE ps USING @var1, @var2;
+
+DROP TABLE t1, t2, t3, t4, t5;
+
+--echo Bug#31119132 Semijoin with condition of type column=constant breaks
+--echo              if different character sets
+
+CREATE TABLE t1(
+  pk INTEGER,
+  col_int INTEGER,
+  col_varchar VARCHAR(1),
+  col_int_key INTEGER,
+  col_datetime_key DATETIME,
+  col_varchar_key VARCHAR(1)
+) DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+
+CREATE PROCEDURE p1() LANGUAGE SQL
+  SELECT DISTINCT MIN(outr.col_varchar) AS x
+  FROM t1 AS outr2 LEFT JOIN t1 AS outr
+       ON outr2.col_int_key <> outr.pk
+  WHERE outr.col_int IN
+     (SELECT innr.col_int_key AS y
+      FROM t1 AS innr
+      WHERE outr.col_varchar_key = 'z') AND
+        outr.col_datetime_key = '2003-12-04'
+ORDER BY outr.pk, outr.pk;
+CALL p1;
+CALL p1;
+DROP PROCEDURE p1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#31359965 ASSERTION `!TABLE || (!TABLE->READ_SET || BITMAP_IS_SET(TABLE->READ_SET, FIELD_INDEX))' FAILED. IN FIELD_NEW_DECIMAL::VAL_DECIMAL
+--echo #
+
+CREATE TABLE t (a DECIMAL(61,14),KEY(a));
+INSERT INTO t VALUES(0),(-1);
+SELECT
+(
+  SELECT 1 FROM
+  (
+    SELECT a FROM (SELECT 1) u
+  ) z
+)
+FROM t GROUP BY 1;
+DROP TABLE t;
+
+--echo #
+--echo # Bug #31530529: SERVER CRASH SEEN - (MY_PRINT_STACKTRACE(UNSIGNED CHAR CONST*, UNSIGNED LONG)
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER NOT NULL,
+  a VARCHAR(1),
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t1 VALUES (3,'N');
+INSERT INTO t1 VALUES (4,'e');
+INSERT INTO t1 VALUES (5,'7');
+INSERT INTO t1 VALUES (6,'7');
+ANALYZE TABLE t1;
+
+--sorted_result
+SELECT * FROM t1 AS table1, t1 AS table2
+  WHERE table1.pk = 6
+  HAVING table1.a IN (SELECT a FROM t1);
+
+DROP TABLE t1;
+
+--echo # Bug#20794575: Assertion failed: bit < map->n_bits
+
+SET optimizer_switch="semijoin=off";
+
+CREATE TABLE t1(a INTEGER, b INTEGER);
+CREATE TABLE t2(c INTEGER);
+
+SELECT b FROM t1 HAVING 1 IN
+  (SELECT b FROM t2 WHERE c = 1);
+
+SET optimizer_switch=DEFAULT;
+
+DROP TABLE t1, t2;
+
+--echo # Bug#30753397: Assertion `!tr->derived_where_cond || tr->derived_where_cond->fixed' failed
+
+CREATE TABLE t(a INTEGER);
+
+INSERT INTO t VALUES(1),(2),(3);
+
+--error ER_SUBQUERY_NO_1_ROW
+SELECT 1 = (SELECT 1
+            FROM (SELECT 1
+                  FROM t LEFT JOIN
+                         (SELECT 1
+                          FROM t
+                          WHERE NOT EXISTS (SELECT 1
+                                            FROM t
+                                            WINDOW w1 AS(PARTITION BY a)
+                                           )
+                         ) AS x
+                         ON 1 > 2
+                  ) AS z
+           );
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug #31559978: REGRESSION: HEAP BUFFER OVERFLOW & ASSERTION FAILURE: ROW0SEL.CC:5574:PREBUILT->CAN_PREFETCH_RECORDS() || RECORD_BUFFER == NULLPTR
+--echo #
+CREATE TABLE t1 (
+  a INTEGER,
+  d VARCHAR(255) NOT NULL,
+  PRIMARY KEY (d)
+);
+
+INSERT INTO t1 VALUES (1,'1'), (2,'2');
+# Verify that we get weedout (to provoke row IDs); if we don't,
+# consider deleting the test.
+--skip_if_hypergraph
+EXPLAIN FORMAT=tree SELECT 1 FROM t1 WHERE d IN (SELECT a FROM t1);
+SELECT 1 FROM t1 WHERE d IN (SELECT a FROM t1);
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#31096309 - 8.0.16+ DIFFERENT RESULTSET THAN 5.7 AND <=8.0.15
+--echo #
+
+CREATE TABLE t1 (c1 int, c2 char(10));
+INSERT INTO t1 VALUES (1, 'name1');
+INSERT INTO t1 VALUES (2, 'name2');
+SET optimizer_switch='semijoin=on';
+
+# non-zero OFFSET expect a non-semijoin plan
+let $query = SELECT a.c2 FROM  t1 AS a WHERE
+                      EXISTS (SELECT 1 FROM  t1 AS b WHERE b.c2 = a.c2 LIMIT 1,1);
+eval explain format = tree $query;
+eval $query;
+
+# zero OFFSET expect a semijoin plan
+let $query = SELECT a.c2 FROM  t1 AS a WHERE
+                      EXISTS (SELECT 1 FROM  t1 AS b WHERE b.c2 = a.c2 LIMIT 0,1);
+eval explain format=tree $query;
+eval $query;
+
+# non-constant OFFSET expect a non-semijoin plan
+SET @offset_value=0;
+let $query = SELECT a.c2 FROM  t1 AS a WHERE
+                      EXISTS (SELECT 1 FROM  t1 AS b WHERE b.c2 = a.c2 LIMIT ?,1);
+let $explain_query = PREPARE explain_stmt FROM "EXPLAIN format = tree $query";
+eval $explain_query;
+EXECUTE explain_stmt USING @offset_value;
+
+let $execute_query = PREPARE stmt FROM "$query";
+eval $execute_query;
+EXECUTE stmt USING @offset_value;
+
+# zero LIMIT expect a non-semijoin plan
+let $query = SELECT a.c2 FROM  t1 AS a WHERE
+                      EXISTS (SELECT 1 FROM  t1 AS b WHERE b.c2 = a.c2 LIMIT 0,0);
+eval explain format = tree $query;
+eval $query;
+
+DROP TABLE t1;
+SET optimizer_switch=default;
+
+--echo #
+--echo # Bug #31586937: REGRESSION: CRASH IN FILESORT::MAKE_SORTORDER
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+CREATE TABLE t2 (b INTEGER);
+SELECT ( SELECT b FROM t2 ORDER BY a, MIN(a) LIMIT 1 ) FROM t1 GROUP BY a;
+DROP TABLE t1, t2;

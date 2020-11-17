@@ -1458,7 +1458,7 @@ Warnings:
 Warning	1292	Truncated incorrect auto_increment_offset value: '0'
 select @@default_storage_engine;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					@@default_storage_engine	253	6	6	Y	0	31	8
+def					@@default_storage_engine	253	21845	6	Y	0	31	8
 @@default_storage_engine
 MyISAM
 SET @old_server_id = @@GLOBAL.server_id;
@@ -2037,3 +2037,11 @@ SET SESSION use_secondary_engine = @@session.use_secondary_engine;
 SET SESSION warning_count = @@session.warning_count;
 SET @@sql_big_selects=@sql_big_selects_save;
 DROP TABLE all_vars;
+# Bug#31372388: bool Item::evaluate(): assertion `false' failed
+SET character_set_client = @undefined_var;
+ERROR 42000: Variable 'character_set_client' can't be set to the value of 'NULL'
+PREPARE s FROM "set character_set_client = ?";
+SET @x = NULL;
+EXECUTE s USING @x;
+ERROR 42000: Variable 'character_set_client' can't be set to the value of 'NULL'
+DEALLOCATE PREPARE s;

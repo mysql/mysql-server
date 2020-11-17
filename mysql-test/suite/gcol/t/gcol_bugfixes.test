@@ -1370,3 +1370,20 @@ INSERT IGNORE INTO t(a) VALUES ('{}');
 DELETE IGNORE FROM t;
 CHECK TABLE t;
 DROP TABLE t;
+
+--echo #
+--echo # Bug #31463511: NATURAL JOIN RETURNS WRONG RESULT WHEN EXPRESSION INDEX IS USED
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+CREATE TABLE t2 (a INTEGER);
+CREATE INDEX idx ON t1 ((a+1));
+CREATE INDEX idx ON t2 ((a+2));
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+
+# Verify that the generated (a+1) and (a+2) columns don't participate in the join;
+# if they did, the answer would be empty.
+SELECT * FROM t1 NATURAL JOIN t2;
+
+DROP TABLE t1, t2;

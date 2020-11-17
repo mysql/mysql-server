@@ -69,6 +69,8 @@ include/assert.inc ['There is no value 1 in table t1']
 [connection server1]
 SET GLOBAL read_only= 0;
 RESET SLAVE ALL FOR CHANNEL 'ch2_1';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 DROP TABLE test.t1;
 [connection server2]
 DROP TABLE test.t1;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -57,41 +57,41 @@ class Socket : public iface::Socket {
          int protocol)
       : m_mysql_socket(mysql_socket_socket(key, domain, type, protocol)) {}
 
-  ~Socket() { close(); }
+  ~Socket() override { close(); }
 
-  virtual int bind(const struct sockaddr *addr, socklen_t len) {
+  int bind(const struct sockaddr *addr, socklen_t len) override {
     return mysql_socket_bind(m_mysql_socket, addr, len);
   }
 
-  virtual MYSQL_SOCKET accept(PSI_socket_key key MY_ATTRIBUTE((unused)),
-                              struct sockaddr *addr, socklen_t *addr_len) {
+  MYSQL_SOCKET accept(PSI_socket_key key MY_ATTRIBUTE((unused)),
+                      struct sockaddr *addr, socklen_t *addr_len) override {
     return mysql_socket_accept(key, m_mysql_socket, addr, addr_len);
   }
 
-  virtual int listen(int backlog) {
+  int listen(int backlog) override {
     return mysql_socket_listen(m_mysql_socket, backlog);
   }
 
-  virtual my_socket get_socket_fd() {
+  my_socket get_socket_fd() override {
     return mysql_socket_getfd(m_mysql_socket);
   }
 
-  virtual MYSQL_SOCKET get_socket_mysql() { return m_mysql_socket; }
+  MYSQL_SOCKET get_socket_mysql() override { return m_mysql_socket; }
 
-  virtual int set_socket_opt(int level, int optname, const SOCKBUF_T *optval,
-                             socklen_t optlen) {
+  int set_socket_opt(int level, int optname, const SOCKBUF_T *optval,
+                     socklen_t optlen) override {
     return mysql_socket_setsockopt(m_mysql_socket, level, optname, optval,
                                    optlen);
   }
 
-  virtual void close() {
+  void close() override {
     if (INVALID_SOCKET != get_socket_fd()) {
       mysql_socket_close(m_mysql_socket);
       m_mysql_socket = MYSQL_INVALID_SOCKET;
     }
   }
 
-  void set_socket_thread_owner() {
+  void set_socket_thread_owner() override {
     mysql_socket_set_thread_owner(m_mysql_socket);
   }
 
@@ -104,9 +104,9 @@ class File : public iface::File {
   File(const char *name, int access, int permission)
       : m_file_descriptor(::open(name, access, permission)) {}
 
-  ~File() { close(); }
+  ~File() override { close(); }
 
-  virtual int close() {
+  int close() override {
     if (INVALID_FILE_DESCRIPTOR != m_file_descriptor) {
       const int result = ::close(m_file_descriptor);
 
@@ -118,19 +118,19 @@ class File : public iface::File {
     return 0;
   }
 
-  virtual int read(void *buffer, int nbyte) {
+  int read(void *buffer, int nbyte) override {
     return ::read(m_file_descriptor, buffer, nbyte);
   }
 
-  virtual int write(void *buffer, int nbyte) {
+  int write(void *buffer, int nbyte) override {
     return ::write(m_file_descriptor, buffer, nbyte);
   }
 
-  virtual bool is_valid() {
+  bool is_valid() override {
     return INVALID_FILE_DESCRIPTOR != m_file_descriptor;
   }
 
-  virtual int fsync() {
+  int fsync() override {
 #if defined(HAVE_SYS_UN_H)
     return ::fsync(m_file_descriptor);
 #else

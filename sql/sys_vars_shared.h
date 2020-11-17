@@ -1,7 +1,7 @@
 #ifndef SYS_VARS_SHARED_INCLUDED
 #define SYS_VARS_SHARED_INCLUDED
 
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,9 +59,9 @@ class PolyLock_mutex : public PolyLock {
 
  public:
   PolyLock_mutex(mysql_mutex_t *arg) : mutex(arg) {}
-  void rdlock() { mysql_mutex_lock(mutex); }
-  void wrlock() { mysql_mutex_lock(mutex); }
-  void unlock() { mysql_mutex_unlock(mutex); }
+  void rdlock() override { mysql_mutex_lock(mutex); }
+  void wrlock() override { mysql_mutex_lock(mutex); }
+  void unlock() override { mysql_mutex_unlock(mutex); }
 };
 
 class PolyLock_rwlock : public PolyLock {
@@ -69,16 +69,16 @@ class PolyLock_rwlock : public PolyLock {
 
  public:
   PolyLock_rwlock(mysql_rwlock_t *arg) : rwlock(arg) {}
-  void rdlock() { mysql_rwlock_rdlock(rwlock); }
-  void wrlock() { mysql_rwlock_wrlock(rwlock); }
-  void unlock() { mysql_rwlock_unlock(rwlock); }
+  void rdlock() override { mysql_rwlock_rdlock(rwlock); }
+  void wrlock() override { mysql_rwlock_wrlock(rwlock); }
+  void unlock() override { mysql_rwlock_unlock(rwlock); }
 };
 
 class PolyLock_lock_log : public PolyLock {
  public:
-  void rdlock();
-  void wrlock();
-  void unlock();
+  void rdlock() override;
+  void wrlock() override;
+  void unlock() override;
 };
 
 class AutoWLock {

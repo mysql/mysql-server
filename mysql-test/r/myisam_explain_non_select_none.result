@@ -19,6 +19,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -48,6 +49,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -77,6 +79,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -109,6 +112,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -141,6 +145,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -173,6 +178,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -206,6 +212,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -239,6 +246,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -271,6 +279,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -304,6 +313,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -339,6 +349,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -368,6 +379,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -397,6 +409,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -423,6 +436,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -449,6 +463,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
@@ -476,6 +491,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
@@ -501,6 +517,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -525,6 +542,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -560,6 +578,7 @@ FLUSH TABLES;
 Variable_name	Value
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -592,6 +611,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
@@ -632,6 +652,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	12
@@ -667,6 +688,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -700,6 +722,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -729,6 +752,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -758,6 +782,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -787,6 +812,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -819,6 +845,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -852,6 +879,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -879,6 +907,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -910,6 +939,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -981,6 +1011,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
@@ -1012,6 +1043,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -1050,6 +1082,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -1088,6 +1121,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -1125,6 +1159,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	4
@@ -1165,6 +1200,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	4
@@ -1204,6 +1240,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	5
@@ -1243,6 +1280,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
@@ -1274,6 +1312,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
@@ -1313,6 +1352,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
@@ -1348,6 +1388,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
@@ -1382,6 +1423,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -1420,6 +1462,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -1458,6 +1501,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -1496,6 +1540,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	4
@@ -1535,6 +1580,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	4
@@ -1573,6 +1619,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	5
@@ -1612,6 +1659,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
@@ -1644,6 +1692,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
@@ -1683,6 +1732,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
@@ -1721,6 +1771,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	4
@@ -1751,6 +1802,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	4
@@ -1785,6 +1837,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -1817,6 +1870,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	5
@@ -1842,6 +1896,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	5
@@ -1875,6 +1930,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	6
@@ -1950,6 +2006,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -1978,6 +2035,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -2011,6 +2069,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -2047,6 +2106,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	7
@@ -2082,6 +2142,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	7
@@ -2106,13 +2167,14 @@ EXPLAIN INSERT INTO v1 VALUES (10);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 Warnings:
-Note	1003	insert into `test`.`t1` (`test`.`t1`.`a`) values (10)
+Note	1003	insert into `test`.`t1` values (10)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 # Status of testing query execution:
@@ -2135,13 +2197,14 @@ EXPLAIN INSERT INTO v1 SELECT * FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	insert into `test`.`t2` (`test`.`t2`.`b`) /* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -2175,6 +2238,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	5
@@ -2209,6 +2273,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	5
@@ -2242,6 +2307,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	5
@@ -2320,6 +2386,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -2343,6 +2410,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
