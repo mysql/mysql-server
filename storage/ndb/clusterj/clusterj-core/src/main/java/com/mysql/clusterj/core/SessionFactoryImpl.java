@@ -101,12 +101,10 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     boolean connectionPoolDisabled = false;
 
     /** Map of Proxy Interfaces to Domain Class */
-    // TODO make this non-static
-    static private Map<String, Class<?>> proxyInterfacesToDomainClass = new HashMap<String, Class<?>>();
+    final private Map<String, Class<?>> proxyInterfacesToDomainClassMap = new HashMap<String, Class<?>>();
 
     /** Map of Domain Class to DomainTypeHandler. */
-    // TODO make this non-static
-    static final protected Map<Class<?>, DomainTypeHandler<?>> typeToHandlerMap =
+    final private Map<Class<?>, DomainTypeHandler<?>> typeToHandlerMap =
             new HashMap<Class<?>, DomainTypeHandler<?>>();
 
     /** DomainTypeHandlerFactory for this session factory. */
@@ -489,7 +487,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
      * @param cls the Class for which to get domain type handler
      * @return the DomainTypeHandler or null if not available
      */
-    public static <T> DomainTypeHandler<T> getDomainTypeHandler(Class<T> cls) {
+    public <T> DomainTypeHandler<T> getDomainTypeHandler(Class<T> cls) {
         // synchronize here because the map is not synchronized
         synchronized(typeToHandlerMap) {
             @SuppressWarnings( "unchecked" )
@@ -536,7 +534,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
                 Class<?>[] proxyInterfaces = domainTypeHandler.getProxyInterfaces();
                 if (proxyInterfaces != null) {
                     String key = generateProxyInterfacesKey(proxyInterfaces);
-                    proxyInterfacesToDomainClass.put(key, cls);
+                    proxyInterfacesToDomainClassMap.put(key, cls);
                 }
             }
             return domainTypeHandler;
@@ -560,7 +558,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
      * @param object the object
      * @return the Domain class of the object
      */
-    protected static <T> Class<T> getClassForProxy(T object) {
+    protected <T> Class<T> getClassForProxy(T object) {
         Class<?> cls = object.getClass();
         if (java.lang.reflect.Proxy.isProxyClass(cls)) {
             // The underlying class is a Proxy. Retrieve the interfaces implemented
@@ -568,7 +566,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
             // proxyInterfacesToDomainClass map.
             Class<?>[] proxyInterfaces = cls.getInterfaces();
             String key = generateProxyInterfacesKey(proxyInterfaces);
-            cls = proxyInterfacesToDomainClass.get(key);
+            cls = proxyInterfacesToDomainClassMap.get(key);
         }
         return (Class<T>)cls;
     }
@@ -846,7 +844,8 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
             factory.pooledConnections.clear();
             // remove all DomainTypeHandlers, as they embed references to
             // Ndb dictionary objects which have been removed
-            typeToHandlerMap.clear();
+            factory.typeToHandlerMap.clear();
+            factory.proxyInterfacesToDomainClassMap.clear();
 
             logger.warn(local.message("WARN_Reconnect_creating"));
             factory.createClusterConnectionPool();
