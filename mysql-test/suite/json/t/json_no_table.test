@@ -2662,3 +2662,152 @@ SELECT JSON_ARRAY(JSON_SEARCH('{}', CAST('' AS JSON), 'abc'), 1);
 
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 SELECT JSON_ARRAY(JSON_EXTRACT('{}', CAST('' AS JSON)), 1);
+
+--echo # Bug#32063203: Problem with prepared statements
+
+# MEMBER OF
+
+CREATE TABLE t1(c1 JSON);
+INSERT INTO t1 VALUES ('["a", "b"]'), ('["b", "c"]'), ('["c", "a"]');
+SELECT * FROM t1 WHERE 'a' MEMBER OF (c1 -> '$');
+prepare s1 from "SELECT * FROM t1 WHERE ? MEMBER OF (c1 -> '$')";
+set @x = 'a';
+execute s1 using @x # OK - returns ["a", "b"] and ["c", "a"];
+
+DROP TABLE t1;
+
+# JSON_ARRAY_APPEND
+
+SET @j = '["a", ["b", "c"], "d"]';
+SELECT JSON_ARRAY_APPEND(@j, '$[1]', 'z'); # OK, returns ["a", ["b", "c", "z"], "d"]
+SELECT JSON_ARRAY_APPEND(@j, '$[1]', '"z"'); # OK, returns ["a", ["b", "c", "\"z\""], "d"]
+prepare s from "SELECT JSON_ARRAY_APPEND(@j, '$[1]', ?)";
+set @x='z';
+execute s using @x; # OK - returns ["a", ["b", "c", "z"], "d"]
+set @x='"z"';
+execute s using @x; # OK - returns ["a", ["b", "c", "\"z\""], "d"]
+
+# JSON_ARRAY_INSERT
+
+SET @j = '["a", ["b", "c"], "d"]';
+SELECT JSON_ARRAY_INSERT(@j, '$[1]', 'z'); # OK, returns ["a", "z", ["b", "c"], "d"]
+SELECT JSON_ARRAY_INSERT(@j, '$[1]', '"z"'); # OK, returns ["a", "\"z\"", ["b", "c"], "d"]
+prepare s from "SELECT JSON_ARRAY_INSERT(@j, '$[1]', ?)";
+set @x='z';
+execute s using @x; # OK - returns ["a", "z", ["b", "c"], "d"]
+set @x='"z"';
+execute s using @x; # OK - returns ["a", "\"z\"", ["b", "c"], "d"]
+
+# JSON_OVERLAPS
+
+SELECT JSON_OVERLAPS("true","true"); # OK, returns true
+prepare s from "SELECT JSON_OVERLAPS('true',?)";
+set @jv='true';
+execute s using @jv; # OK, returns true
+SELECT JSON_OVERLAPS('"abc"','"abc"'); # OK, returns true
+prepare s from "SELECT JSON_OVERLAPS('\"abc\"',?)";
+set @jv='"abc"';
+execute s using @jv; # OK, returns true
+set @jv="abc";
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+execute s using @jv; # Fails, error 3141
+
+# JSON_ARRAY
+
+set @p1 = 1;
+set @p2 = 'abc';
+set @p3 = '"abc"';
+set @p4 = NULL;
+set @p5 = 'true';
+set @p6 = DATE'2000-01-01';
+SELECT JSON_ARRAY(1, 'abc', '"abc"', NULL, 'true', DATE'2000-01-01');
+# OK -> [1, "abc", "\"abc\"", null, true, "2000-01-01"]
+prepare s from "SELECT JSON_ARRAY(?, ?, ?, ?, ?, ?)";
+execute s using @p1, @p2, @p3, @p4, @p5, @p6;
+
+# JSON_OBJECT
+
+SELECT JSON_OBJECT('a', 1, 'b', 'abc', 'c', '"abc"', 'd', NULL,
+                   'e', 'true', 'f', DATE'2000-01-01'); # OK
+prepare s from "SELECT JSON_OBJECT('a', ?, 'b', ?, 'c', ?, 'd', ?,
+                                   'e', ?, 'f', ?)";
+execute s using @p1, @p2, @p3, @p4, @p5, @p6; # OK
+
+# JSON_CONTAINS
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+select JSON_CONTAINS('{"a": "x", "b": "y"}', 'x', '$.a'); # Fail
+select JSON_CONTAINS('{"a": "x", "b": "y"}', '"x"', '$.a'); # OK, returns true
+
+prepare s from "SELECT JSON_CONTAINS('{""a"": ""x"", ""b"": ""y""}', ?, '$.a')";
+set @a='x';
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+execute s using @a; # Fails
+set @a='"x"';
+execute s using @a; # OK, returns true
+
+# JSON_SEARCH
+
+SET @j = '["abc", [{"k": "10"}, "def"], {"x":"abc"}, {"y":"bcd"}]';
+SELECT JSON_SEARCH(@j, 'one', 'abc'); # -> OK, returns "$[0]"
+SELECT JSON_SEARCH(@j, 'one', '"abc"'); # -> OK, returns NULL
+
+prepare s from "SELECT JSON_SEARCH(@j, 'one', ?)";
+set @x='abc';
+execute s using @x; # -> OK, returns "$[0]"
+set @x='"abc"';
+execute s using @x; # -> OK, returns NULL
+
+# JSON_MERGE_PATCH
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_MERGE_PATCH('[1, 2]', 'xyz'); # Fails - error 3141
+SELECT JSON_MERGE_PATCH('[1, 2]', '"xyz"'); # OK - returns "xyz"
+prepare s from "SELECT JSON_MERGE_PATCH('[1, 2]', ?)";
+set @x='xyz';
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+execute s using @x; # Fails - error 3141
+set @x='"xyz"';
+execute s using @x; # OK - returns "xyz"
+
+# JSON_MERGE_PRESERVE
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_MERGE_PRESERVE('[1, 2]', 'xyz'); # Fails - error 3141
+SELECT JSON_MERGE_PRESERVE('[1, 2]', '"xyz"'); # OK - returns [1, 2, "xyz"]
+prepare s from "SELECT JSON_MERGE_PRESERVE('[1, 2]', ?)";
+set @x='xyz';
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+execute s using @x; # Fails - error 3141
+set @x='"xyz"';
+execute s using @x; # OK - returns [1, 2, "xyz"]
+
+# JSON_INSERT
+
+SELECT JSON_INSERT('{"a" : 1}', '$.b', 'xyz'); # OK - returns {"a": 1, "b": "xyz"}
+SELECT JSON_INSERT('{"a" : 1}', '$.b', '"xyz"'); # OK - returns {"a": 1, "b": "\"xyz\""}
+prepare s from "SELECT JSON_INSERT('{""a"" : 1}', '$.b', ?)";
+set @x='xyz';
+execute s using @x; # OK - returns {"a": 1, "b": "xyz"}
+set @x='"xyz"';
+execute s using @x; # OK - returns {"a": 1, "b": "\"xyz\""}
+
+# JSON_REPLACE
+
+SELECT JSON_REPLACE('{"a" : 1}', '$.a', 'xyz'); # OK - returns {"a": "xyz"}
+SELECT JSON_REPLACE('{"a" : 1}', '$.a', '"xyz"'); # OK - returns {"a": "\"xyz\""}
+prepare s from "SELECT JSON_REPLACE('{""a"" : 1}', '$.a', ?)";
+set @x='xyz';
+execute s using @x; # OK - returns {"a": "xyz"}
+set @x='"xyz"';
+execute s using @x; # OK - returns {"a": "\"xyz\""}
+
+# JSON_SET
+
+SELECT JSON_SET('{"a" : 1}', '$.a', 'xyz'); # OK - returns {"a": "xyz"}
+SELECT JSON_SET('{"a" : 1}', '$.a', '"xyz"'); # OK - returns {"a": "\"xyz\""}
+prepare s from "SELECT JSON_SET('{""a"" : 1}', '$.a', ?)";
+set @x='xyz';
+execute s using @x; # OK - returns {"a": "xyz"}
+set @x='"xyz"';
+execute s using @x; # OK - returns {"a": "\"xyz\""}

@@ -611,6 +611,9 @@ class Item_func_json_array_append : public Item_json_func {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
     if (param_type_is_default(thd, 1, -1, 2, MYSQL_TYPE_VARCHAR)) return true;
     if (param_type_is_default(thd, 2, -1, 2, MYSQL_TYPE_JSON)) return true;
+    for (uint i = 2; i < arg_count; i += 2) {
+      args[i]->mark_json_as_scalar();
+    }
     return false;
   }
 
@@ -634,6 +637,9 @@ class Item_func_json_insert : public Item_json_func {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
     if (param_type_is_default(thd, 1, -1, 2, MYSQL_TYPE_VARCHAR)) return true;
     if (param_type_is_default(thd, 2, -1, 2, MYSQL_TYPE_JSON)) return true;
+    for (uint i = 2; i < arg_count; i += 2) {
+      args[i]->mark_json_as_scalar();
+    }
     return false;
   }
 
@@ -657,6 +663,9 @@ class Item_func_json_array_insert : public Item_json_func {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
     if (param_type_is_default(thd, 1, -1, 2, MYSQL_TYPE_VARCHAR)) return true;
     if (param_type_is_default(thd, 2, -1, 2, MYSQL_TYPE_JSON)) return true;
+    for (uint i = 2; i < arg_count; i += 2) {
+      args[i]->mark_json_as_scalar();
+    }
     return false;
   }
 
@@ -685,6 +694,9 @@ class Item_func_json_set_replace : public Item_json_func {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
     if (param_type_is_default(thd, 1, -1, 2, MYSQL_TYPE_VARCHAR)) return true;
     if (param_type_is_default(thd, 2, -1, 2, MYSQL_TYPE_JSON)) return true;
+    for (uint i = 2; i < arg_count; i += 2) {
+      args[i]->mark_json_as_scalar();
+    }
     return false;
   }
 
@@ -1065,6 +1077,11 @@ class Item_func_member_of : public Item_bool_func {
       : Item_bool_func(pos, a, b) {}
   const char *func_name() const override { return "member of"; }
   enum Functype functype() const override { return MEMBER_OF_FUNC; }
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 2, MYSQL_TYPE_JSON)) return true;
+    args[0]->mark_json_as_scalar();
+    return false;
+  }
   bool gc_subst_analyzer(uchar **) override { return true; }
   optimize_type select_optimize(const THD *) override { return OPTIMIZE_KEY; }
   longlong val_int() override;
