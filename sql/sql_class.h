@@ -3467,6 +3467,13 @@ class THD : public MDL_context_owner,
             m_se_gtid_flags[SE_GTID_PERSIST]);
   }
 
+  /** @return true, if external XA transaction is in progress. */
+  bool is_extrenal_xa() const {
+    auto trx = get_transaction();
+    auto xid_state = trx->xid_state();
+    return !xid_state->has_state(XID_STATE::XA_NOTR);
+  }
+
 #ifdef HAVE_GTID_NEXT_LIST
   /**
     If this thread owns a set of GTIDs (i.e., GTID_NEXT_LIST != NULL),

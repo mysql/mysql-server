@@ -1511,7 +1511,7 @@ static bool trx_write_serialisation_history(
 
       /* Set flag if GTID information need to persist. */
       auto undo_ptr = &trx->rsegs.m_redo;
-      trx_undo_gtid_set(trx, undo_ptr->update_undo);
+      trx_undo_gtid_set(trx, undo_ptr->update_undo, false);
 
       trx_undo_update_cleanup(trx, undo_ptr, undo_hdr_page, update_rseg_len,
                               (update_rseg_len ? 1 : 0), mtr);
@@ -2298,9 +2298,6 @@ dberr_t trx_commit_for_mysql(trx_t *trx) /*!< in/out: transaction */
         return (db_err);
       }
 
-      /* Flush prepare GTID for XA prepared transactions. */
-      trx_undo_gtid_flush_prepare(trx);
-
       if (trx->id != 0) {
         trx_update_mod_tables_timestamp(trx);
       }
@@ -2752,7 +2749,7 @@ static lsn_t trx_prepare_low(
 
     if (undo_ptr->update_undo != nullptr) {
       if (!noredo_logging) {
-        trx_undo_gtid_set(trx, undo_ptr->update_undo);
+        trx_undo_gtid_set(trx, undo_ptr->update_undo, true);
       }
       trx_undo_set_state_at_prepare(trx, undo_ptr->update_undo, false, &mtr);
     }

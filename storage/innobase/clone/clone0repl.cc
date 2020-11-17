@@ -64,12 +64,25 @@ void Clone_persist_gtid::add(const Gtid_desc &gtid_desc) {
   }
 }
 
-bool Clone_persist_gtid::persists_gtid(const trx_t *trx) {
+trx_undo_t::Gtid_storage Clone_persist_gtid::persists_gtid(const trx_t *trx) {
   auto thd = trx->mysql_thd;
+
   if (thd == nullptr) {
     thd = thd_get_current_thd();
   }
-  return (thd != nullptr && thd->se_persists_gtid());
+
+  if (thd == nullptr || !thd->se_persists_gtid()) {
+    /* No need to persist GTID. */
+    return trx_undo_t::Gtid_storage::NONE;
+  }
+
+  if (thd->is_extrenal_xa()) {
+    /* Need to persist both XA prepare and commit GTID. */
+    return trx_undo_t::Gtid_storage::PREPARE_AND_COMMIT;
+  }
+
+  /* Need to persist only commit GTID. */
+  return trx_undo_t::Gtid_storage::COMMIT;
 }
 
 void Clone_persist_gtid::set_persist_gtid(trx_t *trx, bool set) {
@@ -496,7 +509,26 @@ void Clone_persist_gtid::periodic_write() {
   /* Allow GTID to be persisted on read only server. */
   thd->set_skip_readonly_check();
 
-  /* Write all accumulated GTIDs while starting. */
+  /* Write all accumulated GTIDs while starting server. These GTIDs
+  are found in undo log during recovery. We must make sure all these
+  GTIDs are flushed and on disk before server is open for new operation
+  and new GTIDs are generated.
+
+  Why is it needed ?
+
+  1. mysql.gtid_executed table must be up to date at this point as global
+     variable gtid_executed is updated from it when binary log is disabled.
+
+  2. In older versions we used to have only one GTID storage in undo log
+     and PREAPARE GTID was stored in same place as COMMIT GTID. We used to
+     wait for PREPARE GTID to flush before writing commit GTID. Now this
+     limitation is removed and we no longer wait for PREPARE GTID to get
+     flushed before COMMIT as we store the PREPARE GTID in separate location.
+     However, while upgrading from previous version, there could be XA
+     transaction in PREPARED state with GTID stored in place of commit GTID.
+     Those GTIDs are also flushed here so that they are not overwritten later
+     at COMMIT.
+*/
   flush_gtids(thd);
 
   /* Let the caller wait till first set of GTIDs are persisted to table

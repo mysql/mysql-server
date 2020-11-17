@@ -202,9 +202,6 @@ static dberr_t trx_rollback_low(trx_t *trx) {
       trx_undo_gtid_add_update_undo(trx, false, true);
       ut_ad(!trx_is_autocommit_non_locking(trx));
       if (trx->rsegs.m_redo.rseg != nullptr && trx_is_redo_rseg_updated(trx)) {
-        /* Flush prepare GTID for XA prepared transactions. */
-        trx_undo_gtid_flush_prepare(trx);
-
         /* Change the undo log state back from
         TRX_UNDO_PREPARED to TRX_UNDO_ACTIVE
         so that if the system gets killed,
@@ -222,7 +219,7 @@ static dberr_t trx_rollback_low(trx_t *trx) {
         }
 
         if (undo_ptr->update_undo != nullptr) {
-          trx_undo_gtid_set(trx, undo_ptr->update_undo);
+          trx_undo_gtid_set(trx, undo_ptr->update_undo, false);
           trx_undo_set_state_at_prepare(trx, undo_ptr->update_undo, true, &mtr);
         }
         trx->rsegs.m_redo.rseg->unlatch();
