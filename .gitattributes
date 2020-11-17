@@ -39,8 +39,6 @@
 /strings/uca_data.h !filter
 /internal/meb/meb/mysqloption_list.cpp !filter
 
-/sql/abstract_query_plan.h !filter
-/sql/abstract_query_plan.cc !filter
 # Some NDB source is currently exempt
 /storage/ndb/clusterj/** !filter
 /storage/ndb/include/** !filter
