@@ -175,8 +175,8 @@ class Clone_persist_gtid {
 
   /** Check if GTID persistence is set
   @param[in]	trx	current innnodb transaction
-  @return true, iff GTID persistence is set. */
-  bool persists_gtid(const trx_t *trx);
+  @return GTID storage type. */
+  trx_undo_t::Gtid_storage persists_gtid(const trx_t *trx);
 
   /** Set or reset GTID persist flag in THD.
   @param[in,out]	trx	current innnodb transaction

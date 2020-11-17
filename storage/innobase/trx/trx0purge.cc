@@ -378,7 +378,7 @@ void trx_purge_add_update_undo_to_history(
   }
 
   /* Write GTID information if there. */
-  trx_undo_gtid_write(trx, undo_header, undo, mtr);
+  trx_undo_gtid_write(trx, undo_header, undo, mtr, false);
 
   if (rseg->last_page_no == FIL_NULL) {
     rseg->last_page_no = undo->hdr_page_no;
