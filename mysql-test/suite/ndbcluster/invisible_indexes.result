@@ -178,8 +178,8 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
-t1	1	a	1	a	A	3	NULL	NULL	YES	BTREE			NO	NULL
-t1	1	b	1	b	A	3	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			NO	NULL
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
 ALTER TABLE t1 ALTER INDEX a VISIBLE, ALGORITHM = INPLACE;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
@@ -188,8 +188,8 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
-t1	1	a	1	a	A	3	NULL	NULL	YES	BTREE			YES	NULL
-t1	1	b	1	b	A	3	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
 ALTER TABLE t1 ALTER INDEX a INVISIBLE, ALGORITHM = DEFAULT;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
@@ -198,8 +198,8 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
-t1	1	a	1	a	A	3	NULL	NULL	YES	BTREE			NO	NULL
-t1	1	b	1	b	A	3	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			NO	NULL
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
 ALTER TABLE t1 ALTER INDEX a VISIBLE;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
@@ -208,8 +208,8 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
-t1	1	a	1	a	A	3	NULL	NULL	YES	BTREE			YES	NULL
-t1	1	b	1	b	A	3	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
 ALTER TABLE t1 ADD INDEX ab(a, b), ALTER INDEX ab INVISIBLE;
 ERROR 42000: Key 'ab' doesn't exist in table 't1'
 DROP TABLE t1;
