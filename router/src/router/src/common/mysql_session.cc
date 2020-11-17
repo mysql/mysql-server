@@ -109,30 +109,6 @@ const char *MySQLSession::ssl_mode_to_string(mysql_ssl_mode ssl_mode) noexcept {
   return nullptr;
 }
 
-bool MySQLSession::check_for_yassl(MYSQL *connection) {
-  static bool check_done = false;
-  static bool is_yassl = false;
-  if (!check_done) {
-    const char *old_version{nullptr};
-    // the assumption is that yaSSL does not support this version
-    const char *kTlsNoYassl = "TLSv1.2";
-
-    if (mysql_get_option(connection, MYSQL_OPT_TLS_VERSION, &old_version)) {
-      throw Error("Error checking for SSL implementation",
-                  mysql_errno(connection));
-    }
-    int res = mysql_options(connection, MYSQL_OPT_TLS_VERSION, kTlsNoYassl);
-    is_yassl = (res != 0);
-    if (mysql_options(connection, MYSQL_OPT_TLS_VERSION, old_version)) {
-      throw Error("Error checking for SSL implementation",
-                  mysql_errno(connection));
-    }
-    check_done = true;
-  }
-
-  return is_yassl;
-}
-
 void MySQLSession::set_ssl_options(mysql_ssl_mode ssl_mode,
                                    const std::string &tls_version,
                                    const std::string &ssl_cipher,
@@ -140,19 +116,6 @@ void MySQLSession::set_ssl_options(mysql_ssl_mode ssl_mode,
                                    const std::string &capath,
                                    const std::string &crl,
                                    const std::string &crlpath) {
-  if (check_for_yassl(connection_)) {
-    if ((ssl_mode >= SSL_MODE_VERIFY_CA) || (!ca.empty()) ||
-        (!capath.empty()) || (!crl.empty()) || (!crlpath.empty())) {
-      throw std::invalid_argument(
-          "Certificate Verification is disabled in this build of the MySQL "
-          "Router. \n"
-          "The following parameters are not supported: \n"
-          " --ssl-mode=VERIFY_CA, --ssl-mode=VERIFY_IDENTITY, \n"
-          " --ssl-ca, --ssl-capath, --ssl-crl, --ssl-crlpath \n"
-          "Please check documentation for the details.");
-    }
-  }
-
   if (!ssl_cipher.empty() && mysql_options(connection_, MYSQL_OPT_SSL_CIPHER,
                                            ssl_cipher.c_str()) != 0) {
     throw Error(("Error setting SSL_CIPHER option for MySQL connection: " +

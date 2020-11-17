@@ -249,7 +249,6 @@ class MySQLSession {
   SQLLogFilter log_filter_;
 
   virtual MYSQL *raw_mysql() noexcept { return connection_; }
-  static bool check_for_yassl(MYSQL *connection);
 
 #ifdef FRIEND_TEST
   friend class ::MockMySQLSession;
