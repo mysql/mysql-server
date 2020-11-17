@@ -3322,7 +3322,8 @@ bool meb_scan_log_recs(
 
       ib::info(ER_IB_MSG_1261)
           << "Starting to parse redo log at lsn = " << recv_sys->parse_start_lsn
-          << ", whereas checkpoint_lsn = " << recv_sys->checkpoint_lsn;
+          << ", whereas checkpoint_lsn = " << recv_sys->checkpoint_lsn
+          << " and start_lsn = " << start_lsn;
 
       if (recv_sys->parse_start_lsn < recv_sys->checkpoint_lsn) {
         /* We start to parse log records even before
