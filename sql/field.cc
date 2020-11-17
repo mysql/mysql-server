@@ -9873,6 +9873,10 @@ size_t Field_typed_array::get_key_image(uchar *buff, size_t length,
   return m_conv_item->field->get_key_image(buff, length, type);
 }
 
+#ifndef DBUG_OFF
+Field *Field_typed_array::get_conv_field() { return m_conv_item->field; }
+#endif
+
 Field *Field_typed_array::new_key_field(MEM_ROOT *root, TABLE *new_table,
                                         uchar *new_ptr, uchar *, uint) const {
   Field *res = m_conv_item->field->new_key_field(root, new_table, new_ptr);
