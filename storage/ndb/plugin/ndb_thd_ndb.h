@@ -73,7 +73,6 @@ class Thd_ndb {
   uint save_point_count;
   class NdbTransaction *trans;
   bool m_error;
-  bool m_slow_path;
   bool m_force_send;
 
   enum Options {
@@ -143,7 +142,7 @@ class Thd_ndb {
     TRANS_INJECTED_APPLY_STATUS = 1 << 0,
 
     /*
-       Indicator that no looging is performd by this MySQL Server ans thus
+       Indicates that no logging is performed by this MySQL Server and thus
        the anyvalue should have the nologging bit turned on
     */
     TRANS_NO_LOGGING = 1 << 1,

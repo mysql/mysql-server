@@ -4172,25 +4172,24 @@ void ha_ndbcluster::get_hidden_fields_scan(
 static inline void eventSetAnyValue(Thd_ndb *thd_ndb,
                                     NdbOperation::OperationOptions *options) {
   options->anyValue = 0;
-  if (unlikely(thd_ndb->m_slow_path)) {
+  if (thd_ndb->is_slave_thread()) {
     /*
-      Ignore TNTO_NO_LOGGING for slave thd.  It is used to indicate
-      log-replica-updates option.  This is instead handled in the
-      injector thread, by looking explicitly at the
-      opt_log_replica_updates flag.
+      Applier thread is applying a replicated event.
+      Set the server_id to the value received from the log which may be a
+      composite of server_id and other data according to the server_id_bits
+      option. In future it may be useful to support *not* mapping composite
+      AnyValues to/from Binlogged server-ids
     */
-    if (thd_ndb->is_slave_thread()) {
-      /*
-        Slave-thread, we are applying a replicated event.
-        We set the server_id to the value received from the log which
-        may be a composite of server_id and other data according
-        to the server_id_bits option.
-        In future it may be useful to support *not* mapping composite
-        AnyValues to/from Binlogged server-ids
-      */
-      options->optionsPresent |= NdbOperation::OperationOptions::OO_ANYVALUE;
-      options->anyValue = thd_unmasked_server_id(thd_ndb->get_thd());
-    } else if (thd_ndb->check_trans_option(Thd_ndb::TRANS_NO_LOGGING)) {
+    options->optionsPresent |= NdbOperation::OperationOptions::OO_ANYVALUE;
+    options->anyValue = thd_unmasked_server_id(thd_ndb->get_thd());
+
+    /*
+      Ignore TRANS_NO_LOGGING for applier thread. For other threads it's used to
+      indicate log-replica-updates option. This is instead handled in the
+      injector thread, by looking explicitly at "opt_log_replica_updates".
+    */
+  } else {
+    if (thd_ndb->check_trans_option(Thd_ndb::TRANS_NO_LOGGING)) {
       options->optionsPresent |= NdbOperation::OperationOptions::OO_ANYVALUE;
       ndbcluster_anyvalue_set_nologging(options->anyValue);
     }
@@ -7251,13 +7250,10 @@ int ha_ndbcluster::start_statement(THD *thd, Thd_ndb *thd_ndb,
       if (unlikely(!start_transaction(error))) return error;
 
     thd_ndb->init_open_tables();
-    thd_ndb->m_slow_path = false;
     if (!(thd_test_options(thd, OPTION_BIN_LOG)) ||
         thd->variables.binlog_format == BINLOG_FORMAT_STMT) {
       thd_ndb->set_trans_option(Thd_ndb::TRANS_NO_LOGGING);
-      thd_ndb->m_slow_path = true;
-    } else if (thd_ndb->is_slave_thread())
-      thd_ndb->m_slow_path = true;
+    }
   }
   return 0;
 }
@@ -7309,9 +7305,8 @@ int ha_ndbcluster::init_handler_for_statement(THD *thd) {
   m_autoincrement_prefetch = THDVAR(thd, autoincrement_prefetch_sz);
   release_blobs_buffer();
 
-  if (unlikely(m_thd_ndb->m_slow_path)) {
-    if (m_share == ndb_apply_status_share && m_thd_ndb->is_slave_thread())
-      m_thd_ndb->set_trans_option(Thd_ndb::TRANS_INJECTED_APPLY_STATUS);
+  if (m_share == ndb_apply_status_share && m_thd_ndb->is_slave_thread()) {
+    m_thd_ndb->set_trans_option(Thd_ndb::TRANS_INJECTED_APPLY_STATUS);
   }
 
   int ret = 0;
@@ -7668,15 +7663,11 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
   }
   thd_ndb->save_point_count = 0;
 
-  if (unlikely(thd_ndb->m_slow_path)) {
-    if (thd_ndb->is_slave_thread()) {
-      ndbcluster_update_apply_status(
-          thd,
-          thd_ndb->check_trans_option(Thd_ndb::TRANS_INJECTED_APPLY_STATUS));
-    }
-  }
-
   if (thd_ndb->is_slave_thread()) {
+    // Append update of the ndb_apply_status table to current transaction
+    ndbcluster_update_apply_status(
+        thd, thd_ndb->check_trans_option(Thd_ndb::TRANS_INJECTED_APPLY_STATUS));
+
     /* If this slave transaction has included conflict detecting ops
      * and some defined operations are not yet sent, then perform
      * an execute(NoCommit) before committing, as conflict op handling
