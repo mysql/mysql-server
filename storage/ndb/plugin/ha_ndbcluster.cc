@@ -448,12 +448,13 @@ static long long g_server_api_client_stats[Ndb::NumClientStatistics];
          such the slave thread will call it at convenient times.
   @note This differs from other threads who will copy statistics
         from their own Ndb object before showing the values.
-  @param ndb The ndb object
+  @param thd_ndb Pointer to Thd_ndb object
 */
-void update_slave_api_stats(const Ndb *ndb) {
+void update_slave_api_stats(const Thd_ndb *thd_ndb) {
   // Should only be called by the slave (applier) thread
-  assert(current_thd->slave_thread);
+  assert(thd_ndb->is_slave_thread());
 
+  const Ndb *ndb = thd_ndb->ndb;
   for (Uint32 i = 0; i < Ndb::NumClientStatistics; i++) {
     g_slave_api_client_stats[i] = ndb->getClientStat(i);
   }
@@ -7192,7 +7193,7 @@ void Thd_ndb::transaction_checks() {
   }
 
   m_force_send = THDVAR(thd, force_send);
-  if (!thd->slave_thread)
+  if (!m_slave_thread)
     m_batch_size = THDVAR(thd, batch_size);
   else {
     m_batch_size = THDVAR(NULL, batch_size); /* using global value */
@@ -7255,7 +7256,7 @@ int ha_ndbcluster::start_statement(THD *thd, Thd_ndb *thd_ndb,
         thd->variables.binlog_format == BINLOG_FORMAT_STMT) {
       thd_ndb->set_trans_option(Thd_ndb::TRANS_NO_LOGGING);
       thd_ndb->m_slow_path = true;
-    } else if (thd->slave_thread)
+    } else if (thd_ndb->is_slave_thread())
       thd_ndb->m_slow_path = true;
   }
   return 0;
@@ -7309,7 +7310,7 @@ int ha_ndbcluster::init_handler_for_statement(THD *thd) {
   release_blobs_buffer();
 
   if (unlikely(m_thd_ndb->m_slow_path)) {
-    if (m_share == ndb_apply_status_share && thd->slave_thread)
+    if (m_share == ndb_apply_status_share && m_thd_ndb->is_slave_thread())
       m_thd_ndb->set_trans_option(Thd_ndb::TRANS_INJECTED_APPLY_STATUS);
   }
 
@@ -7668,14 +7669,14 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
   thd_ndb->save_point_count = 0;
 
   if (unlikely(thd_ndb->m_slow_path)) {
-    if (thd->slave_thread) {
+    if (thd_ndb->is_slave_thread()) {
       ndbcluster_update_apply_status(
           thd,
           thd_ndb->check_trans_option(Thd_ndb::TRANS_INJECTED_APPLY_STATUS));
     }
   }
 
-  if (thd->slave_thread) {
+  if (thd_ndb->is_slave_thread()) {
     /* If this slave transaction has included conflict detecting ops
      * and some defined operations are not yet sent, then perform
      * an execute(NoCommit) before committing, as conflict op handling
@@ -7692,8 +7693,7 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
 
     if (likely(res == 0)) res = execute_commit(thd_ndb, trans, 1, true);
 
-    // Copy-out slave thread statistics
-    update_slave_api_stats(thd_ndb->ndb);
+    update_slave_api_stats(thd_ndb);
   } else {
     if (thd_ndb->m_handler &&
         thd_ndb->m_handler->m_read_before_write_removal_possible) {
@@ -7850,7 +7850,9 @@ static int ndbcluster_rollback(handlerton *, THD *thd, bool all) {
     return 0;
   }
   thd_ndb->save_point_count = 0;
-  if (thd->slave_thread) g_ndb_slave_state.atTransactionAbort();
+  if (thd_ndb->is_slave_thread()) {
+    g_ndb_slave_state.atTransactionAbort();
+  }
   thd_ndb->m_unsent_bytes = 0;
   thd_ndb->m_unsent_blob_ops = false;
   thd_ndb->m_execute_count++;
@@ -7862,9 +7864,8 @@ static int ndbcluster_rollback(handlerton *, THD *thd, bool all) {
   thd_ndb->trans = nullptr;
   thd_ndb->m_handler = nullptr;
 
-  if (thd->slave_thread) {
-    // Copy-out slave thread statistics
-    update_slave_api_stats(thd_ndb->ndb);
+  if (thd_ndb->is_slave_thread()) {
+    update_slave_api_stats(thd_ndb);
   }
 
   // Rollback any DDL changes made as a part of this transaction

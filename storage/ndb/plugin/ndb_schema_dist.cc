@@ -273,7 +273,7 @@ bool Ndb_schema_dist_client::Prepared_keys::check_key(
   return false;
 }
 
-extern void update_slave_api_stats(const Ndb *);
+extern void update_slave_api_stats(const Thd_ndb *);
 
 Ndb_schema_dist_client::~Ndb_schema_dist_client() {
   if (m_share) {
@@ -286,7 +286,7 @@ Ndb_schema_dist_client::~Ndb_schema_dist_client() {
     // NOTE! This is just a "convenient place" to call this
     // function, it could be moved to "end of statement"(if there
     // was such a place..).
-    update_slave_api_stats(m_thd_ndb->ndb);
+    update_slave_api_stats(m_thd_ndb);
   }
 
   if (m_holding_acl_mutex) {
