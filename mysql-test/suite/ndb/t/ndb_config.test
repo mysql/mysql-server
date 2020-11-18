@@ -102,3 +102,8 @@ echo == 24 == Bug 21280428;
 echo == 25 == Bug25675643;
 # Check system name
 --exec $NDB_CONFIG --config-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_config.ini --system --query=name 2>&1
+
+echo == 26 == Bug32175157;
+--replace_regex /.*\[ndb_config\]//
+--error 255
+--exec $NDB_CONFIG_EXE --defaults-group-suffix=.bug32175157 --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf1.cnf --mycnf 2>&1

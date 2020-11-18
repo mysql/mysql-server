@@ -35,6 +35,7 @@
 #include "../src/kernel/vm/mt-asm.h"
 
 #include <portlib/ndb_localtime.h>
+#include <NdbTCP.h>
 
 #define KEY_INTERNAL 0
 #define MAX_INT_RNIL 0xfffffeff
@@ -192,6 +193,9 @@ static bool check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&section
 static bool check_mutually_exclusive(Vector<ConfigInfo::ConfigRuleSection>&sections, 
                                      struct InitConfigFileParser::Context &ctx, 
                                      const char * rule_data);
+static bool validate_unique_mgm_ports(Vector<ConfigInfo::ConfigRuleSection>& sections,
+                                      struct InitConfigFileParser::Context& ctx,
+                                      const char* rule_data);
 
 
 static bool saveSectionsInConfigValues(Vector<ConfigInfo::ConfigRuleSection>&,
@@ -206,6 +210,7 @@ ConfigInfo::m_ConfigRules[] = {
   { set_connection_priorities, 0 },
   { check_node_vs_replicas, 0 },
   { check_mutually_exclusive, 0 },
+  { validate_unique_mgm_ports, 0 },
   { saveSectionsInConfigValues, "SYSTEM,Node,Connection" },
   { 0, 0 }
 };
@@ -5045,6 +5050,11 @@ transformNode(InitConfigFileParser::Context & ctx, const char * data){
   ctx.m_userProperties.get(ctx.fname, &nodes);
   ctx.m_userProperties.put(ctx.fname, ++nodes, true);
 
+  // Store the node id if this a MGM for later validations
+  if (strcmp(ctx.fname, MGM_TOKEN) == 0) {
+    ctx.m_userProperties.put("mgmd_nodeid", nodes, id);
+  }
+
   return true;
 }
 
@@ -6731,6 +6741,72 @@ check_mutually_exclusive(Vector<ConfigInfo::ConfigRuleSection>&sections,
   return true;
 }
 
+static bool validate_unique_mgm_ports(
+    Vector<ConfigInfo::ConfigRuleSection>& sections,
+    struct InitConfigFileParser::Context& ctx, const char* rule_data) {
+  /* This rule checks for unique ports in mgm config for nodes on
+   * same Host.
+   */
+  Uint32 num_mgm_nodes;
+  require(ctx.m_userProperties.get("MGM", &num_mgm_nodes));
+
+  Uint32 allow_unresolved = false;
+  const Properties* tcpProperties;
+  if (ctx.m_defaults->get("TCP", &tcpProperties)) {
+    tcpProperties->get("AllowUnresolvedHostnames", &allow_unresolved);
+  }
+
+  /* Map to maintain "ip:port -> nodeId" mapping */
+  std::unordered_map<std::string, Uint32> ip_map;
+
+  /* Loop through mgmd nodes */
+  for (Uint32 n = 1; n <= num_mgm_nodes; n++) {
+    Uint32 nodeId;
+    require(ctx.m_userProperties.get("mgmd_nodeid", n, &nodeId));
+
+    const Properties* nodeProperties;
+    require(ctx.m_config->get("Node", nodeId, &nodeProperties));
+
+    const char* hostname;
+    Uint32 port;
+    require(nodeProperties->get("HostName", &hostname));
+    require(nodeProperties->get("PortNumber", &port));
+
+    // Get ipv4/ipv6 address string from the hostname.
+    std::string addr_str(hostname);
+    struct in6_addr addr;
+    if (Ndb_getInAddr6(&addr, hostname) != 0) {
+      if (!allow_unresolved) {
+        ctx.reportError("Could not resolve hostname [node %d]: %s", nodeId,
+                        hostname);
+        return false;
+      }
+      ctx.reportWarning("Could not resolve hostname [node %d]: %s", nodeId,
+                        hostname);
+    }
+
+    if (!allow_unresolved) {
+      char addr_buf[NDB_ADDR_STRLEN];
+      addr_str = Ndb_inet_ntop(AF_INET6, static_cast<void*>(&addr), addr_buf,
+                               sizeof(addr_buf));
+    }
+
+    // Create ipkey: <ip_string>:<port>
+    std::string ipkey = addr_str + ":" + std::to_string(port);
+
+    /* Check if ipkey is already present in map. */
+    if (ip_map.find(ipkey) != ip_map.end()) {
+      ctx.reportError(
+          "Same port number is specified for management nodes %d and %d (or) "
+          "they both are using the default port number on same host %s.",
+          ip_map.at(ipkey), nodeId, hostname);
+      return false;
+    }
+    ip_map.insert({ipkey, nodeId});
+  }
+
+  return true;
+}
 
 ConfigInfo::ParamInfoIter::ParamInfoIter(const ConfigInfo& info,
                                          Uint32 section,

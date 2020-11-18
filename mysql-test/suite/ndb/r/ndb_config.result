@@ -71,3 +71,5 @@ Unknown query option: Discless
  ERROR    -- at line 15: Could not parse name-value pair in config file.
 == 25 == Bug25675643
 cluster1
+== 26 == Bug32175157
+ ERROR    -- at line 0: Same port number is specified for management nodes 3 and 4 (or) they both are using the default port number on same host localhost.
