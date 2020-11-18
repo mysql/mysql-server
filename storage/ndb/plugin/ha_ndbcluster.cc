@@ -12989,10 +12989,6 @@ static int ndb_get_table_statistics(THD *thd, ha_ndbcluster *file, Ndb *ndb,
     NdbScanOperation *pOp;
     int check;
 
-    /**
-     * TODO WL#9019, pass table to startTransaction to allow fully
-     * replicated table to select data_node_neighbour
-     */
     if ((pTrans = ndb->startTransaction(tab)) == NULL) {
       error = ndb->getNdbError();
       goto retry;
