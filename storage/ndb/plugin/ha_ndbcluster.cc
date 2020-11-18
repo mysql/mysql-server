@@ -7135,22 +7135,6 @@ THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd, THR_LOCK_DATA **to,
   return to;
 }
 
-/*
-  As MySQL will execute an external lock for every new table it uses
-  we can use this to start the transactions.
-  If we are in auto_commit mode we just need to start a transaction
-  for the statement, this will be stored in thd_ndb.stmt.
-  If not, we have to start a master transaction if there doesn't exist
-  one from before, this will be stored in thd_ndb.all
-
-  When a table lock is held one transaction will be started which holds
-  the table lock and for each statement a hupp transaction will be started
-  If we are locking the table then:
-  - save the NdbDictionary::Table for easy access
-  - save reference to table statistics
-  - refresh list of the indexes for the table if needed (if altered)
- */
-
 static int ndbcluster_update_apply_status(THD *thd, int do_update) {
   Thd_ndb *thd_ndb = get_thd_ndb(thd);
 
@@ -7347,6 +7331,22 @@ int ha_ndbcluster::init_handler_for_statement(THD *thd) {
   }
   return ret;
 }
+
+/*
+  As MySQL will execute an external lock for every new table it uses
+  we can use this to start the transactions.
+  If we are in auto_commit mode we just need to start a transaction
+  for the statement, this will be stored in thd_ndb.stmt.
+  If not, we have to start a master transaction if there doesn't exist
+  one from before, this will be stored in thd_ndb.all
+
+  When a table lock is held one transaction will be started which holds
+  the table lock and for each statement a hupp transaction will be started
+  If we are locking the table then:
+  - save the NdbDictionary::Table for easy access
+  - save reference to table statistics
+  - refresh list of the indexes for the table if needed (if altered)
+ */
 
 int ha_ndbcluster::external_lock(THD *thd, int lock_type) {
   DBUG_TRACE;
