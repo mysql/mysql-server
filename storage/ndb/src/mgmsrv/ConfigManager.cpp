@@ -2100,29 +2100,29 @@ ConfigManager::load_init_config(const char* config_filename)
 
 
 Config*
-ConfigManager::load_init_mycnf(void)
+ConfigManager::load_init_mycnf(const char* cluster_config_suffix)
 {
   InitConfigFileParser parser;
-  return parser.parse_mycnf();
+  return parser.parse_mycnf(cluster_config_suffix);
 }
 
 
 Config*
 ConfigManager::load_config(const char* config_filename, bool mycnf,
-                           BaseString& msg)
+                           BaseString& msg, const char* cluster_config_suffix)
 {
-  Config* new_conf = NULL;
-  if (mycnf && (new_conf = load_init_mycnf()) == NULL)
+  Config* new_conf = nullptr;
+  if (mycnf && (new_conf = load_init_mycnf(cluster_config_suffix)) == nullptr)
   {
     msg.assign("Could not load configuration from 'my.cnf'");
-    return NULL;
+    return nullptr;
   }
   else if (config_filename &&
            (new_conf = load_init_config(config_filename)) == NULL)
   {
     msg.assfmt("Could not load configuration from '%s'",
                config_filename);
-    return NULL;
+    return nullptr;
   }
 
   return new_conf;
@@ -2133,12 +2133,13 @@ Config*
 ConfigManager::load_config(void) const
 {
   BaseString msg;
-  Config* new_conf = NULL;
-  if ((new_conf = load_config(m_opts.config_filename,
-                              m_opts.mycnf, msg)) == NULL)
+  Config* new_conf = load_config(m_opts.config_filename,
+                                 m_opts.mycnf, msg,
+                                 m_opts.cluster_config_suffix);
+  if (new_conf == nullptr)
   {
     g_eventLogger->error(msg);
-    return NULL;
+    return nullptr;
   }
   return new_conf;
 }

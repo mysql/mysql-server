@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -201,7 +201,8 @@ create_mycnf(const char* first, ...)
   my_defaults_file = mycnf_file.c_str();
 
   InitConfigFileParser parser;
-  Config* conf = parser.parse_mycnf();
+  const char* const cluster_config_suffix = nullptr;
+  Config* conf = parser.parse_mycnf(cluster_config_suffix);
 
   // Restore the global variable
   my_defaults_file = save_defaults_file;

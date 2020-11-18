@@ -138,6 +138,11 @@ static struct my_option my_long_options[] =
     "Local bind address",
     (uchar**) &opts.bind_address, (uchar**) &opts.bind_address, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "cluster-config-suffix", NDB_OPT_NOSHORT,
+    "Override defaults-group-suffix when reading cluster_config sections in "
+    "my.cnf.",
+    &opts.cluster_config_suffix, &opts.cluster_config_suffix, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "configdir", NDB_OPT_NOSHORT,
     "Directory for the binary configuration files (alias for --config-dir)",
     (uchar**) &opts.configdir, (uchar**) &opts.configdir, 0,

@@ -104,6 +104,7 @@ public:
     int interactive;
     const char* config_filename;
     int mycnf;
+    const char* cluster_config_suffix;
     int config_cache;
     const char* bind_address;
     int no_nodeid_checks;

@@ -98,6 +98,7 @@ static int g_mycnf = 0;
 static int g_configinfo = 0;
 static int g_xml = 0;
 static int g_config_from_node = 0;
+static const char* g_cluster_config_suffix = nullptr;
 
 const char *load_default_groups[]= { "mysql_cluster",0 };
 
@@ -139,6 +140,11 @@ static struct my_option my_long_options[] =
   { "mycnf", NDB_OPT_NOSHORT, "Read config from my.cnf",
     (uchar**) &g_mycnf, (uchar**) &g_mycnf,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  { "cluster-config-suffix", NDB_OPT_NOSHORT,
+    "Override defaults-group-suffix when reading cluster configuration in "
+    "my.cnf.",
+    &g_cluster_config_suffix, &g_cluster_config_suffix,
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "configinfo", NDB_OPT_NOSHORT, "Print configinfo",
     (uchar**) &g_configinfo, (uchar**) &g_configinfo,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -898,7 +904,7 @@ load_configuration()
   if (g_verbose)
     fprintf(stderr, "Using my.cnf\n");
   
-  Config* conf = parser.parse_mycnf();
+  Config* conf = parser.parse_mycnf(g_cluster_config_suffix);
   if (conf)
   {
     ndb_mgm_configuration* mgm_config = conf->m_configuration;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -887,7 +887,7 @@ InitConfigFileParser::load_mycnf_groups(Vector<struct my_option> & options,
   release the memory allocated by my_strdup() from handle_options().
 */
 Config *
-InitConfigFileParser::parse_mycnf() 
+InitConfigFileParser::parse_mycnf(const char* cluster_config_suffix)
 {
   Config * res = 0;
   bool release_current_section = true;
@@ -982,6 +982,11 @@ InitConfigFileParser::parse_mycnf()
   
   Context ctx(m_info);
   const char *groups[]= { "cluster_config", 0 };
+  const char *save_group_suffix = my_defaults_group_suffix;
+  if (cluster_config_suffix != nullptr)
+  {
+    my_defaults_group_suffix = cluster_config_suffix;
+  }
   if (load_defaults(options, groups))
     goto end;
 
@@ -1099,6 +1104,8 @@ InitConfigFileParser::parse_mycnf()
   release_current_section = false;
 
 end:
+  my_defaults_group_suffix = save_group_suffix;
+
   for (int i = 0; options[i].name; i++)
   {
     if (options[i].var_type == GET_STR_ALLOC)

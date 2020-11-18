@@ -5258,9 +5258,12 @@ MgmtSrvr::reload_config(const char* config_filename, bool mycnf,
     }
   }
 
-  Config* new_conf_ptr;
-  if ((new_conf_ptr= ConfigManager::load_config(config_filename,
-                                                mycnf, msg)) == NULL)
+  Config* new_conf_ptr =
+      ConfigManager::load_config(config_filename,
+                                 mycnf,
+                                 msg,
+                                 m_opts.cluster_config_suffix);
+  if (new_conf_ptr == nullptr)
     return false;
   Config new_conf(new_conf_ptr);
 

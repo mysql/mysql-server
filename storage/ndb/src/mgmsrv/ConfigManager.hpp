@@ -132,7 +132,7 @@ class ConfigManager : public MgmtThread {
 
   /* Functions used from 'init' */
   static Config* load_init_config(const char*);
-  static Config* load_init_mycnf(void);
+  static Config* load_init_mycnf(const char* cluster_config_suffix);
   Config* load_config(void) const;
   Config* fetch_config(void);
   bool save_config(const Config* conf);
@@ -264,7 +264,8 @@ public:
                          Uint32 node_id);
 
   static Config* load_config(const char* config_filename, bool mycnf,
-                             BaseString& msg);
+                             BaseString& msg,
+                             const char* cluster_config_suffix);
 
   bool set_dynamic_port(int node1, int node2, int value, BaseString& msg);
   bool set_dynamic_ports(int node, MgmtSrvr::DynPortSpec ports[],
