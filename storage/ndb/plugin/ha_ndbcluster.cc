@@ -1139,7 +1139,6 @@ Thd_ndb::Thd_ndb(THD *thd)
   m_connect_count = connection->get_connect_count();
   ndb = new Ndb(connection, "");
   lock_count = 0;
-  start_stmt_count = 0;
   save_point_count = 0;
   trans = NULL;
   m_handler = NULL;
@@ -7473,14 +7472,14 @@ int ha_ndbcluster::start_stmt(THD *thd, thr_lock_type) {
 
   int error;
   Thd_ndb *thd_ndb = get_thd_ndb(thd);
-  if ((error = start_statement(thd, thd_ndb, thd_ndb->start_stmt_count++))) {
-    thd_ndb->start_stmt_count--;
+  if ((error = start_statement(thd, thd_ndb, thd_ndb->start_stmt_count))) {
     return error;
   }
   if ((error = init_handler_for_statement(thd))) {
-    thd_ndb->start_stmt_count--;
     return error;
   }
+  thd_ndb->start_stmt_count++;
+
   return 0;
 }
 
@@ -7648,7 +7647,9 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
     ddl_ctx->commit();
   }
 
+  // Reset reference counter for start_stmt()
   thd_ndb->start_stmt_count = 0;
+
   if (trans == NULL) {
     DBUG_PRINT("info", ("trans == NULL"));
     return 0;
@@ -7828,7 +7829,9 @@ static int ndbcluster_rollback(handlerton *, THD *thd, bool all) {
                        thd_ndb->save_point_count));
   assert(ndb);
 
+  // Reset reference counter for start_stmt()
   thd_ndb->start_stmt_count = 0;
+
   if (trans == nullptr) {
     // NdbTransaction was never started
     DBUG_PRINT("info", ("trans == NULL"));

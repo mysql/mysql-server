@@ -55,7 +55,14 @@ class Thd_ndb {
   class Ndb *ndb;
   class ha_ndbcluster *m_handler;
   uint lock_count;
-  uint start_stmt_count;
+
+  // Reference counter for start_stmt() calls. The counter controls that the
+  // handlerton is registered as being part of the MySQL transaction at the
+  // first start_stmt() call (when the counter is zero). When MySQL
+  // ends the transaction by calling either ndbcluster_commit() or
+  // ndbcluster_rollback(), the counter is then reset back to zero.
+  uint start_stmt_count{0};
+
   uint save_point_count;
   class NdbTransaction *trans;
   bool m_error;
