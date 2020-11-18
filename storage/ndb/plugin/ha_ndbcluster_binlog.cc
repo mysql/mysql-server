@@ -286,9 +286,8 @@ static int get_ndb_blobs_value(TABLE *table, NdbValue *value_array,
           uchar *buf = buffer + offset;
           uint32 len = buffer_size - offset;  // Size of buf
           if (ndb_blob->readData(buf, len) != 0) return -1;
-          DBUG_PRINT("info",
-                     ("[%u] offset: %u  buf: 0x%lx  len=%u  [ptrdiff=%d]", i,
-                      offset, (long)buf, len, (int)ptrdiff));
+          DBUG_PRINT("info", ("[%u] offset: %u  buf: %p  len=%u  [ptrdiff=%d]",
+                              i, offset, buf, len, (int)ptrdiff));
           DBUG_ASSERT(len == len64);
           // Ugly hack assumes only ptr needs to be changed
           field_blob->set_ptr_offset(ptrdiff, len, buf);
@@ -5363,14 +5362,12 @@ int Ndb_binlog_client::create_event_op(NDB_SHARE *share,
       }
       event_data->ndb_value[0][j].ptr = attr0.ptr;
       event_data->ndb_value[1][j].ptr = attr1.ptr;
-      DBUG_PRINT("info",
-                 ("&event_data->ndb_value[0][%d]: 0x%lx  "
-                  "event_data->ndb_value[0][%d]: 0x%lx",
-                  j, (long)&event_data->ndb_value[0][j], j, (long)attr0.ptr));
-      DBUG_PRINT("info",
-                 ("&event_data->ndb_value[1][%d]: 0x%lx  "
-                  "event_data->ndb_value[1][%d]: 0x%lx",
-                  j, (long)&event_data->ndb_value[0][j], j, (long)attr1.ptr));
+      DBUG_PRINT("info", ("&event_data->ndb_value[0][%d]: %p  "
+                          "event_data->ndb_value[0][%d]: %p",
+                          j, &event_data->ndb_value[0][j], j, attr0.ptr));
+      DBUG_PRINT("info", ("&event_data->ndb_value[1][%d]: %p  "
+                          "event_data->ndb_value[1][%d]: %p",
+                          j, &event_data->ndb_value[0][j], j, attr1.ptr));
     }
     op->setCustomData(
         const_cast<Ndb_event_data *>(event_data));  // set before execute
@@ -5724,8 +5721,7 @@ static void ndb_unpack_record(TABLE *table, NdbValue *value, MY_BITMAP *defined,
           Field_blob *field_blob = (Field_blob *)field;
           const uchar *ptr = field_blob->get_blob_data(row_offset);
           uint32 len = field_blob->get_length(row_offset);
-          DBUG_PRINT("info", ("[%u] SET ptr: 0x%lx  len: %u", field_no,
-                              (long)ptr, len));
+          DBUG_PRINT("info", ("[%u] SET ptr: %p  len: %u", field_no, ptr, len));
 #endif
         }
       }       // else
@@ -7163,9 +7159,8 @@ restart_cluster_failure:
             Ndb_event_data *event_data =
                 (Ndb_event_data *)gci_op->getCustomData();
             NDB_SHARE *share = (event_data) ? event_data->share : NULL;
-            DBUG_PRINT("info",
-                       ("per gci_op: 0x%lx  share: 0x%lx  event_types: 0x%x",
-                        (long)gci_op, (long)share, event_types));
+            DBUG_PRINT("info", ("per gci_op: %p  share: %p  event_types: 0x%x",
+                                gci_op, share, event_types));
             // workaround for interface returning TE_STOP events
             // which are normally filtered out below in the nextEvent loop
             if ((event_types & ~NdbDictionary::Event::TE_STOP) == 0) {
@@ -7241,11 +7236,11 @@ restart_cluster_failure:
             NDB_SHARE *share = (event_data) ? event_data->share : NULL;
             DBUG_PRINT("info",
                        ("EVENT TYPE: %d  Epoch: %u/%u last applied: %u/%u  "
-                        "share: 0x%lx (%s.%s)",
+                        "share: %p (%s.%s)",
                         i_pOp->getEventType(), (uint)(current_epoch >> 32),
                         (uint)(current_epoch),
                         (uint)(ndb_latest_applied_binlog_epoch >> 32),
-                        (uint)(ndb_latest_applied_binlog_epoch), (long)share,
+                        (uint)(ndb_latest_applied_binlog_epoch), share,
                         share ? share->db : "'NULL'",
                         share ? share->table_name : "'NULL'"));
             DBUG_ASSERT(share != 0);

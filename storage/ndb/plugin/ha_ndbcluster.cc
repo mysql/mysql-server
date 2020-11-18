@@ -1621,8 +1621,8 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg) {
           ERR_RETURN(err);
         }
       }
-      DBUG_PRINT("info", ("[%u] offset: %u  buf: 0x%lx  len=%u", i, offset,
-                          (long)buf, len));
+      DBUG_PRINT("info",
+                 ("[%u] offset: %u  buf: %p  len=%u", i, offset, buf, len));
       DBUG_ASSERT(len == len64);
       if (ha->m_blob_destination_record) {
         ptrdiff_t ptrdiff =
@@ -1771,8 +1771,7 @@ int ha_ndbcluster::set_blob_values(const NdbOperation *ndb_op,
         blob_ptr = pointer_cast<const uchar *>("");
       }
 
-      DBUG_PRINT("value",
-                 ("set blob ptr: 0x%lx  len: %u", (long)blob_ptr, blob_len));
+      DBUG_PRINT("value", ("set blob ptr: %p  len: %u", blob_ptr, blob_len));
       DBUG_DUMP("value", blob_ptr, MIN(blob_len, 26));
 
       /*
@@ -2335,7 +2334,7 @@ int ha_ndbcluster::add_index_handle(NDBDICT *dict, const KEY *key_info,
         dict->getIndexGlobal(index_name, *m_table);
     if (!index) ERR_RETURN(dict->getNdbError());
     DBUG_PRINT("info",
-               ("index: 0x%lx  id: %d  version: %d.%d  status: %d", (long)index,
+               ("index: %p  id: %d  version: %d.%d  status: %d", index,
                 index->getObjectId(), index->getObjectVersion() & 0xFFFFFF,
                 index->getObjectVersion() >> 24, index->getObjectStatus()));
     DBUG_ASSERT(index->getObjectStatus() == NdbDictionary::Object::Retrieved);
@@ -2352,7 +2351,7 @@ int ha_ndbcluster::add_index_handle(NDBDICT *dict, const KEY *key_info,
         dict->getIndexGlobal(unique_index_name, *m_table);
     if (!index) ERR_RETURN(dict->getNdbError());
     DBUG_PRINT("info",
-               ("index: 0x%lx  id: %d  version: %d.%d  status: %d", (long)index,
+               ("index: %p  id: %d  version: %d.%d  status: %d", index,
                 index->getObjectId(), index->getObjectVersion() & 0xFFFFFF,
                 index->getObjectVersion() >> 24, index->getObjectStatus()));
     DBUG_ASSERT(index->getObjectStatus() == NdbDictionary::Object::Retrieved);
@@ -7421,11 +7420,10 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type) {
     if (check_ndb_connection(thd)) return 1;
     Thd_ndb *thd_ndb = get_thd_ndb(thd);
 
-    DBUG_PRINT("enter",
-               ("lock_type != F_UNLCK "
-                "this: 0x%lx  thd: 0x%lx  thd_ndb: %lx  "
-                "thd_ndb->lock_count: %d",
-                (long)this, (long)thd, (long)thd_ndb, thd_ndb->lock_count));
+    DBUG_PRINT("enter", ("lock_type != F_UNLCK "
+                         "this: %p  thd: %p  thd_ndb: %p  "
+                         "thd_ndb->lock_count: %d",
+                         this, thd, thd_ndb, thd_ndb->lock_count));
 
     if ((error = start_statement(thd, thd_ndb, thd_ndb->lock_count++))) {
       thd_ndb->lock_count--;
@@ -7440,11 +7438,10 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type) {
     Thd_ndb *thd_ndb = m_thd_ndb;
     DBUG_ASSERT(thd_ndb);
 
-    DBUG_PRINT("enter",
-               ("lock_type == F_UNLCK "
-                "this: 0x%lx  thd: 0x%lx  thd_ndb: %lx  "
-                "thd_ndb->lock_count: %d",
-                (long)this, (long)thd, (long)thd_ndb, thd_ndb->lock_count));
+    DBUG_PRINT("enter", ("lock_type == F_UNLCK "
+                         "this: %p  thd: %p  thd_ndb: %p  "
+                         "thd_ndb->lock_count: %d",
+                         this, thd, thd_ndb, thd_ndb->lock_count));
 
     if (!--thd_ndb->lock_count) {
       DBUG_PRINT("trans", ("Last external_lock"));
