@@ -12835,14 +12835,6 @@ bool ha_ndbcluster::low_byte_first() const {
 #endif
 }
 
-struct ndb_table_statistics_row {
-  Uint64 rows;
-  Uint64 commits;
-  Uint32 size;
-  Uint64 fixed_mem;
-  Uint64 var_mem;
-};
-
 int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat, uint part_id) {
   struct Ndb_statistics stat;
   Thd_ndb *thd_ndb = get_thd_ndb(thd);
