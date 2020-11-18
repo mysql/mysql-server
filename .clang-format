@@ -305,7 +305,7 @@ IndentGotoLabels: true
 IndentPPDirectives: None
 IndentWidth:     2
 IndentWrappedFunctionNames: false
-JavaScriptQuotes: Single
+JavaScriptQuotes: Leave
 JavaScriptWrapImports: false
 KeepEmptyLinesAtTheStartOfBlocks: false
 MacroBlockBegin: ''

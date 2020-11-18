@@ -4,7 +4,7 @@
   // invalid
   handshake: {greeting: {exec_time: {}}},
   stmts: function() {
-    return { ok: {} };
+    return {ok: {}};
   }
 
 })
