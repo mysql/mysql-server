@@ -70,12 +70,8 @@ struct Node {
 
   // All nodes on the “right” side of an edge in simple_edges.
   NodeMap simple_neighborhood = 0;
-
-  // Speeds up BM_HyperStar17_ManyHyperedges by 5–10%.
-  unsigned char
-      padding[64 - sizeof(std::vector<unsigned>) * 2 - sizeof(NodeMap)];
-};
-static_assert(sizeof(Node) == 64, "");
+} MY_ATTRIBUTE(
+    (aligned(64)));  // Speeds up BM_HyperStar17_ManyHyperedges by 60%.
 
 struct Hyperedge {
   // The endpoints (hypernodes) of this hyperedge. See the comment about
