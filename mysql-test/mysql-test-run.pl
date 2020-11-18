@@ -3000,7 +3000,7 @@ sub environment_setup {
 
     my $path_ndb_testrun_log = "$opt_vardir/tmp/ndb_testrun.log";
     $ENV{'NDB_TOOLS_OUTPUT'} = $path_ndb_testrun_log;
- 
+
     # We need to extend PATH to ensure we find libcrypto/libssl at runtime
     # (ndbclient.dll depends on them)
     # These .dlls are stored in runtime_output_directory/<config>/
@@ -6051,8 +6051,7 @@ sub mysqld_stop {
 
   My::SafeProcess->run(name  => "mysqladmin shutdown " . $mysqld->name(),
                        path  => $exe_mysqladmin,
-                       args  => \$args,
-                       error => "/dev/null",);
+                       args  => \$args);
 }
 
 # This subroutine is added to handle option file options which always
