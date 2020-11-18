@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -90,7 +90,7 @@ NdbIndexStatImpl::~NdbIndexStatImpl()
     m_query_mutex = 0;
   }
 }
- 
+
 // sys tables meta
 
 NdbIndexStatImpl::Sys::Sys(NdbIndexStatImpl* impl, Ndb* ndb) :
@@ -554,7 +554,7 @@ NdbIndexStatImpl::drop_systables(Ndb* ndb)
     setError(dic->getNdbError().code, __LINE__);
     return -1;
   }
-    
+
   return 0;
 }
 
@@ -583,7 +583,7 @@ int
 NdbIndexStatImpl::check_systables(Ndb* ndb)
 {
   Sys sys(this, ndb);
-  
+
   if (check_systables(sys) == -1)
     return -1;
 
@@ -1290,10 +1290,13 @@ NdbIndexStatImpl::Cache::get_keyaddr(uint pos) const
   switch (m_addrLen) {
   case 4:
     addr += src[3] << 24;
+    // Fall through
   case 3:
     addr += src[2] << 16;
+    // Fall through
   case 2:
     addr += src[1] << 8;
+    // Fall through
   case 1:
     addr += src[0] << 0;
     break;
@@ -1313,10 +1316,13 @@ NdbIndexStatImpl::Cache::set_keyaddr(uint pos, uint addr)
   switch (m_addrLen) {
   case 4:
     dst[3] = (addr >> 24) & 0xFF;
+    // Fall through
   case 3:
     dst[2] = (addr >> 16) & 0xFF;
+    // Fall through
   case 2:
     dst[1] = (addr >> 8) & 0xFF;
+    // Fall through
   case 1:
     dst[0] = (addr >> 0) & 0xFF;
     break;
