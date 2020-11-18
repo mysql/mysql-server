@@ -1138,7 +1138,6 @@ Thd_ndb::Thd_ndb(THD *thd)
   connection = ndb_get_cluster_connection();
   m_connect_count = connection->get_connect_count();
   ndb = new Ndb(connection, "");
-  lock_count = 0;
   save_point_count = 0;
   trans = NULL;
   m_handler = NULL;
@@ -7360,17 +7359,16 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type) {
 
     DBUG_PRINT("enter", ("lock_type != F_UNLCK "
                          "this: %p  thd: %p  thd_ndb: %p  "
-                         "thd_ndb->lock_count: %d",
-                         this, thd, thd_ndb, thd_ndb->lock_count));
+                         "thd_ndb->external_lock_count: %d",
+                         this, thd, thd_ndb, thd_ndb->external_lock_count));
 
-    if ((error = start_statement(thd, thd_ndb, thd_ndb->lock_count++))) {
-      thd_ndb->lock_count--;
+    if ((error = start_statement(thd, thd_ndb, thd_ndb->external_lock_count))) {
       return error;
     }
     if ((error = init_handler_for_statement(thd))) {
-      thd_ndb->lock_count--;
       return error;
     }
+    thd_ndb->external_lock_count++;
     return 0;
   } else {
     Thd_ndb *thd_ndb = m_thd_ndb;
@@ -7378,11 +7376,13 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type) {
 
     DBUG_PRINT("enter", ("lock_type == F_UNLCK "
                          "this: %p  thd: %p  thd_ndb: %p  "
-                         "thd_ndb->lock_count: %d",
-                         this, thd, thd_ndb, thd_ndb->lock_count));
+                         "thd_ndb->external_lock_count: %d",
+                         this, thd, thd_ndb, thd_ndb->external_lock_count));
 
-    if (!--thd_ndb->lock_count) {
-      DBUG_PRINT("trans", ("Last external_lock"));
+    thd_ndb->external_lock_count--;
+    if (thd_ndb->external_lock_count == 0) {
+      DBUG_PRINT("trans", ("Last external_lock() unlock"));
+
       const bool autocommit_enabled =
           !thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN);
       // Only the 'CREATE TABLE ... SELECT' variant of the
@@ -7392,7 +7392,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type) {
 
       if (thd_ndb->trans && (autocommit_enabled || is_create_table_select)) {
         /*
-          Unlock is done without a transaction commit / rollback.
+          Unlock is done without transaction commit / rollback.
           This happens if the thread didn't update any rows as a part of normal
           DMLs or `CREATE TABLE ... SELECT` DDL .
           We must in this case close the transaction to release resources

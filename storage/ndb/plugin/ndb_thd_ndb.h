@@ -54,7 +54,14 @@ class Thd_ndb {
   class Ndb_cluster_connection *connection;
   class Ndb *ndb;
   class ha_ndbcluster *m_handler;
-  uint lock_count;
+
+  // Reference counter for external_lock() calls. The counter controls that
+  // the handlerton is registered as being part of the MySQL transaction only at
+  // the first external_lock() call (when the counter is zero). Also the counter
+  // controls that any started NDB transaction is closed when external_lock(..,
+  // F_UNLOCK) is called for the last time (i.e when the counter is back to zero
+  // again).
+  uint external_lock_count{0};
 
   // Reference counter for start_stmt() calls. The counter controls that the
   // handlerton is registered as being part of the MySQL transaction at the
