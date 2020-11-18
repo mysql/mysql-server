@@ -101,6 +101,15 @@ class HARNESS_EXPORT SocketOperationsBase {
           nbyte - buffer_offset);
 
       if (!write_res) {
+        if (buffer_offset != 0) {
+          const auto ec = write_res.error();
+
+          if (ec == make_error_condition(std::errc::operation_would_block) ||
+              ec == make_error_condition(
+                        std::errc::resource_unavailable_try_again)) {
+            return buffer_offset;
+          }
+        }
         return write_res;
       }
       buffer_offset += write_res.value();
