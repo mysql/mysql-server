@@ -3200,20 +3200,20 @@ bool has_dynamic_privilege_grant_option(Security_context *sctx,
 }
 
 /**
-  Search if an auth_id (search_for@search_for_host) is granted either directly
-  or indirectly to an auth_id (start@start_host) or to one of the mandatory
+  Search if an auth_id (search_for\@search_for_host) is granted either directly
+  or indirectly to an auth_id (start\@start_host) or to one of the mandatory
   roles
 
-  Searched if search_for@search_for_host is a direct or indirect descendant of
-  start@start_host or to one of the mandatory roles
+  Searched if search_for\@search_for_host is a direct or indirect descendant of
+  start\@start_host or to one of the mandatory roles
 
   @param start the user name to check
   @param start_host the host name to check
   @param search_for the user name of auth_id to look for
   @param search_for_host the host name of the auth_id to look for
-  @retval true: search_for@search_for_host is granted directly or indirectly to
-     start@start_host
-  @retval false: the two auth ids are not related
+  @retval true search_for\@search_for_host is granted directly or indirectly to
+     start\@start_host
+  @retval false the two auth ids are not related
 */
 static bool check_if_granted_role_recursive(LEX_CSTRING start,
                                             LEX_CSTRING start_host,
