@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -575,7 +575,7 @@ NdbSqlUtil::cmpText(const void* info, const void* p1, unsigned n1, const void* p
 
 int
 NdbSqlUtil::cmpBit(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
-{ 
+{
   /* Bitfields are stored as 32-bit words
    * This means that a byte-by-byte comparison will not work on all platforms
    * We do a word-wise comparison of the significant bytes.
@@ -617,7 +617,7 @@ NdbSqlUtil::cmpBit(const void* info, const void* p1, unsigned n1, const void* p2
     ~0;
   const Uint32 lastWord1= *wp1 & mask;
   const Uint32 lastWord2= *wp2 & mask;
-  
+
   if (lastWord1 < lastWord2)
     return -1;
   if (lastWord1 > lastWord2)
@@ -843,7 +843,7 @@ NdbSqlUtil::maskBit(const void* data, unsigned dataLen, const void* mask, unsign
       if ((*(wdata++) & *(wmask++)) != 0)
         return 1;
     }
-    
+
     /* For the last word, we mask out any insignificant bytes */
     const Uint32 sigBytes= bytes & 3; // 0..3; 0 == all bytes significant
     const Uint32 comparisonMask= sigBytes?
@@ -851,7 +851,7 @@ NdbSqlUtil::maskBit(const void* data, unsigned dataLen, const void* mask, unsign
       ~0;
     const Uint32 lastDataWord= *wdata & comparisonMask;
     const Uint32 lastMaskWord= *wmask & comparisonMask;
-    
+
     if ((lastDataWord & lastMaskWord) != 0)
       return 1;
 
@@ -863,7 +863,7 @@ NdbSqlUtil::maskBit(const void* data, unsigned dataLen, const void* mask, unsign
     {
       if ((*(wdata++) & *wmask) != *wmask)
         return 1;
-      
+
       wmask++;
     }
 
@@ -874,7 +874,7 @@ NdbSqlUtil::maskBit(const void* data, unsigned dataLen, const void* mask, unsign
       ~0;
     const Uint32 lastDataWord= *wdata & comparisonMask;
     const Uint32 lastMaskWord= *wmask & comparisonMask;
-    
+
     if ((lastDataWord & lastMaskWord) != lastMaskWord)
       return 1;
 
@@ -1030,7 +1030,7 @@ NdbSqlUtil::strnxfrm_bug7284(CHARSET_INFO* cs,
     if (n1 <= 0)
       return -1;
     // strxfrm to binary
-    const int n2 = (int)(*cs->coll->strnxfrm)(cs, 
+    const int n2 = (int)(*cs->coll->strnxfrm)(cs,
                                 xsp, sizeof(xsp), (uint)sizeof(xsp),
                                 nsp, n1,
 				MY_STRXFRM_PAD_WITH_SPACE);
@@ -1109,8 +1109,8 @@ void determineParams(Uint32 typeId,
       convLen = 1;
       break;
     }
-    // Fall through for Blob v2
   }
+  // Fall through for Blob v2
   default:
     /* Default determined by meta-info */
     convSize = 1 << typeLog2Size;
@@ -1119,7 +1119,7 @@ void determineParams(Uint32 typeId,
   }
 
   const Uint32 unitBytes = (convSize >> 3);
-  
+
   if (dataByteSize < (unitBytes * convLen))
   {
     /* Actual data is shorter than expected, could
@@ -1150,7 +1150,7 @@ void doConvert(Uint32 convSize,
   {
     Uint16* ptr = (Uint16*)data;
     for (Uint32 i = 0; i < convLen; i++){
-      Uint16 val = 
+      Uint16 val =
         ((*ptr & 0xFF00) >> 8) |
         ((*ptr & 0x00FF) << 8);
       *ptr = val;
@@ -1162,7 +1162,7 @@ void doConvert(Uint32 convSize,
   {
     Uint32* ptr = (Uint32*)data;
     for (Uint32 i = 0; i < convLen; i++){
-      Uint32 val = 
+      Uint32 val =
         ((*ptr & 0xFF000000) >> 24) |
         ((*ptr & 0x00FF0000) >> 8)  |
         ((*ptr & 0x0000FF00) << 8)  |
@@ -1176,7 +1176,7 @@ void doConvert(Uint32 convSize,
   {
     Uint64* ptr = (Uint64*)data;
     for (Uint32 i = 0; i < convLen; i++){
-      Uint64 val = 
+      Uint64 val =
         ((*ptr & (Uint64)0xFF00000000000000LL) >> 56) |
         ((*ptr & (Uint64)0x00FF000000000000LL) >> 40) |
         ((*ptr & (Uint64)0x0000FF0000000000LL) >> 24) |
@@ -1201,10 +1201,10 @@ void doConvert(Uint32 convSize,
  * Convert attribute byte order if necessary
  */
 void
-NdbSqlUtil::convertByteOrder(Uint32 typeId, 
-                             Uint32 typeLog2Size, 
-                             Uint32 arrayType, 
-                             Uint32 arraySize, 
+NdbSqlUtil::convertByteOrder(Uint32 typeId,
+                             Uint32 typeLog2Size,
+                             Uint32 arrayType,
+                             Uint32 arraySize,
                              uchar* data,
                              Uint32 dataByteSize)
 {
@@ -1224,7 +1224,7 @@ NdbSqlUtil::convertByteOrder(Uint32 typeId,
   uchar* dataPtr = data;
   const Uint32 bufSize = (MAX_TUPLE_SIZE_IN_WORDS + 1)/2;
   Uint64 alignedBuf[bufSize];
-  
+
   if (!aligned)
   {
     assert(dataByteSize <= 4 * MAX_TUPLE_SIZE_IN_WORDS);
@@ -1249,7 +1249,7 @@ NdbSqlUtil::convertByteOrder(Uint32 typeId,
   if (!aligned)
   {
     memcpy(data, alignedBuf, dataByteSize);
-  }  
+  }
 #endif
 }
 
