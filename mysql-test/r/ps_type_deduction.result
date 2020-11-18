@@ -3263,3 +3263,11 @@ DEALLOCATE PREPARE s;
 #               in item_func::propagate_type
 PREPARE s FROM 'DO ST_ENVELOPE(CEILING(?))';
 ERROR HY000: Incorrect arguments to ceiling
+# Bug#32145078: "Illegal mix of collations" against a string
+CREATE TABLE t1 (
+col1 VARCHAR(100) NOT NULL COLLATE latin1_swedish_ci,
+col2 VARCHAR(200) NOT NULL COLLATE utf8mb4_general_ci
+);
+PREPARE stmt1 FROM 'SELECT * FROM t1 WHERE col1 LIKE ? OR col2 LIKE ?';
+DEALLOCATE PREPARE stmt1;
+DROP TABLE t1;

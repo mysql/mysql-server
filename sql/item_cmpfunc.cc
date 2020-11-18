@@ -678,10 +678,28 @@ bool Item_func_like::resolve_type(THD *thd) {
   // Function returns 0 or 1
   max_length = 1;
 
-  // treat arguments as strings
-  if (param_type_is_default(thd, 0, -1)) return true;
-
-  if (Item_bool_func::resolve_type(thd)) return true;
+  /*
+    For dynamic parameters, assign character string data type.
+    When assigning character set and collation, If one argument is a string,
+    use its collation, if there are no string arguments, use the default
+    (connection) collation.
+  */
+  Item *base_item = nullptr;
+  for (uint i = 0; i < arg_count; i++) {
+    if (is_string_type(args[i]->data_type())) {
+      base_item = args[i];
+      break;
+    }
+  }
+  const CHARSET_INFO *charset = base_item != nullptr
+                                    ? base_item->collation.collation
+                                    : Item::default_charset();
+  for (uint i = 0; i < arg_count; i++) {
+    if (args[i]->data_type() == MYSQL_TYPE_INVALID &&
+        args[i]->propagate_type(thd,
+                                Type_properties(MYSQL_TYPE_VARCHAR, charset)))
+      return true;
+  }
 
   if (reject_geometry_args(arg_count, args, this)) return true;
 
