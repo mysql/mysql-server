@@ -7543,7 +7543,6 @@ static bool add_key_part(Key_use_array *keyuse_array, Key_field *key_field) {
    It also sets FT_HINTS values(op_type, op_value).
 
    @param keyuse_array      Key_use array
-   @param stat              JOIN_TAB structure
    @param cond              WHERE condition
    @param usable_tables     usable tables
    @param simple_match_expr true if this is the first call false otherwise.
@@ -7558,7 +7557,7 @@ static bool add_key_part(Key_use_array *keyuse_array, Key_field *key_field) {
 
 */
 
-static bool add_ft_keys(Key_use_array *keyuse_array, JOIN_TAB *stat, Item *cond,
+static bool add_ft_keys(Key_use_array *keyuse_array, Item *cond,
                         table_map usable_tables, bool simple_match_expr) {
   Item_func_match *cond_func = nullptr;
 
@@ -7613,10 +7612,8 @@ static bool add_ft_keys(Key_use_array *keyuse_array, JOIN_TAB *stat, Item *cond,
 
     if (down_cast<Item_cond *>(cond)->functype() == Item_func::COND_AND_FUNC) {
       Item *item;
-      while ((item = li++)) {
-        if (add_ft_keys(keyuse_array, stat, item, usable_tables, false))
-          return true;
-      }
+      while ((item = li++))
+        if (add_ft_keys(keyuse_array, item, usable_tables, false)) return true;
     }
   }
 
@@ -7624,18 +7621,20 @@ static bool add_ft_keys(Key_use_array *keyuse_array, JOIN_TAB *stat, Item *cond,
       !(usable_tables & cond_func->table_ref->map()))
     return false;
 
+  TABLE_LIST *tbl = cond_func->table_ref;
+  if (!tbl->table->keys_in_use_for_query.is_set(cond_func->key)) return false;
+
   cond_func->set_simple_expression(simple_match_expr);
 
-  const Key_use keyuse(cond_func->table_ref, cond_func,
-                       cond_func->key_item()->used_tables(), cond_func->key,
-                       FT_KEYPART,
+  const Key_use keyuse(tbl, cond_func, cond_func->key_item()->used_tables(),
+                       cond_func->key, FT_KEYPART,
                        0,            // optimize
                        0,            // keypart_map
                        ~(ha_rows)0,  // ref_table_rows
                        false,        // null_rejecting
                        nullptr,      // cond_guard
                        UINT_MAX);    // sj_pred_no
-
+  tbl->table->reginfo.join_tab->keys().set_bit(cond_func->key);
   return keyuse_array->push_back(keyuse);
 }
 
@@ -8101,7 +8100,7 @@ static bool update_ref_and_keys(THD *thd, Key_use_array *keyuse,
   }
 
   if (select_lex->ftfunc_list->elements) {
-    if (add_ft_keys(keyuse, join_tab, cond, normal_tables, true)) return true;
+    if (add_ft_keys(keyuse, cond, normal_tables, true)) return true;
   }
 
   /*
