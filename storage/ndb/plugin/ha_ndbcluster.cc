@@ -4168,18 +4168,17 @@ void ha_ndbcluster::get_hidden_fields_scan(
   options->numExtraGetValues = num_gets;
 }
 
-inline void ha_ndbcluster::eventSetAnyValue(
-    THD *thd, NdbOperation::OperationOptions *options) const {
+static inline void eventSetAnyValue(Thd_ndb *thd_ndb,
+                                    NdbOperation::OperationOptions *options) {
   options->anyValue = 0;
-  if (unlikely(m_slow_path)) {
+  if (unlikely(thd_ndb->m_slow_path)) {
     /*
       Ignore TNTO_NO_LOGGING for slave thd.  It is used to indicate
       log-replica-updates option.  This is instead handled in the
       injector thread, by looking explicitly at the
       opt_log_replica_updates flag.
     */
-    Thd_ndb *thd_ndb = get_thd_ndb(thd);
-    if (thd->slave_thread) {
+    if (thd_ndb->is_slave_thread()) {
       /*
         Slave-thread, we are applying a replicated event.
         We set the server_id to the value received from the log which
@@ -4189,7 +4188,7 @@ inline void ha_ndbcluster::eventSetAnyValue(
         AnyValues to/from Binlogged server-ids
       */
       options->optionsPresent |= NdbOperation::OperationOptions::OO_ANYVALUE;
-      options->anyValue = thd_unmasked_server_id(thd);
+      options->anyValue = thd_unmasked_server_id(thd_ndb->get_thd());
     } else if (thd_ndb->check_trans_option(Thd_ndb::TRANS_NO_LOGGING)) {
       options->optionsPresent |= NdbOperation::OperationOptions::OO_ANYVALUE;
       ndbcluster_anyvalue_set_nologging(options->anyValue);
@@ -4932,7 +4931,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record, bool primary_key_update,
   NdbOperation::OperationOptions *poptions = NULL;
   options.optionsPresent = 0;
 
-  eventSetAnyValue(thd, &options);
+  eventSetAnyValue(m_thd_ndb, &options);
   const bool need_flush =
       thd_ndb->add_row_check_if_batch_full(m_bytes_per_write);
 
@@ -5647,7 +5646,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
     }
   }
 
-  eventSetAnyValue(thd, &options);
+  eventSetAnyValue(m_thd_ndb, &options);
 
   const bool need_flush =
       thd_ndb->add_row_check_if_batch_full(m_bytes_per_write);
@@ -5930,7 +5929,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   NdbOperation::OperationOptions *poptions = NULL;
   options.optionsPresent = 0;
 
-  eventSetAnyValue(thd, &options);
+  eventSetAnyValue(m_thd_ndb, &options);
 
   /*
     Poor approx. let delete ~ tabsize / 4
@@ -7304,23 +7303,20 @@ int ha_ndbcluster::init_handler_for_statement(THD *thd) {
    */
 
   DBUG_TRACE;
-  Thd_ndb *thd_ndb = m_thd_ndb;
-  assert(thd_ndb);
 
   // store thread specific data first to set the right context
   m_autoincrement_prefetch = THDVAR(thd, autoincrement_prefetch_sz);
   release_blobs_buffer();
-  m_slow_path = m_thd_ndb->m_slow_path;
 
-  if (unlikely(m_slow_path)) {
+  if (unlikely(m_thd_ndb->m_slow_path)) {
     if (m_share == ndb_apply_status_share && thd->slave_thread)
       m_thd_ndb->set_trans_option(Thd_ndb::TRANS_INJECTED_APPLY_STATUS);
   }
 
   int ret = 0;
-  if (thd_ndb->m_handler == 0) {
+  if (m_thd_ndb->m_handler == nullptr) {
     assert(m_share);
-    ret = add_handler_to_open_tables(thd, thd_ndb, this);
+    ret = add_handler_to_open_tables(thd, m_thd_ndb, this);
   } else {
     struct Ndb_local_table_statistics &stat = m_table_info_instance;
     stat.no_uncommitted_rows_count = 0;

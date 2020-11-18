@@ -583,8 +583,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
                               NdbOperation::GetValueSpec gets[2]);
   void get_read_set(bool use_cursor, uint idx);
 
-  void eventSetAnyValue(THD *thd,
-                        NdbOperation::OperationOptions *options) const;
   bool check_index_fields_in_write_set(uint keyno);
 
   int log_exclusive_read(const NdbRecord *key_rec, const uchar *key, uchar *buf,
@@ -727,7 +725,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
   bool m_update_cannot_batch;
   uint m_bytes_per_write;
   bool m_skip_auto_increment;
-  bool m_slow_path;
   bool m_is_bulk_delete;
 
   /* State for setActiveHook() callback for reading blob data. */
