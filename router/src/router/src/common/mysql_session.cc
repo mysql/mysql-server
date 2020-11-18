@@ -32,6 +32,7 @@
 
 #include <mysql.h>
 
+#include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/mysql_client_thread_token.h"
 #define MYSQL_ROUTER_LOG_DOMAIN "sql"
 #include "mysql/harness/logging/logging.h"
@@ -277,24 +278,77 @@ void MySQLSession::disconnect() {
   connection_address_.clear();
 }
 
+const std::error_category &mysql_category() noexcept {
+  class category_impl : public std::error_category {
+   public:
+    const char *name() const noexcept override { return "mysql_client"; }
+    std::string message(int ev) const override { return ER_CLIENT(ev); }
+  };
+
+  static category_impl instance;
+  return instance;
+}
+
+static MysqlError make_mysql_error_code(unsigned int e) {
+  return {e, ER_CLIENT(e), "HY000"};
+}
+
+static MysqlError make_mysql_error_code(MYSQL *m) {
+  return {mysql_errno(m), mysql_error(m), mysql_sqlstate(m)};
+}
+
+stdx::expected<MySQLSession::mysql_result_type, MysqlError>
+MySQLSession::real_query(const std::string &q) {
+  if (!connected_) {
+    return stdx::make_unexpected(
+        make_mysql_error_code(CR_COMMANDS_OUT_OF_SYNC));
+  }
+
+  auto query_res = mysql_real_query(connection_, q.data(), q.size());
+
+  if (query_res != 0) {
+    return stdx::make_unexpected(make_mysql_error_code(connection_));
+  }
+
+  mysql_result_type res{mysql_store_result(connection_)};
+  if (!res) {
+    // no error, but also no resultset
+    if (mysql_errno(connection_) == 0) return {};
+
+    return stdx::make_unexpected(make_mysql_error_code(connection_));
+  }
+
+#if defined(__SUNPRO_CC)
+  // ensure sun-cc doesn't try to the copy-constructor on a move-only type
+  return std::move(res);
+#else
+  return res;
+#endif
+}
+
+stdx::expected<MySQLSession::mysql_result_type, MysqlError>
+MySQLSession::logged_real_query(const std::string &q) {
+  logging_strategy_->log("Executing query: "s + log_filter_.filter(q));
+  auto query_res = real_query(q);
+
+  logging_strategy_->log("Done executing query");
+
+  return query_res;
+}
+
 void MySQLSession::execute(const std::string &q) {
-  logging_strategy_->log("Executing query: "s + log_filter_.filter(q).c_str());
-  std::shared_ptr<void> exit_guard(nullptr, [this](void *) {
-    logging_strategy_->log("Done executing query");
-  });
-  if (connected_) {
-    if (mysql_real_query(connection_, q.data(), q.length()) != 0) {
-      std::stringstream ss;
-      ss << "Error executing MySQL query \"" << log_filter_.filter(q);
-      ss << "\": " << mysql_error(connection_) << " ("
-         << mysql_errno(connection_) << ")";
-      throw Error(ss.str().c_str(), mysql_errno(connection_),
-                  mysql_error(connection_));
-    }
-    MYSQL_RES *res = mysql_store_result(connection_);
-    if (res) mysql_free_result(res);
-  } else
-    throw std::logic_error("Not connected");
+  auto query_res = logged_real_query(q);
+
+  if (!query_res) {
+    auto ec = query_res.error();
+
+    std::stringstream ss;
+    ss << "Error executing MySQL query \"" << log_filter_.filter(q);
+    ss << "\": " << ec.message() << " (" << ec.value() << ")";
+    throw Error(ss.str(), ec.value(), ec.message());
+  }
+
+  // in case we got a result, just let it get freed.
 }
 
 /*
@@ -309,51 +363,37 @@ void MySQLSession::execute(const std::string &q) {
 void MySQLSession::query(
     const std::string &q, const RowProcessor &processor,
     const FieldValidator &validator /*=null_field_validator*/) {
-  logging_strategy_->log("Executing query: "s + log_filter_.filter(q).c_str());
-  std::shared_ptr<void> exit_guard(nullptr, [this](void *) {
-    logging_strategy_->log("Done executing query");
-  });
-  if (connected_) {
-    if (mysql_real_query(connection_, q.data(), q.length()) != 0) {
-      std::stringstream ss;
-      ss << "Error executing MySQL query \"" << log_filter_.filter(q);
-      ss << "\": " << mysql_error(connection_) << " ("
-         << mysql_errno(connection_) << ")";
-      throw Error(ss.str().c_str(), mysql_errno(connection_),
-                  mysql_error(connection_));
-    }
-    MYSQL_RES *res = mysql_store_result(connection_);
-    if (res) {
-      // get column info and give it to field validator,
-      // which should throw if it doesn't like the columns
-      unsigned int nfields = mysql_num_fields(res);
-      MYSQL_FIELD *fields = mysql_fetch_fields(res);
-      validator(nfields, fields);
+  auto query_res = logged_real_query(q);
 
-      std::vector<const char *> outrow;
-      outrow.resize(nfields);
-      MYSQL_ROW row;
-      while ((row = mysql_fetch_row(res))) {
-        for (unsigned int i = 0; i < nfields; i++) {
-          outrow[i] = row[i];
-        }
-        try {
-          if (!processor(outrow)) break;
-        } catch (...) {
-          mysql_free_result(res);
-          throw;
-        }
-      }
-      mysql_free_result(res);
-    } else {
-      std::stringstream ss;
-      ss << "Error fetching query results: ";
-      ss << mysql_error(connection_) << " (" << mysql_errno(connection_) << ")";
-      throw Error(ss.str().c_str(), mysql_errno(connection_),
-                  mysql_error(connection_));
+  if (!query_res) {
+    auto ec = query_res.error();
+
+    std::stringstream ss;
+    ss << "Error executing MySQL query \"" << log_filter_.filter(q);
+    ss << "\": " << ec.message() << " (" << ec.value() << ")";
+    throw Error(ss.str(), ec.value(), ec.message());
+  }
+
+  // no resultset
+  if (!query_res.value()) return;
+
+  auto *res = query_res.value().get();
+
+  // get column info and give it to field validator,
+  // which should throw if it doesn't like the columns
+  unsigned int nfields = mysql_num_fields(res);
+
+  MYSQL_FIELD *fields = mysql_fetch_fields(res);
+  validator(nfields, fields);
+
+  std::vector<const char *> outrow;
+  outrow.resize(nfields);
+  while (MYSQL_ROW row = mysql_fetch_row(res)) {
+    for (unsigned int i = 0; i < nfields; i++) {
+      outrow[i] = row[i];
     }
-  } else
-    throw std::logic_error("Not connected");
+    if (!processor(outrow)) break;
+  }
 }
 
 class RealResultRow : public MySQLSession::ResultRow {
@@ -370,50 +410,41 @@ class RealResultRow : public MySQLSession::ResultRow {
 std::unique_ptr<MySQLSession::ResultRow> MySQLSession::query_one(
     const std::string &q,
     const FieldValidator &validator /*= null_field_validator*/) {
-  logging_strategy_->log("Executing query: "s + log_filter_.filter(q).c_str());
-  std::shared_ptr<void> exit_guard(nullptr, [this](void *) {
-    logging_strategy_->log("Done executing query");
-  });
-  if (connection_) {
-    if (mysql_real_query(connection_, q.data(), q.length()) != 0) {
-      std::stringstream ss;
-      ss << "Error executing MySQL query \"" << log_filter_.filter(q);
-      ss << "\": " << mysql_error(connection_) << " ("
-         << mysql_errno(connection_) << ")";
-      throw Error(ss.str().c_str(), mysql_errno(connection_),
-                  mysql_error(connection_));
-    }
-    MYSQL_RES *res = mysql_store_result(connection_);
-    if (res) {
-      // get column info and give it to field validator,
-      // which should throw if it doesn't like the columns
-      unsigned int nfields = mysql_num_fields(res);
-      MYSQL_FIELD *fields = mysql_fetch_fields(res);
-      validator(nfields, fields);
+  auto query_res = logged_real_query(q);
 
-      std::vector<const char *> outrow;
-      MYSQL_ROW row;
-      if ((row = mysql_fetch_row(res))) {
-        outrow.resize(nfields);
-        for (unsigned int i = 0; i < nfields; i++) {
-          outrow[i] = row[i];
-        }
-      }
-      if (outrow.empty()) {
-        mysql_free_result(res);
-        return nullptr;
-      }
-      return std::make_unique<RealResultRow>(outrow, res);
-    } else {
-      std::stringstream ss;
-      ss << "Error fetching query results: ";
-      ss << mysql_error(connection_) << " (" << mysql_errno(connection_) << ")";
-      throw Error(ss.str().c_str(), mysql_errno(connection_),
-                  mysql_error(connection_));
-    }
+  if (!query_res) {
+    auto ec = query_res.error();
+
+    std::stringstream ss;
+    ss << "Error executing MySQL query \"" << log_filter_.filter(q);
+    ss << "\": " << ec.message() << " (" << ec.value() << ")";
+    throw Error(ss.str(), ec.value(), ec.message());
   }
-  throw Error("Not connected", 0);  // TODO: query() returns std::logic_error()
-                                    // in such case, should probably be the same
+
+  // no resultset
+  if (!query_res.value()) return {};
+
+  auto *res = query_res.value().get();
+
+  // get column info and give it to field validator,
+  // which should throw if it doesn't like the columns
+  unsigned int nfields = mysql_num_fields(res);
+  MYSQL_FIELD *fields = mysql_fetch_fields(res);
+  validator(nfields, fields);
+
+  if (nfields == 0) return {};
+
+  if (MYSQL_ROW row = mysql_fetch_row(res)) {
+    std::vector<const char *> outrow(nfields);
+
+    for (unsigned int i = 0; i < nfields; i++) {
+      outrow[i] = row[i];
+    }
+
+    return std::make_unique<RealResultRow>(outrow, query_res.value().release());
+  }
+
+  return {};
 }
 
 uint64_t MySQLSession::last_insert_id() noexcept {
