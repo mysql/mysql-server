@@ -28,7 +28,8 @@
 #include <sys/types.h>
 
 #include "sql/parse_tree_helpers.h"
-#include "sql/sql_optimizer.cc"
+#include "sql/sql_optimizer.h"
+#include "sql/sql_optimizer_internal.h"
 #include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/mock_field_long.h"
 #include "unittest/gunit/test_utils.h"

@@ -45,4 +45,7 @@ extern bool opt_initialize_insecure;
 bool initialize_create_data_directory(const char *data_home);
 extern bool mysql_initialize_directory_freshly_created;
 
+/* Declare it here, so we can unit test it. */
+extern bool generate_password(char *password, int size);
+
 #endif /* SQL_INITIALIZE_H */

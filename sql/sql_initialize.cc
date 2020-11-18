@@ -81,7 +81,7 @@ static const char *cmd_descs[] = {
     "Creating the sys schema",
     nullptr};
 
-static bool generate_password(char *password, int size) {
+bool generate_password(char *password, int size) {
 #define UPCHARS "QWERTYUIOPASDFGHJKLZXCVBNM"
 #define LOWCHARS "qwertyuiopasdfghjklzxcvbnm"
 #define NUMCHARS "1234567890"

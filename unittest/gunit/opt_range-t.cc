@@ -29,7 +29,8 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "sql/opt_range.cc"
+#include "sql/opt_range.h"
+#include "sql/opt_range_internal.h"
 #include "sql/parse_tree_helpers.h"
 #include "unittest/gunit/fake_range_opt_param.h"
 #include "unittest/gunit/fake_table.h"
@@ -434,7 +435,8 @@ const SEL_ARG *null_arg = nullptr;
 
 static void print_selarg_ranges(String *s, SEL_ARG *sel_arg,
                                 const KEY_PART_INFO *kpi) {
-  for (SEL_ARG *cur = sel_arg->first(); cur != null_element; cur = cur->right) {
+  for (SEL_ARG *cur = sel_arg->first(); cur != opt_range::null_element;
+       cur = cur->right) {
     String current_range;
     append_range(&current_range, kpi, cur->min_value, cur->max_value,
                  cur->min_flag | cur->max_flag);

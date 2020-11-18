@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,12 @@
 
 #include <gtest/gtest.h>
 
-#include "sql/sql_initialize.cc"
+#include "sql/sql_initialize.h"
+
+#define UPCHARS "QWERTYUIOPASDFGHJKLZXCVBNM"
+#define LOWCHARS "qwertyuiopasdfghjklzxcvbnm"
+#define NUMCHARS "1234567890"
+#define SYMCHARS ",.-+*;:_!#%&/()=?><"
 
 namespace initialize_password_unittest {
 

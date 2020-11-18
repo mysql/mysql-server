@@ -28,14 +28,6 @@
   Classes used for query optimizations.
 */
 
-/*
-   This structure is used to collect info on potentially sargable
-   predicates in order to check whether they become sargable after
-   reading const tables.
-   We form a bitmap of indexes that can be used for sargable predicates.
-   Only such indexes are involved in range analysis.
-*/
-
 #include <sys/types.h>
 
 #include <cstring>
@@ -78,6 +70,14 @@ class mem_root_deque;
 typedef Mem_root_array<Key_use> Key_use_array;
 
 class Cost_model_server;
+
+/*
+   This structure is used to collect info on potentially sargable
+   predicates in order to check whether they become sargable after
+   reading const tables.
+   We form a bitmap of indexes that can be used for sargable predicates.
+   Only such indexes are involved in range analysis.
+*/
 
 struct SARGABLE_PARAM {
   Field *field;     /* field against which to check sargability */

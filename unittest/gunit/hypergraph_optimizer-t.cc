@@ -55,13 +55,21 @@
 class MakeHypergraphTest : public ::testing::Test {
  public:
   void SetUp() override { m_initializer.SetUp(); }
-  void TearDown() override { m_initializer.TearDown(); }
+  void TearDown() override {
+    DestroyFakeTables();
+    m_initializer.TearDown();
+  }
 
  protected:
   SELECT_LEX *ParseAndResolve(const char *query, bool nullable);
   void ResolveFieldToFakeTable(Item *item);
   void ResolveAllFieldsToFakeTable(
       const mem_root_deque<TABLE_LIST *> &join_list);
+  void DestroyFakeTables() {
+    for (const auto &name_and_table : m_fake_tables) {
+      destroy(name_and_table.second);
+    }
+  }
 
   my_testing::Server_initializer m_initializer;
   THD *m_thd = nullptr;
@@ -128,7 +136,7 @@ SELECT_LEX *MakeHypergraphTest::ParseAndResolve(const char *query,
   select_lex->prepare(m_thd, nullptr);
 
   // Create a fake, tiny JOIN. (This would normally be done in optimization.)
-  select_lex->join = new JOIN(m_thd, select_lex);
+  select_lex->join = new (m_thd->mem_root) JOIN(m_thd, select_lex);
   select_lex->join->where_cond = select_lex->where_cond();
   select_lex->join->having_cond = nullptr;
   select_lex->join->fields = &select_lex->fields;
@@ -753,6 +761,10 @@ TEST_F(HypergraphOptimizerTest, DistinctWithOrderBy) {
   EXPECT_TRUE(sort2->m_remove_duplicates);
 
   EXPECT_EQ(AccessPath::TABLE_SCAN, child->sort().child->type);
+
+  // Maybe JOIN::destroy() should do this:
+  select_lex->join->filesorts_to_cleanup.clear();
+  select_lex->join->filesorts_to_cleanup.shrink_to_fit();
 }
 
 TEST_F(HypergraphOptimizerTest, DistinctSubsumesOrderBy) {
@@ -776,4 +788,8 @@ TEST_F(HypergraphOptimizerTest, DistinctSubsumesOrderBy) {
 
   // No separate sort for ORDER BY.
   EXPECT_EQ(AccessPath::TABLE_SCAN, root->sort().child->type);
+
+  // Maybe JOIN::destroy() should do this:
+  select_lex->join->filesorts_to_cleanup.clear();
+  select_lex->join->filesorts_to_cleanup.shrink_to_fit();
 }
