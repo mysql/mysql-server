@@ -32,6 +32,7 @@
 #include <thread>  // sleep_for
 
 #include "classic_mock_session.h"
+#include "harness_assert.h"
 #include "mysql/harness/logging/logging.h"  // log_
 #include "mysql/harness/net_ts/internet.h"  // net::ip::tcp
 #include "mysql/harness/net_ts/socket.h"

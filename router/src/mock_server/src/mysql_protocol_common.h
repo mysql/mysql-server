@@ -27,8 +27,6 @@
 
 #include <string>
 
-#include "mysqlrouter/mysql_protocol.h"
-
 namespace server_mock {
 
 /** @enum MySQLColumnType
@@ -91,8 +89,6 @@ struct column_info_type {
  *         of the single row (ordered by column)
  **/
 using RowValueType = std::vector<std::pair<bool, std::string>>;
-
-MySQLColumnType column_type_from_string(const std::string &type);
 
 }  // namespace server_mock
 

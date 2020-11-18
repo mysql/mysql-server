@@ -59,19 +59,16 @@ class DestRoundRobin : public RouteDestination {
  public:
   /** @brief Default constructor
    *
+   * @param io_ctx context for io operations
    * @param protocol Protocol for the destination, defaults to value returned
    *        by Protocol::get_default()
-   * @param sock_ops Socket operations implementation to use, defaults
-   *        to "real" (not mock) implementation
-   * (mysql_harness::SocketOperations)
    * @param thread_stack_size memory in kilobytes allocated for thread's stack
    */
   DestRoundRobin(
+      net::io_context &io_ctx,
       Protocol::Type protocol = Protocol::get_default(),
-      mysql_harness::SocketOperationsBase *sock_ops =
-          mysql_harness::SocketOperations::instance(),
       size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes)
-      : RouteDestination(protocol, sock_ops),
+      : RouteDestination(io_ctx, protocol),
         quarantine_thread_(thread_stack_size),
         stopped_{stopper_.get_future()} {}
 

@@ -125,8 +125,6 @@ ENDIF()
 add_harness_plugin(mock_server
   NO_INSTALL
   SOURCES duktape_statement_reader.cc
-  mysql_protocol_decoder.cc
-  mysql_protocol_encoder.cc
   x_protocol_decoder.cc
   x_protocol_encoder.cc
   mysql_server_mock.cc
@@ -140,7 +138,7 @@ add_harness_plugin(mock_server
   mock_server_component.cc
   authentication.cc
   REQUIRES mysql_protocol;duktape;${PROTOBUF_LITE_LIBRARY};mysqlxmessages_lite;
-  harness_stdx;harness-library)
+  harness_stdx;harness-library;router_lib)
 
 TARGET_INCLUDE_DIRECTORIES(mock_server SYSTEM PUBLIC
   ${DUKTAPE_SOURCE_DIR}/src/

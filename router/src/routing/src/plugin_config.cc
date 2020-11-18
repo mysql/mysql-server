@@ -38,6 +38,7 @@
 #include "mysql_router_thread.h"         // kDefaultStackSizeInKiloByte
 #include "mysqlrouter/routing.h"         // AccessMode
 #include "mysqlrouter/uri.h"
+#include "mysqlrouter/utils.h"  // split_addr_port
 #include "ssl_mode.h"
 
 using namespace stdx::string_view_literals;

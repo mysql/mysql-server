@@ -51,7 +51,8 @@
 #include "mysqlrouter/classic_protocol_constants.h"
 #include "mysqlrouter/classic_protocol_frame.h"
 #include "mysqlrouter/classic_protocol_message.h"
-#include "router/src/routing/src/protocol/base_protocol.h"
+#include "mysqlrouter/utils.h"  // to_string
+#include "protocol/base_protocol.h"
 #include "x_protocol_splicer.h"
 
 // #define DEBUG_SSL

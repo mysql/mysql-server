@@ -25,28 +25,9 @@
 #ifndef MYSQLROUTER_ROUTING_INCLUDED
 #define MYSQLROUTER_ROUTING_INCLUDED
 
-#include "mysqlrouter/plugin_config.h"
-#include "socket_operations.h"
-#include "tcp_address.h"
-
+#include <chrono>
 #include <map>
 #include <string>
-
-#ifdef _WIN32
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#else
-#include <poll.h>
-#endif
-
-#ifdef _WIN32
-typedef ULONG nfds_t;
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#endif
-
-#include "my_inttypes.h"  // ssize_t
 
 namespace routing {
 
@@ -105,14 +86,6 @@ extern const unsigned int kDefaultNetBufferLength;
  *
  */
 extern const std::chrono::seconds kDefaultClientConnectTimeout;
-
-#ifdef _WIN32
-using native_handle_type = SOCKET;
-const native_handle_type kInvalidSocket{INVALID_SOCKET};
-#else
-using native_handle_type = int;
-const native_handle_type kInvalidSocket{-1};
-#endif
 
 /** @brief Modes supported by Routing plugin */
 enum class AccessMode {

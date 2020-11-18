@@ -107,6 +107,7 @@ SET(TESTS
   test_net_ts_io_context_socket.cc
   test_net_ts_socket.cc
   test_net_ts_timer.cc
+  test_net_ts_win32_named_pipe.cc
 )
 
 FOREACH(TEST ${TESTS})
