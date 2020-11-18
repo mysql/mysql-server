@@ -3510,6 +3510,7 @@ sub ndbcluster_wait_started($$) {
   # Check that ndb_mgmd(s) are still alive
   foreach my $ndb_mgmd (in_cluster($cluster, ndb_mgmds())) {
     my $proc = $ndb_mgmd->{proc};
+    next unless defined $proc;
     if (!$proc->wait_one(0)) {
       mtr_warning("$proc died");
       return 2;
@@ -3616,7 +3617,8 @@ sub ndb_mgmd_start ($$) {
   my $args;
   mtr_init_args(\$args);
   mtr_add_arg($args, "--defaults-file=%s",         $path_config_file);
-  mtr_add_arg($args, "--defaults-group-suffix=%s", $cluster->suffix());
+  mtr_add_arg($args, "--defaults-group-suffix=%s",
+              $ndb_mgmd->after('cluster_config.ndb_mgmd'));
   mtr_add_arg($args, "--mycnf");
   mtr_add_arg($args, "--nodaemon");
   mtr_add_arg($args, "--configdir=%s",             "$dir");

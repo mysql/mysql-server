@@ -119,6 +119,13 @@ sub fix_host {
   return $hosts[$host_no];
 }
 
+sub fix_cluster_config_suffix {
+  my ($self, $config, $group_name, $group) = @_;
+
+  my ($process_type, $idx, $suffix) = split(/\./, $group_name);
+  return ".$suffix";
+}
+
 sub is_unique {
   my ($config, $name, $value) = @_;
 
@@ -521,6 +528,16 @@ sub post_fix_mysql_cluster_section {
       }
     }
 
+    # Add ndb_connectstring to each ndb_mgmd connected to this
+    # cluster.
+    foreach my $ndb_mgmd ($config->like('cluster_config.ndb_mgmd.')) {
+      if ($ndb_mgmd->suffix() eq $group->suffix()) {
+        my $after = $ndb_mgmd->after('cluster_config.ndb_mgmd');
+        $config->insert("ndb_mgmd$after",
+                        'ndb_connectstring', $ndb_connectstring);
+      }
+    }
+
     # Add ndb_connectstring to each mysqld connected to this
     # cluster.
     foreach my $mysqld ($config->like('cluster_config.mysqld.')) {
@@ -607,6 +624,7 @@ sub run_generate_sections_from_cluster_config {
       $group->insert($option_name, join(",", @hosts));
 
       # Generate sections for each host
+      my $instances = @hosts;
       foreach my $host (@hosts) {
         my $idx    = $idxes{$option_name}++;
         my $suffix = $group->suffix();
@@ -632,8 +650,19 @@ sub run_generate_sections_from_cluster_config {
         # If prediction of node id is wrong, and node id for another node type
         # is used, that will cause testcase to fail during setup.
         if ($option_name eq 'ndbd') {
+          if ($instances > 1) {
+            $config->insert("$option_name.$idx$suffix",
+                            'ndb-nodeid', $nodeid);
+          }
+        }
+
+        if ($option_name eq 'ndb_mgmd') {
+          if ($instances > 1) {
+            $config->insert("$option_name.$idx$suffix",
+                            'ndb-nodeid', $nodeid);
+          }
           $config->insert("$option_name.$idx$suffix",
-                          'ndb-nodeid', $nodeid);
+                          'cluster-config-suffix', $suffix);
         }
 
         if ($option_name eq 'mysqld') {
@@ -693,6 +722,9 @@ sub new_config {
 
   $self->run_section_rules($config, 'cluster_config.ndb_mgmd.',
                            @ndb_mgmd_rules);
+
+  $self->run_section_rules($config, 'ndb_mgmd.',
+    ({ 'cluster-config-suffix' => \&fix_cluster_config_suffix },));
 
   $self->run_section_rules($config, 'cluster_config.ndbd', @ndbd_rules);
 
