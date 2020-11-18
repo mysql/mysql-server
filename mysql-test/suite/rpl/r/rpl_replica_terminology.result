@@ -58,14 +58,14 @@ Note	1760	Storing MySQL user name or password information in the master info rep
 CREATE TABLE t1 (c1 INT);
 INSERT INTO t1 VALUES (1);
 [connection slave]
-START REPLICA UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=1021;
+START REPLICA UNTIL SOURCE_LOG_FILE='LOG_FILE', SOURCE_LOG_POS=LOG_POS;
 include/wait_for_slave_sql_to_stop.inc
 include/stop_slave.inc
 include/diff_tables.inc [master:t1,slave:t1]
 DROP TABLE t1;
 RESET REPLICA;
 RESET MASTER;
-START REPLICA UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=1021;
+START REPLICA UNTIL MASTER_LOG_FILE='LOG_FILE', MASTER_LOG_POS=LOG_POS;
 Warnings:
 Warning	1287	'MASTER_LOG_FILE' is deprecated and will be removed in a future release. Please use SOURCE_LOG_FILE instead
 Warning	1287	'MASTER_LOG_POS' is deprecated and will be removed in a future release. Please use SOURCE_LOG_POS instead

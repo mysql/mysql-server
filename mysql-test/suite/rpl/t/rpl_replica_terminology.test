@@ -190,6 +190,7 @@ INSERT INTO t1 VALUES (1);
 --source include/rpl_connection_slave.inc
 # Once deprecation warnings are introduced, this statement shall
 # continue to not produce any warnings
+--replace_result $log_file LOG_FILE $log_pos LOG_POS
 --eval START REPLICA UNTIL SOURCE_LOG_FILE='$log_file', SOURCE_LOG_POS=$log_pos
 --source include/wait_for_slave_sql_to_stop.inc
 --source include/stop_slave.inc
@@ -200,6 +201,7 @@ RESET REPLICA;
 RESET MASTER;
 # Once deprecation warnings are introduced, this statement shall
 # produce warnings
+--replace_result $log_file LOG_FILE $log_pos LOG_POS
 --eval START REPLICA UNTIL MASTER_LOG_FILE='$log_file', MASTER_LOG_POS=$log_pos
 --source include/wait_for_slave_sql_to_stop.inc
 --source include/stop_slave.inc
