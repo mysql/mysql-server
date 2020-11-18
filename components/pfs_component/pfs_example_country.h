@@ -45,9 +45,9 @@ extern native_mutex_t LOCK_country_records_array;
 /* A structure to denote a single row of the table. */
 class Country_record {
  public:
-  char name[20];
+  char name[COUNTRY_NAME_LEN];
   unsigned int name_length;
-  char continent_name[20];
+  char continent_name[CONTINENT_NAME_LEN];
   unsigned int continent_name_length;
   PSI_year year;
   PSI_bigint population;
@@ -100,10 +100,10 @@ class Country_index {
 class Country_index_by_name : public Country_index {
  public:
   PSI_plugin_key_string m_continent_name;
-  char m_continent_name_buffer[20];
+  char m_continent_name_buffer[CONTINENT_NAME_LEN];
 
   PSI_plugin_key_string m_country_name;
-  char m_country_name_buffer[20];
+  char m_country_name_buffer[COUNTRY_NAME_LEN];
 
   bool match(Country_record *record) override {
     return mysql_service_pfs_plugin_table->match_key_string(
