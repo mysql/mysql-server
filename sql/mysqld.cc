@@ -717,6 +717,7 @@
 #include "mysys_err.h"  // EXIT_OUT_OF_MEMORY
 #include "pfs_thread_provider.h"
 #include "print_version.h"
+#include "scope_guard.h"                           // create_scope_guard()
 #include "server_component/log_sink_buffer.h"      // log_error_stage_set()
 #include "server_component/log_sink_perfschema.h"  // log_error_read_log()
 #ifdef _WIN32
@@ -6001,22 +6002,34 @@ static int init_server_components() {
     flags |= PLUGIN_INIT_DELAY_UNTIL_AFTER_UPGRADE;
 
   /*
-    Initialize the cost model, but delete it after the pfs is initialized.
+    Initialize the cost model, but delete it after the plugins are initialized.
     Cost model is needed while dropping and creating pfs tables to
     update metadata of referencing views (if there are any).
    */
   init_optimizer_cost_module(true);
-  if (plugin_register_dynamic_and_init_all(&remaining_argc, remaining_argv,
-                                           flags)) {
-    delete_optimizer_cost_module();
-    // Delete all DD tables in case of error in initializing plugins.
-    if (dd::upgrade_57::in_progress())
-      (void)dd::init(dd::enum_dd_init_type::DD_DELETE);
+  {  // New scope in which the error handler hook is modified.
+    auto restore_ehh = create_scope_guard([ehh_val = error_handler_hook]() {
+      DBUG_ASSERT(ehh_val == my_message_stderr);
+      error_handler_hook = ehh_val;
+    });
+    error_handler_hook = +[](uint c, const char *s, myf f) {
+      if (c != ER_NO_SUCH_TABLE || strstr(s, "mysql.server_cost") == nullptr) {
+        my_message_stderr(c, s, f);
+      }
+    };
+    if (plugin_register_dynamic_and_init_all(&remaining_argc, remaining_argv,
+                                             flags)) {
+      delete_optimizer_cost_module();
+      // Delete all DD tables in case of error in initializing plugins.
+      if (dd::upgrade_57::in_progress())
+        (void)dd::init(dd::enum_dd_init_type::DD_DELETE);
 
-    if (!opt_validate_config)
-      LogErr(ERROR_LEVEL, ER_CANT_INITIALIZE_DYNAMIC_PLUGINS);
-    unireg_abort(MYSQLD_ABORT_EXIT);
-  }
+      if (!opt_validate_config)
+        LogErr(ERROR_LEVEL, ER_CANT_INITIALIZE_DYNAMIC_PLUGINS);
+      unireg_abort(MYSQLD_ABORT_EXIT);
+    }
+  }  // End of extra scope where missing server_cost errors are not logged
+  DBUG_ASSERT(error_handler_hook == my_message_stderr);
   dynamic_plugins_are_initialized =
       true; /* Don't separate from init function */
   delete_optimizer_cost_module();
