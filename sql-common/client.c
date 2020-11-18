@@ -1695,7 +1695,20 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
   end_pos=pos+pkt_len;
   for (field=0 ; field < fields ; field++)
   {
+    if (pos >= end_pos) {
+      set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+      return -1;
+    }
     len=(ulong) net_field_length_checked(&pos, (ulong)(end_pos - pos));
+    DBUG_EXECUTE_IF("simulate_bad_field_length_1", {
+      len= 1000000L;
+      fields= 2;
+    });
+    DBUG_EXECUTE_IF("simulate_bad_field_length_2", {
+      len= pkt_len - 1;
+      fields= 2;
+    });
+
     if (pos > end_pos)
     {
       set_mysql_error(mysql, CR_UNKNOWN_ERROR, unknown_sqlstate);
@@ -1713,12 +1726,18 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
       pos+=len;
       *lengths++=len;
     }
+
+    /*
+     It's safe to write to prev_pos here because we already check
+     for a valid pos in the beginning of this loop.
+    */
     if (prev_pos)
       *prev_pos=0;				/* Terminate prev field */
     prev_pos=pos;
   }
   row[field]=(char*) prev_pos+1;		/* End of last field */
-  *prev_pos=0;					/* Terminate last field */
+  if (prev_pos < end_pos)
+    *prev_pos=0;					/* Terminate last field */
   return 0;
 }
 
