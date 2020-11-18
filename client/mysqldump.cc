@@ -4333,8 +4333,18 @@ static int dump_all_databases() {
   MYSQL_RES *tableres;
   int result = 0;
 
+  my_ulonglong total_databases = 0;
+  char **database_list;
+  uint db_cnt = 0, cnt = 0;
+  uint mysql_db_found = 0;
+
   if (mysql_query_with_error_report(mysql, &tableres, "SHOW DATABASES"))
     return 1;
+
+  total_databases = mysql_num_rows(tableres);
+  database_list = (char **)my_malloc(
+      PSI_NOT_INSTRUMENTED, (sizeof(char *) * total_databases), MYF(MY_WME));
+
   while ((row = mysql_fetch_row(tableres))) {
     if (mysql_get_server_version(mysql) >= FIRST_INFORMATION_SCHEMA_VERSION &&
         !my_strcasecmp(&my_charset_latin1, row[0], INFORMATION_SCHEMA_DB_NAME))
@@ -4349,9 +4359,30 @@ static int dump_all_databases() {
       continue;
 
     if (is_ndbinfo(mysql, row[0])) continue;
-
-    if (dump_all_tables_in_db(row[0])) result = 1;
+    if (mysql_db_found || (!my_strcasecmp(charset_info, row[0], "mysql"))) {
+      if (dump_all_tables_in_db(row[0])) result = 1;
+      mysql_db_found = 1;
+      /*
+        once mysql database is found dump all dbs saved as part
+        of database_list
+      */
+      for (; cnt < db_cnt; cnt++) {
+        if (dump_all_tables_in_db(database_list[cnt])) result = 1;
+        my_free(database_list[cnt]);
+      }
+    } else {
+      /*
+        till mysql database is not found save database names to
+        database_list
+      */
+      database_list[db_cnt] =
+          my_strdup(PSI_NOT_INSTRUMENTED, row[0], MYF(MY_WME | MY_ZEROFILL));
+      db_cnt++;
+    }
   }
+  DBUG_ASSERT(mysql_db_found);
+  memset(database_list, 0, sizeof(*database_list));
+  my_free(database_list);
   mysql_free_result(tableres);
   if (seen_views) {
     if (mysql_query(mysql, "SHOW DATABASES") ||
