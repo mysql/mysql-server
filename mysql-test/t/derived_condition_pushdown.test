@@ -652,3 +652,17 @@ SELECT NULL IN(SELECT (f1 between 0 and 1)
 );
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#32127562:ERROR 3566 (HY000): ACCESS TO NATIVE FUNCTION IS
+--echo #              REJECTED
+--echo #
+
+# Force optimizer to materialize the information schema table/view
+set optimizer_switch="derived_merge=off";
+# While making a copy of the condition that is pushed down to the materialized
+# derived table, resolver should not throw error for conditions having fields
+# from information schema tables invoking native functions.
+SELECT 1 FROM information_schema.tables WHERE 123 IN (CONCAT_WS(TABLE_ROWS, ''));
+
+set optimizer_switch="derived_merge=on";
