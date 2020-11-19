@@ -1678,34 +1678,42 @@ iterative_solution(NDB_DOUBLE fragments,
                    NDB_DOUBLE rows,
                    NDB_DOUBLE uniques_found)
 {
-  NDB_DOUBLE estimate = estimator(fragments, uniques_found, rows);
-  NDB_DOUBLE est_rpk = rows / (estimate * uniques_found);
-  NDB_DOUBLE percent_change = (NDB_DOUBLE)0.5;
-  NDB_DOUBLE prev_est_uniques_found = (NDB_DOUBLE)0.0;
-  bool prev_decreased = true;
-  bool decreased;
-  unsigned i = 0;
+  const NDB_DOUBLE estimate = estimator(fragments, uniques_found, rows);
   DBUG_PRINT("index_stat", ("iterative_solution: rows: %.2Lf, uniques_found:"
              " %.2Lf, fragments: %.2Lf, estimate: %.2Lf",
              rows, uniques_found, fragments, estimate));
-  if (est_rpk > fragments * (NDB_DOUBLE)10.0 ||
-      uniques_found < (NDB_DOUBLE)0.1)
+  if (uniques_found < (NDB_DOUBLE)0.1)
   {
     /**
-     * This is condition 3) above, the number of unique values are so small
-     * that all values are found in all fragments with an extremely high
-     * probability.
+     * The number of unique values are so small that all values are found
+     * in all fragments with an extremely high probability.
+     * Note that initial 'estimate' calculated above will converge against
+     * 'ONE' as 'uniques_found -> 0'. Consider 'estimate' good enough.
+     * Note that this early return also avoid a division by zero in
+     * calculating est_rpk if 'uniques_found = 0'.
      */
-    return convert_rpk_to_estimate(rows, est_rpk, uniques_found);
+    return estimate;  // Will be close to 1.0
   }
-  if (rows / fragments < (NDB_DOUBLE)25.0)
+  if (rows / fragments < (NDB_DOUBLE)25.0)  // 2) above
   {
     /**
      * The table is so small that the variance from selecting a small subset
      * of rows is so high that it doesn't really improve the solution to
      * perform any iteration.
      */
-    return convert_rpk_to_estimate(rows, est_rpk, uniques_found);
+    return estimate;
+  }
+
+  NDB_DOUBLE est_rpk = rows / (estimate * uniques_found);
+  if (est_rpk > fragments * (NDB_DOUBLE)10.0)  // 3) above
+  {
+    /**
+     * This is condition 3) above, there are so many 'rows pr keys'
+     * that all values are found in all fragments with an extremely high
+     * probability. It doesn't really improve the solution to perform
+     * any iteration.
+     */
+    return estimate;  // Will be close to 1.0
   }
   /**
    * We decide to use 2) above, the iterative approach.
@@ -1734,6 +1742,11 @@ iterative_solution(NDB_DOUBLE fragments,
    *
    * When returning we will convert the estimated RPK to a factor instead.
    */
+  NDB_DOUBLE percent_change = (NDB_DOUBLE)0.5;
+  NDB_DOUBLE prev_est_uniques_found = (NDB_DOUBLE)0.0;
+  bool prev_decreased = true;
+  bool decreased;
+  unsigned i = 0;
   bool first = true;
   do
   {
