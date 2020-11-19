@@ -6008,7 +6008,8 @@ static int init_server_components() {
    */
   init_optimizer_cost_module(true);
   {  // New scope in which the error handler hook is modified.
-    auto restore_ehh = create_scope_guard([ehh_val = error_handler_hook]() {
+    auto ehh_val = error_handler_hook;
+    auto restore_ehh = create_scope_guard([ehh_val]() {
       DBUG_ASSERT(ehh_val == my_message_stderr);
       error_handler_hook = ehh_val;
     });
