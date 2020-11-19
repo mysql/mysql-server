@@ -737,7 +737,7 @@ desc table_distribution_status;
 Field	Type	Null	Key	Default	Extra
 node_id	int unsigned	YES		NULL	
 table_id	int unsigned	YES		NULL	
-tab_copy_status	varchar(20)	NO			
+tab_copy_status	varchar(21)	NO			
 tab_update_status	varchar(23)	NO			
 tab_lcp_status	varchar(15)	NO			
 tab_status	varchar(13)	NO			

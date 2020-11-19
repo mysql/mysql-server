@@ -322,7 +322,7 @@ static int get_ndb_blobs_value(TABLE *table, NdbValue *value_array,
   @brief Wait until the last committed epoch from the session enters the
          binlog. Wait a maximum of 30 seconds. This wait is necessary in
          SHOW BINLOG EVENTS so that the user see its own changes. Also
-         in RESET MASTER before clearing ndbcluster's binlog index.
+         in RESET SOURCE before clearing ndbcluster's binlog index.
   @param thd Thread handle to wait for its changes to enter the binlog.
 */
 static void ndbcluster_binlog_wait(THD *thd) {
@@ -4694,7 +4694,7 @@ int ndbcluster_binlog_start() {
     ndb_log_warning(
         "server id set to zero - changes logged to "
         "binlog with server id zero will be logged with "
-        "another server id by slave mysqlds");
+        "another server id by replica mysqlds");
   }
 
   /*
@@ -4880,7 +4880,7 @@ bool Ndb_binlog_client::read_replication_info(
         warnings are ignored
       */
       ndb_log_warning(
-          "NDB Slave: Table %s.%s : Parse error on conflict fn : %s", db,
+          "NDB Replica: Table %s.%s : Parse error on conflict fn : %s", db,
           table_name, msgbuf);
 
       return true;
@@ -4909,14 +4909,14 @@ int Ndb_binlog_client::apply_replication_info(
                           share->table_name, share->get_binlog_use_update(),
                           ndbtab, tmp_buf, sizeof(tmp_buf), conflict_fn, args,
                           num_args) == 0) {
-      ndb_log_verbose(1, "NDB Slave: %s", tmp_buf);
+      ndb_log_verbose(1, "NDB Replica: %s", tmp_buf);
     } else {
       /*
         Dump setup failure message to error log
         for cases where thd warning stack is
         ignored
       */
-      ndb_log_warning("NDB Slave: Table %s.%s : %s", share->db,
+      ndb_log_warning("NDB Replica: Table %s.%s : %s", share->db,
                       share->table_name, tmp_buf);
 
       push_warning_printf(m_thd, Sql_condition::SL_WARNING,
@@ -6777,7 +6777,7 @@ restart_cluster_failure:
             "cluster has been restarted --initial or with older filesystem. "
             "ndb_latest_handled_binlog_epoch: %u/%u, while current epoch: "
             "%u/%u. "
-            "RESET MASTER should be issued. Resetting "
+            "RESET SOURCE should be issued. Resetting "
             "ndb_latest_handled_binlog_epoch.",
             (uint)(ndb_latest_handled_binlog_epoch >> 32),
             (uint)(ndb_latest_handled_binlog_epoch), (uint)(schema_gci >> 32),

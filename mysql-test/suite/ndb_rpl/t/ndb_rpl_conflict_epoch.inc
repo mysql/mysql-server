@@ -295,7 +295,7 @@ eval insert into mysql.ndb_replication values
 
 --disable_query_log
 # Only need suppress here, as table creation fails due to this.
-call mtr.add_suppression("NDB Slave: .* Too many extra Gci bits at .*");
+call mtr.add_suppression("NDB Replica: .* Too many extra Gci bits at .*");
 --enable_query_log
 
 --error ER_CONFLICT_FN_PARSE_ERROR

@@ -16,8 +16,8 @@ Prior to including the generic NDB test files, we setup the
 conflict role variables
 Setup connections for use in this file
 First we have Cluster A as Primary, Cluster B as Secondary
-SET GLOBAL ndb_slave_conflict_role="PRIMARY";
-SET GLOBAL ndb_slave_conflict_role="SECONDARY";
+SET GLOBAL ndb_applier_conflict_role="PRIMARY";
+SET GLOBAL ndb_applier_conflict_role="SECONDARY";
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -2593,10 +2593,10 @@ Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/rpl_end.inc
 Next we have Cluster A as Secondary, Cluster B as Primary
-SET GLOBAL ndb_slave_conflict_role="NONE";
-SET GLOBAL ndb_slave_conflict_role="SECONDARY";
-SET GLOBAL ndb_slave_conflict_role="NONE";
-SET GLOBAL ndb_slave_conflict_role="PRIMARY";
+SET GLOBAL ndb_applier_conflict_role="NONE";
+SET GLOBAL ndb_applier_conflict_role="SECONDARY";
+SET GLOBAL ndb_applier_conflict_role="NONE";
+SET GLOBAL ndb_applier_conflict_role="PRIMARY";
 We set a special control var to allow the generic scripts
 to handle this topology
 Remove some connections which can't be setup twice (ugly)
@@ -5174,5 +5174,5 @@ reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/rpl_end.inc
-SET GLOBAL ndb_slave_conflict_role="NONE";
-SET GLOBAL ndb_slave_conflict_role="NONE";
+SET GLOBAL ndb_applier_conflict_role="NONE";
+SET GLOBAL ndb_applier_conflict_role="NONE";
