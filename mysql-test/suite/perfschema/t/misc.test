@@ -298,3 +298,49 @@ delete from performance_schema.setup_objects
     and (OBJECT_SCHEMA = 'test')
     and (OBJECT_NAME = 't1');
 
+--echo
+--echo #
+--echo # Bug#31544023 INCONSISTENCY JOINING PERFSCHEMA TABLES WHEN PK IS > 48 CHARS
+--echo #
+--echo # String key comparisons sometimes failed with fields defined with utf8mb4.
+--echo #
+--echo # Test key comparisons on varying CHANNEL_NAME lengths.
+--echo # Both tables are defined with CHARSET = utf8mb4. The CHANNEL_NAME column is char(64).
+
+--echo
+--echo # 20 characters
+change replication source to source_host = 'test1' for channel '12345678901234567890';
+
+--echo
+--echo # 50 characters
+change replication source to source_host = 'test2' for channel '12345678901234567890123456789012345678901234567890';
+
+--echo
+--echo # 64 characters
+change replication source to source_host = 'test3' for channel '123456789012345678901234567890123456789012345678901234567890123';
+
+--echo
+--echo # 70 characters (too long)
+--error ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG
+change replication source to source_host = 'test3' for channel '1234567890123456789012345678901234567890123456789012345678901234567890';
+
+--echo
+select channel_name from performance_schema.replication_connection_configuration;
+--echo
+select channel_name from performance_schema.replication_connection_status;
+
+--echo
+select rpad(rcc.channel_name, 64, ' ') 'CHANNEL_RCC', rpad(rcs.channel_name, 64, ' ') 'CHANNEL_RCS', rcc.channel_name = rcs.channel_name 'EXPECT 1'
+  from performance_schema.replication_connection_configuration rcc
+  join performance_schema.replication_connection_status rcs on rcc.channel_name = rcs.channel_name;
+
+--echo
+select rpad(rcc.channel_name, 64, ' ') 'CHANNEL_RCC', rpad(rcs.channel_name, 64, ' ') 'CHANNEL_RCS', rcc.channel_name = rcs.channel_name 'EXPECT 1'
+  from performance_schema.replication_connection_configuration rcc
+  left join replication_connection_status rcs on rcc.channel_name = rcs.channel_name;
+
+--echo
+--echo # Clean up
+reset replica all for channel '12345678901234567890';
+reset replica all for channel '12345678901234567890123456789012345678901234567890';
+reset replica all for channel '123456789012345678901234567890123456789012345678901234567890123';

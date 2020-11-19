@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,9 +39,9 @@ extern PFS_engine_table_share_proxy m_by_emp_by_mtype_st_share;
 /* A structure to denote a single row of the table. */
 class M_by_emp_by_mtype_record {
  public:
-  char f_name[20];
+  char f_name[EMPLOYEE_NAME_LEN];
   unsigned int f_name_length;
-  char l_name[20];
+  char l_name[EMPLOYEE_NAME_LEN];
   unsigned int l_name_length;
   PSI_enum machine_type;
   PSI_int count;

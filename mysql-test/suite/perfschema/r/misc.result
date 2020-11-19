@@ -206,3 +206,57 @@ delete from performance_schema.setup_objects
 where (OBJECT_TYPE = 'TABLE')
 and (OBJECT_SCHEMA = 'test')
 and (OBJECT_NAME = 't1');
+
+#
+# Bug#31544023 INCONSISTENCY JOINING PERFSCHEMA TABLES WHEN PK IS > 48 CHARS
+#
+# String key comparisons sometimes failed with fields defined with utf8mb4.
+#
+# Test key comparisons on varying CHANNEL_NAME lengths.
+# Both tables are defined with CHARSET = utf8mb4. The CHANNEL_NAME column is char(64).
+
+# 20 characters
+change replication source to source_host = 'test1' for channel '12345678901234567890';
+
+# 50 characters
+change replication source to source_host = 'test2' for channel '12345678901234567890123456789012345678901234567890';
+
+# 64 characters
+change replication source to source_host = 'test3' for channel '123456789012345678901234567890123456789012345678901234567890123';
+
+# 70 characters (too long)
+change replication source to source_host = 'test3' for channel '1234567890123456789012345678901234567890123456789012345678901234567890';
+ERROR HY000: Couldn't create channel: Channel name is either invalid or too long.
+
+select channel_name from performance_schema.replication_connection_configuration;
+channel_name
+12345678901234567890
+12345678901234567890123456789012345678901234567890
+123456789012345678901234567890123456789012345678901234567890123
+
+select channel_name from performance_schema.replication_connection_status;
+channel_name
+12345678901234567890
+12345678901234567890123456789012345678901234567890
+123456789012345678901234567890123456789012345678901234567890123
+
+select rpad(rcc.channel_name, 64, ' ') 'CHANNEL_RCC', rpad(rcs.channel_name, 64, ' ') 'CHANNEL_RCS', rcc.channel_name = rcs.channel_name 'EXPECT 1'
+  from performance_schema.replication_connection_configuration rcc
+join performance_schema.replication_connection_status rcs on rcc.channel_name = rcs.channel_name;
+CHANNEL_RCC	CHANNEL_RCS	EXPECT 1
+12345678901234567890                                            	12345678901234567890                                            	1
+12345678901234567890123456789012345678901234567890              	12345678901234567890123456789012345678901234567890              	1
+123456789012345678901234567890123456789012345678901234567890123 	123456789012345678901234567890123456789012345678901234567890123 	1
+
+select rpad(rcc.channel_name, 64, ' ') 'CHANNEL_RCC', rpad(rcs.channel_name, 64, ' ') 'CHANNEL_RCS', rcc.channel_name = rcs.channel_name 'EXPECT 1'
+  from performance_schema.replication_connection_configuration rcc
+left join replication_connection_status rcs on rcc.channel_name = rcs.channel_name;
+CHANNEL_RCC	CHANNEL_RCS	EXPECT 1
+12345678901234567890                                            	12345678901234567890                                            	1
+12345678901234567890123456789012345678901234567890              	12345678901234567890123456789012345678901234567890              	1
+123456789012345678901234567890123456789012345678901234567890123 	123456789012345678901234567890123456789012345678901234567890123 	1
+
+# Clean up
+reset replica all for channel '12345678901234567890';
+reset replica all for channel '12345678901234567890123456789012345678901234567890';
+reset replica all for channel '123456789012345678901234567890123456789012345678901234567890123';

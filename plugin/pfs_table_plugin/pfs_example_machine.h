@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -42,12 +42,15 @@ extern mysql_mutex_t LOCK_machine_records_array;
 
 enum machine_type_enum { LAPTOP = 1, DESKTOP = 2, MOBILE = 3, TYPE_END = 4 };
 
+/* Number of characters * max multibyte length */
+#define MACHINE_MADE_LEN 20 * 4
+
 /* A structure to denote a single row of the table. */
 struct Machine_Record {
  public:
   PSI_int machine_number;
   PSI_enum machine_type;
-  char machine_made[20];
+  char machine_made[MACHINE_MADE_LEN];
   unsigned int machine_made_length;
   PSI_int employee_number;
 

@@ -1396,9 +1396,7 @@ class PFS_key_string : public PFS_key_pstring {
                        size_t record_value_length);
 
  private:
-  char m_key_value[SIZE *
-                   SYSTEM_CHARSET_MBMAXLEN];  // FIXME FILENAME_CHARSET_MBMAXLEN
-                                              // for file names
+  char m_key_value[SIZE * FILENAME_CHARSET_MBMAXLEN];
   uint m_key_value_length;
 };
 

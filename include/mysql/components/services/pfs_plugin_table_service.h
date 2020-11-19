@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -234,7 +234,7 @@ struct PSI_plugin_key_string {
   // FIXME: size_t
   /* length of the key value in buffer */
   unsigned int m_value_buffer_length;
-  /* Maximum size of buffer */
+  /* buffer size = number of characters * max multibyte length */
   unsigned int m_value_buffer_capacity;
 };
 typedef struct PSI_plugin_key_string PSI_plugin_key_string;
