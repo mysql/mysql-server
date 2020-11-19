@@ -136,11 +136,13 @@ TEST(HausdorffDistanceUnitTest, LinestringLinestring) {
   auto gl2 = MakeLinestring<gis::Geographic_point, gis::Geographic_linestring>(
       {-1., 0.5, .1, 0.5});
   auto srs1 = GetGeographicalSrs();
-  EXPECT_DOUBLE_EQ(TestHausdorffDistance(gl1, gl2, srs1.get()),
-                   1119900.6074340483);
+  // 32bit may compute distance as 1119900.6074340444
+  EXPECT_NEAR(TestHausdorffDistance(gl1, gl2, srs1.get()), 1119900.6074340483,
+              1e-8);
   auto srs2 = GetGeographicalSrsDiffFlat();
-  EXPECT_DOUBLE_EQ(TestHausdorffDistance(gl1, gl2, srs2.get()),
-                   1119925.1618088456);
+  // 32bit may compute distance as 1119925.1618088416
+  EXPECT_NEAR(TestHausdorffDistance(gl1, gl2, srs2.get()), 1119925.1618088456,
+              1e-8);
   auto cl1 = MakeLinestring<gis::Cartesian_point, gis::Cartesian_linestring>(
       {-1., 0.5, -.1, 0.5});
   auto cl2 = MakeLinestring<gis::Cartesian_point, gis::Cartesian_linestring>(
