@@ -15577,10 +15577,11 @@ static int innodb_alter_undo_tablespace_inactive(handlerton *hton, THD *thd,
   auto count = fil_count_undo_deleted(undo_space->num());
   if (count > CONCURRENT_UNDO_TRUNCATE_LIMIT) {
     my_printf_error(ER_DISALLOWED_OPERATION,
-                    "Cannot set %s inactive since there would be"
-                    " more than 64 old versions of this undo tablespaces"
+                    "Cannot set %s inactive since there would be more"
+                    " than %zu old versions of this undo tablespace"
                     " in cache. Please wait for the next checkpoint.",
-                    MYF(0), undo_space->space_name());
+                    MYF(0), undo_space->space_name(),
+                    CONCURRENT_UNDO_TRUNCATE_LIMIT);
 
     return (HA_ERR_NOT_ALLOWED_COMMAND);
   }
