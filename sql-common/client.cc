@@ -43,13 +43,12 @@
   server.
 */
 
-#include "my_config.h"
-
 #include <stdarg.h>
 #include <sys/types.h>
 
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_config.h"
 #include "my_sys.h"
 #include "mysys_err.h"
 #ifndef _WIN32
@@ -59,9 +58,9 @@
 #include <netinet/in.h>
 #endif
 #include <stdio.h>
-#include <string>
 
 #include <algorithm>
+#include <string>
 
 #include "client_async_authentication.h"
 #include "compression.h"  // validate_compression_attributes
@@ -115,9 +114,9 @@
 #define SOCKET_ERROR -1
 #endif
 
+#include <mysql/client_plugin.h>
 #include <openssl/x509v3.h>
 
-#include <mysql/client_plugin.h>
 #include <new>
 
 #include "../libmysql/init_commands_array.h"
@@ -1285,9 +1284,14 @@ bool cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
   bool stmt_skip = stmt ? stmt->state != MYSQL_STMT_INIT_DONE : false;
   DBUG_TRACE;
 
-  if (mysql->net.vio == nullptr) { /* Do reconnect if possible */
-    if (mysql_reconnect(mysql) || stmt_skip) return true;
+  if (mysql->net.vio == nullptr || net->error == NET_ERROR_SOCKET_UNUSABLE) {
+    /* Do reconnect if possible */
+    if (!mysql->reconnect) return true;
+    if (mysql_reconnect(mysql) || stmt_skip) return true;  // reconnect failed
+    /* reconnect succeeded */
+    DBUG_ASSERT(mysql->net.vio != nullptr);
   }
+
   /* turn off non blocking operations */
   if (!vio_is_blocking(mysql->net.vio))
     vio_set_blocking_flag(mysql->net.vio, true);
@@ -1303,12 +1307,13 @@ bool cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
   mysql->info = nullptr;
   mysql->affected_rows = ~(my_ulonglong)0;
   /*
-    Do not check the socket/protocol buffer on COM_QUIT as the
-    result of a previous command might not have been read. This
-    can happen if a client sends a query but does not reap the
-    result before attempting to close the connection.
+    Do not check the socket/protocol buffer as the
+    result/error/timeout of a previous command might not have been read.
+    This can happen if a client sends a query but does not reap the result
+    before attempting to close the connection or wait_timeout occurs on
+    the server.
   */
-  net_clear(&mysql->net, (command != COM_QUIT));
+  net_clear(&mysql->net, 0);
 
   MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
   MYSQL_TRACE(SEND_COMMAND, mysql,
@@ -1324,7 +1329,7 @@ bool cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
     server. But this should be rare.
   */
   if ((command != COM_QUIT) && mysql->reconnect && !vio_is_connected(net->vio))
-    net->error = 2;
+    net->error = NET_ERROR_SOCKET_UNUSABLE;
 
   if (net_write_command(net, (uchar)command, header, header_length, arg,
                         arg_length)) {
@@ -1333,6 +1338,24 @@ bool cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
     if (net->last_errno == ER_NET_PACKET_TOO_LARGE) {
       set_mysql_error(mysql, CR_NET_PACKET_TOO_LARGE, unknown_sqlstate);
       goto end;
+    }
+    if (net->last_errno == ER_NET_ERROR_ON_WRITE) {
+      /*
+        Write error, try to read and see if the server gave an error
+        before closing the connection. Most likely Unix Domain Socket.
+      */
+      if (net->vio) {
+        my_net_set_read_timeout(net, 1);
+        /*
+          cli_safe_read will also set error variables in net,
+          and we are already in error state.
+        */
+        if (cli_safe_read(mysql, NULL) == packet_error) {
+          goto end;
+        }
+        /* Can this happen in any other case than COM_QUIT? */
+        DBUG_ASSERT(command == COM_QUIT);
+      }
     }
     end_server(mysql);
     if (mysql_reconnect(mysql) || stmt_skip) goto end;
@@ -1476,7 +1499,7 @@ net_async_status cli_advanced_command_nonblocking(
       the result before attempting to close the connection.
     */
     DBUG_ASSERT(command <= COM_END);
-    net_clear(&mysql->net, (command != COM_QUIT));
+    net_clear(&mysql->net, 0);
     net_async->async_send_command_status = NET_ASYNC_SEND_COMMAND_WRITE_COMMAND;
   }
 
@@ -6562,11 +6585,11 @@ bool mysql_reconnect(MYSQL *mysql) {
   DBUG_ASSERT(mysql);
   DBUG_PRINT("enter", ("mysql->reconnect: %d", mysql->reconnect));
 
-  if (!mysql->reconnect || (mysql->server_status & SERVER_STATUS_IN_TRANS) ||
-      !mysql->host_info) {
+  if ((mysql->server_status & SERVER_STATUS_IN_TRANS) || !mysql->host_info) {
     /* Allow reconnect next time */
     mysql->server_status &= ~SERVER_STATUS_IN_TRANS;
-    set_mysql_error(mysql, CR_SERVER_GONE_ERROR, unknown_sqlstate);
+    if (mysql->net.last_errno == 0)
+      set_mysql_error(mysql, CR_SERVER_LOST, unknown_sqlstate);
     return true;
   }
   mysql_init(&tmp_mysql);
@@ -6585,7 +6608,6 @@ bool mysql_reconnect(MYSQL *mysql) {
     MYSQL_EXTENSION_PTR(mysql)->server_extn = server_extn;
 #endif
     memset(&tmp_mysql.options, 0, sizeof(tmp_mysql.options));
-    mysql_close(&tmp_mysql);
     mysql->net.last_errno = tmp_mysql.net.last_errno;
     my_stpcpy(mysql->net.last_error, tmp_mysql.net.last_error);
     my_stpcpy(mysql->net.sqlstate, tmp_mysql.net.sqlstate);
@@ -6989,9 +7011,13 @@ void STDCALL mysql_close(MYSQL *mysql) {
   if (mysql) /* Some simple safety */
   {
     /* If connection is still up, send a QUIT message */
-    if (mysql->net.vio != nullptr) {
+    if (mysql->net.vio != nullptr &&
+        mysql->net.last_errno != NET_ERROR_SOCKET_UNUSABLE &&
+        mysql->net.last_errno != NET_ERROR_SOCKET_NOT_WRITABLE) {
       free_old_query(mysql);
       mysql->status = MYSQL_STATUS_READY; /* Force command */
+      bool old_reconnect = mysql->reconnect;
+      mysql->reconnect = false;  // avoid recursion
       if (vio_is_blocking(mysql->net.vio)) {
         simple_command(mysql, COM_QUIT, (uchar *)nullptr, 0, 1);
       } else {
@@ -7003,8 +7029,7 @@ void STDCALL mysql_close(MYSQL *mysql) {
         simple_command_nonblocking(mysql, COM_QUIT, (uchar *)nullptr, 0, 1,
                                    &err);
       }
-
-      mysql->reconnect = false;
+      mysql->reconnect = old_reconnect;
       end_server(mysql); /* Sets mysql->net.vio= 0 */
     }
     mysql_close_free(mysql);
@@ -7225,6 +7250,12 @@ static int mysql_prepare_com_query_parameters(MYSQL *mysql,
     }
 
     if (mysql->net.vio == nullptr) { /* Do reconnect if possible */
+      if (!mysql->reconnect) {
+        /* If we don't have any vio there must be an error */
+        if (mysql->net.last_errno == 0)
+          set_mysql_error(mysql, CR_SERVER_LOST, unknown_sqlstate);
+        return 1;
+      }
       if (mysql_reconnect(mysql)) return 1;
       /* mysql has a new ext at this point, take it again */
       ext = MYSQL_EXTENSION_PTR(mysql);

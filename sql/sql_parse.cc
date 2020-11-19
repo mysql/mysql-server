@@ -1292,7 +1292,7 @@ bool do_command(THD *thd) {
       return_value = true;  // We have to close it.
       goto out;
     }
-    net->error = 0;
+    net->error = NET_ERROR_UNSET;
     return_value = false;
     goto out;
   }
@@ -2039,7 +2039,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       // Don't give 'abort' message
       // TODO: access of protocol_classic should be removed
       if (thd->is_classic_protocol())
-        thd->get_protocol_classic()->get_net()->error = 0;
+        thd->get_protocol_classic()->get_net()->error = NET_ERROR_UNSET;
       thd->get_stmt_da()->disable_status();  // Don't send anything back
       error = true;                          // End server
       break;
@@ -4946,7 +4946,7 @@ void dispatch_sql_command(THD *thd, Parser_state *parser_state) {
     if (mqh_used && thd->get_user_connect() &&
         check_mqh(thd, lex->sql_command)) {
       if (thd->is_classic_protocol())
-        thd->get_protocol_classic()->get_net()->error = 0;
+        thd->get_protocol_classic()->get_net()->error = NET_ERROR_UNSET;
     } else {
       if (!thd->is_error()) {
         /*

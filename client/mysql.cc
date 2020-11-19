@@ -3042,11 +3042,19 @@ static int reconnect(void) {
   return 0;
 }
 
-static void get_current_db() {
+/**
+  Checks the current DB and updates the global variable current_db
+  If the command fails hen he current_db is set to nullptr.
+
+  @return Error state
+    @retval true An error occurred
+    @retval false Success; current_db is updated
+*/
+static bool get_current_db() {
   MYSQL_RES *res;
 
   /* If one_database is set, current_db is not supposed to change. */
-  if (one_database) return;
+  if (one_database) return false;
 
   my_free(current_db);
   current_db = nullptr;
@@ -3057,7 +3065,11 @@ static void get_current_db() {
     if (row && row[0])
       current_db = my_strdup(PSI_NOT_INSTRUMENTED, row[0], MYF(MY_WME));
     mysql_free_result(res);
+  } else {
+    /* We failed to issue the command and we likely lost connection */
+    return true;
   }
+  return false;
 }
 
 /***************************************************************************
@@ -3073,8 +3085,10 @@ static int mysql_real_query_for_lazy(const char *buf, size_t length,
     if (set_params && global_attrs->set_params(&mysql)) break;
     if (!mysql_real_query(&mysql, buf, (ulong)length)) break;
     error = put_error(&mysql);
-    if (mysql_errno(&mysql) != CR_SERVER_GONE_ERROR || retry > 1 ||
-        !opt_reconnect)
+    if ((mysql_errno(&mysql) != CR_SERVER_GONE_ERROR &&
+         mysql_errno(&mysql) != CR_SERVER_LOST &&
+         mysql.net.error != NET_ERROR_SOCKET_UNUSABLE) ||
+        retry > 1 || !opt_reconnect)
       break;
     if (reconnect()) break;
   }
@@ -4270,8 +4284,9 @@ static int com_use(String *buffer MY_ATTRIBUTE((unused)), char *line) {
     We need to recheck the current database, because it may change
     under our feet, for example if DROP DATABASE or RENAME DATABASE
     (latter one not yet available by the time the comment was written)
+    If this command fails we assume we lost connection.
   */
-  get_current_db();
+  if (get_current_db()) connected = false;
 
   if (!current_db || cmp_database(charset_info, current_db, tmp)) {
     if (one_database) {

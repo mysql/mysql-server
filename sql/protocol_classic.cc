@@ -954,7 +954,7 @@ static bool net_send_ok(THD *thd, uint server_status, uint statement_warn_count,
 
   /* OK packet length will be restricted to 16777215 bytes */
   if (((size_t)(pos - start)) > MAX_PACKET_LENGTH) {
-    net->error = 1;
+    net->error = NET_ERROR_SOCKET_RECOVERABLE;
     net->last_errno = ER_NET_OK_PACKET_TOO_LARGE;
     my_error(ER_NET_OK_PACKET_TOO_LARGE, MYF(0));
     DBUG_PRINT("info", ("OK packet too large"));
@@ -1410,7 +1410,7 @@ int Protocol_classic::read_packet() {
   }
 
   bad_packet = true;
-  return m_thd->net.error == 3 ? 1 : -1;
+  return m_thd->net.error == NET_ERROR_SOCKET_UNUSABLE ? 1 : -1;
 }
 
 /* clang-format off */

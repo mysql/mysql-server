@@ -1315,7 +1315,7 @@ SELECT 1 AS res;
 res
 1
 SELECT 1 AS res;
-ERROR HY000: MySQL server has gone away
+Got one of the listed errors
 #
 # Bug#23743035: ADD A COPY_FILES_WILDCARD COMMAND
 #

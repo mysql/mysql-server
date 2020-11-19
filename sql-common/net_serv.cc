@@ -152,7 +152,7 @@ bool my_net_init(NET *net, Vio *vio) {
             MYF(MY_WME))))
     return true;
   net->buff_end = net->buff + net->max_packet;
-  net->error = 0;
+  net->error = NET_ERROR_UNSET;
   net->return_status = nullptr;
   net->pkt_nr = net->compress_pkt_nr = 0;
   net->write_pos = net->read_pos = net->buff;
@@ -212,8 +212,8 @@ bool net_realloc(NET *net, size_t length) {
   if (length >= net->max_packet_size) {
     DBUG_PRINT("error",
                ("Packet too large. Max size: %lu", net->max_packet_size));
-    /* @todo: 1 and 2 codes are identical. */
-    net->error = 1;
+    /* Error, but no need to stop using the socket. */
+    net->error = NET_ERROR_SOCKET_RECOVERABLE;
     net->last_errno = ER_NET_PACKET_TOO_LARGE;
 #ifdef MYSQL_SERVER
     my_error(ER_NET_PACKET_TOO_LARGE, MYF(0));
@@ -230,8 +230,8 @@ bool net_realloc(NET *net, size_t length) {
   if (!(buff = (uchar *)my_realloc(
             key_memory_NET_buff, (char *)net->buff,
             pkt_length + NET_HEADER_SIZE + COMP_HEADER_SIZE, MYF(MY_WME)))) {
-    /* @todo: 1 and 2 codes are identical. */
-    net->error = 1;
+    /* Error, but no need to stop using the socket. */
+    net->error = NET_ERROR_SOCKET_RECOVERABLE;
     net->last_errno = ER_OUT_OF_RESOURCES;
     /* In the server the error is reported by MY_WME flag. */
     return true;
@@ -259,6 +259,7 @@ bool net_realloc(NET *net, size_t length) {
 
 void net_clear(NET *net, bool check_buffer MY_ATTRIBUTE((unused))) {
   DBUG_TRACE;
+
   DBUG_EXECUTE_IF("simulate_bad_field_length_1", {
     net->pkt_nr = net->compress_pkt_nr = 0;
     net->write_pos = net->buff;
@@ -269,8 +270,6 @@ void net_clear(NET *net, bool check_buffer MY_ATTRIBUTE((unused))) {
     net->write_pos = net->buff;
     return;
   });
-  /* Ensure the socket buffer is empty, except for an EOF (at least 1). */
-  DBUG_ASSERT(!check_buffer || (vio_pending(net->vio) <= 1));
 
   /* Ready for new command */
   net->pkt_nr = net->compress_pkt_nr = 0;
@@ -1009,9 +1008,13 @@ static bool net_write_raw_loop(NET *net, const uchar *buf, size_t count) {
 
   /* On failure, propagate the error code. */
   if (count) {
+#ifdef MYSQL_SERVER
     /* Socket should be closed. */
-    net->error = 2;
-
+    net->error = NET_ERROR_SOCKET_UNUSABLE;
+#else
+    /* Socket has failed for writing but it might still work for reading. */
+    net->error = NET_ERROR_SOCKET_NOT_WRITABLE;
+#endif
     /* Interrupted by a timeout? */
     if (vio_was_timeout(net->vio))
       net->last_errno = ER_NET_WRITE_INTERRUPTED;
@@ -1285,14 +1288,16 @@ bool net_write_packet(NET *net, const uchar *packet, size_t length) {
   DBUG_TRACE;
 
   /* Socket can't be used */
-  if (net->error == 2) return true;
+  if (net->error == NET_ERROR_SOCKET_UNUSABLE ||
+      net->error == NET_ERROR_SOCKET_NOT_WRITABLE)
+    return true;
 
   net->reading_or_writing = 2;
 
   const bool do_compress = net->compress;
   if (do_compress) {
     if ((packet = compress_packet(net, packet, &length)) == nullptr) {
-      net->error = 2;
+      net->error = NET_ERROR_SOCKET_UNUSABLE;
       net->last_errno = ER_OUT_OF_RESOURCES;
       /* In the server, allocation failure raises a error. */
       net->reading_or_writing = 0;
@@ -1309,6 +1314,12 @@ bool net_write_packet(NET *net, const uchar *packet, size_t length) {
   if (do_compress) my_free(const_cast<uchar *>(packet));
 
   net->reading_or_writing = 0;
+
+  /* Socket can't be used any more */
+  if (net->error == NET_ERROR_SOCKET_NOT_READABLE) {
+    net->error = NET_ERROR_SOCKET_UNUSABLE;
+    return true;
+  }
 
   return res;
 }
@@ -1358,9 +1369,6 @@ static bool net_read_raw_loop(NET *net, size_t count) {
 
   /* On failure, propagate the error code. */
   if (count) {
-    /* Socket should be closed. */
-    net->error = 2;
-
     /* Interrupted by a timeout? */
     if (!eof && vio_was_timeout(net->vio))
       net->last_errno = ER_NET_READ_INTERRUPTED;
@@ -1368,13 +1376,22 @@ static bool net_read_raw_loop(NET *net, size_t count) {
       net->last_errno = ER_NET_READ_ERROR;
 
 #ifdef MYSQL_SERVER
-    my_error(net->last_errno, MYF(0));
     /* First packet always wait for net_wait_timeout */
     if (net->pkt_nr == 0 && vio_was_timeout(net->vio)) {
-      net->last_errno = ER_NET_WAIT_ERROR;
+      net->last_errno = ER_CLIENT_INTERACTION_TIMEOUT;
       /* Socket should be closed after trying to write/send error. */
-      LogErr(INFORMATION_LEVEL, net->last_errno);
+      LogErr(INFORMATION_LEVEL, ER_NET_WAIT_ERROR);
     }
+    net->error = NET_ERROR_SOCKET_NOT_READABLE;
+    /*
+      Attempt to send error message to client although the client won't be
+      expecting messages. If later the client tries to send a command and fail
+      it will instead check if it can read an error message.
+    */
+    my_error(net->last_errno, MYF(0));
+#else
+    /* Socket should be closed. */
+    net->error = NET_ERROR_SOCKET_UNUSABLE;
 #endif
   }
 
@@ -1436,6 +1453,27 @@ static bool net_read_packet_header(NET *net) {
   */
   if (pkt_nr != (uchar)net->pkt_nr) {
     /* Not a NET error on the client. XXX: why? */
+#if !defined(MYSQL_SERVER)
+    DBUG_PRINT("info", ("pkt_nr %u net->pkt_nr %u", pkt_nr, net->pkt_nr));
+    if (net->pkt_nr == 1) {
+      DBUG_ASSERT(net->where_b == 0);
+      /*
+        Server may have sent an error before it received our new command.
+        Perhaps due to wait_timeout.
+        Only use what is already read and then close the socket.
+      */
+      net->error = NET_ERROR_SOCKET_UNUSABLE;
+      net->last_errno = ER_NET_PACKETS_OUT_OF_ORDER;
+      net->pkt_nr = pkt_nr + 1;
+
+      /*
+        The caller should handle the error code in the packet
+        and the socket are blocked from further usage,
+        so reading the packet header was OK.
+      */
+      return false;
+    }
+#endif
 #if defined(MYSQL_SERVER)
     my_error(ER_NET_PACKETS_OUT_OF_ORDER, MYF(0));
 #elif defined(EXTRA_DEBUG)
@@ -1514,7 +1552,7 @@ static ulong net_read_available(NET *net, size_t count) {
   }
 
   /* EOF or hard failure; socket should be closed. */
-  net->error = 2;
+  net->error = NET_ERROR_SOCKET_UNUSABLE;
   net->last_errno = ER_NET_READ_ERROR;
   return packet_error;
 }
@@ -1704,7 +1742,7 @@ end:
 #ifdef MYSQL_SERVER
       my_error(ER_NET_UNCOMPRESS_ERROR, MYF(0));
 #else
-      net->error = 2;  // caller will close socket
+      net->error = NET_ERROR_SOCKET_UNUSABLE;  // caller will close socket
       net->last_errno = ER_NET_UNCOMPRESS_ERROR;
 #endif
       goto error;
@@ -2042,11 +2080,15 @@ static size_t net_read_packet(NET *net, size_t *complen) {
   if (net_read_raw_loop(net, pkt_len)) goto error;
 
 end:
+  if (net->error == NET_ERROR_SOCKET_NOT_WRITABLE)
+    net->error = NET_ERROR_SOCKET_UNUSABLE;
   DBUG_DUMP("net read", net->buff + net->where_b, pkt_len);
   net->reading_or_writing = 0;
   return pkt_len;
 
 error:
+  if (net->error == NET_ERROR_SOCKET_NOT_WRITABLE)
+    net->error = NET_ERROR_SOCKET_UNUSABLE;
   net->reading_or_writing = 0;
   return packet_error;
 }
@@ -2120,7 +2162,7 @@ static void net_read_compressed_packet(NET *net, size_t &len) {
     mysql_compress_context *mysql_compress_ctx = compress_context(net);
     if (my_uncompress(mysql_compress_ctx, net->buff + net->where_b, len,
                       &complen)) {
-      net->error = 2; /* caller will close socket */
+      net->error = NET_ERROR_SOCKET_UNUSABLE; /* caller will close socket */
       net->last_errno = ER_NET_UNCOMPRESS_ERROR;
 #ifdef MYSQL_SERVER
       my_error(ER_NET_UNCOMPRESS_ERROR, MYF(0));
