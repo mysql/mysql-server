@@ -3358,7 +3358,7 @@ bool buf_is_block_in_instance(const buf_pool_t *buf_pool,
 static bool buf_debug_execute_is_force_flush() {
   DBUG_EXECUTE_IF("ib_buf_force_flush", return (true););
 
-  /* This is used during queisce testing, we want to ensure maximum
+  /* This is used during quiesce testing, we want to ensure maximum
   buffering by the change buffer. */
 
   if (srv_ibuf_disable_background_merge) {
@@ -3373,29 +3373,19 @@ static bool buf_debug_execute_is_force_flush() {
 @param[in]	block	The block to check */
 static void buf_wait_for_read(buf_block_t *block) {
   /* Note:
+  This unlocked read of IO fix is safe as we have the block buf-fixed. The page
+  can only transition away from the IO_READ state, and once this is done, it
+  will not be IO_READ again as long as we have it buf-fixed.
 
-  We are using the block->lock to check for IO state (and a dirty read).
-  We set the IO_READ state under the protection of the hash_lock
-  (and block->mutex). This is safe because another thread can only
-  access the block (and check for IO state) after the block has been
-  added to the page hashtable. */
-
-  if (buf_block_get_io_fix_unlocked(block) == BUF_IO_READ) {
-    /* Wait until the read operation completes */
-    for (;;) {
-      if (buf_block_get_io_fix_unlocked(block) == BUF_IO_READ) {
-        /* Wait by temporaly s-latch */
-        if (rw_lock_s_lock_low(&block->lock, 0, __FILE__, __LINE__)) {
-          rw_lock_s_unlock(&block->lock);
-        } else {
-          /* If we can't acquire the latch in S mode then the IO thread
-          must have read the page in. */
-          os_thread_sleep(20);
-        }
-      } else {
-        break;
-      }
-    }
+  The read of the io fix will not be optimized out in this loop, as rw_lock
+  result in a memory barrier, which causes compiler to be
+  unable to do so.*/
+  while (buf_block_get_io_fix_unlocked(block) == BUF_IO_READ) {
+    /* Page is X-latched on block->lock until the read is completed.
+    Let's just wait for S-lock on block->lock, it will be granted as soon as the
+    read completes. */
+    rw_lock_s_lock(&block->lock);
+    rw_lock_s_unlock(&block->lock);
   }
 }
 
