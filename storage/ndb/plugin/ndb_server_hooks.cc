@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,6 +60,8 @@ bool Ndb_server_hooks::register_server_hooks(hook_t *before_connections_hook,
   if (register_server_state_observer(m_server_state_observer,
                                      ndbcluster_plugin.handle())) {
     ndb_log_error("Failed to register server state observer");
+    delete m_server_state_observer;
+    m_server_state_observer = nullptr;
     return false;
   }
 
@@ -93,6 +95,8 @@ bool Ndb_server_hooks::register_applier_start(hook_t *hook_func) {
   if (register_binlog_relay_io_observer(m_binlog_relay_io_observer,
                                         ndbcluster_plugin.handle())) {
     ndb_log_error("Failed to register binlog relay io observer");
+    delete m_binlog_relay_io_observer;
+    m_binlog_relay_io_observer = nullptr;
     return false;
   }
 

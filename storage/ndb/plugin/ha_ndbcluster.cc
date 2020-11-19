@@ -12387,6 +12387,10 @@ static int ndbcluster_init_abort(const char *error) {
   // Terminate things which cause server shutdown hang
   ndbcluster_binlog_end();
 
+  // Release resources which will not be released in other ways
+  // (since ndbcluster_end() will not be called)
+  ndb_server_hooks.unregister_all();
+
   // Use server service to ask for server shutdown
   Ndb_mysql_services services;
   if (services.request_mysql_server_shutdown()) {
@@ -12567,6 +12571,9 @@ static int ndbcluster_init(void *handlerton_ptr) {
 static int ndbcluster_end(handlerton *, ha_panic_function) {
   DBUG_TRACE;
 
+  // Unregister all server hooks
+  ndb_server_hooks.unregister_all();
+
   if (!ndbcluster_inited) return 0;
   ndbcluster_inited = 0;
 
@@ -12575,9 +12582,6 @@ static int ndbcluster_end(handlerton *, ha_panic_function) {
   // ndbcluster_pre_dd_shutdown() function
   ndb_index_stat_thread.stop();
   ndbcluster_binlog_end();
-
-  // Unregister all server hooks
-  ndb_server_hooks.unregister_all();
 
   NDB_SHARE::deinitialize();
 
