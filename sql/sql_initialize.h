@@ -45,7 +45,20 @@ extern bool opt_initialize_insecure;
 bool initialize_create_data_directory(const char *data_home);
 extern bool mysql_initialize_directory_freshly_created;
 
-/* Declare it here, so we can unit test it. */
+/* Declarations below are for unit testing. */
 extern bool generate_password(char *password, int size);
+
+#define ALLOWED_PWD_UPCHARS "QWERTYUIOPASDFGHJKLZXCVBNM"
+#define ALLOWED_PWD_LOWCHARS "qwertyuiopasdfghjklzxcvbnm"
+#define ALLOWED_PWD_NUMCHARS "1234567890"
+#define ALLOWED_PWD_SYMCHARS ",.-+*;:_!#%&/()=?><"
+
+static constexpr const char g_allowed_pwd_chars[] =
+    ALLOWED_PWD_LOWCHARS ALLOWED_PWD_SYMCHARS ALLOWED_PWD_UPCHARS
+        ALLOWED_PWD_NUMCHARS;
+static constexpr const char g_upper_case_chars[] = ALLOWED_PWD_UPCHARS;
+static constexpr const char g_lower_case_chars[] = ALLOWED_PWD_LOWCHARS;
+static constexpr const char g_numeric_chars[] = ALLOWED_PWD_NUMCHARS;
+static constexpr const char g_special_chars[] = ALLOWED_PWD_SYMCHARS;
 
 #endif /* SQL_INITIALIZE_H */

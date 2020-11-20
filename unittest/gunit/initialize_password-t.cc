@@ -26,18 +26,13 @@
 
 #include "sql/sql_initialize.h"
 
-#define UPCHARS "QWERTYUIOPASDFGHJKLZXCVBNM"
-#define LOWCHARS "qwertyuiopasdfghjklzxcvbnm"
-#define NUMCHARS "1234567890"
-#define SYMCHARS ",.-+*;:_!#%&/()=?><"
-
 namespace initialize_password_unittest {
 
 static const char *null_s = nullptr;
 
 TEST(initialize_password, random_pwd_10chars) {
   char pass[12];
-  static const char chars[] = LOWCHARS SYMCHARS UPCHARS NUMCHARS;
+  static const char *chars = g_allowed_pwd_chars;
 
   memset(pass, 0, sizeof(pass));
   bool failed = ::generate_password(&pass[1], 10);
@@ -63,7 +58,7 @@ TEST(initialize_password, random_pwd_0) {
 
 TEST(initialize_password, random_pwd_1) {
   char pass[11];
-  static const char chars[] = LOWCHARS SYMCHARS UPCHARS NUMCHARS;
+  static const char *chars = g_allowed_pwd_chars;
 
   memset(pass, 0, sizeof(pass));
   bool failed = ::generate_password(&pass[1], 1);
@@ -79,7 +74,7 @@ TEST(initialize_password, random_pwd_1) {
 
 TEST(initialize_password, random_pwd_2) {
   char pass[11];
-  static const char chars[] = LOWCHARS SYMCHARS UPCHARS NUMCHARS;
+  static const char *chars = g_allowed_pwd_chars;
   unsigned inx;
 
   memset(pass, 0, sizeof(pass));
@@ -98,7 +93,7 @@ TEST(initialize_password, random_pwd_2) {
 
 TEST(initialize_password, random_pwd_3) {
   char pass[11];
-  static const char chars[] = LOWCHARS SYMCHARS UPCHARS NUMCHARS;
+  static const char *chars = g_allowed_pwd_chars;
   unsigned inx;
 
   memset(pass, 0, sizeof(pass));
@@ -117,7 +112,7 @@ TEST(initialize_password, random_pwd_3) {
 
 TEST(initialize_password, random_pwd_4) {
   char pass[11];
-  static const char chars[] = LOWCHARS SYMCHARS UPCHARS NUMCHARS;
+  static const char *chars = g_allowed_pwd_chars;
   unsigned inx;
 
   memset(pass, 0, sizeof(pass));
@@ -136,11 +131,11 @@ TEST(initialize_password, random_pwd_4) {
 
 TEST(initialize_password, strong_pwd_10_chars) {
   char pass[12];
-  static const char chars[] = LOWCHARS SYMCHARS UPCHARS NUMCHARS;
-  static const char low_chars[] = LOWCHARS;
-  static const char up_chars[] = UPCHARS;
-  static const char sym_chars[] = SYMCHARS;
-  static const char num_chars[] = NUMCHARS;
+  static const char *chars = g_allowed_pwd_chars;
+  static const char *low_chars = g_lower_case_chars;
+  static const char *up_chars = g_upper_case_chars;
+  static const char *sym_chars = g_special_chars;
+  static const char *num_chars = g_numeric_chars;
   bool had_low = false, had_up = false, had_sym = false, had_num = false;
 
   memset(pass, 0, sizeof(pass));
@@ -171,11 +166,11 @@ TEST(initialize_password, strong_pwd_10_chars) {
 
 TEST(initialize_password, strong_pwd_4_chars) {
   char pass[12];
-  static const char chars[] = LOWCHARS SYMCHARS UPCHARS NUMCHARS;
-  static const char low_chars[] = LOWCHARS;
-  static const char up_chars[] = UPCHARS;
-  static const char sym_chars[] = SYMCHARS;
-  static const char num_chars[] = NUMCHARS;
+  static const char *chars = g_allowed_pwd_chars;
+  static const char *low_chars = g_lower_case_chars;
+  static const char *up_chars = g_upper_case_chars;
+  static const char *sym_chars = g_special_chars;
+  static const char *num_chars = g_numeric_chars;
   bool had_low = false, had_up = false, had_sym = false, had_num = false;
 
   memset(pass, 0, sizeof(pass));

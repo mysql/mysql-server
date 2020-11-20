@@ -82,17 +82,8 @@ static const char *cmd_descs[] = {
     nullptr};
 
 bool generate_password(char *password, int size) {
-#define UPCHARS "QWERTYUIOPASDFGHJKLZXCVBNM"
-#define LOWCHARS "qwertyuiopasdfghjklzxcvbnm"
-#define NUMCHARS "1234567890"
-#define SYMCHARS ",.-+*;:_!#%&/()=?><"
 #define rnd_of(x) x[((int)(my_rnd_ssl(&failed) * 100)) % (sizeof(x) - 1)]
 
-  static const char g_allowed_pwd_chars[] = LOWCHARS SYMCHARS UPCHARS NUMCHARS;
-  static const char g_upper_case_chars[] = UPCHARS;
-  static const char g_lower_case_chars[] = LOWCHARS;
-  static const char g_numeric_chars[] = NUMCHARS;
-  static const char g_special_chars[] = SYMCHARS;
   bool failed = false;
   char *ptr = password;
   bool had_upper = false, had_lower = false, had_numeric = false,
