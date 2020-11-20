@@ -544,6 +544,10 @@ int channel_stop(Master_info *mi, int threads_to_stop, long timeout) {
       (server_thd_mask & SLAVE_IO)) {
     thread_mask |= SLAVE_IO;
   }
+  if ((threads_to_stop & CHANNEL_RECEIVER_THREAD) &&
+      (server_thd_mask & SLAVE_MONITOR)) {
+    thread_mask |= SLAVE_MONITOR;
+  }
 
   if (thread_mask == 0) {
     goto end;
