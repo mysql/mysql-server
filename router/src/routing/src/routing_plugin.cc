@@ -350,9 +350,15 @@ static void start(mysql_harness::PluginFuncEnv *env) {
       if (!config.dest_ssl_curves.empty()) {
         const auto res = tls_server_ctx.curves_list(config.dest_ssl_curves);
         if (!res) {
-          throw std::system_error(res.error(), "setting server_ssl_curves=" +
-                                                   config.dest_ssl_curves +
-                                                   " failed");
+          if (res.error() == std::errc::function_not_supported) {
+            throw std::runtime_error(
+                "setting server_ssl_curves=" + config.dest_ssl_curves +
+                " is not supported by the ssl library, it should stay unset");
+          } else {
+            throw std::system_error(res.error(), "setting server_ssl_curves=" +
+                                                     config.dest_ssl_curves +
+                                                     " failed");
+          }
         }
         dest_tls_ctx.curves(config.dest_ssl_curves);
       }
