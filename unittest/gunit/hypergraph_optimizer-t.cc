@@ -158,7 +158,7 @@ void MakeHypergraphTest::ResolveFieldToFakeTable(Item *item_arg) {
       } else {
         assert(false);
       }
-      item_field->maybe_null = item_field->field->is_nullable();
+      item_field->set_nullable(item_field->field->is_nullable());
     }
     item->update_used_tables();
     item->quick_fix_field();

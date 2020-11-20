@@ -1980,8 +1980,8 @@ static bool compare_pair_for_nulls(Item *a, Item *b, bool *result) {
     }
     return have_null_items;
   }
-  const bool a_null = a->maybe_null && a->is_null();
-  const bool b_null = b->maybe_null && b->is_null();
+  const bool a_null = a->is_nullable() && a->is_null();
+  const bool b_null = b->is_nullable() && b->is_null();
   if (a_null || b_null) {
     *result = a_null == b_null;
     return true;
@@ -2035,7 +2035,7 @@ const Item::Bool_test Item_bool_func::bool_transform[10][8] = {
      BOOL_ALWAYS_FALSE, BOOL_ALWAYS_TRUE, BOOL_ALWAYS_FALSE, BOOL_ALWAYS_TRUE}};
 
 bool Item_func_truth::resolve_type(THD *thd) {
-  maybe_null = false;
+  set_nullable(false);
   null_value = false;
   return Item_bool_func::resolve_type(thd);
 }
@@ -2126,7 +2126,7 @@ bool Item_in_optimizer::fix_left(THD *thd, Item **) {
 bool Item_in_optimizer::fix_fields(THD *thd, Item **ref) {
   DBUG_ASSERT(fixed == 0);
   if (fix_left(thd, ref)) return true;
-  if (args[0]->maybe_null) maybe_null = true;
+  if (args[0]->is_nullable()) set_nullable(true);
 
   if (!args[1]->fixed && args[1]->fix_fields(thd, args + 1)) return true;
   Item_in_subselect *sub = (Item_in_subselect *)args[1];
@@ -2134,7 +2134,7 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref) {
     my_error(ER_OPERAND_COLUMNS, MYF(0), args[0]->cols());
     return true;
   }
-  if (args[1]->maybe_null) maybe_null = true;
+  if (args[1]->is_nullable()) set_nullable(true);
   add_accum_properties(args[1]);
   used_tables_cache |= args[1]->used_tables();
   not_null_tables_cache |= args[1]->not_null_tables();
@@ -2464,7 +2464,7 @@ longlong Item_func_eq::val_int() {
 
 bool Item_func_equal::resolve_type(THD *thd) {
   if (Item_bool_func2::resolve_type(thd)) return true;
-  maybe_null = false;
+  set_nullable(false);
   null_value = false;
   return false;
 }
@@ -2710,7 +2710,7 @@ bool Item_func_interval::resolve_type(THD *thd) {
       }
     }
   }
-  maybe_null = false;
+  set_nullable(false);
   max_length = 2;
   used_tables_cache |= row->used_tables();
   not_null_tables_cache = row->not_null_tables();
@@ -3352,7 +3352,7 @@ bool Item_func_if::resolve_type_inner(THD *thd) {
   args--;
   arg_count++;
 
-  maybe_null = args[1]->maybe_null || args[2]->maybe_null;
+  set_nullable(args[1]->is_nullable() || args[2]->is_nullable());
   aggregate_type(make_array(args + 1, 2));
   cached_result_type = Field::result_merge_type(data_type());
 
@@ -3458,7 +3458,7 @@ bool Item_func_nullif::resolve_type(THD *thd) {
 bool Item_func_nullif::resolve_type_inner(THD *thd) {
   if (Item_bool_func2::resolve_type(thd)) return true;
 
-  maybe_null = true;
+  set_nullable(true);
   set_data_type_from_item(args[0]);
   cached_result_type = args[0]->result_type();
   if (cached_result_type == STRING_RESULT &&
@@ -3806,11 +3806,11 @@ bool Item_func_case::resolve_type_inner(THD *thd) {
   if (agg == nullptr) return true;
   // Determine nullability based on THEN and ELSE expressions:
 
-  maybe_null = else_expr_num == -1 || args[else_expr_num]->maybe_null;
+  bool nullable = else_expr_num == -1 || args[else_expr_num]->is_nullable();
 
   for (Item **arg = args + 1; arg < args + arg_count; arg += 2)
-    maybe_null |= (*arg)->maybe_null;
-
+    nullable |= (*arg)->is_nullable();
+  set_nullable(nullable);
   /*
     Aggregate all THEN and ELSE expression types
     and collations when string result
@@ -4061,8 +4061,8 @@ bool Item_func_coalesce::resolve_type_inner(THD *thd) {
   }
   for (uint i = 0; i < arg_count; i++) {
     // A non-nullable argument guarantees a non-NULL result
-    if (!args[i]->maybe_null) {
-      maybe_null = false;
+    if (!args[i]->is_nullable()) {
+      set_nullable(false);
       break;
     }
   }
@@ -4916,8 +4916,8 @@ bool Item_func_in::resolve_type(THD *thd) {
       */
 
     if (cmp_type == ROW_RESULT &&
-        !((ignore_unknown() && !negated) ||                  // 3
-          (!list_contains_null() && !args[0]->maybe_null)))  // 4
+        !((ignore_unknown() && !negated) ||                     // 3
+          (!list_contains_null() && !args[0]->is_nullable())))  // 4
       bisection_possible = false;
   }
 
@@ -5467,7 +5467,7 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
     else
       not_null_tables_cache &= item->not_null_tables();
     add_accum_properties(item);
-    maybe_null |= item->maybe_null;
+    set_nullable(is_nullable() | item->is_nullable());
   }
 
   /*
@@ -5873,7 +5873,7 @@ longlong Item_cond_or::val_int() {
 
 void Item_func_isnull::update_used_tables() {
   cache_used = false;
-  if (!args[0]->maybe_null) {
+  if (!args[0]->is_nullable()) {
     used_tables_cache = 0;
     cached_value = 0;
     cache_used = true;
@@ -6000,7 +6000,7 @@ bool Item_func_isnull::fix_fields(THD *thd, Item **ref) {
 }
 
 bool Item_func_isnull::resolve_type(THD *thd) {
-  maybe_null = false;
+  set_nullable(false);
   // Possibly cache a const value, but not when analyzing CREATE VIEW stmt.
   if (!thd->lex->is_view_context_analysis()) update_used_tables();
   return Item_bool_func::resolve_type(thd);
@@ -6048,7 +6048,7 @@ void Item_is_not_null_test::update_used_tables() {
   const table_map initial_pseudo_tables = get_initial_pseudo_tables();
   used_tables_cache = initial_pseudo_tables;
   cache_used = false;
-  if (!args[0]->maybe_null) {
+  if (!args[0]->is_nullable()) {
     cached_value = 1;
     cache_used = true;
     return;
@@ -6742,11 +6742,13 @@ bool Item_equal::fix_fields(THD *thd, Item **) {
   List_iterator_fast<Item_field> li(fields);
   Item *item;
   not_null_tables_cache = used_tables_cache = 0;
+  bool nullable = false;
   while ((item = li++)) {
     used_tables_cache |= item->used_tables();
     not_null_tables_cache |= item->not_null_tables();
-    maybe_null |= item->maybe_null;
+    nullable |= item->is_nullable();
   }
+  set_nullable(nullable);
   if (resolve_type(thd)) return true;
 
   fixed = true;

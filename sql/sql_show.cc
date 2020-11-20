@@ -2813,14 +2813,14 @@ void mysqld_list_processes(THD *thd, const char *user, bool verbose) {
   field_list.push_back(new Item_empty_string("User", USERNAME_CHAR_LENGTH));
   field_list.push_back(new Item_empty_string("Host", HOSTNAME_LENGTH));
   field_list.push_back(field = new Item_empty_string("db", NAME_CHAR_LEN));
-  field->maybe_null = true;
+  field->set_nullable(true);
   field_list.push_back(new Item_empty_string("Command", 16));
   field_list.push_back(field = new Item_return_int("Time", 7, MYSQL_TYPE_LONG));
   field->unsigned_flag = false;
   field_list.push_back(field = new Item_empty_string("State", 30));
-  field->maybe_null = true;
+  field->set_nullable(true);
   field_list.push_back(field = new Item_empty_string("Info", max_query_length));
-  field->maybe_null = true;
+  field->set_nullable(true);
   if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return;
@@ -4335,7 +4335,7 @@ static TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list) {
         break;
     }
     fields.push_back(item);
-    item->maybe_null = (fields_info->field_flags & MY_I_S_MAYBE_NULL);
+    item->set_nullable(fields_info->field_flags & MY_I_S_MAYBE_NULL);
     field_count++;
   }
   Temp_table_param *tmp_table_param = new (thd->mem_root) Temp_table_param;
@@ -4998,7 +4998,7 @@ static bool show_create_trigger_impl(THD *thd, Trigger *trigger) {
   if (trigger->create_full_trigger_definition(thd, &create_trg_str))
     return true;
 
-  stmt_fld->maybe_null = true;
+  stmt_fld->set_nullable(true);
 
   // Send header.
 

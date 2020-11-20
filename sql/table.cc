@@ -5093,7 +5093,7 @@ Item *Field_iterator_table::create_item(THD *thd) {
     code in Item_field::fix_fields().
     */
   if (is_null_on_empty_table(thd, item)) {
-    item->maybe_null = true;
+    item->set_nullable(true);
     (*ptr)->table->set_nullable();
   }
 

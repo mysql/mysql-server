@@ -1605,7 +1605,7 @@ AccessPath *GetTableAccessPath(THD *thd, QEP_TAB *qep_tab, QEP_TAB *qep_tabs) {
     // and possibly also in some cases when scanning each table.
     vector<Item *> not_null_conditions;
     for (Item *item : sjm->sj_nest->nested_join->sj_inner_exprs) {
-      if (item->maybe_null) {
+      if (item->is_nullable()) {
         Item *condition = new Item_func_isnotnull(item);
         condition->quick_fix_field();
         condition->update_used_tables();

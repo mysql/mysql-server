@@ -349,14 +349,14 @@ bool Sql_cmd_analyze_table::send_histogram_results(
 
   field_list.push_back(item =
                            new Item_empty_string("Table", NAME_CHAR_LEN * 2));
-  item->maybe_null = true;
+  item->set_nullable(true);
   field_list.push_back(item = new Item_empty_string("Op", 10));
-  item->maybe_null = true;
+  item->set_nullable(true);
   field_list.push_back(item = new Item_empty_string("Msg_type", 10));
-  item->maybe_null = true;
+  item->set_nullable(true);
   field_list.push_back(
       item = new Item_empty_string("Msg_text", SQL_ADMIN_MSG_TEXT_SIZE));
-  item->maybe_null = true;
+  item->set_nullable(true);
   if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)) {
     return true; /* purecov: deadcode */
@@ -566,14 +566,14 @@ static bool mysql_admin_table(
   mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(item =
                            new Item_empty_string("Table", NAME_CHAR_LEN * 2));
-  item->maybe_null = true;
+  item->set_nullable(true);
   field_list.push_back(item = new Item_empty_string("Op", 10));
-  item->maybe_null = true;
+  item->set_nullable(true);
   field_list.push_back(item = new Item_empty_string("Msg_type", 10));
-  item->maybe_null = true;
+  item->set_nullable(true);
   field_list.push_back(
       item = new Item_empty_string("Msg_text", SQL_ADMIN_MSG_TEXT_SIZE));
-  item->maybe_null = true;
+  item->set_nullable(true);
   if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;

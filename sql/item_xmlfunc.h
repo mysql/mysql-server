@@ -62,11 +62,11 @@ class Item_xml_str_func : public Item_str_func {
  public:
   Item_xml_str_func(const POS &pos, Item *a, Item *b)
       : Item_str_func(pos, a, b), nodeset_func(nullptr) {
-    maybe_null = true;
+    set_nullable(true);
   }
   Item_xml_str_func(const POS &pos, Item *a, Item *b, Item *c)
       : Item_str_func(pos, a, b, c), nodeset_func(nullptr) {
-    maybe_null = true;
+    set_nullable(true);
   }
   bool resolve_type(THD *thd) override;
   void cleanup() override {

@@ -486,7 +486,7 @@ void Item_sum::fix_num_length_and_dec() {
 bool Item_sum::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, -1)) return true;
 
-  maybe_null = true;
+  set_nullable(true);
   null_value = true;
 
   const Sumfunctype t = sum_func();
@@ -688,10 +688,10 @@ Field *Item_sum::create_tmp_field(bool, TABLE *table) {
   switch (result_type()) {
     case REAL_RESULT:
       field = new (*THR_MALLOC) Field_double(
-          max_length, maybe_null, item_name.ptr(), decimals, false, true);
+          max_length, is_nullable(), item_name.ptr(), decimals, false, true);
       break;
     case INT_RESULT:
-      field = new (*THR_MALLOC) Field_longlong(max_length, maybe_null,
+      field = new (*THR_MALLOC) Field_longlong(max_length, is_nullable(),
                                                item_name.ptr(), unsigned_flag);
       break;
     case STRING_RESULT:
@@ -913,7 +913,7 @@ bool Item_sum::reset_wf_state(uchar *arg) {
 bool Item_sum::wf_common_init() {
   if (m_window->do_copy_null()) {
     DBUG_ASSERT(m_window->needs_buffering());
-    null_value = maybe_null;
+    null_value = is_nullable();
     return true;
   }
   if (m_window->at_partition_border() && !m_window->needs_buffering()) {
@@ -1179,7 +1179,8 @@ bool Aggregator_distinct::setup(THD *thd) {
     */
     if (field_list.push_back(&field_def)) return true;
 
-    item_sum->null_value = item_sum->maybe_null = true;
+    item_sum->set_nullable(true);
+    item_sum->null_value = true;
     item_sum->allow_group_via_temp_table = false;
 
     DBUG_ASSERT(item_sum->get_arg(0)->fixed);
@@ -1201,7 +1202,7 @@ bool Aggregator_distinct::setup(THD *thd) {
         field_type == MYSQL_TYPE_NEWDECIMAL
             ? min<unsigned int>(arg->decimals, DECIMAL_MAX_SCALE)
             : arg->decimals,
-        arg->maybe_null, arg->unsigned_flag, 0);
+        arg->is_nullable(), arg->unsigned_flag, 0);
 
     if (!(table = create_tmp_table_from_fields(thd, field_list))) return true;
 
@@ -1406,13 +1407,13 @@ bool Item_sum_num::fix_fields(THD *thd, Item **ref) {
 
   Condition_context CCT(thd->lex->current_select());
 
-  maybe_null = false;
+  set_nullable(false);
 
   for (uint i = 0; i < arg_count; i++) {
     if ((!args[i]->fixed && args[i]->fix_fields(thd, args + i)) ||
         args[i]->check_cols(1))
       return true;
-    maybe_null |= args[i]->maybe_null;
+    set_nullable(is_nullable() | args[i]->is_nullable());
   }
 
   // Set this value before calling resolve_type()
@@ -1498,7 +1499,7 @@ bool Item_sum_bit::resolve_type(THD *thd) {
     std::memset(m_digit_cnt, 0, m_digit_cnt_card * sizeof(ulonglong));
   }
 
-  maybe_null = false;
+  set_nullable(false);
   null_value = false;
   result_field = nullptr;
   decimals = 0;
@@ -1749,7 +1750,7 @@ bool Item_sum_hybrid::fix_fields(THD *thd, Item **ref) {
 
   if (setup_hybrid(args[0], nullptr)) return true;
   /* MIN/MAX can return NULL for empty set indepedent of the used column */
-  maybe_null = true;
+  set_nullable(true);
   result_field = nullptr;
   null_value = true;
   if (resolve_type(thd)) return true;
@@ -1800,19 +1801,19 @@ Field *Item_sum_hybrid::create_tmp_field(bool group, TABLE *table) {
   */
   switch (args[0]->data_type()) {
     case MYSQL_TYPE_DATE:
-      field = new (*THR_MALLOC) Field_newdate(maybe_null, item_name.ptr());
+      field = new (*THR_MALLOC) Field_newdate(is_nullable(), item_name.ptr());
       break;
     case MYSQL_TYPE_TIME:
-      field =
-          new (*THR_MALLOC) Field_timef(maybe_null, item_name.ptr(), decimals);
+      field = new (*THR_MALLOC)
+          Field_timef(is_nullable(), item_name.ptr(), decimals);
       break;
     case MYSQL_TYPE_TIMESTAMP:
       field = new (*THR_MALLOC)
-          Field_timestampf(maybe_null, item_name.ptr(), decimals);
+          Field_timestampf(is_nullable(), item_name.ptr(), decimals);
       break;
     case MYSQL_TYPE_DATETIME:
       field = new (*THR_MALLOC)
-          Field_datetimef(maybe_null, item_name.ptr(), decimals);
+          Field_datetimef(is_nullable(), item_name.ptr(), decimals);
       break;
     default:
       return Item_sum::create_tmp_field(group, table);
@@ -1867,7 +1868,7 @@ bool Item_sum_sum::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DOUBLE)) return true;
   if (reject_geometry_args(arg_count, args, this)) return true;
 
-  maybe_null = true;
+  set_nullable(true);
   null_value = true;
 
   switch (args[0]->numeric_context_result_type()) {
@@ -2128,7 +2129,7 @@ bool Aggregator_simple::arg_is_null(bool use_null_value) {
     }
   } else {
     for (uint i = 0; i < item_count; i++) {
-      if (item[i]->maybe_null && item[i]->is_null()) return true;
+      if (item[i]->is_nullable() && item[i]->is_null()) return true;
     }
   }
   return false;
@@ -2150,9 +2151,9 @@ bool Aggregator_distinct::arg_is_null(bool use_null_value) {
     DBUG_ASSERT(!rc);  // NULLs are never stored in 'tree'
     return rc;
   }
-  return use_null_value
-             ? item_sum->args[0]->null_value
-             : (item_sum->args[0]->maybe_null && item_sum->args[0]->is_null());
+  return use_null_value ? item_sum->args[0]->null_value
+                        : (item_sum->args[0]->is_nullable() &&
+                           item_sum->args[0]->is_null());
 }
 
 Item *Item_sum_count::copy_or_same(THD *thd) {
@@ -2213,7 +2214,7 @@ void Item_sum_count::cleanup() {
 bool Item_sum_avg::resolve_type(THD *thd) {
   if (Item_sum_sum::resolve_type(thd)) return true;
 
-  maybe_null = true;
+  set_nullable(true);
   null_value = true;
   prec_increment = thd->variables.div_precincrement;
   if (hybrid_type == DECIMAL_RESULT) {
@@ -2260,7 +2261,7 @@ Field *Item_sum_avg::create_tmp_field(bool group, TABLE *table) {
     field = Field_new_decimal::create_from_item(this);
   else
     field = new (*THR_MALLOC) Field_double(
-        max_length, maybe_null, item_name.ptr(), decimals, false, true);
+        max_length, is_nullable(), item_name.ptr(), decimals, false, true);
   if (field) field->init(table);
   return field;
 }
@@ -2586,7 +2587,7 @@ bool Item_sum_variance::check_wf_semantics1(THD *thd, SELECT_LEX *select,
 bool Item_sum_variance::resolve_type(THD *thd) {
   DBUG_TRACE;
   if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_NEWDECIMAL)) return true;
-  maybe_null = true;
+  set_nullable(true);
   null_value = true;
 
   /*
@@ -2630,7 +2631,7 @@ Field *Item_sum_variance::create_tmp_field(bool group, TABLE *table) {
                                        false, item_name.ptr(), &my_charset_bin);
   } else
     field = new (*THR_MALLOC) Field_double(
-        max_length, maybe_null, item_name.ptr(), decimals, false, true);
+        max_length, is_nullable(), item_name.ptr(), decimals, false, true);
 
   if (field != nullptr) field->init(table);
 
@@ -3238,7 +3239,7 @@ Item *Item_sum_and::copy_or_same(THD *thd) {
 void Item_sum_num::reset_field() {
   double nr = args[0]->val_real();
 
-  if (maybe_null) {
+  if (is_nullable()) {
     if (args[0]->null_value) {
       nr = 0.0;
       result_field->set_null();
@@ -3253,7 +3254,7 @@ void Item_sum_hybrid::reset_field() {
     case STRING_RESULT: {
       if (args[0]->is_temporal()) {
         longlong nr = args[0]->val_temporal_by_field_type();
-        if (maybe_null) {
+        if (is_nullable()) {
           if (args[0]->null_value) {
             nr = 0;
             result_field->set_null();
@@ -3280,7 +3281,7 @@ void Item_sum_hybrid::reset_field() {
     case INT_RESULT: {
       longlong nr = args[0]->val_int();
 
-      if (maybe_null) {
+      if (is_nullable()) {
         if (args[0]->null_value) {
           nr = 0;
           result_field->set_null();
@@ -3293,7 +3294,7 @@ void Item_sum_hybrid::reset_field() {
     case REAL_RESULT: {
       double nr = args[0]->val_real();
 
-      if (maybe_null) {
+      if (is_nullable()) {
         if (args[0]->null_value) {
           nr = 0.0;
           result_field->set_null();
@@ -3306,7 +3307,7 @@ void Item_sum_hybrid::reset_field() {
     case DECIMAL_RESULT: {
       my_decimal value_buff, *arg_dec = args[0]->val_decimal(&value_buff);
 
-      if (maybe_null) {
+      if (is_nullable()) {
         if (args[0]->null_value)
           result_field->set_null();
         else
@@ -3349,7 +3350,7 @@ void Item_sum_count::reset_field() {
   longlong nr = 0;
   DBUG_ASSERT(aggr->Aggrtype() != Aggregator::DISTINCT_AGGREGATOR);
 
-  if (!args[0]->maybe_null || !args[0]->is_null()) nr = 1;
+  if (!args[0]->is_nullable() || !args[0]->is_null()) nr = 1;
   int8store(result_field->field_ptr(), nr);
 }
 
@@ -3449,7 +3450,7 @@ void Item_sum_count::update_field() {
   uchar *res = result_field->field_ptr();
 
   nr = sint8korr(res);
-  if (!args[0]->maybe_null || !args[0]->is_null()) nr++;
+  if (!args[0]->is_nullable() || !args[0]->is_null()) nr++;
   int8store(res, nr);
 }
 
@@ -3616,7 +3617,7 @@ Item_avg_field::Item_avg_field(Item_result res_type, Item_sum_avg *item) {
   max_length = item->max_length;
   unsigned_flag = item->unsigned_flag;
   field = item->get_result_field();
-  maybe_null = true;
+  set_nullable(true);
   hybrid_type = res_type;
   set_data_type(hybrid_type == DECIMAL_RESULT ? MYSQL_TYPE_NEWDECIMAL
                                               : MYSQL_TYPE_DOUBLE);
@@ -3673,7 +3674,7 @@ Item_sum_bit_field::Item_sum_bit_field(Item_result res_type, Item_sum_bit *item,
   max_length = item->max_length;
   unsigned_flag = item->unsigned_flag;
   field = item->get_result_field();
-  maybe_null = false;
+  set_nullable(false);
   hybrid_type = res_type;
   DBUG_ASSERT(hybrid_type == INT_RESULT || hybrid_type == STRING_RESULT);
   if (hybrid_type == INT_RESULT)
@@ -3794,7 +3795,7 @@ Item_variance_field::Item_variance_field(Item_sum_variance *item) {
   max_length = item->max_length;
   unsigned_flag = item->unsigned_flag;
   field = item->get_result_field();
-  maybe_null = true;
+  set_nullable(true);
   sample = item->sample;
   hybrid_type = item->hybrid_type;
   DBUG_ASSERT(hybrid_type == REAL_RESULT);
@@ -4301,11 +4302,11 @@ Field *Item_func_group_concat::make_string_field(TABLE *table_arg) const {
       group_concat_max_len / collation.collation->mbminlen;
   if (max_characters > CONVERT_IF_BIGGER_TO_BLOB)
     field = new (*THR_MALLOC)
-        Field_blob(max_characters * collation.collation->mbmaxlen, maybe_null,
-                   item_name.ptr(), collation.collation, true);
+        Field_blob(max_characters * collation.collation->mbmaxlen,
+                   is_nullable(), item_name.ptr(), collation.collation, true);
   else
     field = new (*THR_MALLOC) Field_varstring(
-        max_characters * collation.collation->mbmaxlen, maybe_null,
+        max_characters * collation.collation->mbmaxlen, is_nullable(),
         item_name.ptr(), table_arg->s, collation.collation);
 
   if (field) field->init(table_arg);
@@ -4387,7 +4388,7 @@ bool Item_func_group_concat::fix_fields(THD *thd, Item **ref) {
 
   if (init_sum_func_check(thd)) return true;
 
-  maybe_null = true;
+  set_nullable(true);
 
   Condition_context CCT(thd->lex->current_select());
 
@@ -4917,7 +4918,7 @@ bool Item_nth_value::check_wf_semantics2(Window_evaluation_requirements *r) {
 bool Item_ntile::fix_fields(THD *thd, Item **items) {
   if (super::fix_fields(thd, items)) return true;
 
-  maybe_null = true;
+  set_nullable(true);
   return false;
 }
 
@@ -5018,7 +5019,7 @@ bool Item_first_last_value::check_wf_semantics1(
 }
 
 bool Item_first_last_value::resolve_type(THD *thd) {
-  maybe_null = true;  // if empty frame, notwithstanding nullability of arg
+  set_nullable(true);  // if empty frame, notwithstanding nullability of arg
   null_value = true;
   if (param_type_is_default(thd, 0, 1)) return true;
   set_data_type_from_item(args[0]);
@@ -5159,7 +5160,7 @@ bool Item_nth_value::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1)) return true;
   if (args[1]->propagate_type(thd, MYSQL_TYPE_LONGLONG, true)) return true;
 
-  maybe_null = true;
+  set_nullable(true);
 
   set_data_type_from_item(args[0]);
 
@@ -5374,9 +5375,9 @@ bool Item_lead_lag::resolve_type(THD *thd) {
   m_hybrid_type = Field::result_merge_type(data_type());
 
   if (arg_count == 2)
-    maybe_null = args[1]->maybe_null || args[0]->maybe_null;
+    set_nullable(args[1]->is_nullable() || args[0]->is_nullable());
   else
-    maybe_null = true;  // No default value provided, so we get NULLs
+    set_nullable(true);  // No default value provided, so we get NULLs
 
   if (m_hybrid_type == STRING_RESULT) {
     if (aggregate_string_properties(func_name(), args, arg_count)) return true;
@@ -5638,7 +5639,7 @@ bool Item_sum_json::fix_fields(THD *thd, Item **ref) {
 
   if (check_sum_func(thd, ref)) return true;
 
-  maybe_null = true;
+  set_nullable(true);
   null_value = true;
   fixed = true;
   return false;

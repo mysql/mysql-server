@@ -1560,32 +1560,32 @@ int THD::send_explain_fields(Query_result *result) {
   field_list.push_back(new Item_empty_string("select_type", 19, cs));
   field_list.push_back(item =
                            new Item_empty_string("table", NAME_CHAR_LEN, cs));
-  item->maybe_null = true;
+  item->set_nullable(true);
   /* Maximum length of string that make_used_partitions_str() can produce */
   item = new Item_empty_string("partitions", MAX_PARTITIONS * (1 + FN_LEN), cs);
   field_list.push_back(item);
-  item->maybe_null = true;
+  item->set_nullable(true);
   field_list.push_back(item = new Item_empty_string("type", 10, cs));
-  item->maybe_null = true;
+  item->set_nullable(true);
   field_list.push_back(item = new Item_empty_string(
                            "possible_keys", NAME_CHAR_LEN * MAX_KEY, cs));
-  item->maybe_null = true;
+  item->set_nullable(true);
   field_list.push_back(item = new Item_empty_string("key", NAME_CHAR_LEN, cs));
-  item->maybe_null = true;
+  item->set_nullable(true);
   field_list.push_back(
       item = new Item_empty_string("key_len", NAME_CHAR_LEN * MAX_KEY));
-  item->maybe_null = true;
+  item->set_nullable(true);
   field_list.push_back(
       item = new Item_empty_string("ref", NAME_CHAR_LEN * MAX_REF_PARTS, cs));
-  item->maybe_null = true;
+  item->set_nullable(true);
   field_list.push_back(
       item = new Item_return_int("rows", 10, MYSQL_TYPE_LONGLONG));
-  item->maybe_null = true;
+  item->set_nullable(true);
   field_list.push_back(
       item = new Item_float(NAME_STRING("filtered"), 0.1234, 2, 4));
-  item->maybe_null = true;
+  item->set_nullable(true);
   field_list.push_back(new Item_empty_string("Extra", 255, cs));
-  item->maybe_null = true;
+  item->set_nullable(true);
   return (result->send_result_set_metadata(
       this, field_list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF));
 }

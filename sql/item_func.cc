@@ -314,7 +314,7 @@ bool Item_func::fix_func_arg(THD *thd, Item **arg) {
     DBUG_ASSERT(allowed_arg_cols);  // Can't be 0 any more
   }
 
-  maybe_null |= item->maybe_null;
+  set_nullable(is_nullable() | item->is_nullable());
   used_tables_cache |= item->used_tables();
   if (null_on_null) not_null_tables_cache |= item->not_null_tables();
   add_accum_properties(item);
@@ -649,22 +649,22 @@ Field *Item_func::tmp_table_field(TABLE *table) {
   switch (result_type()) {
     case INT_RESULT:
       if (this->data_type() == MYSQL_TYPE_YEAR)
-        field = new (*THR_MALLOC) Field_year(maybe_null, item_name.ptr());
+        field = new (*THR_MALLOC) Field_year(is_nullable(), item_name.ptr());
       else if (max_length > MY_INT32_NUM_DECIMAL_DIGITS)
         field = new (*THR_MALLOC) Field_longlong(
-            max_length, maybe_null, item_name.ptr(), unsigned_flag);
+            max_length, is_nullable(), item_name.ptr(), unsigned_flag);
       else
-        field = new (*THR_MALLOC)
-            Field_long(max_length, maybe_null, item_name.ptr(), unsigned_flag);
+        field = new (*THR_MALLOC) Field_long(max_length, is_nullable(),
+                                             item_name.ptr(), unsigned_flag);
       break;
     case REAL_RESULT:
       if (this->data_type() == MYSQL_TYPE_FLOAT) {
         field = new (*THR_MALLOC)
-            Field_float(max_char_length(), maybe_null, item_name.ptr(),
+            Field_float(max_char_length(), is_nullable(), item_name.ptr(),
                         decimals, unsigned_flag);
       } else {
         field = new (*THR_MALLOC)
-            Field_double(max_char_length(), maybe_null, item_name.ptr(),
+            Field_double(max_char_length(), is_nullable(), item_name.ptr(),
                          decimals, unsigned_flag);
       }
       break;
@@ -2072,7 +2072,7 @@ my_decimal *Item_func_minus::decimal_op(my_decimal *decimal_value) {
       arithmetic operations.
      */
     my_decimal_set_zero(decimal_value);
-    null_value = maybe_null;
+    null_value = is_nullable();
     raise_decimal_overflow();
     return decimal_value;
   }
@@ -2275,7 +2275,7 @@ bool Item_func_div::resolve_type(THD *thd) {
     default:
       DBUG_ASSERT(0);
   }
-  maybe_null = true;  // division by zero
+  set_nullable(true);  // division by zero
   return false;
 }
 
@@ -2351,7 +2351,7 @@ bool Item_func_int_div::resolve_type(THD *thd) {
   fix_char_length(char_length > MY_INT64_NUM_DECIMAL_DIGITS
                       ? MY_INT64_NUM_DECIMAL_DIGITS
                       : char_length);
-  maybe_null = true;
+  set_nullable(true);
   unsigned_flag = args[0]->unsigned_flag | args[1]->unsigned_flag;
   return reject_geometry_args(arg_count, args, this);
 }
@@ -2437,7 +2437,7 @@ void Item_func_mod::result_precision() {
 
 bool Item_func_mod::resolve_type(THD *thd) {
   if (Item_num_op::resolve_type(thd)) return true;
-  maybe_null = true;
+  set_nullable(true);
   unsigned_flag = args[0]->unsigned_flag;
   return false;
 }
@@ -2541,7 +2541,7 @@ bool Item_dec_func::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_DOUBLE)) return true;
   decimals = DECIMAL_NOT_SPECIFIED;
   max_length = float_length(decimals);
-  maybe_null = true;
+  set_nullable(true);
   return reject_geometry_args(arg_count, args, this);
 }
 
@@ -3959,7 +3959,7 @@ longlong Item_func_field::val_int() {
 
 bool Item_func_field::resolve_type(THD *thd) {
   if (Item_int_func::resolve_type(thd)) return true;
-  maybe_null = false;
+  set_nullable(false);
   max_length = 3;
   cmp_type = args[0]->result_type();
   for (uint i = 1; i < arg_count; i++)
@@ -4214,7 +4214,7 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
   } udf_fun_guard(this);
 
   /* Fix all arguments */
-  func->maybe_null = false;
+  func->set_nullable(false);
   used_tables_cache = 0;
 
   if ((f_args.arg_count = arg_count)) {
@@ -4248,7 +4248,7 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
       */
       if (item->collation.collation->state & MY_CS_BINSORT)
         func->collation.set(&my_charset_bin);
-      func->maybe_null |= item->maybe_null;
+      func->m_nullable |= item->m_nullable;
       func->add_accum_properties(item);
       used_tables_cache |= item->used_tables();
       f_args.arg_type[i] = item->result_type();
@@ -4283,7 +4283,7 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
   if (func->resolve_type(thd)) return true;
 
   initid.max_length = func->max_length;
-  initid.maybe_null = func->maybe_null;
+  initid.maybe_null = func->m_nullable;
   initid.const_item = used_tables_cache == 0;
   initid.decimals = func->decimals;
   initid.ptr = nullptr;
@@ -4297,7 +4297,7 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
       return true;
     }
     func->max_length = min<uint32>(initid.max_length, MAX_BLOB_WIDTH);
-    func->maybe_null = initid.maybe_null;
+    func->m_nullable = initid.maybe_null;
     if (!initid.const_item && used_tables_cache == 0)
       used_tables_cache = RAND_TABLE_BIT;
     func->decimals = min<uint>(initid.decimals, DECIMAL_NOT_SPECIFIED);
@@ -4331,7 +4331,7 @@ bool udf_handler::call_init_func() {
     f_args.args[i] = nullptr;  // Non-const unless updated below
 
     f_args.lengths[i] = args[i]->max_length;
-    f_args.maybe_null[i] = args[i]->maybe_null;
+    f_args.maybe_null[i] = args[i]->m_nullable;
     f_args.attributes[i] = const_cast<char *>(args[i]->item_name.ptr());
     f_args.attribute_lengths[i] = args[i]->item_name.length();
     m_args_extension.charset_info[i] = args[i]->collation.collation;
@@ -5826,7 +5826,7 @@ bool Item_func_set_user_var::fix_fields(THD *thd, Item **ref) {
 
 bool Item_func_set_user_var::resolve_type(THD *thd) {
   if (Item_var_func::resolve_type(thd)) return true;
-  maybe_null = args[0]->maybe_null;
+  set_nullable(args[0]->is_nullable());
   collation.set(DERIVATION_IMPLICIT);
   /*
      this sets the character set of the item immediately; rules for the
@@ -6637,7 +6637,7 @@ static int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
 }
 
 bool Item_func_get_user_var::resolve_type(THD *thd) {
-  maybe_null = true;
+  set_nullable(true);
 
   /*
     @todo WL#6570 change has effects:
@@ -6902,7 +6902,7 @@ bool Item_func_get_system_var::is_written_to_binlog() {
 }
 
 bool Item_func_get_system_var::resolve_type(THD *) {
-  maybe_null = true;
+  set_nullable(true);
 
   if (!var->check_scope(var_type)) {
     if (var_type != OPT_DEFAULT) {
@@ -7440,7 +7440,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref) {
   DBUG_ASSERT(arg_count > 0);
   Item *item = nullptr;  // Safe as arg_count is > 1
 
-  maybe_null = true;
+  set_nullable(true);
 
   /*
     const_item is assumed in quite a bit of places, so it would be difficult
@@ -7813,7 +7813,7 @@ Item_func_sp::Item_func_sp(const POS &pos, const LEX_STRING &db_name,
     RETURNS NULL ON NULL INPUT can be implemented by modifying this member.
   */
   null_on_null = false;
-  maybe_null = true;
+  set_nullable(true);
   set_stored_program();
   THD *thd = current_thd;
   m_name = new (thd->mem_root)
@@ -7938,7 +7938,7 @@ bool Item_func_sp::init_result_field(THD *thd) {
 
   dummy_table->s = share;
   dummy_table->alias = "";
-  if (maybe_null) dummy_table->set_nullable();
+  if (is_nullable()) dummy_table->set_nullable();
   dummy_table->in_use = thd;
   dummy_table->copy_blobs = true;
   share->table_cache_key = empty_name;
@@ -7964,7 +7964,7 @@ bool Item_func_sp::resolve_type(THD *) {
   decimals = sp_result_field->decimals();
   max_length = sp_result_field->field_length;
   collation.set(sp_result_field->charset());
-  maybe_null = true;
+  set_nullable(true);
   unsigned_flag = sp_result_field->is_flag_set(UNSIGNED_FLAG);
 
   return false;

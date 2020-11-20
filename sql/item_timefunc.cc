@@ -1212,7 +1212,7 @@ bool Item_func_monthname::resolve_type(THD *thd) {
   locale = thd->variables.lc_time_names;
   collation.set(cs, DERIVATION_COERCIBLE, repertoire);
   set_data_type_string(locale->max_month_name_length);
-  maybe_null = true;
+  set_nullable(true);
   return false;
 }
 
@@ -1347,7 +1347,7 @@ bool Item_func_dayname::resolve_type(THD *thd) {
   locale = thd->variables.lc_time_names;
   collation.set(cs, DERIVATION_COERCIBLE, repertoire);
   set_data_type_string(locale->max_day_name_length);
-  maybe_null = true;
+  set_nullable(true);
   return false;
 }
 
@@ -2062,7 +2062,7 @@ bool Item_func_date_format::resolve_type(THD *thd) {
                       uint32(MAX_BLOB_WIDTH));
   }
   set_data_type_string(char_length);
-  maybe_null = true;  // If wrong date
+  set_nullable(true);  // If wrong date
   return false;
 }
 
@@ -2198,7 +2198,7 @@ null_date:
 bool Item_func_from_unixtime::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_NEWDECIMAL)) return true;
   set_data_type_datetime(min(args[0]->decimals, uint8{DATETIME_MAX_DECIMALS}));
-  maybe_null = true;
+  set_nullable(true);
   thd->time_zone_used = true;
   return false;
 }
@@ -2249,7 +2249,7 @@ bool Item_func_convert_tz::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
   if (param_type_is_default(thd, 1, -1)) return true;
   set_data_type_datetime(args[0]->datetime_precision());
-  maybe_null = true;
+  set_nullable(true);
   return false;
 }
 
@@ -2297,7 +2297,7 @@ void Item_func_convert_tz::cleanup() {
 }
 
 bool Item_date_add_interval::resolve_type(THD *thd) {
-  maybe_null = true;
+  set_nullable(true);
 
   if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
   /*
@@ -2510,7 +2510,7 @@ void Item_extract::print(const THD *thd, String *str,
 
 bool Item_extract::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
-  maybe_null = true;  // If wrong date
+  set_nullable(true);  // If wrong date
   switch (int_type) {
     case INTERVAL_YEAR:
       max_length = 4;
@@ -2849,7 +2849,7 @@ bool Item_func_add_time::resolve_type(THD *thd) {
   } else {
     set_data_type_char(MAX_DATETIME_FULL_WIDTH, default_charset());
   }
-  maybe_null = true;
+  set_nullable(true);
   return false;
 }
 
@@ -3348,7 +3348,7 @@ void Item_func_str_to_date::fix_from_format(const char *format, size_t length) {
 
 bool Item_func_str_to_date::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 2)) return true;
-  maybe_null = true;
+  set_nullable(true);
   cached_timestamp_type = MYSQL_TIMESTAMP_DATETIME;
   set_data_type_datetime(DATETIME_MAX_DECIMALS);
   sql_mode = thd->variables.sql_mode &
@@ -3454,7 +3454,7 @@ bool Item_func_last_day::get_date(MYSQL_TIME *ltime,
 
 bool Item_func_internal_update_time::resolve_type(THD *thd) {
   set_data_type_datetime(0);
-  maybe_null = true;
+  set_nullable(true);
   null_on_null = false;
   thd->time_zone_used = true;
   return false;
@@ -3533,7 +3533,7 @@ bool Item_func_internal_update_time::get_date(MYSQL_TIME *ltime,
 
 bool Item_func_internal_check_time::resolve_type(THD *thd) {
   set_data_type_datetime(0);
-  maybe_null = true;
+  set_nullable(true);
   null_on_null = false;
   thd->time_zone_used = true;
   return false;

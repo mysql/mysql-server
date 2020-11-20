@@ -288,8 +288,9 @@ Item_geometry_func::Item_geometry_func(const POS &pos, PT_item_list *list)
 
 Field *Item_geometry_func::tmp_table_field(TABLE *t_arg) {
   Field *result;
-  if ((result = new (*THR_MALLOC) Field_geom(
-           max_length, maybe_null, item_name.ptr(), get_geometry_type(), {})))
+  if ((result = new (*THR_MALLOC)
+           Field_geom(max_length, is_nullable(), item_name.ptr(),
+                      get_geometry_type(), {})))
     result->init(t_arg);
   return result;
 }
@@ -298,7 +299,7 @@ bool Item_geometry_func::resolve_type(THD *) {
   set_data_type(MYSQL_TYPE_GEOMETRY);
   collation.set(&my_charset_bin);
   max_length = 0xFFFFFFFFU;
-  maybe_null = true;
+  set_nullable(true);
   return false;
 }
 
@@ -420,7 +421,7 @@ String *Item_func_geometry_from_text::val_str(String *str) {
   bool lat_long = false;
 
   if ((null_value = (args[0]->null_value))) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return nullptr;
   }
 
@@ -441,7 +442,7 @@ String *Item_func_geometry_from_text::val_str(String *str) {
     if (validate_srid_arg(args[1], &srid, &null_value, func_name()))
       return error_str();
     if (null_value) {
-      DBUG_ASSERT(maybe_null);
+      assert(is_nullable());
       return nullptr;
     }
   }
@@ -470,7 +471,7 @@ String *Item_func_geometry_from_text::val_str(String *str) {
     String *axis_order = args[2]->val_str_ascii(&axis_ordering_tmp);
     null_value = (args[2]->null_value);
     if (null_value) {
-      DBUG_ASSERT(maybe_null);
+      assert(is_nullable());
       return nullptr;
     }
     std::map<std::string, std::string> options;
@@ -678,7 +679,7 @@ String *Item_func_geometry_from_wkb::val_str(String *str) {
     if (validate_srid_arg(args[1], &srid, &null_value, func_name()))
       return error_str();
     if (null_value) {
-      DBUG_ASSERT(maybe_null);
+      assert(is_nullable());
       return nullptr;
     }
   }
@@ -708,7 +709,7 @@ String *Item_func_geometry_from_wkb::val_str(String *str) {
     String *axis_order = args[2]->val_str_ascii(&axis_ordering_tmp);
     null_value = (args[2]->null_value);
     if (null_value) {
-      DBUG_ASSERT(maybe_null);
+      assert(is_nullable());
       return nullptr;
     }
     std::map<std::string, std::string> options;
@@ -748,7 +749,7 @@ String *Item_func_geometry_from_wkb::val_str(String *str) {
   String *wkb = args[0]->val_str(&tmp_value);
   String temp(SRID_SIZE);
   if ((null_value = (!wkb || args[0]->null_value))) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return nullptr;
   }
 
@@ -890,7 +891,7 @@ String *Item_func_geomfromgeojson::val_str(String *buf) {
     if (validate_srid_arg(args[2], &m_user_srid, &null_value, func_name()))
       return error_str();
     if (null_value) {
-      DBUG_ASSERT(maybe_null);
+      assert(is_nullable());
       return nullptr;
     }
 
@@ -921,7 +922,7 @@ String *Item_func_geomfromgeojson::val_str(String *buf) {
   */
   null_value = (args[0]->null_value || wr.type() == enum_json_type::J_NULL);
   if (null_value) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return nullptr;
   }
 
@@ -972,7 +973,7 @@ String *Item_func_geomfromgeojson::val_str(String *buf) {
     result_geometry = nullptr;
 
     if (rollback) {
-      DBUG_ASSERT(maybe_null);
+      assert(is_nullable());
       null_value = true;
       return nullptr;
     }
@@ -1907,7 +1908,7 @@ bool Item_func_geomfromgeojson::fix_fields(THD *thd, Item **ref) {
         "properties": { "name": "Foo Bar" }
       }
   */
-  maybe_null = true;
+  set_nullable(true);
   return false;
 }
 
@@ -2472,16 +2473,16 @@ bool Item_func_as_geojson::parse_maxdecimaldigits_argument() {
     @<maxdecimaldigits@> must be an integer value.
     @<options@> must be an integer value.
 
-  Set maybe_null to the correct value.
+  Sets m_nullable to the correct value.
 */
 bool Item_func_as_geojson::fix_fields(THD *thd, Item **ref) {
   if (Item_json_func::fix_fields(thd, ref)) return true;
 
   /*
-    We must set maybe_null to true, since the GeoJSON string may be longer than
+    We must set m_nullable to true, since the GeoJSON string may be longer than
     the packet size.
   */
-  maybe_null = true;
+  set_nullable(true);
 
   // Check if the geometry argument is considered as a geometry type.
   if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY)) return true;
@@ -2740,7 +2741,7 @@ bool Item_func_geohash::fix_fields(THD *thd, Item **ref) {
     */
 
     geohash_length_arg_index = 1;
-    maybe_null = (args[0]->maybe_null || args[1]->maybe_null);
+    set_nullable(args[0]->is_nullable() || args[1]->is_nullable());
     if (!is_item_geometry_type(args[0])) {
       my_error(ER_INCORRECT_TYPE, MYF(0), "point", func_name());
       return true;
@@ -2753,8 +2754,8 @@ bool Item_func_geohash::fix_fields(THD *thd, Item **ref) {
       output length.
     */
     geohash_length_arg_index = 2;
-    maybe_null =
-        (args[0]->maybe_null || args[1]->maybe_null || args[2]->maybe_null);
+    set_nullable(args[0]->is_nullable() || args[1]->is_nullable() ||
+                 args[2]->is_nullable());
     if (!check_valid_latlong_type(args[0])) {
       my_error(ER_INCORRECT_TYPE, MYF(0), "longitude", func_name());
       return true;
@@ -2876,7 +2877,7 @@ bool Item_func_latlongfromgeohash::resolve_type(THD *thd) {
 bool Item_func_latlongfromgeohash::fix_fields(THD *thd, Item **ref) {
   if (Item_real_func::fix_fields(thd, ref)) return true;
 
-  maybe_null = args[0]->maybe_null;
+  set_nullable(args[0]->is_nullable());
 
   if (!check_geohash_argument_valid_type(args[0])) {
     my_error(ER_INCORRECT_TYPE, MYF(0), "geohash", func_name());
@@ -3139,7 +3140,7 @@ String *Item_func_as_wkt::val_str_ascii(String *str) {
   bool lat_long = false;
 
   if ((null_value = args[0]->null_value)) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return nullptr;
   }
 
@@ -3177,7 +3178,7 @@ String *Item_func_as_wkt::val_str_ascii(String *str) {
     String *options_arg = args[1]->val_str_ascii(&options_arg_tmp);
     null_value = args[1]->null_value;
     if (null_value) {
-      DBUG_ASSERT(maybe_null);
+      assert(is_nullable());
       return nullptr;
     }
 
@@ -3228,7 +3229,7 @@ String *Item_func_as_wkt::val_str_ascii(String *str) {
   str->length(0);
   str->set_charset(&my_charset_latin1);
   if ((null_value = g->as_wkt(str))) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return nullptr;
   }
 
@@ -3240,7 +3241,7 @@ bool Item_func_as_wkt::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 1, 2)) return true;
   collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
   set_data_type_string(uint32(MAX_BLOB_WIDTH));
-  maybe_null = true;
+  set_nullable(true);
   return false;
 }
 
@@ -3258,7 +3259,7 @@ String *Item_func_as_wkb::val_str(String *str) {
   bool lat_long = false;
 
   if ((null_value = args[0]->null_value)) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return nullptr;
   }
 
@@ -3297,7 +3298,7 @@ String *Item_func_as_wkb::val_str(String *str) {
     String *options_arg = args[1]->val_str_ascii(&options_arg_tmp);
     null_value = args[1]->null_value;
     if (null_value) {
-      DBUG_ASSERT(maybe_null);
+      assert(is_nullable());
       return nullptr;
     }
 
@@ -4089,7 +4090,7 @@ String *Item_func_st_simplify::val_str(String *str) {
   if (gis::simplify(srs, *g, max_distance, func_name(), &result))
     return error_str();
   if (result.get() == nullptr) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     null_value = true;
     return nullptr;
   }
@@ -4241,7 +4242,7 @@ String *Item_func_point::val_str(String *str) {
 bool Item_func_pointfromgeohash::fix_fields(THD *thd, Item **ref) {
   if (Item_geometry_func::fix_fields(thd, ref)) return true;
 
-  maybe_null = (args[0]->maybe_null || args[1]->maybe_null);
+  set_nullable(args[0]->is_nullable() || args[1]->is_nullable());
 
   // Check for valid type in geohash argument.
   if (!Item_func_latlongfromgeohash::check_geohash_argument_valid_type(
@@ -4670,7 +4671,7 @@ longlong Item_func_st_issimple::val_int() {
 
   if (args[0]->null_value) {
     null_value = true;
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return 0;
   }
 
@@ -4735,7 +4736,7 @@ longlong Item_func_isvalid::val_int() {
   String *swkb = args[0]->val_str(&tmp);
 
   if ((null_value = args[0]->null_value)) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return 0;
   }
 
@@ -4922,7 +4923,7 @@ double Item_func_coordinate_observer::val_real() {
   String *swkb = args[0]->val_str(&tmp_str);
 
   if ((null_value = (args[0]->null_value))) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return 0.0;
   }
 
@@ -4994,7 +4995,7 @@ int Item_func_st_y_observer::coordinate_number(
 }
 
 String *Item_func_swap_xy::val_str(String *str) {
-  DBUG_ASSERT(maybe_null);
+  assert(is_nullable());
   String *swkb = args[0]->val_str(str);
 
   if ((null_value = (args[0]->null_value))) {
@@ -5034,7 +5035,7 @@ double Item_func_st_area::val_real() {
 
   null_value = args[0]->null_value;
   if (null_value) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return 0.0;
   }
 
@@ -5149,7 +5150,7 @@ double Item_func_st_length::val_real() {
   String *swkb = args[0]->val_str(&value);
 
   if ((null_value = (args[0]->null_value))) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return 0.0;
   }
 
@@ -5177,7 +5178,7 @@ double Item_func_st_length::val_real() {
     return error_real(); /* purecov: inspected */
 
   if (null_value) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return 0.0;
   }
 
@@ -5187,7 +5188,7 @@ double Item_func_st_length::val_real() {
         return error_real();
         break;
       case ConvertUnitResult::kNull:
-        DBUG_ASSERT(maybe_null);
+        assert(is_nullable());
         null_value = true;
         return 0.0;
         break;
@@ -5205,7 +5206,7 @@ longlong Item_func_st_srid_observer::val_int() {
   String *swkb = args[0]->val_str(&tmp_str);
 
   if ((null_value = (args[0]->null_value))) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return 0.0;
   }
 
@@ -5295,7 +5296,7 @@ double Item_func_st_frechet_distance::val_real() {
 
   if ((null_value =
            (!res1 || args[0]->null_value || !res2 || args[1]->null_value))) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return 0.0;
   }
 
@@ -5325,7 +5326,7 @@ double Item_func_st_frechet_distance::val_real() {
     return error_real();
   }
   if (null_value) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return 0.0;
   }
 
@@ -5336,7 +5337,7 @@ double Item_func_st_frechet_distance::val_real() {
         return error_real();
         break;
       case ConvertUnitResult::kNull:
-        DBUG_ASSERT(maybe_null);
+        assert(is_nullable());
         null_value = true;
         return 0.0;
         break;
@@ -5359,7 +5360,7 @@ double Item_func_st_hausdorff_distance::val_real() {
 
   if ((null_value =
            (!res1 || args[0]->null_value || !res2 || args[1]->null_value))) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return 0.0;
   }
 
@@ -5389,7 +5390,7 @@ double Item_func_st_hausdorff_distance::val_real() {
     return error_real();
   }
   if (null_value) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return 0.0;
   }
 
@@ -5400,7 +5401,7 @@ double Item_func_st_hausdorff_distance::val_real() {
         return error_real();
         break;
       case ConvertUnitResult::kNull:
-        DBUG_ASSERT(maybe_null);
+        assert(is_nullable());
         null_value = true;
         return 0.0;
         break;
@@ -5423,7 +5424,7 @@ double Item_func_distance::val_real() {
 
   if ((null_value =
            (!res1 || args[0]->null_value || !res2 || args[1]->null_value))) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return 0.0;
   }
 
@@ -5457,7 +5458,7 @@ double Item_func_distance::val_real() {
     return error_real();
   }
   if (null_value) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return 0.0;
   }
 
@@ -5467,7 +5468,7 @@ double Item_func_distance::val_real() {
         return error_real();
         break;
       case ConvertUnitResult::kNull:
-        DBUG_ASSERT(maybe_null);
+        assert(is_nullable());
         null_value = true;
         return 0.0;
         break;
@@ -5494,7 +5495,7 @@ double Item_func_st_distance_sphere::val_real() {
 
   if (args[0]->null_value || args[1]->null_value) {
     null_value = true;
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return 0.0;
   }
 

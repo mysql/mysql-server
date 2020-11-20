@@ -180,7 +180,7 @@ class Item_json_func : public Item_func {
   }
 
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
   enum Item_result result_type() const override { return STRING_RESULT; }
@@ -319,7 +319,7 @@ class Item_func_json_valid final : public Item_int_func {
 
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -367,7 +367,7 @@ class Item_func_json_schema_validation_report final : public Item_json_func {
 
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 
@@ -405,7 +405,7 @@ class Item_func_json_contains final : public Item_int_func {
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
     if (param_type_is_default(thd, 1, 3)) return true;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 
@@ -442,7 +442,7 @@ class Item_func_json_contains_path final : public Item_int_func {
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
     if (param_type_is_default(thd, 1, -1)) return true;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 
@@ -511,7 +511,7 @@ class Item_func_json_length final : public Item_int_func {
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
     if (param_type_is_default(thd, 1, 2)) return true;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 
@@ -535,7 +535,7 @@ class Item_func_json_depth final : public Item_int_func {
 
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 
@@ -896,7 +896,7 @@ class Item_func_json_quote : public Item_str_func {
 
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, -1)) return true;
-    maybe_null = true;
+    set_nullable(true);
 
     /*
      Any interior character could be replaced by a 6 character
@@ -926,7 +926,7 @@ class Item_func_json_unquote : public Item_str_func {
 
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, -1)) return true;
-    maybe_null = true;
+    set_nullable(true);
     set_data_type_string(args[0]->max_char_length(), &my_charset_utf8mb4_bin);
     return false;
   }

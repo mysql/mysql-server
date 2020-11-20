@@ -273,7 +273,7 @@ void Item_subselect::accumulate_properties(SELECT_LEX *select) {
 void Item_subselect::accumulate_expression(Item *item) {
   if (item->used_tables() & ~OUTER_REF_TABLE_BIT)
     used_tables_cache |= INNER_TABLE_BIT;
-  maybe_null |= item->maybe_null;
+  set_nullable(is_nullable() | item->is_nullable());
 }
 
 /**
@@ -361,7 +361,8 @@ void Item_singlerow_subselect::cleanup() {
 */
 bool Item_in_subselect::mark_as_outer(Item *left_row, size_t col) {
   const Item *left_col = left_row->element_index(col);
-  return !left_col->const_item() || (!abort_on_null && left_col->maybe_null) ||
+  return !left_col->const_item() ||
+         (!abort_on_null && left_col->is_nullable()) ||
          (left_row->type() == SUBSELECT_ITEM && !left_col->basic_const_item());
 }
 
@@ -840,7 +841,7 @@ Item_singlerow_subselect::Item_singlerow_subselect(SELECT_LEX *select_lex)
     : Item_subselect(), value(nullptr), no_rows(false) {
   DBUG_TRACE;
   init(select_lex, new (*THR_MALLOC) Query_result_scalar_subquery(this));
-  maybe_null = true;  // if the subquery is empty, value is NULL
+  set_nullable(true);  // if the subquery is empty, value is NULL
   max_columns = UINT_MAX;
 }
 
@@ -1037,7 +1038,7 @@ Item_maxmin_subselect::Item_maxmin_subselect(Item_subselect *parent,
   init(select_lex, new (*THR_MALLOC) Query_result_max_min_subquery(
                        this, max_arg, ignore_nulls));
   max_columns = 1;
-  maybe_null = true;
+  set_nullable(true);
   max_columns = 1;
 
   /*
@@ -1137,7 +1138,7 @@ bool Item_singlerow_subselect::resolve_type(THD *thd) {
     because one or more of the columns could be NULL, or because the
     subquery could return an empty result.
   */
-  maybe_null = subquery->may_be_null();
+  set_nullable(subquery->may_be_null());
   return false;
 }
 
@@ -1283,8 +1284,8 @@ Item_exists_subselect::Item_exists_subselect(SELECT_LEX *select)
   DBUG_TRACE;
   init(select, new (*THR_MALLOC) Query_result_exists_subquery(this));
   max_columns = UINT_MAX;
-  null_value = false;  // can't be NULL
-  maybe_null = false;  // can't be NULL
+  null_value = false;   // can't be NULL
+  set_nullable(false);  // can't be NULL
 }
 
 void Item_exists_subselect::print(const THD *thd, String *str,
@@ -1399,7 +1400,7 @@ Item_in_subselect::Item_in_subselect(Item *left_exp, SELECT_LEX *select)
   DBUG_TRACE;
   init(select, new (*THR_MALLOC) Query_result_exists_subquery(this));
   max_columns = UINT_MAX;
-  maybe_null = true;
+  set_nullable(true);
   reset();
   // if test_limit will fail then error will be reported to client
   test_limit();
@@ -1422,7 +1423,7 @@ Item_in_subselect::Item_in_subselect(const POS &pos, Item *left_exp,
       pt_subselect(pt_subquery_arg) {
   DBUG_TRACE;
   max_columns = UINT_MAX;
-  maybe_null = true;
+  set_nullable(true);
   reset();
 }
 
@@ -1506,10 +1507,10 @@ bool Item_exists_subselect::choose_semijoin_or_antijoin() {
     null_problem = false;
   if (null_problem) {
     // antijoin/semijoin cannot work with NULLs on either side of IN
-    if (down_cast<Item_in_subselect *>(this)->left_expr->maybe_null)
+    if (down_cast<Item_in_subselect *>(this)->left_expr->is_nullable())
       return false;
     for (Item *inner : unit->first_select()->visible_fields()) {
-      if (inner->maybe_null) return false;
+      if (inner->is_nullable()) return false;
     }
   }
   can_do_aj = might_do_aj;
@@ -1671,7 +1672,8 @@ Item_subselect::trans_res Item_in_subselect::single_value_transformer(
   */
   for (SELECT_LEX *sel = unit->first_select(); sel != nullptr;
        sel = sel->next_select()) {
-    if ((subquery_maybe_null = sel->single_visible_field()->maybe_null)) break;
+    if ((subquery_maybe_null = sel->single_visible_field()->is_nullable()))
+      break;
   }
   /*
     If this is an ALL/ANY single-value subquery predicate, try to rewrite
@@ -1689,7 +1691,7 @@ Item_subselect::trans_res Item_in_subselect::single_value_transformer(
   if (!func->eqne_op() &&                                                // 1
       !unit->uncacheable &&                                              // 2
       (abort_on_null || (upper_item && upper_item->ignore_unknown()) ||  // 3
-       (!left_expr->maybe_null && !subquery_maybe_null))) {
+       (!left_expr->is_nullable() && !subquery_maybe_null))) {
     if (substitution) {
       // It is second (third, ...) SELECT of UNION => All is done
       return RES_OK;
@@ -1796,7 +1798,7 @@ Item_subselect::trans_res Item_in_subselect::single_value_transformer(
     in2exists_info->dependent_after = unit->uncacheable & UNCACHEABLE_DEPENDENT;
   }
 
-  if (!abort_on_null && left_expr->maybe_null && !pushed_cond_guards) {
+  if (!abort_on_null && left_expr->is_nullable() && !pushed_cond_guards) {
     if (!(pushed_cond_guards = (bool *)thd->alloc(sizeof(bool))))
       return RES_ERROR;
     pushed_cond_guards[0] = true;
@@ -1904,7 +1906,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(THD *thd,
         selected_sum->referenced_by[1] = ref_null->ref;
       }
     }
-    if (!abort_on_null && left_expr->maybe_null) {
+    if (!abort_on_null && left_expr->is_nullable()) {
       /*
         We can encounter "NULL IN (SELECT ...)". Wrap the added condition
         within a trig_cond.
@@ -1944,10 +1946,10 @@ Item_in_subselect::single_value_in_to_exists_transformer(THD *thd,
         'item' too. Not only on the OR node.
       */
       item->set_created_by_in2exists();
-      if (!abort_on_null && orig_item->maybe_null) {
+      if (!abort_on_null && orig_item->is_nullable()) {
         Item_bool_func *having = new Item_is_not_null_test(this, orig_item);
         having->set_created_by_in2exists();
-        if (left_expr->maybe_null) {
+        if (left_expr->is_nullable()) {
           if (!(having = new Item_func_trig_cond(
                     having, get_cond_guard(0), nullptr, NO_PLAN_IDX,
                     Item_func_trig_cond::OUTER_FIELD_IS_NOT_NULL)))
@@ -1978,7 +1980,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(THD *thd,
         If we may encounter NULL IN (SELECT ...) and care whether subquery
         result is NULL or FALSE, wrap condition in a trig_cond.
       */
-      if (!abort_on_null && left_expr->maybe_null) {
+      if (!abort_on_null && left_expr->is_nullable()) {
         if (!(item = new Item_func_trig_cond(
                   item, get_cond_guard(0), nullptr, NO_PLAN_IDX,
                   Item_func_trig_cond::OUTER_FIELD_IS_NOT_NULL)))
@@ -2017,7 +2019,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(THD *thd,
                          new Item_ref_null_helper(&select->context, this,
                                                   &select->base_ref_items[0]));
         new_having->set_created_by_in2exists();
-        if (!abort_on_null && left_expr->maybe_null) {
+        if (!abort_on_null && left_expr->is_nullable()) {
           if (!(new_having = new Item_func_trig_cond(
                     new_having, get_cond_guard(0), nullptr, NO_PLAN_IDX,
                     Item_func_trig_cond::OUTER_FIELD_IS_NOT_NULL)))
@@ -2103,7 +2105,7 @@ Item_subselect::trans_res Item_in_subselect::row_value_transformer(
     if (!left_expr->const_item()) unit->uncacheable |= UNCACHEABLE_DEPENDENT;
     in2exists_info->dependent_after = unit->uncacheable & UNCACHEABLE_DEPENDENT;
 
-    if (!abort_on_null && left_expr->maybe_null && !pushed_cond_guards) {
+    if (!abort_on_null && left_expr->is_nullable() && !pushed_cond_guards) {
       if (!(pushed_cond_guards =
                 (bool *)thd->alloc(sizeof(bool) * left_expr->cols())))
         return RES_ERROR;
@@ -2192,7 +2194,7 @@ Item_subselect::trans_res Item_in_subselect::row_value_in_to_exists_transformer(
       item_isnull->set_created_by_in2exists();
       Item_bool_func *col_item = new Item_cond_or(item_eq, item_isnull);
       col_item->set_created_by_in2exists();
-      if (!abort_on_null && left_expr->element_index(i)->maybe_null) {
+      if (!abort_on_null && left_expr->element_index(i)->is_nullable()) {
         if (!(col_item = new Item_func_trig_cond(
                   col_item, get_cond_guard(i), nullptr, NO_PLAN_IDX,
                   Item_func_trig_cond::OUTER_FIELD_IS_NOT_NULL)))
@@ -2205,7 +2207,7 @@ Item_subselect::trans_res Item_in_subselect::row_value_in_to_exists_transformer(
       Item_bool_func *item_nnull_test = new Item_is_not_null_test(
           this, new Item_ref(&select->context, pitem_i, "<list ref>"));
       item_nnull_test->set_created_by_in2exists();
-      if (!abort_on_null && left_expr->element_index(i)->maybe_null) {
+      if (!abort_on_null && left_expr->element_index(i)->is_nullable()) {
         if (!(item_nnull_test = new Item_func_trig_cond(
                   item_nnull_test, get_cond_guard(i), nullptr, NO_PLAN_IDX,
                   Item_func_trig_cond::OUTER_FIELD_IS_NOT_NULL)))
@@ -2270,7 +2272,7 @@ Item_subselect::trans_res Item_in_subselect::row_value_in_to_exists_transformer(
           TODO: why we create the above for cases where the right part
                 cant be NULL?
         */
-        if (left_expr->element_index(i)->maybe_null) {
+        if (left_expr->element_index(i)->is_nullable()) {
           if (!(item = new Item_func_trig_cond(
                     item, get_cond_guard(i), nullptr, NO_PLAN_IDX,
                     Item_func_trig_cond::OUTER_FIELD_IS_NOT_NULL)))
@@ -2869,11 +2871,11 @@ void SubqueryWithResult::set_row(const mem_root_deque<Item *> &item_list,
     res_field_type = sel_item->data_type();
     item->decimals = sel_item->decimals;
     item->unsigned_flag = sel_item->unsigned_flag;
-    maybe_null |= sel_item->maybe_null;
+    maybe_null |= sel_item->is_nullable();
     if (!(row[i] = Item_cache::get_cache(sel_item))) return;
     row[i]->setup(sel_item);
     row[i]->store(sel_item);
-    row[i]->maybe_null = possibly_empty || sel_item->maybe_null;
+    row[i]->set_nullable(possibly_empty || sel_item->is_nullable());
     ++i;
   }
   if (CountVisibleFields(item_list) > 1)

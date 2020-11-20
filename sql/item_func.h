@@ -1582,7 +1582,7 @@ class Item_rollup_group_item final : public Item_func {
     // status. (We could have done this in the caller, but it fits naturally in
     // with all the other copying done here.)
     hidden = inner_item->hidden;
-    maybe_null = true;
+    set_nullable(true);
     set_rollup_expr();
   }
   double val_real() override;
@@ -1675,7 +1675,7 @@ class Item_func_coercibility final : public Item_int_func {
   const char *func_name() const override { return "coercibility"; }
   bool resolve_type(THD *thd) override {
     max_length = 10;
-    maybe_null = false;
+    set_nullable(false);
     return Item_int_func::resolve_type(thd);
   }
 };
@@ -1716,7 +1716,7 @@ class Item_func_validate_password_strength final : public Item_int_func {
   }
   bool resolve_type(THD *thd) override {
     max_length = 10;
-    maybe_null = true;
+    set_nullable(true);
     return Item_int_func::resolve_type(thd);
   }
 };
@@ -2008,7 +2008,7 @@ class Item_func_benchmark final : public Item_int_func {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_LONGLONG)) return true;
     if (param_type_is_default(thd, 1, 2)) return true;
     max_length = 1;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
   void print(const THD *thd, String *str,
@@ -2266,7 +2266,7 @@ class Item_func_get_lock final : public Item_int_func {
     if (param_type_is_default(thd, 0, 1)) return true;
     if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
     max_length = 1;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
   bool is_non_const_over_literals(uchar *) override { return true; }
@@ -2294,7 +2294,7 @@ class Item_func_release_lock final : public Item_int_func {
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1)) return true;
     max_length = 1;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
   bool is_non_const_over_literals(uchar *) override { return true; }
@@ -2353,7 +2353,7 @@ class Item_master_pos_wait final : public Item_int_func {
     if (param_type_is_default(thd, 1, 3, MYSQL_TYPE_LONGLONG)) return true;
     if (param_type_is_default(thd, 3, 4)) return true;
     max_length = 21;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
   bool check_function_as_value_generator(uchar *checker_args) override {
@@ -2389,7 +2389,7 @@ class Item_wait_for_executed_gtid_set final : public Item_int_func {
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1)) return true;
     if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_DOUBLE)) return true;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -2413,7 +2413,7 @@ class Item_master_gtid_set_wait final : public Item_int_func {
     if (param_type_is_default(thd, 0, 1)) return true;
     if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_DOUBLE)) return true;
     if (param_type_is_default(thd, 2, 3)) return true;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -2429,7 +2429,7 @@ class Item_func_gtid_subset final : public Item_int_func {
   const char *func_name() const override { return "gtid_subset"; }
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, -1)) return true;
-    maybe_null = false;
+    set_nullable(false);
     return false;
   }
   bool is_bool_func() const override { return true; }
@@ -2447,7 +2447,7 @@ class Item_func_can_access_database : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "can_access_database"; }
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -2459,7 +2459,7 @@ class Item_func_can_access_table : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "can_access_table"; }
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -2471,7 +2471,7 @@ class Item_func_can_access_user : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "can_access_user"; }
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -2484,7 +2484,7 @@ class Item_func_can_access_trigger : public Item_int_func {
   const char *func_name() const override { return "can_access_trigger"; }
   bool resolve_type(THD *) override {
     max_length = 4;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -2497,7 +2497,7 @@ class Item_func_can_access_routine : public Item_int_func {
   const char *func_name() const override { return "can_access_routine"; }
   bool resolve_type(THD *) override {
     max_length = 4;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -2508,7 +2508,7 @@ class Item_func_can_access_event : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "can_access_event"; }
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -2521,7 +2521,7 @@ class Item_func_can_access_resource_group : public Item_int_func {
   const char *func_name() const override { return "can_access_resource_group"; }
   bool resolve_type(THD *) override {
     max_length = 1;  // Function can return 0 or 1.
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -2533,7 +2533,7 @@ class Item_func_can_access_view : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "can_access_view"; }
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -2545,7 +2545,7 @@ class Item_func_can_access_column : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "can_access_column"; }
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -2560,7 +2560,7 @@ class Item_func_is_visible_dd_object : public Item_int_func {
   const char *func_name() const override { return "is_visible_dd_object"; }
   bool resolve_type(THD *) override {
     max_length = 1;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -2573,7 +2573,7 @@ class Item_func_internal_table_rows : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "internal_table_rows"; }
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     unsigned_flag = true;
     null_on_null = false;
     return false;
@@ -2588,7 +2588,7 @@ class Item_func_internal_avg_row_length : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "internal_avg_row_length"; }
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     unsigned_flag = true;
     null_on_null = false;
     return false;
@@ -2603,7 +2603,7 @@ class Item_func_internal_data_length : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "internal_data_length"; }
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     unsigned_flag = true;
     null_on_null = false;
     return false;
@@ -2618,7 +2618,7 @@ class Item_func_internal_max_data_length : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "internal_max_data_length"; }
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     unsigned_flag = true;
     null_on_null = false;
     return false;
@@ -2633,7 +2633,7 @@ class Item_func_internal_index_length : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "internal_index_length"; }
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     unsigned_flag = true;
     null_on_null = false;
     return false;
@@ -2648,7 +2648,7 @@ class Item_func_internal_data_free : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "internal_data_free"; }
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     unsigned_flag = true;
     null_on_null = false;
     return false;
@@ -2663,7 +2663,7 @@ class Item_func_internal_auto_increment : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "internal_auto_increment"; }
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     unsigned_flag = true;
     null_on_null = false;
     return false;
@@ -2678,7 +2678,7 @@ class Item_func_internal_checksum : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "internal_checksum"; }
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     null_on_null = false;
     return false;
   }
@@ -2691,7 +2691,7 @@ class Item_func_internal_keys_disabled : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "internal_keys_disabled"; }
   bool resolve_type(THD *) override {
-    maybe_null = false;
+    set_nullable(false);
     null_on_null = false;
     return false;
   }
@@ -2708,7 +2708,7 @@ class Item_func_internal_index_column_cardinality : public Item_int_func {
     return "internal_index_column_cardinality";
   }
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     null_on_null = false;
     return false;
   }
@@ -2722,7 +2722,7 @@ class Item_func_internal_dd_char_length final : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "internal_dd_char_length"; }
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     null_on_null = false;
     return false;
   }
@@ -2740,7 +2740,7 @@ class Item_func_internal_get_view_warning_or_error final
   }
   bool resolve_type(THD *) override {
     max_length = 1;
-    maybe_null = false;
+    set_nullable(false);
     null_on_null = false;
     return false;
   }
@@ -2752,7 +2752,7 @@ class Item_func_get_dd_index_sub_part_length final : public Item_int_func {
       : Item_int_func(pos, list) {}
   longlong val_int() override;
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     null_on_null = false;
     return false;
   }
@@ -2770,7 +2770,7 @@ class Item_func_internal_tablespace_id : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "internal_tablespace_id"; }
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     null_on_null = false;
     return false;
   }
@@ -2791,7 +2791,7 @@ class Item_func_internal_tablespace_logfile_group_number
   }
 
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     null_on_null = false;
     return false;
   }
@@ -2811,7 +2811,7 @@ class Item_func_internal_tablespace_free_extents : public Item_int_func {
   }
 
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     null_on_null = false;
     return false;
   }
@@ -2831,7 +2831,7 @@ class Item_func_internal_tablespace_total_extents : public Item_int_func {
   }
 
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     null_on_null = false;
     return false;
   }
@@ -2851,7 +2851,7 @@ class Item_func_internal_tablespace_extent_size : public Item_int_func {
   }
 
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     null_on_null = false;
     return false;
   }
@@ -2871,7 +2871,7 @@ class Item_func_internal_tablespace_initial_size : public Item_int_func {
   }
 
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     null_on_null = false;
     return false;
   }
@@ -2891,7 +2891,7 @@ class Item_func_internal_tablespace_maximum_size : public Item_int_func {
   }
 
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     null_on_null = false;
     return false;
   }
@@ -2911,7 +2911,7 @@ class Item_func_internal_tablespace_autoextend_size : public Item_int_func {
   }
 
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     null_on_null = false;
     return false;
   }
@@ -2931,7 +2931,7 @@ class Item_func_internal_tablespace_version : public Item_int_func {
   }
 
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     null_on_null = false;
     return false;
   }
@@ -2951,7 +2951,7 @@ class Item_func_internal_tablespace_data_free : public Item_int_func {
   }
 
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     null_on_null = false;
     return false;
   }
@@ -3717,7 +3717,7 @@ class Item_func_is_free_lock final : public Item_int_func {
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1)) return true;
     max_length = 1;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
   bool is_non_const_over_literals(uchar *) override { return true; }
@@ -3744,7 +3744,7 @@ class Item_func_is_used_lock final : public Item_int_func {
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1)) return true;
     unsigned_flag = true;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
   bool is_non_const_over_literals(uchar *) override { return true; }
@@ -3768,7 +3768,7 @@ class Item_func_row_count final : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "row_count"; }
   bool resolve_type(THD *) override {
-    maybe_null = false;
+    set_nullable(false);
     return false;
   }
   bool check_function_as_value_generator(uchar *checker_args) override {
@@ -3912,7 +3912,7 @@ class Item_func_found_rows final : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "found_rows"; }
   bool resolve_type(THD *) override {
-    maybe_null = false;
+    set_nullable(false);
     return false;
   }
   bool check_function_as_value_generator(uchar *checker_args) override {
@@ -3974,7 +3974,7 @@ class Item_func_internal_is_mandatory_role : public Item_int_func {
   }
   enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -3992,7 +3992,7 @@ class Item_func_internal_is_enabled_role : public Item_int_func {
   const char *func_name() const override { return "internal_is_enabled_role"; }
   enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };

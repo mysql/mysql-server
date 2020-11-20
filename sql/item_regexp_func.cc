@@ -277,7 +277,7 @@ bool Item_func_regexp_substr::resolve_type(THD *thd) {
   if (param_type_is_rejected(4, 5))  // as we evaluate it in fix_fields
     return true;
   set_data_type_string(subject()->max_char_length());
-  maybe_null = true;
+  set_nullable(true);
   return false;
 }
 

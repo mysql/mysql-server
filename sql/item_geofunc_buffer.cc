@@ -179,7 +179,7 @@ bool Item_func_buffer_strategy::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1)) return true;
   if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_DOUBLE)) return true;
   set_data_type_string(16, &my_charset_bin);
-  maybe_null = true;
+  set_nullable(true);
   return false;
 }
 
@@ -187,7 +187,7 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */) {
   String str;
   String *strat_name = args[0]->val_str_ascii(&str);
   if ((null_value = args[0]->null_value)) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return nullptr;
   }
 
@@ -229,7 +229,7 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */) {
 
       double val = args[1]->val_real();
       if ((null_value = args[1]->null_value)) {
-        DBUG_ASSERT(maybe_null);
+        assert(is_nullable());
         return nullptr;
       }
       if (val <= 0) {

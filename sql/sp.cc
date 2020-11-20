@@ -1273,7 +1273,7 @@ static bool show_create_routine_from_dd_routine(THD *thd, enum_sp_type type,
     Item_empty_string *stmt_fld = new Item_empty_string(
         col3_caption, std::max<size_t>(defstr.length(), 1024U));
 
-    stmt_fld->maybe_null = true;
+    stmt_fld->set_nullable(true);
 
     fields.push_back(stmt_fld);
   }

@@ -50,7 +50,7 @@ class Item_func_inet_aton : public Item_int_func {
 
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1)) return true;
-    maybe_null = true;
+    set_nullable(true);
     unsigned_flag = true;
     return false;
   }
@@ -73,7 +73,7 @@ class Item_func_inet_ntoa : public Item_str_func {
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_LONGLONG)) return true;
     set_data_type_string(3 * 8 + 7, default_charset());
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -129,7 +129,7 @@ class Item_func_inet6_aton : public Item_func_inet_str_base {
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1)) return true;
     set_data_type_string(16, &my_charset_bin);
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 
@@ -156,7 +156,7 @@ class Item_func_inet6_ntoa : public Item_func_inet_str_base {
     // 4 symbols per group
     set_data_type_string(8 * 4 + 7, default_charset());
 
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 

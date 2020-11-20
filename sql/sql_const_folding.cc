@@ -1074,7 +1074,7 @@ static bool fold_or_simplify(THD *thd, Item *ref_or_field,
       ft == Item_func::MULT_EQUAL_FUNC ||
       down_cast<Item_bool_func2 *>(*retcond)->ignore_unknown();
   if (always_true) {
-    if (ref_or_field->maybe_null) {
+    if (ref_or_field->is_nullable()) {
       if (is_top_level) {
         i = new (thd->mem_root) Item_func_isnotnull(ref_or_field);
       } else {
@@ -1101,7 +1101,7 @@ static bool fold_or_simplify(THD *thd, Item *ref_or_field,
       return false;
     }
 
-    if (ref_or_field->maybe_null && ft != Item_func::EQUAL_FUNC) {
+    if (ref_or_field->is_nullable() && ft != Item_func::EQUAL_FUNC) {
       i = new (thd->mem_root) Item_func_ne(ref_or_field, ref_or_field);
     } else {
       i = new (thd->mem_root) Item_func_false();
@@ -1267,7 +1267,7 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
 
   switch (func_type) {
     case Item_func::ISNOTNULL_FUNC:
-      if (func->arguments()[0]->maybe_null) {
+      if (func->arguments()[0]->is_nullable()) {
         return fold_arguments(thd, func);
       }
 

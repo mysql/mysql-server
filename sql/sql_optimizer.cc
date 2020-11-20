@@ -6034,7 +6034,7 @@ static bool add_not_null_conds(JOIN *join) {
         continue;
       }
       Item *const item = tab->ref().items[keypart]->real_item();
-      if (item->type() != Item::FIELD_ITEM || !item->maybe_null) continue;
+      if (item->type() != Item::FIELD_ITEM || !item->is_nullable()) continue;
       Item_field *const not_null_item = down_cast<Item_field *>(item);
       JOIN_TAB *referred_tab = not_null_item->field->table->reginfo.join_tab;
       /*
@@ -6309,7 +6309,7 @@ static bool find_eq_ref_candidate(TABLE_LIST *tl, table_map sj_inner_tables) {
               value through. Especially needed for a UNIQUE index on NULLable
               columns where a duplicate row is possible with NULL values.
             */
-            if (keyuse->null_rejecting || !keyuse->val->maybe_null ||
+            if (keyuse->null_rejecting || !keyuse->val->is_nullable() ||
                 !keyinfo->key_part[keyuse->keypart].field->is_nullable())
               bound_parts |= (key_part_map)1 << keyuse->keypart;
           }
@@ -10096,7 +10096,7 @@ bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
        3) If the <=> operator is used, result is always true because
           NULL = NULL is true for this operator
       */
-      if (!left_item->maybe_null || *cond_value == Item::COND_FALSE ||
+      if (!left_item->is_nullable() || *cond_value == Item::COND_FALSE ||
           down_cast<Item_func *>(cond)->functype() == Item_func::EQUAL_FUNC) {
         *retcond = nullptr;
         return false;
@@ -10936,7 +10936,7 @@ static uint32 get_key_length_tmp_table(Item *item) {
   else
     len = item->max_length;
 
-  if (item->maybe_null) len += HA_KEY_NULL_LENGTH;
+  if (item->is_nullable()) len += HA_KEY_NULL_LENGTH;
 
   // references KEY_PART_INFO::init_from_field()
   enum_field_types type = item->data_type();

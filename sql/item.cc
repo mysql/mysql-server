@@ -138,7 +138,7 @@ Item::Item()
       m_data_type(MYSQL_TYPE_INVALID),
       fixed(false),
       decimals(0),
-      maybe_null(false),
+      m_nullable(false),
       null_value(false),
       unsigned_flag(false),
       m_is_window_function(false),
@@ -166,7 +166,7 @@ Item::Item(THD *thd, const Item *item)
       m_data_type(item->data_type()),
       fixed(item->fixed),
       decimals(item->decimals),
-      maybe_null(item->maybe_null),
+      m_nullable(item->m_nullable),
       null_value(item->null_value),
       unsigned_flag(item->unsigned_flag),
       m_is_window_function(item->m_is_window_function),
@@ -195,7 +195,7 @@ Item::Item(const POS &)
       m_data_type(MYSQL_TYPE_INVALID),
       fixed(false),
       decimals(0),
-      maybe_null(false),
+      m_nullable(false),
       null_value(false),
       unsigned_flag(false),
       m_is_window_function(false),
@@ -1716,7 +1716,7 @@ Item_splocal::Item_splocal(const Name_string sp_var_name, uint sp_var_idx,
       limit_clause_param(false),
       pos_in_query(pos_in_q),
       len_in_query(len_in_q) {
-  maybe_null = true;
+  set_nullable(true);
 
   sp_var_type = real_type_to_type(sp_var_type);
   m_type = sp_map_item_type(sp_var_type);
@@ -1839,7 +1839,7 @@ bool Item_name_const::is_null() { return value_item->is_null(); }
 
 Item_name_const::Item_name_const(const POS &pos, Item *name_arg, Item *val)
     : super(pos), value_item(val), name_item(name_arg) {
-  maybe_null = true;
+  set_nullable(true);
 }
 
 bool Item_name_const::itemize(Parse_context *pc, Item **res) {
@@ -2558,7 +2558,7 @@ void Item_ident_for_show::make_field(Send_field *tmp_field) {
 }
 
 bool Item_ident_for_show::fix_fields(THD *, Item **) {
-  maybe_null = field->is_nullable();
+  set_nullable(field->is_nullable());
   decimals = field->decimals();
   unsigned_flag = field->is_flag_set(UNSIGNED_FLAG);
   collation.set(field->charset(), field->derivation(), field->repertoire());
@@ -2764,8 +2764,8 @@ void Item_field::set_field(Field *field_par) {
   field_index = field_par->field_index();
 
   field = result_field = field_par;  // for easy coding with fields
-  maybe_null = field->is_nullable() || field->is_tmp_nullable() ||
-               field->table->is_nullable();
+  set_nullable(field->is_nullable() || field->is_tmp_nullable() ||
+               field->table->is_nullable());
   if (table_ref != nullptr) {
     table_name = table_ref->alias;
     m_orig_db_name = table_ref->db;
@@ -3479,7 +3479,7 @@ Item_param::Item_param(const POS &pos, MEM_ROOT *root, uint pos_in_query_arg)
       m_clones(root) {
   item_name.set("?");
   // Initial type is "invalid type", type will be assigned from context
-  maybe_null = true;  // All parameters are nullable
+  set_nullable(true);  // All parameters are nullable
 }
 
 bool Item_param::itemize(Parse_context *pc, Item **res) {
@@ -3643,7 +3643,7 @@ bool Item_param::propagate_type(THD *, const Type_properties &type) {
 void Item_param::sync_clones() {
   for (auto c : m_clones) {
     // Scalar-type members:
-    c->maybe_null = maybe_null;
+    c->set_nullable(is_nullable());
     c->null_value = null_value;
     c->max_length = max_length;
     c->decimals = decimals;
@@ -5338,7 +5338,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
     // If view column reference, Item in *reference is completely resolved:
     if (from_field == view_ref_found) {
       if (is_null_on_empty_table(thd, this)) {
-        (*reference)->maybe_null = true;
+        (*reference)->set_nullable(true);
         if ((*reference)->real_item()->type() == Item::FIELD_ITEM) {
           // See below for explanation.
           TABLE *table =
@@ -5390,7 +5390,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
   }
   fixed = true;
   if (is_null_on_empty_table(thd, this)) {
-    maybe_null = true;
+    set_nullable(true);
 
     // The Item is now nullable, but the underlying field still isn't,
     // and Copy_field uses the underlying field. Thus,
@@ -5730,7 +5730,7 @@ void Item::init_make_field(Send_field *tmp_field,
   tmp_field->col_name = item_name.ptr();
   tmp_field->charsetnr = collation.collation->number;
   tmp_field->flags =
-      (maybe_null ? 0 : NOT_NULL_FLAG) |
+      (m_nullable ? 0 : NOT_NULL_FLAG) |
       (my_binary_compare(charset_for_protocol()) ? BINARY_FLAG : 0);
   tmp_field->type = field_type_arg;
   tmp_field->length = max_length;
@@ -5851,19 +5851,19 @@ Field *Item::make_string_field(TABLE *table) const {
   DBUG_ASSERT(collation.collation);
   if (data_type() == MYSQL_TYPE_JSON)
     field =
-        new (*THR_MALLOC) Field_json(max_length, maybe_null, item_name.ptr());
+        new (*THR_MALLOC) Field_json(max_length, m_nullable, item_name.ptr());
   else if (max_length / collation.collation->mbmaxlen >
            CONVERT_IF_BIGGER_TO_BLOB)
     field = new (*THR_MALLOC) Field_blob(
-        max_length, maybe_null, item_name.ptr(), collation.collation, true);
+        max_length, m_nullable, item_name.ptr(), collation.collation, true);
   /* Item_type_holder holds the exact type, do not change it */
   else if (max_length > 0 &&
            (type() != Item::TYPE_HOLDER || data_type() != MYSQL_TYPE_STRING))
     field = new (*THR_MALLOC) Field_varstring(
-        max_length, maybe_null, item_name.ptr(), table->s, collation.collation);
+        max_length, m_nullable, item_name.ptr(), table->s, collation.collation);
   else
     field = new (*THR_MALLOC) Field_string(
-        max_length, maybe_null, item_name.ptr(), collation.collation);
+        max_length, m_nullable, item_name.ptr(), collation.collation);
   if (field) field->init(table);
   return field;
 }
@@ -5892,55 +5892,55 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table,
       break;
     case MYSQL_TYPE_TINY:
       field = new (*THR_MALLOC)
-          Field_tiny(max_length, maybe_null, item_name.ptr(), unsigned_flag);
+          Field_tiny(max_length, m_nullable, item_name.ptr(), unsigned_flag);
       break;
     case MYSQL_TYPE_SHORT:
       field = new (*THR_MALLOC)
-          Field_short(max_length, maybe_null, item_name.ptr(), unsigned_flag);
+          Field_short(max_length, m_nullable, item_name.ptr(), unsigned_flag);
       break;
     case MYSQL_TYPE_LONG:
       field = new (*THR_MALLOC)
-          Field_long(max_length, maybe_null, item_name.ptr(), unsigned_flag);
+          Field_long(max_length, m_nullable, item_name.ptr(), unsigned_flag);
       break;
     case MYSQL_TYPE_LONGLONG:
-      field = new (*THR_MALLOC) Field_longlong(max_length, maybe_null,
+      field = new (*THR_MALLOC) Field_longlong(max_length, m_nullable,
                                                item_name.ptr(), unsigned_flag);
       break;
     case MYSQL_TYPE_FLOAT:
       field = new (*THR_MALLOC) Field_float(
-          max_length, maybe_null, item_name.ptr(), decimals, unsigned_flag);
+          max_length, m_nullable, item_name.ptr(), decimals, unsigned_flag);
       break;
     case MYSQL_TYPE_DOUBLE:
       field = new (*THR_MALLOC) Field_double(
-          max_length, maybe_null, item_name.ptr(), decimals, unsigned_flag);
+          max_length, m_nullable, item_name.ptr(), decimals, unsigned_flag);
       break;
     case MYSQL_TYPE_INT24:
       field = new (*THR_MALLOC)
-          Field_medium(max_length, maybe_null, item_name.ptr(), unsigned_flag);
+          Field_medium(max_length, m_nullable, item_name.ptr(), unsigned_flag);
       break;
     case MYSQL_TYPE_DATE:
     case MYSQL_TYPE_NEWDATE:
-      field = new (*THR_MALLOC) Field_newdate(maybe_null, item_name.ptr());
+      field = new (*THR_MALLOC) Field_newdate(m_nullable, item_name.ptr());
       break;
     case MYSQL_TYPE_TIME:
       field =
-          new (*THR_MALLOC) Field_timef(maybe_null, item_name.ptr(), decimals);
+          new (*THR_MALLOC) Field_timef(m_nullable, item_name.ptr(), decimals);
       break;
     case MYSQL_TYPE_TIMESTAMP:
       field = new (*THR_MALLOC)
-          Field_timestampf(maybe_null, item_name.ptr(), decimals);
+          Field_timestampf(m_nullable, item_name.ptr(), decimals);
       break;
     case MYSQL_TYPE_DATETIME:
       field = new (*THR_MALLOC)
-          Field_datetimef(maybe_null, item_name.ptr(), decimals);
+          Field_datetimef(m_nullable, item_name.ptr(), decimals);
       break;
     case MYSQL_TYPE_YEAR:
       DBUG_ASSERT(max_length == 4);  // Field_year is only for length 4.
-      field = new (*THR_MALLOC) Field_year(maybe_null, item_name.ptr());
+      field = new (*THR_MALLOC) Field_year(m_nullable, item_name.ptr());
       break;
     case MYSQL_TYPE_BIT:
       field = new (*THR_MALLOC)
-          Field_bit_as_char(max_length, maybe_null, item_name.ptr());
+          Field_bit_as_char(max_length, m_nullable, item_name.ptr());
       break;
     case MYSQL_TYPE_INVALID:
     case MYSQL_TYPE_BOOL:
@@ -5953,7 +5953,7 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table,
     case MYSQL_TYPE_NULL:
       if (fixed_length && max_length <= CONVERT_IF_BIGGER_TO_BLOB) {
         field = new (*THR_MALLOC) Field_string(
-            max_length, maybe_null, item_name.ptr(), collation.collation);
+            max_length, m_nullable, item_name.ptr(), collation.collation);
         break;
       }
       /* Fall through to make_string_field() */
@@ -5968,19 +5968,19 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table,
     case MYSQL_TYPE_BLOB:
       if (this->type() == Item::TYPE_HOLDER)
         field = new (*THR_MALLOC) Field_blob(
-            max_length, maybe_null, item_name.ptr(), collation.collation, true);
+            max_length, m_nullable, item_name.ptr(), collation.collation, true);
       else
         field = new (*THR_MALLOC)
-            Field_blob(max_length, maybe_null, item_name.ptr(),
+            Field_blob(max_length, m_nullable, item_name.ptr(),
                        collation.collation, false);
       break;  // Blob handled outside of case
     case MYSQL_TYPE_GEOMETRY:
       field = new (*THR_MALLOC) Field_geom(
-          max_length, maybe_null, item_name.ptr(), get_geometry_type(), {});
+          max_length, m_nullable, item_name.ptr(), get_geometry_type(), {});
       break;
     case MYSQL_TYPE_JSON:
       field =
-          new (*THR_MALLOC) Field_json(max_length, maybe_null, item_name.ptr());
+          new (*THR_MALLOC) Field_json(max_length, m_nullable, item_name.ptr());
   }
   if (field) field->init(table);
   return field;
@@ -7669,7 +7669,7 @@ void Item_ref::set_properties() {
 
   set_data_type((*ref)->data_type());
   max_length = (*ref)->max_length;
-  maybe_null = (*ref)->maybe_null;
+  set_nullable((*ref)->is_nullable());
   decimals = (*ref)->decimals;
   collation.set((*ref)->collation);
   /*
@@ -7930,7 +7930,7 @@ bool Item_view_ref::fix_fields(THD *thd, Item **reference) {
   if (super::fix_fields(thd, reference)) return true;
 
   if (cached_table->is_inner_table_of_outer_join()) {
-    maybe_null = true;
+    set_nullable(true);
     first_inner_table = cached_table->any_outer_leaf_table();
   }
   return false;
@@ -8840,7 +8840,7 @@ Item_cache *Item_cache::get_cache(const Item *item, const Item_result type) {
 void Item_cache::store(Item *item) {
   example = item;
   if (!item) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     null_value = true;
   }
   value_cached = false;
@@ -8868,7 +8868,7 @@ bool Item_cache::has_value() {
       Only expect NULL if the cache is nullable, or if an error was
       raised when reading the value into the cache.
     */
-    DBUG_ASSERT(!null_value || maybe_null || current_thd->is_error());
+    assert(!null_value || is_nullable() || current_thd->is_error());
     return !null_value;
   }
   return false;
@@ -9427,7 +9427,7 @@ bool Item_cache_row::setup(Item *item) {
 void Item_cache_row::store(Item *item) {
   example = item;
   if (!item) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     null_value = true;
     return;
   }
@@ -9495,7 +9495,7 @@ void Item_cache_row::bring_value() {
 Item_aggregate_type::Item_aggregate_type(THD *thd, Item *item)
     : Item(thd, item), enum_set_typelib(nullptr) {
   DBUG_ASSERT(item->fixed);
-  maybe_null = item->maybe_null;
+  set_nullable(item->is_nullable());
   set_data_type(real_data_type(item));
   get_full_info(item);
   if (item->data_type() == MYSQL_TYPE_GEOMETRY)
@@ -9643,7 +9643,7 @@ bool Item_aggregate_type::join_types(THD *thd, Item *item) {
       geometry_type = Field::GEOM_GEOMETRY;
   } else
     aggregate_num_type(merge_type, args, 2);
-  maybe_null |= item->maybe_null;
+  set_nullable(is_nullable() | item->is_nullable());
   get_full_info(item);
   DBUG_PRINT("info", ("become type: %d  len: %u  dec: %u", (int)data_type(),
                       max_length, (uint)decimals));
@@ -9731,7 +9731,7 @@ Field *Item_aggregate_type::make_field_by_type(TABLE *table, bool strict) {
     case MYSQL_TYPE_ENUM:
       DBUG_ASSERT(enum_set_typelib);
       field = new (*THR_MALLOC)
-          Field_enum(max_length, maybe_null, item_name.ptr(),
+          Field_enum(max_length, is_nullable(), item_name.ptr(),
                      get_enum_pack_length(enum_set_typelib->count),
                      enum_set_typelib, collation.collation);
       if (field) field->init(table);
@@ -9739,7 +9739,7 @@ Field *Item_aggregate_type::make_field_by_type(TABLE *table, bool strict) {
     case MYSQL_TYPE_SET:
       DBUG_ASSERT(enum_set_typelib);
       field = new (*THR_MALLOC)
-          Field_set(max_length, maybe_null, item_name.ptr(),
+          Field_set(max_length, is_nullable(), item_name.ptr(),
                     get_set_pack_length(enum_set_typelib->count),
                     enum_set_typelib, collation.collation);
       if (field) field->init(table);

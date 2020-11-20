@@ -632,7 +632,8 @@ void Group_check::add_to_source_of_mat_table(Item_field *item_field,
       mat_gc->select_expression(item_field->field->field_index());
 
   // non-nullability of tl's column in tl, is equal to that of expr_under.
-  if (expr_under && !expr_under->maybe_null) mat_gc->non_null_in_source = true;
+  if (expr_under && !expr_under->is_nullable())
+    mat_gc->non_null_in_source = true;
 
   mat_gc->add_to_fd(expr_under, mat_gc->local_column(expr_under));
 

@@ -94,7 +94,7 @@ void Item_row::illegal_method_call(
 bool Item_row::fix_fields(THD *thd, Item **) {
   DBUG_ASSERT(fixed == 0);
   null_value = false;
-  maybe_null = false;
+  set_nullable(false);
   bool types_assigned = true;
   Item **arg, **arg_end;
   for (arg = items, arg_end = items + arg_count; arg != arg_end; arg++) {
@@ -116,7 +116,7 @@ bool Item_row::fix_fields(THD *thd, Item **) {
     // item->is_null() may have raised an error.
     if (thd->is_error()) return true;
 
-    maybe_null |= item->maybe_null;
+    set_nullable(is_nullable() | item->is_nullable());
     add_accum_properties(item);
   }
   if (types_assigned) set_data_type(MYSQL_TYPE_NULL);

@@ -184,7 +184,7 @@ Field *create_tmp_field_from_field(THD *thd, const Field *org_field,
   if (org_field->is_flag_set(NO_DEFAULT_VALUE_FLAG))
     new_field->set_flag(NO_DEFAULT_VALUE_FLAG);
   if (org_field->is_nullable() || org_field->table->is_nullable() ||
-      (item && item->maybe_null))
+      (item && item->is_nullable()))
     new_field->clear_flag(NOT_NULL_FLAG);  // Because of outer join
   if (org_field->type() == FIELD_TYPE_DOUBLE)
     down_cast<Field_double *>(new_field)->not_fixed = true;
@@ -211,7 +211,7 @@ Field *create_tmp_field_from_field(THD *thd, const Field *org_field,
 */
 
 static Field *create_tmp_field_from_item(Item *item, TABLE *table) {
-  bool maybe_null = item->maybe_null;
+  bool maybe_null = item->is_nullable();
   Field *new_field = nullptr;
 
   switch (item->result_type()) {
@@ -287,12 +287,12 @@ static Field *create_tmp_field_for_schema(const Item *item, TABLE *table) {
     Field *field;
     if (item->max_length > MAX_FIELD_VARCHARLENGTH)
       field = new (*THR_MALLOC)
-          Field_blob(item->max_length, item->maybe_null, item->item_name.ptr(),
-                     item->collation.collation, false);
+          Field_blob(item->max_length, item->is_nullable(),
+                     item->item_name.ptr(), item->collation.collation, false);
     else {
       field = new (*THR_MALLOC) Field_varstring(
-          item->max_length, item->maybe_null, item->item_name.ptr(), table->s,
-          item->collation.collation);
+          item->max_length, item->is_nullable(), item->item_name.ptr(),
+          table->s, item->collation.collation);
       table->s->db_create_options |= HA_OPTION_PACK_RECORD;
     }
     if (field) field->init(table);
@@ -369,7 +369,7 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
         If item have to be able to store NULLs but underlaid field can't do it,
         create_tmp_field_from_field() can't be used for tmp field creation.
       */
-      if (item_field->maybe_null &&
+      if (item_field->is_nullable() &&
           !(item_field->field->is_nullable() ||
             item_field->field->table->is_nullable())) {
         result = create_tmp_field_from_item(item_field, table);
@@ -1052,7 +1052,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
               new_field->maybe_null() is still false, it will be
               changed below. But we have to setup Item_field correctly
             */
-            arg->maybe_null = true;
+            arg->set_nullable(true);
           }
           /* InnoDB temp table doesn't allow field with empty_name */
           if (!new_field->field_name)
@@ -1126,7 +1126,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
           new_field->type() == MYSQL_TYPE_VARCHAR)
         table->s->db_create_options |= HA_OPTION_PACK_RECORD;
 
-      if (item->marker == Item::MARKER_BIT && item->maybe_null) {
+      if (item->marker == Item::MARKER_BIT && item->is_nullable()) {
         group_null_items++;
         new_field->set_flag(GROUP_FLAG);
       }
@@ -1486,7 +1486,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
     for (ORDER *cur_group = group; cur_group;
          cur_group = cur_group->next, key_part_info++) {
       Field *field = cur_group->field_in_tmp_table;
-      const bool maybe_null = (*cur_group->item)->maybe_null;
+      const bool maybe_null = (*cur_group->item)->is_nullable();
       key_part_info->init_from_field(key_part_info->field);
       param->keyinfo->key_length += key_part_info->store_length;
 

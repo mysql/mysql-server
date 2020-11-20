@@ -1363,7 +1363,7 @@ class Item : public Parse_tree_node {
         max_char_length_arg * collation.collation->mbmaxlen;
     if (max_result_length > MAX_BLOB_WIDTH) {
       max_result_length = MAX_BLOB_WIDTH;
-      maybe_null = true;
+      m_nullable = true;
     }
     set_data_type_string(
         uint32(max_result_length / collation.collation->mbmaxlen));
@@ -1855,7 +1855,7 @@ class Item : public Parse_tree_node {
     @return The value val_json() should return, which is true.
   */
   bool error_json() {
-    null_value = maybe_null;
+    null_value = m_nullable;
     return true;
   }
 
@@ -1906,7 +1906,7 @@ class Item : public Parse_tree_node {
     @return The value val_bool() should return.
   */
   bool error_bool() {
-    null_value = maybe_null;
+    null_value = m_nullable;
     return false;
   }
 
@@ -1918,7 +1918,7 @@ class Item : public Parse_tree_node {
     @return The value val_int() should return.
   */
   int error_int() {
-    null_value = maybe_null;
+    null_value = m_nullable;
     return 0;
   }
 
@@ -1930,7 +1930,7 @@ class Item : public Parse_tree_node {
     @return The value val_real() should return.
   */
   double error_real() {
-    null_value = maybe_null;
+    null_value = m_nullable;
     return 0.0;
   }
 
@@ -1942,7 +1942,7 @@ class Item : public Parse_tree_node {
     @return The value val_str() should return.
   */
   String *error_str() {
-    null_value = maybe_null;
+    null_value = m_nullable;
     return null_value ? nullptr : make_empty_result();
   }
 
@@ -1951,7 +1951,7 @@ class Item : public Parse_tree_node {
     @return The value val_str() should return.
   */
   String *null_return_str() {
-    DBUG_ASSERT(maybe_null);
+    assert(m_nullable);
     null_value = true;
     return nullptr;
   }
@@ -3205,8 +3205,13 @@ class Item : public Parse_tree_node {
     - For string types, may be decimals of cast source or DECIMAL_NOT_SPECIFIED
   */
   uint8 decimals;
+
+  bool is_nullable() const { return m_nullable; }
+  void set_nullable(bool nullable) { m_nullable = nullable; }
+
+ private:
   /**
-    True if this item may be null.
+    True if this item may hold the NULL value(if null_value may be set to true).
 
     For items that represent rows, it is true if one of the columns
     may be null.
@@ -3224,7 +3229,9 @@ class Item : public Parse_tree_node {
     propagation it will replace t1.pk in '+' with t2.a (as t2 is before t1
     in plan), making the '+' capable of returning NULL when t2.a is NULL.
   */
-  bool maybe_null;
+  bool m_nullable;
+
+ public:
   bool null_value;  ///< True if item is null
   bool unsigned_flag;
   bool m_is_window_function;  ///< True if item represents window func
@@ -3909,8 +3916,8 @@ class Item_field : public Item_ident {
 
     // Update nullability information, as the table may have taken over
     // null_row status from the derived table it was part of.
-    maybe_null = field->is_nullable() || field->is_tmp_nullable() ||
-                 field->table->is_nullable();
+    set_nullable(field->is_nullable() || field->is_tmp_nullable() ||
+                 field->table->is_nullable());
   }
   type_conversion_status save_in_field_inner(Field *field,
                                              bool no_conversions) override;
@@ -4234,7 +4241,7 @@ class Item_null : public Item_basic_constant {
   typedef Item_basic_constant super;
 
   void init() {
-    maybe_null = true;
+    set_nullable(true);
     null_value = true;
     set_data_type(MYSQL_TYPE_NULL);
     max_length = 0;
@@ -5593,7 +5600,7 @@ class Item_view_ref final : public Item_ref {
     }
     cached_table = tl;
     if (cached_table->is_inner_table_of_outer_join()) {
-      maybe_null = true;
+      set_nullable(true);
       first_inner_table = cached_table->any_outer_leaf_table();
     }
   }
@@ -5897,7 +5904,9 @@ class Item_time_with_ref final : public Item_temporal_with_ref {
 class Item_metadata_copy final : public Item {
  public:
   explicit Item_metadata_copy(Item *item) {
-    null_value = maybe_null = item->maybe_null;
+    bool nullable = item->is_nullable();
+    null_value = nullable;
+    set_nullable(nullable);
     decimals = item->decimals;
     max_length = item->max_length;
     item_name = item->item_name;
@@ -6293,7 +6302,7 @@ class Item_cache : public Item_basic_constant {
         cached_field(nullptr),
         value_cached(false) {
     fixed = true;
-    maybe_null = true;
+    set_nullable(true);
     null_value = true;
   }
   Item_cache(enum_field_types field_type_arg)
@@ -6303,7 +6312,7 @@ class Item_cache : public Item_basic_constant {
         value_cached(false) {
     set_data_type(field_type_arg);
     fixed = true;
-    maybe_null = true;
+    set_nullable(true);
     null_value = true;
   }
 
@@ -6370,7 +6379,7 @@ class Item_cache : public Item_basic_constant {
     bypassing the subquery exec.
   */
   void store_null() {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     value_cached = true;
     null_value = true;
   }

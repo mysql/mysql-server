@@ -1166,12 +1166,12 @@ static int write_keys(Sort_param *param, Filesort_info *fs_info, uint count,
 NO_INLINE
 static uint make_json_sort_key(Item *item, uchar *to, uchar *null_indicator,
                                size_t length, ulonglong *hash) {
-  DBUG_ASSERT(!item->maybe_null || *null_indicator == 1);
+  DBUG_ASSERT(!item->is_nullable() || *null_indicator == 1);
 
   Json_wrapper wr;
   if (item->val_json(&wr)) {
     // An error occurred, no point to continue making key, set it to null.
-    if (item->maybe_null) *null_indicator = 0;
+    if (item->is_nullable()) *null_indicator = 0;
     return 0;
   }
 
@@ -1181,7 +1181,7 @@ static uint make_json_sort_key(Item *item, uchar *to, uchar *null_indicator,
       already tentatively set the NULL indicator byte at *null_indicator to
       not-NULL, so we need to clear that byte too.
     */
-    if (item->maybe_null) {
+    if (item->is_nullable()) {
       // Don't store anything but null flag.
       *null_indicator = 0;
       return 0;
@@ -1245,8 +1245,8 @@ size_t make_sortkey_from_item(Item *item, Item_result result_type,
   bool is_varlen = !dst_length.has_value();
 
   uchar *null_indicator = nullptr;
-  *maybe_null = item->maybe_null;
-  if (item->maybe_null) {
+  *maybe_null = item->is_nullable();
+  if (item->is_nullable()) {
     null_indicator = to;
     /*
       Assume not NULL by default. Will be overwritten if needed.
@@ -1276,7 +1276,7 @@ size_t make_sortkey_from_item(Item *item, Item_result result_type,
       String *res = item->val_str(tmp_buffer);
       if (res == nullptr)  // Value is NULL.
       {
-        DBUG_ASSERT(item->maybe_null);
+        assert(item->is_nullable());
         *null_indicator = 0;
         if (is_varlen) {
           // Don't store anything except the NULL flag.
@@ -1327,7 +1327,7 @@ size_t make_sortkey_from_item(Item *item, Item_result result_type,
         cleaned up, but until that happens, we need to have a more conservative
         check.
       */
-      if (item->maybe_null && item->null_value) {
+      if (item->is_nullable() && item->null_value) {
         *null_indicator = 0;
         memset(to, 0, dst_length.value());
       } else
@@ -1345,7 +1345,7 @@ size_t make_sortkey_from_item(Item *item, Item_result result_type,
         the case of a NULL result.) This really should be cleaned up, but until
         that happens, we need to have a more conservative check.
       */
-      if (item->maybe_null && item->null_value) {
+      if (item->is_nullable() && item->null_value) {
         *null_indicator = 0;
         memset(to, 0, dst_length.value());
       } else if (dst_length.value() < DECIMAL_MAX_FIELD_SIZE) {
@@ -1365,7 +1365,7 @@ size_t make_sortkey_from_item(Item *item, Item_result result_type,
       DBUG_ASSERT(!is_varlen);
       double value = item->val_real();
       if (item->null_value) {
-        DBUG_ASSERT(item->maybe_null);
+        assert(item->is_nullable());
         *null_indicator = 0;
         memset(to, 0, dst_length.value());
       } else if (dst_length.value() < sizeof(double)) {
@@ -2073,7 +2073,7 @@ uint sortlength(THD *thd, st_sort_field *sortorder, uint s_length) {
         DBUG_ASSERT(0);
         break;
     }
-    sortorder->maybe_null = item->maybe_null;
+    sortorder->maybe_null = item->is_nullable();
     if (!sortorder->is_varlen && is_string_type) {
       /*
         We would love to never have to care about max_sort_length anymore,

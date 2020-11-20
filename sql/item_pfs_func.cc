@@ -59,7 +59,7 @@ bool Item_func_pfs_current_thread_id::itemize(Parse_context *pc, Item **res) {
 
 bool Item_func_pfs_current_thread_id::resolve_type(THD *) {
   unsigned_flag = true;
-  maybe_null = true;
+  set_nullable(true);
   return false;
 }
 
@@ -100,7 +100,7 @@ bool Item_func_pfs_thread_id::itemize(Parse_context *pc, Item **res) {
 
 bool Item_func_pfs_thread_id::resolve_type(THD *) {
   unsigned_flag = true;
-  maybe_null = true;
+  set_nullable(true);
   return false;
 }
 
@@ -222,7 +222,7 @@ String *Item_func_pfs_format_bytes::val_str(String *) {
 /** format_pico_time() */
 
 bool Item_func_pfs_format_pico_time::resolve_type(THD *) {
-  maybe_null = true;
+  set_nullable(true);
   /* Format is 'AAAA.BB UUU' = 11 characters or 'AAA ps' = 6 characters. */
   set_data_type_string(11U, &my_charset_utf8_general_ci);
   return false;

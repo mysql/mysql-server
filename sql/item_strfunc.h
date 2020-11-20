@@ -592,7 +592,7 @@ class Item_func_database : public Item_func_sysconst {
   String *val_str(String *) override;
   bool resolve_type(THD *) override {
     set_data_type_string(uint32{MAX_FIELD_NAME});
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
   const char *func_name() const override { return "database"; }
@@ -706,7 +706,7 @@ class Item_func_make_set final : public Item_str_func {
     DBUG_ASSERT(fixed == 0);
     bool res = ((!item->fixed && item->fix_fields(thd, &item)) ||
                 item->check_cols(1) || Item_func::fix_fields(thd, ref));
-    maybe_null |= item->maybe_null;
+    set_nullable(is_nullable() | item->is_nullable());
     return res;
   }
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
@@ -844,7 +844,7 @@ class Item_func_is_uuid final : public Item_bool_func {
   const char *func_name() const override { return "is_uuid"; }
   bool resolve_type(THD *thd) override {
     bool res = super::resolve_type(thd);
-    maybe_null = true;
+    set_nullable(true);
     return res;
   }
 };
@@ -880,7 +880,7 @@ class Item_func_unhex final : public Item_str_func {
  public:
   Item_func_unhex(const POS &pos, Item *a) : Item_str_func(pos, a) {
     /* there can be bad hex strings */
-    maybe_null = true;
+    set_nullable(true);
   }
   const char *func_name() const override { return "unhex"; }
   String *val_str(String *) override;
@@ -901,7 +901,7 @@ class Item_func_like_range : public Item_str_func {
  public:
   Item_func_like_range(const POS &pos, Item *a, Item *b, bool is_min_arg)
       : Item_str_func(pos, a, b), is_min(is_min_arg) {
-    maybe_null = true;
+    set_nullable(true);
   }
   String *val_str(String *) override;
   bool resolve_type(THD *thd) override {
@@ -966,7 +966,7 @@ class Item_load_file final : public Item_str_func {
     if (param_type_is_default(thd, 0, 1)) return true;
     collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
     set_data_type_blob(MAX_BLOB_WIDTH);
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
   bool check_function_as_value_generator(uchar *checker_args) override {
@@ -1086,7 +1086,7 @@ class Item_func_charset final : public Item_str_func {
   const char *func_name() const override { return "charset"; }
   bool resolve_type(THD *thd) override {
     set_data_type_string(64U, system_charset_info);
-    maybe_null = false;
+    set_nullable(false);
     return Item_str_func::resolve_type(thd);
   }
 };
@@ -1101,7 +1101,7 @@ class Item_func_collation : public Item_str_func {
   bool resolve_type(THD *thd) override {
     if (Item_str_func::resolve_type(thd)) return true;
     set_data_type_string(64U, system_charset_info);
-    maybe_null = false;
+    set_nullable(false);
     return false;
   }
 };
@@ -1189,7 +1189,7 @@ class Item_func_uncompress final : public Item_str_func {
   Item_func_uncompress(const POS &pos, Item *a) : Item_str_func(pos, a) {}
   bool resolve_type(THD *thd) override {
     if (Item_str_func::resolve_type(thd)) return true;
-    maybe_null = true;
+    set_nullable(true);
     set_data_type_string(uint32{MAX_BLOB_WIDTH});
     return false;
   }
@@ -1313,7 +1313,7 @@ class Item_func_get_dd_column_privileges final : public Item_str_func {
       So, setting max approximate to 200.
     */
     set_data_type_string(14U * 11U, system_charset_info);
-    maybe_null = true;
+    set_nullable(true);
     null_on_null = false;
 
     return false;
@@ -1334,7 +1334,7 @@ class Item_func_get_dd_create_options final : public Item_str_func {
     // maximum string length of all options is expected
     // to be less than 256 characters.
     set_data_type_string(256U, system_charset_info);
-    maybe_null = false;
+    set_nullable(false);
     null_on_null = false;
 
     return false;
@@ -1355,7 +1355,7 @@ class Item_func_get_dd_schema_options final : public Item_str_func {
     // maximum string length of all options is expected
     // to be less than 256 characters.
     set_data_type_string(256, system_charset_info);
-    maybe_null = false;
+    set_nullable(false);
     null_on_null = false;
 
     return false;
@@ -1379,7 +1379,7 @@ class Item_func_internal_get_comment_or_error final : public Item_str_func {
       i.e., the mysql.tables.comment DD column.
     */
     set_data_type_string(2048U, system_charset_info);
-    maybe_null = true;
+    set_nullable(true);
     null_on_null = false;
 
     return false;
@@ -1402,7 +1402,7 @@ class Item_func_get_dd_tablespace_private_data final : public Item_str_func {
     /* maximum string length of the property value is expected
     to be less than 256 characters. */
     set_data_type_string(256U);
-    maybe_null = false;
+    set_nullable(false);
     null_on_null = false;
 
     return false;
@@ -1425,7 +1425,7 @@ class Item_func_get_dd_index_private_data final : public Item_str_func {
     /* maximum string length of the property value is expected
     to be less than 256 characters. */
     set_data_type_string(256U);
-    maybe_null = false;
+    set_nullable(false);
     null_on_null = false;
 
     return false;
@@ -1446,7 +1446,7 @@ class Item_func_get_partition_nodegroup final : public Item_str_func {
     // maximum string length of all options is expected
     // to be less than 256 characters.
     set_data_type_string(256U, system_charset_info);
-    maybe_null = true;
+    set_nullable(true);
     null_on_null = false;
 
     return false;
@@ -1470,7 +1470,7 @@ class Item_func_internal_tablespace_type : public Item_str_func {
     // maximum string length of all options is expected
     // to be less than 256 characters.
     set_data_type_string(256U, system_charset_info);
-    maybe_null = true;
+    set_nullable(true);
     null_on_null = false;
 
     return false;
@@ -1492,7 +1492,7 @@ class Item_func_internal_tablespace_logfile_group_name : public Item_str_func {
     // maximum string length of all options is expected
     // to be less than 256 characters.
     set_data_type_string(256U, system_charset_info);
-    maybe_null = true;
+    set_nullable(true);
     null_on_null = false;
 
     return false;
@@ -1516,7 +1516,7 @@ class Item_func_internal_tablespace_status : public Item_str_func {
     // maximum string length of all options is expected
     // to be less than 256 characters.
     set_data_type_string(256U, system_charset_info);
-    maybe_null = true;
+    set_nullable(true);
     null_on_null = false;
 
     return false;
@@ -1539,7 +1539,7 @@ class Item_func_internal_tablespace_row_format : public Item_str_func {
     // maximum string length of all options is expected
     // to be less than 256 characters.
     set_data_type_string(256U, system_charset_info);
-    maybe_null = true;
+    set_nullable(true);
     null_on_null = false;
 
     return false;
@@ -1563,7 +1563,7 @@ class Item_func_internal_tablespace_extra : public Item_str_func {
     // maximum string length of all options is expected
     // to be less than 256 characters.
     set_data_type_string(256U, system_charset_info);
-    maybe_null = true;
+    set_nullable(true);
     null_on_null = false;
 
     return false;
@@ -1580,7 +1580,7 @@ class Item_func_convert_cpu_id_mask final : public Item_str_func {
       : Item_str_func(pos, list) {}
 
   bool resolve_type(THD *) override {
-    maybe_null = false;
+    set_nullable(false);
     set_data_type_string(1024U, &my_charset_bin);
     return false;
   }
@@ -1598,7 +1598,7 @@ class Item_func_get_dd_property_key_value final : public Item_str_func {
   enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   bool resolve_type(THD *) override {
     set_data_type_string(MAX_BLOB_WIDTH, system_charset_info);
-    maybe_null = true;
+    set_nullable(true);
     null_on_null = false;
 
     return false;
@@ -1617,7 +1617,7 @@ class Item_func_remove_dd_property_key final : public Item_str_func {
   enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   bool resolve_type(THD *) override {
     set_data_type_string(MAX_BLOB_WIDTH, system_charset_info);
-    maybe_null = true;
+    set_nullable(true);
     null_on_null = false;
 
     return false;
@@ -1638,7 +1638,7 @@ class Item_func_convert_interval_to_user_interval final : public Item_str_func {
     // maximum string length of all options is expected
     // to be less than 256 characters.
     set_data_type_string(256U, system_charset_info);
-    maybe_null = true;
+    set_nullable(true);
     null_on_null = false;
 
     return false;
@@ -1659,7 +1659,7 @@ class Item_func_internal_get_username final : public Item_str_func {
   enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   bool resolve_type(THD *) override {
     set_data_type_string(uint32(USERNAME_LENGTH + 1), system_charset_info);
-    maybe_null = true;
+    set_nullable(true);
     null_on_null = false;
 
     return false;
@@ -1678,7 +1678,7 @@ class Item_func_internal_get_hostname final : public Item_str_func {
   enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   bool resolve_type(THD *) override {
     set_data_type_string(uint32(HOSTNAME_LENGTH + 1), system_charset_info);
-    maybe_null = true;
+    set_nullable(true);
     null_on_null = false;
 
     return false;
@@ -1697,7 +1697,7 @@ class Item_func_internal_get_enabled_role_json final : public Item_str_func {
   enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   bool resolve_type(THD *) override {
     set_data_type_string(uint32(MAX_BLOB_WIDTH), system_charset_info);
-    maybe_null = true;
+    set_nullable(true);
     null_on_null = false;
 
     return false;
@@ -1718,7 +1718,7 @@ class Item_func_internal_get_mandatory_roles_json final : public Item_str_func {
   enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   bool resolve_type(THD *) override {
     set_data_type_string(uint32(MAX_BLOB_WIDTH), system_charset_info);
-    maybe_null = true;
+    set_nullable(true);
     null_on_null = false;
 
     return false;
@@ -1741,7 +1741,7 @@ class Item_func_internal_get_dd_column_extra final : public Item_str_func {
     // maximum string length of all options is expected
     // to be less than 256 characters.
     set_data_type_string(256U, system_charset_info);
-    maybe_null = false;
+    set_nullable(false);
     null_on_null = false;
 
     return false;

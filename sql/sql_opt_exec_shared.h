@@ -141,7 +141,7 @@ struct TABLE_REF {
   bool impossible_null_ref() const {
     if (null_rejecting == 0) return false;
     for (uint i = 0; i < key_parts; i++) {
-      if ((null_rejecting & 1 << i) && items[i]->maybe_null &&
+      if ((null_rejecting & 1 << i) && items[i]->is_nullable() &&
           items[i]->is_null()) {
         return true;
       }

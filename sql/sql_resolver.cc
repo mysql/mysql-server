@@ -997,7 +997,7 @@ bool Item_in_subselect::subquery_allows_materialization(
     */
     DBUG_ASSERT(left_expr->fixed);
     // @see comment in Item_subselect::element_index()
-    bool has_nullables = left_expr->maybe_null;
+    bool has_nullables = left_expr->is_nullable();
 
     uint i = 0;
     for (Item *const inner_item : unit->first_select()->visible_fields()) {
@@ -1011,7 +1011,7 @@ bool Item_in_subselect::subquery_allows_materialization(
         cause = "inner blob";
         break;
       }
-      has_nullables |= inner_item->maybe_null;
+      has_nullables |= inner_item->is_nullable();
     }
 
     if (!cause) {
@@ -4687,25 +4687,25 @@ bool WalkAndReplace(
 }
 
 /**
-  Marks occurrences of group by fields in a function's arguments as maybe_null,
+  Marks occurrences of group by fields in a function's arguments as nullable,
   so that we do not optimize them away before we get to add the rollup wrappers.
 
   @todo
     Some functions are not null-preserving. For those functions
-    updating of the maybe_null attribute is an overkill.
+    updating of the m_nullable attribute is an overkill.
 
 */
 
 void SELECT_LEX::mark_item_as_maybe_null_if_rollup_item(Item *item) {
   if (find_in_group_list(item, /*rollup_level=*/nullptr)) {
     /*
-      If this item is present in GROUP BY clause, set maybe_null
+      If this item is present in GROUP BY clause, set m_nullable
       to true, as ROLLUP will generate NULLs for this column.
       This prevents the optimizer from constant-folding away
       IS NULL expressions (e.g. in HAVING). This must be done
       before we start resolving subselects in m_having_cond.
     */
-    item->maybe_null = true;
+    item->set_nullable(true);
   }
 }
 
@@ -4744,7 +4744,7 @@ void SELECT_LEX::remove_hidden_fields() {
 /**
   Resolve an item (and its tree) for rollup processing by replacing items
   matching grouped expressions with Item_rollup_group_items and
-  updating properties (maybe_null, PROP_ROLLUP_FIELD).
+  updating properties (m_nullable, PROP_ROLLUP_FIELD).
   Also check any GROUPING function for incorrect column.
 
   @param   thd      session context
@@ -4757,7 +4757,7 @@ Item *SELECT_LEX::resolve_rollup_item(THD *thd, Item *item) {
   if (result.action == ReplaceResult::ERROR) {
     return nullptr;
   } else if (result.action == ReplaceResult::REPLACE) {
-    item->maybe_null = true;
+    item->set_nullable(true);
     return result.replacement;
   }
   bool changed = false;
@@ -4771,7 +4771,7 @@ Item *SELECT_LEX::resolve_rollup_item(THD *thd, Item *item) {
       });
   if (error) return nullptr;
   if (changed) {
-    item->maybe_null = true;
+    item->set_nullable(true);
     item->update_used_tables();
   }
   return item;
@@ -4886,17 +4886,17 @@ bool SELECT_LEX::resolve_rollup_wfs(THD *thd) {
 
     // With rollup, pretty much any window function can become NULL.
     // This might be slightly excessive, but false positives are fine.
-    if (!new_item->maybe_null) {
+    if (!new_item->is_nullable()) {
       bool any_wf = false;
       WalkItem(new_item, enum_walk::POSTFIX, [&any_wf](Item *inner_item) {
         if (inner_item->real_item()->type() == Item::SUM_FUNC_ITEM &&
             inner_item->real_item()->m_is_window_function) {
-          inner_item->maybe_null = true;
+          inner_item->set_nullable(true);
           any_wf = true;
         }
         return false;
       });
-      new_item->maybe_null |= any_wf;
+      if (any_wf) new_item->set_nullable(true);
     }
   }
   /*

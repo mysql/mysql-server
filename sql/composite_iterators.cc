@@ -1071,7 +1071,7 @@ bool TemptableAggregateIterator::Init() {
         Item *item = *group->item;
         item->save_org_in_field(group->field_in_tmp_table);
         /* Store in the used key if the field was 0 */
-        if (item->maybe_null)
+        if (item->is_nullable())
           group->buff[-1] = (char)group->field_in_tmp_table->is_null();
       }
       const uchar *key = m_temp_table_param->group_buff;

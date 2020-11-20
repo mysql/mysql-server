@@ -1097,7 +1097,7 @@ class Item_sum_count : public Item_sum_int {
   }
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, -1)) return true;
-    maybe_null = false;
+    set_nullable(false);
     null_value = false;
     return false;
   }

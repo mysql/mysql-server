@@ -286,7 +286,7 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
         if (is_sp_func_item == false && item->result_type() == INT_RESULT &&
             item->max_char_length() >= (MY_INT32_NUM_DECIMAL_DIGITS - 1)) {
           tmp_field = new (thd->mem_root)
-              Field_longlong(item->max_char_length(), item->maybe_null,
+              Field_longlong(item->max_char_length(), item->is_nullable(),
                              item->item_name.ptr(), item->unsigned_flag);
           if (tmp_field) tmp_field->init(&table);
         } else
@@ -301,7 +301,7 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
             // tmp_table_field_from_field_type, so creating the blob field by
             // passing set_packlenth value as "true" here.
             tmp_field = new (thd->mem_root) Field_blob(
-                item->max_length, item->maybe_null, item->item_name.ptr(),
+                item->max_length, item->is_nullable(), item->item_name.ptr(),
                 item->collation.collation, true);
 
             if (tmp_field) tmp_field->init(&table);

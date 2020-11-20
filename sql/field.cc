@@ -2802,8 +2802,9 @@ Field *Field_new_decimal::create_from_item(const Item *item) {
       /* Corrected value fits. */
       len = required_length;
   }
-  return new (*THR_MALLOC) Field_new_decimal(
-      len, item->maybe_null, item->item_name.ptr(), dec, item->unsigned_flag);
+  return new (*THR_MALLOC)
+      Field_new_decimal(len, item->is_nullable(), item->item_name.ptr(), dec,
+                        item->unsigned_flag);
 }
 
 type_conversion_status Field_new_decimal::reset() {
@@ -10360,7 +10361,7 @@ Create_field *generate_create_field(THD *thd, Item *item, TABLE *tmp_table) {
        */
       table_field = nullptr;
       if (is_temporal_type_with_date(tmp_table_field->type()) &&
-          thd->is_strict_mode() && !item->maybe_null)
+          thd->is_strict_mode() && !item->is_nullable())
         tmp_table_field->set_flag(NO_DEFAULT_VALUE_FLAG);
     }
   }
@@ -10397,7 +10398,7 @@ Create_field *generate_create_field(THD *thd, Item *item, TABLE *tmp_table) {
     }
   }
 
-  if (item->maybe_null) cr_field->flags &= ~NOT_NULL_FLAG;
+  if (item->is_nullable()) cr_field->flags &= ~NOT_NULL_FLAG;
 
   return cr_field;
 }

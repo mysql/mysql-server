@@ -364,7 +364,7 @@ class Item_func_geometry_type : public Item_str_ascii_func {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY)) return true;
     // "MultiLinestring" is the longest
     set_data_type_string(15, default_charset());
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -968,7 +968,7 @@ class Item_func_spatial_mbr_rel : public Item_bool_func2 {
     Item_func::print(thd, str, query_type);
   }
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
   bool is_null() override {
@@ -1039,7 +1039,7 @@ class Item_func_spatial_relation : public Item_bool_func2 {
     // Spatial relation functions may return NULL if either parameter is NULL or
     // an empty geometry. Since we can't check for empty geometries at resolve
     // time, this item is always nullable.
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
   void print(const THD *thd, String *str,
@@ -1461,7 +1461,7 @@ class Item_func_isempty : public Item_bool_func {
   const char *func_name() const override { return "st_isempty"; }
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY)) return true;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -1485,7 +1485,7 @@ class Item_func_isclosed : public Item_bool_func {
   const char *func_name() const override { return "st_isclosed"; }
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY)) return true;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -1512,7 +1512,7 @@ class Item_func_dimension : public Item_int_func {
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY)) return true;
     max_length = 10;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -1707,7 +1707,7 @@ class Item_func_numgeometries : public Item_int_func {
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
     max_length = 10;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -1722,7 +1722,7 @@ class Item_func_numinteriorring : public Item_int_func {
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
     max_length = 10;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -1737,7 +1737,7 @@ class Item_func_numpoints : public Item_int_func {
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
     max_length = 10;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -1750,7 +1750,7 @@ class Item_func_st_area : public Item_real_func {
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
     // ST_Area returns NULL if the geometry is empty.
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -1767,7 +1767,7 @@ class Item_func_st_length : public Item_real_func {
     if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
     if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
     if (Item_real_func::resolve_type(thd)) return true;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -1819,12 +1819,12 @@ class Item_func_distance : public Item_real_func {
       Either operand can be an empty geometry collection, and it's meaningless
       for a distance between them.
     */
-    maybe_null = true;
+    set_nullable(true);
   }
 
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 
@@ -1841,7 +1841,7 @@ class Item_func_st_frechet_distance : public Item_real_func {
   bool resolve_type(THD *thd) override {
     param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY);
     if (Item_real_func::resolve_type(thd)) return true;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -1855,7 +1855,7 @@ class Item_func_st_hausdorff_distance : public Item_real_func {
   bool resolve_type(THD *thd) override {
     param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY);
     if (Item_real_func::resolve_type(thd)) return true;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };

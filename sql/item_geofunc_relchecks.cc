@@ -1125,7 +1125,7 @@ longlong Item_func_spatial_relation::val_int() {
 
   if ((null_value =
            (!res1 || args[0]->null_value || !res2 || args[1]->null_value))) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return 0;
   }
 
@@ -1160,7 +1160,7 @@ longlong Item_func_spatial_relation::val_int() {
   if (error) return error_int();
 
   if (null_value) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return 0;
   }
 

@@ -2482,7 +2482,7 @@ String *Item_func_xml_extractvalue::val_str(String *str) {
   String *res;
   null_value = false;
   if (!nodeset_func && parse_xpath(args[1])) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     null_value = true;
     return nullptr;
   }
@@ -2501,7 +2501,7 @@ String *Item_func_xml_update::val_str(String *str) {
 
   null_value = false;
   if (!nodeset_func && parse_xpath(args[1])) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     null_value = true;
     return nullptr;
   }

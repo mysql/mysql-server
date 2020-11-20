@@ -2199,7 +2199,7 @@ class Item_func_isnotnull final : public Item_bool_func {
   longlong val_int() override;
   enum Functype functype() const override { return ISNOTNULL_FUNC; }
   bool resolve_type(THD *thd) override {
-    maybe_null = false;
+    set_nullable(false);
     return Item_bool_func::resolve_type(thd);
   }
   const char *func_name() const override { return "isnotnull"; }

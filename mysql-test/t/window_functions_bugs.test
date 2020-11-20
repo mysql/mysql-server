@@ -156,11 +156,11 @@ SELECT FIRST_VALUE(-2605.952148) OVER
 SELECT LAST_VALUE(-2605.952148) OVER
          (PARTITION BY a ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
   FROM t WINDOW w1 AS (PARTITION BY a);
---echo These don't suffer from the error as their maybe_null==true,
+--echo These don't suffer from the error as their m_nullable==true,
 --echo but including tests since we updated their code in case this
 --echo changes: NTH(<non-null arg>, 1) is really the same as
 --echo FIRST_VALUE, for example, and could have been made
---echo maybe_null==false.
+--echo m_nullable==false.
 SELECT NTH_VALUE(-2605.952148, 1) OVER
          (PARTITION BY a ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
   FROM t WINDOW w1 AS (PARTITION BY a);

@@ -1899,7 +1899,7 @@ Geometry *Item_func_spatial_operation::union_operation(Geometry *g1,
       break;
   }
 
-  if (!null_value) null_value = wrap.get_null_value() && maybe_null;
+  if (!null_value) null_value = wrap.get_null_value() && is_nullable();
   if (!null_value && retgeo == nullptr) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     error_str();

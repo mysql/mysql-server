@@ -214,7 +214,7 @@ bool Item_str_func::fix_fields(THD *thd, Item **ref) {
     In Item_str_func::check_well_formed_result() we may set null_value
     flag on the same condition as in test() below.
   */
-  maybe_null = (maybe_null || thd->is_strict_mode());
+  set_nullable(is_nullable() || thd->is_strict_mode());
   return res;
 }
 
@@ -392,7 +392,7 @@ String *Item_func_sha2::val_str_ascii(String *str) {
 bool Item_func_sha2::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1)) return true;
   if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
-  maybe_null = true;
+  set_nullable(true);
   longlong sha_variant;
   if (args[1]->const_item()) {
     sha_variant = args[1]->val_int();
@@ -613,7 +613,7 @@ String *Item_func_aes_decrypt::val_str(String *str) {
 bool Item_func_aes_decrypt::resolve_type(THD *thd) {
   if (Item_str_func::resolve_type(thd)) return true;
   set_data_type_string(args[0]->max_char_length());
-  maybe_null = true;
+  set_nullable(true);
   return false;
 }
 
@@ -676,16 +676,16 @@ String *Item_func_random_bytes::val_str(String *) {
 
 bool Item_func_to_base64::resolve_type(THD *thd) {
   if (Item_str_func::resolve_type(thd)) return true;
-  maybe_null = args[0]->maybe_null;
   collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
   if (args[0]->max_length > (uint)base64_encode_max_arg_length()) {
-    maybe_null = true;
+    set_nullable(true);
     set_data_type_string((ulonglong)base64_encode_max_arg_length());
   } else {
     uint64 length = base64_needed_encoded_length((uint64)args[0]->max_length);
     DBUG_ASSERT(length > 0);
     set_data_type_string((ulonglong)length - 1);
-    maybe_null = (maybe_null || max_length > thd->variables.max_allowed_packet);
+    set_nullable(args[0]->is_nullable() ||
+                 max_length > thd->variables.max_allowed_packet);
   }
   return false;
 }
@@ -720,7 +720,7 @@ bool Item_func_from_base64::resolve_type(THD *thd) {
     uint64 length = base64_needed_decoded_length((uint64)args[0]->max_length);
     set_data_type_string(ulonglong(length));
   }
-  maybe_null = true;  // Can be NULL, e.g. in case of badly formed input string
+  set_nullable(true);  // Can be NULL, e.g. in case of badly formed input string
   return false;
 }
 
@@ -1013,7 +1013,7 @@ String *Item_func_concat::val_str(String *str) {
     if (!(res = args[i]->val_str(str))) {
       if (thd->is_error()) return error_str();
 
-      DBUG_ASSERT(maybe_null);
+      assert(is_nullable());
       null_value = true;
       return nullptr;
     }
@@ -1040,7 +1040,7 @@ bool Item_func_concat::resolve_type(THD *thd) {
     char_length += args[i]->max_char_length();
 
   set_data_type_string(char_length);
-  maybe_null = (maybe_null || max_length > thd->variables.max_allowed_packet);
+  set_nullable(is_nullable() || max_length > thd->variables.max_allowed_packet);
   return false;
 }
 
@@ -1101,7 +1101,7 @@ bool Item_func_concat_ws::resolve_type(THD *thd) {
     char_length += args[i]->max_char_length();
 
   set_data_type_string(char_length);
-  maybe_null = (maybe_null || max_length > thd->variables.max_allowed_packet);
+  set_nullable(is_nullable() || max_length > thd->variables.max_allowed_packet);
   return false;
 }
 
@@ -1227,7 +1227,7 @@ bool Item_func_replace::resolve_type(THD *thd) {
   // REPLACE(str, from_str, to_str)
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
   set_data_type_string(char_length);
-  maybe_null = (maybe_null || max_length > thd->variables.max_allowed_packet);
+  set_nullable(is_nullable() || max_length > thd->variables.max_allowed_packet);
   return false;
 }
 
@@ -1244,7 +1244,7 @@ String *Item_func_insert::val_str(String *str) {
 
   if (args[0]->null_value || args[1]->null_value || args[2]->null_value ||
       args[3]->null_value) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return error_str(); /* purecov: inspected */
   }
   orig_len = static_cast<longlong>(res->length());
@@ -1304,7 +1304,7 @@ bool Item_func_insert::resolve_type(THD *thd) {
   ulonglong length = ulonglong{args[0]->max_char_length()} +
                      ulonglong{args[3]->max_char_length()};
   set_data_type_string(length);
-  maybe_null = (maybe_null || max_length > thd->variables.max_allowed_packet);
+  set_nullable(is_nullable() || max_length > thd->variables.max_allowed_packet);
   return false;
 }
 
@@ -1406,7 +1406,7 @@ String *Item_str_func::push_packet_overflow_warning(THD *thd,
                       ER_WARN_ALLOWED_PACKET_OVERFLOWED,
                       ER_THD(thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED), func,
                       thd->variables.max_allowed_packet);
-  DBUG_ASSERT(maybe_null);
+  assert(is_nullable());
   return error_str();
 }
 
@@ -2253,7 +2253,7 @@ bool Item_func_elt::resolve_type(THD *thd) {
     decimals = max(decimals, args[i]->decimals);
   }
   set_data_type_string(char_length);
-  maybe_null = true;  // NULL if wrong first arg
+  set_nullable(true);  // NULL if wrong first arg
   return false;
 }
 
@@ -2475,13 +2475,14 @@ bool Item_func_repeat::resolve_type(THD *thd) {
     ulonglong char_length =
         static_cast<ulonglong>(args[0]->max_char_length()) * count_ull;
     set_data_type_string(char_length);
-    maybe_null = (maybe_null || max_length > thd->variables.max_allowed_packet);
+    set_nullable(is_nullable() ||
+                 max_length > thd->variables.max_allowed_packet);
     return false;
   }
 
 end:
   set_data_type_string(uint32(MAX_BLOB_WIDTH));
-  maybe_null = true;
+  set_nullable(true);
   return false;
 }
 
@@ -2548,13 +2549,14 @@ bool Item_func_space::resolve_type(THD *thd) {
     */
     if (count > INT_MAX32) count = INT_MAX32;
     set_data_type_string(ulonglong(count));
-    maybe_null = (maybe_null || max_length > thd->variables.max_allowed_packet);
+    set_nullable(is_nullable() ||
+                 max_length > thd->variables.max_allowed_packet);
     return false;
   }
 
 end:
   set_data_type_string(uint32(MAX_BLOB_WIDTH));
-  maybe_null = true;
+  set_nullable(true);
   return false;
 }
 
@@ -2602,13 +2604,14 @@ bool Item_func_rpad::resolve_type(THD *thd) {
     /* Set here so that rest of code sees out-of-bound value as such. */
     if (char_length > INT_MAX32) char_length = INT_MAX32;
     set_data_type_string(char_length);
-    maybe_null = (maybe_null || max_length > thd->variables.max_allowed_packet);
+    set_nullable(is_nullable() ||
+                 max_length > thd->variables.max_allowed_packet);
     return false;
   }
 
 end:
   set_data_type_string(uint32(MAX_BLOB_WIDTH));
-  maybe_null = true;
+  set_nullable(true);
   return false;
 }
 
@@ -2728,13 +2731,14 @@ bool Item_func_lpad::resolve_type(THD *thd) {
     /* Set here so that rest of code sees out-of-bound value as such. */
     if (char_length > INT_MAX32) char_length = INT_MAX32;
     set_data_type_string(char_length);
-    maybe_null = (maybe_null || max_length > thd->variables.max_allowed_packet);
+    set_nullable(is_nullable() ||
+                 max_length > thd->variables.max_allowed_packet);
     return false;
   }
 
 end:
   set_data_type_string(uint32(MAX_BLOB_WIDTH));
-  maybe_null = true;
+  set_nullable(true);
   return false;
 }
 
@@ -2742,7 +2746,7 @@ bool Item_func_uuid_to_bin::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
   if (Item_str_func::resolve_type(thd)) return true;
   set_data_type_string(uint32(binary_log::Uuid::BYTE_LENGTH), &my_charset_bin);
-  maybe_null = true;
+  set_nullable(true);
   return false;
 }
 
@@ -2785,7 +2789,7 @@ bool Item_func_bin_to_uuid::resolve_type(THD *thd) {
   if (Item_str_func::resolve_type(thd)) return true;
   set_data_type_string(uint32(binary_log::Uuid::TEXT_LENGTH),
                        default_charset());
-  maybe_null = true;
+  set_nullable(true);
   return false;
 }
 
@@ -2940,7 +2944,7 @@ String *Item_func_lpad::val_str(String *str) {
 bool Item_func_conv::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_LONGLONG)) return true;
   set_data_type_string(CONV_MAX_LENGTH, default_charset());
-  maybe_null = true;
+  set_nullable(true);
   return reject_geometry_args(arg_count, args, this);
 }
 
@@ -3192,7 +3196,7 @@ bool Item_func_weight_string::resolve_type(THD *thd) {
   len = max<uint>(len, sizeof(longlong));
 
   set_data_type_string(len);
-  maybe_null = true;
+  set_nullable(true);
   return false;
 }
 
@@ -3229,7 +3233,7 @@ String *Item_func_weight_string::val_str(String *str) {
   sortlength(current_thd, &sortorder, /*s_length=*/1);
   if (sortorder.result_type == INT_RESULT) {
     longlong value = args[0]->int_sort_key();
-    if (args[0]->maybe_null && args[0]->null_value) return error_str();
+    if (args[0]->is_nullable() && args[0]->null_value) return error_str();
     if (tmp_value.alloc(sortorder.length)) return error_str();
     copy_native_longlong(pointer_cast<uchar *>(tmp_value.ptr()),
                          sortorder.length, value, args[0]->unsigned_flag);
@@ -3523,7 +3527,7 @@ bool Item_typecast_char::resolve_type(THD *thd) {
                                     : cast_cs == &my_charset_bin
                                           ? args[0]->max_length
                                           : args[0]->max_char_length()));
-  maybe_null = (maybe_null || max_length > thd->variables.max_allowed_packet);
+  set_nullable(is_nullable() || max_length > thd->variables.max_allowed_packet);
 
   /*
      We always force character set conversion if cast_cs
@@ -3557,7 +3561,7 @@ String *Item_load_file::val_str(String *str) {
 
   if (!(file_name = args[0]->val_str(str)) ||
       !(current_thd->security_context()->check_access(FILE_ACL))) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return error_str();
   }
 
@@ -3566,26 +3570,26 @@ String *Item_load_file::val_str(String *str) {
 
   /* Read only allowed from within dir specified by secure_file_priv */
   if (!is_secure_file_path(path)) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return error_str();
   }
 
   if ((file = mysql_file_open(key_file_loadfile, file_name->ptr(), O_RDONLY,
                               MYF(0))) < 0) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return error_str();
   }
 
   if (mysql_file_fstat(file, &stat_info) != 0) {
     mysql_file_close(file, MYF(0));
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return error_str();
   }
 
   if (!MY_S_ISREG(stat_info.st_mode)) {
     my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), file_name->c_ptr());
     mysql_file_close(file, MYF(0));
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return error_str();
   }
 
@@ -3594,7 +3598,7 @@ String *Item_load_file::val_str(String *str) {
     int ret = mysql_file_read(file, buf, sizeof(buf), MYF(0));
     if (ret == -1) {
       mysql_file_close(file, MYF(0));
-      DBUG_ASSERT(maybe_null);
+      assert(is_nullable());
       return error_str();
     }
     if (ret == 0) {
@@ -3695,7 +3699,7 @@ bool Item_func_export_set::resolve_type(THD *thd) {
                                          min(4U, arg_count) - 1))
     return true;
   set_data_type_string(length * 64U + sep_length * 63U);
-  maybe_null = (maybe_null || max_length > thd->variables.max_allowed_packet);
+  set_nullable(is_nullable() || max_length > thd->variables.max_allowed_packet);
   return false;
 }
 
@@ -3712,7 +3716,7 @@ bool Item_func_quote::resolve_type(THD *thd) {
       4, static_cast<ulonglong>(args[0]->max_char_length()) * 2U + 2U);
   collation.set(args[0]->collation);
   set_data_type_string(max_result_length);
-  maybe_null = (maybe_null || max_length > thd->variables.max_allowed_packet);
+  set_nullable(is_nullable() || max_length > thd->variables.max_allowed_packet);
   return false;
 }
 
@@ -4202,7 +4206,7 @@ String *Item_func_uuid::val_str(String *str) {
 
 bool Item_func_gtid_subtract::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, -1)) return true;
-  maybe_null = args[0]->maybe_null || args[1]->maybe_null;
+  set_nullable(args[0]->is_nullable() || args[1]->is_nullable());
   collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
   /*
     In the worst case, the string grows after subtraction. This

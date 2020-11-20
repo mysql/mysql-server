@@ -674,7 +674,7 @@ bool Item_func_json_schema_valid::val_bool() {
     }
   }
 
-  DBUG_ASSERT(maybe_null || !null_value);
+  DBUG_ASSERT(is_nullable() || !null_value);
   return validation_result;
 }
 
@@ -711,7 +711,7 @@ bool Item_func_json_schema_validation_report::val_json(Json_wrapper *wr) {
     return error_json();
   }
 
-  DBUG_ASSERT(maybe_null || !null_value);
+  DBUG_ASSERT(is_nullable() || !null_value);
   std::unique_ptr<Json_object> result(new (std::nothrow) Json_object());
   if (result == nullptr) return error_json();  // OOM
 
@@ -1193,7 +1193,7 @@ static constexpr uint32 typelit_max_length =
 
 bool Item_func_json_type::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
-  maybe_null = true;
+  set_nullable(true);
   m_value.set_charset(&my_charset_utf8mb4_bin);
   set_data_type_string(typelit_max_length, &my_charset_utf8mb4_bin);
   return false;
@@ -1275,7 +1275,7 @@ String *Item_func_json_type::val_str(String *) {
 }
 
 static String *error_str(Item *item, String *buffer) {
-  item->null_value = item->maybe_null;
+  item->null_value = item->is_nullable();
   if (item->null_value) return nullptr;
   buffer->set("", 0, item->collation.collation);
   return buffer;
@@ -3718,7 +3718,7 @@ void Item_func_array_cast::print(const THD *thd, String *str,
 }
 
 bool Item_func_array_cast::resolve_type(THD *) {
-  maybe_null = true;
+  set_nullable(true);
   return false;
 }
 
@@ -4166,18 +4166,18 @@ enum Item_result Item_func_json_value::result_type() const {
 
 bool Item_func_json_value::resolve_type(THD *) {
   // The path must be a character literal, so it's never NULL.
-  DBUG_ASSERT(!args[1]->maybe_null);
+  DBUG_ASSERT(!args[1]->is_nullable());
   // The DEFAULT values are character literals, so they are never NULL if they
   // are specified.
   DBUG_ASSERT(m_on_empty != Json_on_response_type::DEFAULT ||
-              !args[2]->maybe_null);
+              !args[2]->is_nullable());
   DBUG_ASSERT(m_on_error != Json_on_response_type::DEFAULT ||
-              !args[3]->maybe_null);
+              !args[3]->is_nullable());
 
   // JSON_VALUE can return NULL if its first argument is nullable, or if NULL
   // ON EMPTY or NULL ON ERROR is specified or implied, or if the extracted JSON
   // value is the JSON null literal.
-  maybe_null = true;
+  set_nullable(true);
   return false;
 }
 
@@ -4489,7 +4489,7 @@ static bool handle_json_value_conversion_error(Json_on_response_type on_error,
       break;
     case Json_on_response_type::NULL_VALUE:
     case Json_on_response_type::IMPLICIT:
-      DBUG_ASSERT(item->maybe_null);
+      assert(item->is_nullable());
       item->null_value = true;
       break;
   }
@@ -4508,7 +4508,7 @@ bool Item_func_json_value::extract_json_value(
       if (args[0]->val_json(&doc)) return true;
       null_value = args[0]->null_value;
       if (null_value) {
-        DBUG_ASSERT(maybe_null);
+        assert(is_nullable());
         return false;
       }
     } else {
@@ -4516,7 +4516,7 @@ bool Item_func_json_value::extract_json_value(
       const String *doc_string = args[0]->val_str(&buffer);
       null_value = args[0]->null_value;
       if (null_value) {
-        DBUG_ASSERT(maybe_null);
+        assert(is_nullable());
         return false;
       }
 
@@ -4544,7 +4544,7 @@ bool Item_func_json_value::extract_json_value(
         } else {
           DBUG_ASSERT(m_on_error == Json_on_response_type::IMPLICIT ||
                       m_on_error == Json_on_response_type::NULL_VALUE);
-          DBUG_ASSERT(maybe_null);
+          assert(is_nullable());
           null_value = true;
           return false;
         }
@@ -4584,7 +4584,7 @@ bool Item_func_json_value::extract_json_value(
           return error_json();
         case Json_on_response_type::IMPLICIT:
         case Json_on_response_type::NULL_VALUE:
-          DBUG_ASSERT(maybe_null);
+          assert(is_nullable());
           null_value = true;
           return false;
       }
@@ -4599,7 +4599,7 @@ bool Item_func_json_value::extract_json_value(
         return error_json();
       case Json_on_response_type::NULL_VALUE:
       case Json_on_response_type::IMPLICIT:
-        DBUG_ASSERT(maybe_null);
+        assert(is_nullable());
         null_value = true;
         break;
       case Json_on_response_type::DEFAULT:
@@ -4802,7 +4802,7 @@ int64_t Item_func_json_value::extract_integer_value() {
   if (extract_json_value(&wr, &return_default)) return error_int();
 
   if (null_value) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return 0;
   }
 
@@ -4836,7 +4836,7 @@ int64_t Item_func_json_value::extract_year_value() {
   if (extract_json_value(&wr, &return_default)) return error_int();
 
   if (null_value) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return 0;
   }
 
@@ -5016,7 +5016,7 @@ double Item_func_json_value::extract_real_value() {
   const Default_value *return_default = nullptr;
   if (extract_json_value(&wr, &return_default)) return error_real();
   if (null_value) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return 0.0;
   }
 

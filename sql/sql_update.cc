@@ -2180,7 +2180,7 @@ bool Query_result_update::optimize() {
       field->init(tbl);
       Item_field *ifield = new (thd->mem_root) Item_field(field);
       if (!ifield) return true;
-      ifield->maybe_null = false;
+      ifield->set_nullable(false);
       temp_fields.push_back(ifield);
     } while ((tbl = tbl_it++));
 

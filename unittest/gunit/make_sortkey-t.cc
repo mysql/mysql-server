@@ -97,7 +97,7 @@ TEST_F(MakeSortKeyTest, IntResult) {
 TEST_F(MakeSortKeyTest, IntResultNull) {
   thd()->variables.max_sort_length = 4U;
   Item *int_item = m_sort_fields[0].item = new Item_int(42);
-  int_item->maybe_null = true;
+  int_item->set_nullable(true);
   int_item->null_value = true;
 
   const uint total_length = sortlength(thd(), m_sort_fields, 1);

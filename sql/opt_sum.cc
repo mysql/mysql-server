@@ -395,7 +395,7 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
             to the number of rows in the tables if this number is exact and
             there are no outer joins.
           */
-          if (conds == nullptr && !item_count->get_arg(0)->maybe_null &&
+          if (conds == nullptr && !item_count->get_arg(0)->is_nullable() &&
               !inner_tables && tables_filled) {
             if (delay_ha_records_to_exec_phase) {
               aggr_delayed = true;
@@ -429,8 +429,8 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
                    (func_type == Item_func::FT_FUNC ||
                     func_type == Item_func::MATCH_FUNC) &&  // 2
                    (tables->table->file->ha_table_flags() &
-                    HA_CAN_FULLTEXT_EXT) &&              // 3
-                   !item_count->get_arg(0)->maybe_null)  // 4
+                    HA_CAN_FULLTEXT_EXT) &&                 // 3
+                   !item_count->get_arg(0)->is_nullable())  // 4
           {
             Item_func_match *fts_item =
                 func_type == Item_func::FT_FUNC

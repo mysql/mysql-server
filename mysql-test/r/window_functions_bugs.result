@@ -206,11 +206,11 @@ LAST_VALUE(-2605.952148) OVER
 -2605.952148
 -2605.952148
 -2605.952148
-These don't suffer from the error as their maybe_null==true,
+These don't suffer from the error as their m_nullable==true,
 but including tests since we updated their code in case this
 changes: NTH(<non-null arg>, 1) is really the same as
 FIRST_VALUE, for example, and could have been made
-maybe_null==false.
+m_nullable==false.
 SELECT NTH_VALUE(-2605.952148, 1) OVER
 (PARTITION BY a ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
 FROM t WINDOW w1 AS (PARTITION BY a);

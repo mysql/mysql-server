@@ -109,10 +109,10 @@ class Item_func_regexp : public Item_func {
       /*
         Note: Item::null_value() can't be trusted alone here; there are cases
         (for the DATE data type in particular) where we can have it set
-        without Item::maybe_null being set! This really should be cleaned up,
+        without Item::m_nullable being set! This really should be cleaned up,
         but until that happens, we need to have a more conservative check.
       */
-      if (args[the_index]->maybe_null && args[the_index]->null_value)
+      if (args[the_index]->is_nullable() && args[the_index]->null_value)
         return Mysql::Nullable<int>();
       else
         return value;
@@ -131,7 +131,7 @@ class Item_func_regexp : public Item_func {
         without Item::maybe_null being set! This really should be cleaned up,
         but until that happens, we need to have a more conservative check.
       */
-      if (args[the_index]->maybe_null && args[the_index]->null_value)
+      if (args[the_index]->is_nullable() && args[the_index]->null_value)
         return Mysql::Nullable<int>();
       else
         return value;

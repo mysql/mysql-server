@@ -7460,7 +7460,7 @@ bool Item_field::replace_field_processor(uchar *arg) {
 
   unsigned_flag = create_field->sql_type == MYSQL_TYPE_BIT ||
                   field->is_flag_set(UNSIGNED_FLAG);
-  maybe_null = create_field->is_nullable;
+  set_nullable(create_field->is_nullable);
   field->field_length = max_length;
   return false;
 }
@@ -18159,10 +18159,10 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
 
   mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(item = new Item_empty_string("Table", NAME_LEN * 2));
-  item->maybe_null = true;
+  item->set_nullable(true);
   field_list.push_back(item = new Item_int(NAME_STRING("Checksum"), (longlong)1,
                                            MY_INT64_NUM_DECIMAL_DIGITS));
-  item->maybe_null = true;
+  item->set_nullable(true);
   if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;

@@ -2123,7 +2123,7 @@ bool init_ref_part(THD *thd, unsigned part_no, Item *val, bool *cond_guard,
   ref->items[part_no] = val;  // Save for cond removal
   ref->cond_guards[part_no] = cond_guard;
   // Set ref as "null rejecting" only if either side is really nullable:
-  if (null_rejecting && (nullable || val->maybe_null))
+  if (null_rejecting && (nullable || val->is_nullable()))
     ref->null_rejecting |= (key_part_map)1 << part_no;
 
   store_key *s_key = get_store_key(thd, val, used_tables, const_tables,
@@ -2537,7 +2537,7 @@ store_key_item::store_key_item(THD *thd, Field *to_field_arg, uchar *ptr,
   // If the item is nullable, but we cannot store null, make
   // to_field temporary nullable so that we can check in copy_inner()
   // if we end up with an illegal null value.
-  if (!to_field->is_nullable() && item->maybe_null)
+  if (!to_field->is_nullable() && item->is_nullable())
     to_field->set_tmp_nullable();
 }
 
@@ -3931,7 +3931,7 @@ void calc_group_buffer(JOIN *join, ORDER *group) {
       }
     }
     parts++;
-    if (group_item->maybe_null) null_parts++;
+    if (group_item->is_nullable()) null_parts++;
   }
   join->tmp_table_param.group_length = key_length + null_parts;
   join->tmp_table_param.group_parts = parts;

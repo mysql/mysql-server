@@ -538,7 +538,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd, Query_result *sel_result,
         auto holder = new Item_type_holder(thd, item_tmp);
         if (!holder) return true; /* purecov: inspected */
         if (is_recursive()) {
-          holder->maybe_null = true;  // Always nullable, per SQL standard.
+          holder->set_nullable(true);  // Always nullable, per SQL standard.
           /*
             The UNION code relies on join_types() to change some
             transitional types like MYSQL_TYPE_DATETIME2 into other types; in
