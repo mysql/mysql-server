@@ -24,11 +24,15 @@
 
 #include <chrono>
 #include <cstring>
+#include <initializer_list>
+#include <sstream>
 #include <stdexcept>
+#include <string>
 #include <thread>
 #include <typeinfo>
 
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #ifndef _WIN32
 #include <arpa/inet.h>
@@ -44,6 +48,7 @@
 #include <ws2tcpip.h>
 #endif
 
+#include "config_builder.h"
 #include "mysql/harness/net_ts/impl/resolver.h"
 #include "mysql/harness/net_ts/impl/socket.h"
 #include "mysql/harness/stdx/expected.h"
@@ -421,6 +426,201 @@ TEST_F(RouterRoutingTest, error_counters) {
     }
   }
 }
+
+struct RoutingConfigParam {
+  const char *test_name;
+
+  std::vector<std::pair<std::string, std::string>> routing_opts;
+
+  std::function<void(const std::vector<std::string> &)> checker;
+};
+
+class RoutingConfigTest
+    : public RouterComponentTest,
+      public ::testing::WithParamInterface<RoutingConfigParam> {};
+
+TEST_P(RoutingConfigTest, check) {
+  mysql_harness::ConfigBuilder builder;
+
+  const std::string routing_section =
+      builder.build_section("routing", GetParam().routing_opts);
+
+  TempDirectory conf_dir("conf");
+  std::string conf_file = create_config_file(conf_dir.name(), routing_section);
+
+  // launch the router with the created configuration
+  auto &router =
+      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1ms);
+  router.wait_for_exit();
+
+  std::vector<std::string> lines;
+  {
+    std::istringstream ss{router.get_full_logfile()};
+
+    std::string line;
+    while (std::getline(ss, line, '\n')) {
+      lines.push_back(std::move(line));
+    }
+  }
+
+  GetParam().checker(lines);
+}
+
+const RoutingConfigParam routing_config_param[] = {
+    {"no_destination",
+     {
+         {"destinations", "127.0.0.1:3306"},
+         {"routing_strategy", "first-available"},
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines, ::testing::Contains(::testing::HasSubstr(
+                              "either bind_address or socket option needs to "
+                              "be supplied, or both")));
+     }},
+    {"missing_port_in_bind_address",
+     {
+         {"destinations", "127.0.0.1:3306"},
+         {"routing_strategy", "first-available"},
+         {"bind_address", "127.0.0.1"},
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines, ::testing::Contains(::testing::HasSubstr(
+                              "either bind_address or socket option needs to "
+                              "be supplied, or both")));
+     }},
+    {"invalid_port_in_bind_address",
+     {
+         {"destinations", "127.0.0.1:3306"},
+         {"routing_strategy", "first-available"},
+         {"bind_address", "127.0.0.1:999292"},
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines,
+                   ::testing::Contains(::testing::HasSubstr(
+                       "option bind_address in [routing] is incorrect (invalid "
+                       "TCP port: invalid characters or too long)")));
+     }},
+    {"invalid_bind_port",
+     {
+         {"destinations", "127.0.0.1:3306"},
+         {"routing_strategy", "first-available"},
+         {"bind_port", "23123124123123"},
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(
+           lines, ::testing::Contains(::testing::HasSubstr(
+                      "option bind_port in [routing] needs value between 1 and "
+                      "65535 inclusive, was '23123124123123'")));
+     }},
+    {"invalid_mode",
+     {
+         {"destinations", "127.0.0.1:3306"},
+         {"bind_address", "127.0.0.1"},
+         {"bind_port", "6000"},
+         {"mode", "invalid"},
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(
+           lines,
+           ::testing::Contains(::testing::HasSubstr(
+               "option mode in [routing] is invalid; valid are read-write "
+               "and read-only (was 'invalid')")));
+     }},
+    {"invalid_routing_strategy",
+     {
+         {"destinations", "127.0.0.1:3306"},
+         {"bind_address", "127.0.0.1"},
+         {"bind_port", "6000"},
+         {"routing_strategy", "invalid"},
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines,
+                   ::testing::Contains(::testing::HasSubstr(
+                       "option routing_strategy in [routing] is invalid; valid "
+                       "are first-available, "
+                       "next-available, and round-robin (was 'invalid')")));
+     }},
+    {"empty_mode",
+     {
+         {"destinations", "127.0.0.1:3306"},
+         {"bind_address", "127.0.0.1"},
+         {"bind_port", "6000"},
+         {"mode", ""},
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines, ::testing::Contains(::testing::HasSubstr(
+                              "option mode in [routing] needs a value")));
+     }},
+    {"empty_routing_strategy",
+     {
+         {"destinations", "127.0.0.1:3306"},
+         {"bind_address", "127.0.0.1"},
+         {"bind_port", "6000"},
+         {"routing_strategy", ""},
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines,
+                   ::testing::Contains(::testing::HasSubstr(
+                       "option routing_strategy in [routing] needs a value")));
+     }},
+    {"missing_routing_strategy",
+     {
+         {"destinations", "127.0.0.1:3306"},
+         {"bind_address", "127.0.0.1"},
+         {"bind_port", "6000"},
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines,
+                   ::testing::Contains(::testing::HasSubstr(
+                       "option routing_strategy in [routing] is required")));
+     }},
+    {"thread_stack_size_negative",
+     {
+         {"destinations", "127.0.0.1:3306"},
+         {"bind_address", "127.0.0.1"},
+         {"bind_port", "6000"},
+         {"routing_strategy", "first-available"},
+         {"thread_stack_size", "-1"},
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines,
+                   ::testing::Contains(::testing::HasSubstr(
+                       "option thread_stack_size in [routing] needs "
+                       "value between 1 and 65535 inclusive, was '-1'")));
+     }},
+    {"thread_stack_size_float",
+     {
+         {"destinations", "127.0.0.1:3306"},
+         {"bind_address", "127.0.0.1"},
+         {"bind_port", "6000"},
+         {"routing_strategy", "first-available"},
+         {"thread_stack_size", "4.5"},
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines,
+                   ::testing::Contains(::testing::HasSubstr(
+                       "option thread_stack_size in [routing] needs "
+                       "value between 1 and 65535 inclusive, was '4.5'")));
+     }},
+    {"thread_stack_size_string",
+     {
+         {"destinations", "127.0.0.1:3306"},
+         {"bind_address", "127.0.0.1"},
+         {"bind_port", "6000"},
+         {"routing_strategy", "first-available"},
+         {"thread_stack_size", "dfs4"},
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines,
+                   ::testing::Contains(::testing::HasSubstr(
+                       "option thread_stack_size in [routing] needs "
+                       "value between 1 and 65535 inclusive, was 'dfs4'")));
+     }},
+};
+
+INSTANTIATE_TEST_SUITE_P(Spec, RoutingConfigTest,
+                         ::testing::ValuesIn(routing_config_param),
+                         [](const auto &info) { return info.param.test_name; });
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

@@ -70,7 +70,6 @@ ENDIF()
 SET(TEST_MODULE "routing")
 SET(test_files
   test_block_clients.cc
-  test_config.cc
   # test_connection.cc
   test_connection_container.cc
   test_first_available.cc
