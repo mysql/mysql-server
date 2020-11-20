@@ -2456,7 +2456,8 @@ sub collect_mysqld_features_from_running_server () {
   }
 
   mtr_add_arg($args, "--silent");    # Tab separated output
-  mtr_add_arg($args, "-e '%s'", "use mysql; SHOW GLOBAL VARIABLES");
+  mtr_add_arg($args, "--database=mysql");
+  mtr_add_arg($args, '--execute="SHOW GLOBAL VARIABLES"');
   my $cmd = "$mysql " . join(' ', @$args);
   mtr_verbose("cmd: $cmd");
 
