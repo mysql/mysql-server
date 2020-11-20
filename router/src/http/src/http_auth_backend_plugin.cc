@@ -189,8 +189,9 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   }
 }
 
-static const std::array<const char *, 1> required = {{
+static const std::array<const char *, 2> required = {{
     "logger",
+    "router_protobuf",
 }};
 
 extern "C" {
