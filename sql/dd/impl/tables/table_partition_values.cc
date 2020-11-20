@@ -54,7 +54,7 @@ Table_partition_values::Table_partition_values() {
   m_target_def.add_field(FIELD_PARTITION_ID, "FIELD_PARTITION_ID",
                          "partition_id BIGINT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_LIST_NUM, "FIELD_LIST_NUM",
-                         "list_num TINYINT UNSIGNED NOT NULL");
+                         "list_num SMALLINT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_COLUMN_NUM, "FIELD_COLUMN_NUM",
                          "column_num TINYINT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_VALUE_UTF8, "FIELD_VALUE_UTF8",

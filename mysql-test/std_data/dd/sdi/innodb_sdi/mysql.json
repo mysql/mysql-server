@@ -18053,7 +18053,7 @@
             },
             {
                 "name": "list_num",
-                "type": 2,
+                "type": 3,
                 "is_nullable": false,
                 "is_zerofill": false,
                 "is_unsigned": true,
@@ -18061,8 +18061,8 @@
                 "is_virtual": false,
                 "hidden": 1,
                 "ordinal_position": 2,
-                "char_length": 3,
-                "numeric_precision": 3,
+                "char_length": 5,
+                "numeric_precision": 5,
                 "numeric_scale": 0,
                 "numeric_scale_null": false,
                 "datetime_precision": 0,
@@ -18084,7 +18084,7 @@
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 2,
-                "column_type_utf8": "tinyint unsigned",
+                "column_type_utf8": "smallint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -18323,7 +18323,7 @@
                     },
                     {
                         "ordinal_position": 2,
-                        "length": 1,
+                        "length": 2,
                         "order": 2,
                         "hidden": false,
                         "column_opx": 1
