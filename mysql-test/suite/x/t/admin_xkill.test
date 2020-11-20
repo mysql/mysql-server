@@ -282,8 +282,17 @@ EOF
 --write_file $MYSQL_TMP_DIR/admin_list_kill_100conns.tmp
 -->import assert_status_variable.macro
 -->import kill_and_restart.macro
+-->import assert_notices.macro
 
--->echo checking list_clients and kill_client with default 100 connections, expect success for both list and kill
+-->macro receive_kill_notice	%SESSION_ID%
+setsession %SESSION_ID%;
+# error 3169 = ER_SESSION_WAS_KILLED;
+callmacro Assert_notice_warning	ERROR	3169;
+recvuntildisc show-received;
+-->endmacro
+
+
+-->echo checking list_clients and kill_client with default 50 connections, expect success for both list and kill
 set @@global.mysqlx_max_connections=60;
 create user xconnection1@localhost identified by  'xconnection1',
             xconnection2@localhost identified by  'xconnection2',
@@ -337,8 +346,8 @@ create user xconnection1@localhost identified by  'xconnection1',
             xconnection50@localhost identified by  'xconnection50';
 
 -->echo Test data
--->stmtadmin list_clients
--->recvresult
+stmtadmin list_clients;
+recvresult;
 
 -->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
 show status like 'Mysqlx_stmt%client%';
@@ -415,55 +424,105 @@ noquiet;
 
 -->echo killing all newly connected clients except x_root,one by one
 callmacro kill_client	11;
+callmacro receive_kill_notice	xconnection1;
 callmacro kill_client	12;
+callmacro receive_kill_notice	xconnection2;
 callmacro kill_client	13;
+callmacro receive_kill_notice	xconnection3;
 callmacro kill_client	14;
+callmacro receive_kill_notice	xconnection4;
 callmacro kill_client	15;
+callmacro receive_kill_notice	xconnection5;
 callmacro kill_client	16;
+callmacro receive_kill_notice	xconnection6;
 callmacro kill_client	17;
+callmacro receive_kill_notice	xconnection7;
 callmacro kill_client	18;
+callmacro receive_kill_notice	xconnection8;
 callmacro kill_client	19;
+callmacro receive_kill_notice	xconnection9;
 callmacro kill_client	20;
+callmacro receive_kill_notice	xconnection10;
 callmacro kill_client	21;
+callmacro receive_kill_notice	xconnection11;
 callmacro kill_client	22;
+callmacro receive_kill_notice	xconnection12;
 callmacro kill_client	23;
+callmacro receive_kill_notice	xconnection13;
 callmacro kill_client	24;
+callmacro receive_kill_notice	xconnection14;
 callmacro kill_client	25;
+callmacro receive_kill_notice	xconnection15;
 callmacro kill_client	26;
+callmacro receive_kill_notice	xconnection16;
 callmacro kill_client	27;
+callmacro receive_kill_notice	xconnection17;
 callmacro kill_client	28;
+callmacro receive_kill_notice	xconnection18;
 callmacro kill_client	29;
+callmacro receive_kill_notice	xconnection19;
 callmacro kill_client	30;
+callmacro receive_kill_notice	xconnection20;
 callmacro kill_client	31;
+callmacro receive_kill_notice	xconnection21;
 callmacro kill_client	32;
+callmacro receive_kill_notice	xconnection22;
 callmacro kill_client	33;
+callmacro receive_kill_notice	xconnection23;
 callmacro kill_client	34;
+callmacro receive_kill_notice	xconnection24;
 callmacro kill_client	35;
+callmacro receive_kill_notice	xconnection25;
 callmacro kill_client	36;
+callmacro receive_kill_notice	xconnection26;
 callmacro kill_client	37;
+callmacro receive_kill_notice	xconnection27;
 callmacro kill_client	38;
+callmacro receive_kill_notice	xconnection28;
 callmacro kill_client	39;
+callmacro receive_kill_notice	xconnection29;
 callmacro kill_client	40;
+callmacro receive_kill_notice	xconnection30;
 callmacro kill_client	41;
+callmacro receive_kill_notice	xconnection31;
 callmacro kill_client	42;
+callmacro receive_kill_notice	xconnection32;
 callmacro kill_client	43;
+callmacro receive_kill_notice	xconnection33;
 callmacro kill_client	44;
+callmacro receive_kill_notice	xconnection34;
 callmacro kill_client	45;
+callmacro receive_kill_notice	xconnection35;
 callmacro kill_client	46;
+callmacro receive_kill_notice	xconnection36;
 callmacro kill_client	47;
+callmacro receive_kill_notice	xconnection37;
 callmacro kill_client	48;
+callmacro receive_kill_notice	xconnection38;
 callmacro kill_client	49;
+callmacro receive_kill_notice	xconnection39;
 callmacro kill_client	50;
+callmacro receive_kill_notice	xconnection40;
 callmacro kill_client	51;
+callmacro receive_kill_notice	xconnection41;
 callmacro kill_client	52;
+callmacro receive_kill_notice	xconnection42;
 callmacro kill_client	53;
+callmacro receive_kill_notice	xconnection43;
 callmacro kill_client	54;
+callmacro receive_kill_notice	xconnection44;
 callmacro kill_client	55;
+callmacro receive_kill_notice	xconnection45;
 callmacro kill_client	56;
+callmacro receive_kill_notice	xconnection46;
 callmacro kill_client	57;
+callmacro receive_kill_notice	xconnection47;
 callmacro kill_client	58;
+callmacro receive_kill_notice	xconnection48;
 callmacro kill_client	59;
+callmacro receive_kill_notice	xconnection49;
 callmacro kill_client	60;
+callmacro receive_kill_notice	xconnection50;
 
 
 callmacro Wait_for_status_variable	Mysqlx_sessions	1;
