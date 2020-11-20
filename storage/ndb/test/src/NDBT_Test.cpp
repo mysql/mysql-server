@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -985,6 +985,11 @@ int NDBT_TestSuite::executeAll(Ndb_cluster_connection& con,
   return reportAllTables(_testname);
 }
 
+static ndb_password_state opt_backup_password_state("backup", nullptr);
+static ndb_password_option opt_backup_password(opt_backup_password_state);
+static ndb_password_from_stdin_option opt_backup_password_from_stdin(
+                                          opt_backup_password_state);
+
 void
 NDBT_TestSuite::execute(Ndb_cluster_connection& con,
                         NDBT_TestCase * pTest,
@@ -997,6 +1002,11 @@ NDBT_TestSuite::execute(Ndb_cluster_connection& con,
   ctx->setNumLoops(loops);
   ctx->setSuite(this);
   ctx->setProperty("NoDDL", (Uint32) m_noddl);
+  if (opt_backup_password_state.get_password() != NULL)
+  {
+    ctx->setProperty("BACKUP_PASSWORD",
+                     opt_backup_password_state.get_password());
+  }
   if (pTab)
   {
     ctx->setTab(pTab);
@@ -1447,9 +1457,23 @@ static int opt_temporary = 0;
 static int opt_noddl = 0;
 static int opt_forceShort = 0;
 
+static const char *load_default_groups[]= {
+                       "mysql_cluster",
+                       "NDBT",
+                       nullptr /* placeholder for program name */,
+                       nullptr };
+
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS(""),
+  { "backup-password", NDB_OPT_NOSHORT,
+    "Password to use for encrypted backup files",
+    NULL, NULL, 0,
+    GET_PASSWORD, OPT_ARG, 0, 0, 0, NULL, 0, &opt_backup_password },
+  { "backup-password-from-stdin", NDB_OPT_NOSHORT,
+    "Password to use for encrypted backup files",
+    &opt_backup_password_from_stdin.opt_value, NULL, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, NULL, 0, &opt_backup_password_from_stdin },
   { "print", NDB_OPT_NOSHORT, "Print execution tree",
     (uchar **) &opt_print, (uchar **) &opt_print, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
@@ -1528,7 +1552,13 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
   */
 
   char **_argv= (char **)argv;
-  Ndb_opts opts(argc, _argv, my_long_options);
+
+  // Use program name as one of the defaults group name
+  static_assert(NDB_ARRAY_SIZE(load_default_groups) == 4, "");
+  require(load_default_groups[2] == nullptr);
+  load_default_groups[2] = argv[0];
+
+  Ndb_opts opts(argc, _argv, my_long_options, load_default_groups);
   opts.set_usage_funcs(short_usage_sub);
 
 #ifndef DBUG_OFF
@@ -1536,6 +1566,16 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
 #endif
   if (opts.handle_options())
   {
+    opts.usage();
+    return NDBT_ProgramExit(NDBT_WRONGARGS);
+  }
+  if (ndb_option::post_process_options())
+  {
+    BaseString err_msg = opt_backup_password_state.get_error_message();
+    if (!err_msg.empty())
+    {
+      ndbout_c("Error: %s", err_msg.c_str());
+    }
     opts.usage();
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }

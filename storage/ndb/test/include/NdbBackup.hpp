@@ -34,7 +34,10 @@
 class NdbBackup : public NdbConfig {
 public:
   NdbBackup(const char* _addr = 0)
-    : NdbConfig(_addr) {}
+    : NdbConfig(_addr), m_default_encryption_password(NULL) {}
+
+  // if len == -1, then function will use strlen() to get size of pwd
+  int set_default_encryption_password(const char* pwd, int len);
 
   int start(unsigned & _backup_id,
 	    int flags = 2,
@@ -67,11 +70,15 @@ private:
                   bool _restore_epoch,
 		  int _node_id,
 		  unsigned _backup_id,
-                  unsigned error_insert=0);
+                  unsigned error_insert=0,
+                  const char* encryption_password = nullptr,
+                  int password_length = -1);
 
   const char * getBackupDataDirForNode(int _node_id);
   NdbLogEventHandle log_handle;
   BaseString getNdbRestoreBinaryPath();
+  char * m_default_encryption_password;
+  size_t m_default_encryption_password_length;
 };
 
 #endif

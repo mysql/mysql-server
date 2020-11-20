@@ -1148,6 +1148,9 @@ int
 runBackup(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbBackup backup;
+  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
+                                                          (char*)NULL),
+                                         -1);
   Uint32 backupId = 0;
   backup.clearOldBackups();
   if (backup.start(backupId) == -1)

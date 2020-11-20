@@ -129,6 +129,11 @@ NdbBackup::start(unsigned int & _backup_id,
 
   bool any = _backup_id == 0;
 
+  if (encryption_password == NULL)
+  {
+    encryption_password = m_default_encryption_password;
+    password_length = m_default_encryption_password_length;
+  }
 loop:
   if (ndb_mgm_start_backup4(handle,
 			   flags,
@@ -292,7 +297,9 @@ NdbBackup::execRestore(bool _restore_data,
 		       bool _restore_epoch,
                        int _node_id,
 		       unsigned _backup_id,
-                       unsigned _error_insert)
+                       unsigned _error_insert,
+                       const char * encryption_password,
+                       int password_length)
 {
   ndbout << "getBackupDataDir "<< _node_id <<endl;
 
@@ -308,6 +315,31 @@ NdbBackup::execRestore(bool _restore_data,
   ndbout << "getHostName "<< _node_id <<endl;
   const char *host;
   if (!getHostName(_node_id, &host)){
+    return -1;
+  }
+
+  if (encryption_password == nullptr)
+  {
+    encryption_password = m_default_encryption_password;
+    password_length = m_default_encryption_password_length;
+  }
+  else if (password_length == -1)
+  {
+    password_length = strlen(encryption_password);
+  }
+  else
+  {
+    const void* p = memchr(encryption_password, 0, password_length);
+    if (p != encryption_password + password_length)
+    {
+      // Only NUL-terminated strings are allowed as password.
+      return -1;
+    }
+  }
+  if (encryption_password != nullptr &&
+      strcspn(encryption_password, "!\"$%'\\^") != (size_t)password_length)
+  {
+    // Do not allow hard to handle on command line characters.
     return -1;
   }
 
@@ -333,26 +365,37 @@ NdbBackup::execRestore(bool _restore_data,
   
   ndbout << "scp res: " << res << endl;
 
+  BaseString cmd;
+#if 1
+#else
+  cmd = "valgrind --leak-check=yes -v "
+#endif
+  cmd.append(ndb_restore_bin_path.c_str());
+  cmd.append(" --no-defaults");
+
+#ifdef ERROR_INSERT
+  if(_error_insert > 0)
+  {
+    cmd.appfmt(" --error-insert=%u", _error_insert);
+  }
+#endif
+
+  if (encryption_password != NULL)
+  {
+    cmd.appfmt(" --decrypt --backup-password=\"%s\"", encryption_password);
+  }
+
+  cmd.appfmt(" -c \"%s:%d\" -n %d -b %d",
+             ndb_mgm_get_connected_host(handle),
+             ndb_mgm_get_connected_port(handle),
+             _node_id, 
+             _backup_id);
+
   if(res == 0 && !_restore_meta && !_restore_data && !_restore_epoch)
   {
     // ndb_restore connects to cluster, prints backup info
     // and exits without restoring anything
-    tmp.assfmt("%s%s -c \"%s:%d\" -n %d -b %d",
-#if 1
-               "",
-#else
-               "valgrind --leak-check=yes -v "
-#endif
-               ndb_restore_bin_path.c_str(),
-               ndb_mgm_get_connected_host(handle),
-               ndb_mgm_get_connected_port(handle),
-               _node_id, 
-               _backup_id);
-#ifdef ERROR_INSERT
-    if(_error_insert > 0)
-      tmp.appfmt(" --error-insert=%u", _error_insert);
-#endif
-
+    tmp = cmd;
     ndbout << "buf: "<< tmp.c_str() <<endl;
     res = system(tmp.c_str());
   }
@@ -360,22 +403,7 @@ NdbBackup::execRestore(bool _restore_data,
   if (res == 0 && _restore_meta)
   {
     /** don't restore DD objects */
-    
-    tmp.assfmt("%s%s -c \"%s:%d\" -n %d -b %d -m -d .",
-#if 1
-               "",
-#else
-               "valgrind --leak-check=yes -v "
-#endif
-               ndb_restore_bin_path.c_str(),
-               ndb_mgm_get_connected_host(handle),
-               ndb_mgm_get_connected_port(handle),
-               _node_id, 
-               _backup_id);
-#ifdef ERROR_INSERT
-    if(_error_insert > 0)
-      tmp.appfmt(" --error-insert=%u", _error_insert);
-#endif
+    tmp.assfmt("%s -m -d .", cmd.c_str());
     
     ndbout << "buf: "<< tmp.c_str() <<endl;
     res = system(tmp.c_str());
@@ -384,21 +412,7 @@ NdbBackup::execRestore(bool _restore_data,
   if (res == 0 && _restore_data)
   {
 
-    tmp.assfmt("%s%s -c \"%s:%d\" -n %d -b %d -r .",
-#if 1
-               "",
-#else
-               "valgrind --leak-check=yes -v "
-#endif
-               ndb_restore_bin_path.c_str(),
-               ndb_mgm_get_connected_host(handle),
-               ndb_mgm_get_connected_port(handle),
-               _node_id, 
-               _backup_id);
-#ifdef ERROR_INSERT
-    if(_error_insert > 0)
-      tmp.appfmt(" --error-insert=%u", _error_insert);
-#endif
+    tmp.assfmt("%s -r .", cmd.c_str());
     
     ndbout << "buf: "<< tmp.c_str() <<endl;
     res = system(tmp.c_str());
@@ -406,21 +420,7 @@ NdbBackup::execRestore(bool _restore_data,
 
   if (res == 0 && _restore_epoch)
   {
-    tmp.assfmt("%s%s -c \"%s:%d\" -n %d -b %d -e .",
-#if 1
-               "",
-#else
-               "valgrind --leak-check=yes -v "
-#endif
-               ndb_restore_bin_path.c_str(),
-               ndb_mgm_get_connected_host(handle),
-               ndb_mgm_get_connected_port(handle),
-               _node_id,
-               _backup_id);
-#ifdef ERROR_INSERT
-    if(_error_insert > 0)
-      tmp.appfmt(" --error-insert=%u", _error_insert);
-#endif
+    tmp.assfmt("%s -e .", cmd.c_str());
 
     ndbout << "buf: "<< tmp.c_str() <<endl;
     res = system(tmp.c_str());
@@ -745,4 +745,25 @@ NdbBackup::abort(unsigned int _backup_id)
   }
   return NDBT_OK;
 
+}
+
+int
+NdbBackup::set_default_encryption_password(const char* pwd, int len)
+{
+  free(m_default_encryption_password);
+  if (pwd == NULL)
+  {
+    m_default_encryption_password = NULL;
+    m_default_encryption_password_length = 0;
+    return NDBT_OK;
+  }
+  if (len == -1)
+  {
+    len = strlen(pwd);
+  }
+  m_default_encryption_password = (char*)malloc(len + 1);
+  m_default_encryption_password_length = len;
+  memcpy(m_default_encryption_password, pwd, len);
+  m_default_encryption_password[len] = 0;
+  return NDBT_OK;
 }
