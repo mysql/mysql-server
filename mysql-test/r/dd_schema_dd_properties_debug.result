@@ -2440,7 +2440,7 @@ table_partition_values=
       elem0=def=column_num TINYINT UNSIGNED NOT NULL
             lbl=FIELD_COLUMN_NUM
             pos=2
-      elem1=def=list_num TINYINT UNSIGNED NOT NULL
+      elem1=def=list_num SMALLINT UNSIGNED NOT NULL
             lbl=FIELD_LIST_NUM
             pos=1
       elem2=def=max_value BOOL NOT NULL

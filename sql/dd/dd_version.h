@@ -196,6 +196,8 @@
   Changes from version 80022:
 
   - WL#10905 adds new hidden type 'USER' to mysql.columns.hidden column.
+  - Bug#31867653 changes the type of mysql.table_partition_values.list_num from
+    TINYINT to SMALLINT.
 
   80024: Next DD version number after the previous is public.
   ----------------------------------------------------------------------------
