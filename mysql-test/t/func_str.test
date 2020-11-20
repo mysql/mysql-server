@@ -2137,3 +2137,9 @@ DROP PROCEDURE p1;
 DROP TABLE t1;
 #isable_query_log;
 remove_file $file;
+
+--echo #
+--echo # Bug #32163391 ASSERTION `CRC32_Z(CRC, POS, LENGTH)
+--echo #               < STD::NUMERIC_LIMITS<HA_CHECKSUM>::MAX()' FAILED.
+
+do crc32(char(1.134475e+308));
