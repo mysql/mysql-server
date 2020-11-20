@@ -62,11 +62,9 @@ insert into test.t1 values (0, 0, 0, 0);
 # Connect (con_none_4, localhost, user_none, , )
 update test.t1 set s1 = s1 + 1, s2 = s2 + 2;;
 
-# Connection con_00
+# Connection con_all_1
 
 # Wait for queries to appear in the processlist table
-
-# Connection con_all_1
 
 ### Execute SHOW PROCESSLIST with all privileges
 ### Expect all users
