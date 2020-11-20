@@ -122,7 +122,7 @@ inline ha_checksum my_checksum(ha_checksum crc, const unsigned char *pos,
 #endif  // HAVE_ARMV8_CRC32_INTRINSIC
   static_assert(std::is_convertible<uLong, ha_checksum>::value,
                 "uLong cannot be converted to ha_checksum");
-  assert(crc32_z(crc, pos, length) < std::numeric_limits<ha_checksum>::max());
+  assert(crc32_z(crc, pos, length) <= std::numeric_limits<ha_checksum>::max());
   return crc32_z(crc, pos, length);
 }
 #endif /* not defined(MY_CEHCKSUM_INCLUDED) */
