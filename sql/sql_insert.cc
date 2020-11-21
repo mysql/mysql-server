@@ -2825,23 +2825,22 @@ bool Query_result_create::prepare(THD *, const mem_root_deque<Item *> &,
 }
 
 /**
-  Lock the newly created table and prepare it for insertion.
+  Create new table
 
-  @returns false if success, true if error
+  @param thd thread handler
+
+  @returns false on success, true on error
 */
-
-bool Query_result_create::start_execution(THD *thd) {
+bool Query_result_create::create_table_for_select(THD *thd) {
   DBUG_TRACE;
   DEBUG_SYNC(thd, "create_table_select_before_lock");
-
-  MYSQL_LOCK *extra_lock = nullptr;
 
   mem_root_deque<Item *> *select_exprs = unit->get_unit_column_types();
   table = create_table_from_items(thd, create_info, create_table, alter_info,
                                   *select_exprs, &m_post_ddl_ht);
   if (table == nullptr) return true;  // abort() deletes table
 
-  /* Ignore hidden fields */
+  // Ignore hidden fields
   uint field_count = table->s->fields;
   for (uint i = 0; i < table->s->fields; ++i) {
     if (table->s->field[i]->is_field_for_functional_index()) field_count--;
@@ -2852,7 +2851,7 @@ bool Query_result_create::start_execution(THD *thd) {
     my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1L);
     return true;
   }
-  /* First field to copy */
+  // First field to copy
   table_fields = table->field + (field_count - visible_select_exprs);
   for (Field **f = table_fields; *f != nullptr; f++) {
     if ((*f)->gcol_info && !(*f)->is_field_for_functional_index()) {
@@ -2870,6 +2869,16 @@ bool Query_result_create::start_execution(THD *thd) {
   if (info.ignore_last_columns(table, visible_select_exprs)) {
     return true;
   }
+
+  return false;
+}
+
+///  Lock the newly created table and prepare it for insertion.
+
+bool Query_result_create::start_execution(THD *thd) {
+  DBUG_TRACE;
+
+  MYSQL_LOCK *extra_lock = nullptr;
 
   table->reginfo.lock_type = TL_WRITE;
 

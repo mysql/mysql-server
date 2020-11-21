@@ -117,6 +117,8 @@ class Query_result {
   */
   virtual bool start_execution(THD *) { return false; }
 
+  /// Create table, only needed to support CREATE TABLE ... SELECT
+  virtual bool create_table_for_select(THD *) { return false; }
   /*
     Because of peculiarities of prepared statements protocol
     we need to know number of columns in the result set (if

@@ -199,6 +199,7 @@ class Query_result_create final : public Query_result_insert {
   void send_error(THD *thd, uint errcode, const char *err) override;
   bool send_eof(THD *thd) override;
   void abort_result_set(THD *thd) override;
+  bool create_table_for_select(THD *thd) override;
   bool start_execution(THD *thd) override;
   void set_two_fields(HA_CREATE_INFO *create_info_arg,
                       Alter_info *alter_info_arg) {

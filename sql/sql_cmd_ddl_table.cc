@@ -50,7 +50,6 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_parse.h"       // prepare_index_and_data_dir_path()
-#include "sql/sql_select.h"      // handle_query()
 #include "sql/sql_table.h"       // mysql_create_like_table()
 #include "sql/sql_tablespace.h"  // validate_tablespace_name()
 #include "sql/strfunc.h"
@@ -80,6 +79,41 @@ Sql_cmd_ddl_table::Sql_cmd_ddl_table(Alter_info *alter_info)
               lex->sql_command == SQLCOM_REPAIR);
 #endif  // DBUG_OFF
   DBUG_ASSERT(m_alter_info != nullptr);
+}
+
+/**
+  Populate tables from result of evaluating a query expression.
+
+  This function is required because a statement like CREATE TABLE ... SELECT
+  cannot be implemented using DML statement execution functions
+  since it performs an intermediate commit that requires special attention.
+
+  @param thd thread handler
+  @param lex represents a prepared query expression
+
+  @returns false if success, true if error
+*/
+static bool populate_table(THD *thd, LEX *lex) {
+  SELECT_LEX_UNIT *const unit = lex->unit;
+
+  if (lex->set_var_list.elements && resolve_var_assignments(thd, lex))
+    return true;
+
+  lex->set_exec_started();
+
+  /*
+    Table creation may perform an intermediate commit and must therefore
+    be performed before locking the tables in the query expression.
+  */
+  if (unit->query_result()->create_table_for_select(thd)) return true;
+
+  if (lock_tables(thd, lex->query_tables, lex->table_count, 0)) return true;
+
+  if (unit->optimize(thd, nullptr, true)) return true;
+
+  if (unit->execute(thd)) return true;
+
+  return false;
 }
 
 bool Sql_cmd_create_table::execute(THD *thd) {
@@ -307,16 +341,22 @@ bool Sql_cmd_create_table::execute(THD *thd) {
     }
 
     Query_result_create *result;
-    {
-      if (!unit->is_prepared()) {
-        Prepared_stmt_arena_holder ps_arena_holder(thd);
-        result = new (thd->mem_root)
-            Query_result_create(create_table, &select_lex->fields,
-                                lex->duplicates, query_expression_tables);
-      } else
-        result = down_cast<Query_result_create *>(
-            unit->query_result() != nullptr ? unit->query_result()
-                                            : select_lex->query_result());
+    if (!unit->is_prepared()) {
+      Prepared_stmt_arena_holder ps_arena_holder(thd);
+      result = new (thd->mem_root)
+          Query_result_create(create_table, &select_lex->fields,
+                              lex->duplicates, query_expression_tables);
+      if (result == nullptr) return true;
+      if (unit->prepare(thd, result, nullptr, SELECT_NO_UNLOCK, 0)) return true;
+      if (!thd->stmt_arena->is_regular() && lex->save_cmd_properties(thd))
+        return true;
+    } else {
+      result = down_cast<Query_result_create *>(
+          unit->query_result() != nullptr ? unit->query_result()
+                                          : select_lex->query_result());
+      // Restore prepared statement properties, bind table and field information
+      lex->restore_cmd_properties();
+      bind_fields(thd->stmt_arena->item_list());
     }
 
     result->set_two_fields(&create_info, &alter_info);
@@ -331,15 +371,18 @@ bool Sql_cmd_create_table::execute(THD *thd) {
     else if (thd->is_strict_mode())
       thd->push_internal_handler(&strict_handler);
 
-    /*
-      CREATE from SELECT give its SELECT_LEX for SELECT,
-      and item_list belong to SELECT
-    */
-    res = handle_query(thd, lex, result, SELECT_NO_UNLOCK, 0);
+    res = populate_table(thd, lex);
 
     if (lex->is_ignore() || thd->is_strict_mode()) thd->pop_internal_handler();
+    lex->cleanup(thd, false);
+
+    // Abort the result set if execution ended in error
+    if (res) result->abort_result_set(thd);
+
+    result->cleanup(thd);
 
     lex->link_first_table_back(create_table, link_to_local);
+    THD_STAGE_INFO(thd, stage_end);
   } else {
     Strict_error_handler strict_handler;
     /* Push Strict_error_handler */
