@@ -1609,17 +1609,9 @@ bool Item::is_blob_field() const {
 *****************************************************************************/
 
 Item_sp_variable::Item_sp_variable(const Name_string sp_var_name)
-    : m_thd(nullptr),
-      m_name(sp_var_name)
-#ifndef DBUG_OFF
-      ,
-      m_sp(nullptr)
-#endif
-{
-}
+    : m_name(sp_var_name) {}
 
-bool Item_sp_variable::fix_fields(THD *thd, Item **) {
-  m_thd = thd; /* NOTE: this must be set before any this_xxx() */
+bool Item_sp_variable::fix_fields(THD *, Item **) {
   Item *it = this_item();
 
   DBUG_ASSERT(it->fixed);
@@ -1735,19 +1727,19 @@ Item_splocal::Item_splocal(const Name_string sp_var_name, uint sp_var_idx,
 }
 
 Item *Item_splocal::this_item() {
-  DBUG_ASSERT(m_sp == m_thd->sp_runtime_ctx->sp);
+  assert(m_sp == current_thd->sp_runtime_ctx->sp);
 
-  return m_thd->sp_runtime_ctx->get_item(m_var_idx);
+  return current_thd->sp_runtime_ctx->get_item(m_var_idx);
 }
 
 const Item *Item_splocal::this_item() const {
-  DBUG_ASSERT(m_sp == m_thd->sp_runtime_ctx->sp);
+  assert(m_sp == current_thd->sp_runtime_ctx->sp);
 
-  return m_thd->sp_runtime_ctx->get_item(m_var_idx);
+  return current_thd->sp_runtime_ctx->get_item(m_var_idx);
 }
 
 Item **Item_splocal::this_item_addr(THD *thd, Item **) {
-  DBUG_ASSERT(m_sp == thd->sp_runtime_ctx->sp);
+  assert(m_sp == thd->sp_runtime_ctx->sp);
 
   return thd->sp_runtime_ctx->get_item_addr(m_var_idx);
 }
@@ -1779,19 +1771,19 @@ Item_case_expr::Item_case_expr(uint case_expr_id)
       m_case_expr_id(case_expr_id) {}
 
 Item *Item_case_expr::this_item() {
-  DBUG_ASSERT(m_sp == m_thd->sp_runtime_ctx->sp);
+  assert(m_sp == current_thd->sp_runtime_ctx->sp);
 
-  return m_thd->sp_runtime_ctx->get_case_expr(m_case_expr_id);
+  return current_thd->sp_runtime_ctx->get_case_expr(m_case_expr_id);
 }
 
 const Item *Item_case_expr::this_item() const {
-  DBUG_ASSERT(m_sp == m_thd->sp_runtime_ctx->sp);
+  assert(m_sp == current_thd->sp_runtime_ctx->sp);
 
-  return m_thd->sp_runtime_ctx->get_case_expr(m_case_expr_id);
+  return current_thd->sp_runtime_ctx->get_case_expr(m_case_expr_id);
 }
 
 Item **Item_case_expr::this_item_addr(THD *thd, Item **) {
-  DBUG_ASSERT(m_sp == thd->sp_runtime_ctx->sp);
+  assert(m_sp == thd->sp_runtime_ctx->sp);
 
   return thd->sp_runtime_ctx->get_case_expr_addr(m_case_expr_id);
 }
