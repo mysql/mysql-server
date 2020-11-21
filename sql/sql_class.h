@@ -3417,6 +3417,8 @@ class THD : public MDL_context_owner,
     SE_GTID_PERSIST,
     /** If RESET log in progress. */
     SE_GTID_RESET_LOG,
+    /** Explicit request for SE to persist GTID for current transaction. */
+    SE_GTID_PERSIST_EXPLICIT,
     /** Max element holding the biset size. */
     SE_GTID_MAX
   };
@@ -3454,8 +3456,17 @@ class THD : public MDL_context_owner,
   /** Set by SE when it guarantees GTID persistence. */
   void set_gtid_persisted_by_se() { m_se_gtid_flags.set(SE_GTID_PERSIST); }
 
+  /** Request SE to persist GTID explicitly. */
+  void request_persist_gtid_by_se() {
+    m_se_gtid_flags.set(SE_GTID_PERSIST_EXPLICIT);
+    m_se_gtid_flags.set(SE_GTID_PERSIST);
+  }
+
   /** Reset by SE at transaction end after persisting GTID. */
-  void reset_gtid_persisted_by_se() { m_se_gtid_flags.reset(SE_GTID_PERSIST); }
+  void reset_gtid_persisted_by_se() {
+    m_se_gtid_flags.reset(SE_GTID_PERSIST);
+    m_se_gtid_flags.reset(SE_GTID_PERSIST_EXPLICIT);
+  }
 
   /** @return true, if SE persists GTID for current transaction. */
   bool se_persists_gtid() const {
@@ -3465,6 +3476,12 @@ class THD : public MDL_context_owner,
     /* XA transactions are always persisted by Innodb. */
     return (!xid_state->has_state(XID_STATE::XA_NOTR) ||
             m_se_gtid_flags[SE_GTID_PERSIST]);
+  }
+
+  /** @return true, if SE is explicitly set to persists GTID. */
+  bool se_persists_gtid_explicit() const {
+    DBUG_EXECUTE_IF("disable_se_persists_gtid", return (false););
+    return (m_se_gtid_flags[SE_GTID_PERSIST_EXPLICIT]);
   }
 
   /** @return true, if external XA transaction is in progress. */

@@ -802,6 +802,9 @@ struct trx_undo_ptr_t {
     return (insert_undo != nullptr && update_undo == nullptr);
   }
 
+  /** @return true iff update undo segment is allocated. */
+  bool is_update() { return update_undo != nullptr; }
+
   trx_rseg_t *rseg;        /*!< rollback segment assigned to the
                            transaction, or NULL if not assigned
                            yet */

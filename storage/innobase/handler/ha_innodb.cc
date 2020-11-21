@@ -5226,7 +5226,7 @@ static bool innobase_flush_logs(handlerton *hton, bool binlog_group_flush) {
   /* Signal and wait for all GTIDs to persist on disk. */
   if (!binlog_group_flush) {
     auto &gtid_persistor = clone_sys->get_gtid_persistor();
-    gtid_persistor.wait_flush(true, true, true, nullptr);
+    gtid_persistor.wait_flush(true, true, nullptr);
   }
 
   /* Flush the redo log buffer to the redo log file.
@@ -5404,6 +5404,11 @@ static int innobase_commit(handlerton *hton, /*!< in: InnoDB handlerton */
       /* Don't do write + flush right now. For group commit
       to work we want to do the flush later. */
       trx->flush_log_later = true;
+    }
+
+    /* If SE needs to persist GTID we must have a transaction. */
+    if (thd->se_persists_gtid_explicit()) {
+      trx_start_if_not_started(trx, true);
     }
 
     innobase_commit_low(trx);
@@ -8703,12 +8708,6 @@ int ha_innobase::write_row(uchar *record) /*!< in: a row in MySQL format */
   }
 
   innobase_srv_conc_exit_innodb(m_prebuilt);
-
-  /* If inserting GTID directly, flush GTIDs in memory. */
-  if (true) {
-    auto &gtid_persistor = clone_sys->get_gtid_persistor();
-    gtid_persistor.flush_if_implicit_gtid(m_user_thd);
-  }
 
 report_error:
   /* Cleanup and exit. */

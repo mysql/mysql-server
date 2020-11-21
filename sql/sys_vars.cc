@@ -6304,13 +6304,23 @@ static Sys_var_gtid_mode Sys_gtid_mode(
 
 static Sys_var_uint Sys_gtid_executed_compression_period(
     "gtid_executed_compression_period",
-    "When binlog is disabled, "
-    "a background thread wakes up to compress the gtid_executed table "
-    "every gtid_executed_compression_period transactions, as a "
-    "special case, if variable is 0, the thread never wakes up "
-    "to compress the gtid_executed table.",
+    "Compress the mysql.gtid_executed table whenever this number of "
+    "transactions have been added, by waking up a foreground thread "
+    "(compress_gtid_table). This compression method only operates when "
+    "binary logging is disabled on the replica; if binary logging is "
+    "enabled, the table is compressed every time the binary log is "
+    "rotated, and this value is ignored. Before MySQL 8.0.23, the "
+    "default is 1000, and from MySQL 8.0.23, the default is zero, which "
+    "disables this compression method. This is because in releases from "
+    "MySQL 8.0.17, InnoDB transactions are written to the "
+    "mysql.gtid_executed table by a separate process to non-InnoDB "
+    "transactions. If the server has a mix of InnoDB and non-InnoDB "
+    "transactions, attempting to compress the table with the "
+    "compress_gtid_table thread can slow this process, so from "
+    "MySQL 8.0.17 it is recommended that you set "
+    "gtid_executed_compression_period to 0.",
     GLOBAL_VAR(gtid_executed_compression_period), CMD_LINE(OPT_ARG),
-    VALID_RANGE(0, UINT_MAX32), DEFAULT(1000), BLOCK_SIZE(1));
+    VALID_RANGE(0, UINT_MAX32), DEFAULT(0), BLOCK_SIZE(1));
 
 static Sys_var_bool Sys_disconnect_on_expired_password(
     "disconnect_on_expired_password",

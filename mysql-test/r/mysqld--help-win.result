@@ -400,11 +400,23 @@ The following options may be given as the first argument:
  EVENTUAL, BEFORE_ON_PRIMARY_FAILOVER, BEFORE, AFTER,
  BEFORE_AND_AFTER
  --gtid-executed-compression-period[=#] 
- When binlog is disabled, a background thread wakes up to
- compress the gtid_executed table every
- gtid_executed_compression_period transactions, as a
- special case, if variable is 0, the thread never wakes up
- to compress the gtid_executed table.
+ Compress the mysql.gtid_executed table whenever this
+ number of transactions have been added, by waking up a
+ foreground thread (compress_gtid_table). This compression
+ method only operates when binary logging is disabled on
+ the replica; if binary logging is enabled, the table is
+ compressed every time the binary log is rotated, and this
+ value is ignored. Before MySQL 8.0.23, the default is
+ 1000, and from MySQL 8.0.23, the default is zero, which
+ disables this compression method. This is because in
+ releases from MySQL 8.0.17, InnoDB transactions are
+ written to the mysql.gtid_executed table by a separate
+ process to non-InnoDB transactions. If the server has a
+ mix of InnoDB and non-InnoDB transactions, attempting to
+ compress the table with the compress_gtid_table thread
+ can slow this process, so from MySQL 8.0.17 it is
+ recommended that you set gtid_executed_compression_period
+ to 0.
  --gtid-mode=name    Controls whether Global Transaction Identifiers (GTIDs)
  are enabled. Can be OFF, OFF_PERMISSIVE, ON_PERMISSIVE,
  or ON. OFF means that no transaction has a GTID.
@@ -1547,7 +1559,7 @@ general-log FALSE
 generated-random-password-length 20
 group-concat-max-len 1024
 group-replication-consistency EVENTUAL
-gtid-executed-compression-period 1000
+gtid-executed-compression-period 0
 gtid-mode OFF
 help TRUE
 histogram-generation-max-mem-size 20000000

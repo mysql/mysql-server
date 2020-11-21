@@ -582,19 +582,29 @@ dberr_t trx_undo_gtid_add_update_undo(trx_t *trx, bool prepare, bool rollback) {
   ut_ad(!(prepare && rollback));
   /* Check if GTID persistence is needed. */
   auto &gtid_persistor = clone_sys->get_gtid_persistor();
-  bool alloc = gtid_persistor.trx_check_set(trx, prepare, rollback);
 
-  if (!alloc) {
+  /* Caller could request GTID persistence explicitly for non-Innodb operations
+  using an empty transaction. We also allocate undo for such cases. */
+  bool gtid_explicit = false;
+
+  bool alloc =
+      gtid_persistor.trx_check_set(trx, prepare, rollback, gtid_explicit);
+
+  auto undo_ptr = &trx->rsegs.m_redo;
+
+  /* If update undo is already allocated, nothing to do. */
+  if (!alloc || undo_ptr->is_update()) {
     return (DB_SUCCESS);
   }
 
   /* For GTID persistence we need update undo segment. Allocate update
   undo segment here if it is insert only transaction. If no undo segment
   is allocated yet, then transaction didn't do any modification and
-  no GTID would be allotted to it. */
-  auto undo_ptr = &trx->rsegs.m_redo;
+  no GTID would be allotted to it. One exception is the explicit GTID
+  request. */
   dberr_t db_err = DB_SUCCESS;
-  if (undo_ptr->is_insert_only()) {
+
+  if (undo_ptr->is_insert_only() || gtid_explicit) {
     ut_ad(!rollback);
     mutex_enter(&trx->undo_mutex);
     db_err = trx_undo_assign_undo(trx, undo_ptr, TRX_UNDO_UPDATE);
