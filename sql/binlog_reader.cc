@@ -60,8 +60,9 @@ static void debug_corrupt_event(unsigned char *buffer, unsigned int event_len) {
 
 Binlog_event_data_istream::Binlog_event_data_istream(
     Binlog_read_error *error, Basic_istream *istream,
-    unsigned int max_event_size)
-    : m_error(error), m_istream(istream), m_max_event_size(max_event_size) {}
+    unsigned int max_event_size, bool cur_binlog)
+    : m_error(error), m_istream(istream), m_max_event_size(max_event_size),
+      m_cur_binlog(cur_binlog) {}
 
 bool Binlog_event_data_istream::read_event_header() {
   return read_fixed_length<Binlog_read_error::READ_EOF>(
@@ -98,6 +99,8 @@ bool Binlog_event_data_istream::fill_event_data(
 bool Binlog_event_data_istream::check_event_header() {
   m_event_length = uint4korr(m_header + EVENT_LEN_OFFSET);
 
+  if (m_event_length == 0 && m_cur_binlog)
+    return m_error->set_type(Binlog_read_error::READ_EOF);
   if (m_event_length < LOG_EVENT_MINIMAL_HEADER_LEN)
     return m_error->set_type(Binlog_read_error::BOGUS);
   if (m_event_length > m_max_event_size)

@@ -148,6 +148,8 @@ enum_server_operational_state get_server_state();
 
 extern bool opt_large_files, server_id_supplied;
 extern bool opt_bin_log;
+extern bool opt_binlog_use_mmap;
+extern ulong opt_binlog_mmap_extra_map_size;
 extern bool opt_log_slave_updates;
 extern bool opt_log_unsafe_statements;
 extern bool opt_general_log, opt_slow_log, opt_general_log_raw;

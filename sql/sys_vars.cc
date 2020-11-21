@@ -2261,6 +2261,18 @@ static Sys_var_bool Sys_log_bin("log_bin", "Whether the binary log is enabled",
                                 READ_ONLY NON_PERSIST GLOBAL_VAR(opt_bin_log),
                                 NO_CMD_LINE, DEFAULT(true));
 
+static Sys_var_bool Sys_binlog_use_mmap(
+    "binlog_use_mmap", "Whether use mmap for binlog",
+    READ_ONLY NON_PERSIST GLOBAL_VAR(opt_binlog_use_mmap), NO_CMD_LINE,
+    DEFAULT(false));
+
+static Sys_var_ulong Sys_binlog_mmap_extra_map_size(
+    "binlog_mmap_extra_map_size",
+    "Extra map area to avoid sig_bus when using binlog_use_mmap.",
+    READ_ONLY NON_PERSIST GLOBAL_VAR(opt_binlog_mmap_extra_map_size),
+    CMD_LINE(REQUIRED_ARG), VALID_RANGE(1024, 1024 * 1024 * 1024),
+    DEFAULT(4 * 1024 * 1024), BLOCK_SIZE(1));
+
 static bool transaction_write_set_check(sys_var *self, THD *thd, set_var *var) {
   if (check_session_admin(self, thd, var)) return true;
   // Can't change the algorithm when group replication is enabled.

@@ -131,10 +131,6 @@ struct LOG_INFO {
   }
 };
 
-/*
-  TODO use mmap instead of IO_CACHE for binlog
-  (mmap+fsync is two times faster than write+fsync)
-*/
 class MYSQL_BIN_LOG : public TC_LOG {
  public:
   class Binlog_ofile;

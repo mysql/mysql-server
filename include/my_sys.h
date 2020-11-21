@@ -541,6 +541,35 @@ inline size_t my_b_bytes_in_cache(const IO_CACHE *info) {
   return *info->current_end - *info->current_pos;
 }
 
+/* This struct is used for mmap for binlog */
+struct MMAP_INFO {
+  // end position of file
+  my_off_t end_pos_of_file{0};
+  // mmap return address
+  uchar *addr{nullptr};
+  // next write position
+  uchar *write_pos{nullptr};
+  // next sync postion, when sync is called, it will sync from positon sync_pos,
+  // and the sync length will be static_cast<size_t>(write_pos - sync_pos)
+  uchar *sync_pos{nullptr};
+  // non-inclusive boundary of mmap end pos
+  uchar *mmap_end{nullptr};
+
+  // file descriptor
+  File file{-1};
+  // instrumented file key
+  PSI_file_key file_key{PSI_NOT_INSTRUMENTED};
+
+  int error{0};
+  // mmap length
+  size_t mmap_length;
+};
+
+// implemented in mysys/my_mmap.cc
+int init_mmap_info(MMAP_INFO *info, File file, size_t mmap_length,
+                   my_off_t seek_offset = 0);
+int end_mmap_info(MMAP_INFO *info);
+
 typedef uint32 ha_checksum;
 
 /*

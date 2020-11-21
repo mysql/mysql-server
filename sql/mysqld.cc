@@ -1110,6 +1110,8 @@ LEX_STRING opt_mandatory_roles;
 bool opt_mandatory_roles_cache = false;
 bool opt_always_activate_granted_roles = false;
 bool opt_bin_log;
+bool opt_binlog_use_mmap = false;
+ulong opt_binlog_mmap_extra_map_size;
 bool opt_general_log, opt_slow_log, opt_general_log_raw;
 ulonglong log_output_options;
 bool opt_log_queries_not_using_indexes = false;
@@ -5622,6 +5624,9 @@ static int init_server_components() {
   if (opt_log_slave_updates && !opt_bin_log) {
     LogErr(WARNING_LEVEL, ER_NEED_LOG_BIN, "--log-slave-updates");
   }
+  if (opt_binlog_use_mmap && !opt_bin_log) {
+    LogErr(WARNING_LEVEL, ER_NEED_LOG_BIN, "--binlog-use-mmap");
+  }
   if (binlog_format_used && !opt_bin_log)
     LogErr(WARNING_LEVEL, ER_NEED_LOG_BIN, "--binlog-format");
 
@@ -8217,6 +8222,16 @@ struct my_option my_long_options[] = {
      "binary logging, use the --skip-log-bin or --disable-log-bin option.",
      &opt_bin_logname, &opt_bin_logname, nullptr, GET_STR_ALLOC, OPT_ARG, 0, 0,
      0, nullptr, 0, nullptr},
+    {"binlog-use-mmap", 0, "Use mmap for binlog.", &opt_binlog_use_mmap,
+     &opt_binlog_use_mmap, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    {"binlog-mmap-extra-map-size", 0,
+     "When write a event to the underline "
+     "file, binlog allow the last event to exceed the max_binlog_size, so we "
+     "need to map some extra area to avoid sig_bus.",
+     &opt_binlog_mmap_extra_map_size, &opt_binlog_mmap_extra_map_size, nullptr,
+     GET_ULONG, REQUIRED_ARG, 4 * 1024 * 1024, 1024, 1024 * 1024 * 1024,
+     nullptr, 0, nullptr},
     {"log-bin-index", 0, "File that holds the names for binary log files.",
      &opt_binlog_index_name, &opt_binlog_index_name, nullptr, GET_STR,
      REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},

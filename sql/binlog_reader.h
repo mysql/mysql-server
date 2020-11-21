@@ -57,7 +57,8 @@ class Default_binlog_event_allocator {
 class Binlog_event_data_istream {
  public:
   Binlog_event_data_istream(Binlog_read_error *error, Basic_istream *istream,
-                            unsigned int max_event_size);
+                            unsigned int max_event_size,
+                            bool cur_binlog = false);
   Binlog_event_data_istream() = delete;
   Binlog_event_data_istream(const Binlog_event_data_istream &) = delete;
   Binlog_event_data_istream &operator=(const Binlog_event_data_istream &) =
@@ -153,6 +154,8 @@ class Binlog_event_data_istream {
   Basic_istream *m_istream = nullptr;
   unsigned int m_max_event_size;
   unsigned int m_event_length = 0;
+  // indicate whether its the current writting binlog and it's a mmap file
+  bool m_cur_binlog = false;
 
   /**
      Fill the event data into the given buffer and verify checksum if
@@ -249,9 +252,10 @@ class Basic_binlog_file_reader {
   typedef EVENT_OBJECT_ISTREAM<Event_data_istream> Event_object_istream;
 
   Basic_binlog_file_reader(bool verify_checksum,
-                           unsigned int max_event_size = UINT_MAX)
+                           unsigned int max_event_size = UINT_MAX,
+                           bool cur_binlog = false)
       : m_ifile(&m_error),
-        m_data_istream(&m_error, &m_ifile, max_event_size),
+        m_data_istream(&m_error, &m_ifile, max_event_size, cur_binlog),
         m_object_istream(&m_error, &m_data_istream),
         m_fde(BINLOG_VERSION, ::server_version),
         m_verify_checksum(verify_checksum) {}

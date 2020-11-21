@@ -270,7 +270,8 @@ class MYSQL_BIN_LOG::Binlog_ofile : public Basic_ostream {
 #ifdef HAVE_PSI_INTERFACE
       PSI_file_key log_file_key,
 #endif
-      const char *binlog_name, myf flags, bool existing = false) {
+      const char *binlog_name, myf flags MY_ATTRIBUTE((unused)),
+      bool existing = false) {
     DBUG_TRACE;
     DBUG_ASSERT(m_pipeline_head == nullptr);
 
@@ -287,10 +288,18 @@ class MYSQL_BIN_LOG::Binlog_ofile : public Basic_ostream {
     }
 #endif
 
-    std::unique_ptr<IO_CACHE_ostream> file_ostream(new IO_CACHE_ostream);
-    if (file_ostream->open(log_file_key, binlog_name, flags)) return true;
-
-    m_pipeline_head = std::move(file_ostream);
+    // during recover process, use IO_CACHE_ostream to handle existed binlog.
+    if (existing|| !opt_binlog_use_mmap ) {
+      std::unique_ptr<IO_CACHE_ostream> file_ostream(new IO_CACHE_ostream);
+      if (file_ostream->open(log_file_key, binlog_name, flags)) return true;
+      m_pipeline_head = std::move(file_ostream);
+    } else {
+      std::unique_ptr<MMAP_ostream> file_ostream(new MMAP_ostream);
+      if (file_ostream->open(log_file_key, binlog_name,
+                             m_max_size + opt_binlog_mmap_extra_map_size))
+        return true;
+      m_pipeline_head = std::move(file_ostream);
+    }
 
     /* Setup encryption for new files if needed */
     if (!existing && rpl_encryption.is_enabled()) {
@@ -465,12 +474,17 @@ class MYSQL_BIN_LOG::Binlog_ofile : public Basic_ostream {
     Set that the log file is encrypted.
   */
   void set_encrypted() { m_encrypted = true; }
+  /**
+    Set max binlog size before rotation.
+  */
+  void set_max_size(ulong max_size) { m_max_size = max_size; }
 
  private:
   my_off_t m_position = 0;
   int m_encrypted_header_size = 0;
   std::unique_ptr<Truncatable_ostream> m_pipeline_head;
   bool m_encrypted = false;
+  ulong m_max_size = 0;
 };
 
 /**
@@ -3273,6 +3287,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log) {
     char search_file_name[FN_REFLEN], *name;
     const char *log_file_name = lex_mi->log_file_name;
     Log_event *ev = nullptr;
+    bool cur_binlog = false; // show events of current written binlog file
 
     unit->set_limit(thd, thd->lex->current_select());
     limit_start = unit->offset_limit_cnt;
@@ -3291,6 +3306,10 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log) {
       goto err;
     }
 
+    if (!strcmp(binary_log->get_log_fname(), name)) {
+      cur_binlog = true && opt_binlog_use_mmap;
+    }
+
     mysql_mutex_lock(&thd->LOCK_thd_data);
     thd->current_linfo = &linfo;
     mysql_mutex_unlock(&thd->LOCK_thd_data);
@@ -3298,7 +3317,8 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log) {
     BINLOG_FILE_READER binlog_file_reader(
         opt_master_verify_checksum,
         std::max(thd->variables.max_allowed_packet,
-                 binlog_row_event_max_size + MAX_LOG_EVENT_HEADER));
+                 binlog_row_event_max_size + MAX_LOG_EVENT_HEADER),
+        cur_binlog);
 
     if (binlog_file_reader.open(linfo.log_file_name, pos)) {
       errmsg = binlog_file_reader.get_error_str();
@@ -4811,6 +4831,7 @@ bool MYSQL_BIN_LOG::open_binlog(
 
   write_error = false;
 
+  m_binlog_file->set_max_size(max_size_arg);
   /* open the main log file */
   if (open(m_key_file_log, log_name, new_name, new_index_number)) {
     close_purge_index_file();

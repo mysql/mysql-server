@@ -104,3 +104,43 @@ int my_msync(int fd, void *addr, size_t len, int flags) {
 #else
 #error "no mmap!"
 #endif
+
+int init_mmap_info(MMAP_INFO *info, File file, size_t mmap_length,
+                   my_off_t seek_offset) {
+  DBUG_TRACE;
+  DBUG_ASSERT(file > 0);
+  info->file = file;
+  void *addr = mmap(NULL, mmap_length, PROT_WRITE, MAP_SHARED, file, 0);
+  if (addr == MAP_FAILED) {
+    DBUG_PRINT("mysys", ("mmap failed when init mmap info"));
+    return 1;
+  }
+
+  info->addr = static_cast<uchar *>(addr);
+  info->mmap_length = mmap_length;
+  info->mmap_end = info->addr + mmap_length;
+
+  // for mmap file, we always mmap from 0, forward the pointers seek_offset byte
+  info->end_pos_of_file = seek_offset;
+  info->write_pos = info->addr + seek_offset;
+  info->sync_pos = info->addr + seek_offset;
+
+  DBUG_PRINT("info", ("init_map_info: addr = %p, mmap_length = %lu",
+             info->addr, static_cast<ulong>(mmap_length)));
+
+  return 0;
+}
+
+int end_mmap_info(MMAP_INFO *info) {
+  DBUG_TRACE;
+  DBUG_PRINT("enter", ("mmap info: %p", info));
+  int ret = 0;
+  if (info->write_pos > info->sync_pos) {
+    ret = my_msync(info->file, info->sync_pos,
+                   static_cast<size_t>(info->write_pos - info->sync_pos),
+                   MS_SYNC);
+    info->sync_pos = info->write_pos;
+  }
+
+  return ret || my_munmap(info->addr, info->mmap_length);
+}

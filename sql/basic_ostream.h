@@ -149,6 +149,58 @@ class IO_CACHE_ostream : public Truncatable_ostream {
 };
 
 /**
+  An output stream based on mmap
+ */
+class MMAP_ostream : public Truncatable_ostream {
+ public:
+  MMAP_ostream();
+  MMAP_ostream(const MMAP_ostream &) = delete;
+  MMAP_ostream &operator=(const MMAP_ostream &) = delete;
+  ~MMAP_ostream() override;
+
+  /**
+     Open stream. It opens related file and initializes MMAP_INFO.
+
+     @param[in] log_file_key  The PSI_file_key for this stream
+     @param[in] file_name     The file that will be opened
+     @param[in] mmap_length   Length used for mmap
+     @retval false            Success
+     @retval true             Error
+  */
+  bool open(PSI_file_key log_file_key, const char* file_name,
+            ulong mmap_length);
+
+  /**
+     Close stream. It deinitializes MMAP_INFO and closes the file it opened.
+
+     @retval false   Success
+     @retval true    Error
+  */
+  bool close();
+
+  bool write(const unsigned char *buffer, my_off_t length) override;
+  bool seek(my_off_t offset) override;
+  bool truncate(my_off_t offset) override;
+
+  // when using mmap, It does't have a user space buffer, so no need to flush,
+  // just return false
+  bool flush() override {
+     return false;
+  }
+
+  /**
+     Sync changes made to the mmap area back to disk
+
+     @retval false   Success
+     @retval true    Error
+  */
+  bool sync() override;
+
+private:
+ MMAP_INFO m_mmap_info;
+};
+
+/**
    A basic output stream based on StringBuffer class. It has a stack buffer of
    size BUFFER_SIZE. It will allocate memory to create a heap buffer if
    data exceeds the size of heap buffer.
