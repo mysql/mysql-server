@@ -3377,13 +3377,6 @@ class Item_basic_constant : public Item {
 *****************************************************************************/
 
 class Item_sp_variable : public Item {
- protected:
-  /*
-    THD, which is stored in fix_fields() and is used in this_item() to avoid
-    current_thd use.
-  */
-  THD *m_thd;
-
  public:
   Name_string m_name;
 
@@ -3393,7 +3386,7 @@ class Item_sp_variable : public Item {
     Routine to which this Item_splocal belongs. Used for checking if correct
     runtime context is used for variable handling.
   */
-  sp_head *m_sp;
+  sp_head *m_sp{nullptr};
 #endif
 
  public:

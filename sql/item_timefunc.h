@@ -1734,8 +1734,6 @@ class Item_func_last_day final : public Item_date_func {
 };
 
 class Item_func_internal_update_time final : public Item_datetime_func {
-  THD *thd;
-
  public:
   Item_func_internal_update_time(const POS &pos, PT_item_list *list)
       : Item_datetime_func(pos, list) {}
@@ -1746,8 +1744,6 @@ class Item_func_internal_update_time final : public Item_datetime_func {
 };
 
 class Item_func_internal_check_time final : public Item_datetime_func {
-  THD *thd;
-
  public:
   Item_func_internal_check_time(const POS &pos, PT_item_list *list)
       : Item_datetime_func(pos, list) {}
