@@ -73,6 +73,9 @@ SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
 SET @@SESSION.GTID_NEXT= 'MASTER_UUID:20';
 COMMIT;
+SET GTID_NEXT='AUTOMATIC';
+# Trigger compression explicitly
+FLUSH LOGS;
 SET DEBUG_SYNC='now WAIT_FOR complete_compression';
 SET GLOBAL DEBUG= @debug_save;
 SELECT * FROM mysql.gtid_executed;
@@ -84,7 +87,6 @@ MASTER_UUID	17	20
 # when binlog is disabled.
 #
 include/assert.inc [gtid_executed and gtid_purged are always same when binlog is disabled]
-SET GTID_NEXT='AUTOMATIC';
 #
 # Verify that no gtid is generated for transaction
 # when binlog is disabled
@@ -161,13 +163,15 @@ SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
 SET @@SESSION.GTID_NEXT= 'MASTER_UUID:23';
 COMMIT;
+SET GTID_NEXT='AUTOMATIC';
+# Trigger compression explicitly
+FLUSH LOGS;
 SET DEBUG_SYNC='now WAIT_FOR complete_compression';
 SET GLOBAL DEBUG= @debug_save;
 SELECT * FROM mysql.gtid_executed;
 source_uuid	interval_start	interval_end
 MASTER_UUID	1	15
 MASTER_UUID	17	23
-SET GTID_NEXT='AUTOMATIC';
 DROP TABLE t3;
 CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 DROP TABLE t3;

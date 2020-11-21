@@ -2436,7 +2436,7 @@ void trx_purge_stop(void) {
 void trx_purge_run(void) {
   /* Flush any GTIDs to disk so that purge can proceed immediately. */
   auto &gtid_persistor = clone_sys->get_gtid_persistor();
-  gtid_persistor.wait_flush(true, false, false, nullptr);
+  gtid_persistor.wait_flush(false, false, nullptr);
 
   rw_lock_x_lock(&purge_sys->latch);
 
