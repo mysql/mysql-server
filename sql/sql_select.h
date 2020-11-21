@@ -863,8 +863,6 @@ class store_key_hash_item final : public store_key_item {
 };
 
 bool error_if_full_join(JOIN *join);
-bool handle_query(THD *thd, LEX *lex, Query_result *result,
-                  ulonglong added_options, ulonglong removed_options);
 
 // Statement timeout function(s)
 bool set_statement_timer(THD *thd);

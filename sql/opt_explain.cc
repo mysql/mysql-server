@@ -2131,10 +2131,9 @@ class Query_result_null : public Query_result_interceptor {
   @note see explain_single_table_modification() for single-table
         UPDATE/DELETE EXPLAIN handling.
 
-  @note Unlike handle_query(), explain_query() calls abort_result_set()
-        itself in the case of failure (OOM etc.) since it may use
-        an internally created Query_result object that has to be deleted
-        before exiting the function.
+  @note explain_query() calls abort_result_set() itself in the case of
+        failure (OOM etc.) since it may use an internally created
+        Query_result object that has to be deleted before exiting the function.
 
   @param explain_thd thread handle for the connection doing explain
   @param query_thd   thread handle for the connection being explained
