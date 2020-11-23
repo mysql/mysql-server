@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,5 +41,6 @@ bool is_valid_named_pipe_full_access_group(const char *group_name);
 bool my_security_attr_add_rights_to_group(SECURITY_ATTRIBUTES *psa,
                                           const char *group_name,
                                           DWORD group_rights);
-#define DEFAULT_NAMED_PIPE_FULL_ACCESS_GROUP "*everyone*"
+#define DEFAULT_NAMED_PIPE_FULL_ACCESS_GROUP ""
+#define NAMED_PIPE_FULL_ACCESS_GROUP_EVERYONE "*everyone*"
 #endif /* NAMED_PIPE_INCLUDED */

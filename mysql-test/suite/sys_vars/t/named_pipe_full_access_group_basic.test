@@ -14,4 +14,5 @@ set global named_pipe_full_access_group = '*everyone*';
 select * from performance_schema.global_variables where variable_name='named_pipe_full_access_group';
 select * from performance_schema.session_variables where variable_name='named_pipe_full_access_group';
 --enable_warnings
-
+# Restore initial state
+set global named_pipe_full_access_group = default;
