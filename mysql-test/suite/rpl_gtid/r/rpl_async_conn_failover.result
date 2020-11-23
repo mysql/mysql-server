@@ -134,13 +134,12 @@ SET DEBUG_SYNC= 'now SIGNAL continue_retry_count_exceed';
 SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
 SET DEBUG_SYNC= 'now SIGNAL continue_retry_count_exceed';
 SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
+SET @@GLOBAL.DEBUG= @old_debug;
 SET DEBUG_SYNC= 'now SIGNAL continue_retry_count_exceed';
-SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
-SET DEBUG_SYNC= 'now SIGNAL continue_retry_count_exceed';
+SET DEBUG_SYNC= 'RESET';
 #
 # 17. Stop replica IO
 #
-SET @@GLOBAL.DEBUG= @old_debug;
 include/stop_slave.inc
 #
 # 18. Clean up
