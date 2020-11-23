@@ -47,11 +47,13 @@
 #include <stdexcept>
 
 #include <rapidjson/rapidjson.h>
+
 #include "certificate_handler.h"
 #include "common.h"
 #include "config_builder.h"
 #include "dim.h"
 #include "harness_assert.h"
+#include "hostname_validator.h"
 #include "keyring/keyring_manager.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/dynamic_state.h"
@@ -62,7 +64,6 @@
 #include "random_generator.h"
 #include "router_app.h"
 #include "sha1.h"  // compute_sha1_hash() from mysql's include/
-#include "tcp_address.h"
 IMPORT_LOG_FUNCTIONS()
 
 #include "cluster_metadata.h"
@@ -108,7 +109,6 @@ static constexpr unsigned kMaxPasswordRetries = 10000;
 using mysql_harness::DIM;
 using mysql_harness::get_strerror;
 using mysql_harness::Path;
-using mysql_harness::TCPAddress;
 using mysql_harness::truncate_string;
 using mysql_harness::UniquePtr;
 using namespace mysqlrouter;
@@ -268,8 +268,7 @@ void ConfigGenerator::parse_bootstrap_options(
   }
   if (bootstrap_options.find("bind-address") != bootstrap_options.end()) {
     auto address = bootstrap_options.at("bind-address");
-    TCPAddress tmp(address, 1);
-    if (!tmp.is_valid()) {
+    if (!mysql_harness::is_valid_domainname(address)) {
       throw std::runtime_error("Invalid bind-address value " + address);
     }
   }
@@ -820,10 +819,11 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
   ConfigGenerator::Options options;
   if (user_options.find("bind-address") != user_options.end()) {
     auto address = user_options.at("bind-address");
-    TCPAddress tmp(address, 1);
-    if (!tmp.is_valid()) {
+
+    if (!mysql_harness::is_valid_domainname(address)) {
       throw std::runtime_error("Invalid bind-address value " + address);
     }
+
     options.bind_address = address;
   }
   if (!skip_classic_protocol) {

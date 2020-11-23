@@ -2243,13 +2243,13 @@ TEST_F(ConfigGeneratorTest, fill_options) {
   }
   {
     std::map<std::string, std::string> user_options;
-    user_options["bind-address"] = "invalid";
+    user_options["bind-address"] = "invalid..";
     ASSERT_THROW(options = config_gen.fill_options(user_options, default_paths),
                  std::runtime_error);
     user_options["bind-address"] = "";
     ASSERT_THROW(options = config_gen.fill_options(user_options, default_paths),
                  std::runtime_error);
-    user_options["bind-address"] = "1.2.3.4.5";
+    user_options["bind-address"] = "1.2.3.4..5";
     ASSERT_THROW(options = config_gen.fill_options(user_options, default_paths),
                  std::runtime_error);
   }

@@ -406,16 +406,16 @@ TEST_F(RoutingPluginTests, ListeningHostIsInvalid) {
   mysql_harness::ConfigSection &section = cfg.add("routing", "test_route");
   section.add("destinations", "localhost:1234");
   section.add("mode", "read-only");
-  section.add("bind_address", "host.that.does.not.exist:15508");
+  section.add("bind_address", "host.that.does.not..exist:15508");
 
   try {
     RoutingPluginConfig config(&section);
     validate_socket_info_test_proxy("", &section, config);
     FAIL() << "Expected std::invalid_argument to be thrown";
   } catch (const std::invalid_argument &e) {
-    EXPECT_STREQ(
-        "invalid IP or name in bind_address 'host.that.does.not.exist:15508'",
-        e.what());
+    EXPECT_THAT(e.what(),
+                ::testing::HasSubstr("is invalid IP-address or hostname in "
+                                     "'host.that.does.not..exist:15508'"));
     SUCCEED();
   } catch (...) {
     FAIL() << "Expected std::invalid_argument to be thrown";

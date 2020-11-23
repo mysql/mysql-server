@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,36 +23,74 @@
 */
 
 #include "hostname_validator.h"
-#include "harness_assert.h"
 
-#ifdef _WIN32
-#define USE_STD_REGEX  // flag that C++11 regex is fully supported
-#endif
-
-#ifdef USE_STD_REGEX
 #include <regex>
-#else
-#include <regex.h>
-#endif
+
+#include "mysql/harness/net_ts/internet.h"
 
 namespace mysql_harness {
 
-bool is_valid_hostname(const char *hostname) {
-  // WARNING! This is minimalistic validation, it doesn't catch all cornercases.
-  //          Please see notes in Doxygen function description.
+bool is_valid_ip_address(const std::string &address) {
+  auto make_res = net::ip::make_address(address);
 
-  const char re_text[] = "^[-._a-z0-9]+$";
-  bool is_valid;
-#ifdef USE_STD_REGEX
-  is_valid = std::regex_match(hostname, std::regex(re_text, std::regex::icase));
-#else
-  regex_t re;
-  harness_assert(!regcomp(&re, re_text, REG_EXTENDED | REG_ICASE | REG_NOSUB));
-  is_valid = !regexec(&re, hostname, 0, nullptr, 0);
-  regfree(&re);
-#endif
+  return make_res.has_value();
+}
 
-  return is_valid;
+// RFC1123
+//
+// DIGIT := 0-9
+// UPPER := A-Z
+// LOWER := a-z
+// DOT   := .
+// ALPHA := UPPER | LOWER
+// ALNUM := DIGIT | ALPHA
+// LABEL := ALNUM | (ALNUM (ALNUM | -){0, 61} ALNUM)
+
+bool is_valid_hostname(const std::string &address) {
+  if (address.size() > 255) return false;
+
+  // NAME := (LABEL .)* LABEL
+  return std::regex_match(
+      address,
+      std::regex{
+          "^"
+          R"((([A-Za-z0-9]|[A-Za-z0-9][-A-Za-z0-9]{0,61}[A-Za-z0-9])\.)*)"
+          R"(([A-Za-z0-9]|[A-Za-z0-9][-A-Za-z0-9]{0,61}[A-Za-z0-9]))"
+          "$"});
+}
+
+// RFC2181 defines LABEL as:
+// LABEL := octet{1,63} (except DOT)
+bool is_valid_domainname(const std::string &address) {
+  auto cur = address.begin();
+  auto end = address.end();
+
+  if (address.empty()) return false;
+  // max domainname is 255 chars
+  if (address.size() > 255) return false;
+
+  // NAME := (LABEL .)* LABEL .?
+  while (true) {
+    auto dot_it = std::find(cur, end, '.');
+
+    if (dot_it == end) break;
+
+    auto dist = std::distance(cur, dot_it);
+
+    // label too short
+    if (dist == 0) return false;
+    // label too long
+    if (dist > 63) return false;
+
+    cur = dot_it + 1;
+  }
+
+  auto dist = std::distance(cur, end);
+
+  // label too long
+  if (dist > 63) return false;
+
+  return true;
 }
 
 }  // namespace mysql_harness

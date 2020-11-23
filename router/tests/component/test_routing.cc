@@ -495,10 +495,10 @@ const RoutingConfigParam routing_config_param[] = {
          {"bind_address", "127.0.0.1:999292"},
      },
      [](const std::vector<std::string> &lines) {
-       EXPECT_THAT(lines,
-                   ::testing::Contains(::testing::HasSubstr(
-                       "option bind_address in [routing] is incorrect (invalid "
-                       "TCP port: invalid characters or too long)")));
+       EXPECT_THAT(
+           lines, ::testing::Contains(::testing::HasSubstr(
+                      "option bind_address in [routing]: invalid TCP port: "
+                      "invalid characters or too long in '127.0.0.1:999292'")));
      }},
     {"invalid_bind_port",
      {

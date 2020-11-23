@@ -80,7 +80,7 @@ TEST_F(Bug22572346, ConfigVarWithIllegalCharAtBeg) {
   MySQLRouter r(g_origin, {"-c", config_path->str()});
   ASSERT_THROW_LIKE(r.start(), std::invalid_argument,
                     "option destinations in [routing:modeReadOnly] has an "
-                    "invalid destination address '{#mysqld1}:3306'");
+                    "invalid destination address '{#mysqld1}'");
 }
 
 TEST_F(Bug22572346, ConfigVarWithIllegalCharInMid) {
@@ -93,7 +93,7 @@ TEST_F(Bug22572346, ConfigVarWithIllegalCharInMid) {
   MySQLRouter r(g_origin, {"-c", config_path->str()});
   ASSERT_THROW_LIKE(r.start(), std::invalid_argument,
                     "option destinations in [routing:modeReadOnly] has an "
-                    "invalid destination address '{mysqld@1}:3306'");
+                    "invalid destination address '{mysqld@1}'");
 }
 
 TEST_F(Bug22572346, ConfigVarWithIllegalCharAtEnd) {
@@ -106,7 +106,7 @@ TEST_F(Bug22572346, ConfigVarWithIllegalCharAtEnd) {
   MySQLRouter r(g_origin, {"-c", config_path->str()});
   ASSERT_THROW_LIKE(r.start(), std::invalid_argument,
                     "option destinations in [routing:modeReadOnly] has an "
-                    "invalid destination address '{mysqld1`}:3306'");
+                    "invalid destination address '{mysqld1`}'");
 }
 
 TEST_F(Bug22572346, ConfigVarWithSameMultIllegalChars) {
@@ -119,7 +119,7 @@ TEST_F(Bug22572346, ConfigVarWithSameMultIllegalChars) {
   MySQLRouter r(g_origin, {"-c", config_path->str()});
   ASSERT_THROW_LIKE(r.start(), std::invalid_argument,
                     "option destinations in [routing:modeReadOnly] has an "
-                    "invalid destination address '{mysqld!!1}:3306'");
+                    "invalid destination address '{mysqld!!1}'");
 }
 
 TEST_F(Bug22572346, ConfigVarWithDiffMultIllegalChars) {
@@ -132,7 +132,7 @@ TEST_F(Bug22572346, ConfigVarWithDiffMultIllegalChars) {
   MySQLRouter r(g_origin, {"-c", config_path->str()});
   ASSERT_THROW_LIKE(r.start(), std::invalid_argument,
                     "option destinations in [routing:modeReadOnly] has an "
-                    "invalid destination address '{mysql$d%1}:3306'");
+                    "invalid destination address '{mysql$d%1}'");
 }
 
 TEST_F(Bug22572346, ConfigBindPortWithIllegalChar) {
@@ -158,7 +158,7 @@ TEST_F(Bug22572346, ConfigVarWithSpaceAtBeg) {
   MySQLRouter r(g_origin, {"-c", config_path->str()});
   ASSERT_THROW_LIKE(r.start(), std::invalid_argument,
                     "option destinations in [routing:modeReadOnly] has an "
-                    "invalid destination address '{ mysqld1}:3306'");
+                    "invalid destination address '{ mysqld1}'");
 }
 
 TEST_F(Bug22572346, ConfigVarWithSpaceInMid) {
@@ -171,7 +171,7 @@ TEST_F(Bug22572346, ConfigVarWithSpaceInMid) {
   MySQLRouter r(g_origin, {"-c", config_path->str()});
   ASSERT_THROW_LIKE(r.start(), std::invalid_argument,
                     "option destinations in [routing:modeReadOnly] has an "
-                    "invalid destination address '{my sqld1}:3306'");
+                    "invalid destination address '{my sqld1}'");
 }
 
 TEST_F(Bug22572346, ConfigVarWithSpaceAtEnd) {
@@ -184,7 +184,7 @@ TEST_F(Bug22572346, ConfigVarWithSpaceAtEnd) {
   MySQLRouter r(g_origin, {"-c", config_path->str()});
   ASSERT_THROW_LIKE(r.start(), std::invalid_argument,
                     "option destinations in [routing:modeReadOnly] has an "
-                    "invalid destination address '{mysqld1 }:3306'");
+                    "invalid destination address '{mysqld1 }'");
 }
 
 TEST_F(Bug22572346, ConfigVarWithSpaceBeforeIllegalChar) {
@@ -197,7 +197,7 @@ TEST_F(Bug22572346, ConfigVarWithSpaceBeforeIllegalChar) {
   MySQLRouter r(g_origin, {"-c", config_path->str()});
   ASSERT_THROW_LIKE(r.start(), std::invalid_argument,
                     "option destinations in [routing:modeReadOnly] has an "
-                    "invalid destination address '{ @mysqld1}:3306'");
+                    "invalid destination address '{ @mysqld1}'");
 }
 
 TEST_F(Bug22572346, ConfigVarWithIllegalCharBeforeSpace) {
@@ -210,7 +210,7 @@ TEST_F(Bug22572346, ConfigVarWithIllegalCharBeforeSpace) {
   MySQLRouter r(g_origin, {"-c", config_path->str()});
   ASSERT_THROW_LIKE(r.start(), std::invalid_argument,
                     "option destinations in [routing:modeReadOnly] has an "
-                    "invalid destination address '{m@ysql d1}:3306'");
+                    "invalid destination address '{m@ysql d1}'");
 }
 
 TEST_F(Bug22572346, ConfigVarWithMultSpace) {
@@ -223,7 +223,7 @@ TEST_F(Bug22572346, ConfigVarWithMultSpace) {
   MySQLRouter r(g_origin, {"-c", config_path->str()});
   ASSERT_THROW_LIKE(r.start(), std::invalid_argument,
                     "option destinations in [routing:modeReadOnly] has an "
-                    "invalid destination address '{my sq ld1}:3306'");
+                    "invalid destination address '{my sq ld1}'");
 }
 
 int main(int argc, char *argv[]) {

@@ -652,7 +652,7 @@ TEST_F(RoutingTests, set_destinations_from_cvs) {
 
   // invalid address
   {
-    const std::string csv = "127.0.0.1.2:2222";
+    const std::string csv = "127.0.0..2:2222";
     EXPECT_THROW(routing.set_destinations_from_csv(csv), std::runtime_error);
   }
 

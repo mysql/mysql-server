@@ -294,7 +294,7 @@ static const BrokenConfigParams broken_config_params[]{
                  {"routing_strategy", "round-robin"},
              }),
      },
-     "incorrect (invalid TCP port: impossible port number",
+     "invalid TCP port: impossible port number in '127.0.0.1:99999'",
      ""},
 
     {"routing_bind_address_invalid_address",
@@ -313,7 +313,7 @@ static const BrokenConfigParams broken_config_params[]{
                  {"routing_strategy", "round-robin"},
              }),
      },
-     "in [routing:tests]: invalid IP or name in bind_address "
+     "in [routing:tests]: '....' is invalid IP-address or hostname in "
      "'....:3306'",
      ""},
 

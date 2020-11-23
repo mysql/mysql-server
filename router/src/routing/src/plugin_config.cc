@@ -32,6 +32,7 @@
 #include <vector>
 
 #include "context.h"
+#include "hostname_validator.h"
 #include "mysql/harness/config_option.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/string_utils.h"  // trim
@@ -176,8 +177,8 @@ static routing::RoutingStrategy get_option_routing_strategy(
 
 static std::string get_option_destinations(
     const mysql_harness::ConfigSection *section,
-    const mysql_harness::ConfigOption &option,
-    const Protocol::Type &protocol_type, bool &metadata_cache) {
+    const mysql_harness::ConfigOption &option, const Protocol::Type &,
+    bool &metadata_cache) {
   auto res = option.get_option_string(section);
 
   if (!res) {
@@ -224,7 +225,6 @@ static std::string get_option_destinations(
 
     std::stringstream ss(value);
     std::string part;
-    std::pair<std::string, uint16_t> info;
     while (std::getline(ss, part, delimiter)) {
       mysql_harness::trim(part);
       if (part.empty()) {
@@ -232,6 +232,7 @@ static std::string get_option_destinations(
             get_log_prefix(section, option) +
             ": empty address found in destination list (was '" + value + "')");
       }
+      std::pair<std::string, uint16_t> info;
       try {
         info = mysqlrouter::split_addr_port(part);
       } catch (const std::runtime_error &e) {
@@ -239,14 +240,14 @@ static std::string get_option_destinations(
                                     ": address in destination list '" + part +
                                     "' is invalid: " + e.what());
       }
-      if (info.second == 0) {
-        info.second = Protocol::get_default_port(protocol_type);
-      }
-      mysql_harness::TCPAddress addr(info.first, info.second);
-      if (!addr.is_valid()) {
+
+      auto address = info.first;
+
+      if (!mysql_harness::is_valid_ip_address(address) &&
+          !mysql_harness::is_valid_hostname(address)) {
         throw std::invalid_argument(get_log_prefix(section, option) +
                                     " has an invalid destination address '" +
-                                    addr.str() + "'");
+                                    address + "'");
       }
     }
   }
@@ -293,6 +294,7 @@ static mysql_harness::TCPAddress get_option_tcp_address(
     std::pair<std::string, uint16_t> bind_info =
         mysqlrouter::split_addr_port(value);
 
+    auto address = bind_info.first;
     uint16_t port = bind_info.second;
 
     if (port <= 0) {
@@ -303,11 +305,16 @@ static mysql_harness::TCPAddress get_option_tcp_address(
       }
     }
 
-    return mysql_harness::TCPAddress(bind_info.first, port);
+    if (!(mysql_harness::is_valid_hostname(address) ||
+          mysql_harness::is_valid_ip_address(address))) {
+      throw std::runtime_error("'" + address +
+                               "' is invalid IP-address or hostname");
+    }
 
+    return {bind_info.first, port};
   } catch (const std::runtime_error &exc) {
-    throw std::invalid_argument(get_log_prefix(section, option) +
-                                " is incorrect (" + exc.what() + ")");
+    throw std::invalid_argument(get_log_prefix(section, option) + ": " +
+                                exc.what() + " in '" + value + "'");
   }
 }
 

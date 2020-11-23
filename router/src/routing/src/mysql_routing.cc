@@ -44,6 +44,7 @@
 #include "dest_next_available.h"
 #include "dest_round_robin.h"
 #include "destination_ssl_context.h"
+#include "hostname_validator.h"
 #include "mysql/harness/filesystem.h"  // make_file_private
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
@@ -1356,16 +1357,18 @@ void MySQLRouting::set_destinations_from_csv(const string &csv) {
 
   // Fall back to comma separated list of MySQL servers
   while (std::getline(ss, part, ',')) {
-    info = mysqlrouter::split_addr_port(part);
-    if (info.second == 0) {
-      info.second = Protocol::get_default_port(context_.get_protocol());
-    }
-    mysql_harness::TCPAddress addr(info.first, info.second);
-    if (addr.is_valid()) {
+    const auto info = mysqlrouter::split_addr_port(part);
+
+    if (mysql_harness::is_valid_domainname(info.first)) {
+      mysql_harness::TCPAddress addr(
+          info.first, info.second == 0
+                          ? Protocol::get_default_port(context_.get_protocol())
+                          : info.second);
+
       destination_->add(addr);
     } else {
-      throw std::runtime_error(string_format(
-          "Destination address '%s' is invalid", addr.str().c_str()));
+      throw std::runtime_error(
+          string_format("Destination address '%s' is invalid", part.c_str()));
     }
   }
 

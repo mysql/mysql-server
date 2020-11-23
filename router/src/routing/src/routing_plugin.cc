@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "dim.h"
+#include "hostname_validator.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/loader_config.h"
@@ -62,10 +63,6 @@ static void validate_socket_info(const std::string &err_prefix,
     return 0 < port && port < 65536;
   };
 
-  TCPAddress config_addr =
-      config.bind_address;  // we have to make a copy because
-                            // TCPAddress::is_valid() is non-const
-
   bool have_named_sock = section->has("socket");
   bool have_bind_port = section->has("bind_port");
   bool have_bind_addr = section->has("bind_address");
@@ -87,10 +84,11 @@ static void validate_socket_info(const std::string &err_prefix,
   }
 
   // validate bind_address : IP
-  if (have_bind_addr && !config_addr.is_valid()) {
+  if (have_bind_addr &&
+      !mysql_harness::is_valid_domainname(config.bind_address.addr)) {
     throw std::invalid_argument(err_prefix +
                                 "invalid IP or name in bind_address '" +
-                                config_addr.str() + "'");
+                                config.bind_address.str() + "'");
   }
 
   // validate bind_address : TCP port
