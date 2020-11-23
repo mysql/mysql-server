@@ -64,7 +64,6 @@ ADD_TEST_FILE(test_keyring_frontend.cc
 
 FOREACH(test_file
     issues/test_bug22084430.cc
-    issues/test_bug22572346.cc
     issues/test_bug24909259.cc
     )
   ADD_TEST_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
