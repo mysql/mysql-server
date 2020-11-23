@@ -479,8 +479,7 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
         result = create_tmp_field_from_item(item, table);
         if (result == nullptr) return nullptr;
         if (modify_item) item->set_result_field(result);
-        if (copy_func && !make_copy_field &&
-            item->real_item()->is_result_field())
+        if (copy_func && !make_copy_field && item->is_result_field())
           copy_func->push_back(Func_ptr(item));
         if (copy_result_field) result->set_flag(FIELD_IS_MARKED);
       }
