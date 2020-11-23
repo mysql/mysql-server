@@ -607,6 +607,7 @@ void abort_not_supported_test(const char *fmt, ...)
     MY_ATTRIBUTE((format(printf, 1, 2))) MY_ATTRIBUTE((noreturn));
 void verbose_msg(const char *fmt, ...) MY_ATTRIBUTE((format(printf, 1, 2)));
 void log_msg(const char *fmt, ...) MY_ATTRIBUTE((format(printf, 1, 2)));
+void flush_ds_res();
 
 VAR *var_from_env(const char *, const char *);
 VAR *var_init(VAR *v, const char *name, size_t name_len, const char *val,
@@ -1604,6 +1605,9 @@ void die(const char *fmt, ...) {
   va_list args;
   DBUG_PRINT("enter", ("start_lineno: %d", start_lineno));
 
+  // Flush whatever was printed by the failing command before it died.
+  flush_ds_res();
+
   // Protect against dying twice first time 'die' is called, try to
   // write log files second time, just exit.
   if (dying) cleanup_and_exit(1);
@@ -1689,6 +1693,20 @@ void log_msg(const char *fmt, ...) {
 
   dynstr_append_mem(&ds_res, buff, len);
   dynstr_append(&ds_res, "\n");
+}
+
+void flush_ds_res() {
+  if (ds_res.length) {
+    if (log_file.write(ds_res.str, ds_res.length) || log_file.flush())
+      cleanup_and_exit(1);
+
+    if (!result_file_name) {
+      std::fwrite(ds_res.str, 1, ds_res.length, stdout);
+      std::fflush(stdout);
+    }
+
+    dynstr_set(&ds_res, nullptr);
+  }
 }
 
 /*
@@ -9997,15 +10015,7 @@ int main(int argc, char **argv) {
     if (opt_mark_progress) mark_progress(&progress_file, parser.current_line);
 
     // Write result from command to log file immediately.
-    if (log_file.write(ds_res.str, ds_res.length) || log_file.flush())
-      cleanup_and_exit(1);
-
-    if (!result_file_name) {
-      std::fwrite(ds_res.str, 1, ds_res.length, stdout);
-      std::fflush(stdout);
-    }
-
-    dynstr_set(&ds_res, nullptr);
+    flush_ds_res();
   }
 
   start_lineno = 0;

@@ -6,6 +6,7 @@ otto
 select otto from (select 1 as otto) as t1;
 otto
 1
+select friedrich from (select 1 as otto) as t1;
 mysqltest: At line 1: Query 'select friedrich from (select 1 as otto) as t1' failed.
 ERROR 1054 (42S22): Unknown column 'friedrich' in 'field list'
 select friedrich from (select 1 as otto) as t1;
@@ -13,8 +14,13 @@ ERROR 42S22: Unknown column 'friedrich' in 'field list'
 select otto from (select 1 as otto) as t1;
 otto
 1
+select otto from (select 1 as otto) as t1;
+otto
+1
 mysqltest: At line 1: Query 'select otto from (select 1 as otto) as t1' succeeded, should have failed with error '42S22'
 mysqltest: At line 1: Expecting a SQLSTATE (00000) from query 'remove_file MYSQLTEST_VARDIR/tmp/test_nonexistent.tmp' which cannot produce one.
+select friedrich from (select 1 as otto) as t1;
+ERROR 42S22: Unknown column 'friedrich' in 'field list'
 select friedrich from (select 1 as otto) as t1;
 ERROR 42S22: Unknown column 'friedrich' in 'field list'
 mysqltest: At line 1: Query 'select friedrich from (select 1 as otto) as t1' failed with wrong error 1054: 'Unknown column 'friedrich' in 'field list'', should have failed with error '00000'.
@@ -151,6 +157,8 @@ ER_NO_SUCH_TABLE
 select 1146 as "after_!errno_masked_error" ;
 after_!errno_masked_error
 1146
+select 3 from t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
 mysqltest: At line 1: Query 'select 3 from t1' failed with wrong error 1146: 'Table 'test.t1' doesn't exist', should have failed with error '1000'.
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
  is empty
@@ -163,6 +171,8 @@ select 1064 as "after_--enable_abort_on_error" ;
 after_--enable_abort_on_error
 1064
 select 3 from t1 ;
+ERROR 42S02: Table 'test.t1' doesn't exist
+select 3 from t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 mysqltest: At line 1: Query 'select 3 from t1' failed with wrong error 1146: 'Table 'test.t1' doesn't exist', should have failed with error '1064'.
 garbage;
@@ -402,6 +412,7 @@ included from MYSQLTEST_VARDIR/tmp/recursive.sql: 1
 included from MYSQLTEST_VARDIR/tmp/recursive.sql: 1
 included from MYSQLTEST_VARDIR/tmp/recursive.sql: 1
 included from <stdin>: 1
+garbage ;
 mysqltest: At line 1: Query 'garbage ' failed.
 ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
 In included file MYSQLTEST_VARDIR/tmp/error.sql: 1
@@ -535,6 +546,7 @@ mysqltest: At line 1: missing ')' in while
 mysqltest: At line 1: Missing '{' after while. Found "dec $i"
 mysqltest: At line 1: Stray '}' - end of block before beginning
 mysqltest: At line 1: Stray 'end' command - end of block before beginning
+{;
 mysqltest: At line 1: Query '{' failed.
 ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '{' at line 1
 mysqltest: At line 1: Missing '{' after while. Found "echo hej"
@@ -645,6 +657,12 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 mysqltest: The test didn't produce any output
 Failing multi statement query
+create table t1 (a int primary key);
+insert into t1 values (1);
+select 'select-me';
+insertz 'error query'||||
+select-me
+select-me
 mysqltest: At line 2: Query 'create table t1 (a int primary key);
 insert into t1 values (1);
 select 'select-me';
@@ -1635,6 +1653,7 @@ Hello
 #
 # BUG#11766444 : MTR PRINTS WRONG FILE AND LINE NUMBER WHEN TESTS FAIL
 #
+execute this invalid query;
 mysqltest: At line 7: Query 'execute this invalid query' failed.
 ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'invalid query' at line 1
 #
@@ -1665,6 +1684,7 @@ reason: Skipping bug25929826.test
 #               STRINGS IN PATH NAME
 #
 REPLACE_STRING
+SELECT REPLACE_STRING FROM t1;
 mysqltest: At line 1: Query 'SELECT REPLACE_STRING FROM t1' failed.
 ERROR 1146 (42S02): Table 'test.t1' doesn't exist
 #
@@ -1973,11 +1993,13 @@ mysqltest: At line 1: Unknown SQL error name 'ERR_TRUNCATED_WRONG_VALUE'.
 mysqltest: The test didn't enable all the disabled warnings, enable all of them before end of the test.
 mysqltest: The test didn't enable all the disabled warnings, enable all of them before end of the test.
 mysqltest: The test didn't enable all the disabled warnings, enable all of them before end of the test.
+DROP TABLE IF EXISTS t2;
 mysqltest: At line 1: Query 'DROP TABLE IF EXISTS t2' didn't generate any of the expected warning(s) 'ER_TRUNCATED_WRONG_VALUE'.
 mysqltest: At line 1: Second argument to 'disable_warnings' command should always be "ONCE" keyword.
 mysqltest: At line 1: Second argument to 'enable_warnings' command should always be "ONCE" keyword.
 mysqltest: At line 1: Warning list argument to command 'disable_warnings' can't be an empty string.
 mysqltest: At line 1: Warning list argument to command 'enable_warnings' can't be an empty string.
+DROP TABLE IF EXISTS t_unknown;
 mysqltest: At line 1: Query 'DROP TABLE IF EXISTS t_unknown' didn't generate any of the expected warning(s) 'ER_YES'.
 #
 # BUG#28218057: ENABLE_WARNINGS WORKS WITH "ONCE" WITH FIRST ARGUMENT
