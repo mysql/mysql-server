@@ -29,13 +29,13 @@ let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLU
 --source include/start_mysqld_no_echo.inc
 --inc $rc
 
---echo # Search the pattern in error log
---source $MYSQLTEST_VARDIR/tmp/encryption_error_log.inc
-
 --echo # Wait for Encryption processing to finish in background thread
 let $wait_condition = SELECT ENCRYPTION = 'Y'
         FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
         WHERE NAME='encrypt_ts';
 --source include/wait_condition.inc
+
+--echo # Search the pattern in error log
+--source $MYSQLTEST_VARDIR/tmp/encryption_error_log.inc
 
 SELECT * FROM t1 LIMIT 10;

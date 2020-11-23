@@ -3029,11 +3029,10 @@ void srv_start_threads_after_ddl_recovery() {
         os_thread_create(srv_ts_alter_encrypt_thread_key,
                          fsp_init_resume_alter_encrypt_tablespace);
 
+    mysql_mutex_lock(&resume_encryption_cond_m);
     srv_threads.m_ts_alter_encrypt.start();
-
     /* Wait till shared MDL is taken by background thread for all tablespaces,
     for which (un)encryption is to be rolled forward. */
-    mysql_mutex_lock(&resume_encryption_cond_m);
     mysql_cond_wait(&resume_encryption_cond, &resume_encryption_cond_m);
     mysql_mutex_unlock(&resume_encryption_cond_m);
   }
