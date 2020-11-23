@@ -231,7 +231,7 @@ sub mtr_report_test ($) {
     } else {
       my $timeout = $tinfo->{'timeout'};
       if ($timeout) {
-        mtr_report($report, "[ $retry$fail ]  timeout after $timeout seconds");
+        mtr_report($report, "[ $fail ]  timeout after $timeout seconds");
         mtr_report("        Test ended at $timest");
         mtr_report("\n$tinfo->{'comment'}");
         return;
