@@ -40,10 +40,10 @@ ERROR HY000: MySQL server has gone away
 Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
 Pattern "Finished ENCRYPTION for tablespace encrypt_ts" not found
 # RESTART 3 : Normal. In this restart resume operation should finish successfully
+# Wait for Encryption processing to finish in background thread
 # Search the pattern in error log
 Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
 Pattern "Finished ENCRYPTION for tablespace encrypt_ts" found
-# Wait for Encryption processing to finish in background thread
 SELECT * FROM t1 LIMIT 10;
 c1
 SOME VALUES
@@ -74,10 +74,10 @@ ERROR HY000: MySQL server has gone away
 Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
 Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
 # RESTART 5 : Normal. In this restart resume operation should finish successfully
+# Wait for Encryption processing to finish in background thread
 # Search the pattern in error log
 Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
 Pattern "Finished DECRYPTION for tablespace encrypt_ts" found
-# Wait for Encryption processing to finish in background thread
 # RESTART 6 : WITHOUT KEYRING PLUGIN
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 NAME	ENCRYPTION
@@ -111,10 +111,10 @@ ERROR HY000: MySQL server has gone away
 Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
 Pattern "Finished ENCRYPTION for tablespace encrypt_ts" not found
 # RESTART 9 : Normal. In this restart resume operation should finish successfully
+# Wait for Encryption processing to finish in background thread
 # Search the pattern in error log
 Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
 Pattern "Finished ENCRYPTION for tablespace encrypt_ts" found
-# Wait for Encryption processing to finish in background thread
 SELECT * FROM t1 LIMIT 10;
 c1
 SOME VALUES
@@ -145,10 +145,10 @@ ERROR HY000: MySQL server has gone away
 Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
 Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
 # RESTART 11 : Normal. In this restart resume operation should finish successfully
+# Wait for Encryption processing to finish in background thread
 # Search the pattern in error log
 Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
 Pattern "Finished DECRYPTION for tablespace encrypt_ts" found
-# Wait for Encryption processing to finish in background thread
 # RESTART 12 : WITHOUT KEYRING PLUGIN
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 NAME	ENCRYPTION
@@ -182,10 +182,10 @@ ERROR HY000: MySQL server has gone away
 Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
 Pattern "Finished ENCRYPTION for tablespace encrypt_ts" not found
 # RESTART 15 : Normal. In this restart resume operation should finish successfully
+# Wait for Encryption processing to finish in background thread
 # Search the pattern in error log
 Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
 Pattern "Finished ENCRYPTION for tablespace encrypt_ts" found
-# Wait for Encryption processing to finish in background thread
 SELECT * FROM t1 LIMIT 10;
 c1
 SOME VALUES
@@ -216,10 +216,10 @@ ERROR HY000: MySQL server has gone away
 Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
 Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
 # RESTART 17 : Normal. In this restart resume operation should finish successfully
+# Wait for Encryption processing to finish in background thread
 # Search the pattern in error log
 Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
 Pattern "Finished DECRYPTION for tablespace encrypt_ts" found
-# Wait for Encryption processing to finish in background thread
 # RESTART 18 : WITHOUT KEYRING PLUGIN
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 NAME	ENCRYPTION
@@ -258,10 +258,10 @@ ERROR HY000: MySQL server has gone away
 Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
 Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
 # RESTART 21 : Normal. In this restart resume operation should finish successfully
+# Wait for Encryption processing to finish in background thread
 # Search the pattern in error log
 Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
 Pattern "Finished DECRYPTION for tablespace encrypt_ts" found
-# Wait for Encryption processing to finish in background thread
 # RESTART 22 : WITHOUT KEYRING PLUGIN
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 NAME	ENCRYPTION
@@ -295,10 +295,10 @@ ERROR HY000: MySQL server has gone away
 Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
 Pattern "Finished ENCRYPTION for tablespace encrypt_ts" not found
 # RESTART 25 : Normal. In this restart resume operation should finish successfully
+# Wait for Encryption processing to finish in background thread
 # Search the pattern in error log
 Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
 Pattern "Finished ENCRYPTION for tablespace encrypt_ts" found
-# Wait for Encryption processing to finish in background thread
 SELECT * FROM t1 LIMIT 10;
 c1
 SOME VALUES
@@ -329,10 +329,10 @@ ERROR HY000: MySQL server has gone away
 Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
 Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
 # RESTART 27 : Normal. In this restart resume operation should finish successfully
+# Wait for Encryption processing to finish in background thread
 # Search the pattern in error log
 Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
 Pattern "Finished DECRYPTION for tablespace encrypt_ts" found
-# Wait for Encryption processing to finish in background thread
 # RESTART 28 : WITHOUT KEYRING PLUGIN
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 NAME	ENCRYPTION
@@ -366,10 +366,10 @@ ERROR HY000: MySQL server has gone away
 Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
 Pattern "Finished ENCRYPTION for tablespace encrypt_ts" not found
 # RESTART 31 : Normal. In this restart resume operation should finish successfully
+# Wait for Encryption processing to finish in background thread
 # Search the pattern in error log
 Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
 Pattern "Finished ENCRYPTION for tablespace encrypt_ts" found
-# Wait for Encryption processing to finish in background thread
 SELECT * FROM t1 LIMIT 10;
 c1
 SOME VALUES
@@ -400,10 +400,10 @@ ERROR HY000: MySQL server has gone away
 Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
 Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
 # RESTART 33 : Normal. In this restart resume operation should finish successfully
+# Wait for Encryption processing to finish in background thread
 # Search the pattern in error log
 Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
 Pattern "Finished DECRYPTION for tablespace encrypt_ts" found
-# Wait for Encryption processing to finish in background thread
 # RESTART 34 : WITHOUT KEYRING PLUGIN
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 NAME	ENCRYPTION
@@ -437,10 +437,10 @@ ERROR HY000: MySQL server has gone away
 Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
 Pattern "Finished ENCRYPTION for tablespace encrypt_ts" not found
 # RESTART 37 : Normal. In this restart resume operation should finish successfully
+# Wait for Encryption processing to finish in background thread
 # Search the pattern in error log
 Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
 Pattern "Finished ENCRYPTION for tablespace encrypt_ts" found
-# Wait for Encryption processing to finish in background thread
 SELECT * FROM t1 LIMIT 10;
 c1
 SOME VALUES
@@ -471,10 +471,10 @@ ERROR HY000: MySQL server has gone away
 Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
 Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
 # RESTART 39 : Normal. In this restart resume operation should finish successfully
+# Wait for Encryption processing to finish in background thread
 # Search the pattern in error log
 Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
 Pattern "Finished DECRYPTION for tablespace encrypt_ts" found
-# Wait for Encryption processing to finish in background thread
 # RESTART 40 : WITHOUT KEYRING PLUGIN
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 NAME	ENCRYPTION

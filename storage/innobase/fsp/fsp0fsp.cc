@@ -4651,7 +4651,9 @@ static void resume_alter_encrypt_tablespace(THD *thd) {
   }
 
   /* Let the startup thread proceed now */
+  mysql_mutex_lock(&resume_encryption_cond_m);
   mysql_cond_signal(&resume_encryption_cond);
+  mysql_mutex_unlock(&resume_encryption_cond_m);
 
   DBUG_EXECUTE_IF("sleep_resume_alter_encrypt", sleep(10000););
 
