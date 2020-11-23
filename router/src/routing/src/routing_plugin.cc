@@ -47,7 +47,6 @@
 
 using mysql_harness::AppInfo;
 using mysql_harness::ConfigSection;
-using mysql_harness::TCPAddress;
 using mysqlrouter::URI;
 using mysqlrouter::URIError;
 using std::string;
@@ -66,7 +65,7 @@ static void validate_socket_info(const std::string &err_prefix,
   bool have_named_sock = section->has("socket");
   bool have_bind_port = section->has("bind_port");
   bool have_bind_addr = section->has("bind_address");
-  bool have_bind_addr_port = have_bind_addr && config.bind_address.port != 0;
+  bool have_bind_addr_port = have_bind_addr && config.bind_address.port() != 0;
 
   // NOTE: Several test scenarios below are also covered by
   // RoutingPluginConfig() constructor's simple check.
@@ -85,14 +84,14 @@ static void validate_socket_info(const std::string &err_prefix,
 
   // validate bind_address : IP
   if (have_bind_addr &&
-      !mysql_harness::is_valid_domainname(config.bind_address.addr)) {
+      !mysql_harness::is_valid_domainname(config.bind_address.address())) {
     throw std::invalid_argument(err_prefix +
                                 "invalid IP or name in bind_address '" +
                                 config.bind_address.str() + "'");
   }
 
   // validate bind_address : TCP port
-  if (have_bind_addr_port && !is_valid_port(config.bind_address.port)) {
+  if (have_bind_addr_port && !is_valid_port(config.bind_address.port())) {
     throw std::invalid_argument(err_prefix + "invalid bind_address '" +
                                 config.bind_address.str() + "'");
   }
@@ -141,7 +140,7 @@ static void init(mysql_harness::PluginFuncEnv *env) {
     if (info->config != nullptr) {
       bool have_metadata_cache = false;
       bool need_metadata_cache = false;
-      std::vector<TCPAddress> bind_addresses;
+      std::vector<mysql_harness::TCPAddress> bind_addresses;
       for (const mysql_harness::ConfigSection *section :
            info->config->sections()) {
         if (section->name == kSectionName) {
@@ -156,8 +155,8 @@ static void init(mysql_harness::PluginFuncEnv *env) {
                                config);  // throws std::invalid_argument
 
           // ensure that TCP port is unique
-          if (config.bind_address.port) {
-            const TCPAddress &config_addr = config.bind_address;
+          if (config.bind_address.port()) {
+            const auto &config_addr = config.bind_address;
 
             // Check uniqueness of bind_address and port, using IP address
             auto found_addr =
@@ -169,13 +168,13 @@ static void init(mysql_harness::PluginFuncEnv *env) {
                   config.bind_address.str() + "'");
             }
             // Check ADDR_ANY binding on same port
-            else if (config_addr.addr == "0.0.0.0" ||
-                     config_addr.addr == "::") {
-              found_addr =
-                  std::find_if(bind_addresses.begin(), bind_addresses.end(),
-                               [&config](TCPAddress &addr) {
-                                 return config.bind_address.port == addr.port;
-                               });
+            else if (config_addr.address() == "0.0.0.0" ||
+                     config_addr.address() == "::") {
+              found_addr = std::find_if(
+                  bind_addresses.begin(), bind_addresses.end(),
+                  [&config](const mysql_harness::TCPAddress &addr) {
+                    return config.bind_address.port() == addr.port();
+                  });
               if (found_addr != bind_addresses.end()) {
                 throw std::invalid_argument(
                     err_prefix +
@@ -404,8 +403,8 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 
     net::io_context &io_ctx = IoComponent::get_instance().io_context();
     auto r = std::make_shared<MySQLRouting>(
-        io_ctx, config.routing_strategy, config.bind_address.port,
-        config.protocol, config.mode, config.bind_address.addr,
+        io_ctx, config.routing_strategy, config.bind_address.port(),
+        config.protocol, config.mode, config.bind_address.address(),
         config.named_socket, name, config.max_connections,
         destination_connect_timeout, config.max_connect_errors,
         client_connect_timeout, config.net_buffer_length,

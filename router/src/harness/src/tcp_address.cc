@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,80 +24,28 @@
 
 #include "tcp_address.h"
 
-#include <cstring>
 #include <sstream>
-#ifndef _WIN32
-#include <netdb.h>
-#include <sys/socket.h>
-#else
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#endif
+
+#include "mysql/harness/net_ts/internet.h"
 
 namespace mysql_harness {
-
-void TCPAddress::detect_family() noexcept {
-  // Function only run once by setting ip_family_ > Family::UNKNOWN
-  ip_family_ = Family::INVALID;
-
-  if (addr.empty()) {
-    return;
-  }
-
-  struct addrinfo *servinfo, *info, hints;
-  int err;
-
-  memset(&hints, 0, sizeof hints);
-  hints.ai_family = AF_UNSPEC;
-  hints.ai_socktype = SOCK_STREAM;
-  hints.ai_flags = AI_PASSIVE;
-
-  err = getaddrinfo(addr.c_str(), nullptr, &hints, &servinfo);
-  if (err != 0) {
-    // We consider the IP/name to be invalid
-    return;
-  }
-
-  // Get family and IP address
-  for (info = servinfo; info != nullptr; info = info->ai_next) {
-    if (info->ai_family == AF_INET6) {
-      ip_family_ = Family::IPV6;
-    } else if (info->ai_family == AF_INET) {
-      ip_family_ = Family::IPV4;
-    }
-  }
-  freeaddrinfo(servinfo);
-}
-
-uint16_t TCPAddress::validate_port(uint32_t tcp_port) {
-  if (tcp_port < 1 || tcp_port > UINT16_MAX) {
-    return 0;
-  }
-  return static_cast<uint16_t>(tcp_port);
-}
 
 std::string TCPAddress::str() const {
   std::ostringstream os;
 
-  if (ip_family_ == Family::IPV6) {
-    os << "[" << addr << "]";
+  auto make_res = net::ip::make_address_v6(addr_.c_str());
+  if (make_res) {
+    // looks like a IPv6 address, wrap in []
+    os << "[" << addr_ << "]";
   } else {
-    os << addr;
+    os << addr_;
   }
 
-  if (port > 0) {
-    os << ":" << port;
+  if (port_ > 0) {
+    os << ":" << port_;
   }
 
   return os.str();
-}
-
-bool TCPAddress::is_valid() noexcept {
-  if (ip_family_ == Family::UNKNOWN) {
-    detect_family();
-  }
-  return !(addr.empty() || port == 0 || ip_family_ == Family::INVALID);
 }
 
 }  // namespace mysql_harness

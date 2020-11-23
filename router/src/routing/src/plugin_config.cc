@@ -568,7 +568,7 @@ RoutingPluginConfig::RoutingPluginConfig(
   using namespace std::string_literals;
 
   // either bind_address or socket needs to be set, or both
-  if (!bind_address.port && !named_socket.is_set()) {
+  if (!bind_address.port() && !named_socket.is_set()) {
     throw std::invalid_argument(
         "either bind_address or socket option needs to be supplied, or both");
   }

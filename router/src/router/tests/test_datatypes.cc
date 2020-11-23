@@ -21,11 +21,11 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
+#include "tcp_address.h"
 
-#include "gmock/gmock.h"
+#include <gmock/gmock.h>
 
 #include "router_test_helpers.h"
-#include "tcp_address.h"
 
 #ifdef _WIN32
 #include <WinSock2.h>
@@ -33,79 +33,55 @@
 
 using mysql_harness::TCPAddress;
 
-class TCPAddressTest : public ::testing::Test {
- protected:
-  void SetUp() override {}
-};
+class TCPAddressTest : public ::testing::Test {};
 
 TEST_F(TCPAddressTest, EmptyAddress) {
   TCPAddress a;
-  EXPECT_EQ("", a.addr);
-  EXPECT_EQ(0, a.port);
-  EXPECT_FALSE(a.is_valid());
-  EXPECT_EQ(TCPAddress::Family::INVALID, a.get_family());
-  EXPECT_FALSE(a.is_family<TCPAddress::Family::IPV4>());
-  EXPECT_FALSE(a.is_family<TCPAddress::Family::IPV6>());
+  EXPECT_EQ("", a.address());
+  EXPECT_EQ(0, a.port());
+
+  EXPECT_EQ(a.str(), "");
 }
 
 TEST_F(TCPAddressTest, IPv4LocalhostMySQL) {
   TCPAddress a("127.0.0.1", 3306);
-  EXPECT_EQ("127.0.0.1", a.addr);
-  EXPECT_EQ(3306, a.port);
-  EXPECT_TRUE(a.is_valid());
-  EXPECT_EQ(TCPAddress::Family::IPV4, a.get_family());
-  EXPECT_TRUE(a.is_family<TCPAddress::Family::IPV4>());
-  EXPECT_FALSE(a.is_family<TCPAddress::Family::IPV6>());
+  EXPECT_EQ("127.0.0.1", a.address());
+  EXPECT_EQ(3306, a.port());
+
+  EXPECT_EQ(a.str(), "127.0.0.1:3306");
 }
 
 TEST_F(TCPAddressTest, IPv6LocalhostMySQL) {
   TCPAddress a("::1", 3306);
-  EXPECT_EQ("::1", a.addr);
-  EXPECT_EQ(3306, a.port);
-  EXPECT_TRUE(a.is_valid());
-  EXPECT_EQ(TCPAddress::Family::IPV6, a.get_family());
-  EXPECT_FALSE(a.is_family<TCPAddress::Family::IPV4>());
-  EXPECT_TRUE(a.is_family<TCPAddress::Family::IPV6>());
+  EXPECT_EQ("::1", a.address());
+  EXPECT_EQ(3306, a.port());
+
+  EXPECT_EQ(a.str(), "[::1]:3306");
 }
 
-TEST_F(TCPAddressTest, IPv4InvalidAddress) {
+TEST_F(TCPAddressTest, NonIpAddress) {
+  // looks like an invalid IPv4 address, but is treated as a hostname.
   TCPAddress a("999.999.999.999", 3306);
-  EXPECT_EQ("999.999.999.999", a.addr);
-  EXPECT_EQ(3306, a.port);
-  EXPECT_FALSE(a.is_valid());
-  EXPECT_EQ(TCPAddress::Family::INVALID, a.get_family());
-  EXPECT_FALSE(a.is_family<TCPAddress::Family::IPV4>());
-  EXPECT_FALSE(a.is_family<TCPAddress::Family::IPV6>());
+  EXPECT_EQ("999.999.999.999", a.address());
+  EXPECT_EQ(3306, a.port());
+
+  EXPECT_EQ(a.str(), "999.999.999.999:3306");
 }
 
-TEST_F(TCPAddressTest, IPv4InvalidPort) {
+TEST_F(TCPAddressTest, IPv4PortZero) {
   TCPAddress a("192.168.1.2", 0);
-  EXPECT_EQ("192.168.1.2", a.addr);
-  EXPECT_EQ(0, a.port);
-  EXPECT_FALSE(a.is_valid());
-  EXPECT_EQ(TCPAddress::Family::IPV4, a.get_family());
-  EXPECT_TRUE(a.is_family<TCPAddress::Family::IPV4>());
-  EXPECT_FALSE(a.is_family<TCPAddress::Family::IPV6>());
-}
+  EXPECT_EQ("192.168.1.2", a.address());
+  EXPECT_EQ(0, a.port());
 
-TEST_F(TCPAddressTest, IPv6InvalidPort) {
-  TCPAddress a("fdc2:f6c4:a09e:b67b:1:2:3:4", 99999);
-  EXPECT_EQ("fdc2:f6c4:a09e:b67b:1:2:3:4", a.addr);
-  EXPECT_EQ(0, a.port);
-  EXPECT_FALSE(a.is_valid());
-  EXPECT_EQ(TCPAddress::Family::IPV6, a.get_family());
-  EXPECT_FALSE(a.is_family<TCPAddress::Family::IPV4>());
-  EXPECT_TRUE(a.is_family<TCPAddress::Family::IPV6>());
+  EXPECT_EQ(a.str(), "192.168.1.2");
 }
 
 TEST_F(TCPAddressTest, IPv6ValidPort) {
   TCPAddress a("fdc2:f6c4:a09e:b67b:1:2:3:4", 3306);
-  EXPECT_EQ("fdc2:f6c4:a09e:b67b:1:2:3:4", a.addr);
-  EXPECT_EQ(3306, a.port);
-  EXPECT_TRUE(a.is_valid());
-  EXPECT_EQ(TCPAddress::Family::IPV6, a.get_family());
-  EXPECT_FALSE(a.is_family<TCPAddress::Family::IPV4>());
-  EXPECT_TRUE(a.is_family<TCPAddress::Family::IPV6>());
+  EXPECT_EQ("fdc2:f6c4:a09e:b67b:1:2:3:4", a.address());
+  EXPECT_EQ(3306, a.port());
+
+  EXPECT_EQ(a.str(), "[fdc2:f6c4:a09e:b67b:1:2:3:4]:3306");
 }
 
 int main(int argc, char *argv[]) {

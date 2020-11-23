@@ -62,7 +62,7 @@ Destinations DestNextAvailable::destinations() {
 
     for (size_t ndx{}; cur != end; ++cur, ++ndx) {
       dests.push_back(std::make_unique<StateTrackingDestination>(
-          cur->str(), cur->addr, cur->port, this, ndx));
+          cur->str(), cur->address(), cur->port(), this, ndx));
     }
   }
 
