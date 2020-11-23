@@ -7492,11 +7492,28 @@ bool do_update_sctx(Security_context *sctx, LEX_USER *from_user_ptr) {
 void update_sctx(Security_context *sctx, LEX_USER *to_user_ptr) {
   const char *to_user = to_user_ptr->user.str;
   const char *to_host = to_user_ptr->host.str;
-  if (!to_host) to_host = "";
-  if (!to_user) to_user = "";
+  const size_t to_user_length = to_user_ptr->user.length;
+  const size_t to_host_length = to_user_ptr->host.length;
 
-  sctx->assign_priv_user(to_user_ptr->user.str, to_user_ptr->user.length);
-  sctx->assign_priv_host(to_user_ptr->host.str, to_user_ptr->host.length);
+  DBUG_ASSERT(to_user != nullptr || to_user_length == 0);
+  DBUG_ASSERT(to_host != nullptr || to_host_length == 0);
+
+  /* Rename user. */
+  sctx->assign_user(to_user, to_user_length);
+  sctx->assign_host(to_host, to_host_length);
+
+  if (sctx->proxy_user().str && *sctx->proxy_user().str != '\0') {
+    /* Rename proxy_user. */
+    char proxy_user_buf[USERNAME_LENGTH + HOSTNAME_LENGTH + 6];
+    int proxy_user_buf_length =
+        snprintf(proxy_user_buf, sizeof(proxy_user_buf) - 1, "'%s'@'%s'",
+                 to_user ? to_user : "", to_host ? to_host : "");
+    sctx->assign_proxy_user(proxy_user_buf, proxy_user_buf_length);
+  } else {
+    /* Rename current_user. */
+    sctx->assign_priv_user(to_user, to_user_length);
+    sctx->assign_priv_host(to_host, to_host_length);
+  }
 }
 
 /**
