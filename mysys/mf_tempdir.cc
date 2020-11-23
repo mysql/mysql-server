@@ -73,13 +73,13 @@ bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist) {
     if (!(copy = my_strndup(key_memory_MY_TMPDIR_full_list, buff, length,
                             MYF(MY_WME))) ||
         full_list.push_back(copy)) {
-      delete_container_pointers(full_list);
+      my_free_container_pointers(full_list);
       return true;
     }
     // Check that each tmpdir exists.
     MY_STAT dir_stat;
     if (!(my_stat(copy, &dir_stat, MYF(MY_FAE)))) {
-      delete_container_pointers(full_list);
+      my_free_container_pointers(full_list);
       return true;
     }
     pathlist = end + 1;
@@ -88,7 +88,10 @@ bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist) {
   tmpdir->list = static_cast<char **>(
       my_malloc(key_memory_MY_TMPDIR_full_list,
                 sizeof(char *) * full_list.size(), MYF(MY_WME)));
-  if (tmpdir->list == nullptr) return true;
+  if (tmpdir->list == nullptr) {
+    my_free_container_pointers(full_list);
+    return true;
+  }
 
   mysql_mutex_init(key_TMPDIR_mutex, &tmpdir->mutex, MY_MUTEX_INIT_FAST);
   memcpy(tmpdir->list, &full_list[0], sizeof(char *) * full_list.size());
