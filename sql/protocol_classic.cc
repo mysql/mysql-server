@@ -2864,6 +2864,7 @@ bool Protocol_classic::parse_packet(union COM_DATA *data,
       Prepared_statement *stmt =
           m_thd->stmt_map.find(data->com_stmt_execute.stmt_id);
       data->com_stmt_execute.parameter_count = 0;
+      data->com_stmt_execute.parameters = nullptr;
 
       /*
         If no statement found there's no need to generate error.

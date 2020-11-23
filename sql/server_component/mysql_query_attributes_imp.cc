@@ -61,7 +61,7 @@ class iterator {
   bool init(MYSQL_THD hthd, const char *name) {
     thd = hthd ? dynamic_cast<THD *>(hthd) : current_thd;
     if (!thd) return true;
-    if (!thd->bind_parameter_values || !thd->bind_parameter_values_count)
+    if (!thd->bind_parameter_values_count || !thd->bind_parameter_values)
       return true;
     /* set to first element*/
     ofs = 0;
