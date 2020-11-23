@@ -5712,6 +5712,11 @@ ignore_log_space_limit=%d",
             Async_conn_failover_manager::do_auto_conn_failover(mi, false);
         channel_map.unlock();
       }
+      DBUG_EXECUTE_IF("replica_retry_count_exceed", {
+        if (Async_conn_failover_manager::ACF_NO_ERROR == update_source_error) {
+          rpl_slave_debug_point(DBUG_RPL_S_RETRY_COUNT_EXCEED, thd);
+        }
+      });
 
       if (Async_conn_failover_manager::ACF_NO_SOURCES_ERROR !=
           update_source_error) {
@@ -8349,9 +8354,6 @@ int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi, bool reconnect,
     if (++err_count == mi->retry_count) {
       if (is_network_error(last_errno) && is_io_thread) mi->set_network_error();
       slave_was_killed = 1;
-      DBUG_EXECUTE_IF("replica_retry_count_exceed", {
-        rpl_slave_debug_point(DBUG_RPL_S_RETRY_COUNT_EXCEED, thd);
-      });
       break;
     }
     slave_sleep(thd, mi->connect_retry,

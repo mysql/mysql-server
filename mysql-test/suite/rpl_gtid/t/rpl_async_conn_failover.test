@@ -259,6 +259,9 @@ INSERT INTO t1 VALUES (3);
 --let $rpl_connection_name= server_4
 --source include/rpl_connection.inc
 
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME='' AND PORT=$SERVER_MYPORT_1
+--source include/wait_condition.inc
+
 SET GLOBAL debug = '+d,replica_retry_count_exceed';
 
 --let $rpl_server_number= 1
@@ -274,56 +277,42 @@ SET GLOBAL debug = '+d,replica_retry_count_exceed';
 --let $rpl_connection_name= server_4
 --source include/rpl_connection.inc
 
---let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME='' AND PORT=$SERVER_MYPORT_1
---source include/wait_condition.inc
-
 SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
-SET DEBUG_SYNC= 'now SIGNAL continue_retry_count_exceed';
-
-
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME='' AND PORT=$SERVER_MYPORT_3
 --source include/wait_condition.inc
-
-SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
 SET DEBUG_SYNC= 'now SIGNAL continue_retry_count_exceed';
 
+SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME='' AND PORT=$SERVER_MYPORT_2
 --source include/wait_condition.inc
-
-SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
 SET DEBUG_SYNC= 'now SIGNAL continue_retry_count_exceed';
 
+SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME='' AND PORT=$SERVER_MYPORT_1
 --source include/wait_condition.inc
-
-SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
 SET DEBUG_SYNC= 'now SIGNAL continue_retry_count_exceed';
 
-
+SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME='' AND PORT=$SERVER_MYPORT_3
 --source include/wait_condition.inc
-
-SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
 SET DEBUG_SYNC= 'now SIGNAL continue_retry_count_exceed';
 
+SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME='' AND PORT=$SERVER_MYPORT_2
 --source include/wait_condition.inc
-
-SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
 SET DEBUG_SYNC= 'now SIGNAL continue_retry_count_exceed';
 
+SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME='' AND PORT=$SERVER_MYPORT_1
 --source include/wait_condition.inc
-
-SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
+SET @@GLOBAL.DEBUG= @old_debug;
 SET DEBUG_SYNC= 'now SIGNAL continue_retry_count_exceed';
+SET DEBUG_SYNC= 'RESET';
 
 
 --echo #
 --echo # 17. Stop replica IO
 --echo #
-SET @@GLOBAL.DEBUG= @old_debug;
---let $rpl_only_running_threads= 1
 --source include/stop_slave.inc
 
 
