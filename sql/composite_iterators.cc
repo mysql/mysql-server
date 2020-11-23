@@ -1082,7 +1082,11 @@ bool TemptableAggregateIterator::Init() {
       // Update the existing record. (If it's unchanged, that's a
       // nonfatal error.)
       restore_record(table(), record[1]);
+      assert(!thd()->is_error());
       update_tmptable_sum_func(m_join->sum_funcs, table());
+      if (thd()->is_error()) {
+        return true;
+      }
       int error =
           table()->file->ha_update_row(table()->record[1], table()->record[0]);
       if (error != 0 && error != HA_ERR_RECORD_IS_THE_SAME) {
