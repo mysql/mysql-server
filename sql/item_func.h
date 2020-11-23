@@ -1573,9 +1573,7 @@ class Item_rollup_group_item final : public Item_func {
   Item_rollup_group_item(int min_rollup_level, Item *inner_item)
       : Item_func(inner_item), m_min_rollup_level(min_rollup_level) {
     item_name = inner_item->item_name;
-    max_length = inner_item->max_length;
-    set_data_type(inner_item->data_type());
-    collation = inner_item->collation;
+    set_data_type_from_item(inner_item);
     // We're going to replace inner_item in the SELECT list, so copy its hidden
     // status. (We could have done this in the caller, but it fits naturally in
     // with all the other copying done here.)
@@ -1608,6 +1606,9 @@ class Item_rollup_group_item final : public Item_func {
     return false;
   }
   Item *inner_item() const { return args[0]; }
+  uint decimal_precision() const override {
+    return args[0]->decimal_precision();
+  }
   bool rollup_null() const {
     return m_current_rollup_level <= m_min_rollup_level;
   }
