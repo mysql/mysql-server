@@ -21,10 +21,12 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
+
 #include <cstdlib>
 #include <fstream>
 #include <initializer_list>
 #include <string>
+#include <thread>
 
 #include <gmock/gmock-matchers.h>
 #include <gmock/gmock.h>
@@ -106,6 +108,123 @@ TEST_F(SplicerTest, ssl_mode_default_preferred) {
   auto conf_file = create_config_file(conf_dir_.name(), config);
 
   launch_router({"-c", conf_file});
+}
+
+/**
+ * check metadata-cache handles broken hostnames in metadata.
+ *
+ * trace file contains a broken hostname "[foobar]" which should trigger a parse
+ * error when the metadata is SELECTed.
+ */
+TEST_F(SplicerTest, invalid_metadata) {
+  const auto server_port = port_pool_.get_next_available();
+  const auto router_port = port_pool_.get_next_available();
+
+  SCOPED_TRACE("// start mock-server with TLS enabled");
+  const std::string mock_file =
+      get_data_dir().join("metadata_broken_hostname.js").str();
+  auto mock_server_args =
+      mysql_server_mock_cmdline_args(mock_file, server_port);
+
+  for (const auto &arg :
+       std::vector<std::string>{"--ssl-cert"s, valid_ssl_cert_,  //
+                                "--ssl-key"s, valid_ssl_key_,    //
+                                "--ssl-mode"s, "REQUIRED"s}) {
+    mock_server_args.push_back(arg);
+  }
+
+  launch_mysql_server_mock(mock_server_args);
+
+  SCOPED_TRACE("// start router with TLS enabled");
+  auto config = mysql_harness::join(
+      std::vector<std::string>{
+          mysql_harness::ConfigBuilder::build_section(
+              "routing",
+              {
+                  {"bind_port", std::to_string(router_port)},
+                  {"destinations",
+                   "metadata-cache://somecluster/default?role=PRIMARY"},
+                  {"routing_strategy", "round-robin"},
+                  {"client_ssl_mode", "required"},
+                  {"client_ssl_key", valid_ssl_key_},
+                  {"client_ssl_cert", valid_ssl_cert_},
+                  {"server_ssl_mode", "required"},
+              }),
+          mysql_harness::ConfigBuilder::build_section(
+              "metadata_cache:somecluster",
+              {
+                  {"user", "mysql_router1_user"},
+                  {"bootstrap_server_addresses",
+                   "mysql://127.0.0.1:" + std::to_string(server_port)},
+                  {"metadata_cluster", "test"},
+              }),
+      },
+      "\n");
+
+  auto default_section = get_DEFAULT_defaults();
+  init_keyring(default_section, conf_dir_.name());
+  auto conf_file =
+      create_config_file(conf_dir_.name(), config, &default_section);
+
+  auto &router = launch_router({"-c", conf_file}, EXIT_SUCCESS, true, false);
+
+  // wait long enough that a 2nd refresh was done to trigger the invalid
+  // hostname
+
+  {
+    mysqlrouter::MySQLSession sess;
+
+    // first round should succeed.
+    try {
+      // the router's certs against the corresponding CA
+      sess.set_ssl_options(mysql_ssl_mode::SSL_MODE_REQUIRED, "", "", "", "",
+                           "", "");
+      sess.connect("127.0.0.1", router_port,
+                   "someuser",  // user
+                   "somepass",  // pass
+                   "",          // socket
+                   ""           // schema
+      );
+
+      sess.disconnect();
+    } catch (const std::exception &e) {
+      FAIL() << e.what();
+    }
+
+    // ... then try until the starts to fail.
+    try {
+      for (size_t rounds{};; ++rounds) {
+        // guard against inifinite loop
+        if (rounds == 100) FAIL() << "connect() should have failed by now.";
+
+        // the router's certs against the corresponding CA
+        sess.connect("127.0.0.1", router_port,
+                     "someuser",  // user
+                     "somepass",  // pass
+                     "",          // socket
+                     ""           // schema
+        );
+
+        sess.disconnect();
+
+        // wait a bit and retry.
+        std::this_thread::sleep_for(100ms);
+      }
+    } catch (const mysqlrouter::MySQLSession::Error &e) {
+      // connect failed eventually.
+      EXPECT_EQ(e.code(), 2003);
+    }
+  }
+
+  // shutdown and check the log file
+  EXPECT_THAT(router.send_clean_shutdown_event(),
+              ::testing::Truly([](auto const &v) { return !bool(v); }));
+  EXPECT_EQ(EXIT_SUCCESS, router.wait_for_exit());
+
+  SCOPED_TRACE("// check for the expected error-msg");
+  EXPECT_THAT(
+      router.get_full_logfile(),
+      ::testing::HasSubstr("Error parsing host:port in metadata for instance"));
 }
 
 struct SplicerFailParam {
