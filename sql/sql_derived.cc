@@ -548,6 +548,13 @@ Item *TABLE_LIST::get_clone_for_derived_expr(THD *thd, Item *item) {
 
   ulong save_old_privilege = thd->want_privilege;
   thd->want_privilege = 0;
+  // Native functions introduced for INFORMATION_SCHEMA system views are
+  // allowed to be invoked from *only* INFORMATION_SCHEMA system views.
+  // THD::parsing_system_view is set if the view being parsed is
+  // INFORMATION_SCHEMA system view and is allowed to invoke native function.
+  // If not, error ER_NO_ACCESS_TO_NATIVE_FCT is reported.
+  bool parsing_system_view_saved = thd->parsing_system_view;
+  thd->parsing_system_view = is_system_view;
 
   bool result = parse_sql(thd, &parser_state, nullptr);
 
@@ -578,7 +585,7 @@ Item *TABLE_LIST::get_clone_for_derived_expr(THD *thd, Item *item) {
   thd->want_privilege = save_old_privilege;
   thd->lex->set_current_select(saved_current_select);
   thd->lex->allow_sum_func = save_allow_sum_func;
-  thd->lex->set_current_select(saved_current_select);
+  thd->parsing_system_view = parsing_system_view_saved;
   // If fix_fields returned error, do not return an unresolved cloned
   // expression.
   return ret ? nullptr : cloned_item;
@@ -1260,6 +1267,7 @@ bool Condition_pushdown::attach_cond_to_derived(Item *derived_cond,
   update_between_count(cond_to_attach);
   having ? derived_select->set_having_cond(derived_cond)
          : derived_select->set_where_cond(derived_cond);
+  thd->lex->set_current_select(saved_select);
   return false;
 }
 

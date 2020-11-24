@@ -1140,3 +1140,11 @@ FROM (SELECT f1 FROM t WHERE  (@b:=NULL) - f2)as dt
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Warnings:
 DROP TABLE t;
+#
+# Bug#32127562:ERROR 3566 (HY000): ACCESS TO NATIVE FUNCTION IS
+#              REJECTED
+#
+set optimizer_switch="derived_merge=off";
+SELECT 1 FROM information_schema.tables WHERE 123 IN (CONCAT_WS(TABLE_ROWS, ''));
+1
+set optimizer_switch="derived_merge=on";
