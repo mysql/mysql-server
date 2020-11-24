@@ -103,7 +103,7 @@ INSERT INTO t1 VALUES (3, 'ghi');
 --connection slave
 --echo # Change master to listen to the master on IP '10.0.2.1' in the 'red' namespace
 --replace_result $MASTER_MYPORT MASTER_PORT $MASTER_LOG_POS MASTER_LOG_POS
---let $chm= CHANGE REPLICATON SOURCE TO SOURCE_HOST='10.0.2.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE='red'
+--let $chm= CHANGE REPLICATION SOURCE TO SOURCE_HOST='10.0.2.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE='red'
 if ( `SELECT @@GLOBAL.GTID_MODE = "OFF"` )
 {
  --let $chm= $chm, SOURCE_LOG_POS=$MASTER_LOG_POS
@@ -138,7 +138,7 @@ SELECT Network_namespace FROM mysql.slave_master_info;
 --connection slave
 --echo # Change master to original connection
 --replace_result $MASTER_MYPORT MASTER_PORT $MASTER_LOG_POS MASTER_LOG_POS
---let $chm= CHANGE REPLICATON SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE=''
+--let $chm= CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE=''
 if ( `SELECT @@GLOBAL.GTID_MODE = "OFF"` )
 {
  --let $chm= $chm, SOURCE_LOG_POS=$MASTER_LOG_POS
