@@ -1652,7 +1652,7 @@ myisam-stats-method nulls_unequal
 myisam-use-mmap FALSE
 mysql-native-password-proxy-users FALSE
 named-pipe FALSE
-named-pipe-full-access-group 
+named-pipe-full-access-group *everyone*
 net-buffer-length 16384
 net-read-timeout 30
 net-retry-count 10
