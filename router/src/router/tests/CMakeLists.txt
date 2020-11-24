@@ -27,7 +27,6 @@ SET(TESTS
   test_cluster_metadata.cc
   test_config_files.cc
   test_config_generator.cc
-  test_datatypes.cc
   test_log_filter.cc
   test_metadata_check.cc
   test_mysql_session.cc

@@ -72,6 +72,7 @@ SET(TESTS
   test_vt100.cc
   test_string_utils.cc
   test_process_launcher.cc
+  test_tcp_address.cc
 )
 
 FOREACH(TEST ${TESTS})

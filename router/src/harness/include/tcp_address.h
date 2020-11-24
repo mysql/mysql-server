@@ -27,8 +27,11 @@
 
 #include <cstdint>
 #include <string>
+#include <system_error>
 
 #include "harness_export.h"
+
+#include "mysql/harness/stdx/expected.h"
 
 namespace mysql_harness {
 
@@ -48,6 +51,8 @@ class HARNESS_EXPORT TCPAddress {
   std::string address() const { return addr_; }
 
   uint16_t port() const { return port_; }
+
+  void port(uint16_t p) { port_ = p; }
 
   /** @brief Returns the address as a string
    *
@@ -82,6 +87,18 @@ class HARNESS_EXPORT TCPAddress {
   /** @brief TCP port */
   uint16_t port_{};
 };
+
+/**
+ * create TCPAddress from endpoint string.
+ *
+ * - [::1]:1234
+ * - ::1
+ * - 10.0.1.1
+ * - 10.0.1.1:1234
+ * - example.org:1234
+ */
+HARNESS_EXPORT stdx::expected<TCPAddress, std::error_code> make_tcp_address(
+    const std::string &endpoint);
 
 }  // namespace mysql_harness
 
