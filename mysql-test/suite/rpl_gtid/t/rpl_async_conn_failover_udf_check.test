@@ -14,7 +14,12 @@
 # 4. Check port parameters values is provided.
 # 5. Check the weight parameter value is integer value between 1-100.
 # 6. Check the default value of weight parameter is 50.
-# 7. Check correct string value is provided for network_namespace.
+# 7. Check asynchronous_connection_failover_add_source returns warning
+#    on network_namespace value. Also if network_namespace is set through
+#    CHANGE REPLICATION SOURCE TO command that network_namespace is returned on
+#    querying
+#    performance_schema.replication_asynchronous_connection_failover
+#    table for the channel.
 #
 # For asynchronous_connection_failover_delete_source:
 # 7. Check that the parameter count is greater than 3,
@@ -142,7 +147,12 @@ SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', 3100);
 
 
 --echo #
---echo # 7. Check correct string value is provided for network_namespace.
+--echo # 7. Check asynchronous_connection_failover_add_source returns warning
+--echo #    on network_namespace value. Also if network_namespace is set through
+--echo #    CHANGE REPLICATION SOURCE TO command that network_namespace is
+--echo #    returned on querying
+--echo #    performance_schema.replication_asynchronous_connection_failover
+--echo #    table for the channel.
 --echo #
 
 --error ER_CANT_INITIALIZE_UDF
@@ -152,12 +162,35 @@ SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 3100, 100);
 --let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
 --source include/assert.inc
 
+--let $assert_text= 'There is no row in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover WHERE network_namespace="", count, 1] = 0
+--source include/assert.inc
 
-SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 3100, '');
+
+# Check network_namespace values set through CHANGE REPLICATION SOURCE TO
+# command is returned.
+SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 3100, 'blue');
 
 --let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover'
 --let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
 --source include/assert.inc
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover WHERE network_namespace="", count, 1] = 1
+--source include/assert.inc
+
+--replace_result $SERVER_MYPORT_1 SERVER_1_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=$SERVER_MYPORT_1, NETWORK_NAMESPACE='red' FOR CHANNEL ""
+
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover with NETWORK_NAMESPACE="red"'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover WHERE network_namespace="red", count, 1] = 1
+--source include/assert.inc
+
 
 
 # Checks for delete sender configuration UDF
@@ -307,5 +340,6 @@ DROP USER 'async_user';
 --let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover WHERE managed_name="", count, 1] = 0
 --source include/assert.inc
 
+RESET REPLICA ALL;
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

@@ -25,6 +25,7 @@
 #include "sql/sql_class.h"
 
 #include "sql/auth/auth_acls.h"
+#include "sql/derror.h" /* ER_THD */
 #include "sql/rpl_async_conn_failover_add_source_udf.h"
 #include "sql/rpl_async_conn_failover_table_operations.h"
 #include "sql/rpl_io_monitor.h"
@@ -72,18 +73,13 @@ char *Rpl_async_conn_failover_add_source::add_source(UDF_INIT *, UDF_ARGS *args,
   std::string host(args->args[1], args->lengths[1]);            // hostname
   uint port = *(reinterpret_cast<long long *>(args->args[2]));  // port
 
-  std::string network_namespace{""};  // network_namespace
-  /* if network_namespace is provided */
-  if (args->arg_count > 3 && args->lengths[3])
-    network_namespace.assign(args->args[3], args->lengths[3]);
-
   /* if weight is provided assign that otherwise add default weight value */
   uint weight = (args->arg_count > 4) ? *((long long *)args->args[4])
                                       : DEFAULT_WEIGHT_VAL;
 
   /* add row */
   std::tie(err_val, err_msg) =
-      sql_operations.add_source(channel, host, port, network_namespace, weight);
+      sql_operations.add_source(channel, host, port, "", weight);
 
   if (err_val) {
     *error = 1;
@@ -92,6 +88,13 @@ char *Rpl_async_conn_failover_add_source::add_source(UDF_INIT *, UDF_ARGS *args,
     err_msg.assign(
         "The UDF asynchronous_connection_failover_add_source() "
         "executed successfully.");
+
+    if (args->arg_count > 3 && args->lengths[3] > 0) {
+      push_warning(
+          current_thd, Sql_condition::SL_WARNING,
+          ER_WARN_ASYNC_CONN_FAILOVER_NETWORK_NAMESPACE,
+          ER_THD(current_thd, ER_WARN_ASYNC_CONN_FAILOVER_NETWORK_NAMESPACE));
+    }
   }
 
   strcpy(result, err_msg.c_str());
@@ -132,7 +135,7 @@ bool Rpl_async_conn_failover_add_source::add_source_init(UDF_INIT *init_id,
 
   if (args->arg_count > 3 && args->arg_type[3] != STRING_RESULT) {
     my_stpcpy(message,
-              "Wrong arguments: You need to specify correct value for "
+              "Wrong arguments: You need to specify a string value for "
               "network_namespace.");
     return true;
   }

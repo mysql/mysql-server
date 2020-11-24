@@ -80,8 +80,8 @@ include/assert.inc ['There is one row in performance_schema.replication_asynchro
 #
 # 8. Check correct string value is provided for network_namespace.
 #
-SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, 100, 80, 60);
-ERROR HY000: Can't initialize function 'asynchronous_connection_failover_add_managed'; Wrong arguments: You need to specify correct value for network_namespace.
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb', '127.0.0.1', 3310, 100, 80, 60);
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_add_managed'; Wrong arguments: You need to specify a string value for network_namespace.
 include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
 include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover_managed']
 SELECT * FROM performance_schema.replication_asynchronous_connection_failover;
@@ -90,31 +90,43 @@ CHANNEL_NAME	HOST	PORT	NETWORK_NAMESPACE	WEIGHT	MANAGED_NAME
 SELECT * FROM performance_schema.replication_asynchronous_connection_failover_managed;
 CHANNEL_NAME	MANAGED_NAME	MANAGED_TYPE	CONFIGURATION
 	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa	GroupReplication	{"Primary_weight": 80, "Secondary_weight": 60}
-SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '10.0.0.10', 1111, 'nets', 20, 10);
-ERROR HY000: asynchronous_connection_failover_add_managed UDF failed; Error inserting row to the table.
-include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
-include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover_managed']
-SELECT * FROM performance_schema.replication_asynchronous_connection_failover;
-CHANNEL_NAME	HOST	PORT	NETWORK_NAMESPACE	WEIGHT	MANAGED_NAME
-	127.0.0.1	3310		60	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
-SELECT * FROM performance_schema.replication_asynchronous_connection_failover_managed;
-CHANNEL_NAME	MANAGED_NAME	MANAGED_TYPE	CONFIGURATION
-	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa	GroupReplication	{"Primary_weight": 80, "Secondary_weight": 60}
-SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '10.0.0.11', 2222, 'blue', 25, 15);
-asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '10.0.0.11', 2222, 'blue', 25, 15)
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb', '10.0.0.10', 1111, 'nets', 20, 10);
+asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb', '10.0.0.10', 1111, 'nets', 20, 10)
 The UDF asynchronous_connection_failover_add_managed() executed successfully.
+Warnings:
+Warning	4031	The parameter network_namespace is reserved for future use. Please use the CHANGE REPLICATION SOURCE command to set channel network_namespace parameter.
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover_managed']
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover;
+CHANNEL_NAME	HOST	PORT	NETWORK_NAMESPACE	WEIGHT	MANAGED_NAME
+	10.0.0.10	1111		10	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb
+	127.0.0.1	3310		60	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover_managed;
+CHANNEL_NAME	MANAGED_NAME	MANAGED_TYPE	CONFIGURATION
+	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa	GroupReplication	{"Primary_weight": 80, "Secondary_weight": 60}
+	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb	GroupReplication	{"Primary_weight": 20, "Secondary_weight": 10}
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb', '10.0.0.11', 2222, 'blue', 25, 15);
+asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb', '10.0.0.11', 2222, 'blue', 25, 15)
+The UDF asynchronous_connection_failover_add_managed() executed successfully.
+Warnings:
+Warning	4031	The parameter network_namespace is reserved for future use. Please use the CHANGE REPLICATION SOURCE command to set channel network_namespace parameter.
 include/assert.inc ['There are 2 rows in performance_schema.replication_asynchronous_connection_failover']
 include/assert.inc ['There are 2 rows in performance_schema.replication_asynchronous_connection_failover_managed']
 SELECT * FROM performance_schema.replication_asynchronous_connection_failover;
 CHANNEL_NAME	HOST	PORT	NETWORK_NAMESPACE	WEIGHT	MANAGED_NAME
+	10.0.0.10	1111		10	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb
 	127.0.0.1	3310		60	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
-ch1	10.0.0.11	2222	blue	15	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+ch1	10.0.0.11	2222		15	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb
 SELECT * FROM performance_schema.replication_asynchronous_connection_failover_managed;
 CHANNEL_NAME	MANAGED_NAME	MANAGED_TYPE	CONFIGURATION
 	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa	GroupReplication	{"Primary_weight": 80, "Secondary_weight": 60}
-ch1	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa	GroupReplication	{"Primary_weight": 25, "Secondary_weight": 15}
-SELECT asynchronous_connection_failover_delete_managed('ch1', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
-asynchronous_connection_failover_delete_managed('ch1', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')
+	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb	GroupReplication	{"Primary_weight": 20, "Secondary_weight": 10}
+ch1	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb	GroupReplication	{"Primary_weight": 25, "Secondary_weight": 15}
+SELECT asynchronous_connection_failover_delete_managed('', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb');
+asynchronous_connection_failover_delete_managed('', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb')
+The UDF asynchronous_connection_failover_delete_managed() executed successfully.
+SELECT asynchronous_connection_failover_delete_managed('ch1', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb');
+asynchronous_connection_failover_delete_managed('ch1', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb')
 The UDF asynchronous_connection_failover_delete_managed() executed successfully.
 #
 # 9. Check that the parameter count is equal to 2.

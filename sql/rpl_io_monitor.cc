@@ -382,19 +382,17 @@ int Source_IO_monitor::connect_senders(THD *thd,
     }
     const std::string mi_host{mi->host};
     const uint mi_port = mi->port;
-    const std::string mi_network_namespace(mi->network_namespace_str());
     channel_map.unlock();
 
     for (auto source_conn_detail : source_conn_detail_list) {
       uint port{0}, weight{0};
-      std::string host{""}, network_namespace{""};
+      std::string host{""};
 
-      std::tie(std::ignore, host, port, network_namespace, weight,
-               std::ignore) = source_conn_detail;
+      std::tie(std::ignore, host, port, std::ignore, weight, std::ignore) =
+          source_conn_detail;
 
       /* save weight for current connected sender */
-      if ((host.compare(mi_host) == 0) && (port == mi_port) &&
-          (network_namespace == mi_network_namespace)) {
+      if ((host.compare(mi_host) == 0) && (port == mi_port)) {
         curr_conn_weight = weight;
         break;
       }
@@ -431,9 +429,11 @@ int Source_IO_monitor::connect_senders(THD *thd,
     }
     std::string mi_host{mi->host};
     uint mi_port = mi->port;
+    const std::string mi_network_namespace(mi->network_namespace_str());
 
     THD_STAGE_INFO(thd, stage_connecting_to_master);
-    Mysql_connection *conn = new Mysql_connection(thd, mi, host, port, "");
+    Mysql_connection *conn =
+        new Mysql_connection(thd, mi, host, port, mi_network_namespace);
     if (!conn->is_connected()) {
       LogErr(WARNING_LEVEL, ER_RPL_ASYNC_CHANNEL_CANT_CONNECT, host.c_str(),
              port, "", channel.c_str());
@@ -583,12 +583,13 @@ bool Source_IO_monitor::check_connection_and_run_query(
     THD *thd, Master_info *mi, RPL_FAILOVER_SOURCE_TUPLE &conn_detail) {
   uint query_failed{1};
   uint port{0};
-  std::string host{""}, network_namespace{""};
-  std::tie(std::ignore, host, port, network_namespace, std::ignore,
-           std::ignore) = conn_detail;
+  std::string host{""};
+  const std::string mi_network_namespace(mi->network_namespace_str());
+  std::tie(std::ignore, host, port, std::ignore, std::ignore, std::ignore) =
+      conn_detail;
 
   Mysql_connection *conn_single_server =
-      new Mysql_connection(thd, mi, host, port, network_namespace);
+      new Mysql_connection(thd, mi, host, port, mi_network_namespace);
   if (conn_single_server != nullptr && conn_single_server->is_connected())
     std::tie(query_failed, std::ignore) = execute_query(
         conn_single_server, enum_sql_query_tag::QUERY_SERVER_SELECT_ONE);
