@@ -313,7 +313,6 @@ SET DEBUG_SYNC= 'RESET';
 --echo #
 --echo # 17. Stop replica IO
 --echo #
-SET @@GLOBAL.DEBUG= @old_debug;
 --source include/stop_slave.inc
 
 
