@@ -125,7 +125,7 @@ Optimize_table_order::Optimize_table_order(THD *thd_arg, JOIN *join_arg,
           (emb_sjm_nest ? (join->all_table_map & ~emb_sjm_nest->sj_inner_tables)
                         : 0) |
           (join->allow_outer_refs ? 0 : OUTER_REF_TABLE_BIT)),
-      has_sj(!(join->select_lex->sj_nests.empty() || emb_sjm_nest)),
+      has_sj(!(join->query_block->sj_nests.empty() || emb_sjm_nest)),
       test_all_ref_keys(false),
       found_plan_with_allowed_sj(false),
       got_final_plan(false) {}
@@ -888,16 +888,16 @@ double Optimize_table_order::lateral_derived_cost(
     const JOIN_TAB *tab, const uint idx, const double prefix_rowcount,
     const Cost_model_server *cost_model) {
   DBUG_ASSERT(tab->table_ref->is_derived() &&
-              tab->table_ref->derived_unit()->m_lateral_deps);
+              tab->table_ref->derived_query_expression()->m_lateral_deps);
   if (prefix_rowcount == 0)  // no input rows: no materialization needed
     return 0;
-  table_map deps = tab->table_ref->derived_unit()->m_lateral_deps;
+  table_map deps = tab->table_ref->derived_query_expression()->m_lateral_deps;
   POSITION *positions = got_final_plan ? join->best_positions : join->positions;
   double derived_mat_cost = 0;
   for (int j = idx; j >= (int)join->const_tables; j--) {
     if (deps & join->best_ref[j]->table_ref->map()) {
       // We found the last table in plan, on which 'tab' depends.
-      auto res = tab->table_ref->derived_unit()->query_result();
+      auto res = tab->table_ref->derived_query_expression()->query_result();
       double inner_query_cost = res->estimated_cost;
       double inner_query_rowcount = res->estimated_rowcount;
       // copied and simplified from calculate_materialization_costs()
@@ -1005,7 +1005,7 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
 
   double derived_mat_cost =
       (tab->table_ref->is_derived() &&
-       tab->table_ref->derived_unit()->m_lateral_deps)
+       tab->table_ref->derived_query_expression()->m_lateral_deps)
           ? lateral_derived_cost(tab, idx, prefix_rowcount, cost_model)
           : 0;
 
@@ -1136,7 +1136,7 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
          best_read_cost +
              cost_model->row_evaluate_cost(prefix_rowcount * rows_fetched))) {
       /*
-        If the table has a range (tab->quick is set) make_join_select()
+        If the table has a range (tab->quick is set) make_join_query_block()
         will ensure that this will be used
       */
       best_read_cost = scan_read_cost;
@@ -1175,7 +1175,7 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
     become 0, regardless of access method).
   */
   if (rows_fetched == 0.0 &&
-      (join->select_lex->outer_join & tab->table_ref->map()))
+      (join->query_block->outer_join & tab->table_ref->map()))
     rows_fetched = 1.0;
 
   /*
@@ -1236,7 +1236,7 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
         materializations, the filtering effect is needed to
         estimate the number of rows in the potentially materialized
         subquery, or
-    2d) 'tab' is in a select_lex with a semijoin nest. Rationale: the
+    2d) 'tab' is in a query_block with a semijoin nest. Rationale: the
         cost of some of the duplicate elimination strategies depends
         on the size of the output, or
     2e) The query has either an order by or group by clause and a limit clause.
@@ -1257,9 +1257,10 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
             OPTIMIZER_SWITCH_COND_FANOUT_FILTER) &&  // 1)
         (is_join_buffering ||                        // 2a
          remaining_tables != 0 ||                    // 2b
-         tab->join()->select_lex->master_unit()->outer_select() !=
-             nullptr ||                                 // 2c
-         !tab->join()->select_lex->sj_nests.empty() ||  // 2d
+         tab->join()
+                 ->query_block->master_query_expression()
+                 ->outer_query_block() != nullptr ||     // 2c
+         !tab->join()->query_block->sj_nests.empty() ||  // 2d
          ((!tab->join()->order.empty() || !tab->join()->group_list.empty()) &&
           tab->join()->unit->select_limit_cnt != HA_POS_ERROR) ||  // 2e
          thd->lex->is_explain())))                                 // 2f
@@ -1592,7 +1593,7 @@ bool Optimize_table_order::semijoin_loosescan_fill_driving_table_position(
   */
   double derived_mat_cost =
       (tab->table_ref->is_derived() &&
-       tab->table_ref->derived_unit()->m_lateral_deps)
+       tab->table_ref->derived_query_expression()->m_lateral_deps)
           ? lateral_derived_cost(tab, idx, prefix_rowcount, join->cost_model())
           : 0;
 
@@ -1925,10 +1926,10 @@ bool Optimize_table_order::choose_table_order() {
     return false;
   }
 
-  join->select_lex->reset_nj_counters();
+  join->query_block->reset_nj_counters();
 
   const bool straight_join =
-      join->select_lex->active_options() & SELECT_STRAIGHT_JOIN;
+      join->query_block->active_options() & SELECT_STRAIGHT_JOIN;
   table_map join_tables;  ///< The tables involved in order selection
 
   if (emb_sjm_nest) {
@@ -2079,7 +2080,7 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables) {
   const Cost_model_server *const cost_model = join->cost_model();
 
   // resolve_subquery() disables semijoin if STRAIGHT_JOIN
-  DBUG_ASSERT(join->select_lex->sj_nests.empty());
+  DBUG_ASSERT(join->query_block->sj_nests.empty());
 
   Deps_of_remaining_lateral_derived_tables deps_lateral(join, ~excluded_tables);
 
@@ -3320,7 +3321,7 @@ bool Optimize_table_order::fix_semijoin_strategies() {
 
   DBUG_TRACE;
 
-  if (join->select_lex->sj_nests.empty()) return false;
+  if (join->query_block->sj_nests.empty()) return false;
 
   Opt_trace_context *const trace = &thd->opt_trace;
 

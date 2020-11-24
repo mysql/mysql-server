@@ -1093,7 +1093,7 @@ static bool select_like_stmt_test(THD *thd, Query_result *result,
   DBUG_TRACE;
   LEX *const lex = thd->lex;
 
-  lex->select_lex->context.resolve_in_select_list = true;
+  lex->query_block->context.resolve_in_select_list = true;
 
   if (lex->unit->prepare(thd, result, nullptr, added_options, 0)) {
     return true;
@@ -1113,14 +1113,14 @@ static bool select_like_stmt_test(THD *thd, Query_result *result,
 
 bool Sql_cmd_create_table::prepare(THD *thd) {
   LEX *const lex = thd->lex;
-  SELECT_LEX *select_lex = lex->select_lex;
+  Query_block *query_block = lex->query_block;
   TABLE_LIST *create_table = lex->query_tables;
   DBUG_TRACE;
 
   if (create_table_precheck(thd, query_expression_tables, create_table))
     return true;
 
-  if (!select_lex->fields.empty()) {
+  if (!query_block->fields.empty()) {
     /* Base table and temporary table are not in the same name space. */
     if (!(lex->create_info->options & HA_LEX_CREATE_TMP_TABLE))
       create_table->open_type = OT_BASE_ONLY;
@@ -1129,12 +1129,12 @@ bool Sql_cmd_create_table::prepare(THD *thd) {
                               MYSQL_OPEN_FORCE_SHARED_MDL))
       return true;
 
-    select_lex->context.resolve_in_select_list = true;
+    query_block->context.resolve_in_select_list = true;
 
     Prepared_stmt_arena_holder ps_arena_holder(thd);
 
     Query_result *result = new (thd->mem_root)
-        Query_result_create(create_table, &select_lex->fields, lex->duplicates,
+        Query_result_create(create_table, &query_block->fields, lex->duplicates,
                             query_expression_tables);
     if (result == nullptr) return true;
 
@@ -1176,7 +1176,7 @@ static bool mysql_test_create_view(Prepared_statement *stmt) {
 
   THD *thd = stmt->thd;
   LEX *lex = stmt->lex;
-  SELECT_LEX *const select = lex->select_lex;
+  Query_block *const select = lex->query_block;
   bool res = true;
   /* Skip first table, which is the view we are creating */
   bool link_to_local;
@@ -1248,7 +1248,7 @@ err:
 bool Prepared_statement::prepare_query() {
   DBUG_TRACE;
   DBUG_ASSERT(lex == thd->lex);  // set_n_backup_active_arena() guarantees that
-  SELECT_LEX *select_lex = lex->select_lex;
+  Query_block *query_block = lex->query_block;
   enum enum_sql_command sql_command = lex->sql_command;
   int res = 0;
   DBUG_PRINT("enter",
@@ -1258,7 +1258,8 @@ bool Prepared_statement::prepare_query() {
   TABLE_LIST *const tables = lex->query_tables;
 
   /* set context for commands which do not use setup_tables */
-  select_lex->context.resolve_in_table_list_only(select_lex->get_table_list());
+  query_block->context.resolve_in_table_list_only(
+      query_block->get_table_list());
 
   /*
     For the optimizer trace, this is the symmetric, for statement preparation,
@@ -1445,9 +1446,9 @@ bool Prepared_statement::prepare_query() {
 
   if ((sql_command_flags[sql_command] & CF_HAS_RESULT_SET) &&
       !lex->is_explain()) {
-    SELECT_LEX_UNIT *unit = lex->unit;
+    Query_expression *unit = lex->unit;
     result = unit->query_result();
-    if (result == nullptr) result = unit->first_select()->query_result();
+    if (result == nullptr) result = unit->first_query_block()->query_result();
     if (result == nullptr) result = lex->result;
     types = unit->get_unit_column_types();
     no_columns = result->field_count(*types);
@@ -3224,8 +3225,8 @@ bool Prepared_statement::validate_metadata(Prepared_statement *copy) {
   */
   if (is_sql_prepare() || lex->is_explain()) return false;
 
-  if (lex->select_lex->num_visible_fields() !=
-      copy->lex->select_lex->num_visible_fields()) {
+  if (lex->query_block->num_visible_fields() !=
+      copy->lex->query_block->num_visible_fields()) {
     /** Column counts mismatch, update the client */
     thd->server_status |= SERVER_STATUS_METADATA_CHANGED;
   }
@@ -3343,11 +3344,11 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor) {
     open a cursor -- the client library will recognize this case and
     materialize the result set.
     For SELECT statements lex->result is created in prepare_query().
-    lex->result->simple_select() is FALSE in INSERT ... SELECT and
+    lex->result->simple_query_block() is FALSE in INSERT ... SELECT and
     similar commands.
   */
 
-  if (open_cursor && lex->result && lex->result->check_simple_select()) {
+  if (open_cursor && lex->result && lex->result->check_simple_query_block()) {
     DBUG_PRINT("info", ("Cursor asked for not SELECT stmt"));
     return true;
   }

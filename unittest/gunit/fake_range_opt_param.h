@@ -57,7 +57,7 @@ class Fake_RANGE_OPT_PARAM : public RANGE_OPT_PARAM {
 
     thd = thd_arg;
     mem_root = alloc_arg;
-    select_lex = thd_arg->lex->current_select();
+    query_block = thd_arg->lex->current_query_block();
 
     if (number_columns != 0) {
       table = &fake_table;

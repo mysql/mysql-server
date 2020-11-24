@@ -2058,7 +2058,7 @@ void Parser_partition_info::init_col_val(part_column_list_val *col_val,
 
 bool Parser_partition_info::add_column_list_value(THD *thd, Item *item) {
   part_column_list_val *col_val;
-  Name_resolution_context *context = &thd->lex->current_select()->context;
+  Name_resolution_context *context = &thd->lex->current_query_block()->context;
   TABLE_LIST *save_list = context->table_list;
   const char *save_where = thd->where;
   DBUG_TRACE;

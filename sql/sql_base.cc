@@ -2058,12 +2058,12 @@ TABLE_LIST *find_table_in_global_list(TABLE_LIST *table, const char *db_name,
 
   NOTE: to exclude derived tables from check we use following mechanism:
     a) during derived table processing set THD::derived_tables_processing
-    b) SELECT_LEX::prepare set SELECT::exclude_from_table_unique_test if
+    b) Query_block::prepare set SELECT::exclude_from_table_unique_test if
        THD::derived_tables_processing set. (we can't use JOIN::execute
-       because for PS we perform only SELECT_LEX::prepare, but we can't set
-       this flag in SELECT_LEX::prepare if we are not sure that we are in
+       because for PS we perform only Query_block::prepare, but we can't set
+       this flag in Query_block::prepare if we are not sure that we are in
        derived table processing loop, because multi-update call fix_fields()
-       for some its items (which mean SELECT_LEX::prepare for subqueries)
+       for some its items (which mean Query_block::prepare for subqueries)
        before unique_table call to detect which tables should be locked for
        write).
     c) find_dup_table skip all tables which belong to SELECT with
@@ -2130,7 +2130,7 @@ static TABLE_LIST *find_dup_table(const TABLE_LIST *table,
       Skip if marked to be excluded (could be a derived table) or if
       entry is a prelocking placeholder.
     */
-    if (res->select_lex && !res->select_lex->exclude_from_table_unique_test &&
+    if (res->query_block && !res->query_block->exclude_from_table_unique_test &&
         !res->prelocking_placeholder)
       break;
 
@@ -7895,9 +7895,9 @@ Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *first_table,
     db = name_buff;
   }
 
-  if (first_table && first_table->select_lex &&
-      first_table->select_lex->end_lateral_table)
-    last_table = first_table->select_lex->end_lateral_table;
+  if (first_table && first_table->query_block &&
+      first_table->query_block->end_lateral_table)
+    last_table = first_table->query_block->end_lateral_table;
   else if (last_table)
     last_table = last_table->next_name_resolution_table;
 
@@ -8254,9 +8254,9 @@ static bool set_new_item_local_context(THD *thd, Item_ident *item,
   context->init();
   context->first_name_resolution_table = context->last_name_resolution_table =
       table_ref;
-  context->select_lex = table_ref->select_lex;
-  context->next_context = table_ref->select_lex->first_context;
-  table_ref->select_lex->first_context = context;
+  context->query_block = table_ref->query_block;
+  context->next_context = table_ref->query_block->first_context;
+  table_ref->query_block->first_context = context;
   item->context = context;
   return false;
 }
@@ -8622,7 +8622,7 @@ static bool store_natural_using_join_columns(THD *thd,
     and materializes the row types of NATURAL/USING joins in a
     bottom-up manner until it reaches the TABLE_LIST elements that
     represent the top-most NATURAL/USING joins. The procedure should be
-    applied to each element of SELECT_LEX::top_join_list (i.e. to each
+    applied to each element of Query_block::top_join_list (i.e. to each
     top-level element of the FROM clause).
 
   IMPLEMENTATION
@@ -8791,7 +8791,7 @@ bool setup_natural_join_row_types(THD *thd,
                                        right_neighbor))
         return true;
     }
-    if (left_neighbor && context->select_lex->first_execution) {
+    if (left_neighbor && context->query_block->first_execution) {
       left_neighbor->next_name_resolution_table =
           table_ref->first_leaf_for_name_resolution();
     }
@@ -8887,7 +8887,7 @@ bool setup_fields(THD *thd, ulong want_privilege, bool allow_sum_func,
                   Ref_item_array ref_item_array) {
   DBUG_TRACE;
 
-  SELECT_LEX *const select = thd->lex->current_select();
+  Query_block *const select = thd->lex->current_query_block();
   const enum_mark_columns save_mark_used_columns = thd->mark_used_columns;
   nesting_map save_allow_sum_func = thd->lex->allow_sum_func;
   Column_privilege_tracker column_privilege(thd,
@@ -9072,7 +9072,7 @@ bool setup_fields(THD *thd, ulong want_privilege, bool allow_sum_func,
   however the former has to return columns of T1 then of T2,
   while the latter has to return T2's then T1's.
   The conversion has been complete: the lists 'next_local',
-  'next_name_resolution_table' and SELECT_LEX::join_list are as if the user
+  'next_name_resolution_table' and Query_block::join_list are as if the user
   had typed the second query.
 
   Now to the behaviour of this iterator.
@@ -9098,22 +9098,22 @@ bool setup_fields(THD *thd, ulong want_privilege, bool allow_sum_func,
  */
 class Tables_in_user_order_iterator {
  public:
-  void init(SELECT_LEX *select_lex, bool qualified) {
-    DBUG_ASSERT(select_lex && !m_select_lex);
-    m_select_lex = select_lex;
+  void init(Query_block *query_block, bool qualified) {
+    DBUG_ASSERT(query_block && !m_query_block);
+    m_query_block = query_block;
     m_qualified = qualified;
     // Vector is needed only if '*' is not qualified and there were RIGHT JOINs
     if (m_qualified) {
-      m_next = m_select_lex->context.table_list;
+      m_next = m_query_block->context.table_list;
       return;
     }
-    if (!m_select_lex->right_joins()) {
-      m_next = m_select_lex->context.first_name_resolution_table;
+    if (!m_query_block->right_joins()) {
+      m_next = m_query_block->context.first_name_resolution_table;
       return;
     }
     m_next = nullptr;
     m_vec = new std::vector<TABLE_LIST *>;
-    fill_vec(*m_select_lex->join_list);
+    fill_vec(*m_query_block->join_list);
   }
   ~Tables_in_user_order_iterator() {
     delete m_vec;
@@ -9152,7 +9152,7 @@ class Tables_in_user_order_iterator {
       fill_vec(tr->nested_join->join_list);
   }
   // Query block which owns the FROM clause to search in
-  SELECT_LEX *m_select_lex{nullptr};
+  Query_block *m_query_block{nullptr};
   /// True/false if we want to expand 'table_name.*' / '*'.
   bool m_qualified;
   /// If not using the vector: next table to emit
@@ -9170,7 +9170,7 @@ class Tables_in_user_order_iterator {
   SYNOPSIS
     insert_fields()
     thd			Thread handler
-    select_lex          Query block
+    query_block          Query block
     db_name		Database name in case of 'database_name.table_name.*'
     table_name		Table name in case of 'table_name.*'
     it			Pointer to '*'
@@ -9182,7 +9182,7 @@ class Tables_in_user_order_iterator {
     1	error.  Error message is generated but not sent to client
 */
 
-bool insert_fields(THD *thd, SELECT_LEX *select_lex, const char *db_name,
+bool insert_fields(THD *thd, Query_block *query_block, const char *db_name,
                    const char *table_name, mem_root_deque<Item *> *fields,
                    mem_root_deque<Item *>::iterator *it, bool any_privileges) {
   char name_buff[NAME_LEN + 1];
@@ -9190,7 +9190,7 @@ bool insert_fields(THD *thd, SELECT_LEX *select_lex, const char *db_name,
   DBUG_PRINT("arena", ("stmt arena: %p", thd->stmt_arena));
 
   // No need to expand '*' multiple times:
-  DBUG_ASSERT(select_lex->first_execution);
+  DBUG_ASSERT(query_block->first_execution);
   if (db_name &&
       (lower_case_table_names || is_infoschema_db(db_name, strlen(db_name)))) {
     /*
@@ -9211,7 +9211,7 @@ bool insert_fields(THD *thd, SELECT_LEX *select_lex, const char *db_name,
   TABLE_LIST *tables;
 
   Tables_in_user_order_iterator user_it;
-  user_it.init(select_lex, table_name != nullptr);
+  user_it.init(query_block, table_name != nullptr);
 
   while (true) {
     tables = user_it.get_next();
@@ -9252,7 +9252,7 @@ bool insert_fields(THD *thd, SELECT_LEX *select_lex, const char *db_name,
       views and natural joins this update is performed inside the loop below.
     */
     if (table) {
-      thd->lex->current_select()->select_list_tables |= tables->map();
+      thd->lex->current_query_block()->select_list_tables |= tables->map();
     }
 
     /*
@@ -9319,7 +9319,8 @@ bool insert_fields(THD *thd, SELECT_LEX *select_lex, const char *db_name,
         }
       }
 
-      thd->lex->current_select()->select_list_tables |= item->used_tables();
+      thd->lex->current_query_block()->select_list_tables |=
+          item->used_tables();
 
       Field *const field = field_iterator.field();
       if (field) {
@@ -10164,11 +10165,11 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
   if (!has_lock) table_cache_manager.unlock_all_and_tdc();
 }
 
-int setup_ftfuncs(const THD *thd, SELECT_LEX *select_lex) {
-  DBUG_ASSERT(select_lex->has_ft_funcs());
+int setup_ftfuncs(const THD *thd, Query_block *query_block) {
+  DBUG_ASSERT(query_block->has_ft_funcs());
 
-  List_iterator<Item_func_match> li(*(select_lex->ftfunc_list)),
-      lj(*(select_lex->ftfunc_list));
+  List_iterator<Item_func_match> li(*(query_block->ftfunc_list)),
+      lj(*(query_block->ftfunc_list));
   Item_func_match *ftf, *ftf2;
 
   while ((ftf = li++)) {
@@ -10188,10 +10189,10 @@ int setup_ftfuncs(const THD *thd, SELECT_LEX *select_lex) {
   return 0;
 }
 
-bool init_ftfuncs(THD *thd, SELECT_LEX *select_lex) {
-  DBUG_ASSERT(select_lex->has_ft_funcs());
+bool init_ftfuncs(THD *thd, Query_block *query_block) {
+  DBUG_ASSERT(query_block->has_ft_funcs());
 
-  List_iterator<Item_func_match> li(*(select_lex->ftfunc_list));
+  List_iterator<Item_func_match> li(*(query_block->ftfunc_list));
   DBUG_PRINT("info", ("Performing FULLTEXT search"));
   THD_STAGE_INFO(thd, stage_fulltext_initialization);
 

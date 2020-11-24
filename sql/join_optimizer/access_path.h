@@ -708,7 +708,7 @@ struct AccessPath {
       bool count_all_rows;
       bool reject_multiple_rows;
       // Only used when the LIMIT is on a UNION with SQL_CALC_FOUND_ROWS.
-      // See SELECT_LEX_UNIT::send_records.
+      // See Query_expression::send_records.
       ha_rows *send_records_override;
     } limit_offset;
     struct {
@@ -1116,7 +1116,7 @@ inline AccessPath *NewMaterializeAccessPath(
     THD *thd,
     Mem_root_array<MaterializePathParameters::QueryBlock> query_blocks,
     Mem_root_array<const AccessPath *> *invalidators, TABLE *table,
-    AccessPath *table_path, Common_table_expr *cte, SELECT_LEX_UNIT *unit,
+    AccessPath *table_path, Common_table_expr *cte, Query_expression *unit,
     int ref_slice, bool rematerialize, ha_rows limit_rows,
     bool reject_multiple_rows) {
   MaterializePathParameters *param =

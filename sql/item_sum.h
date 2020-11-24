@@ -72,7 +72,7 @@ class Json_object;
 class Json_wrapper;
 class PT_item_list;
 class PT_order_list;
-class SELECT_LEX;
+class Query_block;
 class THD;
 class Temp_table_param;
 class Window;
@@ -313,10 +313,10 @@ class Aggregator {
 
  IMPLEMENTATION NOTES
 
-  The member base_select contains a reference to the query block that the
+  The member base_query_block contains a reference to the query block that the
   set function is contained within.
 
-  The member aggr_select contains a reference to the query block where the
+  The member aggr_query_block contains a reference to the query block where the
   set function is aggregated.
 
   The field max_aggr_level holds the maximum of the nest levels of the
@@ -367,7 +367,7 @@ class Aggregator {
   and reports an error if it is invalid.
   The method check_sum_func serves to link the items for the set functions
   that are aggregated in the containing query blocks. Circular chains of such
-  functions are attached to the corresponding SELECT_LEX structures
+  functions are attached to the corresponding Query_block structures
   through the field inner_sum_func_list.
 
   Exploiting the fact that the members mentioned above are used in one
@@ -477,13 +477,13 @@ class Item_sum : public Item_result_field, public Func_args_handle {
   Item **referenced_by[2];
   Item_sum *next_sum;     ///< next in the circular chain of registered objects
   Item_sum *in_sum_func;  ///< the containing set function if any
-  SELECT_LEX *base_select;  ///< query block where function is placed
+  Query_block *base_query_block;  ///< query block where function is placed
   /**
     For a group aggregate, query block where function is aggregated. For a
     window function, nullptr, as such function is always aggregated in
-    base_select, as it mustn't contain any outer reference.
+    base_query_block, as it mustn't contain any outer reference.
   */
-  SELECT_LEX *aggr_select;
+  Query_block *aggr_query_block;
   int8 max_aggr_level;  ///< max level of unbound column references
   int8
       max_sum_func_level;  ///< max level of aggregation for contained functions
@@ -507,7 +507,7 @@ class Item_sum : public Item_result_field, public Func_args_handle {
 
  public:
   void mark_as_sum_func();
-  void mark_as_sum_func(SELECT_LEX *);
+  void mark_as_sum_func(Query_block *);
 
   Item_sum(const POS &pos, PT_window *w)
       : super(pos),
@@ -614,8 +614,8 @@ class Item_sum : public Item_result_field, public Func_args_handle {
     return forced_const ? 0 : used_tables_cache;
   }
   void update_used_tables() override;
-  void fix_after_pullout(SELECT_LEX *parent_select,
-                         SELECT_LEX *removed_select) override;
+  void fix_after_pullout(Query_block *parent_query_block,
+                         Query_block *removed_query_block) override;
   void add_used_tables_for_aggr_func();
   bool is_null() override { return null_value; }
   void make_const() {
@@ -653,10 +653,11 @@ class Item_sum : public Item_result_field, public Func_args_handle {
       The query block we walk from. All found aggregates must aggregate in
       this; if some aggregate in outer query blocks, break off transformation.
     */
-    SELECT_LEX *m_select{nullptr};
+    Query_block *m_query_block{nullptr};
     /// true: break off transformation
     bool m_break_off{false};
-    Collect_grouped_aggregate_info(SELECT_LEX *select) : m_select(select) {}
+    Collect_grouped_aggregate_info(Query_block *select)
+        : m_query_block(select) {}
   };
 
   bool collect_grouped_aggregates(uchar *) override;
@@ -734,7 +735,7 @@ class Item_sum : public Item_result_field, public Func_args_handle {
 
     @returns true if error
    */
-  virtual bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+  virtual bool check_wf_semantics1(THD *thd, Query_block *select,
                                    Window_evaluation_requirements *reqs);
 
   /**
@@ -1054,7 +1055,7 @@ class Item_sum_sum : public Item_sum_num {
   String *val_str(String *str) override;
   my_decimal *val_decimal(my_decimal *) override;
   enum Item_result result_type() const override { return hybrid_type; }
-  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+  bool check_wf_semantics1(THD *thd, Query_block *select,
                            Window_evaluation_requirements *reqs) override;
   void reset_field() override;
   void update_field() override;
@@ -1248,7 +1249,7 @@ class Item_sum_json : public Item_sum {
   void reset_field() override;
   void update_field() override;
 
-  bool check_wf_semantics1(THD *, SELECT_LEX *,
+  bool check_wf_semantics1(THD *, Query_block *,
                            Window_evaluation_requirements *) override;
 };
 
@@ -1305,7 +1306,7 @@ class Item_sum_json_object final : public Item_sum_json {
   void clear() override;
   bool add() override;
   Item *copy_or_same(THD *thd) override;
-  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+  bool check_wf_semantics1(THD *thd, Query_block *select,
                            Window_evaluation_requirements *reqs) override;
 };
 
@@ -1482,7 +1483,7 @@ class Item_sum_variance : public Item_sum_num {
     count = 0;
     Item_sum_num::cleanup();
   }
-  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+  bool check_wf_semantics1(THD *thd, Query_block *select,
                            Window_evaluation_requirements *reqs) override;
 };
 
@@ -1682,7 +1683,7 @@ class Item_sum_hybrid : public Item_sum {
   bool uses_only_one_row() const override { return m_optimize; }
   bool add() override;
   Item *copy_or_same(THD *thd) override;
-  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+  bool check_wf_semantics1(THD *thd, Query_block *select,
                            Window_evaluation_requirements *r) override;
 
  private:
@@ -2193,7 +2194,7 @@ class Item_func_group_concat final : public Item_sum {
     return false;
   }
 
-  bool check_wf_semantics1(THD *, SELECT_LEX *,
+  bool check_wf_semantics1(THD *, Query_block *,
                            Window_evaluation_requirements *) override {
     unsupported_as_wf();
     return true;
@@ -2270,7 +2271,7 @@ class Item_row_number : public Item_non_framing_wf {
 
   Item_result result_type() const override { return INT_RESULT; }
 
-  bool check_wf_semantics1(THD *, SELECT_LEX *,
+  bool check_wf_semantics1(THD *, Query_block *,
                            Window_evaluation_requirements *) override {
     return false;
   }
@@ -2319,7 +2320,7 @@ class Item_rank : public Item_non_framing_wf {
   my_decimal *val_decimal(my_decimal *buff) override;
   String *val_str(String *) override;
 
-  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+  bool check_wf_semantics1(THD *thd, Query_block *select,
                            Window_evaluation_requirements *reqs) override;
   /**
     Clear state for a new partition
@@ -2345,7 +2346,7 @@ class Item_cume_dist : public Item_non_framing_wf {
     return false;
   }
 
-  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+  bool check_wf_semantics1(THD *thd, Query_block *select,
                            Window_evaluation_requirements *reqs) override;
 
   bool needs_card() const override { return true; }
@@ -2386,7 +2387,7 @@ class Item_percent_rank : public Item_non_framing_wf {
     return false;
   }
 
-  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+  bool check_wf_semantics1(THD *thd, Query_block *select,
                            Window_evaluation_requirements *reqs) override;
   bool needs_card() const override { return true; }
 
@@ -2427,7 +2428,7 @@ class Item_ntile : public Item_non_framing_wf {
   my_decimal *val_decimal(my_decimal *buff) override;
   String *val_str(String *) override;
 
-  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+  bool check_wf_semantics1(THD *thd, Query_block *select,
                            Window_evaluation_requirements *reqs) override;
   bool check_wf_semantics2(Window_evaluation_requirements *reqs) override;
   Item_result result_type() const override { return INT_RESULT; }
@@ -2480,7 +2481,7 @@ class Item_lead_lag : public Item_non_framing_wf {
   bool resolve_type(THD *thd) override;
   bool fix_fields(THD *thd, Item **items) override;
   void clear() override;
-  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+  bool check_wf_semantics1(THD *thd, Query_block *select,
                            Window_evaluation_requirements *reqs) override;
   bool check_wf_semantics2(Window_evaluation_requirements *reqs) override;
   enum Item_result result_type() const override { return m_hybrid_type; }
@@ -2556,7 +2557,7 @@ class Item_first_last_value : public Item_sum {
   bool resolve_type(THD *thd) override;
   bool fix_fields(THD *thd, Item **items) override;
   void clear() override;
-  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+  bool check_wf_semantics1(THD *thd, Query_block *select,
                            Window_evaluation_requirements *reqs) override;
   enum Item_result result_type() const override { return m_hybrid_type; }
 
@@ -2624,7 +2625,7 @@ class Item_nth_value : public Item_sum {
   bool setup_nth();
   void clear() override;
 
-  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+  bool check_wf_semantics1(THD *thd, Query_block *select,
                            Window_evaluation_requirements *reqs) override;
   bool check_wf_semantics2(Window_evaluation_requirements *reqs) override;
 
@@ -2699,8 +2700,8 @@ class Item_rollup_sum_switcher final : public Item_sum {
       args[i++] = &item;
     }
     item_name = master()->item_name;
-    base_select = master()->base_select;
-    aggr_select = master()->aggr_select;
+    base_query_block = master()->base_query_block;
+    aggr_query_block = master()->aggr_query_block;
     hidden = master()->hidden;
     set_distinct(master()->has_with_distinct());
     set_data_type_from_item(master());

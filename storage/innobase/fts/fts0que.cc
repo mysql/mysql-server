@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1885,7 +1885,7 @@ static ibool fts_query_fetch_document(void *row,      /*!< in:  sel_node_t* */
 Callback function to check whether a record was found or not. */
 static
 ibool
-fts_query_select(
+fts_query_query_block(
 	void*		row,		/*!< in:  sel_node_t* */
 	void*		user_arg)	/*!< in:  fts_doc_t* */
 {
@@ -1973,7 +1973,7 @@ fts_query_find_term(
 	select.min_pos = *min_pos;
 	select.word_freq = fts_query_add_word_freq(query, word->f_str);
 
-	pars_info_bind_function(info, "my_func", fts_query_select, &select);
+	pars_info_bind_function(info, "my_func", fts_query_query_block, &select);
 	pars_info_bind_varchar_literal(info, "word", word->f_str, word->f_len);
 
 	/* Convert to "storage" byte order. */

@@ -383,10 +383,10 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
     }
     case AccessPath::TABLE_VALUE_CONSTRUCTOR: {
       assert(join != nullptr);
-      SELECT_LEX *select_lex = join->select_lex;
+      Query_block *query_block = join->query_block;
       iterator = NewIterator<TableValueConstructorIterator>(
-          thd, examined_rows, *select_lex->row_value_list,
-          select_lex->join->fields);
+          thd, examined_rows, *query_block->row_value_list,
+          query_block->join->fields);
       break;
     }
     case AccessPath::FAKE_SINGLE_ROW:

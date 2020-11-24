@@ -290,7 +290,8 @@ class SP_instr_error_handler : public Internal_error_handler {
       CREATE TABLE ... SELECT statement.
     */
     if (thd->lex && thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
-        thd->lex->select_lex && !thd->lex->select_lex->field_list_is_empty() &&
+        thd->lex->query_block &&
+        !thd->lex->query_block->field_list_is_empty() &&
         sql_errno == ER_TABLE_EXISTS_ERROR)
       cts_table_exists_error = true;
 
@@ -1055,7 +1056,7 @@ void sp_instr_set_trigger_field::print(const THD *thd, String *str) {
 }
 
 bool sp_instr_set_trigger_field::on_after_expr_parsing(THD *thd) {
-  m_value_item = thd->lex->select_lex->single_visible_field();
+  m_value_item = thd->lex->query_block->single_visible_field();
   DBUG_ASSERT(m_value_item != nullptr);
 
   DBUG_ASSERT(!m_trigger_field);
@@ -1258,7 +1259,7 @@ bool sp_instr_jump_case_when::on_after_expr_parsing(THD *thd) {
   // This function can be called in two cases:
   //
   //   - during initial (regular) parsing of SP. In this case we don't have
-  //     lex->select_lex (because it's not a SELECT statement), but
+  //     lex->query_block (because it's not a SELECT statement), but
   //     m_expr_item is already set in constructor.
   //
   //   - during re-parsing after meta-data change. In this case we've just
@@ -1266,7 +1267,7 @@ bool sp_instr_jump_case_when::on_after_expr_parsing(THD *thd) {
   //     item from its list.
 
   if (!m_expr_item) {
-    m_expr_item = thd->lex->select_lex->single_visible_field();
+    m_expr_item = thd->lex->query_block->single_visible_field();
     DBUG_ASSERT(m_expr_item != nullptr);
   }
 

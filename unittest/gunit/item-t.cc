@@ -384,7 +384,7 @@ TEST_F(ItemTest, ItemFuncExportSet) {
     Item *export_set =
         new Item_func_export_set(POS(), new Item_int(2), on_string, off_string,
                                  sep_string, new Item_int(4));
-    Parse_context pc(thd(), thd()->lex->current_select());
+    Parse_context pc(thd(), thd()->lex->current_query_block());
     EXPECT_FALSE(export_set->itemize(&pc, &export_set));
     EXPECT_FALSE(export_set->fix_fields(thd(), nullptr));
     EXPECT_EQ(&str, export_set->val_str(&str));
@@ -395,7 +395,7 @@ TEST_F(ItemTest, ItemFuncExportSet) {
     Item *export_set =
         new Item_func_export_set(POS(), new Item_int(2), on_string, off_string,
                                  sep_string, new Item_int(0));
-    Parse_context pc(thd(), thd()->lex->current_select());
+    Parse_context pc(thd(), thd()->lex->current_query_block());
     EXPECT_FALSE(export_set->itemize(&pc, &export_set));
     EXPECT_FALSE(export_set->fix_fields(thd(), nullptr));
     EXPECT_EQ(&str, export_set->val_str(&str));
@@ -419,7 +419,7 @@ TEST_F(ItemTest, ItemFuncExportSet) {
         POS(), new Item_int(0xff),
         new Item_func_repeat(POS(), string_x, item_int_repeat), string_x,
         sep_string);
-    Parse_context pc(thd(), thd()->lex->current_select());
+    Parse_context pc(thd(), thd()->lex->current_query_block());
     SCOPED_TRACE("");
     EXPECT_FALSE(export_set->itemize(&pc, &export_set));
     EXPECT_FALSE(export_set->fix_fields(thd(), nullptr));
@@ -433,7 +433,7 @@ TEST_F(ItemTest, ItemFuncExportSet) {
     Item *export_set = new Item_func_export_set(
         POS(), new Item_int(0xff), string_x,
         new Item_func_repeat(POS(), string_x, item_int_repeat), sep_string);
-    Parse_context pc(thd(), thd()->lex->current_select());
+    Parse_context pc(thd(), thd()->lex->current_query_block());
     SCOPED_TRACE("");
     EXPECT_FALSE(export_set->itemize(&pc, &export_set));
     EXPECT_FALSE(export_set->fix_fields(thd(), nullptr));
@@ -447,7 +447,7 @@ TEST_F(ItemTest, ItemFuncExportSet) {
     Item *export_set = new Item_func_export_set(
         POS(), new Item_int(0xff), string_x, string_x,
         new Item_func_repeat(POS(), string_x, item_int_repeat));
-    Parse_context pc(thd(), thd()->lex->current_select());
+    Parse_context pc(thd(), thd()->lex->current_query_block());
     SCOPED_TRACE("");
     EXPECT_FALSE(export_set->itemize(&pc, &export_set));
     EXPECT_FALSE(export_set->fix_fields(thd(), nullptr));
@@ -469,7 +469,7 @@ TEST_F(ItemTest, ItemFuncExportSet) {
     Item *export_set = new Item_func_export_set(
         POS(), new Item_string(STRING_WITH_LEN("1111111"), &my_charset_bin),
         lpad, new Item_int(1));
-    Parse_context pc(thd(), thd()->lex->current_select());
+    Parse_context pc(thd(), thd()->lex->current_query_block());
     SCOPED_TRACE("");
     EXPECT_FALSE(export_set->itemize(&pc, &export_set));
     EXPECT_FALSE(export_set->fix_fields(thd(), nullptr));
@@ -768,7 +768,7 @@ TEST_F(ItemTest, ItemFuncConvIntMin) {
   Item *item_conv = new Item_func_conv(POS(), new Item_string("5", 1, &charset),
                                        new Item_int(INT_MIN),   // from_base
                                        new Item_int(INT_MIN));  // to_base
-  Parse_context pc(thd(), thd()->lex->current_select());
+  Parse_context pc(thd(), thd()->lex->current_query_block());
   EXPECT_FALSE(item_conv->itemize(&pc, &item_conv));
   EXPECT_FALSE(item_conv->fix_fields(thd(), nullptr));
   const String *null_string = nullptr;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -166,7 +166,7 @@ class Table_statistics {
   /**
     @brief
     Read dynamic table/index statistics from SE by opening the user table
-    provided OR by reading cached statistics from SELECT_LEX.
+    provided OR by reading cached statistics from Query_block.
 
     @param thd                     - Current thread.
     @param schema_name_ptr         - Schema name of table.
@@ -271,7 +271,7 @@ class Table_statistics {
  private:
   /**
     Read dynamic table/index statistics from SE API's OR by reading
-    cached statistics from SELECT_LEX.
+    cached statistics from Query_block.
 
     @param thd                     - Current thread.
     @param schema_name_ptr         - Schema name of table.
@@ -299,7 +299,7 @@ class Table_statistics {
 
   /**
     Read dynamic table/index statistics by opening the table OR by reading
-    cached statistics from SELECT_LEX.
+    cached statistics from Query_block.
 
     @param thd                     - Current thread.
     @param schema_name_ptr         - Schema name of table.

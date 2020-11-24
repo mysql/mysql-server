@@ -36,7 +36,7 @@
 class Item;
 class JOIN;
 class QEP_TAB;
-class SELECT_LEX;
+class Query_block;
 class String;
 class Table_ident;
 class THD;
@@ -109,13 +109,13 @@ int schema_table_store_record2(THD *thd, TABLE *table, bool make_ondisk);
 */
 bool convert_heap_table_to_ondisk(THD *thd, TABLE *table, int error);
 void initialize_information_schema_acl();
-bool make_table_list(THD *thd, SELECT_LEX *sel, const LEX_CSTRING &db_name,
+bool make_table_list(THD *thd, Query_block *sel, const LEX_CSTRING &db_name,
                      const LEX_CSTRING &table_name);
 
 ST_SCHEMA_TABLE *find_schema_table(THD *thd, const char *table_name);
 ST_SCHEMA_TABLE *get_schema_table(enum enum_schema_tables schema_table_idx);
-bool make_schema_select(THD *thd, SELECT_LEX *sel,
-                        enum enum_schema_tables schema_table_idx);
+bool make_schema_query_block(THD *thd, Query_block *sel,
+                             enum enum_schema_tables schema_table_idx);
 bool mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list);
 bool get_schema_tables_result(JOIN *join,
                               enum enum_schema_table_state executed_place);
@@ -152,10 +152,10 @@ extern TYPELIB grant_types;
   Normally, preparation and execution is the same as for regular SELECT
   statements.
 */
-class Sql_cmd_show : public Sql_cmd_select {
+class Sql_cmd_show : public Sql_cmd_query_block {
  public:
   Sql_cmd_show(enum_sql_command sql_command)
-      : Sql_cmd_select(nullptr), m_sql_command(sql_command) {}
+      : Sql_cmd_query_block(nullptr), m_sql_command(sql_command) {}
   enum_sql_command sql_command_code() const override { return m_sql_command; }
   virtual bool check_parameters(THD *) { return false; }
   /// Generally, the SHOW commands do not distinguish precheck and regular check

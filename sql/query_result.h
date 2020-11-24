@@ -42,7 +42,7 @@
 class Item;
 class Item_subselect;
 class PT_select_var;
-class SELECT_LEX_UNIT;
+class Query_expression;
 class THD;
 struct CHARSET_INFO;
 struct TABLE_LIST;
@@ -53,7 +53,7 @@ struct TABLE_LIST;
 
 class Query_result {
  protected:
-  SELECT_LEX_UNIT *unit;
+  Query_expression *unit;
 
  public:
   /**
@@ -93,7 +93,7 @@ class Query_result {
     @returns false if success, true if error
   */
   virtual bool prepare(THD *, const mem_root_deque<Item *> &,
-                       SELECT_LEX_UNIT *u) {
+                       Query_expression *u) {
     unit = u;
     return false;
   }
@@ -110,7 +110,7 @@ class Query_result {
     Prepare for execution of the query expression or DML statement.
 
     Generally, this will have an implementation only for outer-most
-    SELECT_LEX objects, such as data change statements (for preparation
+    Query_block objects, such as data change statements (for preparation
     of the target table(s)) or dump statements (for preparation of target file).
 
     @returns false if success, true if error
@@ -118,7 +118,7 @@ class Query_result {
   virtual bool start_execution(THD *) { return false; }
 
   /// Create table, only needed to support CREATE TABLE ... SELECT
-  virtual bool create_table_for_select(THD *) { return false; }
+  virtual bool create_table_for_query_block(THD *) { return false; }
   /*
     Because of peculiarities of prepared statements protocol
     we need to know number of columns in the result set (if
@@ -140,7 +140,7 @@ class Query_result {
     @retval false     success
     @retval true      error, an error message is set
   */
-  virtual bool check_simple_select() const {
+  virtual bool check_simple_query_block() const {
     my_error(ER_SP_BAD_CURSOR_QUERY, MYF(0));
     return true;
   }
@@ -221,7 +221,7 @@ class Query_result_send : public Query_result {
                                 uint flags) override;
   bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
   bool send_eof(THD *thd) override;
-  bool check_simple_select() const override { return false; }
+  bool check_simple_query_block() const override { return false; }
   void abort_result_set(THD *thd) override;
   void cleanup(THD *) override { is_result_set_started = false; }
 };
@@ -284,7 +284,7 @@ class Query_result_export final : public Query_result_to_file {
  public:
   explicit Query_result_export(sql_exchange *ex) : Query_result_to_file(ex) {}
   bool prepare(THD *thd, const mem_root_deque<Item *> &list,
-               SELECT_LEX_UNIT *u) override;
+               Query_expression *u) override;
   bool start_execution(THD *thd) override;
   bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
   void cleanup(THD *thd) override;
@@ -294,7 +294,7 @@ class Query_result_dump : public Query_result_to_file {
  public:
   explicit Query_result_dump(sql_exchange *ex) : Query_result_to_file(ex) {}
   bool prepare(THD *thd, const mem_root_deque<Item *> &list,
-               SELECT_LEX_UNIT *u) override;
+               Query_expression *u) override;
   bool start_execution(THD *thd) override;
   bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
 };
@@ -308,10 +308,10 @@ class Query_dumpvar final : public Query_result_interceptor {
     var_list.clear();
   }
   bool prepare(THD *thd, const mem_root_deque<Item *> &list,
-               SELECT_LEX_UNIT *u) override;
+               Query_expression *u) override;
   bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
   bool send_eof(THD *thd) override;
-  bool check_simple_select() const override;
+  bool check_simple_query_block() const override;
   void cleanup(THD *) override { row_count = 0; }
 };
 

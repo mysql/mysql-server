@@ -8606,11 +8606,12 @@ static int show_connection_errors_max_connection(THD *, SHOW_VAR *var,
   return 0;
 }
 
-static int show_connection_errors_select(THD *, SHOW_VAR *var, char *buff) {
+static int show_connection_errors_query_block(THD *, SHOW_VAR *var,
+                                              char *buff) {
   var->type = SHOW_LONG;
   var->value = buff;
   long *value = reinterpret_cast<long *>(buff);
-  *value = static_cast<long>(get_connection_errors_select());
+  *value = static_cast<long>(get_connection_errors_query_block());
   return 0;
 }
 
@@ -8970,7 +8971,7 @@ SHOW_VAR status_vars[] = {
      SHOW_SCOPE_GLOBAL},
     {"Connection_errors_peer_address", (char *)&connection_errors_peer_addr,
      SHOW_LONG, SHOW_SCOPE_GLOBAL},
-    {"Connection_errors_select", (char *)&show_connection_errors_select,
+    {"Connection_errors_select", (char *)&show_connection_errors_query_block,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Connection_errors_tcpwrap", (char *)&show_connection_errors_tcpwrap,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},

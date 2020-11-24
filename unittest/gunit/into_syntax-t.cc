@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,9 +36,9 @@ using my_testing::Server_initializer;
 class IntoSyntaxTest : public ParserTest {};
 
 TEST_F(IntoSyntaxTest, Outer) {
-  SELECT_LEX *term = parse("SELECT 1 INTO @v");
-  SELECT_LEX_UNIT *top_union = term->master_unit();
-  EXPECT_EQ(nullptr, top_union->outer_select());
+  Query_block *term = parse("SELECT 1 INTO @v");
+  Query_expression *top_union = term->master_query_expression();
+  EXPECT_EQ(nullptr, top_union->outer_query_block());
 }
 
 }  // namespace into_syntax_unittest

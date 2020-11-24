@@ -207,7 +207,7 @@ static dd::View::enum_security_type dd_get_new_view_security_type(
 }
 
 /**
-  Method to fill view columns from the first SELECT_LEX of view query.
+  Method to fill view columns from the first Query_block of view query.
 
   @param  thd       Thread Handle.
   @param  view_obj  DD view object.
@@ -246,7 +246,7 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
   };
 
   // Creating dummy TABLE and TABLE_SHARE objects to prepare Field objects from
-  // the items of first SELECT_LEX of the view query. We prepare these once and
+  // the items of first Query_block of the view query. We prepare these once and
   // reuse them for all the fields.
   TABLE table;
   TABLE_SHARE share;
@@ -264,7 +264,7 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
   const dd::Properties &names_dict = view_obj->column_names();
 
   /*
-    Iterate through all the items of first SELECT_LEX if view query is of
+    Iterate through all the items of first Query_block if view query is of
     single query block. Otherwise iterate through all the type holders items
     created for unioned column types of all the query blocks.
   */
@@ -351,11 +351,11 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
     } else if (thd->lex->unit->is_union()) {
       /*
         If view query has any duplicate column names then generated unique name
-        is stored only with the first SELECT_LEX. So when Create_field instance
-        is created with type holder item, store name from first SELECT_LEX.
+        is stored only with the first Query_block. So when Create_field instance
+        is created with type holder item, store name from first Query_block.
       */
       cr_field->field_name =
-          GetNthVisibleField(thd->lex->select_lex->fields, i - 1)
+          GetNthVisibleField(thd->lex->query_block->fields, i - 1)
               ->item_name.ptr();
     }
 
@@ -555,7 +555,7 @@ static bool fill_dd_view_definition(THD *thd, View *view_obj,
     metadata stored with column information. Fill view columns only when view
     metadata is stored with column information.
   */
-  if (!thd->lex->select_lex->field_list_is_empty() &&
+  if (!thd->lex->query_block->field_list_is_empty() &&
       fill_dd_view_columns(thd, view_obj, view))
     return true;
 

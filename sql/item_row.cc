@@ -149,12 +149,12 @@ void Item_row::update_used_tables() {
   }
 }
 
-void Item_row::fix_after_pullout(SELECT_LEX *parent_select,
-                                 SELECT_LEX *removed_select) {
+void Item_row::fix_after_pullout(Query_block *parent_query_block,
+                                 Query_block *removed_query_block) {
   used_tables_cache = 0;
   not_null_tables_cache = 0;
   for (uint i = 0; i < arg_count; i++) {
-    items[i]->fix_after_pullout(parent_select, removed_select);
+    items[i]->fix_after_pullout(parent_query_block, removed_query_block);
     used_tables_cache |= items[i]->used_tables();
     not_null_tables_cache |= items[i]->not_null_tables();
   }

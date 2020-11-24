@@ -65,8 +65,8 @@ static TableCollection CreateTenTableJoin(
 
   // Set up a ten-table join. For simplicity, allocate everything on a MEM_ROOT
   // that will take care of releasing allocated memory.
-  SELECT_LEX *select_lex = parse(&initializer, "SELECT * FROM dummy", 0);
-  JOIN join(initializer.thd(), select_lex);
+  Query_block *query_block = parse(&initializer, "SELECT * FROM dummy", 0);
+  JOIN join(initializer.thd(), query_block);
   join.qep_tab = mem_root->ArrayAlloc<QEP_TAB>(kNumTablesInJoin);
   join.tables = kNumTablesInJoin;
   for (int i = 0; i < kNumTablesInJoin; ++i) {
@@ -311,10 +311,10 @@ class HashJoinTestHelper {
     bitmap_set_all(m_right_table->write_set);
     bitmap_set_all(m_right_table->read_set);
 
-    SELECT_LEX *select_lex =
+    Query_block *query_block =
         parse(initializer,
               "SELECT * FROM t1 JOIN t2 ON (t1.column1 = t2.column1);", 0);
-    JOIN *join = new (&m_mem_root) JOIN(initializer->thd(), select_lex);
+    JOIN *join = new (&m_mem_root) JOIN(initializer->thd(), query_block);
     join->tables = 2;
     join->qep_tab = m_mem_root.ArrayAlloc<QEP_TAB>(join->tables);
 

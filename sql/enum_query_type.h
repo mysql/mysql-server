@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@ enum enum_query_type {
   */
   QT_FORCE_INTRODUCERS = (1 << 2),
 
-  /// When printing a SELECT, add its number (select_lex->number).
+  /// When printing a SELECT, add its number (query_block->number).
   QT_SHOW_SELECT_NUMBER = (1 << 3),
 
   /// Don't print a database if it's equal to the connection's database.

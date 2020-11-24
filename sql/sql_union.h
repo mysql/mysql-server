@@ -31,7 +31,7 @@
 #include "sql/temp_table_param.h"  // Temp_table_param
 
 class Item;
-class SELECT_LEX_UNIT;
+class Query_expression;
 class THD;
 template <class T>
 class List;
@@ -48,7 +48,7 @@ class Query_result_union : public Query_result_interceptor {
   Query_result_union()
       : Query_result_interceptor(), m_rows_in_table(0), table(nullptr) {}
   bool prepare(THD *thd, const mem_root_deque<Item *> &list,
-               SELECT_LEX_UNIT *u) override;
+               Query_expression *u) override;
   /**
     Do prepare() if preparation has been postponed until column type
     information is computed (used by Query_result_union_direct).

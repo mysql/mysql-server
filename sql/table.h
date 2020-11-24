@@ -85,8 +85,8 @@ class Json_wrapper;
 class Opt_hints_qb;
 class Opt_hints_table;
 class Query_result_union;
-class SELECT_LEX;
-class SELECT_LEX_UNIT;
+class Query_block;
+class Query_expression;
 class Security_context;
 class SortingIterator;
 class String;
@@ -983,7 +983,7 @@ struct TABLE_SHARE {
   dd::Table *tmp_table_def{nullptr};
 
   /// For materialized derived tables; @see add_derived_key().
-  SELECT_LEX *owner_of_possible_tmp_keys{nullptr};
+  Query_block *owner_of_possible_tmp_keys{nullptr};
 
   /**
     Arrays with descriptions of foreign keys in which this table participates
@@ -2707,7 +2707,7 @@ struct TABLE_LIST {
   static TABLE_LIST *new_nested_join(MEM_ROOT *allocator, const char *alias,
                                      TABLE_LIST *embedding,
                                      mem_root_deque<TABLE_LIST *> *belongs_to,
-                                     SELECT_LEX *select);
+                                     Query_block *select);
   Item **join_cond_ref() { return &m_join_cond; }
   Item *join_cond() const { return m_join_cond; }
   void set_join_cond(Item *val) {
@@ -2739,7 +2739,7 @@ struct TABLE_LIST {
   }
 
   /// Merge tables from a query block into a nested join structure
-  bool merge_underlying_tables(SELECT_LEX *select);
+  bool merge_underlying_tables(Query_block *select);
 
   /// Reset table
   void reset();
@@ -3005,10 +3005,12 @@ struct TABLE_LIST {
     Set the query expression of a derived table or view.
     (Will also define this as a derived table, unless it is a named view.)
   */
-  void set_derived_unit(SELECT_LEX_UNIT *query_expr) { derived = query_expr; }
+  void set_derived_query_expression(Query_expression *query_expr) {
+    derived = query_expr;
+  }
 
   /// Return the query expression of a derived table or view.
-  SELECT_LEX_UNIT *derived_unit() const {
+  Query_expression *derived_query_expression() const {
     DBUG_ASSERT(derived);
     return derived;
   }
@@ -3226,7 +3228,7 @@ struct TABLE_LIST {
   /*
     List of tables local to a subquery or the top-level SELECT (used by
     SQL_I_List). Considers views as leaves (unlike 'next_leaf' below).
-    Created at parse time in SELECT_LEX::add_table_to_list() ->
+    Created at parse time in Query_block::add_table_to_list() ->
     table_list.link_in_list().
   */
   TABLE_LIST *next_local{nullptr};
@@ -3334,11 +3336,11 @@ struct TABLE_LIST {
  private:
   /**
      This field is set to non-null for derived tables and views. It points
-     to the SELECT_LEX_UNIT representing the derived table/view.
+     to the Query_expression representing the derived table/view.
      E.g. for a query
      @verbatim SELECT * FROM (SELECT a FROM t1) b @endverbatim
   */
-  SELECT_LEX_UNIT *derived{nullptr}; /* SELECT_LEX_UNIT of derived table */
+  Query_expression *derived{nullptr}; /* Query_expression of derived table */
 
   /// If non-NULL, the CTE which this table is derived from.
   Common_table_expr *m_common_table_expr{nullptr};
@@ -3356,15 +3358,15 @@ struct TABLE_LIST {
 
  public:
   ST_SCHEMA_TABLE *schema_table{nullptr}; /* Information_schema table */
-  SELECT_LEX *schema_select_lex{nullptr};
+  Query_block *schema_query_block{nullptr};
   /*
     True when the view field translation table is used to convert
     schema table fields for backwards compatibility with SHOW command.
   */
   bool schema_table_reformed{false};
   Temp_table_param *schema_table_param{nullptr};
-  /* link to select_lex where this table was used */
-  SELECT_LEX *select_lex{nullptr};
+  /* link to query_block where this table was used */
+  Query_block *query_block{nullptr};
 
  private:
   LEX *view{nullptr}; /* link on VIEW lex for merging */
@@ -3548,7 +3550,7 @@ struct TABLE_LIST {
   /**
     If true, this table is a derived (materialized) table which was created
     from a scalar subquery, cf.
-    SELECT_LEX::transform_scalar_subqueries_to_join_with_derived
+    Query_block::transform_scalar_subqueries_to_join_with_derived
   */
   bool m_was_scalar_subquery{false};
 
@@ -3643,7 +3645,7 @@ struct TABLE_LIST {
   */
   /**
      Optimized copy of m_join_cond (valid for one single
-     execution). Initialized by SELECT_LEX::get_optimizable_conditions().
+     execution). Initialized by Query_block::get_optimizable_conditions().
   */
   Item *m_join_cond_optim{nullptr};
 
@@ -4067,7 +4069,7 @@ class Common_table_expr {
   Common_table_expr(MEM_ROOT *mem_root)
       : references(mem_root), recursive(false), tmp_tables(mem_root) {}
   TABLE *clone_tmp_table(THD *thd, TABLE_LIST *tl);
-  bool substitute_recursive_reference(THD *thd, SELECT_LEX *sl);
+  bool substitute_recursive_reference(THD *thd, Query_block *sl);
   /// Empties the materialized CTE and informs all of its clones.
   bool clear_all_references();
   /**

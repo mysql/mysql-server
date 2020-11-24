@@ -346,8 +346,8 @@ Diagnostics_area::Diagnostics_area(bool allow_unlimited_conditions)
   init_sql_alloc(PSI_INSTRUMENT_ME, &m_condition_root, WARN_ALLOC_BLOCK_SIZE,
                  0);
   m_conditions_list.clear();
-  memset(m_current_statement_cond_count_by_sl, 0,
-         sizeof(m_current_statement_cond_count_by_sl));
+  memset(m_current_statement_cond_count_by_qb, 0,
+         sizeof(m_current_statement_cond_count_by_qb));
   m_message_text[0] = '\0';
 }
 
@@ -489,18 +489,18 @@ void Diagnostics_area::reset_condition_info(THD *thd) {
   */
   if (thd->lex->keep_diagnostics == DA_KEEP_COUNTS) {
     m_saved_error_count =
-        m_current_statement_cond_count_by_sl[(uint)Sql_condition::SL_ERROR];
+        m_current_statement_cond_count_by_qb[(uint)Sql_condition::SL_ERROR];
     m_saved_warn_count =
-        m_current_statement_cond_count_by_sl[(uint)Sql_condition::SL_NOTE] +
-        m_current_statement_cond_count_by_sl[(uint)Sql_condition::SL_ERROR] +
-        m_current_statement_cond_count_by_sl[(uint)Sql_condition::SL_WARNING];
+        m_current_statement_cond_count_by_qb[(uint)Sql_condition::SL_NOTE] +
+        m_current_statement_cond_count_by_qb[(uint)Sql_condition::SL_ERROR] +
+        m_current_statement_cond_count_by_qb[(uint)Sql_condition::SL_WARNING];
   }
 
   m_conditions_list.clear();
   m_preexisting_sql_conditions.clear();
   free_root(&m_condition_root, MYF(0));
-  memset(m_current_statement_cond_count_by_sl, 0,
-         sizeof(m_current_statement_cond_count_by_sl));
+  memset(m_current_statement_cond_count_by_qb, 0,
+         sizeof(m_current_statement_cond_count_by_qb));
   m_current_statement_cond_count = 0;
   m_current_row_for_condition = 1; /* Start counting from the first row */
 }
@@ -508,7 +508,7 @@ void Diagnostics_area::reset_condition_info(THD *thd) {
 ulong Diagnostics_area::error_count(THD *thd) const {
   // DA_KEEP_COUNTS: it was SELECT @@error_count, not SHOW COUNT(*) ERRORS
   if (thd->lex->keep_diagnostics == DA_KEEP_COUNTS) return m_saved_error_count;
-  return m_current_statement_cond_count_by_sl[(uint)Sql_condition::SL_ERROR];
+  return m_current_statement_cond_count_by_qb[(uint)Sql_condition::SL_ERROR];
 }
 
 ulong Diagnostics_area::warn_count(THD *thd) const {
@@ -518,9 +518,9 @@ ulong Diagnostics_area::warn_count(THD *thd) const {
     This may be higher than warn_list.elements() if we have
     had more warnings than thd->variables.max_error_count.
   */
-  return m_current_statement_cond_count_by_sl[(uint)Sql_condition::SL_NOTE] +
-         m_current_statement_cond_count_by_sl[(uint)Sql_condition::SL_ERROR] +
-         m_current_statement_cond_count_by_sl[(uint)Sql_condition::SL_WARNING];
+  return m_current_statement_cond_count_by_qb[(uint)Sql_condition::SL_NOTE] +
+         m_current_statement_cond_count_by_qb[(uint)Sql_condition::SL_ERROR] +
+         m_current_statement_cond_count_by_qb[(uint)Sql_condition::SL_WARNING];
 }
 
 void Diagnostics_area::copy_sql_conditions_from_da(
@@ -603,7 +603,7 @@ Sql_condition *Diagnostics_area::push_warning(
                       severity, message_text);
     if (cond) m_conditions_list.push_back(cond);
   }
-  m_current_statement_cond_count_by_sl[(uint)severity]++;
+  m_current_statement_cond_count_by_qb[(uint)severity]++;
   m_current_statement_cond_count++;
   return cond;
 }
@@ -755,8 +755,8 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show) {
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     rc = true;
 
-  SELECT_LEX *sel = thd->lex->select_lex;
-  SELECT_LEX_UNIT *unit = thd->lex->unit;
+  Query_block *sel = thd->lex->query_block;
+  Query_expression *unit = thd->lex->unit;
   ulonglong idx = 0;
   Protocol *protocol = thd->get_protocol();
 

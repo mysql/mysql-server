@@ -1214,7 +1214,7 @@ bool do_command(THD *thd) {
     indicator of uninitialized lex => normal flow of errors handling
     (see my_message_sql)
   */
-  thd->lex->set_current_select(nullptr);
+  thd->lex->set_current_query_block(nullptr);
 
   /*
     XXX: this code is here only to clear possible errors of init_connect.
@@ -1978,9 +1978,9 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
         Init TABLE_LIST members necessary when the undelrying
         table is view.
       */
-      table_list.select_lex = thd->lex->select_lex;
-      thd->lex->select_lex->table_list.link_in_list(&table_list,
-                                                    &table_list.next_local);
+      table_list.query_block = thd->lex->query_block;
+      thd->lex->query_block->table_list.link_in_list(&table_list,
+                                                     &table_list.next_local);
       thd->lex->add_to_query_tables(&table_list);
 
       if (is_infoschema_db(table_list.db, table_list.db_length)) {
@@ -2338,7 +2338,7 @@ error:
 
     This function is used in the parser to convert a SHOW or DESCRIBE
     table_name command to a SELECT from INFORMATION_SCHEMA.
-    It prepares a SELECT_LEX and a TABLE_LIST object to represent the
+    It prepares a Query_block and a TABLE_LIST object to represent the
     given command as a SELECT parse tree.
 
   @param thd              thread handle
@@ -2361,7 +2361,7 @@ error:
 
 int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
                          enum enum_schema_tables schema_table_idx) {
-  SELECT_LEX *schema_select_lex = nullptr;
+  Query_block *schema_query_block = nullptr;
   DBUG_TRACE;
 
   switch (schema_table_idx) {
@@ -2369,10 +2369,10 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
     case SCH_TMP_TABLE_KEYS: {
       DBUG_ASSERT(table_ident);
       TABLE_LIST **query_tables_last = lex->query_tables_last;
-      if ((schema_select_lex = lex->new_empty_query_block()) == nullptr)
+      if ((schema_query_block = lex->new_empty_query_block()) == nullptr)
         return 1; /* purecov: inspected */
-      if (!schema_select_lex->add_table_to_list(thd, table_ident, nullptr, 0,
-                                                TL_READ, MDL_SHARED_READ))
+      if (!schema_query_block->add_table_to_list(thd, table_ident, nullptr, 0,
+                                                 TL_READ, MDL_SHARED_READ))
         return 1;
       lex->query_tables_last = query_tables_last;
       break;
@@ -2397,12 +2397,12 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
       break;
   }
 
-  SELECT_LEX *select_lex = lex->current_select();
-  if (make_schema_select(thd, select_lex, schema_table_idx)) {
+  Query_block *query_block = lex->current_query_block();
+  if (make_schema_query_block(thd, query_block, schema_table_idx)) {
     return 1;
   }
-  TABLE_LIST *table_list = select_lex->table_list.first;
-  table_list->schema_select_lex = schema_select_lex;
+  TABLE_LIST *table_list = query_block->table_list.first;
+  table_list->schema_query_block = schema_query_block;
   table_list->schema_table_reformed = true;
   return 0;
 }
@@ -2701,15 +2701,15 @@ static inline void binlog_gtid_end_transaction(THD *thd) {
 int mysql_execute_command(THD *thd, bool first_level) {
   int res = false;
   LEX *const lex = thd->lex;
-  /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
-  SELECT_LEX *const select_lex = lex->select_lex;
-  /* first table of first SELECT_LEX */
-  TABLE_LIST *const first_table = select_lex->get_table_list();
+  /* first Query_block (have special meaning for many of non-SELECTcommands) */
+  Query_block *const query_block = lex->query_block;
+  /* first table of first Query_block */
+  TABLE_LIST *const first_table = query_block->get_table_list();
   /* list of all tables in query */
   TABLE_LIST *all_tables;
   // keep GTID violation state in order to roll it back on statement failure
   bool gtid_consistency_violation_state = thd->has_gtid_consistency_violation;
-  DBUG_ASSERT(select_lex->master_unit() == lex->unit);
+  DBUG_ASSERT(query_block->master_query_expression() == lex->unit);
   DBUG_TRACE;
   /* EXPLAIN OTHER isn't explainable command, but can have describe flag. */
   DBUG_ASSERT(!lex->is_explain() || is_explainable_query(lex->sql_command) ||
@@ -2745,17 +2745,17 @@ int mysql_execute_command(THD *thd, bool first_level) {
   */
   DBUG_ASSERT(!thd->transaction_rollback_request || thd->in_sub_stmt);
   /*
-    In many cases first table of main SELECT_LEX have special meaning =>
+    In many cases first table of main Query_block have special meaning =>
     check that it is first table in global list and relink it first in
     queries_tables list if it is necessary (we need such relinking only
     for queries with subqueries in select list, in this case tables of
     subqueries will go to global list first)
 
-    all_tables will differ from first_table only if most upper SELECT_LEX
+    all_tables will differ from first_table only if most upper Query_block
     do not contain tables.
 
     Because of above in place where should be at least one table in most
-    outer SELECT_LEX we have following check:
+    outer Query_block we have following check:
     DBUG_ASSERT(first_table == all_tables);
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
   */
@@ -2763,7 +2763,8 @@ int mysql_execute_command(THD *thd, bool first_level) {
   /* should be assigned after making first tables same */
   all_tables = lex->query_tables;
   /* set context for commands which do not use setup_tables */
-  select_lex->context.resolve_in_table_list_only(select_lex->get_table_list());
+  query_block->context.resolve_in_table_list_only(
+      query_block->get_table_list());
 
   thd->get_stmt_da()->reset_diagnostics_area();
   if ((thd->lex->keep_diagnostics != DA_KEEP_PARSE_ERROR) &&
@@ -3440,7 +3441,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
       }
     } break;
     case SQLCOM_CHANGE_DB: {
-      const LEX_CSTRING db_str = {select_lex->db, strlen(select_lex->db)};
+      const LEX_CSTRING db_str = {query_block->db, strlen(query_block->db)};
 
       if (!mysql_change_db(thd, db_str, false)) my_ok(thd);
 
@@ -3460,7 +3461,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
         bind_fields(thd->stmt_arena->item_list());
         if (all_tables != nullptr &&
             !thd->stmt_arena->is_stmt_prepare_or_first_stmt_execute() &&
-            select_lex->check_privileges_for_subqueries(thd))
+            query_block->check_privileges_for_subqueries(thd))
           return true;
       }
       if (!(res = sql_set_variables(thd, lex_var_list, true)))
@@ -3744,7 +3745,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_GRANT: {
       /* GRANT ... AS preliminery checks */
       if (lex->grant_as.grant_as_used) {
-        if ((first_table || select_lex->db)) {
+        if ((first_table || query_block->db)) {
           my_error(ER_UNSUPPORTED_USE_OF_GRANT_AS, MYF(0));
           goto error;
         }
@@ -3764,7 +3765,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
           */
           if (check_access(
                   thd, lex->grant | lex->grant_tot_col | GRANT_ACL,
-                  first_table ? first_table->db : select_lex->db,
+                  first_table ? first_table->db : query_block->db,
                   first_table ? &first_table->grant.privilege : nullptr,
                   first_table ? &first_table->grant.m_internal : nullptr,
                   first_table ? false : true, false)) {
@@ -3784,7 +3785,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
             privileges later.
           */
           check_access(thd, lex->grant | lex->grant_tot_col | GRANT_ACL,
-                       first_table ? first_table->db : select_lex->db,
+                       first_table ? first_table->db : query_block->db,
                        first_table ? &first_table->grant.privilege : nullptr,
                        first_table ? &first_table->grant.m_internal : nullptr,
                        first_table ? false : true, true);
@@ -3857,7 +3858,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
         } else {
           /* Conditionally writes to binlog */
           res = mysql_grant(
-              thd, select_lex->db, lex->users_list, lex->grant,
+              thd, query_block->db, lex->users_list, lex->grant,
               lex->sql_command == SQLCOM_REVOKE, lex->type == TYPE_ENUM_PROXY,
               lex->dynamic_privileges, lex->all_privileges, &lex->grant_as);
         }
@@ -5065,7 +5066,7 @@ bool mysql_test_parse_for_slave(THD *thd) {
     thd->m_digest = nullptr;
     thd->m_statement_psi = nullptr;
     if (parse_sql(thd, &parser_state, nullptr) == 0) {
-      if (all_tables_not_ok(thd, lex->select_lex->table_list.first))
+      if (all_tables_not_ok(thd, lex->query_block->table_list.first))
         ignorable = true;
       else if (!check_database_filters(thd, thd->db().str, lex->sql_command))
         ignorable = true;
@@ -5351,26 +5352,26 @@ bool PT_common_table_expr::make_subquery_node(THD *thd, PT_subquery **node) {
 
    @returns true if error (OOM).
 */
-bool SELECT_LEX::find_common_table_expr(THD *thd, Table_ident *table_name,
-                                        TABLE_LIST *tl, Parse_context *pc,
-                                        bool *found) {
+bool Query_block::find_common_table_expr(THD *thd, Table_ident *table_name,
+                                         TABLE_LIST *tl, Parse_context *pc,
+                                         bool *found) {
   *found = false;
   if (!pc) return false;
 
   PT_with_clause *wc;
   PT_common_table_expr *cte = nullptr;
-  SELECT_LEX *select = this;
-  SELECT_LEX_UNIT *unit;
+  Query_block *select = this;
+  Query_expression *unit;
   do {
     DBUG_ASSERT(select->first_execution);
-    unit = select->master_unit();
+    unit = select->master_query_expression();
     if (!(wc = unit->m_with_clause)) continue;
     if (wc->lookup(tl, &cte)) return true;
     /*
       If no match in the WITH clause of 'select', maybe this is a subquery, so
       look up in the outer query's WITH clause:
     */
-  } while (cte == nullptr && (select = unit->outer_select()));
+  } while (cte == nullptr && (select = unit->outer_query_block()));
 
   if (cte == nullptr) return false;
   *found = true;
@@ -5404,8 +5405,9 @@ bool SELECT_LEX::find_common_table_expr(THD *thd, Table_ident *table_name,
     as first step of evaluation of the said query expression; so the CTE may
     not contain references into the said query expression.
   */
-  thd->lex->push_context(unit->outer_select() ? &unit->outer_select()->context
-                                              : nullptr);
+  thd->lex->push_context(unit->outer_query_block()
+                             ? &unit->outer_query_block()->context
+                             : nullptr);
   DBUG_ASSERT(thd->lex->will_contextualize);
   if (node->contextualize(pc)) return true;
 
@@ -5420,8 +5422,9 @@ bool SELECT_LEX::find_common_table_expr(THD *thd, Table_ident *table_name,
   */
   thd->lex->reparse_common_table_expr_at = save_reparse_cte;
   tl->is_alias = true;
-  SELECT_LEX_UNIT *node_unit = node->value()->master_unit();
-  *table_name = Table_ident(node_unit);
+  Query_expression *node_query_expression =
+      node->value()->master_query_expression();
+  *table_name = Table_ident(node_query_expression);
   DBUG_ASSERT(table_name->is_derived_table());
   tl->db = table_name->db.str;
   tl->db_length = table_name->db.length;
@@ -5430,7 +5433,7 @@ bool SELECT_LEX::find_common_table_expr(THD *thd, Table_ident *table_name,
 
 bool PT_with_clause::lookup(TABLE_LIST *tl, PT_common_table_expr **found) {
   *found = nullptr;
-  DBUG_ASSERT(tl->select_lex != nullptr);
+  DBUG_ASSERT(tl->query_block != nullptr);
   /*
     If right_bound!=NULL, it means we are currently parsing the
     definition of CTE 'right_bound' and this definition contains
@@ -5462,8 +5465,8 @@ bool PT_with_clause::lookup(TABLE_LIST *tl, PT_common_table_expr **found) {
       if (in_self) break;  // Prevent forward reference.
       continue;
     }
-    if (in_self &&
-        tl->select_lex->outer_select() != m_most_inner_in_parsing->select_lex) {
+    if (in_self && tl->query_block->outer_query_block() !=
+                       m_most_inner_in_parsing->query_block) {
       /*
         SQL2011 says a recursive CTE cannot contain a subquery
         referencing the CTE, except if this subquery is a derived table
@@ -5495,7 +5498,7 @@ bool PT_with_clause::lookup(TABLE_LIST *tl, PT_common_table_expr **found) {
         Then we contextualize that derived table (containing the union);
         when we contextualize the recursive query block of the union, the
         inner 'qn' is recognized as a recursive reference, and its
-        select_lex->outer_select() is _not_ the select_lex of
+        query_block->outer_query_block() is _not_ the query_block of
         most_inner_in_parsing, which indicates that the inner 'qn' is placed
         too deep.
       */
@@ -5560,7 +5563,7 @@ bool PT_common_table_expr::match_table_ref(TABLE_LIST *tl, bool in_self,
       0		Error
 */
 
-TABLE_LIST *SELECT_LEX::add_table_to_list(
+TABLE_LIST *Query_block::add_table_to_list(
     THD *thd, Table_ident *table_name, const char *alias, ulong table_options,
     thr_lock_type lock_type, enum_mdl_type mdl_type,
     List<Index_hint> *index_hints_arg, List<String> *partition_names,
@@ -5608,7 +5611,7 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(
     table_name->table.length = my_casedn_str(
         files_charset_info, const_cast<char *>(table_name->table.str));
 
-  ptr->select_lex = this;
+  ptr->query_block = this;
   ptr->table_name = table_name->table.str;
   ptr->table_name_length = table_name->table.length;
   ptr->alias = alias_str;
@@ -5635,7 +5638,7 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(
   ptr->set_lock({lock_type, THR_DEFAULT});
   ptr->updating = table_options & TL_OPTION_UPDATING;
   ptr->ignore_leaves = table_options & TL_OPTION_IGNORE_LEAVES;
-  ptr->set_derived_unit(table_name->sel);
+  ptr->set_derived_query_expression(table_name->sel);
 
   if (!ptr->is_derived() && !ptr->is_table_function() &&
       is_infoschema_db(ptr->db, ptr->db_length)) {
@@ -5664,8 +5667,8 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(
           Stop users from using hidden system views, unless
           it is used by SHOW commands.
         */
-        if (thd->lex->select_lex && hidden_system_view &&
-            !(thd->lex->select_lex->active_options() &
+        if (thd->lex->query_block && hidden_system_view &&
+            !(thd->lex->query_block->active_options() &
               OPTION_SELECT_FOR_SHOW)) {
           my_error(ER_NO_SYSTEM_VIEW_ACCESS, MYF(0), ptr->table_name);
           return nullptr;
@@ -5805,7 +5808,7 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(
     The function initializes a structure of the TABLE_LIST type
     for a nested join. It sets up its nested join list as empty.
     The created structure is added to the front of the current
-    join list in the SELECT_LEX object. Then the function
+    join list in the Query_block object. Then the function
     changes the current nest level for joins to refer to the newly
     created empty list after having saved the info on the old level
     in the initialized structure.
@@ -5818,7 +5821,7 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(
     1   otherwise
 */
 
-bool SELECT_LEX::init_nested_join(THD *thd) {
+bool Query_block::init_nested_join(THD *thd) {
   DBUG_TRACE;
 
   TABLE_LIST *const ptr = TABLE_LIST::new_nested_join(
@@ -5844,7 +5847,7 @@ bool SELECT_LEX::init_nested_join(THD *thd) {
     - 0, otherwise
 */
 
-TABLE_LIST *SELECT_LEX::end_nested_join() {
+TABLE_LIST *Query_block::end_nested_join() {
   TABLE_LIST *ptr;
   NESTED_JOIN *nested_join;
   DBUG_TRACE;
@@ -5871,7 +5874,7 @@ TABLE_LIST *SELECT_LEX::end_nested_join() {
 /**
   Plumbing for nest_last_join, q.v.
 */
-TABLE_LIST *nest_join(THD *thd, SELECT_LEX *select, TABLE_LIST *embedding,
+TABLE_LIST *nest_join(THD *thd, Query_block *select, TABLE_LIST *embedding,
                       mem_root_deque<TABLE_LIST *> *jlist, size_t table_cnt,
                       const char *legend) {
   DBUG_TRACE;
@@ -5911,7 +5914,7 @@ TABLE_LIST *nest_join(THD *thd, SELECT_LEX *select, TABLE_LIST *embedding,
     0  Error
 */
 
-TABLE_LIST *SELECT_LEX::nest_last_join(THD *thd, size_t table_cnt) {
+TABLE_LIST *Query_block::nest_last_join(THD *thd, size_t table_cnt) {
   return nest_join(thd, this, embedding, join_list, table_cnt,
                    "(nest_last_join)");
 }
@@ -5920,7 +5923,7 @@ TABLE_LIST *SELECT_LEX::nest_last_join(THD *thd, size_t table_cnt) {
   Add a table to the current join list.
 
     The function puts a table in front of the current join list
-    of SELECT_LEX object.
+    of Query_block object.
     Thus, joined tables are put into this list in the reverse order
     (the most outer join operation follows first).
 
@@ -5929,7 +5932,7 @@ TABLE_LIST *SELECT_LEX::nest_last_join(THD *thd, size_t table_cnt) {
   @returns false if success, true if error (OOM).
 */
 
-bool SELECT_LEX::add_joined_table(TABLE_LIST *table) {
+bool Query_block::add_joined_table(TABLE_LIST *table) {
   DBUG_TRACE;
   join_list->push_front(table);
   table->join_list = join_list;
@@ -5937,8 +5940,8 @@ bool SELECT_LEX::add_joined_table(TABLE_LIST *table) {
   return false;
 }
 
-void SELECT_LEX::set_lock_for_table(const Lock_descriptor &descriptor,
-                                    TABLE_LIST *table) {
+void Query_block::set_lock_for_table(const Lock_descriptor &descriptor,
+                                     TABLE_LIST *table) {
   thr_lock_type lock_type = descriptor.type;
   bool for_update = lock_type >= TL_READ_NO_INSERT;
   enum_mdl_type mdl_type = mdl_type_for_dml(lock_type);
@@ -5960,7 +5963,7 @@ void SELECT_LEX::set_lock_for_table(const Lock_descriptor &descriptor,
     query.
     Sets the type of metadata lock to request according to lock_type.
 */
-void SELECT_LEX::set_lock_for_tables(thr_lock_type lock_type) {
+void Query_block::set_lock_for_tables(thr_lock_type lock_type) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("lock_type: %d  for_update: %d", lock_type,
                        lock_type >= TL_READ_NO_INSERT));
@@ -5969,9 +5972,9 @@ void SELECT_LEX::set_lock_for_tables(thr_lock_type lock_type) {
 }
 
 /**
-  Create a fake SELECT_LEX for a unit.
+  Create a fake Query_block for a unit.
 
-    The method create a fake SELECT_LEX object for a unit.
+    The method create a fake Query_block object for a unit.
     This object is created for any union construct containing a union
     operation and also for any single select union construct of the form
     @verbatim
@@ -5994,22 +5997,22 @@ void SELECT_LEX::set_lock_for_tables(thr_lock_type lock_type) {
     0     on success
 */
 
-bool SELECT_LEX_UNIT::add_fake_select_lex(THD *thd) {
-  SELECT_LEX *first_sl = first_select();
+bool Query_expression::add_fake_query_block(THD *thd) {
+  Query_block *first_qb = first_query_block();
   DBUG_TRACE;
-  DBUG_ASSERT(!fake_select_lex);
+  DBUG_ASSERT(!fake_query_block);
 
-  if (!(fake_select_lex = thd->lex->new_empty_query_block()))
+  if (!(fake_query_block = thd->lex->new_empty_query_block()))
     return true; /* purecov: inspected */
-  fake_select_lex->include_standalone(this, &fake_select_lex);
-  fake_select_lex->select_number = INT_MAX;
-  fake_select_lex->linkage = GLOBAL_OPTIONS_TYPE;
-  fake_select_lex->select_limit = nullptr;
+  fake_query_block->include_standalone(this, &fake_query_block);
+  fake_query_block->select_number = INT_MAX;
+  fake_query_block->linkage = GLOBAL_OPTIONS_TYPE;
+  fake_query_block->select_limit = nullptr;
 
-  fake_select_lex->set_context(first_sl->context.outer_context);
+  fake_query_block->set_context(first_qb->context.outer_context);
 
   /* allow item list resolving in fake select for ORDER BY */
-  fake_select_lex->context.resolve_in_select_list = true;
+  fake_query_block->context.resolve_in_select_list = true;
 
   if (!is_union()) {
     /*
@@ -6018,7 +6021,7 @@ bool SELECT_LEX_UNIT::add_fake_select_lex(THD *thd) {
       (SELECT ... LIMIT n) ORDER BY order_list [LIMIT m]
       just before the parser starts processing order_list
     */
-    fake_select_lex->no_table_names_allowed = true;
+    fake_query_block->no_table_names_allowed = true;
   }
   thd->lex->pop_context();
   return false;
@@ -6053,7 +6056,7 @@ bool push_new_name_resolution_context(Parse_context *pc, TABLE_LIST *left_op,
       left_op->first_leaf_for_name_resolution();
   on_context->last_name_resolution_table =
       right_op->last_leaf_for_name_resolution();
-  on_context->select_lex = pc->select;
+  on_context->query_block = pc->select;
   // Other tables in FROM clause of this JOIN are not visible:
   on_context->outer_context = thd->lex->current_context()->outer_context;
   on_context->next_context = pc->select->first_context;
@@ -6355,26 +6358,26 @@ Comp_creator *comp_ne_creator(bool invert) {
   @param left_expr   pointer to left expression
   @param cmp         compare function creator
   @param all         true if we create ALL subquery
-  @param select_lex  pointer on parsed subquery structure
+  @param query_block  pointer on parsed subquery structure
 
   @return
     constructed Item (or 0 if out of memory)
 */
 Item *all_any_subquery_creator(Item *left_expr,
                                chooser_compare_func_creator cmp, bool all,
-                               SELECT_LEX *select_lex) {
+                               Query_block *query_block) {
   if ((cmp == &comp_eq_creator) && !all)  //  = ANY <=> IN
-    return new Item_in_subselect(left_expr, select_lex);
+    return new Item_in_subselect(left_expr, query_block);
   if ((cmp == &comp_ne_creator) && all)  // <> ALL <=> NOT IN
   {
-    Item *i = new Item_in_subselect(left_expr, select_lex);
+    Item *i = new Item_in_subselect(left_expr, query_block);
     if (i == nullptr) return nullptr;
     Item *neg_i = i->truth_transformer(nullptr, Item::BOOL_NEGATED);
     if (neg_i != nullptr) return neg_i;
     return new Item_func_not(i);
   }
   Item_allany_subselect *it =
-      new Item_allany_subselect(left_expr, cmp, select_lex, all);
+      new Item_allany_subselect(left_expr, cmp, query_block, all);
   if (all) return it->upper_item = new Item_func_not_all(it); /* ALL */
 
   return it->upper_item = new Item_func_nop_all(it); /* ANY/SOME */
@@ -6393,7 +6396,7 @@ void create_table_set_open_action_and_adjust_tables(LEX *lex) {
   else
     create_table->open_type = OT_BASE_ONLY;
 
-  if (lex->select_lex->fields.empty()) {
+  if (lex->query_block->fields.empty()) {
     /*
       Avoid opening and locking target table for ordinary CREATE TABLE
       or CREATE TABLE LIKE for write (unlike in CREATE ... SELECT we

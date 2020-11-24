@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,6 @@
 #include "plugin/group_replication/include/sql_service/sql_service_interface.h"
 
 int sql_command_check();
-bool sql_command_select();
+bool sql_command_query_block();
 
 #endif  // SQL_COMMAND_TEST_INCLUDE

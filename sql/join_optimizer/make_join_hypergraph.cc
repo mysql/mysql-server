@@ -84,7 +84,7 @@ RelationalExpression *MakeRelationalExpression(THD *thd, const TABLE_LIST *tl) {
 }
 
 /**
-  Convert the SELECT_LEX's join lists into a RelationalExpression,
+  Convert the Query_block's join lists into a RelationalExpression,
   ie., a join tree with tables at the leaves.
  */
 RelationalExpression *MakeRelationalExpressionFromJoinList(
@@ -784,20 +784,20 @@ void MakeJoinGraphFromRelationalExpression(THD *thd,
 
 }  // namespace
 
-bool MakeJoinHypergraph(THD *thd, SELECT_LEX *select_lex, string *trace,
+bool MakeJoinHypergraph(THD *thd, Query_block *query_block, string *trace,
                         JoinHypergraph *graph) {
-  JOIN *join = select_lex->join;
+  JOIN *join = query_block->join;
   if (trace != nullptr) {
     // TODO(sgunders): Do we want to keep this in the trace indefinitely?
     // It's only useful for debugging, not as much for understanding what's
     // going on.
     *trace += "Join list after simplification:\n";
-    *trace += PrintJoinList(select_lex->top_join_list, /*level=*/0);
+    *trace += PrintJoinList(query_block->top_join_list, /*level=*/0);
     *trace += "\n";
   }
 
   RelationalExpression *root =
-      MakeRelationalExpressionFromJoinList(thd, select_lex->top_join_list);
+      MakeRelationalExpressionFromJoinList(thd, query_block->top_join_list);
 
   if (trace != nullptr) {
     // TODO(sgunders): Same question as above; perhaps the version after
@@ -887,7 +887,7 @@ bool MakeJoinHypergraph(THD *thd, SELECT_LEX *select_lex, string *trace,
       *trace += StringPrintf("Total eligibility set for %s: {",
                              ItemToString(condition).c_str());
       bool first = true;
-      for (TABLE_LIST *tl = select_lex->leaf_tables; tl != nullptr;
+      for (TABLE_LIST *tl = query_block->leaf_tables; tl != nullptr;
            tl = tl->next_leaf) {
         if (tl->map() & total_eligibility_set) {
           if (!first) *trace += ',';

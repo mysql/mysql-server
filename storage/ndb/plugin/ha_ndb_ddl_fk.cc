@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1537,8 +1537,8 @@ int ha_ndbcluster::copy_fk_for_offline_alter(THD *thd, Ndb *ndb,
   }
 
   Ndb_db_guard db_guard(ndb);
-  const char *src_db = thd->lex->select_lex->table_list.first->db;
-  const char *src_tab = thd->lex->select_lex->table_list.first->table_name;
+  const char *src_db = thd->lex->query_block->table_list.first->db;
+  const char *src_tab = thd->lex->query_block->table_list.first->table_name;
 
   if (src_db == 0 || src_tab == 0) {
     assert(false);

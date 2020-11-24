@@ -242,7 +242,7 @@ class System_view_union_definition_impl : public System_view_definition_impl {
 
     @return The System_view_select_definition_impl&.
   */
-  System_view_select_definition_impl &get_select() {
+  System_view_select_definition_impl &get_query_block() {
     m_selects.push_back(
         Select_definition(new System_view_select_definition_impl));
     return *(m_selects.back().get());
@@ -250,16 +250,16 @@ class System_view_union_definition_impl : public System_view_definition_impl {
 
   String_type build_ddl_create_view() const override {
     Stringstream_type ss;
-    bool first_select = true;
+    bool first_query_block = true;
     // Union definition must have minimum two SELECTs.
     DBUG_ASSERT(m_selects.size() >= 2);
 
     for (auto &select : m_selects) {
-      if (first_select) {
+      if (first_query_block) {
         ss << "CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW "
            << "information_schema." << view_name() << " AS "
            << "(" << select->build_select_query() << ")";
-        first_select = false;
+        first_query_block = false;
       } else {
         ss << " UNION "
            << "(" << select->build_select_query() << ")";

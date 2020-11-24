@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -134,7 +134,7 @@ void Tablespace_statistics::get_stat(enum_tablespace_stats_type stype,
 
 /*
   Read dynamic table statistics from SE OR by reading cached statistics
-  from SELECT_LEX.
+  from Query_block.
 */
 bool Tablespace_statistics::read_stat(THD *thd,
                                       const String &tablespace_name_ptr,

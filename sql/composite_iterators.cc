@@ -504,13 +504,13 @@ int NestedLoopIterator::Read() {
 MaterializeIterator::MaterializeIterator(
     THD *thd, Mem_root_array<QueryBlock> query_blocks_to_materialize,
     TABLE *table, unique_ptr_destroy_only<RowIterator> table_iterator,
-    Common_table_expr *cte, SELECT_LEX_UNIT *unit, JOIN *join, int ref_slice,
+    Common_table_expr *cte, Query_expression *unit, JOIN *join, int ref_slice,
     bool rematerialize, ha_rows limit_rows, bool reject_multiple_rows)
     : TableRowIterator(thd, table),
       m_query_blocks_to_materialize(std::move(query_blocks_to_materialize)),
       m_table_iterator(move(table_iterator)),
       m_cte(cte),
-      m_unit(unit),
+      m_query_expression(unit),
       m_join(join),
       m_ref_slice(ref_slice),
       m_rematerialize(rematerialize),
@@ -589,20 +589,20 @@ bool MaterializeIterator::Init() {
     table()->file->ha_delete_all_rows();
   }
 
-  if (m_unit != nullptr)
-    if (m_unit->clear_correlated_query_blocks()) return true;
+  if (m_query_expression != nullptr)
+    if (m_query_expression->clear_correlated_query_blocks()) return true;
 
   if (m_cte != nullptr) {
     // This is needed in a special case. Consider:
     // SELECT FROM ot WHERE EXISTS(WITH RECURSIVE cte (...)
     //                             SELECT * FROM cte)
     // and assume that the CTE is outer-correlated. When EXISTS is
-    // evaluated, SELECT_LEX_UNIT::ClearForExecution() calls
+    // evaluated, Query_expression::ClearForExecution() calls
     // clear_correlated_query_blocks(), which scans the WITH clause and clears
     // the CTE, including its references to itself in its recursive definition.
     // But, if the query expression owning WITH is merged up, e.g. like this:
     // FROM ot SEMIJOIN cte ON TRUE,
-    // then there is no SELECT_LEX_UNIT anymore, so its WITH clause is
+    // then there is no Query_expression anymore, so its WITH clause is
     // not reached. But this "lateral CTE" still needs comprehensive resetting.
     // That's done here.
     if (m_cte->clear_all_references()) return true;
@@ -624,7 +624,7 @@ bool MaterializeIterator::Init() {
     end_unique_index.commit();
   }
 
-  if (m_unit != nullptr && m_unit->is_recursive()) {
+  if (m_query_expression != nullptr && m_query_expression->is_recursive()) {
     if (MaterializeRecursive()) return true;
   } else {
     ha_rows stored_rows = 0;
@@ -915,7 +915,7 @@ void MaterializeIterator::AddInvalidator(
 
   // If we're invalidated, the join also needs to invalidate all of its
   // own materialization operations, but it will automatically do so by
-  // virtue of the SELECT_LEX being marked as uncachable
+  // virtue of the Query_block being marked as uncachable
   // (create_iterators() always sets rematerialize=true for such cases).
 }
 
@@ -1006,7 +1006,7 @@ bool TemptableAggregateIterator::Init() {
   Opt_trace_context *const trace = &thd()->opt_trace;
   Opt_trace_object trace_wrapper(trace);
   Opt_trace_object trace_exec(trace, "temp_table_aggregate");
-  trace_exec.add_select_number(m_join->select_lex->select_number);
+  trace_exec.add_select_number(m_join->query_block->select_number);
   Opt_trace_array trace_steps(trace, "steps");
 
   if (m_subquery_iterator->Init()) {

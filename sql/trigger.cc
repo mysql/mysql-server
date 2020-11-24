@@ -407,20 +407,20 @@ bool Trigger::execute(THD *thd) {
 
   bool err_status;
   Sub_statement_state statement_state;
-  SELECT_LEX *save_current_select;
+  Query_block *save_current_query_block;
 
   thd->reset_sub_statement_state(&statement_state, SUB_STMT_TRIGGER);
 
   /*
-    Reset current_select before call execute_trigger() and
+    Reset current_query_block before call execute_trigger() and
     restore it after return from one. This way error is set
     in case of failure during trigger execution.
   */
-  save_current_select = thd->lex->current_select();
-  thd->lex->set_current_select(nullptr);
+  save_current_query_block = thd->lex->current_query_block();
+  thd->lex->set_current_query_block(nullptr);
   err_status = m_sp->execute_trigger(thd, m_db_name, m_subject_table_name,
                                      &m_subject_table_grant);
-  thd->lex->set_current_select(save_current_select);
+  thd->lex->set_current_query_block(save_current_query_block);
 
   thd->restore_sub_statement_state(&statement_state);
 

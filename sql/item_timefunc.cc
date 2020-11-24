@@ -2303,8 +2303,9 @@ bool Item_date_add_interval::resolve_type(THD *thd) {
   /*
     Syntax may be:
     - either date_add(x, ?): then '?' is an integer number of days
-    - or date_add(x, interval ? some_unit): then '?' may be an int, a
-    decimal, a string in format "days hours:minutes", depending on int_type, see
+    - or date_add(x, interval ? some_query_expression): then '?' may be an int,
+    a decimal, a string in format "days hours:minutes", depending on int_type,
+    see
     https://dev.mysql.com/doc/refman/8.0/en/date-and-time-functions.html#function_date-add
   */
   enum_field_types arg1_type;

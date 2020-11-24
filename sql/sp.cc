@@ -512,7 +512,7 @@ enum_sp_return_code db_load_routine(
 
   thd->lex = &newlex;
   newlex.thd = thd;
-  newlex.set_current_select(nullptr);
+  newlex.set_current_query_block(nullptr);
 
   String defstr;
   defstr.set_charset(creation_ctx->get_client_cs());
@@ -2085,7 +2085,7 @@ sp_head *sp_load_for_information_schema(THD *thd, LEX_CSTRING db_name,
   LEX *old_lex = thd->lex, newlex;
   thd->lex = &newlex;
   newlex.thd = thd;
-  newlex.set_current_select(nullptr);
+  newlex.set_current_query_block(nullptr);
   sp = sp_compile(thd, &defstr, routine->sql_mode(), creation_ctx);
   *free_sp_head = true;
   thd->lex->sphead = nullptr;

@@ -59,7 +59,7 @@
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_exception_handler.h"  // handle_std_exception
-#include "sql/sql_lex.h"                // SELECT_LEX
+#include "sql/sql_lex.h"                // Query_block
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"  // JOIN
 #include "sql/sql_resolver.h"   // find_order_in_list
@@ -114,7 +114,7 @@ ORDER *Window::first_order_by() const {
   return m_order_by != nullptr ? m_order_by->value.first : nullptr;
 }
 
-bool Window::check_window_functions1(THD *thd, SELECT_LEX *select) {
+bool Window::check_window_functions1(THD *thd, Query_block *select) {
   List_iterator<Item_sum> li(m_functions);
   Item *wf;
 
@@ -123,8 +123,10 @@ bool Window::check_window_functions1(THD *thd, SELECT_LEX *select) {
        m_frame->m_to->m_border_type == WBT_UNBOUNDED_FOLLOWING);
 
   // If static aggregates, inversion isn't necessary
-  m_row_optimizable = (m_frame->m_unit == WFU_ROWS) && !m_static_aggregates;
-  m_range_optimizable = (m_frame->m_unit == WFU_RANGE) && !m_static_aggregates;
+  m_row_optimizable =
+      (m_frame->m_query_expression == WFU_ROWS) && !m_static_aggregates;
+  m_range_optimizable =
+      (m_frame->m_query_expression == WFU_RANGE) && !m_static_aggregates;
 
   while ((wf = li++)) {
     Window_evaluation_requirements reqs;
@@ -224,7 +226,7 @@ static ORDER *elt(const SQL_I_List<ORDER> &list, uint i) {
 }
 
 bool Window::setup_range_expressions(THD *thd) {
-  DBUG_ASSERT(m_frame->m_unit == WFU_RANGE);
+  DBUG_ASSERT(m_frame->m_query_expression == WFU_RANGE);
   const PT_order_list *o = effective_order_by();
 
   if (o == nullptr) {
@@ -432,14 +434,14 @@ ORDER *Window::sorting_order(THD *thd, bool implicitly_grouped) {
 }
 
 bool Window::resolve_reference(THD *thd, Item_sum *wf, PT_window **m_window) {
-  DBUG_ASSERT(thd->lex->current_select()->first_execution);
+  DBUG_ASSERT(thd->lex->current_query_block()->first_execution);
 
   if (!(*m_window)->is_reference()) {
     (*m_window)->m_functions.push_back(wf);
     return false;
   }
 
-  SELECT_LEX *curr = thd->lex->current_select();
+  Query_block *curr = thd->lex->current_query_block();
 
   List_iterator<Window> wi(curr->m_windows);
   Window *w;
@@ -661,7 +663,7 @@ bool Window::check_unique_name(List<Window> &windows) {
   return false;
 }
 
-bool Window::setup_ordering_cached_items(THD *thd, SELECT_LEX *select,
+bool Window::setup_ordering_cached_items(THD *thd, Query_block *select,
                                          const PT_order_list *o,
                                          bool partition_order) {
   if (o == nullptr) return false;
@@ -801,9 +803,10 @@ bool Window::check_constant_bound(THD *thd, PT_border *border) {
       For RANGE frames, resolving is already done in setup_range_expressions,
       so we need a test
     */
-    DBUG_ASSERT(((*border_ptr)->fixed && m_frame->m_unit == WFU_RANGE) ||
-                ((!(*border_ptr)->fixed || (*border_ptr)->basic_const_item()) &&
-                 m_frame->m_unit == WFU_ROWS));
+    DBUG_ASSERT(
+        ((*border_ptr)->fixed && m_frame->m_query_expression == WFU_RANGE) ||
+        ((!(*border_ptr)->fixed || (*border_ptr)->basic_const_item()) &&
+         m_frame->m_query_expression == WFU_ROWS));
 
     if (!(*border_ptr)->fixed && (*border_ptr)->fix_fields(thd, border_ptr))
       return true;
@@ -824,7 +827,7 @@ bool Window::check_border_sanity1(THD *thd) {
 
   for (auto border : {fr.m_from, fr.m_to}) {
     enum_window_border_type border_t = border->m_border_type;
-    switch (fr.m_unit) {
+    switch (fr.m_query_expression) {
       case WFU_ROWS:
       case WFU_RANGE:
 
@@ -865,7 +868,7 @@ bool Window::check_border_sanity1(THD *thd) {
         if (border_t == WBT_VALUE_PRECEDING ||
             border_t == WBT_VALUE_FOLLOWING) {
           // INTERVAL only allowed with RANGE
-          if (fr.m_unit == WFU_ROWS && border->m_date_time) {
+          if (fr.m_query_expression == WFU_ROWS && border->m_date_time) {
             my_error(ER_WINDOW_ROWS_INTERVAL_USE, MYF(0), printable_name());
             return true;
           }
@@ -878,8 +881,8 @@ bool Window::check_border_sanity1(THD *thd) {
             numeric (int, decimal, int in the definition an interval): we
             try integer, if wrong we will reprepare.
           */
-          if (border->m_value->propagate_type(thd, MYSQL_TYPE_LONGLONG,
-                                              fr.m_unit == WFU_ROWS))
+          if (border->m_value->propagate_type(
+                  thd, MYSQL_TYPE_LONGLONG, fr.m_query_expression == WFU_ROWS))
             return true;
         }
         break;
@@ -900,7 +903,7 @@ bool Window::check_border_sanity2(THD *thd) {
 
   for (auto border : Bounds_checked_array<PT_border *>(ba, siz)) {
     enum_window_border_type border_t = border->m_border_type;
-    switch (fr.m_unit) {
+    switch (fr.m_query_expression) {
       case WFU_ROWS:
       case WFU_RANGE:
 
@@ -916,10 +919,10 @@ bool Window::check_border_sanity2(THD *thd) {
             supplied value is silently cast to an integer before coming here.
             That explains why we accept 3.14 in '?', but not as a literal.
           */
-          if (fr.m_unit == WFU_ROWS &&
+          if (fr.m_query_expression == WFU_ROWS &&
               border->m_value->result_type() != INT_RESULT)
             goto err;
-          else if (fr.m_unit == WFU_RANGE &&
+          else if (fr.m_query_expression == WFU_RANGE &&
                    (o_item = m_order_by_items[0]->get_item())->result_type() ==
                        STRING_RESULT &&
                    o_item->is_temporal()) {
@@ -1102,12 +1105,12 @@ void Window::eliminate_unused_objects(THD *thd, List<Window> &windows) {
   }
 }
 
-bool Window::setup_windows1(THD *thd, SELECT_LEX *select,
+bool Window::setup_windows1(THD *thd, Query_block *select,
                             Ref_item_array ref_item_array, TABLE_LIST *tables,
                             mem_root_deque<Item *> *fields,
                             List<Window> &windows) {
   // Only possible at resolution time.
-  DBUG_ASSERT(thd->lex->current_select()->first_execution);
+  DBUG_ASSERT(thd->lex->current_query_block()->first_execution);
   /*
     We can encounter aggregate functions in the ORDER BY and PARTITION clauses
     of window function, so make sure we allow it:
@@ -1118,7 +1121,7 @@ bool Window::setup_windows1(THD *thd, SELECT_LEX *select,
   List_iterator<Window> w_it(windows);
   Window *w;
   while ((w = w_it++)) {
-    w->m_select = select;
+    w->m_query_block = select;
 
     if (w->m_partition_by != nullptr &&
         w->resolve_window_ordering(thd, ref_item_array, tables, fields,
@@ -1239,7 +1242,7 @@ bool Window::setup_windows1(THD *thd, SELECT_LEX *select,
         border type now that we know what we inherit (not known before binding
         above).
       */
-      DBUG_ASSERT(w->m_frame->m_unit == WFU_RANGE);
+      DBUG_ASSERT(w->m_frame->m_query_expression == WFU_RANGE);
       w->m_frame->m_to->m_border_type = WBT_CURRENT_ROW;
     }
 
@@ -1266,14 +1269,15 @@ bool Window::setup_windows1(THD *thd, SELECT_LEX *select,
     }
 
     /* For now, we do not support GROUPS */
-    if (f->m_unit == WFU_GROUPS) {
+    if (f->m_query_expression == WFU_GROUPS) {
       my_error(ER_NOT_SUPPORTED_YET, MYF(0), "GROUPS");
       return true;
     }
     /*
       So we can determine if a row's value falls within range of current row
     */
-    if (f->m_unit == WFU_RANGE && w->setup_range_expressions(thd)) return true;
+    if (f->m_query_expression == WFU_RANGE && w->setup_range_expressions(thd))
+      return true;
 
     if (w->check_border_sanity1(thd)) return true;
   }
@@ -1487,9 +1491,9 @@ void Window::print_border(const THD *thd, String *str, PT_border *border,
 void Window::print_frame(const THD *thd, String *str,
                          enum_query_type qt) const {
   const PT_frame &f = *m_frame;
-  str->append(f.m_unit == WFU_ROWS
+  str->append(f.m_query_expression == WFU_ROWS
                   ? "ROWS "
-                  : (f.m_unit == WFU_RANGE ? "RANGE " : "GROUPS "));
+                  : (f.m_query_expression == WFU_RANGE ? "RANGE " : "GROUPS "));
 
   str->append("BETWEEN ");
   print_border(thd, str, f.m_from, qt);
@@ -1513,13 +1517,13 @@ void Window::print(const THD *thd, String *str, enum_query_type qt,
 
     if (m_partition_by != nullptr) {
       str->append("PARTITION BY ");
-      SELECT_LEX::print_order(thd, str, m_partition_by->value.first, qt);
+      Query_block::print_order(thd, str, m_partition_by->value.first, qt);
       str->append(' ');
     }
 
     if (m_order_by != nullptr) {
       str->append("ORDER BY ");
-      SELECT_LEX::print_order(thd, str, m_order_by->value.first, qt);
+      Query_block::print_order(thd, str, m_order_by->value.first, qt);
       str->append(' ');
     }
 
@@ -1549,7 +1553,7 @@ void Window::reset_all_wf_state() {
 }
 
 bool Window::has_windowing_steps() const {
-  return m_select->join && m_select->join->m_windowing_steps;
+  return m_query_block->join && m_query_block->join->m_windowing_steps;
 }
 
 double Window::compute_cost(double cost, List<Window> &windows) {

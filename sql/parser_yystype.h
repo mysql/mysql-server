@@ -131,7 +131,7 @@ class PT_window_list;
 class PT_with_clause;
 class PT_with_list;
 class Parse_tree_root;
-class SELECT_LEX;
+class Query_block;
 class String;
 class Table_ident;
 class sp_condition_value;
@@ -387,7 +387,7 @@ union YYSTYPE {
   thr_lock_type lock_type;
   interval_type interval, interval_time_st;
   enum_mysql_timestamp_type date_time_type;
-  SELECT_LEX *select_lex;
+  Query_block *query_block;
   chooser_compare_func_creator boolfunc2creator;
   sp_condition_value *spcondvalue;
   struct {

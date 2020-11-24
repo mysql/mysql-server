@@ -116,7 +116,7 @@ TEST_F(MakeSortKeyTest, DecimalResult) {
   thd()->variables.max_sort_length = 4U;
   m_sort_fields[0].item =
       new Item_decimal(POS(), dec_str, strlen(dec_str), &my_charset_bin);
-  Parse_context pc(thd(), thd()->lex->current_select());
+  Parse_context pc(thd(), thd()->lex->current_query_block());
   EXPECT_FALSE(m_sort_fields[0].item->itemize(&pc, &m_sort_fields[0].item));
 
   const uint total_length = sortlength(thd(), m_sort_fields, 1);

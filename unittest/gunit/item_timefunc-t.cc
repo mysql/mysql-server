@@ -60,7 +60,7 @@ TEST_F(ItemTimeFuncTest, dateAddInterval) {
   Item_decimal *arg1 = new Item_decimal(0.1234567);
   Item *item = new Item_date_add_interval(POS(), arg0, arg1,
                                           INTERVAL_SECOND_MICROSECOND, false);
-  Parse_context pc(thd(), thd()->lex->current_select());
+  Parse_context pc(thd(), thd()->lex->current_query_block());
   EXPECT_FALSE(item->itemize(&pc, &item));
   EXPECT_FALSE(item->fix_fields(thd(), nullptr));
 
@@ -161,7 +161,7 @@ TEST_P(ItemTimeFuncTestP, secToTime) {
                                        &my_charset_latin1_bin);
   Item_func_sec_to_time *time = new Item_func_sec_to_time(POS(), sec);
 
-  Parse_context pc(thd(), thd()->lex->current_select());
+  Parse_context pc(thd(), thd()->lex->current_query_block());
   Item *item;
   EXPECT_FALSE(time->itemize(&pc, &item));
   EXPECT_EQ(time, item);
@@ -221,7 +221,7 @@ TEST_P(ItemTimeFuncTruncFracTestP, secToTime) {
                                        &my_charset_latin1_bin);
   Item_func_sec_to_time *time = new Item_func_sec_to_time(POS(), sec);
 
-  Parse_context pc(thd(), thd()->lex->current_select());
+  Parse_context pc(thd(), thd()->lex->current_query_block());
   Item *item;
   EXPECT_FALSE(time->itemize(&pc, &item));
   EXPECT_EQ(time, item);

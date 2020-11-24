@@ -411,12 +411,12 @@ err:
   return true;
 }
 
-bool Sql_cmd_select::accept(THD *thd, Select_lex_visitor *visitor) {
+bool Sql_cmd_query_block::accept(THD *thd, Select_lex_visitor *visitor) {
   return thd->lex->unit->accept(visitor);
 }
 
-const MYSQL_LEX_CSTRING *Sql_cmd_select::eligible_secondary_storage_engine()
-    const {
+const MYSQL_LEX_CSTRING *
+Sql_cmd_query_block::eligible_secondary_storage_engine() const {
   // Don't use secondary storage engines for statements that call stored
   // routines.
   if (lex->uses_stored_routines()) return nullptr;
@@ -465,7 +465,7 @@ const MYSQL_LEX_CSTRING *Sql_cmd_select::eligible_secondary_storage_engine()
   Prepare a SELECT statement.
 */
 
-bool Sql_cmd_select::prepare_inner(THD *thd) {
+bool Sql_cmd_query_block::prepare_inner(THD *thd) {
   if (lex->is_explain()) {
     /*
       Always use Query_result_send for EXPLAIN, even if it's an EXPLAIN for
@@ -488,13 +488,13 @@ bool Sql_cmd_select::prepare_inner(THD *thd) {
     }
   }
 
-  SELECT_LEX_UNIT *const unit = lex->unit;
-  SELECT_LEX *parameters = unit->global_parameters();
+  Query_expression *const unit = lex->unit;
+  Query_block *parameters = unit->global_parameters();
   if (!parameters->has_limit()) {
     parameters->m_use_select_limit = true;
   }
   if (unit->is_simple()) {
-    SELECT_LEX *const select = unit->first_select();
+    Query_block *const select = unit->first_query_block();
     select->context.resolve_in_select_list = true;
     select->set_query_result(result);
     unit->set_query_result(result);
@@ -518,7 +518,7 @@ bool Sql_cmd_dml::execute(THD *thd) {
 
   lex = thd->lex;
 
-  SELECT_LEX_UNIT *const unit = lex->unit;
+  Query_expression *const unit = lex->unit;
 
   bool statement_timer_armed = false;
   bool error_handler_active = false;
@@ -689,17 +689,18 @@ static double accumulate_statement_cost(const LEX *lex) {
   Opt_trace_disable_I_S disable_trace(trace, true);
 
   double total_cost = 0.0;
-  for (const SELECT_LEX *select_lex = lex->all_selects_list;
-       select_lex != nullptr; select_lex = select_lex->next_select_in_list()) {
-    if (select_lex->join == nullptr) continue;
+  for (const Query_block *query_block = lex->all_query_blocks_list;
+       query_block != nullptr;
+       query_block = query_block->next_select_in_list()) {
+    if (query_block->join == nullptr) continue;
 
     // Get the cost of this query block.
-    double query_block_cost = select_lex->join->best_read;
+    double query_block_cost = query_block->join->best_read;
 
     // If it is a non-cacheable subquery, estimate how many times it
     // needs to be executed, and adjust the cost accordingly.
-    const Item_subselect *item = select_lex->master_unit()->item;
-    if (item != nullptr && !select_lex->is_cacheable())
+    const Item_subselect *item = query_block->master_query_expression()->item;
+    if (item != nullptr && !query_block->is_cacheable())
       query_block_cost *= calculate_subquery_executions(item, trace);
 
     total_cost += query_block_cost;
@@ -806,7 +807,7 @@ static bool optimize_secondary_engine(THD *thd) {
 */
 
 bool Sql_cmd_dml::execute_inner(THD *thd) {
-  SELECT_LEX_UNIT *unit = lex->unit;
+  Query_expression *unit = lex->unit;
 
   if (unit->optimize(thd, /*materialize_destination=*/nullptr,
                      /*create_iterators=*/true))
@@ -845,16 +846,17 @@ Query_result *Sql_cmd_dml::query_result() const {
   DBUG_ASSERT(is_prepared());
   return lex->unit->query_result() != nullptr
              ? lex->unit->query_result()
-             : lex->unit->first_select()->query_result();
+             : lex->unit->first_query_block()->query_result();
 }
 
 void Sql_cmd_dml::set_query_result(Query_result *result_arg) {
   result = result_arg;
-  SELECT_LEX_UNIT *unit = lex->unit;
-  if (unit->fake_select_lex != nullptr)
-    unit->fake_select_lex->set_query_result(result);
+  Query_expression *unit = lex->unit;
+  if (unit->fake_query_block != nullptr)
+    unit->fake_query_block->set_query_result(result);
   else {
-    for (SELECT_LEX *sl = unit->first_select(); sl; sl = sl->next_select()) {
+    for (Query_block *sl = unit->first_query_block(); sl;
+         sl = sl->next_query_block()) {
       sl->set_query_result(result);
     }
   }
@@ -913,7 +915,7 @@ static bool check_locking_clause_access(THD *thd, Global_tables_list tables) {
   of the query (and possibly to other entities).
 */
 
-bool Sql_cmd_select::precheck(THD *thd) {
+bool Sql_cmd_query_block::precheck(THD *thd) {
   /*
     lex->exchange != NULL implies SELECT .. INTO OUTFILE and this
     requires FILE_ACL access.
@@ -954,7 +956,7 @@ bool Sql_cmd_select::precheck(THD *thd) {
   Perform an authorization check for a prepared SELECT statement.
 */
 
-bool Sql_cmd_select::check_privileges(THD *thd) {
+bool Sql_cmd_query_block::check_privileges(THD *thd) {
   /*
     lex->exchange != nullptr implies SELECT .. INTO OUTFILE and this
     requires FILE_ACL access.
@@ -968,12 +970,13 @@ bool Sql_cmd_select::check_privileges(THD *thd) {
   if (check_locking_clause_access(thd, Global_tables_list(lex->query_tables)))
     return true;
 
-  SELECT_LEX_UNIT *const unit = lex->unit;
-  for (SELECT_LEX *sl = unit->first_select(); sl; sl = sl->next_select()) {
+  Query_expression *const unit = lex->unit;
+  for (Query_block *sl = unit->first_query_block(); sl;
+       sl = sl->next_query_block()) {
     if (sl->check_column_privileges(thd)) return true;
   }
-  if (unit->fake_select_lex != nullptr) {
-    if (unit->fake_select_lex->check_column_privileges(thd)) return true;
+  if (unit->fake_query_block != nullptr) {
+    if (unit->fake_query_block->check_column_privileges(thd)) return true;
   }
   return false;
 }
@@ -1328,7 +1331,7 @@ static bool setup_semijoin_dups_elimination(JOIN *join, uint no_jbuf_after) {
   DBUG_TRACE;
   ASSERT_BEST_REF_IN_JOIN_ORDER(join);
 
-  if (join->select_lex->sj_nests.empty()) return false;
+  if (join->query_block->sj_nests.empty()) return false;
 
   QEP_TAB *const qep_array = join->qep_tab;
   for (tableno = join->const_tables; tableno < join->primary_tables;) {
@@ -1585,13 +1588,13 @@ bool JOIN::clear_corr_derived_tmp_tables() {
   for (uint i = const_tables; i < tables; i++) {
     auto tl = qep_tab[i].table_ref;
     if (tl && tl->is_derived() && !tl->common_table_expr() &&
-        (tl->derived_unit()->uncacheable & UNCACHEABLE_DEPENDENT) &&
+        (tl->derived_query_expression()->uncacheable & UNCACHEABLE_DEPENDENT) &&
         tl->table) {
       /*
         Applied only to non-CTE derived tables, as CTEs are reset in
-        SELECT_LEX_UNIT::clear_correlated_query_blocks()
+        Query_expression::clear_correlated_query_blocks()
       */
-      if (tl->derived_unit()->query_result()->reset()) return true;
+      if (tl->derived_query_expression()->query_result()->reset()) return true;
     }
   }
   return false;
@@ -1608,13 +1611,13 @@ void JOIN::reset() {
   if (!executed) return;
 
   unit->offset_limit_cnt = (ha_rows)(
-      select_lex->offset_limit ? select_lex->offset_limit->val_uint() : 0ULL);
+      query_block->offset_limit ? query_block->offset_limit->val_uint() : 0ULL);
 
   group_sent = false;
   recursive_iteration_count = 0;
   executed = false;
 
-  List_iterator<Window> li(select_lex->m_windows);
+  List_iterator<Window> li(query_block->m_windows);
   Window *w;
   while ((w = li++)) {
     w->reset_round();
@@ -1629,7 +1632,7 @@ void JOIN::reset() {
   set_ref_item_slice(REF_SLICE_SAVED_BASE);
 
   if (qep_tab) {
-    if (select_lex->derived_table_count) clear_corr_derived_tmp_tables();
+    if (query_block->derived_table_count) clear_corr_derived_tmp_tables();
     /* need to reset ref access state (see EQRefIterator) */
     for (uint i = 0; i < tables; i++) {
       QEP_TAB *const tab = &qep_tab[i];
@@ -1654,9 +1657,9 @@ void JOIN::reset() {
     while ((func = *(func_ptr++))) func->clear();
   }
 
-  if (select_lex->has_ft_funcs()) {
+  if (query_block->has_ft_funcs()) {
     /* TODO: move the code to JOIN::exec */
-    (void)init_ftfuncs(thd, select_lex);
+    (void)init_ftfuncs(thd, query_block);
   }
 }
 
@@ -1676,7 +1679,7 @@ bool JOIN::prepare_result() {
 
   error = 0;
 
-  if (select_lex->query_result()->start_execution(thd)) goto err;
+  if (query_block->query_result()->start_execution(thd)) goto err;
 
   return false;
 
@@ -1709,7 +1712,7 @@ void JOIN::destroy() {
     }
   } else {
     // Same, for hypergraph queries.
-    for (TABLE_LIST *tl = select_lex->leaf_tables; tl; tl = tl->next_leaf) {
+    for (TABLE_LIST *tl = query_block->leaf_tables; tl; tl = tl->next_leaf) {
       TABLE *table = tl->table;
       if (table != nullptr) {
         table->sorting_iterator = nullptr;
@@ -1760,7 +1763,7 @@ void JOIN::destroy() {
     been updated without used tables information from those const tables, so
     make sure to restore used tables information as from resolving.
   */
-  if (const_tables > 0) select_lex->update_used_tables();
+  if (const_tables > 0) query_block->update_used_tables();
 
   destroy_sj_tmp_tables(this);
 
@@ -1771,7 +1774,7 @@ void JOIN::destroy() {
 
   keyuse_array.clear();
   // Free memory for rollup arrays
-  if (select_lex->olap == ROLLUP_TYPE) {
+  if (query_block->olap == ROLLUP_TYPE) {
     rollup_group_items.clear();
     rollup_group_items.shrink_to_fit();
     rollup_sums.clear();
@@ -1792,7 +1795,7 @@ void JOIN::cleanup_item_list(const mem_root_deque<Item *> &items) const {
   @returns false if success, true if error
 */
 
-bool SELECT_LEX::optimize(THD *thd) {
+bool Query_block::optimize(THD *thd) {
   DBUG_TRACE;
 
   DBUG_ASSERT(join == nullptr);
@@ -1800,7 +1803,7 @@ bool SELECT_LEX::optimize(THD *thd) {
   if (!join_local) return true; /* purecov: inspected */
 
   /*
-    Updating SELECT_LEX::join requires acquiring THD::LOCK_query_plan
+    Updating Query_block::join requires acquiring THD::LOCK_query_plan
     to avoid races when EXPLAIN FOR CONNECTION is used.
   */
   thd->lock_query_plan();
@@ -1811,8 +1814,8 @@ bool SELECT_LEX::optimize(THD *thd) {
 
   if (join->zero_result_cause && !is_implicitly_grouped()) return false;
 
-  for (SELECT_LEX_UNIT *unit = first_inner_unit(); unit;
-       unit = unit->next_unit()) {
+  for (Query_expression *unit = first_inner_query_expression(); unit;
+       unit = unit->next_query_expression()) {
     // Derived tables and const subqueries are already optimized
     if (!unit->is_optimized() &&
         unit->optimize(thd, /*materialize_destination=*/nullptr,
@@ -1833,7 +1836,7 @@ bool SELECT_LEX::optimize(THD *thd) {
 
   @todo - skip this if we have table SELECT privileges for all tables
 */
-bool SELECT_LEX::check_column_privileges(THD *thd) {
+bool Query_block::check_column_privileges(THD *thd) {
   Column_privilege_tracker tracker(thd, SELECT_ACL);
 
   for (Item *item : visible_fields()) {
@@ -1936,10 +1939,11 @@ bool check_privileges_for_list(THD *thd, const mem_root_deque<Item *> &items,
   @returns false if success, true if error (insufficient privileges)
 */
 
-bool SELECT_LEX::check_privileges_for_subqueries(THD *thd) {
-  for (SELECT_LEX_UNIT *unit = first_inner_unit(); unit;
-       unit = unit->next_unit()) {
-    for (SELECT_LEX *sl = unit->first_select(); sl; sl = sl->next_select()) {
+bool Query_block::check_privileges_for_subqueries(THD *thd) {
+  for (Query_expression *unit = first_inner_query_expression(); unit;
+       unit = unit->next_query_expression()) {
+    for (Query_block *sl = unit->first_query_block(); sl;
+         sl = sl->next_query_block()) {
       if (sl->check_column_privileges(thd)) return true;
     }
   }
@@ -2015,7 +2019,7 @@ bool JOIN::init_ref_access() {
 */
 void JOIN::set_semijoin_info() {
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
-  if (select_lex->sj_nests.empty()) return;
+  if (query_block->sj_nests.empty()) return;
 
   for (uint tableno = const_tables; tableno < tables;) {
     JOIN_TAB *const tab = best_ref[tableno];
@@ -2936,7 +2940,7 @@ bool JOIN::setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
     Query_result_union::create_result_table does
   */
   sjm_exec->table_param = Temp_table_param();
-  count_field_types(select_lex, &sjm_exec->table_param,
+  count_field_types(query_block, &sjm_exec->table_param,
                     emb_sj_nest->nested_join->sj_inner_exprs, false, true);
   sjm_exec->table_param.bit_fields_as_long = true;
 
@@ -3000,7 +3004,7 @@ bool JOIN::setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
   tl->set_tableno(tableno);
 
   table->pos_in_table_list = tl;
-  table->pos_in_table_list->select_lex = select_lex;
+  table->pos_in_table_list->query_block = query_block;
 
   if (!(sjm_opt->mat_fields = (Item_field **)thd->mem_root->Alloc(
             field_count * sizeof(Item_field **))))
@@ -3285,8 +3289,9 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
     if (qep_tab->sj_mat_exec())
       qep_tab->materialize_table = QEP_TAB::MATERIALIZE_SEMIJOIN;
 
-    if (table_ref->is_derived() && table_ref->derived_unit()->m_lateral_deps) {
-      auto deps = table_ref->derived_unit()->m_lateral_deps;
+    if (table_ref->is_derived() &&
+        table_ref->derived_query_expression()->m_lateral_deps) {
+      auto deps = table_ref->derived_query_expression()->m_lateral_deps;
       plan_idx last = NO_PLAN_IDX;
       for (JOIN_TAB **tab2 = join->map2table; deps; tab2++, deps >>= 1) {
         if (deps & 1) last = std::max(last, (*tab2)->idx());
@@ -3503,22 +3508,24 @@ bool QEP_shared_owner::and_with_condition(Item *add_cond) {
 */
 
 void JOIN::join_free() {
-  SELECT_LEX_UNIT *tmp_unit;
-  SELECT_LEX *sl;
+  Query_expression *tmp_query_expression;
+  Query_block *sl;
   /*
     Optimization: if not EXPLAIN and we are done with the JOIN,
     free all tables.
   */
-  bool full = (!select_lex->uncacheable && !thd->lex->is_explain());
+  bool full = (!query_block->uncacheable && !thd->lex->is_explain());
   bool can_unlock = full;
   DBUG_TRACE;
 
   cleanup();
 
-  for (tmp_unit = select_lex->first_inner_unit(); tmp_unit;
-       tmp_unit = tmp_unit->next_unit())
-    for (sl = tmp_unit->first_select(); sl; sl = sl->next_select()) {
-      Item_subselect *subselect = sl->master_unit()->item;
+  for (tmp_query_expression = query_block->first_inner_query_expression();
+       tmp_query_expression;
+       tmp_query_expression = tmp_query_expression->next_query_expression())
+    for (sl = tmp_query_expression->first_query_block(); sl;
+         sl = sl->next_query_block()) {
+      Item_subselect *subselect = sl->master_query_expression()->item;
       bool full_local = full && (!subselect || subselect->is_evaluated());
       /*
         If this join is evaluated, we can partially clean it up and clean up
@@ -3539,11 +3546,11 @@ void JOIN::join_free() {
     Unlock all tables. We may be in an INSERT .... SELECT statement.
   */
   if (can_unlock && lock && thd->lock && !thd->locked_tables_mode &&
-      !(select_lex->active_options() & SELECT_NO_UNLOCK) &&
-      !select_lex->subquery_in_having &&
-      (select_lex == (thd->lex->unit->fake_select_lex
-                          ? thd->lex->unit->fake_select_lex
-                          : thd->lex->select_lex))) {
+      !(query_block->active_options() & SELECT_NO_UNLOCK) &&
+      !query_block->subquery_in_having &&
+      (query_block == (thd->lex->unit->fake_query_block
+                           ? thd->lex->unit->fake_query_block
+                           : thd->lex->query_block))) {
     /*
       TODO: unlock tables even if the join isn't top level select in the
       tree.
@@ -3591,7 +3598,7 @@ void JOIN::cleanup() {
       cleanup_table(table);
     }
   } else if (thd->lex->using_hypergraph_optimizer) {
-    for (TABLE_LIST *tl = select_lex->leaf_tables; tl; tl = tl->next_leaf) {
+    for (TABLE_LIST *tl = query_block->leaf_tables; tl; tl = tl->next_leaf) {
       cleanup_table(tl->table);
     }
     for (JOIN::TemporaryTableToCleanup cleanup : temp_tables) {
@@ -3758,7 +3765,7 @@ bool const_expression_in_where(Item *cond, Item *comp_item,
   have to be reverted if this function is called after deciding to use ROLLUP
   (see JOIN::optimize_rollup()).
 
-  @param select_lex           SELECT_LEX of query
+  @param query_block           Query_block of query
   @param param                Description of temp table
   @param fields               List of fields to count
   @param reset_with_sum_func  Whether to reset with_sum_func of func items
@@ -3766,7 +3773,7 @@ bool const_expression_in_where(Item *cond, Item *comp_item,
                               given the same parameter.
 */
 
-void count_field_types(SELECT_LEX *select_lex, Temp_table_param *param,
+void count_field_types(Query_block *query_block, Temp_table_param *param,
                        const mem_root_deque<Item *> &fields,
                        bool reset_with_sum_func, bool save_sum_fields) {
   DBUG_TRACE;
@@ -3793,7 +3800,7 @@ void count_field_types(SELECT_LEX *select_lex, Temp_table_param *param,
     else if (real_type == Item::SUM_FUNC_ITEM && !real->m_is_window_function) {
       if (!field->const_item()) {
         Item_sum *sum_item = down_cast<Item_sum *>(field->real_item());
-        if (sum_item->aggr_select == select_lex) {
+        if (sum_item->aggr_query_block == query_block) {
           if (!sum_item->allow_group_via_temp_table)
             param->allow_group_via_temp_table = false;  // UDF SUM function
           param->sum_func_count++;
@@ -4006,7 +4013,7 @@ bool JOIN::make_sum_func_list(const mem_root_deque<Item *> &fields,
   Item_sum **func = sum_funcs;
   for (Item *item : fields) {
     if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item() &&
-        down_cast<Item_sum *>(item)->aggr_select == select_lex) {
+        down_cast<Item_sum *>(item)->aggr_query_block == query_block) {
       DBUG_ASSERT(!item->m_is_window_function);
       *func++ = down_cast<Item_sum *>(item);
     }
@@ -4023,15 +4030,15 @@ bool JOIN::make_sum_func_list(const mem_root_deque<Item *> &fields,
   Free joins of subselect of this select.
 
   @param thd      thread handle
-  @param select   pointer to SELECT_LEX which subselects joins we will free
+  @param select   pointer to Query_block which subselects joins we will free
 
   @todo when the final use of this function (from SET statements) is removed,
   this function can be deleted.
 */
 
-void free_underlaid_joins(THD *thd, SELECT_LEX *select) {
-  for (SELECT_LEX_UNIT *unit = select->first_inner_unit(); unit;
-       unit = unit->next_unit())
+void free_underlaid_joins(THD *thd, Query_block *select) {
+  for (Query_expression *unit = select->first_inner_query_expression(); unit;
+       unit = unit->next_query_expression())
     unit->cleanup(thd, false);
 }
 
@@ -4051,13 +4058,13 @@ void free_underlaid_joins(THD *thd, SELECT_LEX *select) {
   @retval true  Error
 */
 
-bool SELECT_LEX::change_query_result(THD *thd,
-                                     Query_result_interceptor *new_result,
-                                     Query_result_interceptor *old_result) {
+bool Query_block::change_query_result(THD *thd,
+                                      Query_result_interceptor *new_result,
+                                      Query_result_interceptor *old_result) {
   DBUG_TRACE;
   if (old_result == nullptr || query_result() == old_result) {
     set_query_result(new_result);
-    if (query_result()->prepare(thd, fields, master_unit()))
+    if (query_result()->prepare(thd, fields, master_query_expression()))
       return true; /* purecov: inspected */
     return false;
   } else {
@@ -4179,7 +4186,7 @@ bool JOIN::make_tmp_tables_info() {
 
   /*
     If the plan is constant, we will not do window tmp table processing
-    cf. special code path in do_select.
+    cf. special code path in do_query_block.
   */
   m_windowing_steps = m_windows.elements > 0 && !plan_is_const() &&
                       !implicit_grouping && !group_optimized_away;
@@ -4287,7 +4294,7 @@ bool JOIN::make_tmp_tables_info() {
                                    &tmp_fields[REF_SLICE_TMP1]))
         return true;
     } else {
-      if (change_to_use_tmp_fields_except_sums(fields, thd, select_lex,
+      if (change_to_use_tmp_fields_except_sums(fields, thd, query_block,
                                                ref_items[REF_SLICE_TMP1],
                                                &tmp_fields[REF_SLICE_TMP1]))
         return true;
@@ -4367,7 +4374,7 @@ bool JOIN::make_tmp_tables_info() {
       DBUG_PRINT("info", ("Creating group table"));
 
       calc_group_buffer(this, group_list.order);
-      count_field_types(select_lex, &tmp_table_param,
+      count_field_types(query_block, &tmp_table_param,
                         tmp_fields[REF_SLICE_TMP1],
                         select_distinct && group_list.empty(), false);
       tmp_table_param.hidden_field_count =
@@ -4482,13 +4489,14 @@ bool JOIN::make_tmp_tables_info() {
          function which needs sorting (check need_tmp_before_win in
          JOIN::optimize).
       */
-      DBUG_ASSERT(select_lex->active_options() & OPTION_BUFFER_RESULT ||
+      DBUG_ASSERT(query_block->active_options() & OPTION_BUFFER_RESULT ||
                   m_windowing_steps);
       // the temporary table does not have a grouping expression
       DBUG_ASSERT(!qep_tab[curr_tmp_table].table()->group);
     }
     calc_group_buffer(this, group_list.order);
-    count_field_types(select_lex, &tmp_table_param, *curr_fields, false, false);
+    count_field_types(query_block, &tmp_table_param, *curr_fields, false,
+                      false);
   }
 
   /*
@@ -4652,7 +4660,7 @@ bool JOIN::make_tmp_tables_info() {
         par->m_window_frame_buffer = true;
         TABLE *table =
             create_tmp_table(thd, par, *curr_fields, nullptr, false, false,
-                             select_lex->active_options(), HA_POS_ERROR, "");
+                             query_block->active_options(), HA_POS_ERROR, "");
         if (table == nullptr) return true;
 
         if (alloc_ref_item_slice(thd, fbidx)) return true;
@@ -4711,7 +4719,7 @@ bool JOIN::make_tmp_tables_info() {
             return true;
         }
         if (!tab->filesort && !tab->table()->s->keys &&
-            (!(select_lex->active_options() & OPTION_BUFFER_RESULT) ||
+            (!(query_block->active_options() & OPTION_BUFFER_RESULT) ||
              need_tmp_before_win || wno >= 1)) {
           /*
             Last tmp table of execution; no sort, no duplicate elimination, no
@@ -4746,7 +4754,7 @@ bool JOIN::make_tmp_tables_info() {
     for (unsigned i = 0; i < fields->size(); ++i) {
       Item *item = (*fields)[i];
       int pos = item->hidden ? fields->size() - i - 1 : i - num_hidden_fields;
-      select_lex->base_ref_items[pos] = item;
+      query_block->base_ref_items[pos] = item;
       if (!ref_items[REF_SLICE_SAVED_BASE].is_null()) {
         ref_items[REF_SLICE_SAVED_BASE][pos] = item;
       }
@@ -4769,7 +4777,7 @@ bool JOIN::make_tmp_tables_info() {
     recursive query cannot have clauses which use a tmp table (GROUP BY,
     etc).
   */
-  DBUG_ASSERT(!select_lex->is_recursive() || !tmp_tables);
+  DBUG_ASSERT(!query_block->is_recursive() || !tmp_tables);
   return false;
 }
 
@@ -4823,7 +4831,7 @@ bool JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order,
                                 bool sort_before_group) {
   DBUG_TRACE;
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
-  DBUG_ASSERT(!select_lex->is_recursive());
+  DBUG_ASSERT(!query_block->is_recursive());
   const enum join_type jt = qep_tab[idx].type();
   if (jt == JT_CONST || jt == JT_EQ_REF)
     return false;  // 1 single row: is already sorted
@@ -4856,8 +4864,11 @@ bool JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order,
   QEP_TAB *const tab = &qep_tab[idx];
   bool keep_buffers =
       qep_tab->join() != nullptr &&
-      qep_tab->join()->select_lex->master_unit()->item != nullptr &&
-      qep_tab->join()->select_lex->master_unit()->item->is_uncacheable();
+      qep_tab->join()->query_block->master_query_expression()->item !=
+          nullptr &&
+      qep_tab->join()
+          ->query_block->master_query_expression()
+          ->item->is_uncacheable();
 
   {
     // Switch to the right slice if applicable, so that we fetch out the correct

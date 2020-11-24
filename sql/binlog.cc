@@ -2528,7 +2528,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all) {
     cache_mngr->stmt_cache.reset();
   } else if (!cache_mngr->stmt_cache.is_binlog_empty()) {
     if (thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
-        !thd->lex->select_lex->field_list_is_empty() && /* With select */
+        !thd->lex->query_block->field_list_is_empty() && /* With select */
         !(thd->lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
         thd->is_current_stmt_binlog_format_row()) {
       /*
@@ -3267,7 +3267,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log) {
 
   if (binary_log->is_open()) {
     LEX_MASTER_INFO *lex_mi = &thd->lex->mi;
-    SELECT_LEX_UNIT *unit = thd->lex->unit;
+    Query_expression *unit = thd->lex->unit;
     ha_rows event_count, limit_start, limit_end;
     my_off_t pos =
         max<my_off_t>(BIN_LOG_HEADER_SIZE, lex_mi->pos);  // user-friendly
@@ -3275,7 +3275,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log) {
     const char *log_file_name = lex_mi->log_file_name;
     Log_event *ev = nullptr;
 
-    unit->set_limit(thd, thd->lex->current_select());
+    unit->set_limit(thd, thd->lex->current_query_block());
     limit_start = unit->offset_limit_cnt;
     limit_end = unit->select_limit_cnt;
 
@@ -9684,7 +9684,7 @@ static bool has_write_table_with_auto_increment(TABLE_LIST *tables) {
    with auto-increment column.
 
   SYNOPSIS
-   has_two_write_locked_tables_with_auto_increment_and_select
+   has_two_write_locked_tables_with_auto_increment_and_query_block
       tables        Table list
 
   RETURN VALUES
@@ -9696,17 +9696,18 @@ static bool has_write_table_with_auto_increment(TABLE_LIST *tables) {
    -false otherwise
 */
 
-static bool has_write_table_with_auto_increment_and_select(TABLE_LIST *tables) {
-  bool has_select = false;
+static bool has_write_table_with_auto_increment_and_query_block(
+    TABLE_LIST *tables) {
+  bool has_query_block = false;
   bool has_auto_increment_tables = has_write_table_with_auto_increment(tables);
   for (TABLE_LIST *table = tables; table; table = table->next_global) {
     if (!table->is_placeholder() &&
         (table->lock_descriptor().type <= TL_READ_NO_INSERT)) {
-      has_select = true;
+      has_query_block = true;
       break;
     }
   }
-  return (has_select && has_auto_increment_tables);
+  return (has_query_block && has_auto_increment_tables);
 }
 
 /*
@@ -10025,7 +10026,7 @@ int THD::decide_logging_format(TABLE_LIST *tables) {
         are fetched fron the select tables cannot be determined and may differ
         on master and slave.
        */
-      if (has_write_table_with_auto_increment_and_select(tables))
+      if (has_write_table_with_auto_increment_and_query_block(tables))
         lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_WRITE_AUTOINC_SELECT);
 
       if (has_write_table_auto_increment_not_first_in_pk(tables))
@@ -10619,13 +10620,13 @@ bool THD::is_ddl_gtid_compatible() {
        lex->sql_command == SQLCOM_CREATE_TABLE,
        (lex->sql_command == SQLCOM_CREATE_TABLE &&
         (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)),
-       lex->select_lex->fields.size(), lex->sql_command == SQLCOM_DROP_TABLE,
+       lex->query_block->fields.size(), lex->sql_command == SQLCOM_DROP_TABLE,
        (lex->sql_command == SQLCOM_DROP_TABLE && lex->drop_temporary),
        in_multi_stmt_transaction_mode()));
 
   if (lex->sql_command == SQLCOM_CREATE_TABLE &&
       !(lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
-      !lex->select_lex->field_list_is_empty()) {
+      !lex->query_block->field_list_is_empty()) {
     if (!(get_default_handlerton(this, lex->create_info->db_type)->flags &
           HTON_SUPPORTS_ATOMIC_DDL)) {
       /*

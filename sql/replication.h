@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -194,7 +194,7 @@ typedef struct Trans_param {
   /*
     Flag to identify a 'CREATE TABLE ... AS SELECT'.
   */
-  bool is_create_table_as_select;
+  bool is_create_table_as_query_block;
 } Trans_param;
 
 /**

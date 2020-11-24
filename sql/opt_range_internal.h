@@ -1033,10 +1033,10 @@ class SEL_TREE {
 
 class RANGE_OPT_PARAM {
  public:
-  THD *thd;               /* Current thread handle */
-  TABLE *table;           /* Table being analyzed */
-  SELECT_LEX *select_lex; /* Query block the table is part of */
-  Item *cond;             /* Used inside get_mm_tree(). */
+  THD *thd;                 /* Current thread handle */
+  TABLE *table;             /* Table being analyzed */
+  Query_block *query_block; /* Query block the table is part of */
+  Item *cond;               /* Used inside get_mm_tree(). */
   table_map prev_tables;
   table_map read_tables;
   table_map current_table; /* Bit of the table being analyzed */

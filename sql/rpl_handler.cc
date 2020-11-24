@@ -324,9 +324,9 @@ int Trans_delegate::before_commit(THD *thd, bool all,
       thd->variables.group_replication_consistency;
   param.original_server_version = &(thd->variables.original_server_version);
   param.immediate_server_version = &(thd->variables.immediate_server_version);
-  param.is_create_table_as_select =
+  param.is_create_table_as_query_block =
       (thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
-       !thd->lex->select_lex->field_list_is_empty());
+       !thd->lex->query_block->field_list_is_empty());
 
   bool is_real_trans =
       (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
@@ -1040,7 +1040,7 @@ int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
                   (sql_command != SQLCOM_BINLOG_BASE64_EVENT)) ||
                  (sql_command == SQLCOM_SHOW_RELAYLOG_EVENTS);
   bool is_set = (sql_command == SQLCOM_SET_OPTION);
-  bool is_select = (sql_command == SQLCOM_SELECT);
+  bool is_query_block = (sql_command == SQLCOM_SELECT);
   bool is_do = (sql_command == SQLCOM_DO);
   bool is_empty = (sql_command == SQLCOM_EMPTY_QUERY);
   bool is_use = (sql_command == SQLCOM_CHANGE_DB);
@@ -1055,13 +1055,13 @@ int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
     return 0;
   }
 
-  if (is_select) {
+  if (is_query_block) {
     bool is_udf = false;
 
     // if select is an udf function
-    SELECT_LEX *select_lex_elem = lex->unit->first_select();
-    while (select_lex_elem != nullptr) {
-      for (Item *item : select_lex_elem->visible_fields()) {
+    Query_block *query_block_elem = lex->unit->first_query_block();
+    while (query_block_elem != nullptr) {
+      for (Item *item : query_block_elem->visible_fields()) {
         if (item->type() == Item::FUNC_ITEM) {
           Item_func *func_item = down_cast<Item_func *>(item);
           Item_func::Functype functype = func_item->functype();
@@ -1069,7 +1069,7 @@ int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
             is_udf = true;
         }
       }
-      select_lex_elem = select_lex_elem->next_select();
+      query_block_elem = query_block_elem->next_query_block();
     }
 
     if (!is_udf && all_tables == nullptr) {

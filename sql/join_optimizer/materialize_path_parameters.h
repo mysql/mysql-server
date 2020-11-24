@@ -34,7 +34,7 @@ struct TABLE;
 class JOIN;
 class Temp_table_param;
 class Common_table_expr;
-class SELECT_LEX_UNIT;
+class Query_expression;
 
 struct MaterializePathParameters {
   // Corresponds to MaterializeIterator::QueryBlock; see it for documentation.
@@ -51,7 +51,7 @@ struct MaterializePathParameters {
   Mem_root_array<const AccessPath *> *invalidators;
   TABLE *table;
   Common_table_expr *cte;
-  SELECT_LEX_UNIT *unit;
+  Query_expression *unit;
   int ref_slice;
   bool rematerialize;
   ha_rows limit_rows;

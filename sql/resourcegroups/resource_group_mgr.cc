@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -597,7 +597,7 @@ bool Resource_group_mgr::switch_resource_group_if_needed(
     mysql_mutex_unlock(&thd->LOCK_thd_data);
     DBUG_EXECUTE_IF("pause_after_rg_switch", {
       const char act[] =
-          "now SIGNAL execute_pfs_select "
+          "now SIGNAL execute_pfs_query_block "
           "WAIT_FOR signal_to_continue";
       DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
     };);

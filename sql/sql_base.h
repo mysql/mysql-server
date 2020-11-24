@@ -50,7 +50,7 @@ class Open_table_context;
 class Open_tables_backup;
 class Prelocking_strategy;
 class Query_tables_list;
-class SELECT_LEX;
+class Query_block;
 class Sroutine_hash_entry;
 class THD;
 class sp_head;
@@ -211,7 +211,7 @@ bool fill_record_n_invoke_before_triggers(THD *thd, Field **field,
                                           enum enum_trigger_event_type event,
                                           int num_fields);
 bool resolve_var_assignments(THD *thd, LEX *lex);
-bool insert_fields(THD *thd, SELECT_LEX *select_lex, const char *db_name,
+bool insert_fields(THD *thd, Query_block *query_block, const char *db_name,
                    const char *table_name, mem_root_deque<Item *> *fields,
                    mem_root_deque<Item *>::iterator *it, bool any_privileges);
 bool setup_fields(THD *thd, ulong want_privilege, bool allow_sum_func,
@@ -268,8 +268,8 @@ bool wait_while_table_is_used(THD *thd, TABLE *table,
 
 void update_non_unique_table_error(TABLE_LIST *update, const char *operation,
                                    TABLE_LIST *duplicate);
-int setup_ftfuncs(const THD *thd, SELECT_LEX *select);
-bool init_ftfuncs(THD *thd, SELECT_LEX *select);
+int setup_ftfuncs(const THD *thd, Query_block *select);
+bool init_ftfuncs(THD *thd, Query_block *select);
 int run_before_dml_hook(THD *thd);
 bool get_and_lock_tablespace_names(THD *thd, TABLE_LIST *tables_start,
                                    TABLE_LIST *tables_end,

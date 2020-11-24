@@ -34,7 +34,7 @@
 namespace my_testing {
 
 inline void fix(THD *thd, std::initializer_list<Item *> items) {
-  Parse_context pc(thd, thd->lex->select_lex);
+  Parse_context pc(thd, thd->lex->query_block);
   for (Item *item : items) {
     item->itemize(&pc, &item);
     item->fix_fields(thd, nullptr);

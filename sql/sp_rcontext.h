@@ -37,7 +37,7 @@
 
 class Field;
 class Query_arena;
-class SELECT_LEX_UNIT;
+class Query_expression;
 class Server_side_cursor;
 class THD;
 class sp_cursor;
@@ -413,7 +413,7 @@ class sp_cursor {
     bool send_eof(THD *) override { return false; }
     bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
     bool prepare(THD *thd, const mem_root_deque<Item *> &list,
-                 SELECT_LEX_UNIT *u) override;
+                 Query_expression *u) override;
   };
 
  public:

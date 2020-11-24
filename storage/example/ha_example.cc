@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -569,14 +569,14 @@ int ha_example::extra(enum ha_extra_function) {
   Item_sum_count_distinct::clear(), and Item_func_group_concat::clear().
   Called from sql_delete.cc by mysql_delete().
   Called from sql_select.cc by JOIN::reinit().
-  Called from sql_union.cc by st_select_lex_unit::exec().
+  Called from sql_union.cc by st_query_block_query_expression::exec().
 
   @see
   Item_func_group_concat::clear(), Item_sum_count_distinct::clear() and
   Item_func_group_concat::clear() in item_sum.cc;
   mysql_delete() in sql_delete.cc;
   JOIN::reinit() in sql_select.cc and
-  st_select_lex_unit::exec() in sql_union.cc.
+  st_query_block_query_expression::exec() in sql_union.cc.
 */
 int ha_example::delete_all_rows() {
   DBUG_TRACE;

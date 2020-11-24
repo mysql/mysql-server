@@ -73,7 +73,7 @@ class String;
 struct Column_parse_context : public Parse_context {
   const bool is_generated;  ///< Owner column is a generated one.
   std::vector<CreateFieldApplier> cf_appliers;
-  Column_parse_context(THD *thd_arg, SELECT_LEX *select_arg, bool is_generated)
+  Column_parse_context(THD *thd_arg, Query_block *select_arg, bool is_generated)
       : Parse_context(thd_arg, select_arg), is_generated(is_generated) {}
 };
 

@@ -37,10 +37,10 @@ using my_testing::Server_initializer;
 
 /*
   Parses a query and returns a parse tree. In our parser this is
-  called a SELECT_LEX.
+  called a Query_block.
 */
-static SELECT_LEX *parse(const Server_initializer *initializer,
-                         const char *query, int expected_error_code) {
+static Query_block *parse(const Server_initializer *initializer,
+                          const char *query, int expected_error_code) {
   Parser_state state;
 
   size_t length = strlen(query);
@@ -70,7 +70,7 @@ static SELECT_LEX *parse(const Server_initializer *initializer,
   mysql_reset_thd_for_next_command(initializer->thd());
   parse_sql(initializer->thd(), &state, nullptr);
 
-  return initializer->thd()->lex->current_select();
+  return initializer->thd()->lex->current_query_block();
 }
 
 /*
@@ -87,11 +87,11 @@ class ParserTest : public ::testing::Test {
 
   void assert_eq(int x, int y) const { ASSERT_EQ(x, y); }
 
-  SELECT_LEX *parse(const char *query, int expected_error_code) const {
+  Query_block *parse(const char *query, int expected_error_code) const {
     return ::parse(&initializer, query, expected_error_code);
   }
 
-  SELECT_LEX *parse(const char *query) const { return parse(query, 0); }
+  Query_block *parse(const char *query) const { return parse(query, 0); }
 };
 
 #endif  // PARSERTEST_INCLUDED

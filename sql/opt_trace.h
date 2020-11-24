@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -651,8 +651,8 @@ class Opt_trace_struct {
     return do_add_utf8_table(tab);
   }
   /**
-     Helper to put the number of select_lex in an object.
-     @param  select_number  number of select_lex
+     Helper to put the number of query_block in an object.
+     @param  select_number  number of query_block
   */
   Opt_trace_struct &add_select_number(uint select_number) {
     return unlikely(select_number >= INT_MAX) ?
@@ -957,17 +957,17 @@ class Opt_trace_start {
   bool error;  ///< whether trace start() had an error
 };
 
-class SELECT_LEX;
+class Query_block;
 
 /**
    Prints SELECT query to optimizer trace. It is not the original query (as in
    @c Opt_trace_context::set_query()) but a printout of the parse tree
    (Item-s).
    @param  thd         the THD
-   @param  select_lex  query's parse tree
+   @param  query_block  query's parse tree
    @param  trace_object  Opt_trace_object to which the query will be added
 */
-void opt_trace_print_expanded_query(const THD *thd, SELECT_LEX *select_lex,
+void opt_trace_print_expanded_query(const THD *thd, Query_block *query_block,
                                     Opt_trace_object *trace_object);
 
 /**
@@ -1066,7 +1066,7 @@ int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item *);
    @param trace          optimizer trace
    @param object_level0  name of the outer Opt_trace_object C++ object
    @param object_level1  name of the inner Opt_trace_object C++ object
-   @param select_number  number of the being-transformed SELECT_LEX
+   @param select_number  number of the being-transformed Query_block
    @param from           description of the before-transformation state
    @param to             description of the after-transformation state
 */

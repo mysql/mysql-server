@@ -59,7 +59,7 @@ class FollowTailIterator;
 template <class T>
 class List;
 class JOIN;
-class SELECT_LEX;
+class Query_block;
 class SJ_TMP_TABLE;
 class THD;
 class Temp_table_param;
@@ -434,7 +434,7 @@ class CacheInvalidatorIterator final : public RowIterator {
   actually write to the table; see StreamingIterator for details.
 
   MaterializeIterator conceptually materializes iterators, not JOINs or
-  SELECT_LEX_UNITs. However, there are many details that leak out
+  Query_expressions. However, there are many details that leak out
   (e.g., setting performance schema batch mode, slices, reusing CTEs,
   etc.), so we need to send them in anyway.
  */
@@ -496,7 +496,8 @@ class MaterializeIterator final : public TableRowIterator {
       after materialization.
     @param cte If materializing a CTE, points to it (see m_cte), otherwise
       nullptr.
-    @param unit The query expression we are materializing (see m_unit).
+    @param unit The query expression we are materializing (see
+    m_query_expression).
     @param join
       When materializing within the same JOIN (e.g., into a temporary table
       before sorting), as opposed to a derived table or a CTE, we may need
@@ -526,9 +527,9 @@ class MaterializeIterator final : public TableRowIterator {
                       Mem_root_array<QueryBlock> query_blocks_to_materialize,
                       TABLE *table,
                       unique_ptr_destroy_only<RowIterator> table_iterator,
-                      Common_table_expr *cte, SELECT_LEX_UNIT *unit, JOIN *join,
-                      int ref_slice, bool rematerialize, ha_rows limit_rows,
-                      bool reject_multiple_rows);
+                      Common_table_expr *cte, Query_expression *unit,
+                      JOIN *join, int ref_slice, bool rematerialize,
+                      ha_rows limit_rows, bool reject_multiple_rows);
 
   bool Init() override;
   int Read() override;
@@ -567,7 +568,7 @@ class MaterializeIterator final : public TableRowIterator {
   /// the unit when we rematerialize, since they depend on values from
   /// outside the query expression, and those values may have changed
   /// since last materialization.
-  SELECT_LEX_UNIT *m_unit;
+  Query_expression *m_query_expression;
 
   /// See constructor.
   JOIN *const m_join;

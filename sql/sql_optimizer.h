@@ -124,16 +124,16 @@ class ORDER_with_src {
 
 class JOIN {
  public:
-  JOIN(THD *thd_arg, SELECT_LEX *select);
+  JOIN(THD *thd_arg, Query_block *select);
   JOIN(const JOIN &rhs) = delete;
   JOIN &operator=(const JOIN &rhs) = delete;
 
   ~JOIN() {}
 
   /// Query block that is optimized and executed using this JOIN
-  SELECT_LEX *const select_lex;
+  Query_block *const query_block;
   /// Query expression referring this query block
-  SELECT_LEX_UNIT *const unit;
+  Query_expression *const unit;
   /// Thread handler
   THD *const thd;
 
@@ -426,10 +426,10 @@ class JOIN {
   Explain_format_flags explain_flags{};
 
   /**
-    JOIN::having_cond is initially equal to select_lex->having_cond, but may
+    JOIN::having_cond is initially equal to query_block->having_cond, but may
     later be changed by optimizations performed by JOIN.
     The relationship between the JOIN::having_cond condition and the
-    associated variable select_lex->having_value is so that
+    associated variable query_block->having_value is so that
     having_value can be:
      - COND_UNDEF if a having clause was not specified in the query or
        if it has not been optimized yet
@@ -439,7 +439,7 @@ class JOIN {
        JOIN::having_cond is set to NULL
      - COND_OK otherwise, meaning that the having clause needs to be
        further evaluated
-    All of the above also applies to the where_cond/select_lex->cond_value
+    All of the above also applies to the where_cond/query_block->cond_value
     pair.
   */
   /**
@@ -447,7 +447,7 @@ class JOIN {
     Used in JOIN execution if no tables. Otherwise, attached in pieces to
     JOIN_TABs and then not used in JOIN execution.
     Printed by EXPLAIN EXTENDED.
-    Initialized by SELECT_LEX::get_optimizable_conditions().
+    Initialized by Query_block::get_optimizable_conditions().
   */
   Item *where_cond;
   /**
@@ -457,12 +457,12 @@ class JOIN {
     GROUP BY (see JOIN::make_tmp_tables_info()); in that case having_cond is
     set to NULL, but is first saved to having_for_explain so that EXPLAIN
     EXTENDED can still print it.
-    Initialized by SELECT_LEX::get_optimizable_conditions().
+    Initialized by Query_block::get_optimizable_conditions().
   */
   Item *having_cond;
   Item *having_for_explain;  ///< Saved optimized HAVING for EXPLAIN
   /**
-    Pointer set to select_lex->get_table_list() at the start of
+    Pointer set to query_block->get_table_list() at the start of
     optimization. May be changed (to NULL) only if optimize_aggregated_query()
     optimizes tables away.
   */
@@ -480,7 +480,7 @@ class JOIN {
   /**
     ref_items is an array of 4+ slices, each containing an array of Item
     pointers. ref_items is used in different phases of query execution.
-    - slice 0 is initially the same as SELECT_LEX::base_ref_items, ie it is
+    - slice 0 is initially the same as Query_block::base_ref_items, ie it is
       the set of items referencing fields from base tables. During optimization
       and execution it may be temporarily overwritten by slice 1-3.
     - slice 1 is a representation of the used items when being read from
@@ -531,7 +531,7 @@ class JOIN {
     result is empty. Implicitly grouped queries may still produce an
     aggregation row.
     @todo - suggest to set to "Preparation determined that query is empty"
-            when SELECT_LEX::is_empty_query() is true.
+            when Query_block::is_empty_query() is true.
   */
   const char *zero_result_cause{nullptr};
 
@@ -665,7 +665,7 @@ class JOIN {
   bool send_row_on_empty_set() const {
     return (do_send_rows && tmp_table_param.sum_func_count != 0 &&
             group_list.empty() && !group_optimized_away &&
-            select_lex->having_value != Item::COND_FALSE);
+            query_block->having_value != Item::COND_FALSE);
   }
 
   bool generate_derived_keys();
@@ -1039,7 +1039,7 @@ inline bool field_time_cmp_date(const Field *f, const Item *v) {
          v->is_temporal_with_date();
 }
 
-bool substitute_gc(THD *thd, SELECT_LEX *select_lex, Item *where_cond,
+bool substitute_gc(THD *thd, Query_block *query_block, Item *where_cond,
                    ORDER *group_list, ORDER *order);
 
 /// RAII class to manage JOIN::deps_of_remaining_lateral_derived_tables
@@ -1082,7 +1082,7 @@ class Deps_of_remaining_lateral_derived_tables {
       doesn't change, no need to recalculate it.
     */
     if (join->has_lateral && cur_tab->table_ref->is_derived() &&
-        cur_tab->table_ref->derived_unit()->m_lateral_deps)
+        cur_tab->table_ref->derived_query_expression()->m_lateral_deps)
       recalculate(next_idx);
   }
   void init() {
@@ -1120,7 +1120,7 @@ extern const char *antijoin_null_cond;
   @return false if this Item contains a subquery and subqueries cannot be
   evaluated during optimization, or true otherwise
 */
-bool evaluate_during_optimization(const Item *item, const SELECT_LEX *select);
+bool evaluate_during_optimization(const Item *item, const Query_block *select);
 
 /**
   Find the multiple equality predicate containing a field.

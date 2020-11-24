@@ -245,7 +245,7 @@ bool change_to_use_tmp_fields(mem_root_deque<Item *> *fields, THD *thd,
                               mem_root_deque<Item *> *res_fields);
 // Create list for using with tempory table
 bool change_to_use_tmp_fields_except_sums(mem_root_deque<Item *> *fields,
-                                          THD *thd, SELECT_LEX *select,
+                                          THD *thd, Query_block *select,
                                           Ref_item_array ref_item_array,
                                           mem_root_deque<Item *> *res_fields);
 bool prepare_sum_aggregators(Item_sum **func_ptr, bool need_distinct);
@@ -317,7 +317,7 @@ class QEP_TAB : public QEP_shared_owner {
 
   /**
     A helper function that allocates appropriate join cache object and
-    sets next_select function of previous tab.
+    sets next_query_block function of previous tab.
   */
   void init_join_cache(JOIN_TAB *join_tab);
 

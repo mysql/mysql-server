@@ -73,7 +73,7 @@
 
 class Materialized_cursor final : public Server_side_cursor {
   /// A fake unit to supply to Query_result_send when fetching
-  SELECT_LEX_UNIT fake_unit;
+  Query_expression fake_query_expression;
   /// Cursor to the table that contains the materialized result
   TABLE *table{nullptr};
   /**
@@ -121,9 +121,9 @@ class Query_result_materialize final : public Query_result_union {
     if (materialized_cursor != nullptr)
       materialized_cursor->set_result(result_arg);
   }
-  bool check_simple_select() const override { return false; }
+  bool check_simple_query_block() const override { return false; }
   bool prepare(THD *thd, const mem_root_deque<Item *> &list,
-               SELECT_LEX_UNIT *u) override;
+               Query_expression *u) override;
   bool start_execution(THD *thd) override;
   bool send_result_set_metadata(THD *thd, const mem_root_deque<Item *> &list,
                                 uint flags) override;
@@ -288,7 +288,7 @@ void Server_side_cursor::operator delete(void *, size_t) {}
 
 Materialized_cursor::Materialized_cursor(Query_result *result_arg)
     : Server_side_cursor(result_arg),
-      fake_unit(CTX_NONE),
+      fake_query_expression(CTX_NONE),
       item_list(*THR_MALLOC) {}
 
 /// Bind a temporary table with a materialized cursor.
@@ -369,7 +369,7 @@ bool Materialized_cursor::open(THD *thd) {
 
   /* Create a list of fields and start sequential scan. */
 
-  rc = result->prepare(thd, item_list, &fake_unit);
+  rc = result->prepare(thd, item_list, &fake_query_expression);
   rc = !rc && table->file->ha_rnd_init(true);
   is_rnd_inited = !rc;
 
@@ -459,7 +459,7 @@ Materialized_cursor::~Materialized_cursor() {
 
 bool Query_result_materialize::prepare(THD *thd,
                                        const mem_root_deque<Item *> &fields,
-                                       SELECT_LEX_UNIT *u) {
+                                       Query_expression *u) {
   unit = u;
 
   if (result->prepare(thd, fields, u)) return true;

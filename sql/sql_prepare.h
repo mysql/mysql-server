@@ -369,7 +369,7 @@ class Prepared_statement final {
 
   /**
     The memory root to allocate parsed tree elements (instances of Item,
-    SELECT_LEX and other classes).
+    Query_block and other classes).
   */
   MEM_ROOT main_mem_root;
 

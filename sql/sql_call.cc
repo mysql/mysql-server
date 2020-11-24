@@ -104,7 +104,7 @@ bool Sql_cmd_call::check_privileges(THD *thd) {
     }
   }
   thd->want_privilege = SELECT_ACL;
-  if (lex->select_lex->check_privileges_for_subqueries(thd)) {
+  if (lex->query_block->check_privileges_for_subqueries(thd)) {
     return true;
   }
 
@@ -114,7 +114,7 @@ bool Sql_cmd_call::check_privileges(THD *thd) {
 bool Sql_cmd_call::prepare_inner(THD *thd) {
   // All required SPs should be in cache so no need to look into DB.
 
-  SELECT_LEX *const select = lex->select_lex;
+  Query_block *const select = lex->query_block;
 
   sp_head *sp = sp_find_routine(thd, enum_sp_type::PROCEDURE, proc_name,
                                 &thd->sp_proc_cache, true);

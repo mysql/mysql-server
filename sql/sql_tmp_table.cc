@@ -705,7 +705,7 @@ static void set_real_row_type(TABLE *table) {
   @param[in,out]  copy_func  array to sort
   @param          select     query block to search in.
 */
-static void sort_copy_func(const SELECT_LEX *select,
+static void sort_copy_func(const Query_block *select,
                            Func_ptr_array *copy_func) {
   /*
     In the select->all_fields list, there are hidden elements first, then
@@ -745,7 +745,7 @@ static void sort_copy_func(const SELECT_LEX *select,
     reflected in the order.
 
     A simpler and more robust solution would be to break the design that
-    hidden elements are always first in SELECT_LEX::all_fields: references
+    hidden elements are always first in Query_block::all_fields: references
     using aliases (in GROUP BY, HAVING, ORDER BY) would be added to
     all_fields last (after the SELECT list); an inner element (split by
     split_sum_func) would be added right before its containing element. That
@@ -1410,7 +1410,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
 
   param->func_count = param->items_to_copy->size();
   DBUG_ASSERT(param->func_count <= copy_func_count);  // Used <= allocated
-  sort_copy_func(thd->lex->current_select(), param->items_to_copy);
+  sort_copy_func(thd->lex->current_query_block(), param->items_to_copy);
   uchar *bitmaps = static_cast<uchar *>(
       share->mem_root.Alloc(bitmap_buffer_size(field_count + 1) * 3));
   if (bitmaps == nullptr) return nullptr;

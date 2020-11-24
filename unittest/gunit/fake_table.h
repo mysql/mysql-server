@@ -138,8 +138,8 @@ class Fake_TABLE : public TABLE {
     next_number_field = nullptr;  // No autoinc column
     pos_in_table_list = new (*THR_MALLOC) Fake_TABLE_LIST();
     pos_in_table_list->table = this;
-    pos_in_table_list->select_lex =
-        new (&mem_root) SELECT_LEX(&mem_root, nullptr, nullptr);
+    pos_in_table_list->query_block =
+        new (&mem_root) Query_block(&mem_root, nullptr, nullptr);
     EXPECT_EQ(0, bitmap_init(write_set, &write_set_buf, s->fields));
     EXPECT_EQ(0, bitmap_init(read_set, &read_set_buf, s->fields));
 

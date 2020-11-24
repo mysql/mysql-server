@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -73,13 +73,13 @@ static Opt_hints_global *get_global_hints(Parse_context *pc) {
   create Opt_hints_qb object if not exist.
 
   @param pc      pointer to Parse_context object
-  @param select  pointer to SELECT_LEX object
+  @param select  pointer to Query_block object
 
   @return  pointer to Opt_hints_qb object,
            NULL if failed to create the object
 */
 
-static Opt_hints_qb *get_qb_hints(Parse_context *pc, SELECT_LEX *select) {
+static Opt_hints_qb *get_qb_hints(Parse_context *pc, Query_block *select) {
   if (select->opt_hints_qb) return select->opt_hints_qb;
 
   Opt_hints_global *global_hints = get_global_hints(pc);
@@ -119,7 +119,7 @@ static Opt_hints_qb *find_qb_hints(Parse_context *pc,
   //  Find query block using system name. Used for proper parsing of view body.
   if (!qb) {
     LEX *lex = pc->thd->lex;
-    for (SELECT_LEX *select = lex->all_selects_list; select != nullptr;
+    for (Query_block *select = lex->all_query_blocks_list; select != nullptr;
          select = select->next_select_in_list()) {
       LEX_CSTRING sys_name;  // System QB name
       char buff[32];         // Buffer to hold sys name
@@ -495,7 +495,7 @@ bool PT_hint_max_execution_time::contextualize(Parse_context *pc) {
 
   if (pc->thd->lex->sql_command != SQLCOM_SELECT ||  // not a SELECT statement
       pc->thd->lex->sphead ||                        // or in a SP/trigger/event
-      pc->select != pc->thd->lex->select_lex)        // or in a subquery
+      pc->select != pc->thd->lex->query_block)       // or in a subquery
   {
     push_warning(pc->thd, Sql_condition::SL_WARNING,
                  ER_WARN_UNSUPPORTED_MAX_EXECUTION_TIME,
@@ -566,7 +566,7 @@ bool PT_hint_resource_group::contextualize(Parse_context *pc) {
     return false;
   }
 
-  if (pc->thd->lex->sphead || pc->select != pc->thd->lex->select_lex) {
+  if (pc->thd->lex->sphead || pc->select != pc->thd->lex->query_block) {
     pc->thd->resource_group_ctx()->m_warn =
         WARN_RESOURCE_GROUP_UNSUPPORTED_HINT;
     return false;

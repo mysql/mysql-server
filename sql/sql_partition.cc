@@ -209,7 +209,7 @@ static uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
 
 Item *convert_charset_partition_constant(Item *item, const CHARSET_INFO *cs) {
   THD *thd = current_thd;
-  Name_resolution_context *context = &thd->lex->current_select()->context;
+  Name_resolution_context *context = &thd->lex->current_query_block()->context;
   TABLE_LIST *save_list = context->table_list;
   const char *save_where = thd->where;
 
@@ -820,7 +820,7 @@ static int check_signed_flag(partition_info *part_info) {
 
   @param thd      The thread object
   @param table    The table object
-  @param lex      The LEX object, must be initialized and contain select_lex.
+  @param lex      The LEX object, must be initialized and contain query_block.
 
   @returns  false if success, true if error
 
@@ -830,8 +830,8 @@ static int check_signed_flag(partition_info *part_info) {
 */
 
 static bool init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex) {
-  SELECT_LEX *select_lex = lex->select_lex;
-  Name_resolution_context *context = &select_lex->context;
+  Query_block *query_block = lex->query_block;
+  Name_resolution_context *context = &query_block->context;
   /*
     We will call the parser to create a part_info struct based on the
     partition string stored in the frm file.
@@ -846,7 +846,7 @@ static bool init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex) {
   if (table_ident == nullptr) return true;
 
   TABLE_LIST *table_list =
-      select_lex->add_table_to_list(thd, table_ident, nullptr, 0);
+      query_block->add_table_to_list(thd, table_ident, nullptr, 0);
   if (table_list == nullptr) return true;
 
   context->resolve_in_table_list_only(table_list);
@@ -932,8 +932,8 @@ static bool fix_fields_part_func(THD *thd, Item *func_expr, TABLE *table,
   int error;
   LEX *old_lex = thd->lex;
   LEX lex;
-  SELECT_LEX_UNIT unit(CTX_NONE);
-  SELECT_LEX select(thd->mem_root, nullptr, nullptr);
+  Query_expression unit(CTX_NONE);
+  Query_block select(thd->mem_root, nullptr, nullptr);
   lex.new_static_query(&unit, &select);
 
   DBUG_TRACE;
@@ -941,7 +941,7 @@ static bool fix_fields_part_func(THD *thd, Item *func_expr, TABLE *table,
   if (init_lex_with_single_table(thd, table, &lex)) goto end;
 
   {
-    Item_ident::Change_context ctx(&lex.select_lex->context);
+    Item_ident::Change_context ctx(&lex.query_block->context);
     func_expr->walk(&Item::change_context_processor, enum_walk::POSTFIX,
                     (uchar *)&ctx);
   }
@@ -3882,8 +3882,8 @@ bool mysql_unpack_partition(THD *thd, char *part_buf, uint part_info_len,
       thd->variables.character_set_client;
   LEX *old_lex = thd->lex;
   LEX lex;
-  SELECT_LEX_UNIT unit(CTX_NONE);
-  SELECT_LEX select(thd->mem_root, nullptr, nullptr);
+  Query_expression unit(CTX_NONE);
+  Query_block select(thd->mem_root, nullptr, nullptr);
   lex.new_static_query(&unit, &select);
 
   sql_digest_state *parent_digest = thd->m_digest;

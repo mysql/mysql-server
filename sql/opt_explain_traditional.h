@@ -29,7 +29,7 @@
 
 class Item;
 class Query_result;
-class SELECT_LEX_UNIT;
+class Query_expression;
 template <class T>
 class mem_root_deque;
 
@@ -46,7 +46,7 @@ class Explain_format_traditional : public Explain_format {
 
   bool is_hierarchical() const override { return false; }
   bool send_headers(Query_result *result) override;
-  bool begin_context(enum_parsing_context, SELECT_LEX_UNIT *,
+  bool begin_context(enum_parsing_context, Query_expression *,
                      const Explain_format_flags *) override {
     return false;
   }
@@ -67,7 +67,7 @@ class Explain_format_tree : public Explain_format {
     DBUG_ASSERT(false);
     return true;
   }
-  bool begin_context(enum_parsing_context, SELECT_LEX_UNIT *,
+  bool begin_context(enum_parsing_context, Query_expression *,
                      const Explain_format_flags *) override {
     DBUG_ASSERT(false);
     return true;

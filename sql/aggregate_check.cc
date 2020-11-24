@@ -64,8 +64,8 @@
   used_tables()
 
   - When we are looking for items to validate, we must enter scalar/row
-  subqueries; if we find an item of our SELECT_LEX inside such subquery, for
-  example an Item_field with depended_from equal to our SELECT_LEX, we
+  subqueries; if we find an item of our Query_block inside such subquery, for
+  example an Item_field with depended_from equal to our Query_block, we
   must use used_tables_for_level(). Example: when validating t1.a in
   select (select t1.a from t1 as t2 limit 1) from t1 group by t1.pk;
   we need t1.a's map in the grouped query; used_tables() would return
@@ -610,24 +610,26 @@ Item *Group_check::select_expression(uint idx) {
 */
 void Group_check::add_to_source_of_mat_table(Item_field *item_field,
                                              TABLE_LIST *tl) {
-  SELECT_LEX_UNIT *const mat_unit = tl->derived_unit();
+  Query_expression *const mat_query_expression = tl->derived_query_expression();
   // Query expression underlying 'tl':
-  SELECT_LEX *const mat_select = mat_unit->first_select();
-  if (mat_unit->is_union() || mat_select->olap != UNSPECIFIED_OLAP_TYPE)
+  Query_block *const mat_query_block =
+      mat_query_expression->first_query_block();
+  if (mat_query_expression->is_union() ||
+      mat_query_block->olap != UNSPECIFIED_OLAP_TYPE)
     return;  // If UNION or ROLLUP, no FD
   // Grab Group_check for this subquery.
   Group_check *mat_gc = nullptr;
   uint j;
   for (j = 0; j < mat_tables.size(); j++) {
     mat_gc = mat_tables.at(j);
-    if (mat_gc->select == mat_select) break;
+    if (mat_gc->select == mat_query_block) break;
   }
   if (j == mat_tables.size())  // not found, create it
   {
-    mat_gc = new (m_root) Group_check(mat_select, m_root, tl);
+    mat_gc = new (m_root) Group_check(mat_query_block, m_root, tl);
     mat_tables.push_back(mat_gc);
   }
-  // Find underlying expression of item_field, in SELECT list of mat_select
+  // Find underlying expression of item_field, in SELECT list of mat_query_block
   Item *const expr_under =
       mat_gc->select_expression(item_field->field->field_index());
 
@@ -642,12 +644,12 @@ void Group_check::add_to_source_of_mat_table(Item_field *item_field,
        mat_gc->non_null_in_source))                     // (3)
   {
     /*
-      (1): In mat_gc, all GROUP BY expressions of mat_select are dependent on
-      source columns. Thus, all SELECT list expressions are, too (otherwise,
-      the validation of mat_select has or will fail). So, in our Group_check,
-      intersect(En, tl.*) -> tl.* .
-      This FD needs to propagate in our Group_check all the way up to the
-      result of the WHERE clause. It does, if:
+      (1): In mat_gc, all GROUP BY expressions of mat_query_block are dependent
+      on source columns. Thus, all SELECT list expressions are, too (otherwise,
+      the validation of mat_query_block has or will fail). So, in our
+      Group_check, intersect(En, tl.*) -> tl.* . This FD needs to propagate in
+      our Group_check all the way up to the result of the WHERE clause. It does,
+      if:
       - either there is no weak side above this table (2) (so NFFD is not
       needed).
       - or intersect(En, tl.*) contains a non-nullable column (3) (then
@@ -810,10 +812,11 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item) {
       }
     } else if (tl->uses_materialization() &&  // Materialized derived table
                !tl->is_table_function()) {
-      SELECT_LEX *const mat_select = tl->derived_unit()->first_select();
+      Query_block *const mat_query_block =
+          tl->derived_query_expression()->first_query_block();
       uint j;
       for (j = 0; j < mat_tables.size(); j++) {
-        if (mat_tables.at(j)->select == mat_select) break;
+        if (mat_tables.at(j)->select == mat_query_block) break;
       }
       if (j < mat_tables.size())  // if false, we know nothing about this table
       {

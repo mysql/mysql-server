@@ -204,7 +204,7 @@ bool JOIN::create_intermediate_table(
   */
   ha_rows tmp_rows_limit =
       ((order.empty() || skip_sort_order) && tmp_table_group.empty() &&
-       !windowing && !select_lex->with_sum_func)
+       !windowing && !query_block->with_sum_func)
           ? m_select_limit
           : HA_POS_ERROR;
 
@@ -222,7 +222,7 @@ bool JOIN::create_intermediate_table(
   TABLE *table =
       create_tmp_table(thd, tab->tmp_table_param, tmp_table_fields,
                        tmp_table_group.order, distinct_arg, save_sum_fields,
-                       select_lex->active_options(), tmp_rows_limit, "");
+                       query_block->active_options(), tmp_rows_limit, "");
   if (!table) return true;
   tmp_table_param.using_outer_summary_function =
       tab->tmp_table_param->using_outer_summary_function;
@@ -250,7 +250,7 @@ bool JOIN::create_intermediate_table(
       */
       if ((group_list.empty() && (order.empty() || windowing) &&
            !select_distinct) ||
-          (select_lex->active_options() &
+          (query_block->active_options() &
            (SELECT_BIG_RESULT | OPTION_BUFFER_RESULT)))
         explain_flags.set(ESC_BUFFER_RESULT, ESP_USING_TMPTABLE);
     }
@@ -368,7 +368,7 @@ Item *unwrap_rollup_group(Item *item) {
 void JOIN::optimize_distinct() {
   for (int i = primary_tables - 1; i >= 0; --i) {
     QEP_TAB *last_tab = qep_tab + i;
-    if (select_lex->select_list_tables & last_tab->table_ref->map()) break;
+    if (query_block->select_list_tables & last_tab->table_ref->map()) break;
     last_tab->not_used_in_distinct = true;
   }
 
@@ -631,7 +631,7 @@ void setup_tmptable_write_func(QEP_TAB *tab, Opt_trace_object *trace) {
   handles final fully constructed and matched records.
 
   @return
-    end_select function to use. This function can't fail.
+    end_query_block function to use. This function can't fail.
 */
 QEP_TAB::enum_op_type JOIN::get_end_select_func() {
   DBUG_TRACE;
@@ -1459,7 +1459,7 @@ AccessPath *GetAccessPathForDerivedTable(
     THD *thd, TABLE_LIST *table_ref, TABLE *table, bool rematerialize,
     Mem_root_array<const AccessPath *> *invalidators, bool need_rowid,
     AccessPath *table_path) {
-  SELECT_LEX_UNIT *unit = table_ref->derived_unit();
+  Query_expression *unit = table_ref->derived_query_expression();
   JOIN *subjoin = nullptr;
   Temp_table_param *tmp_table_param;
   int select_number;
@@ -1470,18 +1470,18 @@ AccessPath *GetAccessPathForDerivedTable(
   // tmp_table_param. If not, make a new object, so that we don't
   // disturb the materialization going on inside our own query block.
   if (unit->is_simple()) {
-    subjoin = unit->first_select()->join;
-    select_number = unit->first_select()->select_number;
+    subjoin = unit->first_query_block()->join;
+    select_number = unit->first_query_block()->select_number;
     tmp_table_param = &subjoin->tmp_table_param;
-  } else if (unit->fake_select_lex != nullptr) {
+  } else if (unit->fake_query_block != nullptr) {
     // NOTE: subjoin here is never used, as ConvertItemsToCopy only uses it
-    // for ROLLUP, and fake_select_lex can't have ROLLUP.
-    subjoin = unit->fake_select_lex->join;
+    // for ROLLUP, and fake_query_block can't have ROLLUP.
+    subjoin = unit->fake_query_block->join;
     tmp_table_param = &subjoin->tmp_table_param;
-    select_number = unit->fake_select_lex->select_number;
+    select_number = unit->fake_query_block->select_number;
   } else {
     tmp_table_param = new (thd->mem_root) Temp_table_param;
-    select_number = unit->first_select()->select_number;
+    select_number = unit->first_query_block()->select_number;
   }
   ConvertItemsToCopy(*unit->get_field_list(), table->visible_field_ptr(),
                      tmp_table_param);
@@ -1527,7 +1527,7 @@ AccessPath *GetAccessPathForDerivedTable(
                                   /*ref_slice=*/-1);
     CopyCosts(*unit->root_access_path(), path);
   } else {
-    JOIN *join = unit->is_union() ? nullptr : unit->first_select()->join;
+    JOIN *join = unit->is_union() ? nullptr : unit->first_query_block()->join;
     path = NewMaterializeAccessPath(
         thd,
         SingleMaterializeQueryBlock(
@@ -1622,7 +1622,7 @@ AccessPath *GetTableAccessPath(THD *thd, QEP_TAB *qep_tab, QEP_TAB *qep_tabs) {
     table_path = NewMaterializeAccessPath(
         thd,
         SingleMaterializeQueryBlock(
-            thd, subtree_path, qep_tab->join()->select_lex->select_number,
+            thd, subtree_path, qep_tab->join()->query_block->select_number,
             qep_tab->join(), copy_fields_and_items_in_materialize,
             &sjm->table_param),
         qep_tab->invalidators, qep_tab->table(), qep_tab->access_path(),
@@ -2812,10 +2812,10 @@ AccessPath *JOIN::create_root_access_path_for_join() {
 
   // OK, so we're good. Go through the tables and make the join access paths.
   AccessPath *path = nullptr;
-  if (select_lex->is_table_value_constructor) {
-    best_rowcount = select_lex->row_value_list->size();
+  if (query_block->is_table_value_constructor) {
+    best_rowcount = query_block->row_value_list->size();
     path = NewTableValueConstructorAccessPath(thd);
-    path->num_output_rows = select_lex->row_value_list->size();
+    path->num_output_rows = query_block->row_value_list->size();
     path->cost = 0.0;
   } else if (const_tables == primary_tables) {
     // Only const tables, so add a fake single row to join in all
@@ -2842,7 +2842,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
         path = NewMaterializeAccessPath(
             thd,
             SingleMaterializeQueryBlock(
-                thd, path, select_lex->select_number, this,
+                thd, path, query_block->select_number, this,
                 /*copy_fields_and_items=*/true, qep_tab->tmp_table_param),
             qep_tab->invalidators, qep_tab->table(), table_path,
             /*cte=*/nullptr, unit, qep_tab->ref_item_slice,
@@ -3008,7 +3008,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
         path = NewMaterializeAccessPath(
             thd,
             SingleMaterializeQueryBlock(
-                thd, path, select_lex->select_number, this,
+                thd, path, query_block->select_number, this,
                 /*copy_fields_and_items=*/false, qep_tab->tmp_table_param),
             qep_tab->invalidators, qep_tab->table(), table_path,
             /*cte=*/nullptr, unit,
@@ -3054,7 +3054,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
       } else {
         path = NewMaterializeAccessPath(
             thd,
-            SingleMaterializeQueryBlock(thd, path, select_lex->select_number,
+            SingleMaterializeQueryBlock(thd, path, query_block->select_number,
                                         this, /*copy_fields_and_items=*/true,
                                         qep_tab->tmp_table_param),
             qep_tab->invalidators, qep_tab->table(), table_path,
@@ -3384,7 +3384,7 @@ int join_read_const_table(JOIN_TAB *tab, POSITION *pos) {
   if (join->where_cond && update_const_equal_items(thd, join->where_cond, tab))
     return 1;
   TABLE_LIST *tbl;
-  for (tbl = join->select_lex->leaf_tables; tbl; tbl = tbl->next_leaf) {
+  for (tbl = join->query_block->leaf_tables; tbl; tbl = tbl->next_leaf) {
     TABLE_LIST *embedded;
     TABLE_LIST *embedding = tbl;
     do {
@@ -3894,7 +3894,7 @@ bool DynamicRangeIterator::Init() {
       HA_POS_ERROR,
       false,  // don't force quick range
       ORDER_NOT_RELEVANT, m_qep_tab, m_qep_tab->condition(), &needed_reg_dummy,
-      &qck, m_qep_tab->table()->force_index, m_qep_tab->join()->select_lex);
+      &qck, m_qep_tab->table()->force_index, m_qep_tab->join()->query_block);
   if (thd()->is_error())  // @todo consolidate error reporting of
                           // test_quick_select
     return true;
@@ -5226,7 +5226,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
   /**
     RANGE was specified as the bounds unit for the frame
   */
-  const bool range_frame = f->m_unit == WFU_RANGE;
+  const bool range_frame = f->m_query_expression == WFU_RANGE;
 
   const bool range_to_current_row =
       range_frame && f->m_to->m_border_type == WBT_CURRENT_ROW;
@@ -5266,7 +5266,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
                        current_row, new_partition_or_eof));
 
   /* Compute lower_limit, upper_limit and possibly unbounded_following */
-  if (f->m_unit == WFU_RANGE) {
+  if (f->m_query_expression == WFU_RANGE) {
     lower_limit = w.first_rowno_in_range_frame();
     /*
       For RANGE frame, we first buffer all the rows in the partition due to the
@@ -5276,7 +5276,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
     */
     upper_limit = INT64_MAX;
   } else {
-    DBUG_ASSERT(f->m_unit == WFU_ROWS);
+    DBUG_ASSERT(f->m_query_expression == WFU_ROWS);
     bool lower_within_limits = true;
     // Determine lower border, handle wraparound for unsigned value:
     int64 border =
@@ -6070,7 +6070,7 @@ static bool alloc_group_fields(JOIN *join, ORDER *group) {
       if (!tmp || join->group_fields.push_front(tmp)) return true;
     }
   }
-  join->streaming_aggregation = true; /* Mark for do_select */
+  join->streaming_aggregation = true; /* Mark for do_query_block */
   return false;
 }
 
@@ -6277,11 +6277,11 @@ bool change_to_use_tmp_fields(mem_root_deque<Item *> *fields, THD *thd,
 
     1 + rollup_group_item(a) -> 1 + rollup_group_item(\<temporary\>.a).
 
-  Which temporary field to use is found by looking at the SELECT_LEX's group
+  Which temporary field to use is found by looking at the Query_block's group
   items, and looking up their (previously set) result fields.
  */
 static bool replace_contents_of_rollup_wrappers_with_tmp_fields(
-    THD *thd, SELECT_LEX *select, Item *item_arg) {
+    THD *thd, Query_block *select, Item *item_arg) {
   return WalkAndReplace(
       thd, item_arg,
       [thd, select](Item *item, Item *, unsigned) -> ReplaceResult {
@@ -6331,7 +6331,7 @@ static bool replace_contents_of_rollup_wrappers_with_tmp_fields(
 */
 
 bool change_to_use_tmp_fields_except_sums(mem_root_deque<Item *> *fields,
-                                          THD *thd, SELECT_LEX *select,
+                                          THD *thd, Query_block *select,
                                           Ref_item_array ref_item_array,
                                           mem_root_deque<Item *> *res_fields) {
   DBUG_TRACE;
@@ -6558,7 +6558,7 @@ int ZeroRowsAggregatedIterator::Read() {
   }
 
   // Mark tables as containing only NULL values
-  for (TABLE_LIST *table = m_join->select_lex->leaf_tables; table;
+  for (TABLE_LIST *table = m_join->query_block->leaf_tables; table;
        table = table->next_leaf) {
     table->table->set_null_row();
   }
@@ -6602,7 +6602,7 @@ int TableValueConstructorIterator::Read() {
 
   // If the TVC has a single row, we don't create Item_values_column reference
   // objects during resolving. We will instead use the single row directly from
-  // SELECT_LEX::item_list, such that we don't have to change references here.
+  // Query_block::item_list, such that we don't have to change references here.
   if (m_row_value_list.size() != 1) {
     auto output_refs_it = VisibleFields(*m_output_refs).begin();
     for (const Item *value : **m_row_it) {

@@ -928,9 +928,9 @@ class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I {
     The following two members are public to allow easy access from
     TRP_GROUP_MIN_MAX::make_quick()
   */
-  MEM_ROOT alloc; /* Memory pool for this and quick_prefix_select data. */
+  MEM_ROOT alloc; /* Memory pool for this and quick_prefix_query_block data. */
   QUICK_RANGE_SELECT
-  *quick_prefix_select; /* For retrieval of group prefixes. */
+  *quick_prefix_query_block; /* For retrieval of group prefixes. */
  private:
   int next_prefix();
   bool append_next_infix();
@@ -1132,9 +1132,9 @@ int test_quick_select(THD *thd, Key_map keys, table_map prev_tables,
                       const enum_order interesting_order,
                       const QEP_shared_owner *tab, Item *cond,
                       Key_map *needed_reg, QUICK_SELECT_I **quick,
-                      bool ignore_table_scan, SELECT_LEX *select_lex);
+                      bool ignore_table_scan, Query_block *query_block);
 
-bool prune_partitions(THD *thd, TABLE *table, SELECT_LEX *select_lex,
+bool prune_partitions(THD *thd, TABLE *table, Query_block *query_block,
                       Item *pprune_cond);
 void store_key_image_to_rec(Field *field, uchar *ptr, uint len);
 

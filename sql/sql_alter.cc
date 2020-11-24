@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -221,10 +221,10 @@ bool Sql_cmd_alter_table::execute(THD *thd) {
   DBUG_EXECUTE_IF("delay_alter_table_by_one_second", { my_sleep(1000000); });
 
   LEX *lex = thd->lex;
-  /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
-  SELECT_LEX *select_lex = lex->select_lex;
-  /* first table of first SELECT_LEX */
-  TABLE_LIST *first_table = select_lex->get_table_list();
+  /* first Query_block (have special meaning for many of non-SELECTcommands) */
+  Query_block *query_block = lex->query_block;
+  /* first table of first Query_block */
+  TABLE_LIST *first_table = query_block->get_table_list();
   /*
     Code in mysql_alter_table() may modify its HA_CREATE_INFO argument,
     so we have to use a copy of this structure to make execution
@@ -369,10 +369,10 @@ bool Sql_cmd_discard_import_tablespace::execute(THD *thd) {
                                         Alter_info::ALTER_IMPORT_TABLESPACE |
                                         Alter_info::ALTER_ALL_PARTITION)));
 
-  /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
-  SELECT_LEX *select_lex = thd->lex->select_lex;
-  /* first table of first SELECT_LEX */
-  TABLE_LIST *table_list = select_lex->get_table_list();
+  /* first Query_block (have special meaning for many of non-SELECTcommands) */
+  Query_block *query_block = thd->lex->query_block;
+  /* first table of first Query_block */
+  TABLE_LIST *table_list = query_block->get_table_list();
 
   if (check_access(thd, ALTER_ACL, table_list->db, &table_list->grant.privilege,
                    &table_list->grant.m_internal, false, false))
@@ -419,7 +419,7 @@ bool Sql_cmd_secondary_load_unload::execute(THD *thd) {
   DBUG_ASSERT(!(m_alter_info->flags & ~(Alter_info::ALTER_SECONDARY_LOAD |
                                         Alter_info::ALTER_SECONDARY_UNLOAD)));
 
-  TABLE_LIST *table_list = thd->lex->select_lex->get_table_list();
+  TABLE_LIST *table_list = thd->lex->query_block->get_table_list();
 
   if (check_access(thd, ALTER_ACL, table_list->db, &table_list->grant.privilege,
                    &table_list->grant.m_internal, false, false))

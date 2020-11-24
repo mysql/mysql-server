@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -132,7 +132,7 @@ const char *innobase_basename(const char *path_name);
 
 /** Returns true if the thread is executing a SELECT statement.
  @return true if thd is executing SELECT */
-ibool thd_is_select(const THD *thd); /*!< in: thread handle */
+ibool thd_is_query_block(const THD *thd); /*!< in: thread handle */
 
 /** Makes all characters in a NUL-terminated UTF-8 string lower case. */
 void innobase_casedn_str(char *a); /*!< in/out: string to put in lower case */

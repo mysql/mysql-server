@@ -202,14 +202,14 @@ bool Sql_cmd_show::execute(THD *thd) {
   if (check_parameters(thd)) {
     return true;
   }
-  return Sql_cmd_select::execute(thd);
+  return Sql_cmd_query_block::execute(thd);
 }
 
 bool Sql_cmd_show_schema_base::set_metadata_lock(THD *thd) {
   LEX_STRING lex_str_db;
   LEX *lex = thd->lex;
-  if (lex_string_strmake(thd->mem_root, &lex_str_db, lex->select_lex->db,
-                         strlen(lex->select_lex->db)))
+  if (lex_string_strmake(thd->mem_root, &lex_str_db, lex->query_block->db,
+                         strlen(lex->query_block->db)))
     return true;
 
   // Acquire IX MDL lock on schema name.
@@ -228,7 +228,7 @@ bool Sql_cmd_show_schema_base::check_privileges(THD *thd) {
   if (check_table_access(thd, SELECT_ACL, tables, false, UINT_MAX, false))
     return true;
 
-  const char *dst_db_name = thd->lex->select_lex->db;
+  const char *dst_db_name = thd->lex->query_block->db;
   assert(dst_db_name != nullptr);
 
   // Check if the user has global access
@@ -252,15 +252,15 @@ bool Sql_cmd_show_schema_base::check_privileges(THD *thd) {
 bool Sql_cmd_show_schema_base::check_parameters(THD *thd) {
   // Check that given database exists.
   LEX_STRING lex_str_db;
-  if (lex_string_strmake(thd->mem_root, &lex_str_db, lex->select_lex->db,
-                         strlen(lex->select_lex->db)))
+  if (lex_string_strmake(thd->mem_root, &lex_str_db, lex->query_block->db,
+                         strlen(lex->query_block->db)))
     return true;
 
   bool exists = false;
   if (dd::schema_exists(thd, lex_str_db.str, &exists)) return true;
 
   if (!exists) {
-    my_error(ER_BAD_DB_ERROR, MYF(0), lex->select_lex->db);
+    my_error(ER_BAD_DB_ERROR, MYF(0), lex->query_block->db);
     return true;
   }
   return false;
@@ -272,7 +272,7 @@ bool Sql_cmd_show_table_base::check_privileges(THD *thd) {
   if (check_table_access(thd, SELECT_ACL, table, false, UINT_MAX, false))
     return true;
 
-  TABLE_LIST *dst_table = table->schema_select_lex->table_list.first;
+  TABLE_LIST *dst_table = table->schema_query_block->table_list.first;
   assert(dst_table != nullptr);
 
   if (m_temporary) return false;
@@ -354,7 +354,7 @@ bool Sql_cmd_show_create_table::execute_inner(THD *thd) {
   // Disable constant subquery evaluation as we won't be locking tables.
   lex->context_analysis_only = CONTEXT_ANALYSIS_ONLY_VIEW;
 
-  if (lex->select_lex->add_table_to_list(thd, m_table_ident, nullptr, 0) ==
+  if (lex->query_block->add_table_to_list(thd, m_table_ident, nullptr, 0) ==
       nullptr)
     return true;
   TABLE_LIST *tbl = lex->query_tables;
@@ -468,7 +468,7 @@ bool Sql_cmd_show_engine_status::execute_inner(THD *thd) {
 }
 
 bool Sql_cmd_show_events::check_privileges(THD *thd) {
-  const char *db = thd->lex->select_lex->db;
+  const char *db = thd->lex->query_block->db;
   assert(db != nullptr);
   /*
     Nobody has EVENT_ACL for I_S and P_S,
@@ -694,7 +694,7 @@ bool Sql_cmd_show_table_base::check_parameters(THD *thd) {
   if (m_temporary) return false;
   bool can_deadlock = thd->mdl_context.has_locks();
   TABLE_LIST *table = thd->lex->query_tables;
-  TABLE_LIST *dst_table = table->schema_select_lex->table_list.first;
+  TABLE_LIST *dst_table = table->schema_query_block->table_list.first;
   if (try_acquire_high_prio_shared_mdl_lock(thd, dst_table, can_deadlock)) {
     /*
       Some error occurred (most probably we have been killed while
@@ -1126,7 +1126,7 @@ bool mysqld_show_create(THD *thd, TABLE_LIST *table_list) {
     bool open_error = open_tables(thd, &table_list, &counter,
                                   MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL);
     if (!open_error && table_list->is_view_or_derived() &&
-        !table_list->derived_unit()->is_prepared()) {
+        !table_list->derived_query_expression()->is_prepared()) {
       /*
         Prepare result table for view so that we can read the column list.
         Notice that Show_create_error_handler remains active, so that any
@@ -1140,8 +1140,8 @@ bool mysqld_show_create(THD *thd, TABLE_LIST *table_list) {
         good enough for the SHOW CREATE command, as we only need the
         preparation for errors against referenced objects.
       */
-      if (!table_list->derived_unit()->is_prepared()) {
-        table_list->derived_unit()->set_prepared();
+      if (!table_list->derived_query_expression()->is_prepared()) {
+        table_list->derived_query_expression()->set_prepared();
       }
     }
     thd->pop_internal_handler();
@@ -2199,7 +2199,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       Append START TRANSACTION for CREATE SELECT on SE supporting atomic DDL.
       This is done only while binlogging CREATE TABLE AS SELECT.
     */
-    if (!thd->lex->select_lex->field_list_is_empty() &&
+    if (!thd->lex->query_block->field_list_is_empty() &&
         (create_info_arg->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL)) {
       packet->append(STRING_WITH_LEN(" START TRANSACTION"));
     }
@@ -2856,7 +2856,7 @@ void mysqld_list_processes(THD *thd, const char *user, bool verbose) {
                     thd_info->query_string.charset());
     if (protocol->end_row()) break; /* purecov: inspected */
   }
-  if (thd->lex->select_lex != nullptr)
+  if (thd->lex->query_block != nullptr)
     thd->lex->unit->query_result()->send_eof(thd);
   else
     my_eof(thd);
@@ -3530,17 +3530,17 @@ bool convert_heap_table_to_ondisk(THD *thd, TABLE *table, int error) {
 }
 
 /**
-  Prepare a Table_ident and add a table_list into SELECT_LEX
+  Prepare a Table_ident and add a table_list into Query_block
 
   @param thd         Thread
-  @param sel         Instance of SELECT_LEX.
+  @param sel         Instance of Query_block.
   @param db_name     Database name.
   @param table_name  Table name.
 
   @returns true on failure.
            false on success.
 */
-bool make_table_list(THD *thd, SELECT_LEX *sel, const LEX_CSTRING &db_name,
+bool make_table_list(THD *thd, Query_block *sel, const LEX_CSTRING &db_name,
                      const LEX_CSTRING &table_name) {
   Table_ident *table_ident = new (thd->mem_root)
       Table_ident(thd->get_protocol(), db_name, table_name, true);
@@ -3563,7 +3563,7 @@ enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table) {
 
 static int show_temporary_tables(THD *thd, TABLE_LIST *tables, Item *) {
   TABLE *table = tables->table;
-  SELECT_LEX *lsel = tables->schema_select_lex;
+  Query_block *lsel = tables->schema_query_block;
   ST_SCHEMA_TABLE *schema_table = tables->schema_table;
 
   DBUG_TRACE;
@@ -3654,11 +3654,11 @@ static int show_temporary_tables(THD *thd, TABLE_LIST *tables, Item *) {
     temporary LEX. The latter is required to correctly open views and
     produce table describing their structure.
   */
-  if (make_table_list(thd, lex->select_lex, db_name_lex_cstr,
+  if (make_table_list(thd, lex->query_block, db_name_lex_cstr,
                       table_name_lex_cstr))
     goto end;
 
-  table_list = lex->select_lex->table_list.first;
+  table_list = lex->query_block->table_list.first;
   DBUG_ASSERT(!table_list->is_view_or_derived());
 
   /*
@@ -4148,7 +4148,7 @@ static int fill_open_tables(THD *thd, TABLE_LIST *tables, Item *) {
   TABLE *table = tables->table;
   CHARSET_INFO *cs = system_charset_info;
   OPEN_TABLE_LIST *open_list;
-  if (!(open_list = list_open_tables(thd, thd->lex->select_lex->db, wild)) &&
+  if (!(open_list = list_open_tables(thd, thd->lex->query_block->db, wild)) &&
       thd->is_fatal_error())
     return 1;
 
@@ -4344,10 +4344,10 @@ static TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list) {
   tmp_table_param->table_charset = cs;
   tmp_table_param->field_count = field_count;
   tmp_table_param->schema_table = true;
-  SELECT_LEX *select_lex = thd->lex->current_select();
+  Query_block *query_block = thd->lex->current_query_block();
   if (!(table = create_tmp_table(
             thd, tmp_table_param, fields, /*group=*/nullptr, false, false,
-            select_lex->active_options() | TMP_TABLE_ALL_COLUMNS, HA_POS_ERROR,
+            query_block->active_options() | TMP_TABLE_ALL_COLUMNS, HA_POS_ERROR,
             table_list->alias)))
     return nullptr;
   my_bitmap_map *bitmaps =
@@ -4376,7 +4376,7 @@ static TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list) {
 
 static int make_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table) {
   ST_FIELD_INFO *field_info = schema_table->fields_info;
-  Name_resolution_context *context = &thd->lex->select_lex->context;
+  Name_resolution_context *context = &thd->lex->query_block->context;
   for (; field_info->field_name; field_info++) {
     if (field_info->old_name) {
       Item_field *field =
@@ -4400,7 +4400,7 @@ static int make_tmp_table_columns_format(THD *thd,
       TMP_TABLE_COLUMNS_COLUMN_COMMENT, -1};
   int *field_num = fields_arr;
   ST_FIELD_INFO *field_info;
-  Name_resolution_context *context = &thd->lex->select_lex->context;
+  Name_resolution_context *context = &thd->lex->query_block->context;
 
   for (; *field_num >= 0; field_num++) {
     field_info = &schema_table->fields_info[*field_num];
@@ -4446,13 +4446,13 @@ bool mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list) {
       table_alias_charset, table_list->table_name, table_list->alias);
   table_list->table = table;
   table->pos_in_table_list = table_list;
-  if (table_list->select_lex->first_execution)
-    table_list->select_lex->add_base_options(OPTION_SCHEMA_TABLE);
+  if (table_list->query_block->first_execution)
+    table_list->query_block->add_base_options(OPTION_SCHEMA_TABLE);
   lex->safe_to_cache_query = false;
 
   if (table_list->schema_table_reformed)  // show command
   {
-    SELECT_LEX *sel = lex->current_select();
+    Query_block *sel = lex->current_query_block();
     Field_translator *transl;
 
     ulonglong want_privilege_saved = thd->want_privilege;
@@ -4500,18 +4500,19 @@ bool mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list) {
   Generate select from information_schema table
 
   @param thd                  thread handler
-  @param sel                  pointer to SELECT_LEX
+  @param sel                  pointer to Query_block
   @param schema_table_idx     index of 'schema_tables' element
 
   @return true on error, false otherwise
 */
 
-bool make_schema_select(THD *thd, SELECT_LEX *sel,
-                        enum enum_schema_tables schema_table_idx) {
+bool make_schema_query_block(THD *thd, Query_block *sel,
+                             enum enum_schema_tables schema_table_idx) {
   ST_SCHEMA_TABLE *schema_table = get_schema_table(schema_table_idx);
   LEX_STRING db{nullptr, 0}, table{nullptr, 0};
   DBUG_TRACE;
-  DBUG_PRINT("enter", ("mysql_schema_select: %s", schema_table->table_name));
+  DBUG_PRINT("enter",
+             ("mysql_schema_query_block: %s", schema_table->table_name));
   /*
      We have to make non const db_name & table_name
      because of lower_case_table_names
@@ -4646,8 +4647,8 @@ bool get_schema_tables_result(JOIN *join,
 
     TABLE_LIST *const table_list = tab->table_ref;
     if (table_list->schema_table && thd->fill_information_schema_tables()) {
-      bool is_subselect = join->select_lex->master_unit() &&
-                          join->select_lex->master_unit()->item;
+      bool is_subselect = join->query_block->master_query_expression() &&
+                          join->query_block->master_query_expression()->item;
 
       /* A value of 0 indicates a dummy implementation */
       if (table_list->schema_table->fill_table == nullptr) continue;

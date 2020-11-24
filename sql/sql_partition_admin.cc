@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -73,10 +73,10 @@ class Table;
 bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd) {
   /* Moved from mysql_execute_command */
   LEX *lex = thd->lex;
-  /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
-  SELECT_LEX *select_lex = lex->select_lex;
-  /* first table of first SELECT_LEX */
-  TABLE_LIST *first_table = select_lex->table_list.first;
+  /* first Query_block (have special meaning for many of non-SELECTcommands) */
+  Query_block *query_block = lex->query_block;
+  /* first table of first Query_block */
+  TABLE_LIST *first_table = query_block->table_list.first;
   /*
     Code in mysql_alter_table() may modify its HA_CREATE_INFO argument,
     so we have to use a copy of this structure to make execution
@@ -579,7 +579,7 @@ bool Sql_cmd_alter_table_repair_partition::execute(THD *thd) {
 bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
   int error;
   ulong timeout = thd->variables.lock_wait_timeout;
-  TABLE_LIST *first_table = thd->lex->select_lex->table_list.first;
+  TABLE_LIST *first_table = thd->lex->query_block->table_list.first;
   uint table_counter;
   Partition_handler *part_handler = nullptr;
   handlerton *hton;

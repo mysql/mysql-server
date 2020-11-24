@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -293,10 +293,10 @@ PT_derived_table *Select_lex_builder::prepare_derived_table(
 }
 
 /**
-  Prepare a SELECT_LEX using all the information information
+  Prepare a Query_block using all the information information
   added to this Select_lex_builder.
 */
-SELECT_LEX *Select_lex_builder::prepare_select_lex() {
+Query_block *Select_lex_builder::prepare_query_block() {
   PT_query_specification *query_specification =
       new (m_thd->mem_root) PT_query_specification(
           options, m_select_item_list, m_table_reference_list, m_where_clause);
@@ -313,15 +313,15 @@ SELECT_LEX *Select_lex_builder::prepare_select_lex() {
   if (query_expression == nullptr) return nullptr;
 
   LEX *lex = m_thd->lex;
-  SELECT_LEX *current_select = lex->current_select();
+  Query_block *current_query_block = lex->current_query_block();
 
   lex->sql_command = SQLCOM_SELECT;
-  Parse_context pc(m_thd, current_select);
+  Parse_context pc(m_thd, current_query_block);
   if (m_thd->is_error()) return nullptr;
 
   if (query_expression->contextualize(&pc)) return nullptr;
 
-  return current_select;
+  return current_query_block;
 }
 
 }  // namespace info_schema

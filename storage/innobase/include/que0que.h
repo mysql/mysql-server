@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -196,7 +196,7 @@ ibool que_thr_peek_stop(que_thr_t *thr); /*!< in: query thread */
 /** Returns TRUE if the query graph is for a SELECT statement.
  @return true if a select */
 UNIV_INLINE
-ibool que_graph_is_select(que_t *graph); /*!< in: graph */
+ibool que_graph_is_query_block(que_t *graph); /*!< in: graph */
 /** Prints info of an SQL query graph node. */
 void que_node_print_info(que_node_t *node); /*!< in: query graph node */
 /** Evaluate the given SQL

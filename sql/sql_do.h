@@ -34,9 +34,10 @@ class THD;
 template <class T>
 class List;
 
-class Sql_cmd_do final : public Sql_cmd_select {
+class Sql_cmd_do final : public Sql_cmd_query_block {
  public:
-  explicit Sql_cmd_do(Query_result *result_arg) : Sql_cmd_select(result_arg) {}
+  explicit Sql_cmd_do(Query_result *result_arg)
+      : Sql_cmd_query_block(result_arg) {}
 
   enum_sql_command sql_command_code() const override { return SQLCOM_DO; }
 
@@ -54,7 +55,7 @@ class Query_result_do final : public Query_result {
   }
   bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
   bool send_eof(THD *thd) override;
-  bool check_simple_select() const override { return false; }
+  bool check_simple_query_block() const override { return false; }
   void abort_result_set(THD *) override {}
   void cleanup(THD *) override {}
 };

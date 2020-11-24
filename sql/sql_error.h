@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -673,7 +673,7 @@ class Diagnostics_area {
   uint m_current_statement_cond_count;
 
   /** A break down of the number of conditions per severity (level). */
-  uint m_current_statement_cond_count_by_sl[(uint)Sql_condition::SEVERITY_END];
+  uint m_current_statement_cond_count_by_qb[(uint)Sql_condition::SEVERITY_END];
 
   /**
     Row counter, to print in errors and warnings. Not increased in

@@ -762,14 +762,14 @@ static File_option view_parameters[] = {
   @retval true   ON FAILURE
 */
 static bool create_unlinked_view(THD *thd, TABLE_LIST *view_ref) {
-  SELECT_LEX *backup_select = thd->lex->select_lex;
+  Query_block *backup_query_block = thd->lex->query_block;
   TABLE_LIST *saved_query_tables = thd->lex->query_tables;
   SQL_I_List<Sroutine_hash_entry> saved_sroutines_list;
   // For creation of view without column information.
-  SELECT_LEX select(thd->mem_root, nullptr, nullptr);
+  Query_block select(thd->mem_root, nullptr, nullptr);
 
   // Backup
-  thd->lex->select_lex = &select;
+  thd->lex->query_block = &select;
   thd->lex->query_tables = nullptr;
   thd->lex->sroutines_list.save_and_clear(&saved_sroutines_list);
 
@@ -792,7 +792,7 @@ static bool create_unlinked_view(THD *thd, TABLE_LIST *view_ref) {
     result = trans_commit_stmt(thd) || trans_commit(thd);
 
   // Restore
-  thd->lex->select_lex = backup_select;
+  thd->lex->query_block = backup_query_block;
   thd->lex->sroutines_list.push_front(&saved_sroutines_list);
   thd->lex->query_tables = saved_query_tables;
 
@@ -1671,7 +1671,7 @@ static bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
   }
 
   // open_table_from_share and partition expression parsing needs a
-  // valid SELECT_LEX to parse generated columns
+  // valid Query_block to parse generated columns
   LEX *lex_saved = thd->lex;
   thd->lex = &lex;
   lex_start(thd);

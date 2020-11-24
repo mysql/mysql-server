@@ -51,7 +51,7 @@
 #include "sql/window.h"
 #include "sql_string.h"
 
-class SELECT_LEX_UNIT;
+class Query_expression;
 
 /**
   Property names, former parts of traditional "extra" column
@@ -391,7 +391,7 @@ class context : public Explain_context {
        1   error occurred
   */
   virtual int add_where_subquery(subquery_ctx *ctx MY_ATTRIBUTE((unused)),
-                                 SELECT_LEX_UNIT *subquery
+                                 Query_expression *subquery
                                      MY_ATTRIBUTE((unused))) {
     DBUG_ASSERT(0);
     return false;
@@ -404,7 +404,7 @@ class context : public Explain_context {
   virtual bool format_where(Opt_trace_context *) { return false; }
 
   /// Helper function to format output for HAVING, ORDER/GROUP BY subqueries
-  virtual bool format_unit(Opt_trace_context *) { return false; }
+  virtual bool format_query_expression(Opt_trace_context *) { return false; }
 };
 
 /**
@@ -572,7 +572,7 @@ class unit_ctx : virtual public context {
     return true;
   }
 
-  bool format_unit(Opt_trace_context *json) override {
+  bool format_query_expression(Opt_trace_context *json) override {
     for (size_t i = 0; i < SQ_total; i++) {
       if (format_list(json, subquery_lists[i], list_names[i])) return true;
     }
@@ -704,7 +704,7 @@ bool table_base_ctx::format_body(Opt_trace_context *json,
     if (format_where(json)) return true;
   }
 
-  return format_derived(json) || format_unit(json);
+  return format_derived(json) || format_query_expression(json);
 }
 
 /**
@@ -728,8 +728,8 @@ class union_result_ctx : public table_base_ctx, public unit_ctx {
   bool cacheable() override { return table_base_ctx::cacheable(); }
   bool dependent() override { return table_base_ctx::dependent(); }
   qep_row *entry() override { return table_base_ctx::entry(); }
-  bool format_unit(Opt_trace_context *json) override {
-    return table_base_ctx::format_unit(json);
+  bool format_query_expression(Opt_trace_context *json) override {
+    return table_base_ctx::format_query_expression(json);
   }
 
   void push_down_query_specs(List<context> *specs) { query_specs = specs; }
@@ -860,7 +860,7 @@ class message_ctx : public joinable_ctx, public table_with_where_and_derived {
     return true;
   }
 
-  int add_where_subquery(subquery_ctx *ctx, SELECT_LEX_UNIT *) override {
+  int add_where_subquery(subquery_ctx *ctx, Query_expression *) override {
     return where_subqueries.push_back(ctx);
   }
 };
@@ -875,7 +875,7 @@ class join_tab_ctx : public joinable_ctx, public table_with_where_and_derived {
     This list is used to match with the @c subquery parameter of
     the @c add_where_subquery function.
   */
-  List<SELECT_LEX_UNIT> where_subquery_units;
+  List<Query_expression> where_subquery_units;
 
  public:
   join_tab_ctx(enum_parsing_context type_arg, context *parent_arg)
@@ -900,9 +900,9 @@ class join_tab_ctx : public joinable_ctx, public table_with_where_and_derived {
     return table_with_where_and_derived::format_where(json);
   }
 
-  void register_where_subquery(SELECT_LEX_UNIT *subquery) override {
-    List_iterator<SELECT_LEX_UNIT> it(where_subquery_units);
-    SELECT_LEX_UNIT *u;
+  void register_where_subquery(Query_expression *subquery) override {
+    List_iterator<Query_expression> it(where_subquery_units);
+    Query_expression *u;
     while ((u = it++)) {
       /*
         The server may transform (x = (SELECT FROM DUAL)) to
@@ -915,9 +915,9 @@ class join_tab_ctx : public joinable_ctx, public table_with_where_and_derived {
   }
 
   int add_where_subquery(subquery_ctx *ctx,
-                         SELECT_LEX_UNIT *subquery) override {
-    List_iterator<SELECT_LEX_UNIT> it(where_subquery_units);
-    SELECT_LEX_UNIT *u;
+                         Query_expression *subquery) override {
+    List_iterator<Query_expression> it(where_subquery_units);
+    Query_expression *u;
     while ((u = it++)) {
       if (u == subquery) return where_subqueries.push_back(ctx);
     }
@@ -968,7 +968,7 @@ class simple_sort_ctx : public joinable_ctx {
   }
 
   int add_where_subquery(subquery_ctx *ctx,
-                         SELECT_LEX_UNIT *subquery) override {
+                         Query_expression *subquery) override {
     return join_tab->add_where_subquery(ctx, subquery);
   }
 
@@ -1079,7 +1079,8 @@ class join_ctx : public unit_ctx, virtual public qep_row {
   size_t id(bool hide) override;
   bool cacheable() override;
   bool dependent() override;
-  int add_where_subquery(subquery_ctx *ctx, SELECT_LEX_UNIT *subquery) override;
+  int add_where_subquery(subquery_ctx *ctx,
+                         Query_expression *subquery) override;
 };
 
 /**
@@ -1326,7 +1327,7 @@ bool join_ctx::format_body(Opt_trace_context *json, Opt_trace_object *obj) {
     }
   } else if (format_body_inner(json, obj))
     return true; /* purecov: inspected */
-  return format_unit(json);
+  return format_query_expression(json);
 }
 
 bool join_ctx::format_body_inner(Opt_trace_context *json,
@@ -1435,7 +1436,8 @@ bool join_ctx::dependent() {
               : (window ? window->dependent() : join_tabs.head()->dependent()));
 }
 
-int join_ctx::add_where_subquery(subquery_ctx *ctx, SELECT_LEX_UNIT *subquery) {
+int join_ctx::add_where_subquery(subquery_ctx *ctx,
+                                 Query_expression *subquery) {
   if (sort)
     return sort->join_ctx::add_where_subquery(ctx, subquery);
   else if (window)
@@ -1489,14 +1491,14 @@ class materialize_ctx : public joinable_ctx,
     return join_ctx::add_join_tab(ctx);
   }
   int add_where_subquery(subquery_ctx *ctx,
-                         SELECT_LEX_UNIT *subquery) override {
+                         Query_expression *subquery) override {
     return join_ctx::add_where_subquery(ctx, subquery);
   }
   bool find_and_set_derived(context *subquery) override {
     return join_ctx::find_and_set_derived(subquery);
   }
-  bool format_unit(Opt_trace_context *json) override {
-    return unit_ctx::format_unit(json);
+  bool format_query_expression(Opt_trace_context *json) override {
+    return unit_ctx::format_query_expression(json);
   }
   bool format_nested_loop(Opt_trace_context *json) override {
     return join_ctx::format_nested_loop(json);
@@ -1567,7 +1569,7 @@ class duplication_weedout_ctx : public joinable_ctx, public join_ctx {
     return join_ctx::add_subquery(subquery_type, ctx);
   }
   int add_where_subquery(subquery_ctx *ctx,
-                         SELECT_LEX_UNIT *subquery) override {
+                         Query_expression *subquery) override {
     return join_ctx::add_where_subquery(ctx, subquery);
   }
   bool find_and_set_derived(context *subquery) override {
@@ -1576,8 +1578,8 @@ class duplication_weedout_ctx : public joinable_ctx, public join_ctx {
   bool format_nested_loop(Opt_trace_context *json) override {
     return join_ctx::format_nested_loop(json);
   }
-  bool format_unit(Opt_trace_context *json) override {
-    return unit_ctx::format_unit(json);
+  bool format_query_expression(Opt_trace_context *json) override {
+    return unit_ctx::format_query_expression(json);
   }
   void set_sort(sort_ctx *ctx) override { return join_ctx::set_sort(ctx); }
   void set_window(window_ctx *ctx) override {
@@ -1609,11 +1611,11 @@ class union_ctx : public unit_ctx {
  private:
   bool format_body(Opt_trace_context *json, Opt_trace_object *) override {
     if (union_result)
-      return (union_result->format(json)) || format_unit(json);
+      return (union_result->format(json)) || format_query_expression(json);
     else {
       /*
         UNION without temporary table. There is no union_result since
-        there is no fake_select_lex.
+        there is no fake_query_block.
       */
       Opt_trace_object union_res(json, K_UNION_RESULT);
       union_res.add(K_USING_TMP_TABLE, false);
@@ -1623,7 +1625,7 @@ class union_ctx : public unit_ctx {
       while ((ctx = it++)) {
         if (ctx->format(json)) return true; /* purecov: inspected */
       }
-      return format_unit(json);
+      return format_query_expression(json);
     }
   }
 
@@ -1668,7 +1670,7 @@ bool union_result_ctx::format(Opt_trace_context *json) {
 qep_row *Explain_format_JSON::entry() { return current_context->entry(); }
 
 bool Explain_format_JSON::begin_context(enum_parsing_context ctx_arg,
-                                        SELECT_LEX_UNIT *subquery,
+                                        Query_expression *subquery,
                                         const Explain_format_flags *flags) {
   using namespace opt_explain_json_namespace;
 

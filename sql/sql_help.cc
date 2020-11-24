@@ -122,7 +122,7 @@ enum enum_used_fields {
 
 static bool init_fields(THD *thd, TABLE_LIST *tables,
                         struct st_find_field *find_fields, uint count) {
-  Name_resolution_context *context = &thd->lex->select_lex->context;
+  Name_resolution_context *context = &thd->lex->query_block->context;
   DBUG_TRACE;
   context->resolve_in_table_list_only(tables);
   for (; count--; find_fields++) {
@@ -134,8 +134,8 @@ static bool init_fields(THD *thd, TABLE_LIST *tables,
                                                     false,  // No priv checking
                                                     true)))
       return true;
-    find_fields->field->table->pos_in_table_list->select_lex =
-        thd->lex->select_lex;
+    find_fields->field->table->pos_in_table_list->query_block =
+        thd->lex->query_block;
     bitmap_set_bit(find_fields->field->table->read_set,
                    find_fields->field->field_index());
     /* To make life easier when setting values in keys */
@@ -568,8 +568,8 @@ static int send_variant_2_list(MEM_ROOT *mem_root, Protocol *protocol,
   'tab'
 */
 
-static bool prepare_simple_select(THD *thd, Item *cond, TABLE *table,
-                                  QEP_TAB *tab) {
+static bool prepare_simple_query_block(THD *thd, Item *cond, TABLE *table,
+                                       QEP_TAB *tab) {
   if (!cond->fixed) cond->fix_fields(thd, &cond);  // can never fail
 
   // Initialize the cost model that will be used for this table
@@ -588,7 +588,7 @@ static bool prepare_simple_select(THD *thd, Item *cond, TABLE *table,
   const bool impossible =
       test_quick_select(thd, keys_to_use, 0, HA_POS_ERROR, false,
                         ORDER_NOT_RELEVANT, tab, cond, &needed_reg_dummy, &qck,
-                        tab->table()->force_index, thd->lex->select_lex) < 0;
+                        tab->table()->force_index, thd->lex->query_block) < 0;
   tab->set_quick(qck);
 
   return impossible || (tab->quick() && tab->quick()->reset());
@@ -605,7 +605,7 @@ static bool prepare_simple_select(THD *thd, Item *cond, TABLE *table,
   @param  tab      QEP_TAB
 
   @returns true if error
-  @see prepare_simple_select()
+  @see prepare_simple_query_block()
 */
 
 static bool prepare_select_for_name(THD *thd, const char *mask, size_t mlen,
@@ -614,7 +614,7 @@ static bool prepare_select_for_name(THD *thd, const char *mask, size_t mlen,
       new Item_field(pfname), new Item_string(mask, mlen, pfname->charset()),
       new Item_string("\\", 1, &my_charset_latin1), false);
   if (thd->is_fatal_error()) return true; /* purecov: inspected */
-  return prepare_simple_select(thd, cond, table, tab);
+  return prepare_simple_query_block(thd, cond, table, tab);
 }
 
 /*
@@ -638,7 +638,7 @@ bool mysqld_help(THD *thd, const char *mask) {
   size_t mlen = strlen(mask);
   size_t i;
   MEM_ROOT *mem_root = thd->mem_root;
-  SELECT_LEX *const select_lex = thd->lex->select_lex;
+  Query_block *const query_block = thd->lex->query_block;
   DBUG_TRACE;
 
   TABLE_LIST *tables[4];
@@ -667,9 +667,9 @@ bool mysqld_help(THD *thd, const char *mask) {
     Init tables and fields to be usable from items
     tables do not contain VIEWs => we can pass 0 as conds
   */
-  select_lex->context.table_list =
-      select_lex->context.first_name_resolution_table = tables[0];
-  if (select_lex->setup_tables(thd, tables[0], false)) goto error;
+  query_block->context.table_list =
+      query_block->context.first_name_resolution_table = tables[0];
+  if (query_block->setup_tables(thd, tables[0], false)) goto error;
   memcpy((char *)used_fields, (char *)init_used_fields, sizeof(used_fields));
   if (init_fields(thd, tables[0], used_fields, array_elements(used_fields)))
     goto error;
@@ -739,8 +739,8 @@ bool mysqld_help(THD *thd, const char *mask) {
         QEP_TAB_standalone qep_tab_st;
         QEP_TAB &tab = qep_tab_st.as_QEP_TAB();
 
-        if (prepare_simple_select(thd, cond_topic_by_cat, tables[0]->table,
-                                  &tab))
+        if (prepare_simple_query_block(thd, cond_topic_by_cat, tables[0]->table,
+                                       &tab))
           goto error;
         get_all_items_for_category(
             thd, &tab, used_fields[help_topic_name].field, &topics_list);
@@ -749,7 +749,8 @@ bool mysqld_help(THD *thd, const char *mask) {
         QEP_TAB_standalone qep_tab_st;
         QEP_TAB &tab = qep_tab_st.as_QEP_TAB();
 
-        if (prepare_simple_select(thd, cond_cat_by_cat, tables[1]->table, &tab))
+        if (prepare_simple_query_block(thd, cond_cat_by_cat, tables[1]->table,
+                                       &tab))
           goto error;
         get_all_items_for_category(thd, &tab,
                                    used_fields[help_category_name].field,

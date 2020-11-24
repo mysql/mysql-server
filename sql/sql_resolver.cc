@@ -116,7 +116,7 @@ using std::function;
 static bool simplify_const_condition(THD *thd, Item **cond,
                                      bool remove_cond = true,
                                      bool *ret_cond_value = nullptr);
-static Item *create_rollup_switcher(THD *thd, SELECT_LEX *select_lex,
+static Item *create_rollup_switcher(THD *thd, Query_block *query_block,
                                     Item *item, int send_group_parts);
 
 /**
@@ -168,19 +168,19 @@ static Item *create_rollup_switcher(THD *thd, SELECT_LEX *select_lex,
    - As far as INSERT, UPDATE and DELETE statements have the same expressions
      as a SELECT statement, this note applies to those statements as well.
 */
-bool SELECT_LEX::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
+bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(this == thd->lex->current_select());
+  DBUG_ASSERT(this == thd->lex->current_query_block());
   DBUG_ASSERT(join == nullptr);
   DBUG_ASSERT(!thd->is_error());
 
   // If this query block is a table value constructor, a lot of the preparation
-  // done in SELECT_LEX::prepare becomes irrelevant. Thus we call our own
-  // SELECT_LEX::prepare_values in this case.
+  // done in Query_block::prepare becomes irrelevant. Thus we call our own
+  // Query_block::prepare_values in this case.
   if (is_table_value_constructor) return prepare_values(thd);
 
-  SELECT_LEX_UNIT *const unit = master_unit();
+  Query_expression *const unit = master_query_expression();
 
   if (!top_join_list.empty()) propagate_nullability(&top_join_list, false);
 
@@ -195,12 +195,12 @@ bool SELECT_LEX::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
         by forcing a materialization of the subquery.
       - All other cases inherit status of parent query block.
   */
-  allow_merge_derived = outer_select() == nullptr ||
-                        master_unit()->item == nullptr ||
-                        (outer_select()->outer_select() == nullptr
+  allow_merge_derived = outer_query_block() == nullptr ||
+                        master_query_expression()->item == nullptr ||
+                        (outer_query_block()->outer_query_block() == nullptr
                              ? parent_lex->sql_command == SQLCOM_SELECT ||
                                    parent_lex->sql_command == SQLCOM_SET_OPTION
-                             : outer_select()->allow_merge_derived);
+                             : outer_query_block()->allow_merge_derived);
 
   Opt_trace_context *const trace = &thd->opt_trace;
   Opt_trace_object trace_wrapper_prepare(trace);
@@ -220,8 +220,8 @@ bool SELECT_LEX::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
     Expressions must be resolved here, before tables are set up, otherwise table
     function's arguments are not resolved properly.
   */
-  const bool check_privs =
-      !thd->derived_tables_processing || master_unit()->item != nullptr;
+  const bool check_privs = !thd->derived_tables_processing ||
+                           master_query_expression()->item != nullptr;
   thd->mark_used_columns = check_privs ? MARK_COLUMNS_READ : MARK_COLUMNS_NONE;
   ulonglong want_privilege_saved = thd->want_privilege;
   thd->want_privilege = check_privs ? SELECT_ACL : 0;
@@ -257,7 +257,7 @@ bool SELECT_LEX::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
 
   /*
     Item and Item_field CTORs will both increment some counters
-    in current_select(), based on the current parsing context.
+    in current_query_block(), based on the current parsing context.
     We are not parsing anymore: any new Items created now are due to
     query rewriting, so stop incrementing counters.
    */
@@ -408,7 +408,7 @@ bool SELECT_LEX::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
   /*
     Printing the expanded query should happen here and not elsewhere, because
     when a view is merged (when the view is opened in open_tables()), the
-    parent query's select_lex does not yet contain a correct WHERE clause (it
+    parent query's query_block does not yet contain a correct WHERE clause (it
     misses the view's merged WHERE clause). This is corrected only just above,
     in TABLE_LIST::prep_where(), called by
     setup_without_group()->setup_conds().
@@ -426,9 +426,9 @@ bool SELECT_LEX::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
     undone in favour of materialization, when optimizing a later statement
     using the view)
   */
-  if (unit->item &&                     // This is a subquery
-      this != unit->fake_select_lex &&  // A real query block
-                                        // Not normalizing a view
+  if (unit->item &&                      // This is a subquery
+      this != unit->fake_query_block &&  // A real query block
+                                         // Not normalizing a view
       !thd->lex->is_view_context_analysis()) {
     // Query block represents a subquery within an IN/ANY/ALL/EXISTS predicate
     if (resolve_subquery(thd)) return true;
@@ -481,7 +481,7 @@ bool SELECT_LEX::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
     for (auto it = fields.begin(); it != fields.end(); ++it) {
       Item *item = *it;
       if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item() &&
-          down_cast<Item_sum *>(item)->aggr_select == this &&
+          down_cast<Item_sum *>(item)->aggr_query_block == this &&
           !is_rollup_sum_wrapper(item)) {
         // split_sum_func2 created a new aggregate function item,
         // so we need to update it for rollup.
@@ -525,10 +525,10 @@ bool SELECT_LEX::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
     blocks.
   */
   if (!thd->lex->is_view_context_analysis() &&
-      (outer_select() == nullptr ||
+      (outer_query_block() == nullptr ||
        ((parent_lex->sql_command == SQLCOM_SET_OPTION ||
          parent_lex->sql_command == SQLCOM_END) &&
-        outer_select()->outer_select() == nullptr)) &&
+        outer_query_block()->outer_query_block() == nullptr)) &&
       !skip_local_transforms) {
     /*
       This code is invoked in the following cases:
@@ -536,7 +536,7 @@ bool SELECT_LEX::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
       not required when creating a view.
       - if this is an outer-most query block of a SELECT or multi-table
       UPDATE/DELETE statement. Notice that for a UNION, this applies to
-      all query blocks. It also applies to a fake_select_lex object.
+      all query blocks. It also applies to a fake_query_block object.
       - if this is one of highest-level subqueries, if the statement is
       something else; like subq-i in:
       UPDATE t1 SET col1=(subq-1), col2=(subq-2);
@@ -597,7 +597,7 @@ bool SELECT_LEX::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
   Since this is called at the end after applying local tranformations,
   call this function while traversing the query block hierarchy top-down.
 */
-bool SELECT_LEX::push_conditions_to_derived_tables(THD *thd) {
+bool Query_block::push_conditions_to_derived_tables(THD *thd) {
   if (materialized_derived_table_count > 0)
     for (TABLE_LIST *tl = leaf_tables; tl; tl = tl->next_leaf) {
       if (tl->is_view_or_derived() && tl->uses_materialization() &&
@@ -618,9 +618,10 @@ bool SELECT_LEX::push_conditions_to_derived_tables(THD *thd) {
     even more, in the case where a derived table contains an inner derived
     table.
    */
-  for (SELECT_LEX_UNIT *unit = first_inner_unit(); unit;
-       unit = unit->next_unit()) {
-    for (SELECT_LEX *sl = unit->first_select(); sl; sl = sl->next_select()) {
+  for (Query_expression *unit = first_inner_query_expression(); unit;
+       unit = unit->next_query_expression()) {
+    for (Query_block *sl = unit->first_query_block(); sl;
+         sl = sl->next_query_block()) {
       if (sl->push_conditions_to_derived_tables(thd)) return true;
     }
   }
@@ -630,32 +631,32 @@ bool SELECT_LEX::push_conditions_to_derived_tables(THD *thd) {
 /**
   Prepare a table value constructor query block for optimization.
 
-  In the case of a table value constructor SELECT_LEX, we return the result of
-  this function from SELECT_LEX::prepare, instead of doing the standard prepare
+  In the case of a table value constructor Query_block, we return the result of
+  this function from Query_block::prepare, instead of doing the standard prepare
   routine.
 
-  For a table value constructor block, most preparation of a standard SELECT_LEX
-  becomes irrelevant (in particular INTO, FROM, WHERE, GROUP, HAVING and
-  WINDOW). We therefore substitute the standard resolving routine with this one,
-  which is simply responsible for resolving the expressions contained in VALUES,
-  as well as the query result.
+  For a table value constructor block, most preparation of a standard
+  Query_block becomes irrelevant (in particular INTO, FROM, WHERE, GROUP, HAVING
+  and WINDOW). We therefore substitute the standard resolving routine with this
+  one, which is simply responsible for resolving the expressions contained in
+  VALUES, as well as the query result.
 
   @param thd    thread handler
 
   @returns false if success, true if error
  */
 
-bool SELECT_LEX::prepare_values(THD *thd) {
-  SELECT_LEX_UNIT *const unit = master_unit();
+bool Query_block::prepare_values(THD *thd) {
+  Query_expression *const unit = master_query_expression();
 
   if (resolve_table_value_constructor_values(thd)) return true;
 
-  // Setup the HAVING clause, duplicating code from SELECT_LEX::prepare. This is
-  // strictly necessary in the case of PREPARE statements, where
-  // resolve_subquery may rewrite its SELECT_LEX to use m_having_cond.
+  // Setup the HAVING clause, duplicating code from Query_block::prepare. This
+  // is strictly necessary in the case of PREPARE statements, where
+  // resolve_subquery may rewrite its Query_block to use m_having_cond.
   //
   // For example, a query like `SELECT * FROM t WHERE (a, b) IN (VALUES ROW(1,
-  // 10))` may be rewritten such that the SELECT_LEX within the IN subquery has
+  // 10))` may be rewritten such that the Query_block within the IN subquery has
   // a HAVING clause with an Item_cond_and. This must be taken into account
   // during the second preparation that is done when the prepared statement is
   // _executed_; we now have to resolve m_having_cond properly.
@@ -678,13 +679,13 @@ bool SELECT_LEX::prepare_values(THD *thd) {
     resolve_place = RESOLVE_NONE;
   }
 
-  // Again, duplicating checks that are also done in SELECT_LEX::prepare for
+  // Again, duplicating checks that are also done in Query_block::prepare for
   // resolving subqueries. This should, like the resolving of m_having_clause
   // above, be refactored such that there is less duplication of code from
-  // SELECT_LEX::prepare.
-  if (unit->item &&                     // This is a subquery
-      this != unit->fake_select_lex &&  // A real query block
-                                        // Not normalizing a view
+  // Query_block::prepare.
+  if (unit->item &&                      // This is a subquery
+      this != unit->fake_query_block &&  // A real query block
+                                         // Not normalizing a view
       !thd->lex->is_view_context_analysis()) {
     // Query block represents a subquery within an IN/ANY/ALL/EXISTS predicate
     if (resolve_subquery(thd)) return true;
@@ -721,7 +722,7 @@ bool SELECT_LEX::prepare_values(THD *thd) {
   while traversing the query block hierarchy top-down.
 */
 
-bool SELECT_LEX::apply_local_transforms(THD *thd, bool prune) {
+bool Query_block::apply_local_transforms(THD *thd, bool prune) {
   DBUG_TRACE;
 
   DBUG_ASSERT(first_execution);
@@ -732,14 +733,15 @@ bool SELECT_LEX::apply_local_transforms(THD *thd, bool prune) {
   */
   if (derived_table_count) delete_unused_merged_columns(&top_join_list);
 
-  for (SELECT_LEX_UNIT *unit = first_inner_unit(); unit;
-       unit = unit->next_unit()) {
-    for (SELECT_LEX *sl = unit->first_select(); sl; sl = sl->next_select()) {
+  for (Query_expression *unit = first_inner_query_expression(); unit;
+       unit = unit->next_query_expression()) {
+    for (Query_block *sl = unit->first_query_block(); sl;
+         sl = sl->next_query_block()) {
       // Prune all subqueries, regardless of passed argument
       if (sl->apply_local_transforms(thd, true)) return true;
     }
-    if (unit->fake_select_lex &&
-        unit->fake_select_lex->apply_local_transforms(thd, false))
+    if (unit->fake_query_block &&
+        unit->fake_query_block->apply_local_transforms(thd, false))
       return true;
   }
 
@@ -764,7 +766,7 @@ bool SELECT_LEX::apply_local_transforms(THD *thd, bool prune) {
     unusable, becomes strong-to-strong).
     * check_only_full_group_by() is dependent on processing done by
     simplify_joins() (for example it uses the value of
-    SELECT_LEX::outer_join).
+    Query_block::outer_join).
 
     The drawback is that the checks are after resolve_subquery(), so can
     meet strange "internally added" items.
@@ -817,7 +819,7 @@ static void update_used_tables_for_join(mem_root_deque<TABLE_LIST *> *tables) {
 /**
   Update used tables information for all local expressions.
 */
-void SELECT_LEX::update_used_tables() {
+void Query_block::update_used_tables() {
   for (Item *item : visible_fields()) {
     item->update_used_tables();
   }
@@ -847,14 +849,14 @@ void SELECT_LEX::update_used_tables() {
 
   OFFSET and LIMIT clauses may be attached to query blocks that make up
   a query expression. OFFSET and LIMIT clauses that apply to a whole
-  query expression are attached to the fake_select_lex, hence we can use
+  query expression are attached to the fake_query_block, hence we can use
   this interface to resolve them as well.
 
   OFFSET and LIMIT may be unsigned integer literal values or parameters.
   If parameters, ensure that the type is unsigned integer.
 */
 
-bool SELECT_LEX::resolve_limits(THD *thd) {
+bool Query_block::resolve_limits(THD *thd) {
   if (offset_limit != nullptr) {
     if (offset_limit->fix_fields(thd, nullptr))
       return true; /* purecov: inspected */
@@ -938,31 +940,33 @@ static bool simplify_const_condition(THD *thd, Item **cond, bool remove_cond,
   Check if the subquery predicate can be executed via materialization.
 
   @param thd       THD
-  @param select_lex SELECT_LEX of the subquery
-  @param outer      Parent SELECT_LEX (outer to subquery)
+  @param query_block Query_block of the subquery
+  @param outer      Parent Query_block (outer to subquery)
 
   @return true if subquery allows materialization, false otherwise.
 */
 
 bool Item_in_subselect::subquery_allows_materialization(
-    THD *thd, SELECT_LEX *select_lex, const SELECT_LEX *outer) {
-  const uint elements = unit->first_select()->num_visible_fields();
+    THD *thd, Query_block *query_block, const Query_block *outer) {
+  const uint elements = unit->first_query_block()->num_visible_fields();
   DBUG_TRACE;
   DBUG_ASSERT(elements >= 1);
   DBUG_ASSERT(left_expr->cols() == elements);
 
   OPT_TRACE_TRANSFORM(&thd->opt_trace, trace_wrapper, trace_mat,
-                      select_lex->select_number, "IN (SELECT)",
+                      query_block->select_number, "IN (SELECT)",
                       "materialization");
 
   const char *cause = nullptr;
   if (substype() != Item_subselect::IN_SUBS) {
     // Subq-mat cannot handle 'outer_expr > {ANY|ALL}(subq)'...
     cause = "not an IN predicate";
-  } else if (select_lex->is_part_of_union()) {
+  } else if (query_block->is_part_of_union()) {
     // Subquery must be a single query specification clause (not a UNION)
     cause = "in UNION";
-  } else if (!select_lex->master_unit()->first_select()->leaf_tables) {
+  } else if (!query_block->master_query_expression()
+                  ->first_query_block()
+                  ->leaf_tables) {
     // Subquery has no tables, hence no point in materializing.
     cause = "no inner tables";
   } else if (!outer->join) {
@@ -1000,7 +1004,7 @@ bool Item_in_subselect::subquery_allows_materialization(
     bool has_nullables = left_expr->is_nullable();
 
     uint i = 0;
-    for (Item *const inner_item : unit->first_select()->visible_fields()) {
+    for (Item *const inner_item : unit->first_query_block()->visible_fields()) {
       Item *const outer_item = left_expr->element_index(i++);
       if (!types_allow_materialization(outer_item, inner_item)) {
         cause = "type mismatch";
@@ -1085,8 +1089,8 @@ static TABLE_LIST **make_leaf_tables(TABLE_LIST **list, TABLE_LIST *tables) {
   @returns false if success, true if error.
 */
 
-bool SELECT_LEX::check_view_privileges(THD *thd, ulong want_privilege_first,
-                                       ulong want_privilege_next) {
+bool Query_block::check_view_privileges(THD *thd, ulong want_privilege_first,
+                                        ulong want_privilege_next) {
   ulong want_privilege = want_privilege_first;
   Internal_error_handler_holder<View_error_handler, TABLE_LIST> view_handler(
       thd, true, leaf_tables);
@@ -1121,8 +1125,8 @@ bool SELECT_LEX::check_view_privileges(THD *thd, ulong want_privilege_first,
   @returns False on success, true on error
 */
 
-bool SELECT_LEX::setup_tables(THD *thd, TABLE_LIST *tables,
-                              bool select_insert) {
+bool Query_block::setup_tables(THD *thd, TABLE_LIST *tables,
+                               bool select_insert) {
   DBUG_TRACE;
 
   DBUG_ASSERT((select_insert && !tables->next_name_resolution_table) ||
@@ -1132,17 +1136,17 @@ bool SELECT_LEX::setup_tables(THD *thd, TABLE_LIST *tables,
   leaf_tables = nullptr;
   (void)make_leaf_tables(&leaf_tables, tables);
 
-  TABLE_LIST *first_select_table = nullptr;
+  TABLE_LIST *first_query_block_table = nullptr;
   if (select_insert) {
     // "insert_table" is needed for remap_tables().
     thd->lex->insert_table = leaf_tables->top_table();
 
     // Get first table in SELECT part
-    first_select_table = thd->lex->insert_table->next_local;
+    first_query_block_table = thd->lex->insert_table->next_local;
 
     // Then, find the first leaf table
-    if (first_select_table)
-      first_select_table = first_select_table->first_leaf_table();
+    if (first_query_block_table)
+      first_query_block_table = first_query_block_table->first_leaf_table();
   }
   uint tableno = 0;
   leaf_table_count = 0;
@@ -1150,12 +1154,12 @@ bool SELECT_LEX::setup_tables(THD *thd, TABLE_LIST *tables,
 
   for (TABLE_LIST *tr = leaf_tables; tr; tr = tr->next_leaf, tableno++) {
     TABLE *const table = tr->table;
-    if (tr == first_select_table) {
+    if (tr == first_query_block_table) {
       /*
         For INSERT ... SELECT command, restart numbering from zero for first
         leaf table from SELECT part of query.
       */
-      first_select_table = nullptr;
+      first_query_block_table = nullptr;
       tableno = 0;
     }
     if (tableno >= MAX_TABLES) {
@@ -1204,26 +1208,26 @@ bool SELECT_LEX::setup_tables(THD *thd, TABLE_LIST *tables,
     quary block.
 */
 
-void SELECT_LEX::remap_tables(THD *thd) {
+void Query_block::remap_tables(THD *thd) {
   LEX *const lex = thd->lex;
-  TABLE_LIST *first_select_table = nullptr;
+  TABLE_LIST *first_query_block_table = nullptr;
   if (lex->insert_table && lex->insert_table == leaf_tables->top_table()) {
     /*
       For INSERT ... SELECT command, restart numbering from zero for first
       leaf table from SELECT part of query.
     */
     // Get first table in SELECT part
-    first_select_table = lex->insert_table->next_local;
+    first_query_block_table = lex->insert_table->next_local;
 
     // Then, recurse down to get first leaf table
-    if (first_select_table)
-      first_select_table = first_select_table->first_leaf_table();
+    if (first_query_block_table)
+      first_query_block_table = first_query_block_table->first_leaf_table();
   }
 
   uint tableno = 0;
   for (TABLE_LIST *tl = leaf_tables; tl; tl = tl->next_leaf) {
     // Reset table number after having reached first table after insert table
-    if (first_select_table == tl) tableno = 0;
+    if (first_query_block_table == tl) tableno = 0;
     tl->set_tableno(tableno++);
   }
 }
@@ -1237,7 +1241,7 @@ void SELECT_LEX::remap_tables(THD *thd) {
   @return false if success, true if error
 */
 
-bool SELECT_LEX::resolve_placeholder_tables(THD *thd, bool apply_semijoin) {
+bool Query_block::resolve_placeholder_tables(THD *thd, bool apply_semijoin) {
   DBUG_TRACE;
 
   DBUG_ASSERT(derived_table_count > 0 || table_func_count > 0);
@@ -1289,7 +1293,7 @@ bool SELECT_LEX::resolve_placeholder_tables(THD *thd, bool apply_semijoin) {
   @retval true   otherwise.
 */
 
-bool SELECT_LEX::is_row_count_valid_for_semi_join() {
+bool Query_block::is_row_count_valid_for_semi_join() {
   if (offset_limit != nullptr &&
       (!offset_limit->const_item() || offset_limit->val_int() != 0))
     return false;
@@ -1321,12 +1325,12 @@ bool SELECT_LEX::is_row_count_valid_for_semi_join() {
 
 */
 
-bool SELECT_LEX::resolve_subquery(THD *thd) {
+bool Query_block::resolve_subquery(THD *thd) {
   DBUG_TRACE;
 
   bool choice_made = false;  // becomes true when subquery strategy is chosen
   bool deterministic = true;
-  SELECT_LEX *const outer = outer_select();
+  Query_block *const outer = outer_query_block();
 
   /*
     @todo for PS, make the whole block execute only on the first execution.
@@ -1336,11 +1340,11 @@ bool SELECT_LEX::resolve_subquery(THD *thd) {
     exec_method in class Item_subselect and exit immediately if unequal to
     SubqueryExecMethod::EXEC_UNSPECIFIED.
   */
-  Item_subselect *subq_predicate = master_unit()->item;
+  Item_subselect *subq_predicate = master_query_expression()->item;
   DBUG_ASSERT(subq_predicate != nullptr);
   /**
     @note
-    In this case: IN (SELECT ... UNION SELECT ...), SELECT_LEX::prepare() is
+    In this case: IN (SELECT ... UNION SELECT ...), Query_block::prepare() is
     called for each of the two UNION members, and in those two calls,
     subq_predicate is the same, not sure this is desired (double work?).
   */
@@ -1359,7 +1363,7 @@ bool SELECT_LEX::resolve_subquery(THD *thd) {
           : nullptr;
 
   if (in_predicate != nullptr) {
-    thd->lex->set_current_select(outer);
+    thd->lex->set_current_query_block(outer);
     char const *save_where = thd->where;
     thd->where = "IN/ALL/ANY subquery";
     Condition_context CCT(outer);
@@ -1367,7 +1371,7 @@ bool SELECT_LEX::resolve_subquery(THD *thd) {
     bool result =
         !in_predicate->left_expr->fixed &&
         in_predicate->left_expr->fix_fields(thd, &in_predicate->left_expr);
-    thd->lex->set_current_select(this);
+    thd->lex->set_current_query_block(this);
     thd->where = save_where;
     if (result) return true;
 
@@ -1403,7 +1407,7 @@ bool SELECT_LEX::resolve_subquery(THD *thd) {
            Secondary_engine_optimization::SECONDARY) ||
       ((in_predicate == nullptr ||
         in_predicate->left_expr->const_item()) &&  // (b)
-       (master_unit()->uncacheable & UNCACHEABLE_DEPENDENT) == 0);
+       (master_query_expression()->uncacheable & UNCACHEABLE_DEPENDENT) == 0);
   const bool try_convert_to_derived =
       (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SUBQUERY_TO_DERIVED) ||
        // a certain secondary engine doesn't support subqueries
@@ -1449,8 +1453,8 @@ bool SELECT_LEX::resolve_subquery(THD *thd) {
       predicate != nullptr &&                                      // 1
       !is_part_of_union() &&                                       // 2
       no_aggregates &&                                             // 3,3x,4,5
-      (outer->resolve_place == SELECT_LEX::RESOLVE_CONDITION ||    // 6a
-       (outer->resolve_place == SELECT_LEX::RESOLVE_JOIN_NEST &&   // 6a
+      (outer->resolve_place == Query_block::RESOLVE_CONDITION ||   // 6a
+       (outer->resolve_place == Query_block::RESOLVE_JOIN_NEST &&  // 6a
         !thd->lex->using_hypergraph_optimizer)) &&                 // 6x
       outer->condition_context == enum_condition_context::ANDS &&  // 6b
       outer->sj_candidates &&                                      // 7
@@ -1514,7 +1518,7 @@ bool SELECT_LEX::resolve_subquery(THD *thd) {
   if (!choice_made && try_convert_to_derived && predicate != nullptr &&  // 1
       !is_part_of_union() &&                                             // 2
       (in_predicate != nullptr || no_aggregates) &&                      // 3
-      outer->resolve_place == SELECT_LEX::RESOLVE_CONDITION &&           // 6a
+      outer->resolve_place == Query_block::RESOLVE_CONDITION &&          // 6a
       outer->condition_context != enum_condition_context::NEITHER &&     // 6b
       outer->sj_candidates &&                                            // 7
       predicate->strategy ==                                             //  9
@@ -1553,7 +1557,7 @@ bool SELECT_LEX::resolve_subquery(THD *thd) {
   @returns false if OK, true if error
 */
 
-bool SELECT_LEX::setup_wild(THD *thd) {
+bool Query_block::setup_wild(THD *thd) {
   DBUG_TRACE;
 
   DBUG_ASSERT(with_wild > 0);
@@ -1570,7 +1574,7 @@ bool SELECT_LEX::setup_wild(THD *thd) {
         item_field->is_asterisk()) {
       DBUG_ASSERT(item_field->field == nullptr);
       const bool any_privileges = item_field->any_privileges;
-      Item_subselect *subsel = master_unit()->item;
+      Item_subselect *subsel = master_query_expression()->item;
 
       /*
         In case of EXISTS(SELECT * ... HAVING ...), don't use this
@@ -1609,18 +1613,18 @@ bool SELECT_LEX::setup_wild(THD *thd) {
   @returns false if success, true if error
 */
 
-bool SELECT_LEX::setup_conds(THD *thd) {
+bool Query_block::setup_conds(THD *thd) {
   DBUG_TRACE;
 
   /*
-    it_is_update set to true when tables of primary SELECT_LEX (SELECT_LEX
+    it_is_update set to true when tables of primary Query_block (Query_block
     which belong to LEX, i.e. most up SELECT) will be updated by
     INSERT/UPDATE/LOAD
     NOTE: using this condition helps to prevent call of prepare_check_option()
     from subquery of VIEW, because tables of subquery belongs to VIEW
     (see condition before prepare_check_option() call)
   */
-  const bool it_is_update = (this == thd->lex->select_lex) &&
+  const bool it_is_update = (this == thd->lex->query_block) &&
                             thd->lex->which_check_option_applicable();
   const bool save_is_item_list_lookup = is_item_list_lookup;
   is_item_list_lookup = false;
@@ -1629,7 +1633,7 @@ bool SELECT_LEX::setup_conds(THD *thd) {
 
   if (m_where_cond) {
     DBUG_ASSERT(m_where_cond->is_bool_func());
-    resolve_place = SELECT_LEX::RESOLVE_CONDITION;
+    resolve_place = Query_block::RESOLVE_CONDITION;
     thd->where = "where clause";
     if ((!m_where_cond->fixed &&
          m_where_cond->fix_fields(thd, &m_where_cond)) ||
@@ -1645,7 +1649,7 @@ bool SELECT_LEX::setup_conds(THD *thd) {
         simplify_const_condition(thd, &m_where_cond))
       return true;
 
-    resolve_place = SELECT_LEX::RESOLVE_NONE;
+    resolve_place = Query_block::RESOLVE_NONE;
   }
 
   // Resolve all join condition clauses
@@ -1655,7 +1659,7 @@ bool SELECT_LEX::setup_conds(THD *thd) {
 
   is_item_list_lookup = save_is_item_list_lookup;
 
-  DBUG_ASSERT(thd->lex->current_select() == this);
+  DBUG_ASSERT(thd->lex->current_query_block() == this);
   DBUG_ASSERT(!thd->is_error());
   return false;
 }
@@ -1670,8 +1674,9 @@ bool SELECT_LEX::setup_conds(THD *thd) {
   @returns false if success, true if error
 */
 
-bool SELECT_LEX::setup_join_cond(THD *thd, mem_root_deque<TABLE_LIST *> *tables,
-                                 bool in_update) {
+bool Query_block::setup_join_cond(THD *thd,
+                                  mem_root_deque<TABLE_LIST *> *tables,
+                                  bool in_update) {
   DBUG_TRACE;
 
   for (TABLE_LIST *tr : *tables) {
@@ -1685,7 +1690,7 @@ bool SELECT_LEX::setup_join_cond(THD *thd, mem_root_deque<TABLE_LIST *> *tables,
     bool remove_cond = false;
     if (join_cond) {
       DBUG_ASSERT(join_cond->is_bool_func());
-      resolve_place = SELECT_LEX::RESOLVE_JOIN_NEST;
+      resolve_place = Query_block::RESOLVE_JOIN_NEST;
       resolve_nest = tr;
       thd->where = "on clause";
       if ((!join_cond->fixed && join_cond->fix_fields(thd, ref)) ||
@@ -1701,7 +1706,7 @@ bool SELECT_LEX::setup_join_cond(THD *thd, mem_root_deque<TABLE_LIST *> *tables,
           simplify_const_condition(thd, ref, remove_cond))
         return true;
 
-      resolve_place = SELECT_LEX::RESOLVE_NONE;
+      resolve_place = Query_block::RESOLVE_NONE;
       resolve_nest = nullptr;
     }
     if (in_update) {
@@ -1726,7 +1731,7 @@ bool SELECT_LEX::setup_join_cond(THD *thd, mem_root_deque<TABLE_LIST *> *tables,
   tables which will be ignored.
 */
 
-void SELECT_LEX::reset_nj_counters(mem_root_deque<TABLE_LIST *> *join_list) {
+void Query_block::reset_nj_counters(mem_root_deque<TABLE_LIST *> *join_list) {
   DBUG_TRACE;
   if (join_list == nullptr) join_list = &top_join_list;
   for (TABLE_LIST *table : *join_list) {
@@ -1859,10 +1864,10 @@ void SELECT_LEX::reset_nj_counters(mem_root_deque<TABLE_LIST *> *join_list) {
 
   @returns true for error, false for success
 */
-bool SELECT_LEX::simplify_joins(THD *thd,
-                                mem_root_deque<TABLE_LIST *> *join_list,
-                                bool top, bool in_sj, Item **cond,
-                                uint *changelog) {
+bool Query_block::simplify_joins(THD *thd,
+                                 mem_root_deque<TABLE_LIST *> *join_list,
+                                 bool top, bool in_sj, Item **cond,
+                                 uint *changelog) {
   /*
     Each type of change done by this function, or its recursive calls, is
     tracked in a bitmap:
@@ -2149,7 +2154,7 @@ bool SELECT_LEX::simplify_joins(THD *thd,
 
   @return False if successful, True if failure
 */
-bool SELECT_LEX::record_join_nest_info(mem_root_deque<TABLE_LIST *> *tables) {
+bool Query_block::record_join_nest_info(mem_root_deque<TABLE_LIST *> *tables) {
   for (TABLE_LIST *table : *tables) {
     if (table->nested_join == nullptr) {
       if (table->join_cond()) outer_join |= table->map();
@@ -2223,30 +2228,32 @@ bool SELECT_LEX::record_join_nest_info(mem_root_deque<TABLE_LIST *> *tables) {
   Again, since v3 has higher number than any of the already merged in views,
   only this join nest needs the pullout.
 
-  @param parent_select  Query block being merged into
-  @param removed_select Query block that is removed (subquery)
+  @param parent_query_block  Query block being merged into
+  @param removed_query_block Query block that is removed (subquery)
   @param tr             Table object this pullout is applied to
   @param table_adjust   Number of positions that a derived table nest is
                         adjusted, used to fix up semi-join related fields.
                         Tables are adjusted from position N to N+table_adjust
-  @param lateral_deps   Lateral dependencies of the unit owning removed_select
+  @param lateral_deps   Lateral dependencies of the unit owning
+  removed_query_block
 */
 
-static void fix_tables_after_pullout(SELECT_LEX *parent_select,
-                                     SELECT_LEX *removed_select, TABLE_LIST *tr,
-                                     uint table_adjust,
+static void fix_tables_after_pullout(Query_block *parent_query_block,
+                                     Query_block *removed_query_block,
+                                     TABLE_LIST *tr, uint table_adjust,
                                      table_map lateral_deps) {
   if (tr->is_merged()) {
     // Update select list of merged derived tables:
     for (Field_translator *transl = tr->field_translation;
          transl < tr->field_translation_end; transl++) {
       DBUG_ASSERT(transl->item->fixed);
-      transl->item->fix_after_pullout(parent_select, removed_select);
+      transl->item->fix_after_pullout(parent_query_block, removed_query_block);
     }
     // Update used table info for the WHERE clause of the derived table
     DBUG_ASSERT(!tr->derived_where_cond || tr->derived_where_cond->fixed);
     if (tr->derived_where_cond)
-      tr->derived_where_cond->fix_after_pullout(parent_select, removed_select);
+      tr->derived_where_cond->fix_after_pullout(parent_query_block,
+                                                removed_query_block);
   }
 
   /*
@@ -2259,7 +2266,7 @@ static void fix_tables_after_pullout(SELECT_LEX *parent_select,
     derived_where_cond and is pulled out explicitly.
   */
   if (tr->join_cond() && tr->join_cond()->fixed)
-    tr->join_cond()->fix_after_pullout(parent_select, removed_select);
+    tr->join_cond()->fix_after_pullout(parent_query_block, removed_query_block);
 
   if (tr->nested_join) {
     // In case a derived table is merged-in, these fields need adjustment:
@@ -2277,22 +2284,22 @@ static void fix_tables_after_pullout(SELECT_LEX *parent_select,
     tr->nested_join->sj_depends_on |= lateral_deps;
 
     for (TABLE_LIST *child : tr->nested_join->join_list) {
-      fix_tables_after_pullout(parent_select, removed_select, child,
+      fix_tables_after_pullout(parent_query_block, removed_query_block, child,
                                table_adjust, lateral_deps);
     }
   }
   if (tr->is_derived() && tr->table &&
-      tr->derived_unit()->uncacheable & UNCACHEABLE_DEPENDENT) {
+      tr->derived_query_expression()->uncacheable & UNCACHEABLE_DEPENDENT) {
     /*
       It's a materialized derived table which is being pulled up.
-      If it has an outer reference, and this ref belongs to parent_select,
+      If it has an outer reference, and this ref belongs to parent_query_block,
       then the derived table will need re-materialization as if it were
-      LATERAL, not just once per execution of parent_select.
+      LATERAL, not just once per execution of parent_query_block.
       We thus compute its used_tables in the new context, to decide.
     */
-    SELECT_LEX_UNIT *unit = tr->derived_unit();
+    Query_expression *unit = tr->derived_query_expression();
     unit->m_lateral_deps = OUTER_REF_TABLE_BIT;
-    unit->fix_after_pullout(parent_select, removed_select);
+    unit->fix_after_pullout(parent_query_block, removed_query_block);
     unit->m_lateral_deps &= ~PSEUDO_TABLE_BITS;
     tr->dep_tables |= unit->m_lateral_deps;
     /*
@@ -2311,27 +2318,28 @@ static void fix_tables_after_pullout(SELECT_LEX *parent_select,
   query block.
   Most actions here involve re-resolving information for conditions
   and items belonging to the subquery.
-  If the subquery contains an outer reference into removed_select or
-  parent_select, the relevant information is updated by
+  If the subquery contains an outer reference into removed_query_block or
+  parent_query_block, the relevant information is updated by
   Item_ident::fix_after_pullout().
 */
-void SELECT_LEX_UNIT::fix_after_pullout(SELECT_LEX *parent_select,
-                                        SELECT_LEX *removed_select)
+void Query_expression::fix_after_pullout(Query_block *parent_query_block,
+                                         Query_block *removed_query_block)
 
 {
   // Go through all query specification objects of the subquery and re-resolve
   // all relevant expressions belonging to them.
-  for (SELECT_LEX *sel = first_select(); sel; sel = sel->next_select()) {
-    sel->fix_after_pullout(parent_select, removed_select);
+  for (Query_block *sel = first_query_block(); sel;
+       sel = sel->next_query_block()) {
+    sel->fix_after_pullout(parent_query_block, removed_query_block);
   }
-  // @todo figure out if we need to do it for fake_select_lex too.
+  // @todo figure out if we need to do it for fake_query_block too.
 }
 
-/// @see SELECT_LEX_UNIT::fix_after_pullout
-void SELECT_LEX::fix_after_pullout(SELECT_LEX *parent_select,
-                                   SELECT_LEX *removed_select) {
+/// @see Query_expression::fix_after_pullout
+void Query_block::fix_after_pullout(Query_block *parent_query_block,
+                                    Query_block *removed_query_block) {
   if (where_cond())
-    where_cond()->fix_after_pullout(parent_select, removed_select);
+    where_cond()->fix_after_pullout(parent_query_block, removed_query_block);
 
   /*
     Join conditions can contain an outer reference; and
@@ -2343,24 +2351,24 @@ void SELECT_LEX::fix_after_pullout(SELECT_LEX *parent_select,
     up.
   */
   for (TABLE_LIST *tr : top_join_list) {
-    fix_tables_after_pullout(parent_select, removed_select, tr,
+    fix_tables_after_pullout(parent_query_block, removed_query_block, tr,
                              /*table_adjust=*/0, /*lateral_deps=*/0);
   }
 
   if (having_cond())
-    having_cond()->fix_after_pullout(parent_select, removed_select);
+    having_cond()->fix_after_pullout(parent_query_block, removed_query_block);
 
   for (Item *item : visible_fields()) {
-    item->fix_after_pullout(parent_select, removed_select);
+    item->fix_after_pullout(parent_query_block, removed_query_block);
   }
 
   /* Re-resolve ORDER BY and GROUP BY fields */
 
   for (ORDER *order = order_list.first; order; order = order->next)
-    (*order->item)->fix_after_pullout(parent_select, removed_select);
+    (*order->item)->fix_after_pullout(parent_query_block, removed_query_block);
 
   for (ORDER *group = group_list.first; group; group = group->next)
-    (*group->item)->fix_after_pullout(parent_select, removed_select);
+    (*group->item)->fix_after_pullout(parent_query_block, removed_query_block);
 }
 
 /**
@@ -2369,7 +2377,7 @@ void SELECT_LEX::fix_after_pullout(SELECT_LEX *parent_select,
  @param nested_join         join nest
 */
 
-void SELECT_LEX::clear_sj_expressions(NESTED_JOIN *nested_join) {
+void Query_block::clear_sj_expressions(NESTED_JOIN *nested_join) {
   nested_join->sj_outer_exprs.clear();
   nested_join->sj_inner_exprs.clear();
   DBUG_ASSERT(sj_nests.empty());
@@ -2387,15 +2395,15 @@ void SELECT_LEX::clear_sj_expressions(NESTED_JOIN *nested_join) {
 
   @param thd            Thread context
   @param nested_join    Join nest
-  @param subq_select    Query block for the subquery
+  @param subq_query_block    Query block for the subquery
   @param outer_tables_map Map of tables from original outer query block
   @param[out] sj_cond   Semi-join condition to be constructed
 
   @return false if success, true if error
 */
-bool SELECT_LEX::build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
-                               SELECT_LEX *subq_select,
-                               table_map outer_tables_map, Item **sj_cond) {
+bool Query_block::build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
+                                Query_block *subq_query_block,
+                                table_map outer_tables_map, Item **sj_cond) {
   if (nested_join->sj_inner_exprs.empty()) {
     // Semi-join materialization requires a key, push a constant integer item
     Item *const_item = new Item_int(1);
@@ -2415,8 +2423,8 @@ bool SELECT_LEX::build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
       Ensure that all involved expressions are pulled out after transformation.
       (If they are already out, this is a no-op).
     */
-    outer->fix_after_pullout(this, subq_select);
-    inner->fix_after_pullout(this, subq_select);
+    outer->fix_after_pullout(this, subq_query_block);
+    inner->fix_after_pullout(this, subq_query_block);
 
     Item_func_eq *item_eq = new Item_func_eq(outer, inner);
     if (item_eq == nullptr) return true; /* purecov: inspected */
@@ -2557,7 +2565,7 @@ static bool decorrelate_equality(Semijoin_decorrelation &sj_decor,
 
   /*
     Predicates that have non-deterministic elements are not decorrelated,
-    see explanation for SELECT_LEX::decorrelate_condition().
+    see explanation for Query_block::decorrelate_condition().
   */
   if ((left_used_tables & RAND_TABLE_BIT) ||
       (right_used_tables & RAND_TABLE_BIT))
@@ -2679,8 +2687,8 @@ static inline bool can_decorrelate_operator(Item_func *func, bool only_eq) {
   such predicates will not be decorrelated.
 */
 
-bool SELECT_LEX::decorrelate_condition(Semijoin_decorrelation &sj_decor,
-                                       TABLE_LIST *join_nest) {
+bool Query_block::decorrelate_condition(Semijoin_decorrelation &sj_decor,
+                                        TABLE_LIST *join_nest) {
   Item *base_cond =
       join_nest == nullptr ? where_cond() : join_nest->join_cond();
   Item_cond *cond;
@@ -2741,14 +2749,14 @@ bool walk_join_list(mem_root_deque<TABLE_LIST *> &list,
   @param[out] sj_outer_exprs Will add outer expressions here
   @param[out] sj_inner_exprs Will add inner expressions here
   @param      subq_pred      Item for the subquery
-  @param      subq_select    Single query block for the subquery
+  @param      subq_query_block    Single query block for the subquery
 
   @returns true if error
  */
 static bool build_sj_exprs(THD *thd, mem_root_deque<Item *> *sj_outer_exprs,
                            mem_root_deque<Item *> *sj_inner_exprs,
                            Item_exists_subselect *subq_pred,
-                           SELECT_LEX *subq_select) {
+                           Query_block *subq_query_block) {
   Item_in_subselect *in_subq_pred = down_cast<Item_in_subselect *>(subq_pred);
 
   DBUG_ASSERT(in_subq_pred->left_expr->fixed);
@@ -2769,9 +2777,9 @@ static bool build_sj_exprs(THD *thd, mem_root_deque<Item *> *sj_outer_exprs,
   if (left_subquery &&
       (left_subquery->substype() == Item_subselect::SINGLEROW_SUBS)) {
     mem_root_deque<Item *> ref_list(thd->mem_root);
-    Item *header = subq_select->base_ref_items[0];
+    Item *header = subq_query_block->base_ref_items[0];
     for (uint i = 1; i < in_subq_pred->left_expr->cols(); i++) {
-      ref_list.push_back(subq_select->base_ref_items[i]);
+      ref_list.push_back(subq_query_block->base_ref_items[i]);
     }
 
     Item_row *right_expr = new Item_row(header, ref_list);
@@ -2783,7 +2791,7 @@ static bool build_sj_exprs(THD *thd, mem_root_deque<Item *> *sj_outer_exprs,
     for (uint i = 0; i < in_subq_pred->left_expr->cols(); i++) {
       Item *const li = in_subq_pred->left_expr->element_index(i);
       sj_outer_exprs->push_back(li);
-      sj_inner_exprs->push_back(subq_select->base_ref_items[i]);
+      sj_inner_exprs->push_back(subq_query_block->base_ref_items[i]);
     }
   }
   return false;
@@ -2904,7 +2912,7 @@ static bool build_sj_exprs(THD *thd, mem_root_deque<Item *> *sj_outer_exprs,
   decorated with IS TRUE or IS NOT FALSE (respectively IS NOT TRUE or IS
   FALSE).
 */
-bool SELECT_LEX::convert_subquery_to_semijoin(
+bool Query_block::convert_subquery_to_semijoin(
     THD *thd, Item_exists_subselect *subq_pred) {
   TABLE_LIST *emb_tbl_nest = nullptr;
   mem_root_deque<TABLE_LIST *> *emb_join_list = &top_join_list;
@@ -3121,12 +3129,12 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
     initialized in simplify_joins().
   */
 
-  SELECT_LEX *const subq_select = subq_pred->unit->first_select();
+  Query_block *const subq_query_block = subq_pred->unit->first_query_block();
 
-  nested_join->query_block_id = subq_select->select_number;
+  nested_join->query_block_id = subq_query_block->select_number;
 
   // Merge tables from underlying query block into this join nest
-  if (sj_nest->merge_underlying_tables(subq_select))
+  if (sj_nest->merge_underlying_tables(subq_query_block))
     return true; /* purecov: inspected */
 
   /*
@@ -3136,10 +3144,10 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
   TABLE_LIST *tl;
   for (tl = leaf_tables; tl->next_leaf; tl = tl->next_leaf) {
   }
-  tl->next_leaf = subq_select->leaf_tables;
+  tl->next_leaf = subq_query_block->leaf_tables;
 
   // Add tables from subquery at end of next_local chain.
-  table_list.push_back(&subq_select->table_list);
+  table_list.push_back(&subq_query_block->table_list);
 
   // Note that subquery's tables are already in the next_global chain
 
@@ -3149,31 +3157,32 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
 
   // Walk through child's tables and adjust table map
   uint table_no = leaf_table_count;
-  for (tl = subq_select->leaf_tables; tl; tl = tl->next_leaf, table_no++) {
+  for (tl = subq_query_block->leaf_tables; tl; tl = tl->next_leaf, table_no++) {
     tl->dep_tables <<= leaf_table_count;
     tl->set_tableno(table_no);
   }
 
   /*
-    If we leave this function in an error path before subq_select is unlinked,
-    make sure tables are not duplicated, or cleanup code could be confused:
+    If we leave this function in an error path before subq_query_block is
+    unlinked, make sure tables are not duplicated, or cleanup code could be
+    confused:
   */
-  subq_select->table_list.clear();
-  subq_select->leaf_tables = nullptr;
+  subq_query_block->table_list.clear();
+  subq_query_block->leaf_tables = nullptr;
 
   // Adjust table and expression counts in parent query block:
-  derived_table_count += subq_select->derived_table_count;
+  derived_table_count += subq_query_block->derived_table_count;
   materialized_derived_table_count +=
-      subq_select->materialized_derived_table_count;
-  table_func_count += subq_select->table_func_count;
-  has_sj_nests |= subq_select->has_sj_nests;
-  has_aj_nests |= subq_select->has_aj_nests;
-  partitioned_table_count += subq_select->partitioned_table_count;
-  leaf_table_count += subq_select->leaf_table_count;
-  cond_count += subq_select->cond_count;
-  between_count += subq_select->between_count;
+      subq_query_block->materialized_derived_table_count;
+  table_func_count += subq_query_block->table_func_count;
+  has_sj_nests |= subq_query_block->has_sj_nests;
+  has_aj_nests |= subq_query_block->has_aj_nests;
+  partitioned_table_count += subq_query_block->partitioned_table_count;
+  leaf_table_count += subq_query_block->leaf_table_count;
+  cond_count += subq_query_block->cond_count;
+  between_count += subq_query_block->between_count;
 
-  if (subq_select->active_options() & OPTION_SCHEMA_TABLE)
+  if (subq_query_block->active_options() & OPTION_SCHEMA_TABLE)
     add_base_options(OPTION_SCHEMA_TABLE);
 
   if (outer_join) propagate_nullability(&sj_nest->nested_join->join_list, true);
@@ -3183,13 +3192,13 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
 
   if (subq_pred->substype() == Item_subselect::IN_SUBS)
     build_sj_exprs(thd, &nested_join->sj_outer_exprs,
-                   &nested_join->sj_inner_exprs, subq_pred, subq_select);
+                   &nested_join->sj_inner_exprs, subq_pred, subq_query_block);
   else {  // this is EXISTS
     // Expressions from the SELECT list will not be used; unlike in the case of
     // IN, they are not part of sj_inner_exprs.
     // @todo in WL#6570, move this to resolve_subquery().
     Item::Cleanup_after_removal_context ctx(this);
-    for (Item *item : subq_select->visible_fields()) {
+    for (Item *item : subq_query_block->visible_fields()) {
       item->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
                  pointer_cast<uchar *>(&ctx));
     }
@@ -3207,46 +3216,49 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
                                     // decorrelate only equalities
                                     /*op_types=*/nullptr);
 
-    if (subq_select->where_cond() &&
-        subq_select->decorrelate_condition(sj_decor, nullptr))
+    if (subq_query_block->where_cond() &&
+        subq_query_block->decorrelate_condition(sj_decor, nullptr))
       return true;
 
-    if (walk_join_list(subq_select->top_join_list, [&](TABLE_LIST *tr) -> bool {
-          return !tr->is_inner_table_of_outer_join() && tr->join_cond() &&
-                 subq_select->decorrelate_condition(sj_decor, tr);
-        }))
+    if (walk_join_list(
+            subq_query_block->top_join_list, [&](TABLE_LIST *tr) -> bool {
+              return !tr->is_inner_table_of_outer_join() && tr->join_cond() &&
+                     subq_query_block->decorrelate_condition(sj_decor, tr);
+            }))
       return true;
   }
 
   // Unlink the subquery's query expression:
-  subq_select->master_unit()->exclude_level();
+  subq_query_block->master_query_expression()->exclude_level();
 
   // Merge subquery's name resolution contexts into parent's
-  merge_contexts(subq_select);
+  merge_contexts(subq_query_block);
 
-  repoint_contexts_of_join_nests(subq_select->top_join_list);
+  repoint_contexts_of_join_nests(subq_query_block->top_join_list);
 
   // Update table map for semi-join nest's WHERE condition and join conditions
-  fix_tables_after_pullout(this, subq_select, sj_nest, 0, 0);
+  fix_tables_after_pullout(this, subq_query_block, sj_nest, 0, 0);
 
-  Item *sj_cond = subq_select->where_cond();
-  if (sj_cond != nullptr) sj_cond->fix_after_pullout(this, subq_select);
+  Item *sj_cond = subq_query_block->where_cond();
+  if (sj_cond != nullptr) sj_cond->fix_after_pullout(this, subq_query_block);
 
   // Assign the set of non-trivially tables after decorrelation
   nested_join->sj_corr_tables =
       (sj_cond != nullptr ? sj_cond->used_tables() & outer_tables_map : 0);
 
-  walk_join_list(subq_select->top_join_list, [&](TABLE_LIST *tr) -> bool {
+  walk_join_list(subq_query_block->top_join_list, [&](TABLE_LIST *tr) -> bool {
     if (tr->join_cond())
       nested_join->sj_corr_tables |=
           tr->join_cond()->used_tables() & outer_tables_map;
     if (tr->is_derived() && tr->uses_materialization())
-      nested_join->sj_corr_tables |= tr->derived_unit()->m_lateral_deps;
+      nested_join->sj_corr_tables |=
+          tr->derived_query_expression()->m_lateral_deps;
     return false;
   });
 
   // Build semijoin condition using the inner/outer expression list
-  if (build_sj_cond(thd, nested_join, subq_select, outer_tables_map, &sj_cond))
+  if (build_sj_cond(thd, nested_join, subq_query_block, outer_tables_map,
+                    &sj_cond))
     return true;
 
   // Processing requires a non-empty semi-join condition:
@@ -3345,8 +3357,8 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
     }
   }
 
-  if (subq_select->ftfunc_list->elements &&
-      add_ftfunc_list(subq_select->ftfunc_list))
+  if (subq_query_block->ftfunc_list->elements &&
+      add_ftfunc_list(subq_query_block->ftfunc_list))
     return true; /* purecov: inspected */
 
   if (do_aj)
@@ -3370,21 +3382,22 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
   @return false if successful, true if error
 */
 
-bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table) {
+bool Query_block::merge_derived(THD *thd, TABLE_LIST *derived_table) {
   DBUG_TRACE;
 
   if (!derived_table->is_view_or_derived() || derived_table->is_merged())
     return false;
 
-  SELECT_LEX_UNIT *const derived_unit = derived_table->derived_unit();
+  Query_expression *const derived_query_expression =
+      derived_table->derived_query_expression();
 
   // A derived table must be prepared before we can merge it
-  DBUG_ASSERT(derived_unit->is_prepared());
+  DBUG_ASSERT(derived_query_expression->is_prepared());
 
   LEX *const lex = parent_lex;
 
   // Check whether the outer query allows merged views
-  if ((master_unit() == lex->unit && !lex->can_use_merged()) ||
+  if ((master_query_expression() == lex->unit && !lex->can_use_merged()) ||
       lex->can_not_use_merged())
     return false;
 
@@ -3401,29 +3414,30 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table) {
     - optimizer_switch's derived_merge is ON and heuristic suggests merge
   */
   if (derived_table->algorithm == VIEW_ALGORITHM_TEMPTABLE ||
-      !derived_unit->is_mergeable())
+      !derived_query_expression->is_mergeable())
     return false;
 
   if (derived_table->algorithm == VIEW_ALGORITHM_UNDEFINED) {
     const bool merge_heuristic =
         (derived_table->is_view() || allow_merge_derived) &&
-        derived_unit->merge_heuristic(thd->lex);
+        derived_query_expression->merge_heuristic(thd->lex);
     if (!hint_table_state(thd, derived_table, DERIVED_MERGE_HINT_ENUM,
                           merge_heuristic ? OPTIMIZER_SWITCH_DERIVED_MERGE : 0))
       return false;
   }
 
-  SELECT_LEX *const derived_select = derived_unit->first_select();
+  Query_block *const derived_query_block =
+      derived_query_expression->first_query_block();
   /*
     If STRAIGHT_JOIN is specified, it is not valid to merge in a query block
     that contains semi-join nests
   */
   if ((active_options() & SELECT_STRAIGHT_JOIN) &&
-      (derived_select->has_sj_nests || derived_select->has_aj_nests))
+      (derived_query_block->has_sj_nests || derived_query_block->has_aj_nests))
     return false;
 
   // Check that we have room for the merged tables in the table map:
-  if (leaf_table_count + derived_select->leaf_table_count - 1 > MAX_TABLES)
+  if (leaf_table_count + derived_query_block->leaf_table_count - 1 > MAX_TABLES)
     return false;
 
   derived_table->set_merged();
@@ -3435,7 +3449,7 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table) {
   Opt_trace_object trace_derived(trace,
                                  derived_table->is_view() ? "view" : "derived");
   trace_derived.add_utf8_table(derived_table)
-      .add("select#", derived_select->select_number)
+      .add("select#", derived_query_block->select_number)
       .add("merged", true);
 
   Prepared_stmt_arena_holder ps_arena_holder(thd);
@@ -3444,7 +3458,7 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table) {
   uint table_adjust = derived_table->tableno();
 
   // Set up permanent list of underlying tables of a merged view
-  derived_table->merge_underlying_list = derived_select->get_table_list();
+  derived_table->merge_underlying_list = derived_query_block->get_table_list();
 
   /**
     A view is updatable if any underlying table is updatable.
@@ -3473,13 +3487,13 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table) {
     return true;
 
   // Merge tables from underlying query block into this join nest
-  if (derived_table->merge_underlying_tables(derived_select))
+  if (derived_table->merge_underlying_tables(derived_query_block))
     return true; /* purecov: inspected */
 
   // Replace derived table in leaf table list with underlying tables:
   for (TABLE_LIST **tl = &leaf_tables; *tl; tl = &(*tl)->next_leaf) {
     if (*tl == derived_table) {
-      for (TABLE_LIST *leaf = derived_select->leaf_tables; leaf;
+      for (TABLE_LIST *leaf = derived_query_block->leaf_tables; leaf;
            leaf = leaf->next_leaf) {
         leaf->dep_tables <<= table_adjust;
         if (leaf->next_leaf == nullptr) {
@@ -3487,32 +3501,32 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table) {
           break;
         }
       }
-      *tl = derived_select->leaf_tables;
+      *tl = derived_query_block->leaf_tables;
       break;
     }
   }
 
-  leaf_table_count += (derived_select->leaf_table_count - 1);
-  derived_table_count += derived_select->derived_table_count;
-  table_func_count += derived_select->table_func_count;
+  leaf_table_count += (derived_query_block->leaf_table_count - 1);
+  derived_table_count += derived_query_block->derived_table_count;
+  table_func_count += derived_query_block->table_func_count;
   materialized_derived_table_count +=
-      derived_select->materialized_derived_table_count;
-  has_sj_nests |= derived_select->has_sj_nests;
-  has_aj_nests |= derived_select->has_aj_nests;
-  partitioned_table_count += derived_select->partitioned_table_count;
-  cond_count += derived_select->cond_count;
-  between_count += derived_select->between_count;
+      derived_query_block->materialized_derived_table_count;
+  has_sj_nests |= derived_query_block->has_sj_nests;
+  has_aj_nests |= derived_query_block->has_aj_nests;
+  partitioned_table_count += derived_query_block->partitioned_table_count;
+  cond_count += derived_query_block->cond_count;
+  between_count += derived_query_block->between_count;
 
   // Propagate schema table indication:
   // @todo: Add to BASE options instead
-  if (derived_select->active_options() & OPTION_SCHEMA_TABLE)
+  if (derived_query_block->active_options() & OPTION_SCHEMA_TABLE)
     add_base_options(OPTION_SCHEMA_TABLE);
 
   // Propagate nullability for derived tables within outer joins:
   if (derived_table->is_inner_table_of_outer_join())
     propagate_nullability(&derived_table->nested_join->join_list, true);
 
-  select_n_having_items += derived_select->select_n_having_items;
+  select_n_having_items += derived_query_block->select_n_having_items;
 
   // Merge the WHERE clause into the outer query block
   if (derived_table->merge_where(thd)) return true; /* purecov: inspected */
@@ -3521,24 +3535,25 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table) {
     return true; /* purecov: inspected */
 
   // Exclude the derived table query expression from query graph.
-  derived_unit->exclude_level();
+  derived_query_expression->exclude_level();
 
   // Don't try to access it:
-  derived_table->set_derived_unit((SELECT_LEX_UNIT *)1);
+  derived_table->set_derived_query_expression((Query_expression *)1);
 
   // Merge subquery's name resolution contexts into parent's
-  merge_contexts(derived_select);
+  merge_contexts(derived_query_block);
 
-  repoint_contexts_of_join_nests(derived_select->top_join_list);
+  repoint_contexts_of_join_nests(derived_query_block->top_join_list);
 
   // Leaf tables have been shuffled, so update table numbers for them
   remap_tables(thd);
 
   // Update table info of referenced expressions after query block is merged
-  fix_tables_after_pullout(this, derived_select, derived_table, table_adjust,
-                           derived_unit->m_lateral_deps);
+  fix_tables_after_pullout(this, derived_query_block, derived_table,
+                           table_adjust,
+                           derived_query_expression->m_lateral_deps);
 
-  if (derived_select->is_ordered()) {
+  if (derived_query_block->is_ordered()) {
     /*
       An ORDER BY clause is moved to an outer query block
       - if the outer query block allows ordering, and
@@ -3559,14 +3574,15 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table) {
      the outer query contains only one table reference.
     */
     // LIMIT currently blocks derived table merge
-    DBUG_ASSERT(!derived_select->has_limit());
+    DBUG_ASSERT(!derived_query_block->has_limit());
 
     if ((lex->sql_command == SQLCOM_SELECT ||
          lex->sql_command == SQLCOM_UPDATE ||
          lex->sql_command == SQLCOM_DELETE) &&
-        !(master_unit()->is_union() || is_grouped() || is_distinct() ||
-          is_ordered() || get_table_list()->next_local != nullptr)) {
-      order_list.push_back(&derived_select->order_list);
+        !(master_query_expression()->is_union() || is_grouped() ||
+          is_distinct() || is_ordered() ||
+          get_table_list()->next_local != nullptr)) {
+      order_list.push_back(&derived_query_block->order_list);
       /*
         If at outer-most level (not within another derived table), ensure
         the ordering columns are marked in read_set, since columns selected
@@ -3574,28 +3590,28 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table) {
       */
       if (!thd->derived_tables_processing) {
         Mark_field mf(thd->mark_used_columns);
-        for (ORDER *o = derived_select->order_list.first; o != nullptr;
+        for (ORDER *o = derived_query_block->order_list.first; o != nullptr;
              o = o->next)
           o->item[0]->walk(&Item::mark_field_in_map, enum_walk::POSTFIX,
                            pointer_cast<uchar *>(&mf));
       }
     } else {
-      derived_select->empty_order_list(this);
+      derived_query_block->empty_order_list(this);
       trace_derived.add_alnum("transformations_to_derived_table",
                               "removed_ordering");
     }
   }
 
   // Add any full-text functions from derived table into outer query
-  if (derived_select->ftfunc_list->elements &&
-      add_ftfunc_list(derived_select->ftfunc_list))
+  if (derived_query_block->ftfunc_list->elements &&
+      add_ftfunc_list(derived_query_block->ftfunc_list))
     return true; /* purecov: inspected */
 
   /*
     The "laterality" of this nest is not interesting anymore; it was
     transferred to underlying tables.
   */
-  derived_unit->m_lateral_deps = 0;
+  derived_query_expression->m_lateral_deps = 0;
 
   return false;
 }
@@ -3703,7 +3719,7 @@ static bool replace_subcondition(THD *thd, Item **tree, Item *old_cond,
 
   @returns false if success, true if error
 */
-bool SELECT_LEX::flatten_subqueries(THD *thd) {
+bool Query_block::flatten_subqueries(THD *thd) {
   DBUG_TRACE;
 
   DBUG_ASSERT(has_sj_candidates());
@@ -3717,16 +3733,16 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
     Semijoin flattening is bottom-up. Indeed, we have this execution flow,
     for SELECT#1 WHERE X IN (SELECT #2 WHERE Y IN (SELECT#3)) :
 
-    SELECT_LEX::prepare() (select#1)
+    Query_block::prepare() (select#1)
        -> fix_fields() on IN condition
-           -> SELECT_LEX::prepare() on subquery (select#2)
+           -> Query_block::prepare() on subquery (select#2)
                -> fix_fields() on IN condition
-                    -> SELECT_LEX::prepare() on subquery (select#3)
-                    <- SELECT_LEX::prepare()
+                    -> Query_block::prepare() on subquery (select#3)
+                    <- Query_block::prepare()
                <- fix_fields()
                -> flatten_subqueries: merge #3 in #2
                <- flatten_subqueries
-           <- SELECT_LEX::prepare()
+           <- Query_block::prepare()
        <- fix_fields()
        -> flatten_subqueries: merge #2 in #1
 
@@ -3741,15 +3757,15 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
     DBUG_ASSERT(subq_item->substype() == Item_subselect::IN_SUBS ||
                 subq_item->substype() == Item_subselect::EXISTS_SUBS);
 
-    SELECT_LEX *child_select = subq_item->unit->first_select();
+    Query_block *child_query_block = subq_item->unit->first_query_block();
 
     // Check that we proceeded bottom-up
-    DBUG_ASSERT(child_select->sj_candidates == nullptr);
+    DBUG_ASSERT(child_query_block->sj_candidates == nullptr);
 
     bool dependent = subq_item->unit->uncacheable & UNCACHEABLE_DEPENDENT;
     subq_item->sj_convert_priority =
         (((dependent * MAX_TABLES_FOR_SIZE) +  // dependent subqueries first
-          child_select->leaf_table_count) *
+          child_query_block->leaf_table_count) *
          65536) +           // then with many tables
         (65536 - subq_no);  // then based on position
 
@@ -3779,7 +3795,7 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
     if (subq_item->strategy != Subquery_strategy::CANDIDATE_FOR_DERIVED_TABLE)
       continue;
     OPT_TRACE_TRANSFORM(trace, oto0, oto1,
-                        subq_item->unit->first_select()->select_number,
+                        subq_item->unit->first_query_block()->select_number,
                         "IN (SELECT)", "joined derived table");
     oto1.add("chosen", true);
     if (transform_table_subquery_to_join_with_derived(thd, subq_item))
@@ -3800,17 +3816,17 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
 
     // Add the tables in the subquery nest plus one in case of materialization:
     const uint tables_added =
-        subq_item->unit->first_select()->leaf_table_count + 1;
+        subq_item->unit->first_query_block()->leaf_table_count + 1;
 
     // (1) Not too many tables in total.
     // (2) This subquery contains no antijoin nest (anti/semijoin nest cannot
     // include antijoin nest for implementation reasons, see
     // advance_sj_state()).
-    if (table_count + tables_added <= MAX_TABLES &&      // (1)
-        !subq_item->unit->first_select()->has_aj_nests)  // (2)
+    if (table_count + tables_added <= MAX_TABLES &&           // (1)
+        !subq_item->unit->first_query_block()->has_aj_nests)  // (2)
       subq_item->strategy = Subquery_strategy::SEMIJOIN;
 
-    Item *subq_where = subq_item->unit->first_select()->where_cond();
+    Item *subq_where = subq_item->unit->first_query_block()->where_cond();
     /*
       A predicate can be evaluated to ALWAYS TRUE or ALWAYS FALSE when it
       has only const items. If found to be ALWAYS FALSE, do not include
@@ -3869,7 +3885,7 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
     if (subq_item->strategy != Subquery_strategy::SEMIJOIN) continue;
 
     OPT_TRACE_TRANSFORM(
-        trace, oto0, oto1, subq_item->unit->first_select()->select_number,
+        trace, oto0, oto1, subq_item->unit->first_query_block()->select_number,
         "IN (SELECT)", subq_item->can_do_aj ? "antijoin" : "semijoin");
     oto1.add("chosen", true);
     if (convert_subquery_to_semijoin(thd, *subq)) return true;
@@ -3885,13 +3901,14 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
     subq_item->changed = false;
     subq_item->fixed = false;
 
-    SELECT_LEX *save_select_lex = thd->lex->current_select();
-    thd->lex->set_current_select(subq_item->unit->first_select());
+    Query_block *save_query_block = thd->lex->current_query_block();
+    thd->lex->set_current_query_block(subq_item->unit->first_query_block());
 
     // This is the only part of the function which uses a JOIN.
-    res = subq_item->select_transformer(thd, subq_item->unit->first_select());
+    res = subq_item->select_transformer(thd,
+                                        subq_item->unit->first_query_block());
 
-    thd->lex->set_current_select(save_select_lex);
+    thd->lex->set_current_query_block(save_query_block);
 
     if (res == Item_subselect::RES_ERROR) return true;
 
@@ -3921,7 +3938,7 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
   return false;
 }
 
-bool SELECT_LEX::is_in_select_list(Item *cand) {
+bool Query_block::is_in_select_list(Item *cand) {
   for (Item *item : visible_fields()) {
     // Use a walker to detect if cand is present in this select item
     if (item->walk(&Item::find_item_processor, enum_walk::SUBQUERY_POSTFIX,
@@ -3956,10 +3973,11 @@ void propagate_nullability(mem_root_deque<TABLE_LIST *> *tables,
   table or view.
 */
 
-void SELECT_LEX::propagate_unique_test_exclusion() {
-  for (SELECT_LEX_UNIT *unit = first_inner_unit(); unit;
-       unit = unit->next_unit())
-    for (SELECT_LEX *sl = unit->first_select(); sl; sl = sl->next_select())
+void Query_block::propagate_unique_test_exclusion() {
+  for (Query_expression *unit = first_inner_query_expression(); unit;
+       unit = unit->next_query_expression())
+    for (Query_block *sl = unit->first_query_block(); sl;
+         sl = sl->next_query_block())
       sl->propagate_unique_test_exclusion();
 
   exclude_from_table_unique_test = true;
@@ -3973,7 +3991,7 @@ void SELECT_LEX::propagate_unique_test_exclusion() {
   @returns false if success, true if error
 */
 
-bool SELECT_LEX::add_ftfunc_list(List<Item_func_match> *ftfuncs) {
+bool Query_block::add_ftfunc_list(List<Item_func_match> *ftfuncs) {
   Item_func_match *ifm;
   List_iterator_fast<Item_func_match> li(*ftfuncs);
   while ((ifm = li++)) {
@@ -3984,14 +4002,14 @@ bool SELECT_LEX::add_ftfunc_list(List<Item_func_match> *ftfuncs) {
 
 /**
    Go through a list of tables and join nests, recursively, and repoint
-   its select_lex pointer.
+   its query_block pointer.
 
    @param  join_list  List of tables and join nests
 */
-void SELECT_LEX::repoint_contexts_of_join_nests(
+void Query_block::repoint_contexts_of_join_nests(
     mem_root_deque<TABLE_LIST *> join_list) {
   for (TABLE_LIST *tbl : join_list) {
-    tbl->select_lex = this;
+    tbl->query_block = this;
     if (tbl->nested_join)
       repoint_contexts_of_join_nests(tbl->nested_join->join_list);
   }
@@ -4005,10 +4023,10 @@ void SELECT_LEX::repoint_contexts_of_join_nests(
 
   @param inner  Subquery for which context objects are to be merged.
 */
-void SELECT_LEX::merge_contexts(SELECT_LEX *inner) {
+void Query_block::merge_contexts(Query_block *inner) {
   for (Name_resolution_context *ctx = inner->first_context; ctx != nullptr;
        ctx = ctx->next_context) {
-    ctx->select_lex = this;
+    ctx->query_block = this;
     if (ctx->next_context == nullptr) {
       ctx->next_context = first_context;
       first_context = inner->first_context;
@@ -4037,9 +4055,9 @@ void SELECT_LEX::merge_contexts(SELECT_LEX *inner) {
                             by setup_group().
 */
 
-void SELECT_LEX::remove_redundant_subquery_clauses(
+void Query_block::remove_redundant_subquery_clauses(
     THD *thd, int hidden_group_field_count) {
-  Item_subselect *subq_predicate = master_unit()->item;
+  Item_subselect *subq_predicate = master_query_expression()->item;
   enum change {
     REMOVE_NONE = 0,
     REMOVE_ORDER = 1 << 0,
@@ -4118,7 +4136,7 @@ void SELECT_LEX::remove_redundant_subquery_clauses(
              been merged into an outer query block).
 */
 
-void SELECT_LEX::empty_order_list(SELECT_LEX *sl) {
+void Query_block::empty_order_list(Query_block *sl) {
   if (m_windows.elements != 0) {
     /*
       The next lines doing cleanup of ORDER elements expect the
@@ -4342,12 +4360,12 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
     group_fix_field = true is so that we properly reject GROUP BY on
     subqueries with references to group fields.
   */
-  bool save_group_fix_field = thd->lex->current_select()->group_fix_field;
-  if (is_group_field) thd->lex->current_select()->group_fix_field = true;
+  bool save_group_fix_field = thd->lex->current_query_block()->group_fix_field;
+  if (is_group_field) thd->lex->current_query_block()->group_fix_field = true;
   bool ret =
       (!order_item->fixed && (order_item->fix_fields(thd, order->item) ||
                               (order_item = *order->item)->check_cols(1)));
-  thd->lex->current_select()->group_fix_field = save_group_fix_field;
+  thd->lex->current_query_block()->group_fix_field = save_group_fix_field;
   if (ret) return true; /* Wrong field. */
 
   assert_consistent_hidden_flags(*fields, order_item, /*hidden=*/true);
@@ -4400,12 +4418,13 @@ bool setup_order(THD *thd, Ref_item_array ref_item_array, TABLE_LIST *tables,
 
   DBUG_ASSERT(order);
 
-  SELECT_LEX *const select = thd->lex->current_select();
+  Query_block *const select = thd->lex->current_query_block();
 
   thd->where = "order clause";
 
-  const bool for_union = select->master_unit()->is_union() &&
-                         select == select->master_unit()->fake_select_lex;
+  const bool for_union =
+      select->master_query_expression()->is_union() &&
+      select == select->master_query_expression()->fake_query_block;
   const bool is_aggregated = select->is_grouped();
 
   for (uint number = 1; order; order = order->next, number++) {
@@ -4458,7 +4477,7 @@ bool setup_order(THD *thd, Ref_item_array ref_item_array, TABLE_LIST *tables,
    @returns true if ONLY_FULL_GROUP_BY is violated.
 */
 
-bool SELECT_LEX::check_only_full_group_by(THD *thd) {
+bool Query_block::check_only_full_group_by(THD *thd) {
   bool rc = false;
 
   if (is_grouped()) {
@@ -4494,7 +4513,7 @@ bool SELECT_LEX::check_only_full_group_by(THD *thd) {
 
   @returns false if success, true if error
 */
-bool SELECT_LEX::setup_order_final(THD *thd) {
+bool Query_block::setup_order_final(THD *thd) {
   DBUG_TRACE;
   if (is_implicitly_grouped()) {
     // Result will contain zero or one row - ordering is redundant
@@ -4502,8 +4521,9 @@ bool SELECT_LEX::setup_order_final(THD *thd) {
     return false;
   }
 
-  if ((master_unit()->is_union() || master_unit()->fake_select_lex) &&
-      this != master_unit()->fake_select_lex && !has_limit()) {
+  if ((master_query_expression()->is_union() ||
+       master_query_expression()->fake_query_block) &&
+      this != master_query_expression()->fake_query_block && !has_limit()) {
     // Part of UNION which requires global ordering may skip local order
     empty_order_list(this);
     return false;
@@ -4537,7 +4557,7 @@ bool SELECT_LEX::setup_order_final(THD *thd) {
   @returns false if success, true if error
 */
 
-bool SELECT_LEX::setup_group(THD *thd) {
+bool Query_block::setup_group(THD *thd) {
   DBUG_TRACE;
   DBUG_ASSERT(group_list.elements);
 
@@ -4570,7 +4590,7 @@ bool SELECT_LEX::setup_group(THD *thd) {
  ROLLUP handling
  ****************************************************************************/
 
-ORDER *SELECT_LEX::find_in_group_list(Item *item, int *rollup_level) const {
+ORDER *Query_block::find_in_group_list(Item *item, int *rollup_level) const {
   Item *real_item = item->real_item();
   ORDER *best_candidate = nullptr;
   int idx = 0;
@@ -4599,7 +4619,7 @@ ORDER *SELECT_LEX::find_in_group_list(Item *item, int *rollup_level) const {
   return best_candidate;
 }
 
-int SELECT_LEX::group_list_size() const {
+int Query_block::group_list_size() const {
   int size = 0;
   for (ORDER *group = group_list.first; group; group = group->next) {
     ++size;
@@ -4613,7 +4633,7 @@ int SELECT_LEX::group_list_size() const {
   item.
  */
 static ReplaceResult wrap_grouped_expressions_for_rollup(
-    SELECT_LEX *select, Item *item, Item *parent, unsigned argument_idx) {
+    Query_block *select, Item *item, Item *parent, unsigned argument_idx) {
   if (is_rollup_group_wrapper(item->real_item())) {
     // This item must already be a group item, or we wouldn't have
     // wrapped it earlier. No need to do anything more about it,
@@ -4696,7 +4716,7 @@ bool WalkAndReplace(
 
 */
 
-void SELECT_LEX::mark_item_as_maybe_null_if_rollup_item(Item *item) {
+void Query_block::mark_item_as_maybe_null_if_rollup_item(Item *item) {
   if (find_in_group_list(item, /*rollup_level=*/nullptr)) {
     /*
       If this item is present in GROUP BY clause, set m_nullable
@@ -4709,7 +4729,7 @@ void SELECT_LEX::mark_item_as_maybe_null_if_rollup_item(Item *item) {
   }
 }
 
-Item *SELECT_LEX::single_visible_field() const {
+Item *Query_block::single_visible_field() const {
   Item *ret = nullptr;
   for (Item *item : visible_fields()) {
     if (ret != nullptr) {
@@ -4721,21 +4741,21 @@ Item *SELECT_LEX::single_visible_field() const {
   return ret;
 }
 
-size_t SELECT_LEX::num_visible_fields() const {
+size_t Query_block::num_visible_fields() const {
   return CountVisibleFields(fields);
 }
 
-bool SELECT_LEX::field_list_is_empty() const {
+bool Query_block::field_list_is_empty() const {
   for (Item *item : fields) {
     if (!item->hidden) return false;
   }
   return true;
 }
 
-void SELECT_LEX::remove_hidden_fields() {
+void Query_block::remove_hidden_fields() {
   // We cannot use erase combined with std::remove_if(),
   // since remove_if() does not maintain pointer stability
-  // (see the comment on SELECT_LEX::fields).
+  // (see the comment on Query_block::fields).
   for (uint i = 0; i < hidden_items_from_optimization; ++i) {
     fields.pop_front();
   }
@@ -4751,7 +4771,7 @@ void SELECT_LEX::remove_hidden_fields() {
   @param   item     the item to be processed
   @returns the new item, or nullptr on error
 */
-Item *SELECT_LEX::resolve_rollup_item(THD *thd, Item *item) {
+Item *Query_block::resolve_rollup_item(THD *thd, Item *item) {
   ReplaceResult result =
       wrap_grouped_expressions_for_rollup(this, item, nullptr, 0);
   if (result.action == ReplaceResult::ERROR) {
@@ -4777,7 +4797,7 @@ Item *SELECT_LEX::resolve_rollup_item(THD *thd, Item *item) {
   return item;
 }
 
-Item *create_rollup_switcher(THD *thd, SELECT_LEX *select_lex, Item *item,
+Item *create_rollup_switcher(THD *thd, Query_block *query_block, Item *item,
                              int send_group_parts) {
   DBUG_ASSERT(!item->m_is_window_function);
   DBUG_ASSERT(!is_rollup_sum_wrapper(item));
@@ -4796,7 +4816,7 @@ Item *create_rollup_switcher(THD *thd, SELECT_LEX *select_lex, Item *item,
   }
   Item_rollup_sum_switcher *new_item =
       new Item_rollup_sum_switcher(&alternatives);
-  if (new_item == nullptr || select_lex->rollup_sums.push_back(new_item)) {
+  if (new_item == nullptr || query_block->rollup_sums.push_back(new_item)) {
     return nullptr;
   }
   new_item->quick_fix_field();
@@ -4811,7 +4831,7 @@ Item *create_rollup_switcher(THD *thd, SELECT_LEX *select_lex, Item *item,
   @returns false if success, true if error
 */
 
-bool SELECT_LEX::resolve_rollup(THD *thd) {
+bool Query_block::resolve_rollup(THD *thd) {
   DBUG_TRACE;
 
   uint send_group_parts = group_list_size();
@@ -4820,7 +4840,7 @@ bool SELECT_LEX::resolve_rollup(THD *thd) {
     Item *item = *it;
     Item *new_item;
     if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item() &&
-        down_cast<Item_sum *>(item)->aggr_select == this) {
+        down_cast<Item_sum *>(item)->aggr_query_block == this) {
       // This is a top level aggregate, which must be replaced with
       // a different one for each rollup level.
       new_item = create_rollup_switcher(thd, this, item, send_group_parts);
@@ -4854,7 +4874,7 @@ bool SELECT_LEX::resolve_rollup(THD *thd) {
 
     if (order_item->type() == Item::SUM_FUNC_ITEM &&
         !order_item->const_item() &&
-        down_cast<Item_sum *>(order_item)->aggr_select == this) {
+        down_cast<Item_sum *>(order_item)->aggr_query_block == this) {
       // This is a top level aggregate, which must be replaced with
       // a different one for each rollup level.
       *order->item =
@@ -4877,7 +4897,7 @@ bool SELECT_LEX::resolve_rollup(THD *thd) {
   @returns false if success, true if error
 */
 
-bool SELECT_LEX::resolve_rollup_wfs(THD *thd) {
+bool Query_block::resolve_rollup_wfs(THD *thd) {
   DBUG_TRACE;
   for (auto it = fields.begin(); it != fields.end(); ++it) {
     Item *new_item = resolve_rollup_item(thd, *it);
@@ -4992,7 +5012,7 @@ bool validate_gc_assignment(const mem_root_deque<Item *> &fields,
   @param tables List of tables and join nests
 */
 
-void SELECT_LEX::delete_unused_merged_columns(
+void Query_block::delete_unused_merged_columns(
     mem_root_deque<TABLE_LIST *> *tables) {
   DBUG_TRACE;
 
@@ -5041,7 +5061,7 @@ void SELECT_LEX::delete_unused_merged_columns(
   @return Pointer to reference to the added item
 */
 
-Item **SELECT_LEX::add_hidden_item(Item *item) {
+Item **Query_block::add_hidden_item(Item *item) {
   const uint el = fields.size();
   base_ref_items[el] = item;
   assert_consistent_hidden_flags(fields, item, /*hidden=*/true);
@@ -5050,7 +5070,7 @@ Item **SELECT_LEX::add_hidden_item(Item *item) {
   return &base_ref_items[el];
 }
 
-void SELECT_LEX::remove_hidden_items() {
+void Query_block::remove_hidden_items() {
   for (uint i = 0; i < hidden_items_from_optimization; i++) {
     fields.pop_front();
   }
@@ -5066,7 +5086,7 @@ void SELECT_LEX::remove_hidden_items() {
   @returns false if success, true if error
 */
 
-bool SELECT_LEX::resolve_table_value_constructor_values(THD *thd) {
+bool Query_block::resolve_table_value_constructor_values(THD *thd) {
   // Item_values_column objects may be allocated; they should be persistent for
   // PREPARE statements.
   Prepared_stmt_arena_holder ps_arena_holder(thd);
@@ -5156,7 +5176,7 @@ bool SELECT_LEX::resolve_table_value_constructor_values(THD *thd) {
 }
 
 static bool baptize_item(THD *thd, Item *item, int *field_no);
-static bool update_context_to_derived(Item *expr, SELECT_LEX *new_derived);
+static bool update_context_to_derived(Item *expr, Query_block *new_derived);
 
 /**
   Replace a table subquery ([NOT] {IN, EXISTS}) with a join to a derived table.
@@ -5180,28 +5200,30 @@ static bool update_context_to_derived(Item *expr, SELECT_LEX *new_derived);
   @returns true if error
 */
 
-bool SELECT_LEX::transform_table_subquery_to_join_with_derived(
+bool Query_block::transform_table_subquery_to_join_with_derived(
     THD *thd, Item_exists_subselect *subq) {
   DBUG_ASSERT(first_execution);
-  SELECT_LEX_UNIT *const subs_unit = subq->unit;
-  SELECT_LEX *subs_select = subs_unit->first_select();
-  DBUG_ASSERT(subs_select->first_execution);
+  Query_expression *const subs_query_expression = subq->unit;
+  Query_block *subs_query_block = subs_query_expression->first_query_block();
+  DBUG_ASSERT(subs_query_block->first_execution);
 
   subq->strategy = Subquery_strategy::DERIVED_TABLE;
 
-  const int hidden_fields = CountHiddenFields(subs_select->fields);
-  const bool no_aggregates =
-      !subs_select->is_grouped() && !subs_select->with_sum_func &&
-      subs_select->having_cond() == nullptr && !subs_select->has_windows();
+  const int hidden_fields = CountHiddenFields(subs_query_block->fields);
+  const bool no_aggregates = !subs_query_block->is_grouped() &&
+                             !subs_query_block->with_sum_func &&
+                             subs_query_block->having_cond() == nullptr &&
+                             !subs_query_block->has_windows();
   const bool decorrelate =
-      no_aggregates && (subs_unit->uncacheable & UNCACHEABLE_DEPENDENT) &&
-      (subs_select->where_cond() &&
-       (subs_select->where_cond()->used_tables() & OUTER_REF_TABLE_BIT)) &&
+      no_aggregates &&
+      (subs_query_expression->uncacheable & UNCACHEABLE_DEPENDENT) &&
+      (subs_query_block->where_cond() &&
+       (subs_query_block->where_cond()->used_tables() & OUTER_REF_TABLE_BIT)) &&
       // decorrelation adds to the SELECT list, and hidden fields make it
       // impossible (search for "hidden" in this function). Hidden fields
       // usually come from aggregation, which we disallowed just above, but also
       // if a SELECT list element is a subquery which contains an outer
-      // reference to subs_select.
+      // reference to subs_query_block.
       hidden_fields == 0;
 
   // Ensure that all lists are consistent. all_fields should have an optional
@@ -5222,7 +5244,8 @@ bool SELECT_LEX::transform_table_subquery_to_join_with_derived(
   Mem_root_array<Item_func::Functype> op_types(thd->mem_root);
 
   if (subq->substype() == Item_subselect::IN_SUBS) {
-    build_sj_exprs(thd, &sj_outer_exprs, &sj_inner_exprs, subq, subs_select);
+    build_sj_exprs(thd, &sj_outer_exprs, &sj_inner_exprs, subq,
+                   subs_query_block);
     // All these expressions are compared with '=':
     op_types.resize(sj_outer_exprs.size(), Item_func::EQ_FUNC);
   } else {
@@ -5249,20 +5272,20 @@ bool SELECT_LEX::transform_table_subquery_to_join_with_derived(
     DBUG_ASSERT(no_aggregates);
     Item::Cleanup_after_removal_context ctx(this);
     int i = 0;
-    for (auto it = subs_select->visible_fields().begin();
-         it != subs_select->visible_fields().end(); ++it, ++i) {
+    for (auto it = subs_query_block->visible_fields().begin();
+         it != subs_query_block->visible_fields().end(); ++it, ++i) {
       Item *inner = *it;
       if (inner->basic_const_item()) continue;  // no need to replace it
       auto constant = new (thd->mem_root) Item_int(
           NAME_STRING("Not_used"), (longlong)1, MY_INT64_NUM_DECIMAL_DIGITS);
       *it = constant;
-      subs_select->base_ref_items[i] = constant;
+      subs_query_block->base_ref_items[i] = constant;
       // Expressions from the SELECT list will not be used; unlike in the case
       // of IN, they are not part of sj_inner_exprs.
       inner->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
                   pointer_cast<uchar *>(&ctx));
     }
-    subs_select->select_list_tables = 0;
+    subs_query_block->select_list_tables = 0;
   }
 
   Semijoin_decorrelation sj_decor(
@@ -5282,7 +5305,7 @@ bool SELECT_LEX::transform_table_subquery_to_join_with_derived(
     // EXISTS(SELECT FROM it WHERE it.c=ot.c AND <condition on 'it' only>)
     const int initial_sj_inner_exprs_count = sj_inner_exprs.size();
 
-    if (subs_select->decorrelate_condition(sj_decor, nullptr)) return true;
+    if (subs_query_block->decorrelate_condition(sj_decor, nullptr)) return true;
 
     // Append inner expressions of decorrelated equalities to the SELECT
     // list. Correct context info of outer expressions.
@@ -5298,15 +5321,15 @@ bool SELECT_LEX::transform_table_subquery_to_join_with_derived(
       // 'decorrelate'), we would be appending a *non*-hidden element
       // (participating in DISTINCT) *after* the hidden element, which would
       // break the usual layout of base_ref_items which is: "non-hidden then
-      // hidden" (see SELECT_LEX::add_hidden_item()). While this layout is not
+      // hidden" (see Query_block::add_hidden_item()). While this layout is not
       // documented (?), it is safer to not break it.
-      subs_select->base_ref_items[subs_select->fields.size()] = inner;
-      subs_select->fields.push_back(inner);
+      subs_query_block->base_ref_items[subs_query_block->fields.size()] = inner;
+      subs_query_block->fields.push_back(inner);
 
       // Needed for fix_after_pullout:
       update_context_to_derived(outer, this);
       // Decorrelated outer expression will move to ON, so fix it.
-      outer->fix_after_pullout(this, subs_select);
+      outer->fix_after_pullout(this, subs_query_block);
     }
 
     // Decorrelation identified new outer/inner expression pairs.
@@ -5315,35 +5338,37 @@ bool SELECT_LEX::transform_table_subquery_to_join_with_derived(
     // BY, we only have to collect used_tables bits from the SELECT list, FROM
     // clause (outer-correlated derived tables and join conditions) and WHERE
     // clause.
-    for (Item *inner : subs_select->visible_fields()) {
-      subs_select->select_list_tables |= inner->used_tables();
+    for (Item *inner : subs_query_block->visible_fields()) {
+      subs_query_block->select_list_tables |= inner->used_tables();
     }
 
-    table_map new_used_tables = subs_select->select_list_tables;
-    if (subs_select->where_cond()) {
-      subs_select->where_cond()->update_used_tables();
-      new_used_tables |= subs_select->where_cond()->used_tables();
+    table_map new_used_tables = subs_query_block->select_list_tables;
+    if (subs_query_block->where_cond()) {
+      subs_query_block->where_cond()->update_used_tables();
+      new_used_tables |= subs_query_block->where_cond()->used_tables();
     }
     // Walk the FROM clause to gather any outer-correlated derived table or join
     // condition.
-    walk_join_list(subs_select->top_join_list, [&](TABLE_LIST *tr) -> bool {
-      if (tr->join_cond()) new_used_tables |= tr->join_cond()->used_tables();
-      if (tr->is_derived() && tr->uses_materialization())
-        new_used_tables |= tr->derived_unit()->m_lateral_deps;
-      return false;
-    });
+    walk_join_list(
+        subs_query_block->top_join_list, [&](TABLE_LIST *tr) -> bool {
+          if (tr->join_cond())
+            new_used_tables |= tr->join_cond()->used_tables();
+          if (tr->is_derived() && tr->uses_materialization())
+            new_used_tables |= tr->derived_query_expression()->m_lateral_deps;
+          return false;
+        });
 
     if (!(new_used_tables & OUTER_REF_TABLE_BIT)) {
       // there is no outer reference anymore
-      subs_select->uncacheable &= ~UNCACHEABLE_DEPENDENT;
-      subs_unit->uncacheable &= ~UNCACHEABLE_DEPENDENT;
+      subs_query_block->uncacheable &= ~UNCACHEABLE_DEPENDENT;
+      subs_query_expression->uncacheable &= ~UNCACHEABLE_DEPENDENT;
       // this must be called only after the change to 'uncacheable' above
       subq->update_used_tables();
     }
   }
 
-  if (!subs_select->can_skip_distinct())
-    subs_select->add_base_options(SELECT_DISTINCT);
+  if (!subs_query_block->can_skip_distinct())
+    subs_query_block->add_base_options(SELECT_DISTINCT);
 
   // As the synthesised ON and WHERE will reference columns of the derived
   // table, we must have unique names.
@@ -5352,7 +5377,7 @@ bool SELECT_LEX::transform_table_subquery_to_join_with_derived(
   // make them so.
   {
     int i = 1;
-    for (Item *inner : subs_select->visible_fields()) {
+    for (Item *inner : subs_query_block->visible_fields()) {
       if (baptize_item(thd, inner, &i)) return true;
     }
   }
@@ -5364,16 +5389,16 @@ bool SELECT_LEX::transform_table_subquery_to_join_with_derived(
     return true;
   }
 
-  // We have added to subs_unit->fields; subs_unit->types must always
-  // be equal to its visible fields.
-  subs_unit->types.clear();
-  for (Item *item : subq->unit->first_select()->visible_fields()) {
-    subs_unit->types.push_back(item);
+  // We have added to subs_query_expression->fields;
+  // subs_query_expression->types must always be equal to its visible fields.
+  subs_query_expression->types.clear();
+  for (Item *item : subq->unit->first_query_block()->visible_fields()) {
+    subs_query_expression->types.push_back(item);
   }
 
   TABLE_LIST *tl;
   if (transform_subquery_to_derived(
-          thd, &tl, subs_unit, subq,
+          thd, &tl, subs_query_expression, subq,
           // If subquery is top-level in WHERE, and not negated, use INNER JOIN,
           // else use LEFT JOIN.
           // We could use LEFT JOIN unconditionally and let simplify_joins()
@@ -5388,7 +5413,7 @@ bool SELECT_LEX::transform_table_subquery_to_join_with_derived(
 
   DBUG_ASSERT(CountVisibleFields(sj_inner_exprs) == sj_inner_exprs.size());
   const int first_sj_inner_expr_of_subquery =
-      CountVisibleFields(subs_select->fields) - sj_inner_exprs.size();
+      CountVisibleFields(subs_query_block->fields) - sj_inner_exprs.size();
 
   Item_field *derived_field;
   // Make the join condition for the derived table:
@@ -5515,11 +5540,11 @@ bool SELECT_LEX::transform_table_subquery_to_join_with_derived(
   @param     use_inner_join for case (1): if true/false use INNER/LEFT JOIN
   @returns the derived table object, or nullptr on error.
 */
-TABLE_LIST *SELECT_LEX::synthesize_derived(THD *thd, SELECT_LEX_UNIT *unit,
-                                           Item *join_cond, bool left_outer,
-                                           bool use_inner_join) {
+TABLE_LIST *Query_block::synthesize_derived(THD *thd, Query_expression *unit,
+                                            Item *join_cond, bool left_outer,
+                                            bool use_inner_join) {
   char name[STRING_BUFFER_USUAL_SIZE];
-  const uint i = unit->first_select()->select_number;
+  const uint i = unit->first_query_block()->select_number;
   std::snprintf(name, sizeof(name), "derived_%d_%d", select_number, i);
   char *namep = thd->mem_strdup(name);
   if (namep == nullptr) return nullptr;
@@ -5568,7 +5593,7 @@ TABLE_LIST *SELECT_LEX::synthesize_derived(THD *thd, SELECT_LEX_UNIT *unit,
   @param thd      Session state
   @param tl       The derived table that should be removed
 */
-void SELECT_LEX::remove_derived(THD *thd, TABLE_LIST *tl) {
+void Query_block::remove_derived(THD *thd, TABLE_LIST *tl) {
   // Remove from leaf_tables
   materialized_derived_table_count--;
   derived_table_count--;
@@ -5582,9 +5607,9 @@ void SELECT_LEX::remove_derived(THD *thd, TABLE_LIST *tl) {
     leafp = &(*leafp)->next_leaf;
   }
   // Remove query expression from this block's set of query expressions
-  SELECT_LEX_UNIT **unitp = &slave;
+  Query_expression **unitp = &slave;
   while (*unitp != nullptr) {
-    if (*unitp == tl->derived_unit()) {
+    if (*unitp == tl->derived_query_expression()) {
       *unitp = (*unitp)->next;
       if (*unitp != nullptr) {
         (*unitp)->prev = unitp;
@@ -5594,9 +5619,9 @@ void SELECT_LEX::remove_derived(THD *thd, TABLE_LIST *tl) {
     unitp = &(*unitp)->next;
   }
   // Remove derived table's query block from global list
-  SELECT_LEX **qbp = &thd->lex->all_selects_list;
+  Query_block **qbp = &thd->lex->all_query_blocks_list;
   while (*qbp != nullptr) {
-    if (*qbp == tl->derived_unit()->first_select()) {
+    if (*qbp == tl->derived_query_expression()->first_query_block()) {
       *qbp = (*qbp)->link_next;
       if (*qbp != nullptr) {
         (*qbp)->link_prev = qbp;
@@ -5652,7 +5677,7 @@ static bool replace_aggregate_in_list(Item::Aggregate_replacement &info,
   If such an aggregate is found, the query block should have a HAVING clause.
   This is asserted in debug mode. We "remove" them by replacing them with
   an Item_int, which should have no adverse effects. This avoids creating
-  trouble for SELECT_LEX::add_hidden_item which would otherwise need to keep
+  trouble for Query_block::add_hidden_item which would otherwise need to keep
   track of removed items.
 
   @param thd      session context
@@ -5660,8 +5685,9 @@ static bool replace_aggregate_in_list(Item::Aggregate_replacement &info,
                   derived table
   @returns true on error, else false
 */
-bool SELECT_LEX::remove_aggregates(THD *thd,
-                                   SELECT_LEX MY_ATTRIBUTE((unused)) * select) {
+bool Query_block::remove_aggregates(THD *thd,
+                                    Query_block MY_ATTRIBUTE((unused)) *
+                                        select) {
   for (auto it = fields.begin(); it != fields.end(); ++it) {
     Item *select_expr = *it;
     if (!select_expr->m_is_window_function &&
@@ -5694,7 +5720,7 @@ bool SELECT_LEX::remove_aggregates(THD *thd,
 
   @returns true on error
 */
-static bool update_context_to_derived(Item *expr, SELECT_LEX *new_derived) {
+static bool update_context_to_derived(Item *expr, Query_block *new_derived) {
   Item_ident::Change_context ctx(&new_derived->context);
   if (expr != nullptr && expr->walk(&Item::change_context_processor,
                                     enum_walk::POSTFIX, (uchar *)&ctx))
@@ -5714,7 +5740,7 @@ static bool update_context_to_derived(Item *expr, SELECT_LEX *new_derived) {
   @return true on error
 */
 static bool collect_aggregates(
-    SELECT_LEX *select, Item_sum::Collect_grouped_aggregate_info *aggregates) {
+    Query_block *select, Item_sum::Collect_grouped_aggregate_info *aggregates) {
   for (Item *select_expr : select->visible_fields()) {
     if (select_expr->walk(&Item::collect_grouped_aggregates,
                           enum_walk::SUBQUERY_PREFIX,
@@ -5821,7 +5847,7 @@ static bool baptize_item(THD *thd, Item *item, int *field_no) {
   @param[out] break_off  set to true of transformation could not be performed
   @returns               true on error
 */
-bool SELECT_LEX::transform_grouped_to_derived(THD *thd, bool *break_off) {
+bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
   // Collect all aggregates, and add them to our new select list
   Item_sum::Collect_grouped_aggregate_info aggregates(this);
 
@@ -5836,7 +5862,7 @@ bool SELECT_LEX::transform_grouped_to_derived(THD *thd, bool *break_off) {
   }
 
   TABLE_LIST *tl = nullptr;
-  SELECT_LEX *new_derived = nullptr;
+  Query_block *new_derived = nullptr;
   List<Item> item_fields_or_view_refs;
   std::unordered_map<Field *, Item_field *> unique_fields;
   std::vector<Item_view_ref *> unique_view_refs;
@@ -5875,13 +5901,13 @@ bool SELECT_LEX::transform_grouped_to_derived(THD *thd, bool *break_off) {
   {
     Prepared_stmt_arena_holder ps_arena_holder(thd);
 
-    SELECT_LEX_UNIT *const old_slave = slave;
+    Query_expression *const old_slave = slave;
     slave = nullptr;
     // The new derived table takes over WHERE and HAVING from this query block
-    SELECT_LEX_UNIT *new_slu = parent_lex->create_query_expr_and_block(
+    Query_expression *new_slu = parent_lex->create_query_expr_and_block(
         thd, this, m_where_cond, m_having_cond, CTX_DERIVED);
     if (new_slu == nullptr) return true;
-    new_derived = new_slu->first_select();
+    new_derived = new_slu->first_query_block();
 
     m_where_cond = nullptr;
     m_having_cond = nullptr;
@@ -5914,7 +5940,7 @@ bool SELECT_LEX::transform_grouped_to_derived(THD *thd, bool *break_off) {
     table_list.clear();
     for (TABLE_LIST *tables = new_derived->table_list.first; tables != nullptr;
          tables = tables->next_local) {
-      tables->select_lex = new_derived;  // update query block context
+      tables->query_block = new_derived;  // update query block context
       if (update_context_to_derived(tables->join_cond(), new_derived))
         return true; /* purecov: inspected */
     }
@@ -5961,7 +5987,7 @@ bool SELECT_LEX::transform_grouped_to_derived(THD *thd, bool *break_off) {
     DBUG_ASSERT(context.last_name_resolution_table == nullptr);
     new_derived->context.init();
     new_derived->context.table_list = table_list.first;
-    new_derived->context.select_lex = new_derived;
+    new_derived->context.query_block = new_derived;
     new_derived->context.outer_context = &context;
     new_derived->context.first_name_resolution_table = table_list.first;
 
@@ -5981,8 +6007,8 @@ bool SELECT_LEX::transform_grouped_to_derived(THD *thd, bool *break_off) {
 
     // Collect all query expressions in a container first, since we cannot rely
     // on old_slave's ::next pointer chain once we start inserting them.
-    std::vector<SELECT_LEX_UNIT *> old_slaves;
-    for (SELECT_LEX_UNIT *cand = old_slave; cand != nullptr;
+    std::vector<Query_expression *> old_slaves;
+    for (Query_expression *cand = old_slave; cand != nullptr;
          cand = cand->next) {
       old_slaves.push_back(cand);
     }
@@ -6006,9 +6032,9 @@ bool SELECT_LEX::transform_grouped_to_derived(THD *thd, bool *break_off) {
     // Insert the aggregates in the derived table's query block
     int i = 0;
     for (Item_sum *agg : aggregates.list) {
-      DBUG_ASSERT(agg->aggr_select == agg->base_select);
-      agg->aggr_select = new_derived;
-      agg->base_select = new_derived;
+      DBUG_ASSERT(agg->aggr_query_block == agg->base_query_block);
+      agg->aggr_query_block = new_derived;
+      agg->base_query_block = new_derived;
       if (agg->hidden) {
         // Because 'agg' is going to move to the derived table's SELECT list,
         // its 'hidden' flag will become true. Then, in the current query block,
@@ -6052,7 +6078,7 @@ bool SELECT_LEX::transform_grouped_to_derived(THD *thd, bool *break_off) {
     while ((lf = lfi++)) {
       if (lf->type() == Item::FIELD_ITEM) {
         Item_field *f = down_cast<Item_field *>(lf);
-        if (!(f->context->select_lex == this || f->depended_from == this))
+        if (!(f->context->query_block == this || f->depended_from == this))
           lfi.remove();
       }
     }
@@ -6123,7 +6149,7 @@ bool SELECT_LEX::transform_grouped_to_derived(THD *thd, bool *break_off) {
             &Item::update_aggr_refs, enum_walk::PREFIX,
             pointer_cast<uchar *>(&info));
         DBUG_ASSERT(!error);
-        agg->aggr_select = new_derived;
+        agg->aggr_query_block = new_derived;
       }
     }
 
@@ -6262,9 +6288,9 @@ bool SELECT_LEX::transform_grouped_to_derived(THD *thd, bool *break_off) {
   @param      tr        The table reference for the derived table
   @param      expr      The expression we are replacing (in)
 */
-bool SELECT_LEX::replace_subquery_in_expr(THD *thd,
-                                          Item_singlerow_subselect *subquery,
-                                          TABLE_LIST *tr, Item **expr) {
+bool Query_block::replace_subquery_in_expr(THD *thd,
+                                           Item_singlerow_subselect *subquery,
+                                           TABLE_LIST *tr, Item **expr) {
   if (!(*expr)->has_subquery()) return false;
 
   Item_singlerow_subselect::Scalar_subquery_replacement info(
@@ -6306,10 +6332,10 @@ bool SELECT_LEX::replace_subquery_in_expr(THD *thd,
 
   @returns true if slu is directly contained in select, else false
 */
-static bool query_block_contains_subquery(SELECT_LEX *select,
-                                          SELECT_LEX_UNIT *slu) {
-  for (SELECT_LEX_UNIT *cand = select->first_inner_unit(); cand != nullptr;
-       cand = cand->next_unit()) {
+static bool query_block_contains_subquery(Query_block *select,
+                                          Query_expression *slu) {
+  for (Query_expression *cand = select->first_inner_query_expression();
+       cand != nullptr; cand = cand->next_query_expression()) {
     if (cand == slu) return true;
   }
   return false;
@@ -6337,7 +6363,7 @@ static bool walk_join_conditions(
  engine, it may need to be rolled back before falling back on primary engine
  execution.
  */
-static void remember_transform(THD *thd, SELECT_LEX *select) {
+static void remember_transform(THD *thd, Query_block *select) {
   if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SUBQUERY_TO_DERIVED)) {
     // Transform was enabled not by switch, but by secondary enginee
     select->parent_lex->m_sql_cmd->set_optional_transform_prepared(true);
@@ -6399,9 +6425,9 @@ static void remember_transform(THD *thd, SELECT_LEX *select) {
 
   @returns true on error
 */
-bool SELECT_LEX::nest_derived(THD *thd, Item *join_cond,
-                              mem_root_deque<TABLE_LIST *> *nested_join_list,
-                              TABLE_LIST *derived_table) {
+bool Query_block::nest_derived(THD *thd, Item *join_cond,
+                               mem_root_deque<TABLE_LIST *> *nested_join_list,
+                               TABLE_LIST *derived_table) {
   // Locate join nest in which the joinee with the condition sits
   const bool found MY_ATTRIBUTE((unused)) = walk_join_list(
       *nested_join_list,
@@ -6459,7 +6485,7 @@ bool SELECT_LEX::nest_derived(THD *thd, Item *join_cond,
 
   @param thd            Connection handle
   @param[out]    out_tl The created derived table will be stored in this.
-  @param subs_unit      Unit for the subquery
+  @param subs_query_expression      Unit for the subquery
   @param subq           Item for the subquery
   @param use_inner_join Insert with INNER JOIN, or with LEFT JOIN
   @param reject_multiple_rows
@@ -6467,12 +6493,10 @@ bool SELECT_LEX::nest_derived(THD *thd, Item *join_cond,
                         check: true, else false
   @param join_condition See join_cond in synthesize_derived()
 */
-bool SELECT_LEX::transform_subquery_to_derived(THD *thd, TABLE_LIST **out_tl,
-                                               SELECT_LEX_UNIT *subs_unit,
-                                               Item_subselect *subq,
-                                               bool use_inner_join,
-                                               bool reject_multiple_rows,
-                                               Item *join_condition) {
+bool Query_block::transform_subquery_to_derived(
+    THD *thd, TABLE_LIST **out_tl, Query_expression *subs_query_expression,
+    Item_subselect *subq, bool use_inner_join, bool reject_multiple_rows,
+    Item *join_condition) {
   TABLE_LIST *tl;
   {
     // We did not do the transformation yet
@@ -6481,7 +6505,7 @@ bool SELECT_LEX::transform_subquery_to_derived(THD *thd, TABLE_LIST **out_tl,
     // We want the TABLE_LIST, Table_ident and m_join_cond to be permanent
     Prepared_stmt_arena_holder ps_arena_holder(thd);
 
-    tl = synthesize_derived(thd, subs_unit, join_condition,
+    tl = synthesize_derived(thd, subs_query_expression, join_condition,
                             /*left_outer=*/true, use_inner_join);
 
     if (tl == nullptr) return true;
@@ -6497,20 +6521,21 @@ bool SELECT_LEX::transform_subquery_to_derived(THD *thd, TABLE_LIST **out_tl,
     tl->set_tableno(leaf_table_count);
 
     tl->embedding->nested_join->query_block_id =
-        subq->unit->first_select()->select_number;
+        subq->unit->first_query_block()->select_number;
     leaf_table_count += 1;
 
     if (!(tl->derived_result = new (thd->mem_root) Query_result_union()))
       return true; /* purecov: inspected */
-    subs_unit->m_reject_multiple_rows = reject_multiple_rows;
-    subs_unit->set_explain_marker(thd, CTX_DERIVED);
-    subs_unit->first_select()->linkage = DERIVED_TABLE_TYPE;
+    subs_query_expression->m_reject_multiple_rows = reject_multiple_rows;
+    subs_query_expression->set_explain_marker(thd, CTX_DERIVED);
+    subs_query_expression->first_query_block()->linkage = DERIVED_TABLE_TYPE;
 
     // Break connection to the subquery expression:
-    subs_unit->item = nullptr;
+    subs_query_expression->item = nullptr;
   }
-  subs_unit->set_query_result(tl->derived_result);
-  subs_unit->first_select()->set_query_result(tl->derived_result);
+  subs_query_expression->set_query_result(tl->derived_result);
+  subs_query_expression->first_query_block()->set_query_result(
+      tl->derived_result);
 
   materialized_derived_table_count++;
   derived_table_count++;
@@ -6524,7 +6549,7 @@ bool SELECT_LEX::transform_subquery_to_derived(THD *thd, TABLE_LIST **out_tl,
   return false;
 }
 
-bool SELECT_LEX::transform_scalar_subqueries_to_join_with_derived(THD *thd) {
+bool Query_block::transform_scalar_subqueries_to_join_with_derived(THD *thd) {
   if (thd->lex->m_subquery_to_derived_is_impossible) return false;
 
   // Need at least one FROM table. Also, we do not want to perform this
@@ -6663,7 +6688,7 @@ bool SELECT_LEX::transform_scalar_subqueries_to_join_with_derived(THD *thd) {
   */
   for (auto subquery : subqueries.m_list) {
     Item_singlerow_subselect *const subq = subquery.item;
-    SELECT_LEX_UNIT *const subs_unit = subq->unit;
+    Query_expression *const subs_query_expression = subq->unit;
 
     /*
       [1] A reference to a scalar subquery from another query expression can
@@ -6671,8 +6696,8 @@ bool SELECT_LEX::transform_scalar_subqueries_to_join_with_derived(THD *thd) {
           another query block.
       [2] A constant scalar subquery will be evaluated at prepare time
     */
-    if (!query_block_contains_subquery(this, subs_unit) ||  // [1]
-        (subq->const_item() && subs_unit->is_optimized()))  // [2]
+    if (!query_block_contains_subquery(this, subs_query_expression) ||  // [1]
+        (subq->const_item() && subs_query_expression->is_optimized()))  // [2]
       continue;
 
     TABLE_LIST *tl;
@@ -6703,7 +6728,7 @@ bool SELECT_LEX::transform_scalar_subqueries_to_join_with_derived(THD *thd) {
     //             ON derived_1_0.cnt = t1.a
     //
     if (transform_subquery_to_derived(
-            thd, &tl, subs_unit, subq,
+            thd, &tl, subs_query_expression, subq,
             /*use_inner_join=*/false,
             !subquery.m_implicitly_grouped_and_no_union,
             subquery.m_join_condition))
@@ -6776,9 +6801,10 @@ bool SELECT_LEX::transform_scalar_subqueries_to_join_with_derived(THD *thd) {
       if (replace_subquery_in_expr(thd, subq, tl, ord->item)) return true;
     }
 
-    OPT_TRACE_TRANSFORM(&thd->opt_trace, trace_wrapper, trace_object,
-                        tl->derived_unit()->first_select()->select_number,
-                        "scalar subquery", "derived table");
+    OPT_TRACE_TRANSFORM(
+        &thd->opt_trace, trace_wrapper, trace_object,
+        tl->derived_query_expression()->first_query_block()->select_number,
+        "scalar subquery", "derived table");
     opt_trace_print_expanded_query(thd, this, &trace_object);
   }
 

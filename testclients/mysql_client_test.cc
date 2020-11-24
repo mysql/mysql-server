@@ -2025,7 +2025,7 @@ static void test_select() {
   returns all rows in the table)
 */
 
-static void test_ps_conj_select() {
+static void test_ps_conj_query_block() {
   MYSQL_STMT *stmt;
   int rc;
   MYSQL_BIND my_bind[2];
@@ -2033,7 +2033,7 @@ static void test_ps_conj_select() {
   char str_data[32];
   ulong str_length;
   char query[MAX_TEST_QUERY_LENGTH];
-  myheader("test_ps_conj_select");
+  myheader("test_ps_conj_query_block");
 
   rc = mysql_query(mysql, "drop table if exists t1");
   myquery(rc);
@@ -8875,7 +8875,8 @@ static void test_selecttmp() {
 }
 
 static void test_create_drop() {
-  MYSQL_STMT *stmt_create, *stmt_drop, *stmt_select, *stmt_create_select;
+  MYSQL_STMT *stmt_create, *stmt_drop, *stmt_query_block,
+      *stmt_create_query_block;
   const char *query;
   int rc, i;
   myheader("test_table_manipulation");
@@ -8901,37 +8902,37 @@ static void test_create_drop() {
   check_stmt(stmt_drop);
 
   query = "select a in (select a from t2) from t1";
-  stmt_select = mysql_simple_prepare(mysql, query);
-  check_stmt(stmt_select);
+  stmt_query_block = mysql_simple_prepare(mysql, query);
+  check_stmt(stmt_query_block);
 
   rc = mysql_query(mysql, "DROP TABLE t1");
   myquery(rc);
 
   query = "create table t1 select a from t2";
-  stmt_create_select = mysql_simple_prepare(mysql, query);
-  check_stmt(stmt_create_select);
+  stmt_create_query_block = mysql_simple_prepare(mysql, query);
+  check_stmt(stmt_create_query_block);
 
   for (i = 0; i < 3; i++) {
     rc = mysql_stmt_execute(stmt_create);
     check_execute(stmt_create, rc);
     if (!opt_silent) fprintf(stdout, "created %i\n", i);
 
-    rc = mysql_stmt_execute(stmt_select);
-    check_execute(stmt_select, rc);
-    rc = my_process_stmt_result(stmt_select);
+    rc = mysql_stmt_execute(stmt_query_block);
+    check_execute(stmt_query_block, rc);
+    rc = my_process_stmt_result(stmt_query_block);
     DIE_UNLESS(rc == 0);
 
     rc = mysql_stmt_execute(stmt_drop);
     check_execute(stmt_drop, rc);
     if (!opt_silent) fprintf(stdout, "dropped %i\n", i);
 
-    rc = mysql_stmt_execute(stmt_create_select);
+    rc = mysql_stmt_execute(stmt_create_query_block);
     check_execute(stmt_create, rc);
     if (!opt_silent) fprintf(stdout, "created select %i\n", i);
 
-    rc = mysql_stmt_execute(stmt_select);
-    check_execute(stmt_select, rc);
-    rc = my_process_stmt_result(stmt_select);
+    rc = mysql_stmt_execute(stmt_query_block);
+    check_execute(stmt_query_block, rc);
+    rc = my_process_stmt_result(stmt_query_block);
     DIE_UNLESS(rc == 3);
 
     rc = mysql_stmt_execute(stmt_drop);
@@ -8941,8 +8942,8 @@ static void test_create_drop() {
 
   mysql_stmt_close(stmt_create);
   mysql_stmt_close(stmt_drop);
-  mysql_stmt_close(stmt_select);
-  mysql_stmt_close(stmt_create_select);
+  mysql_stmt_close(stmt_query_block);
+  mysql_stmt_close(stmt_create_query_block);
 
   rc = mysql_query(mysql, "DROP TABLE t2");
   myquery(rc);
@@ -9108,7 +9109,7 @@ static void test_multi() {
 }
 
 static void test_insert_select() {
-  MYSQL_STMT *stmt_insert, *stmt_select;
+  MYSQL_STMT *stmt_insert, *stmt_query_block;
   const char *query;
   int rc;
   uint i;
@@ -9131,22 +9132,22 @@ static void test_insert_select() {
   check_stmt(stmt_insert);
 
   query = "select * from t1";
-  stmt_select = mysql_simple_prepare(mysql, query);
-  check_stmt(stmt_select);
+  stmt_query_block = mysql_simple_prepare(mysql, query);
+  check_stmt(stmt_query_block);
 
   for (i = 0; i < 3; i++) {
     rc = mysql_stmt_execute(stmt_insert);
     check_execute(stmt_insert, rc);
     if (!opt_silent) fprintf(stdout, "insert %u\n", i);
 
-    rc = mysql_stmt_execute(stmt_select);
-    check_execute(stmt_select, rc);
-    rc = my_process_stmt_result(stmt_select);
+    rc = mysql_stmt_execute(stmt_query_block);
+    check_execute(stmt_query_block, rc);
+    rc = my_process_stmt_result(stmt_query_block);
     DIE_UNLESS(rc == (int)(i + 1));
   }
 
   mysql_stmt_close(stmt_insert);
-  mysql_stmt_close(stmt_select);
+  mysql_stmt_close(stmt_query_block);
   rc = mysql_query(mysql, "drop table t1, t2");
   myquery(rc);
 }
@@ -22059,7 +22060,7 @@ static struct my_tests_st my_tests[] = {
     {"test_select_prepare", test_select_prepare},
     {"test_select", test_select},
     {"test_select_version", test_select_version},
-    {"test_ps_conj_select", test_ps_conj_select},
+    {"test_ps_conj_query_block", test_ps_conj_query_block},
     {"test_select_show_table", test_select_show_table},
     {"test_func_fields", test_func_fields},
     {"test_long_data", test_long_data},

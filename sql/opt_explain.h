@@ -36,21 +36,21 @@ commands are explained like this:
 
 (1) explain_query_expression()
 
-Is the entry point. Forwards the job to explain_unit().
+Is the entry point. Forwards the job to explain_query_expression().
 
-(2) explain_unit()
+(2) explain_query_expression()
 
-Is for a SELECT_LEX_UNIT, prepares, optimizes, explains one JOIN for
-each "top-level" SELECT_LEXs of the unit (like: all SELECTs of a
-UNION; but not subqueries), and one JOIN for the fake SELECT_LEX of
+Is for a Query_expression, prepares, optimizes, explains one JOIN for
+each "top-level" Query_blocks of the unit (like: all SELECTs of a
+UNION; but not subqueries), and one JOIN for the fake Query_block of
 UNION); each JOIN explain (JOIN::exec()) calls explain_query_specification()
 
 (3) explain_query_specification()
 
-Is for a single SELECT_LEX (fake or not). It needs a prepared and
+Is for a single Query_block (fake or not). It needs a prepared and
 optimized JOIN, for which it builds the EXPLAIN rows. But it also
 launches the EXPLAIN process for "inner units" (==subqueries of this
-SELECT_LEX), by calling explain_unit() for each of them.
+Query_block), by calling explain_query_expression() for each of them.
 */
 
 #include "my_base.h"
@@ -66,8 +66,8 @@ SELECT_LEX), by calling explain_unit() for each of them.
 class Item;
 class JOIN;
 class QEP_TAB;
-class SELECT_LEX;
-class SELECT_LEX_UNIT;
+class Query_block;
+class Query_expression;
 class THD;
 struct AccessPath;
 struct TABLE;
@@ -137,14 +137,15 @@ class Query_result_explain final : public Query_result_send {
   Query_result *interceptor;
 
  public:
-  Query_result_explain(SELECT_LEX_UNIT *unit_arg, Query_result *interceptor_arg)
+  Query_result_explain(Query_expression *unit_arg,
+                       Query_result *interceptor_arg)
       : Query_result_send(), interceptor(interceptor_arg) {
     unit = unit_arg;
   }
 
  protected:
   bool prepare(THD *thd, const mem_root_deque<Item *> &list,
-               SELECT_LEX_UNIT *u) override {
+               Query_expression *u) override {
     return Query_result_send::prepare(thd, list, u) ||
            interceptor->prepare(thd, list, u);
   }
@@ -165,15 +166,15 @@ class Query_result_explain final : public Query_result_send {
 };
 
 bool explain_no_table(THD *explain_thd, const THD *query_thd,
-                      SELECT_LEX *select_lex, const char *message,
+                      Query_block *query_block, const char *message,
                       enum_parsing_context ctx);
 bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
                                        const Modification_plan *plan,
-                                       SELECT_LEX *select);
+                                       Query_block *select);
 bool explain_query(THD *explain_thd, const THD *query_thd,
-                   SELECT_LEX_UNIT *unit);
+                   Query_expression *unit);
 bool explain_query_specification(THD *explain_thd, const THD *query_thd,
-                                 SELECT_LEX *select_lex,
+                                 Query_block *query_block,
                                  enum_parsing_context ctx);
 
 class Sql_cmd_explain_other_thread final : public Sql_cmd {

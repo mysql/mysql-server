@@ -27,7 +27,7 @@
 #include "sql/parse_tree_node_base.h"
 
 class Query_result;
-class SELECT_LEX_UNIT;
+class Query_expression;
 
 namespace opt_explain_json_namespace {
 class context;
@@ -46,7 +46,7 @@ class Explain_format_JSON : public Explain_format {
 
   bool is_hierarchical() const override { return true; }
   bool send_headers(Query_result *result) override;
-  bool begin_context(enum_parsing_context context, SELECT_LEX_UNIT *subquery,
+  bool begin_context(enum_parsing_context context, Query_expression *subquery,
                      const Explain_format_flags *flags) override;
   bool end_context(enum_parsing_context context) override;
   bool flush_entry() override { return false; }

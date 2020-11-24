@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,12 +54,12 @@ void check_name_resolution_tables(std::initializer_list<const char *> aliases,
 }
 
 TEST_F(JoinSyntaxTest, CrossJoin) {
-  SELECT_LEX *query_block = parse("SELECT * FROM t1 JOIN t2 JOIN t3");
+  Query_block *query_block = parse("SELECT * FROM t1 JOIN t2 JOIN t3");
   check_name_resolution_tables({"t1", "t2", "t3"}, query_block->table_list);
 }
 
 TEST_F(JoinSyntaxTest, CrossJoinOn) {
-  SELECT_LEX *query_block = parse("SELECT * FROM t1 JOIN t2 JOIN t3 ON 1");
+  Query_block *query_block = parse("SELECT * FROM t1 JOIN t2 JOIN t3 ON 1");
   check_name_resolution_tables({"t1", "t2", "t3"}, query_block->table_list);
 }
 

@@ -151,12 +151,12 @@ bool Sql_cmd_update::precheck(THD *thd) {
 bool Sql_cmd_update::check_privileges(THD *thd) {
   DBUG_TRACE;
 
-  SELECT_LEX *const select = lex->select_lex;
+  Query_block *const select = lex->query_block;
 
   if (check_all_table_privileges(thd)) return true;
 
   // @todo: replace individual calls for privilege checking with
-  // SELECT_LEX::check_column_privileges(), but only when fields_list
+  // Query_block::check_column_privileges(), but only when fields_list
   // is no longer reused for an UPDATE statement.
 
   if (select->join_list && check_privileges_for_join(thd, select->join_list))
@@ -332,9 +332,9 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   */
   int error = 0;
 
-  SELECT_LEX *const select_lex = lex->select_lex;
-  SELECT_LEX_UNIT *const unit = lex->unit;
-  TABLE_LIST *const table_list = select_lex->get_table_list();
+  Query_block *const query_block = lex->query_block;
+  Query_expression *const unit = lex->unit;
+  TABLE_LIST *const table_list = query_block->get_table_list();
   TABLE_LIST *const update_table_ref = table_list->updatable_base_table();
   TABLE *const table = update_table_ref->table;
 
@@ -359,7 +359,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
   if (limit == 0 && thd->lex->is_explain()) {
     Modification_plan plan(thd, MT_UPDATE, table, "LIMIT is zero", true, 0);
-    bool err = explain_single_table_modification(thd, thd, &plan, select_lex);
+    bool err = explain_single_table_modification(thd, thd, &plan, query_block);
     return err;
   }
 
@@ -367,8 +367,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   bool no_rows = limit == 0;
 
   THD::killed_state killed_status = THD::NOT_KILLED;
-  DBUG_ASSERT(CountHiddenFields(select_lex->fields) == 0);
-  COPY_INFO update(COPY_INFO::UPDATE_OPERATION, &select_lex->fields,
+  DBUG_ASSERT(CountHiddenFields(query_block->fields) == 0);
+  COPY_INFO update(COPY_INFO::UPDATE_OPERATION, &query_block->fields,
                    update_value_list);
   if (update.add_function_default_columns(table, table->write_set)) return true;
 
@@ -377,8 +377,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   assert(!(table->all_partitions_pruned_away || m_empty_query));
 
   Item *conds = nullptr;
-  ORDER *order = select_lex->order_list.first;
-  if (!no_rows && select_lex->get_optimizable_conditions(thd, &conds, nullptr))
+  ORDER *order = query_block->order_list.first;
+  if (!no_rows && query_block->get_optimizable_conditions(thd, &conds, nullptr))
     return true; /* purecov: inspected */
 
   /*
@@ -390,7 +390,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     updates are optimized in JOIN::optimize().
   */
   if (conds || order)
-    static_cast<void>(substitute_gc(thd, select_lex, conds, nullptr, order));
+    static_cast<void>(substitute_gc(thd, query_block, conds, nullptr, order));
 
   if (conds != nullptr) {
     if (table_list->check_option) {
@@ -401,7 +401,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     }
     COND_EQUAL *cond_equal = nullptr;
     Item::cond_result result;
-    if (optimize_cond(thd, &conds, &cond_equal, select_lex->join_list, &result))
+    if (optimize_cond(thd, &conds, &cond_equal, query_block->join_list,
+                      &result))
       return true;
 
     if (result == Item::COND_FALSE) {
@@ -410,7 +411,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         Modification_plan plan(thd, MT_UPDATE, table, "Impossible WHERE", true,
                                0);
         bool err =
-            explain_single_table_modification(thd, thd, &plan, select_lex);
+            explain_single_table_modification(thd, thd, &plan, query_block);
         return err;
       }
     }
@@ -427,7 +428,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     stored programs can be evaluated.
   */
   if (table->part_info && !no_rows) {
-    if (prune_partitions(thd, table, select_lex, conds))
+    if (prune_partitions(thd, table, query_block, conds))
       return true; /* purecov: inspected */
     if (table->all_partitions_pruned_away) {
       no_rows = true;
@@ -437,7 +438,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
                                "No matching rows after partition pruning", true,
                                0);
         bool err =
-            explain_single_table_modification(thd, thd, &plan, select_lex);
+            explain_single_table_modification(thd, thd, &plan, query_block);
         return err;
       }
       my_ok(thd);
@@ -471,10 +472,10 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     if (!no_rows && conds != nullptr) {
       Key_map keys_to_use(Key_map::ALL_BITS), needed_reg_dummy;
       QUICK_SELECT_I *qck;
-      no_rows = test_quick_select(thd, keys_to_use, 0, limit, safe_update,
-                                  ORDER_NOT_RELEVANT, &qep_tab, conds,
-                                  &needed_reg_dummy, &qck,
-                                  qep_tab.table()->force_index, select_lex) < 0;
+      no_rows = test_quick_select(
+                    thd, keys_to_use, 0, limit, safe_update, ORDER_NOT_RELEVANT,
+                    &qep_tab, conds, &needed_reg_dummy, &qck,
+                    qep_tab.table()->force_index, query_block) < 0;
       qep_tab.set_quick(qck);
       if (thd->is_error()) return true;
     }
@@ -483,7 +484,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         Modification_plan plan(thd, MT_UPDATE, table, "Impossible WHERE", true,
                                0);
         bool err =
-            explain_single_table_modification(thd, thd, &plan, select_lex);
+            explain_single_table_modification(thd, thd, &plan, query_block);
         return err;
       }
 
@@ -515,7 +516,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       return true;
     }
   }
-  if (select_lex->has_ft_funcs() && init_ftfuncs(thd, select_lex))
+  if (query_block->has_ft_funcs() && init_ftfuncs(thd, query_block))
     return true; /* purecov: inspected */
 
   if (table->update_const_key_parts(conds)) return true;
@@ -554,7 +555,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
   table->mark_columns_per_binlog_row_image(thd);
 
-  if (prepare_partial_update(trace, select_lex->fields, *update_value_list))
+  if (prepare_partial_update(trace, query_block->fields, *update_value_list))
     return true; /* purecov: inspected */
 
   if (table->setup_partial_update()) return true; /* purecov: inspected */
@@ -583,7 +584,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
                            using_filesort, used_key_is_modified, rows);
     DEBUG_SYNC(thd, "planned_single_update");
     if (thd->lex->is_explain()) {
-      bool err = explain_single_table_modification(thd, thd, &plan, select_lex);
+      bool err =
+          explain_single_table_modification(thd, thd, &plan, query_block);
       return err;
     }
 
@@ -602,7 +604,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
           to update
           NOTE: filesort will call table->prepare_for_position()
         */
-        JOIN join(thd, select_lex);  // Only for holding examined_rows.
+        JOIN join(thd, query_block);  // Only for holding examined_rows.
         AccessPath *path = create_table_access_path(
             thd, nullptr, &qep_tab, /*count_examined_rows=*/true);
 
@@ -857,7 +859,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       store_record(table, record[1]);
       bool is_row_changed = false;
       if (fill_record_n_invoke_before_triggers(
-              thd, &update, select_lex->fields, *update_value_list, table,
+              thd, &update, query_block->fields, *update_value_list, table,
               TRG_EVENT_UPDATE, 0, false, &is_row_changed)) {
         error = 1;
         break;
@@ -1350,7 +1352,7 @@ static bool prepare_partial_update(Opt_trace_context *trace,
   @returns true if we should switch
  */
 bool should_switch_to_multi_table_if_subqueries(const THD *thd,
-                                                const SELECT_LEX *select,
+                                                const Query_block *select,
                                                 const TABLE_LIST *table_list) {
   TABLE *t = table_list->updatable_base_table()->table;
   handler *h = t->file;
@@ -1367,16 +1369,16 @@ bool should_switch_to_multi_table_if_subqueries(const THD *thd,
     account. They can serve as a solution is a user really wants to use the
     single-table path, e.g. in case of regression.
   */
-  for (SELECT_LEX_UNIT *unit = select->first_inner_unit(); unit;
-       unit = unit->next_unit()) {
+  for (Query_expression *unit = select->first_inner_query_expression(); unit;
+       unit = unit->next_query_expression()) {
     if (unit->item && (unit->item->substype() == Item_subselect::IN_SUBS ||
                        unit->item->substype() == Item_subselect::EXISTS_SUBS)) {
-      auto sub_select = unit->first_select();
-      Subquery_strategy subq_mat = sub_select->subquery_strategy(thd);
+      auto sub_query_block = unit->first_query_block();
+      Subquery_strategy subq_mat = sub_query_block->subquery_strategy(thd);
       if (subq_mat == Subquery_strategy::CANDIDATE_FOR_IN2EXISTS_OR_MAT ||
           subq_mat == Subquery_strategy::SUBQ_MATERIALIZATION)
         return true;
-      if (sub_select->semijoin_enabled(thd)) return true;
+      if (sub_query_block->semijoin_enabled(thd)) return true;
     }
   }
   return false;
@@ -1385,7 +1387,7 @@ bool should_switch_to_multi_table_if_subqueries(const THD *thd,
 bool Sql_cmd_update::prepare_inner(THD *thd) {
   DBUG_TRACE;
 
-  SELECT_LEX *const select = lex->select_lex;
+  Query_block *const select = lex->query_block;
   TABLE_LIST *const table_list = select->get_table_list();
 
   TABLE_LIST *single_table_updated = nullptr;
@@ -1457,7 +1459,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
     if (table_list->is_multiple_tables()) multitable = true;
   }
 
-  if (!multitable && select->first_inner_unit() != nullptr &&
+  if (!multitable && select->first_inner_query_expression() != nullptr &&
       should_switch_to_multi_table_if_subqueries(thd, select, table_list))
     multitable = true;
 
@@ -1488,7 +1490,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
     // iterator executor.
     // TODO(sgunders): Get rid of this when we remove Query_result.
     select->set_query_result(result);
-    select->master_unit()->set_query_result(result);
+    select->master_query_expression()->set_query_result(result);
   }
 
   lex->allow_sum_func = 0;  // Query block cannot be aggregated
@@ -1696,7 +1698,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
 
   if (select->is_empty_query()) set_empty_query();
 
-  select->master_unit()->set_prepared();
+  select->master_query_expression()->set_prepared();
 
   DBUG_ASSERT(CountHiddenFields(*update_value_list) == 0);
 
@@ -1713,7 +1715,7 @@ bool Sql_cmd_update::execute_inner(THD *thd) {
                              "No matching rows after partition pruning", true,
                              0);
       return explain_single_table_modification(thd, thd, &plan,
-                                               lex->select_lex);
+                                               lex->query_block);
     }
     my_ok(thd);
     return false;
@@ -1727,13 +1729,13 @@ bool Sql_cmd_update::execute_inner(THD *thd) {
 */
 
 bool Query_result_update::prepare(THD *thd, const mem_root_deque<Item *> &,
-                                  SELECT_LEX_UNIT *u) {
+                                  Query_expression *u) {
   SQL_I_List<TABLE_LIST> update_list;
   DBUG_TRACE;
 
   unit = u;
 
-  SELECT_LEX *const select = unit->first_select();
+  Query_block *const select = unit->first_query_block();
   TABLE_LIST *const leaves = select->leaf_tables;
 
   const table_map tables_to_update = get_table_map(*fields);
@@ -1953,7 +1955,7 @@ bool Query_result_update::optimize() {
   TABLE_LIST *table_ref;
   DBUG_TRACE;
 
-  SELECT_LEX *const select = unit->first_select();
+  Query_block *const select = unit->first_query_block();
   JOIN *const join = select->join;
   THD *thd = join->thd;
 
@@ -2120,12 +2122,15 @@ bool Query_result_update::optimize() {
       (See full_local in JOIN::join_free()).
     */
     if (table_ref->check_option && !select->uncacheable) {
-      SELECT_LEX_UNIT *tmp_unit;
-      SELECT_LEX *sl;
-      for (tmp_unit = select->first_inner_unit(); tmp_unit;
-           tmp_unit = tmp_unit->next_unit()) {
-        for (sl = tmp_unit->first_select(); sl; sl = sl->next_select()) {
-          if (sl->master_unit()->item) {
+      Query_expression *tmp_query_expression;
+      Query_block *sl;
+      for (tmp_query_expression = select->first_inner_query_expression();
+           tmp_query_expression;
+           tmp_query_expression =
+               tmp_query_expression->next_query_expression()) {
+        for (sl = tmp_query_expression->first_query_block(); sl;
+             sl = sl->next_query_block()) {
+          if (sl->master_query_expression()->item) {
             // Prevent early freeing in JOIN::join_free()
             select->uncacheable |= UNCACHEABLE_CHECKOPTION;
             goto loop_end;
@@ -2821,7 +2826,7 @@ bool Query_result_update::immediate_update(TABLE_LIST *t) const {
 }
 
 bool Sql_cmd_update::accept(THD *thd, Select_lex_visitor *visitor) {
-  SELECT_LEX *const select = thd->lex->select_lex;
+  Query_block *const select = thd->lex->query_block;
   // Update tables
   if (select->table_list.elements != 0 &&
       accept_for_join(select->join_list, visitor))

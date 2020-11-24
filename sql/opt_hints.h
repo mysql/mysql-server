@@ -370,7 +370,7 @@ class PT_qb_level_hint;
 */
 
 class Opt_hints_qb : public Opt_hints {
-  uint select_number;    // SELECT_LEX number
+  uint select_number;    // Query_block number
   LEX_CSTRING sys_name;  // System QB name
   char buff[32];         // Buffer to hold sys name
 

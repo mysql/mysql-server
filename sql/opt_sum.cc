@@ -271,7 +271,7 @@ static int get_index_max_value(TABLE *table, TABLE_REF *ref, uint range_fl) {
     will be candidates for delayed execution.
 */
 
-bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
+bool optimize_aggregated_query(THD *thd, Query_block *select,
                                const mem_root_deque<Item *> &fields,
                                Item *conds, aggregate_evaluated *decision) {
   DBUG_TRACE;

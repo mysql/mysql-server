@@ -255,7 +255,7 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
 }
 
 bool Query_result_export::prepare(THD *thd, const mem_root_deque<Item *> &list,
-                                  SELECT_LEX_UNIT *u) {
+                                  Query_expression *u) {
   bool blob_flag = false;
   bool string_results = false, non_string_results = false;
   unit = u;
@@ -651,7 +651,7 @@ void Query_result_export::cleanup(THD *thd) {
 ***************************************************************************/
 
 bool Query_result_dump::prepare(THD *, const mem_root_deque<Item *> &,
-                                SELECT_LEX_UNIT *u) {
+                                Query_expression *u) {
   unit = u;
   return false;
 }
@@ -693,7 +693,7 @@ err:
 ***************************************************************************/
 
 bool Query_dumpvar::prepare(THD *, const mem_root_deque<Item *> &list,
-                            SELECT_LEX_UNIT *u) {
+                            Query_expression *u) {
   unit = u;
 
   if (var_list.elements != CountVisibleFields(list)) {
@@ -704,7 +704,7 @@ bool Query_dumpvar::prepare(THD *, const mem_root_deque<Item *> &list,
   return false;
 }
 
-bool Query_dumpvar::check_simple_select() const {
+bool Query_dumpvar::check_simple_query_block() const {
   my_error(ER_SP_BAD_CURSOR_SELECT, MYF(0));
   return true;
 }

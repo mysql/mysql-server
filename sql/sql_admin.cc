@@ -551,7 +551,7 @@ static bool mysql_admin_table(
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   TABLE_LIST *table;
-  SELECT_LEX *select = thd->lex->select_lex;
+  Query_block *select = thd->lex->query_block;
   Item *item;
   Protocol *protocol = thd->get_protocol();
   LEX *lex = thd->lex;
@@ -1524,7 +1524,7 @@ bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
 }
 
 bool Sql_cmd_analyze_table::execute(THD *thd) {
-  TABLE_LIST *first_table = thd->lex->select_lex->get_table_list();
+  TABLE_LIST *first_table = thd->lex->query_block->get_table_list();
   bool res = true;
   thr_lock_type lock_type = TL_READ_NO_INSERT;
   DBUG_TRACE;
@@ -1555,7 +1555,7 @@ bool Sql_cmd_analyze_table::execute(THD *thd) {
     */
     res = write_bin_log(thd, true, thd->query().str, thd->query().length);
   }
-  thd->lex->select_lex->table_list.first = first_table;
+  thd->lex->query_block->table_list.first = first_table;
   thd->lex->query_tables = first_table;
 
 error:
@@ -1563,7 +1563,7 @@ error:
 }
 
 bool Sql_cmd_check_table::execute(THD *thd) {
-  TABLE_LIST *first_table = thd->lex->select_lex->get_table_list();
+  TABLE_LIST *first_table = thd->lex->query_block->get_table_list();
   thr_lock_type lock_type = TL_READ_NO_INSERT;
   bool res = true;
   DBUG_TRACE;
@@ -1576,7 +1576,7 @@ bool Sql_cmd_check_table::execute(THD *thd) {
                           lock_type, false, false, HA_OPEN_FOR_REPAIR, nullptr,
                           &handler::ha_check, 1, m_alter_info, true);
 
-  thd->lex->select_lex->table_list.first = first_table;
+  thd->lex->query_block->table_list.first = first_table;
   thd->lex->query_tables = first_table;
 
 error:
@@ -1584,7 +1584,7 @@ error:
 }
 
 bool Sql_cmd_optimize_table::execute(THD *thd) {
-  TABLE_LIST *first_table = thd->lex->select_lex->get_table_list();
+  TABLE_LIST *first_table = thd->lex->query_block->get_table_list();
   bool res = true;
   DBUG_TRACE;
 
@@ -1604,7 +1604,7 @@ bool Sql_cmd_optimize_table::execute(THD *thd) {
     */
     res = write_bin_log(thd, true, thd->query().str, thd->query().length);
   }
-  thd->lex->select_lex->table_list.first = first_table;
+  thd->lex->query_block->table_list.first = first_table;
   thd->lex->query_tables = first_table;
 
 error:
@@ -1612,7 +1612,7 @@ error:
 }
 
 bool Sql_cmd_repair_table::execute(THD *thd) {
-  TABLE_LIST *first_table = thd->lex->select_lex->get_table_list();
+  TABLE_LIST *first_table = thd->lex->query_block->get_table_list();
   bool res = true;
   DBUG_TRACE;
 
@@ -1632,7 +1632,7 @@ bool Sql_cmd_repair_table::execute(THD *thd) {
     */
     res = write_bin_log(thd, true, thd->query().str, thd->query().length);
   }
-  thd->lex->select_lex->table_list.first = first_table;
+  thd->lex->query_block->table_list.first = first_table;
   thd->lex->query_tables = first_table;
 
 error:

@@ -146,7 +146,7 @@ MYSQL_THD mysql_parser_open_session() {
 
   thd->security_context()->set_host_ptr(STRING_WITH_LEN(my_localhost));
   thd->lex = new LEX;
-  thd->lex->set_current_select(nullptr);
+  thd->lex->set_current_query_block(nullptr);
 
   thd->variables.character_set_client = old_thd->variables.character_set_client;
 

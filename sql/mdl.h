@@ -867,7 +867,7 @@ class MDL_request {
 
       - Sql_cmd_handler_open::execute()
       - mysql_execute_command()
-      - SELECT_LEX_UNIT::prepare()
+      - Query_expression::prepare()
       - fill_defined_view_parts()
 
       No new cases are expected.  In all other cases, so far only

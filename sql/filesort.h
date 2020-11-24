@@ -73,7 +73,7 @@ class Filesort {
   Sort_param m_sort_param;
 
   // TODO(sgunders): Change tables to a table_map; however, currently
-  // some semijoin tables are missing from select_lex->leaf_tables,
+  // some semijoin tables are missing from query_block->leaf_tables,
   // so we can't do that yet.
   Filesort(THD *thd, Mem_root_array<TABLE *> tables, bool keep_buffers,
            ORDER *order, ha_rows limit_arg, bool force_stable_sort,

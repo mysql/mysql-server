@@ -393,7 +393,7 @@ class ZeroRowsIterator final : public RowIterator {
   unique_ptr_destroy_only<RowIterator> m_child_iterator;
 };
 
-class SELECT_LEX;
+class Query_block;
 
 /**
   Like ZeroRowsIterator, but produces a single output row, since there are
@@ -499,7 +499,7 @@ class FollowTailIterator final : public TableRowIterator {
 
   The iterator is passed the field list of its parent JOIN object, which may
   contain Item_values_column objects that are created during
-  SELECT_LEX::prepare_values(). This is required so that Read() can replace the
+  Query_block::prepare_values(). This is required so that Read() can replace the
   currently selected row by simply changing the references of Item_values_column
   objects to the next row.
 

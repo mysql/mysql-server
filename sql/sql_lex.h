@@ -113,8 +113,8 @@ class Protocol;
 class Query_result;
 class Query_result_interceptor;
 class Query_result_union;
-class SELECT_LEX;
-class SELECT_LEX_UNIT;
+class Query_block;
+class Query_expression;
 class Select_lex_visitor;
 class Sql_cmd;
 class THD;
@@ -291,7 +291,7 @@ class Table_ident {
  public:
   LEX_CSTRING db;
   LEX_CSTRING table;
-  SELECT_LEX_UNIT *sel;
+  Query_expression *sel;
   Table_function *table_function;
 
   Table_ident(Protocol *protocol, const LEX_CSTRING &db_arg,
@@ -308,7 +308,7 @@ class Table_ident {
     Later, if there was an alias specified for the table, it will be set
     by add_table_to_list.
   */
-  Table_ident(SELECT_LEX_UNIT *s) : sel(s), table_function(nullptr) {
+  Table_ident(Query_expression *s) : sel(s), table_function(nullptr) {
     db = EMPTY_CSTR; /* a subject to casedn_str */
     table = EMPTY_CSTR;
   }
@@ -503,49 +503,49 @@ class Index_hint {
 };
 
 /*
-  Class SELECT_LEX_UNIT represents a query expression.
-  Class SELECT_LEX represents a query block.
+  Class Query_expression represents a query expression.
+  Class Query_block represents a query block.
   A query expression contains one or more query blocks (more than one means
   that we have a UNION query).
   These classes are connected as follows:
    Both classes have a master, a slave, a next and a prev field.
-   For class SELECT_LEX, master and slave connect to objects of type
-   SELECT_LEX_UNIT, whereas for class SELECT_LEX_UNIT, they connect
-   to SELECT_LEX.
+   For class Query_block, master and slave connect to objects of type
+   Query_expression, whereas for class Query_expression, they connect
+   to Query_block.
    master is pointer to outer node.
    slave is pointer to the first inner node
 
-   neighbors are two SELECT_LEX or SELECT_LEX_UNIT objects on
+   neighbors are two Query_block or Query_expression objects on
    the same level.
 
    The structures are linked with the following pointers:
    - list of neighbors (next/prev) (prev of first element point to slave
      pointer of outer structure)
-     - For SELECT_LEX, this is a list of query blocks.
-     - For SELECT_LEX_UNIT, this is a list of subqueries.
+     - For Query_block, this is a list of query blocks.
+     - For Query_expression, this is a list of subqueries.
 
    - pointer to outer node (master), which is
-     If this is SELECT_LEX_UNIT
-       - pointer to outer select_lex.
-     If this is SELECT_LEX
-       - pointer to outer SELECT_LEX_UNIT.
+     If this is Query_expression
+       - pointer to outer query_block.
+     If this is Query_block
+       - pointer to outer Query_expression.
 
    - pointer to inner objects (slave), which is either:
-     If this is an SELECT_LEX_UNIT:
+     If this is an Query_expression:
        - first query block that belong to this query expression.
-     If this is an SELECT_LEX
+     If this is an Query_block
        - first query expression that belong to this query block (subqueries).
 
-   - list of all SELECT_LEX objects (link_next/link_prev)
+   - list of all Query_block objects (link_next/link_prev)
      This is to be used for things like derived tables creation, where we
      go through this list and create the derived tables.
 
    If query expression contain several query blocks (UNION now,
-   INTERSECT etc later) then it has a special select_lex called
-   fake_select_lex. It used for storing global parameters (like ORDER BY,
+   INTERSECT etc later) then it has a special query_block called
+   fake_query_block. It used for storing global parameters (like ORDER BY,
    LIMIT) and executing union.
    Subqueries used in global ORDER BY clause will be attached to this
-   fake_select_lex, which will allow them to correctly resolve fields of
+   fake_query_block, which will allow them to correctly resolve fields of
    the containing UNION and outer selects.
 
    For example for following query:
@@ -600,7 +600,7 @@ class Index_hint {
    in the above picture)
 
          main unit
-         |^^^^|fake_select_lex
+         |^^^^|fake_query_block
          |||||+--------------------------------------------+
          ||||+--------------------------------------------+|
          |||+------------------------------+              ||
@@ -609,7 +609,7 @@ class Index_hint {
          V|      neighbor |       neighbor |        master|V
          select1<========>select2<========>select3        fake0
 
-    list of all select_lex will be following (as it will be constructed by
+    list of all query_block will be following (as it will be constructed by
     parser):
 
     select1->select2->select3->select2.1.1->select 2.1.2->select2.1.1.1.1-+
@@ -624,21 +624,21 @@ class Index_hint {
   This class represents a query expression (one query block or
   several query blocks combined with UNION).
 */
-class SELECT_LEX_UNIT {
+class Query_expression {
   /**
     Intrusive double-linked list of all query expressions
     immediately contained within the same query block.
   */
-  SELECT_LEX_UNIT *next;
-  SELECT_LEX_UNIT **prev;
+  Query_expression *next;
+  Query_expression **prev;
 
   /**
     The query block wherein this query expression is contained,
     NULL if the query block is the outer-most one.
   */
-  SELECT_LEX *master;
+  Query_block *master;
   /// The first query block in this query expression.
-  SELECT_LEX *slave;
+  Query_block *slave;
 
  private:
   /**
@@ -708,12 +708,12 @@ class SELECT_LEX_UNIT {
   */
   uint8 uncacheable;
 
-  explicit SELECT_LEX_UNIT(enum_parsing_context parsing_context);
+  explicit Query_expression(enum_parsing_context parsing_context);
 
   /// @return true for a query expression without UNION or multi-level ORDER
-  bool is_simple() const { return !(is_union() || fake_select_lex); }
+  bool is_simple() const { return !(is_union() || fake_query_block); }
 
-  /// Values for SELECT_LEX_UNIT::cleaned
+  /// Values for Query_expression::cleaned
   enum enum_clean_state {
     UC_DIRTY,       ///< Unit isn't cleaned
     UC_PART_CLEAN,  ///< Unit were cleaned, except JOIN and JOIN_TABs were
@@ -744,21 +744,21 @@ class SELECT_LEX_UNIT {
     Global parameters may include ORDER BY, LIMIT and OFFSET.
 
     If this is a union of multiple query blocks, the global parameters are
-    stored in fake_select_lex. If the union doesn't use a temporary table,
-    SELECT_LEX_UNIT::prepare() nulls out fake_select_lex, but saves a copy
-    in saved_fake_select_lex in order to preserve the global parameters.
+    stored in fake_query_block. If the union doesn't use a temporary table,
+    Query_expression::prepare() nulls out fake_query_block, but saves a copy
+    in saved_fake_query_block in order to preserve the global parameters.
 
     If this is not a union, and the query expression has no multi-level
     ORDER BY/LIMIT, global parameters are in the single query block.
 
     @return query block containing the global parameters
   */
-  inline SELECT_LEX *global_parameters() const {
-    if (fake_select_lex != nullptr)
-      return fake_select_lex;
-    else if (saved_fake_select_lex != nullptr)
-      return saved_fake_select_lex;
-    return first_select();
+  inline Query_block *global_parameters() const {
+    if (fake_query_block != nullptr)
+      return fake_query_block;
+    else if (saved_fake_query_block != nullptr)
+      return saved_fake_query_block;
+    return first_query_block();
   }
   /* LIMIT clause runtime counters */
   ha_rows select_limit_cnt, offset_limit_cnt;
@@ -768,19 +768,19 @@ class SELECT_LEX_UNIT {
     Helper query block for query expression with UNION or multi-level
     ORDER BY/LIMIT
   */
-  SELECT_LEX *fake_select_lex;
+  Query_block *fake_query_block;
   /**
-    SELECT_LEX that stores LIMIT and OFFSET for UNION ALL when no
-    fake_select_lex is used.
+    Query_block that stores LIMIT and OFFSET for UNION ALL when no
+    fake_query_block is used.
   */
-  SELECT_LEX *saved_fake_select_lex;
+  Query_block *saved_fake_query_block;
   /**
      Points to last query block which has UNION DISTINCT on its left.
      In a list of UNIONed blocks, UNION is left-associative; so UNION DISTINCT
      eliminates duplicates in all blocks up to the first one on its right
      included. Which is why we only need to remember that query block.
   */
-  SELECT_LEX *union_distinct;
+  Query_block *union_distinct;
 
   /**
     The WITH clause which is the first part of this query expression. NULL if
@@ -796,7 +796,7 @@ class SELECT_LEX_UNIT {
      First query block (in this UNION) which references the CTE.
      NULL if not the query expression of a recursive CTE.
   */
-  SELECT_LEX *first_recursive;
+  Query_block *first_recursive;
 
   /**
     If 'this' is body of lateral derived table:
@@ -830,13 +830,13 @@ class SELECT_LEX_UNIT {
   bool merge_heuristic(const LEX *lex) const;
 
   /// @return the query block this query expression belongs to as subquery
-  SELECT_LEX *outer_select() const { return master; }
+  Query_block *outer_query_block() const { return master; }
 
   /// @return the first query block inside this query expression
-  SELECT_LEX *first_select() const { return slave; }
+  Query_block *first_query_block() const { return slave; }
 
   /// @return the next query expression within same query block (next subquery)
-  SELECT_LEX_UNIT *next_unit() const { return next; }
+  Query_expression *next_query_expression() const { return next; }
 
   /// @return the query result object in use for this query expression
   Query_result *query_result() const { return m_query_result; }
@@ -942,8 +942,8 @@ class SELECT_LEX_UNIT {
   void print(const THD *thd, String *str, enum_query_type query_type);
   bool accept(Select_lex_visitor *visitor);
 
-  bool add_fake_select_lex(THD *thd);
-  bool prepare_fake_select_lex(THD *thd);
+  bool add_fake_query_block(THD *thd);
+  bool prepare_fake_query_block(THD *thd);
   void set_prepared() {
     DBUG_ASSERT(!is_prepared());
     prepared = true;
@@ -982,7 +982,7 @@ class SELECT_LEX_UNIT {
   bool is_executed() const { return executed; }
   bool change_query_result(THD *thd, Query_result_interceptor *result,
                            Query_result_interceptor *old_result);
-  bool set_limit(THD *thd, SELECT_LEX *provider);
+  bool set_limit(THD *thd, Query_block *provider);
 
   inline bool is_union() const;
   bool union_needs_tmp_table(LEX *lex);
@@ -990,9 +990,9 @@ class SELECT_LEX_UNIT {
   bool mixed_union_operators() const;
 
   /// Include a query expression below a query block.
-  void include_down(LEX *lex, SELECT_LEX *outer);
+  void include_down(LEX *lex, Query_block *outer);
 
-  /// Exclude this unit and immediately contained select_lex objects
+  /// Exclude this unit and immediately contained query_block objects
   void exclude_level();
 
   /// Exclude subtree of current unit from tree of SELECTs
@@ -1004,20 +1004,20 @@ class SELECT_LEX_UNIT {
   void restore_cmd_properties();
   bool save_cmd_properties(THD *thd);
 
-  friend class SELECT_LEX;
+  friend class Query_block;
 
   mem_root_deque<Item *> *get_unit_column_types();
   mem_root_deque<Item *> *get_field_list();
   size_t num_visible_fields() const;
 
-  // If we are doing a query with global LIMIT but without fake_select_lex,
+  // If we are doing a query with global LIMIT but without fake_query_block,
   // we need somewhere to store the record count for FOUND_ROWS().
   // It can't be in any of the JOINs, since they may have their own
   // LimitOffsetIterators, which will write to join->send_records
-  // whenever there is an OFFSET. (It also can't be in saved_fake_select_lex,
+  // whenever there is an OFFSET. (It also can't be in saved_fake_query_block,
   // which has no join.) Thus, we'll keep it here instead.
   //
-  // If we have a fake_select_lex, we use its send_records instead
+  // If we have a fake_query_block, we use its send_records instead
   // (since its LimitOffsetIterator will write there), and if we don't
   // have a UNION, FOUND_ROWS() refers to the (single) JOIN, and thus,
   // we use its send_records.
@@ -1025,7 +1025,7 @@ class SELECT_LEX_UNIT {
 
   enum_parsing_context get_explain_marker(const THD *thd) const;
   void set_explain_marker(THD *thd, enum_parsing_context m);
-  void set_explain_marker_from(THD *thd, const SELECT_LEX_UNIT *u);
+  void set_explain_marker_from(THD *thd, const Query_expression *u);
 
 #ifndef DBUG_OFF
   /**
@@ -1044,7 +1044,8 @@ class SELECT_LEX_UNIT {
 
   bool clear_correlated_query_blocks();
 
-  void fix_after_pullout(SELECT_LEX *parent_select, SELECT_LEX *removed_select);
+  void fix_after_pullout(Query_block *parent_query_block,
+                         Query_block *removed_query_block);
 
   /**
     If unit is a subquery, which forms an object of the upper level (an
@@ -1073,7 +1074,7 @@ typedef Bounds_checked_array<Item *> Ref_item_array;
 class Semijoin_decorrelation;
 
 /**
-  SELECT_LEX type enum
+  Query_block type enum
 */
 enum class enum_explain_type {
   EXPLAIN_NONE = 0,
@@ -1095,7 +1096,7 @@ enum class enum_explain_type {
   a query consisting of a SELECT keyword, followed by a table list,
   optionally followed by a WHERE clause, a GROUP BY, etc.
 */
-class SELECT_LEX {
+class Query_block {
  public:
   /**
     @note the group_by and order_by lists below will probably be added to the
@@ -1103,7 +1104,7 @@ class SELECT_LEX {
 
           //SQL_I_LIST<ORDER> *group_by, SQL_I_LIST<ORDER> order_by
   */
-  SELECT_LEX(MEM_ROOT *mem_root, Item *where, Item *having);
+  Query_block(MEM_ROOT *mem_root, Item *where, Item *having);
 
   Item *where_cond() const { return m_where_cond; }
   Item **where_cond_ref() { return &m_where_cond; }
@@ -1169,12 +1170,12 @@ class SELECT_LEX {
   table_map all_tables_map() const { return (1ULL << leaf_table_count) - 1; }
 
   void remove_derived(THD *thd, TABLE_LIST *tl);
-  bool remove_aggregates(THD *thd, SELECT_LEX *select);
+  bool remove_aggregates(THD *thd, Query_block *select);
 
-  SELECT_LEX_UNIT *master_unit() const { return master; }
-  SELECT_LEX_UNIT *first_inner_unit() const { return slave; }
-  SELECT_LEX *outer_select() const { return master->outer_select(); }
-  SELECT_LEX *next_select() const { return next; }
+  Query_expression *master_query_expression() const { return master; }
+  Query_expression *first_inner_query_expression() const { return slave; }
+  Query_block *outer_query_block() const { return master->outer_query_block(); }
+  Query_block *next_query_block() const { return next; }
 
   TABLE_LIST *find_table_by_name(const Table_ident *ident);
 
@@ -1190,16 +1191,16 @@ class SELECT_LEX {
     return straight_join || (active_options() & SELECT_STRAIGHT_JOIN);
   }
 
-  SELECT_LEX *last_select() {
-    SELECT_LEX *mylast = this;
-    for (; mylast->next_select(); mylast = mylast->next_select()) {
+  Query_block *last_query_block() {
+    Query_block *mylast = this;
+    for (; mylast->next_query_block(); mylast = mylast->next_query_block()) {
     }
     return mylast;
   }
 
-  SELECT_LEX *next_select_in_list() const { return link_next; }
+  Query_block *next_select_in_list() const { return link_next; }
 
-  void mark_as_dependent(SELECT_LEX *last, bool aggregate);
+  void mark_as_dependent(Query_block *last, bool aggregate);
 
   /// @return true if query block is explicitly grouped (non-empty GROUP BY)
   bool is_explicitly_grouped() const { return group_list.elements > 0; }
@@ -1356,7 +1357,7 @@ class SELECT_LEX {
   void propagate_unique_test_exclusion();
 
   /// Merge name resolution context objects of a subquery into its parent
-  void merge_contexts(SELECT_LEX *inner);
+  void merge_contexts(Query_block *inner);
 
   /// Merge derived table into query block
   bool merge_derived(THD *thd, TABLE_LIST *derived_table);
@@ -1427,9 +1428,9 @@ class SELECT_LEX {
   }
   /*
     This method created for reiniting LEX in mysql_admin_table() and can be
-    used only if you are going remove all SELECT_LEX & units except belonger
+    used only if you are going remove all Query_block & units except belonger
     to LEX (LEX::unit & LEX::select, for other purposes use
-    SELECT_LEX_UNIT::exclude_level()
+    Query_expression::exclude_level()
   */
   void cut_subtree() { slave = nullptr; }
   bool test_limit();
@@ -1440,7 +1441,7 @@ class SELECT_LEX {
 
     @return Number of rows to skip.
 
-    @todo Integrate better with SELECT_LEX_UNIT::set_limit()
+    @todo Integrate better with Query_expression::set_limit()
   */
   ha_rows get_offset(THD *thd);
   /**
@@ -1450,7 +1451,7 @@ class SELECT_LEX {
 
    @return Limit of rows in result.
 
-   @todo Integrate better with SELECT_LEX_UNIT::set_limit()
+   @todo Integrate better with Query_expression::set_limit()
   */
   ha_rows get_limit(THD *thd);
 
@@ -1462,13 +1463,14 @@ class SELECT_LEX {
   void print(const THD *thd, String *str, enum_query_type query_type);
 
   /**
-    Print detail of the SELECT_LEX object.
+    Print detail of the Query_block object.
 
     @param      thd          Thread handler
     @param      query_type   Options to print out string output
     @param[out] str          String of output.
   */
-  void print_select(const THD *thd, String *str, enum_query_type query_type);
+  void print_query_block(const THD *thd, String *str,
+                         enum_query_type query_type);
 
   /**
     Print detail of the UPDATE statement.
@@ -1558,7 +1560,7 @@ class SELECT_LEX {
                               enum_query_type query_type);
 
   /**
-    Print list of items in SELECT_LEX object.
+    Print list of items in Query_block object.
 
     @param      thd          Thread handle
     @param[out] str          String of output
@@ -1674,8 +1676,8 @@ class SELECT_LEX {
   bool accept(Select_lex_visitor *visitor);
 
   /**
-    Cleanup this subtree (this SELECT_LEX and all nested SELECT_LEXes and
-    SELECT_LEX_UNITs).
+    Cleanup this subtree (this Query_block and all nested Query_blockes and
+    Query_expressions).
     @param thd   thread handle
     @param full  if false only partial cleanup is done, JOINs and JOIN_TABs are
     kept to provide info for EXPLAIN CONNECTION; if true, complete cleanup is
@@ -1694,7 +1696,9 @@ class SELECT_LEX {
   void destroy();
 
   /// Return true if this query block is part of a UNION
-  bool is_part_of_union() const { return master_unit()->is_union(); }
+  bool is_part_of_union() const {
+    return master_query_expression()->is_union();
+  }
 
   /**
     @return true if query block is found during preparation to produce no data.
@@ -1724,7 +1728,7 @@ class SELECT_LEX {
   bool right_joins() const { return m_right_joins; }
   void set_right_joins() { m_right_joins = true; }
 
-  /// Lookup for SELECT_LEX type
+  /// Lookup for Query_block type
   enum_explain_type type();
 
   /// Lookup for a type string
@@ -1743,19 +1747,19 @@ class SELECT_LEX {
   }
 
   /// Include query block inside a query expression.
-  void include_down(LEX *lex, SELECT_LEX_UNIT *outer);
+  void include_down(LEX *lex, Query_expression *outer);
 
   /// Include a query block next to another query block.
-  void include_neighbour(LEX *lex, SELECT_LEX *before);
+  void include_neighbour(LEX *lex, Query_block *before);
 
   /// Include query block inside a query expression, but do not link.
-  void include_standalone(SELECT_LEX_UNIT *sel, SELECT_LEX **ref);
+  void include_standalone(Query_expression *sel, Query_block **ref);
 
   /// Include query block into global list.
-  void include_in_global(SELECT_LEX **plink);
+  void include_in_global(Query_block **plink);
 
   /// Include chain of query blocks into global list.
-  void include_chain_in_global(SELECT_LEX **start);
+  void include_chain_in_global(Query_block **start);
 
   /// Renumber query blocks of contained query expressions
   void renumber(LEX *lex);
@@ -1839,7 +1843,7 @@ class SELECT_LEX {
 
   /**
     Usually a pointer to ftfunc_list_alloc, but in UNION this is used to create
-    fake select_lex that consolidates result fields of UNION
+    fake query_block that consolidates result fields of UNION
   */
   List<Item_func_match> *ftfunc_list;
   List<Item_func_match> ftfunc_list_alloc{};
@@ -2006,7 +2010,7 @@ class SELECT_LEX {
   /**
     Number of Item_sum-derived objects in this SELECT. Keeps count of
     aggregate functions and window functions(to allocate items in ref array).
-    See SELECT_LEX::setup_base_ref_items.
+    See Query_block::setup_base_ref_items.
   */
   uint n_sum_items{0};
   /// Number of Item_sum-derived objects in children and descendant SELECTs
@@ -2128,7 +2132,7 @@ class SELECT_LEX {
   uint hidden_items_from_optimization{0};
 
  private:
-  friend class SELECT_LEX_UNIT;
+  friend class Query_expression;
   friend class Condition_context;
 
   /// Helper for save_properties()
@@ -2143,17 +2147,17 @@ class SELECT_LEX {
   void clear_sj_expressions(NESTED_JOIN *nested_join);
   ///  Build semijoin condition for th query block
   bool build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
-                     SELECT_LEX *subq_select, table_map outer_tables_map,
+                     Query_block *subq_query_block, table_map outer_tables_map,
                      Item **sj_cond);
   bool decorrelate_condition(Semijoin_decorrelation &sj_decor,
                              TABLE_LIST *join_nest);
 
   bool convert_subquery_to_semijoin(THD *thd, Item_exists_subselect *subq_pred);
-  TABLE_LIST *synthesize_derived(THD *thd, SELECT_LEX_UNIT *unit,
+  TABLE_LIST *synthesize_derived(THD *thd, Query_expression *unit,
                                  Item *join_cond, bool left_outer,
                                  bool use_inner_join);
   bool transform_subquery_to_derived(THD *thd, TABLE_LIST **out_tl,
-                                     SELECT_LEX_UNIT *subs_unit,
+                                     Query_expression *subs_query_expression,
                                      Item_subselect *subq, bool use_inner_join,
                                      bool reject_multiple_rows,
                                      Item *join_condition);
@@ -2168,11 +2172,12 @@ class SELECT_LEX {
   bool setup_wild(THD *thd);
   bool setup_order_final(THD *thd);
   bool setup_group(THD *thd);
-  void fix_after_pullout(SELECT_LEX *parent_select, SELECT_LEX *removed_select);
+  void fix_after_pullout(Query_block *parent_query_block,
+                         Query_block *removed_query_block);
   void remove_redundant_subquery_clauses(THD *thd,
                                          int hidden_group_field_count);
   void repoint_contexts_of_join_nests(mem_root_deque<TABLE_LIST *> join_list);
-  void empty_order_list(SELECT_LEX *sl);
+  void empty_order_list(Query_block *sl);
   bool setup_join_cond(THD *thd, mem_root_deque<TABLE_LIST *> *tables,
                        bool in_update);
   bool find_common_table_expr(THD *thd, Table_ident *table_id, TABLE_LIST *tl,
@@ -2244,17 +2249,17 @@ class SELECT_LEX {
     Intrusive double-linked list of all query blocks within the same
     query expression.
   */
-  SELECT_LEX *next{nullptr};
-  SELECT_LEX **prev{nullptr};
+  Query_block *next{nullptr};
+  Query_block **prev{nullptr};
 
   /// The query expression containing this query block.
-  SELECT_LEX_UNIT *master{nullptr};
+  Query_expression *master{nullptr};
   /// The first query expression contained within this query block.
-  SELECT_LEX_UNIT *slave{nullptr};
+  Query_expression *slave{nullptr};
 
   /// Intrusive double-linked global list of query blocks.
-  SELECT_LEX *link_next{nullptr};
-  SELECT_LEX **link_prev{nullptr};
+  Query_block *link_next{nullptr};
+  Query_block **link_prev{nullptr};
 
   /// Result of this query block
   Query_result *m_query_result{nullptr};
@@ -2277,9 +2282,9 @@ class SELECT_LEX {
   /**
     Condition to be evaluated after all tables in a query block are joined.
     After all permanent transformations have been conducted by
-    SELECT_LEX::prepare(), this condition is "frozen", any subsequent changes
+    Query_block::prepare(), this condition is "frozen", any subsequent changes
     to it must be done with change_item_tree(), unless they only modify AND/OR
-    items and use a copy created by SELECT_LEX::get_optimizable_conditions().
+    items and use a copy created by Query_block::get_optimizable_conditions().
     Same is true for 'having_cond'.
   */
   Item *m_where_cond;
@@ -2315,17 +2320,18 @@ class SELECT_LEX {
       *type_str[static_cast<int>(enum_explain_type::EXPLAIN_total)];
 };
 
-inline bool SELECT_LEX_UNIT::is_union() const {
-  return first_select()->next_select() &&
-         first_select()->next_select()->linkage == UNION_TYPE;
+inline bool Query_expression::is_union() const {
+  return first_query_block()->next_query_block() &&
+         first_query_block()->next_query_block()->linkage == UNION_TYPE;
 }
 
 /// Utility RAII class to save/modify/restore the condition_context information
 /// of a query block. @see enum_condition_context.
 class Condition_context {
  public:
-  Condition_context(SELECT_LEX *select_ptr, enum_condition_context new_type =
-                                                enum_condition_context::NEITHER)
+  Condition_context(
+      Query_block *select_ptr,
+      enum_condition_context new_type = enum_condition_context::NEITHER)
       : select(nullptr), saved_value() {
     if (select_ptr) {
       select = select_ptr;
@@ -2342,7 +2348,7 @@ class Condition_context {
   }
 
  private:
-  SELECT_LEX *select;
+  Query_block *select;
   enum_condition_context saved_value;
 };
 
@@ -3622,27 +3628,29 @@ class LEX_GRANT_AS {
 struct LEX : public Query_tables_list {
   friend bool lex_start(THD *thd);
 
-  SELECT_LEX_UNIT *unit;  ///< Outer-most query expression
-  /// @todo: select_lex can be replaced with unit->first-select()
-  SELECT_LEX *select_lex;        ///< First query block
-  SELECT_LEX *all_selects_list;  ///< List of all query blocks
+  Query_expression *unit;  ///< Outer-most query expression
+  /// @todo: query_block can be replaced with unit->first-select()
+  Query_block *query_block;            ///< First query block
+  Query_block *all_query_blocks_list;  ///< List of all query blocks
  private:
-  /* current SELECT_LEX in parsing */
-  SELECT_LEX *m_current_select;
+  /* current Query_block in parsing */
+  Query_block *m_current_query_block;
 
  public:
-  inline SELECT_LEX *current_select() const { return m_current_select; }
+  inline Query_block *current_query_block() const {
+    return m_current_query_block;
+  }
 
   /*
     We want to keep current_thd out of header files, so the debug assert
     is moved to the .cc file.
   */
-  void assert_ok_set_current_select();
-  inline void set_current_select(SELECT_LEX *select) {
+  void assert_ok_set_current_query_block();
+  inline void set_current_query_block(Query_block *select) {
 #ifndef DBUG_OFF
-    assert_ok_set_current_select();
+    assert_ok_set_current_query_block();
 #endif
-    m_current_select = select;
+    m_current_query_block = select;
   }
   /// @return true if this is an EXPLAIN statement
   bool is_explain() const { return explain_format != nullptr; }
@@ -3686,7 +3694,7 @@ struct LEX : public Query_tables_list {
   TABLE_LIST *insert_table_leaf;
 
   /** SELECT of CREATE VIEW statement */
-  LEX_STRING create_view_select;
+  LEX_STRING create_view_query_block;
 
   /* Partition info structure filled in by PARTITION BY parse part */
   partition_info *part_info;
@@ -3919,15 +3927,15 @@ struct LEX : public Query_tables_list {
   sp_pcontext *sp_current_parsing_ctx;
 
   /**
-    Statement context for SELECT_LEX::make_active_options.
+    Statement context for Query_block::make_active_options.
   */
   ulonglong m_statement_options{0};
 
  public:
   /**
     Gets the options that have been set for this statement. The options are
-    propagated to the SELECT_LEX objects and should usually be read with
-    #SELECT_LEX::active_options().
+    propagated to the Query_block objects and should usually be read with
+    #Query_block::active_options().
 
     @return a bit set of options set for this statement
   */
@@ -3978,7 +3986,7 @@ struct LEX : public Query_tables_list {
   /**
     Check whether the statement has been executed (regardless of completion -
     successful or in error).
-    Check this instead of SELECT_LEX_UNIT::is_executed() to determine
+    Check this instead of Query_expression::is_executed() to determine
     the state of a complete statement.
   */
   bool is_exec_completed() const { return m_exec_completed; }
@@ -4060,9 +4068,9 @@ struct LEX : public Query_tables_list {
     if (unit == nullptr) return;
     unit->destroy();
     unit = nullptr;
-    select_lex = nullptr;
-    all_selects_list = nullptr;
-    m_current_select = nullptr;
+    query_block = nullptr;
+    all_query_blocks_list = nullptr;
+    m_current_query_block = nullptr;
     destroy_values_map();
   }
 
@@ -4070,38 +4078,38 @@ struct LEX : public Query_tables_list {
   void reset();
 
   /// Create an empty query block within this LEX object.
-  SELECT_LEX *new_empty_query_block();
+  Query_block *new_empty_query_block();
 
   /// Create query expression object that contains one query block.
-  SELECT_LEX *new_query(SELECT_LEX *curr_select);
+  Query_block *new_query(Query_block *curr_query_block);
 
   /// Create query block and attach it to the current query expression.
-  SELECT_LEX *new_union_query(SELECT_LEX *curr_select, bool distinct);
+  Query_block *new_union_query(Query_block *curr_query_block, bool distinct);
 
   /// Create top-level query expression and query block.
   bool new_top_level_query();
 
   /// Create query expression and query block in existing memory objects.
-  void new_static_query(SELECT_LEX_UNIT *sel_unit, SELECT_LEX *select);
+  void new_static_query(Query_expression *sel_query_expression,
+                        Query_block *select);
 
-  /// Create query expression under current_select and a query block under the
-  /// new query expression. The new query expression is linked in under
-  /// current_select. The new query block is linked in under the new
+  /// Create query expression under current_query_block and a query block under
+  /// the new query expression. The new query expression is linked in under
+  /// current_query_block. The new query block is linked in under the new
   /// query expression.
   ///
   /// @param thd            current session context
-  /// @param current_select the root under which we create the new expression
+  /// @param current_query_block the root under which we create the new
+  /// expression
   ///                       and block
   /// @param where_clause   any where clause for the block
   /// @param having_clause  any having clause for the block
   /// @param ctx            the parsing context
   ///
   /// @returns              the new query expression, or nullptr on error.
-  SELECT_LEX_UNIT *create_query_expr_and_block(THD *thd,
-                                               SELECT_LEX *current_select,
-                                               Item *where_clause,
-                                               Item *having_clause,
-                                               enum_parsing_context ctx);
+  Query_expression *create_query_expr_and_block(
+      THD *thd, Query_block *current_query_block, Item *where_clause,
+      Item *having_clause, enum_parsing_context ctx);
 
   inline bool is_ps_or_view_context_analysis() {
     return (context_analysis_only &
@@ -4117,7 +4125,7 @@ struct LEX : public Query_tables_list {
   /**
     Set the current query as uncacheable.
 
-    @param curr_select Current select query block
+    @param curr_query_block Current select query block
     @param cause       Why this query is uncacheable.
 
     @details
@@ -4125,14 +4133,14 @@ struct LEX : public Query_tables_list {
     the outer-most one, but excluding the main query block, are also set
     as uncacheable.
   */
-  void set_uncacheable(SELECT_LEX *curr_select, uint8 cause) {
+  void set_uncacheable(Query_block *curr_query_block, uint8 cause) {
     safe_to_cache_query = false;
 
-    if (m_current_select == nullptr) return;
-    SELECT_LEX *sl;
-    SELECT_LEX_UNIT *un;
-    for (sl = curr_select, un = sl->master_unit(); un != unit;
-         sl = sl->outer_select(), un = sl->master_unit()) {
+    if (m_current_query_block == nullptr) return;
+    Query_block *sl;
+    Query_expression *un;
+    for (sl = curr_query_block, un = sl->master_query_expression(); un != unit;
+         sl = sl->outer_query_block(), un = sl->master_query_expression()) {
       sl->uncacheable |= cause;
       un->uncacheable |= cause;
     }
@@ -4212,12 +4220,12 @@ struct LEX : public Query_tables_list {
   bool is_single_level_stmt() {
     /*
       This check exploits the fact that the last added to all_select_list is
-      on its top. So select_lex (as the first added) will be at the tail
+      on its top. So query_block (as the first added) will be at the tail
       of the list.
     */
-    if (select_lex == all_selects_list &&
+    if (query_block == all_query_blocks_list &&
         (sroutines == nullptr || sroutines->empty())) {
-      DBUG_ASSERT(!all_selects_list->next_select_in_list());
+      DBUG_ASSERT(!all_query_blocks_list->next_select_in_list());
       return true;
     }
     return false;
@@ -4358,7 +4366,7 @@ class Yacc_state {
     table_wild_one rules.
     Statements which use these rules but require lock type different
     from one specified by this member have to override it by using
-    SELECT_LEX::set_lock_for_tables() method.
+    Query_block::set_lock_for_tables() method.
 
     The default value of this member is TL_READ_DEFAULT. The only two
     cases in which we change it are:
@@ -4583,7 +4591,7 @@ bool accept_for_order(SQL_I_List<ORDER> orders, Select_lex_visitor *visitor);
 bool accept_table(TABLE_LIST *t, Select_lex_visitor *visitor);
 bool accept_for_join(mem_root_deque<TABLE_LIST *> *tables,
                      Select_lex_visitor *visitor);
-TABLE_LIST *nest_join(THD *thd, SELECT_LEX *select, TABLE_LIST *embedding,
+TABLE_LIST *nest_join(THD *thd, Query_block *select, TABLE_LIST *embedding,
                       mem_root_deque<TABLE_LIST *> *jlist, size_t table_cnt,
                       const char *legend);
 #endif /* SQL_LEX_INCLUDED */

@@ -125,14 +125,14 @@ class Sql_cmd_dml : public Sql_cmd {
     is later used during checking of column privileges.
     Note that at preparation time, views are not expanded yet. Privilege
     checking is thus rudimentary and must be complemented with later calls to
-    SELECT_LEX::check_view_privileges().
+    Query_block::check_view_privileges().
     The reason to call this function at such an early stage is to be able to
     quickly reject statements for which the user obviously has insufficient
     privileges.
     This function is called before preparing the statement.
     The function must also be complemented with proper privilege checks for all
     involved columns (e.g. check_column_grant_*).
-    @see also the function comment of SELECT_LEX::prepare().
+    @see also the function comment of Query_block::prepare().
     During execution of a prepared statement, call check_privileges() instead.
 
     @param thd thread handler

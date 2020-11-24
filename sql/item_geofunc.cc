@@ -5086,10 +5086,11 @@ enum class ConvertUnitResult {
 /// ConvertUnit converts length to from the unit used in srs, to the unit in
 /// to_uint read as a string.
 ///
-///  Srs's linear unit is used to ocnvert back to meters and to_unit is used to
-///  find the conversion factor from meters to the wanted unit.
+///  Srs's linear unit is used to ocnvert back to meters and to_query_expression
+///  is used to find the conversion factor from meters to the wanted unit.
 ///
-///  @param[in] to_unit An item treated as the name of the unit we want to
+///  @param[in] to_query_expression An item treated as the name of the unit we
+///  want to
 /// convert to.
 ///  @param[in] srs The spatial reference system the length is assumed to come
 /// from.
@@ -5098,17 +5099,18 @@ enum class ConvertUnitResult {
 ///
 ///  @retval kError An error has occurred, this could be overflows, unsupported
 /// units, srs without unit (SRID 0), conversion errors.
-///  @retval kNull The result is sql null, because the to_unit was null.
+///  @retval kNull The result is sql null, because the to_query_expression was
+///  null.
 ///  @retval kOk Success.
 ///
 ///
-static ConvertUnitResult ConvertUnit(Item *to_unit,
+static ConvertUnitResult ConvertUnit(Item *to_query_expression,
                                      const dd::Spatial_reference_system *srs,
                                      const char *function_name,
                                      double *length) {
   String buffer;
-  String *unit = to_unit->val_str(&buffer);
-  if (!to_unit->null_value) {
+  String *unit = to_query_expression->val_str(&buffer);
+  if (!to_query_expression->null_value) {
     double conversion_factor = 0.0;
 
     uint convert_errors = 0;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 class Item;
 class String;
 class THD;
-class SELECT_LEX;
+class Query_block;
 class Table_ident;
 struct YYLTYPE;
 typedef YYLTYPE POS;
@@ -59,11 +59,11 @@ namespace info_schema {
   @param wild - The value of LIKE clause.
   @param where_cond - @<where_clause@> clause provided by user.
 
-  @returns pointer to SELECT_LEX on success, NULL otherwise.
+  @returns pointer to Query_block on success, NULL otherwise.
 */
-SELECT_LEX *build_show_character_set_query(const POS &pos, THD *thd,
-                                           const String *wild,
-                                           Item *where_cond);
+Query_block *build_show_character_set_query(const POS &pos, THD *thd,
+                                            const String *wild,
+                                            Item *where_cond);
 
 /**
   Build a substitute query for SHOW COLLATION.
@@ -92,10 +92,10 @@ SELECT_LEX *build_show_character_set_query(const POS &pos, THD *thd,
   @param wild - The value of LIKE clause.
   @param where_cond - @<where_clause@> clause provided by user.
 
-  @returns pointer to SELECT_LEX on success, NULL otherwise.
+  @returns pointer to Query_block on success, NULL otherwise.
 */
-SELECT_LEX *build_show_collation_query(const POS &pos, THD *thd,
-                                       const String *wild, Item *where_cond);
+Query_block *build_show_collation_query(const POS &pos, THD *thd,
+                                        const String *wild, Item *where_cond);
 
 /**
   Build a substitute query for SHOW DATABASES.
@@ -119,10 +119,10 @@ SELECT_LEX *build_show_collation_query(const POS &pos, THD *thd,
   @param wild - The value of LIKE clause.
   @param where_cond - @<where_clause@> clause provided by user.
 
-  @returns pointer to SELECT_LEX on success, NULL otherwise.
+  @returns pointer to Query_block on success, NULL otherwise.
 */
-SELECT_LEX *build_show_databases_query(const POS &pos, THD *thd, String *wild,
-                                       Item *where_cond);
+Query_block *build_show_databases_query(const POS &pos, THD *thd, String *wild,
+                                        Item *where_cond);
 
 /**
   Build a substitute query for SHOW TABLES / TABLE STATUS.
@@ -198,11 +198,11 @@ SELECT_LEX *build_show_databases_query(const POS &pos, THD *thd, String *wild,
   @param where_cond - @<where_clause@> clause provided by user.
   @param include_status_fields - If we are handling SHOW TABLE STATUS
 
-  @returns pointer to SELECT_LEX on success, NULL otherwise.
+  @returns pointer to Query_block on success, NULL otherwise.
 */
-SELECT_LEX *build_show_tables_query(const POS &pos, THD *thd, String *wild,
-                                    Item *where_cond,
-                                    bool include_status_fields);
+Query_block *build_show_tables_query(const POS &pos, THD *thd, String *wild,
+                                     Item *where_cond,
+                                     bool include_status_fields);
 
 /**
   Build a substitute query for SHOW COLUMNS/FIELDS OR DESCRIBE.
@@ -259,11 +259,11 @@ SELECT_LEX *build_show_tables_query(const POS &pos, THD *thd, String *wild,
   @param wild - The value of LIKE clause.
   @param where_cond - @<where_clause@> clause provided by user.
 
-  @returns pointer to SELECT_LEX on success, NULL otherwise.
+  @returns pointer to Query_block on success, NULL otherwise.
 */
-SELECT_LEX *build_show_columns_query(const POS &pos, THD *thd,
-                                     Table_ident *table_ident,
-                                     const String *wild, Item *where_cond);
+Query_block *build_show_columns_query(const POS &pos, THD *thd,
+                                      Table_ident *table_ident,
+                                      const String *wild, Item *where_cond);
 
 /**
   Build a substitute query for SHOW INDEX|KEYS|INDEXES
@@ -325,10 +325,10 @@ SELECT_LEX *build_show_columns_query(const POS &pos, THD *thd,
   @param table_ident  - Database and Table name of table being used.
   @param where_cond - @<where_clause@> clause provided by user.
 
-  @returns pointer to SELECT_LEX on success, NULL otherwise.
+  @returns pointer to Query_block on success, NULL otherwise.
 */
-SELECT_LEX *build_show_keys_query(const POS &pos, THD *thd,
-                                  Table_ident *table_ident, Item *where_cond);
+Query_block *build_show_keys_query(const POS &pos, THD *thd,
+                                   Table_ident *table_ident, Item *where_cond);
 
 /**
   Build a substitute query for SHOW TRIGGERS
@@ -381,10 +381,10 @@ SELECT_LEX *build_show_keys_query(const POS &pos, THD *thd,
   @param wild - The value of LIKE clause.
   @param where_cond - @<where_clause@> clause provided by user.
 
-  @returns pointer to SELECT_LEX on success, NULL otherwise.
+  @returns pointer to Query_block on success, NULL otherwise.
 */
-SELECT_LEX *build_show_triggers_query(const POS &pos, THD *thd, String *wild,
-                                      Item *where_cond);
+Query_block *build_show_triggers_query(const POS &pos, THD *thd, String *wild,
+                                       Item *where_cond);
 
 /**
   Build a substitute query for SHOW PROCEDURE/FUNCTION STATUS
@@ -435,10 +435,10 @@ SELECT_LEX *build_show_triggers_query(const POS &pos, THD *thd, String *wild,
   @param wild - The value of LIKE clause.
   @param where_cond - @<where_clause@> clause provided by user.
 
-  @returns pointer to SELECT_LEX on success, NULL otherwise.
+  @returns pointer to Query_block on success, NULL otherwise.
 */
-SELECT_LEX *build_show_procedures_query(const POS &pos, THD *thd, String *wild,
-                                        Item *where_cond);
+Query_block *build_show_procedures_query(const POS &pos, THD *thd, String *wild,
+                                         Item *where_cond);
 
 /**
   Build a substitute query for SHOW EVENTS
@@ -497,10 +497,10 @@ SELECT_LEX *build_show_procedures_query(const POS &pos, THD *thd, String *wild,
   @param wild - The value of LIKE clause.
   @param where_cond - @<where_clause@> clause provided by user.
 
-  @returns pointer to SELECT_LEX on success, NULL otherwise.
+  @returns pointer to Query_block on success, NULL otherwise.
 */
-SELECT_LEX *build_show_events_query(const POS &pos, THD *thd, String *wild,
-                                    Item *where_cond);
+Query_block *build_show_events_query(const POS &pos, THD *thd, String *wild,
+                                     Item *where_cond);
 
 }  // namespace info_schema
 }  // namespace dd

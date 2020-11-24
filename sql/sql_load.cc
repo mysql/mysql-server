@@ -195,7 +195,7 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
   const String *escaped = m_exchange.field.escaped;
   const String *enclosed = m_exchange.field.enclosed;
   bool is_fifo = false;
-  SELECT_LEX *select = thd->lex->select_lex;
+  Query_block *select = thd->lex->query_block;
   LOAD_FILE_INFO lf_info;
   THD::killed_state killed_status = THD::NOT_KILLED;
   bool is_concurrent;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@
 
 #include "sql/item.h"  // Item
 #include "sql/parse_tree_nodes.h"
-#include "sql/sql_lex.h"     // SELECT_LEX
+#include "sql/sql_lex.h"     // Query_block
 #include "sql/window_lex.h"  // WBT_VALUE_FOLLOWING
 
 bool PT_window::contextualize(Parse_context *pc) {
@@ -66,7 +66,7 @@ bool PT_window_list::contextualize(Parse_context *pc) {
     w->set_def_pos(++count);
   }
 
-  SELECT_LEX *select = pc->select;
+  Query_block *select = pc->select;
   select->m_windows.prepend(&m_windows);
 
   return false;

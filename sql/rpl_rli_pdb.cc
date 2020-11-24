@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1686,7 +1686,7 @@ int Slave_worker::slave_worker_exec_event(Log_event *ev) {
 
   thd->server_id = ev->server_id;
   thd->set_time();
-  thd->lex->set_current_select(nullptr);
+  thd->lex->set_current_query_block(nullptr);
   if (!ev->common_header->when.tv_sec)
     ev->common_header->when.tv_sec = static_cast<long>(my_time(0));
   ev->thd = thd;  // todo: assert because up to this point, ev->thd == 0

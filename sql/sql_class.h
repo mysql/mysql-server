@@ -1067,9 +1067,9 @@ class THD : public MDL_context_owner,
     this mutex:
       THD::Query_plan
       Modification_plan
-      SELECT_LEX::join
+      Query_block::join
       JOIN::plan_state
-      Tree of SELECT_LEX_UNIT after THD::Query_plan was set till
+      Tree of Query_expression after THD::Query_plan was set till
         THD::Query_plan cleanup
       JOIN_TAB::select->quick
     Code that changes objects above should take this mutex.

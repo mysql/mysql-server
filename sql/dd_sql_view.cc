@@ -467,7 +467,7 @@ static bool open_views_and_update_metadata(
     */
     uint counter = 0;
     DML_prelocking_strategy prelocking_strategy;
-    view->select_lex = thd->lex->select_lex;
+    view->query_block = thd->lex->query_block;
     /*
       open_tables() will normally switch the current memory allocation context
       from the execution context to the prepared statement context, if
@@ -549,7 +549,7 @@ static bool open_views_and_update_metadata(
 
     if (thd->lex->unit->is_mergeable() &&
         view->algorithm != VIEW_ALGORITHM_TEMPTABLE) {
-      for (ORDER *order = thd->lex->select_lex->order_list.first; order;
+      for (ORDER *order = thd->lex->query_block->order_list.first; order;
            order = order->next)
         order->used_alias = false;  /// @see Item::print_for_order()
     }

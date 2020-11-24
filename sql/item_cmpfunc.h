@@ -61,7 +61,7 @@ class Item_sum_hybrid;
 class Json_scalar_holder;
 class Json_wrapper;
 class PT_item_list;
-class SELECT_LEX;
+class Query_block;
 class THD;
 struct CHARSET_INFO;
 struct MY_BITMAP;
@@ -492,8 +492,8 @@ class Item_in_optimizer final : public Item_bool_func {
   }
   bool fix_fields(THD *, Item **) override;
   bool fix_left(THD *thd, Item **ref);
-  void fix_after_pullout(SELECT_LEX *parent_select,
-                         SELECT_LEX *removed_select) override;
+  void fix_after_pullout(Query_block *parent_query_block,
+                         Query_block *removed_query_block) override;
   bool is_null() override;
   longlong val_int() override;
   void cleanup() override;
@@ -1232,8 +1232,8 @@ class Item_func_between final : public Item_func_opt_neg {
   enum Functype functype() const override { return BETWEEN; }
   const char *func_name() const override { return "between"; }
   bool fix_fields(THD *, Item **) override;
-  void fix_after_pullout(SELECT_LEX *parent_select,
-                         SELECT_LEX *removed_select) override;
+  void fix_after_pullout(Query_block *parent_query_block,
+                         Query_block *removed_query_block) override;
   bool resolve_type(THD *) override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
@@ -1414,8 +1414,8 @@ class Item_func_if final : public Item_func {
   }
   bool resolve_type(THD *thd) override;
   bool resolve_type_inner(THD *thd) override;
-  void fix_after_pullout(SELECT_LEX *parent_select,
-                         SELECT_LEX *removed_select) override;
+  void fix_after_pullout(Query_block *parent_query_block,
+                         Query_block *removed_query_block) override;
   uint decimal_precision() const override;
   const char *func_name() const override { return "if"; }
   enum Functype functype() const override { return IF_FUNC; }
@@ -1986,8 +1986,8 @@ class Item_func_in final : public Item_func_opt_neg {
   ~Item_func_in() override;
   longlong val_int() override;
   bool fix_fields(THD *, Item **) override;
-  void fix_after_pullout(SELECT_LEX *parent_select,
-                         SELECT_LEX *removed_select) override;
+  void fix_after_pullout(Query_block *parent_query_block,
+                         Query_block *removed_query_block) override;
   bool resolve_type(THD *) override;
   void update_used_tables() override;
   uint decimal_precision() const override { return 1; }
@@ -2326,8 +2326,8 @@ class Item_cond : public Item_bool_func {
   bool itemize(Parse_context *pc, Item **res) override;
 
   bool fix_fields(THD *, Item **ref) override;
-  void fix_after_pullout(SELECT_LEX *parent_select,
-                         SELECT_LEX *removed_select) override;
+  void fix_after_pullout(Query_block *parent_query_block,
+                         Query_block *removed_query_block) override;
 
   Type type() const override { return COND_ITEM; }
   List<Item> *argument_list() { return &list; }

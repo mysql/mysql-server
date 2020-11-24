@@ -43,7 +43,7 @@
 #include "sql/sql_tmp_table.h"  // create_tmp_table_from_fields
 #include "template_utils.h"     // delete_container_pointers
 
-class SELECT_LEX_UNIT;
+class Query_expression;
 
 extern "C" void sql_alloc_error_handler(void);
 
@@ -521,7 +521,7 @@ bool sp_cursor::fetch(List<sp_variable> *vars) {
 ///////////////////////////////////////////////////////////////////////////
 
 bool sp_cursor::Query_fetch_into_spvars::prepare(
-    THD *thd, const mem_root_deque<Item *> &fields, SELECT_LEX_UNIT *u) {
+    THD *thd, const mem_root_deque<Item *> &fields, Query_expression *u) {
   /*
     Cache the number of columns in the result set in order to easily
     return an error if column count does not match value count.

@@ -924,7 +924,7 @@ bool Item_field::check_column_in_window_functions(uchar *arg) {
   TABLE_LIST *tl = pointer_cast<TABLE_LIST *>(arg);
   // Find the expression corresponding to this column in derived table and use
   // that to find in window functions of the derived table.
-  SELECT_LEX *select = tl->derived_unit()->first_select();
+  Query_block *select = tl->derived_query_expression()->first_query_block();
   Item *item = tl->get_derived_expr(field->field_index());
 
   bool ret = true;
@@ -959,7 +959,7 @@ bool Item_field::check_column_in_group_by(uchar *arg) {
   TABLE_LIST *tl = pointer_cast<TABLE_LIST *>(arg);
   // Find the expression correspondiing to this column in derived table and
   // use that to find in GROUP BY of the derived table.
-  SELECT_LEX *select = tl->derived_unit()->first_select();
+  Query_block *select = tl->derived_query_expression()->first_query_block();
   Item *item = tl->get_derived_expr(field->field_index());
 
   for (ORDER *group = select->group_list.first; group; group = group->next) {
@@ -989,7 +989,7 @@ Item *Item_field::replace_with_derived_expr_ref(uchar *arg) {
   // there was an earlier reference to the same column in the condition that
   // is being pushed down). There is no need to do anything in such a case.
   if (dt != table_ref) return this;
-  SELECT_LEX *select = dt->derived_unit()->first_select();
+  Query_block *select = dt->derived_query_expression()->first_query_block();
   // Get the expression in the derived table and find the right ref item to
   // point to.
   Item *select_item = dt->get_derived_expr(field->field_index());
@@ -1968,7 +1968,7 @@ class Item_aggregate_ref : public Item_ref {
  public:
   Item_aggregate_ref(Name_resolution_context *context_arg, Item **item,
                      const char *db_name_arg, const char *table_name_arg,
-                     const char *field_name_arg, SELECT_LEX *depended_from_arg)
+                     const char *field_name_arg, Query_block *depended_from_arg)
       : Item_ref(context_arg, item, db_name_arg, table_name_arg,
                  field_name_arg) {
     depended_from = depended_from_arg;
@@ -1984,9 +1984,9 @@ class Item_aggregate_ref : public Item_ref {
   Ref_Type ref_type() const override { return AGGREGATE_REF; }
 
   /**
-    Walker processor used by SELECT_LEX::transform_grouped_to_derived to replace
-    an aggregate's reference to one in the new derived table's (hidden) select
-    list.
+    Walker processor used by Query_block::transform_grouped_to_derived to
+    replace an aggregate's reference to one in the new derived table's (hidden)
+    select list.
 
     @param  arg  An info object of type Item::Aggregate_ref_update
     @returns false
@@ -2035,7 +2035,7 @@ class Item_aggregate_ref : public Item_ref {
         two phases:
 
          - fix_fields() is called by the subquery, which puts the item into the
-           outer SELECT_LEX::inner_sum_func_list.
+           outer Query_block::inner_sum_func_list.
 
          - the outer query scans that list, calls split_sum_func2(), it
            replaces the aggregate with an Item_ref, so it needs to correct the
@@ -2067,7 +2067,7 @@ class Item_aggregate_ref : public Item_ref {
 
   Assume we have done fix_fields() on this SELECT list, which list is so far
   only '+'. This '+' contains a WF (and a group aggregate function), so the
-  resolver (generally, SELECT_LEX::prepare()) calls Item::split_sum_func2 on
+  resolver (generally, Query_block::prepare()) calls Item::split_sum_func2 on
   the '+'; as this '+' is neither a WF nor a group aggregate, but contains
   some, it calls Item_func::split_sum_func which calls Item::split_sum_func2 on
   every argument of the '+':
@@ -2127,7 +2127,7 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
               (down_cast<Item_subselect *>(this)->substype() ==
                    Item_subselect::SINGLEROW_SUBS &&
                down_cast<Item_subselect *>(this)
-                       ->unit->first_select()
+                       ->unit->first_query_block()
                        ->single_visible_field() != nullptr)) &&
              (type() != REF_ITEM ||  // (3)
               (down_cast<Item_ref *>(this))->ref_type() ==
@@ -2180,19 +2180,20 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
       assert(std::find(fields->begin(), fields->end(), this) != fields->end());
     }
 
-    SELECT_LEX *base_select;
-    SELECT_LEX *depended_from = nullptr;
+    Query_block *base_query_block;
+    Query_block *depended_from = nullptr;
     if (type() == SUM_FUNC_ITEM && !m_is_window_function) {
       Item_sum *const item = down_cast<Item_sum *>(this);
-      DBUG_ASSERT(thd->lex->current_select() == item->aggr_select);
-      base_select = item->base_select;
-      if (item->aggr_select != base_select) depended_from = item->aggr_select;
+      DBUG_ASSERT(thd->lex->current_query_block() == item->aggr_query_block);
+      base_query_block = item->base_query_block;
+      if (item->aggr_query_block != base_query_block)
+        depended_from = item->aggr_query_block;
     } else {
-      base_select = thd->lex->current_select();
+      base_query_block = thd->lex->current_query_block();
     }
 
     Item_aggregate_ref *const item_ref = new Item_aggregate_ref(
-        &base_select->context, &ref_item_array[el], nullptr, nullptr,
+        &base_query_block->context, &ref_item_array[el], nullptr, nullptr,
         item_name.ptr(), depended_from);
     if (!item_ref) return; /* purecov: inspected */
     item_ref->hidden = old_hidden;
@@ -2623,7 +2624,7 @@ Item_field::Item_field(Name_resolution_context *context_arg, const char *db_arg,
       field_index(NO_FIELD_INDEX),
       have_privileges(0),
       any_privileges(false) {
-  SELECT_LEX *select = current_thd->lex->current_select();
+  Query_block *select = current_thd->lex->current_query_block();
   collation.set(DERIVATION_IMPLICIT);
   if (select && select->parsing_place != CTX_HAVING)
     select->select_n_where_fields++;
@@ -2652,7 +2653,7 @@ Item_field::Item_field(const POS &pos, const char *db_arg,
 bool Item_field::itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
   if (super::itemize(pc, res)) return true;
-  SELECT_LEX *const select = pc->select;
+  Query_block *const select = pc->select;
   if (select->parsing_place != CTX_HAVING) select->select_n_where_fields++;
   return false;
 }
@@ -2701,7 +2702,7 @@ Item_field::Item_field(Field *f)
       have_privileges(0),
       any_privileges(false) {
   if (f->table->pos_in_table_list != nullptr)
-    context = &(f->table->pos_in_table_list->select_lex->context);
+    context = &(f->table->pos_in_table_list->query_block->context);
 
   set_field(f);
 }
@@ -3006,21 +3007,21 @@ bool Item_field::used_tables_for_level(uchar *arg) {
   DBUG_ASSERT(!tr->table->const_table);
   Used_tables *const ut = pointer_cast<Used_tables *>(arg);
   /*
-    When the qualifying query for the field (table_ref->select_lex) is the same
+    When the qualifying query for the field (table_ref->query_block) is the same
     level as the requested level, add the table's map.
     When the qualifying query for the field is outer relative to the
     requested level, add an outer reference.
   */
-  if (ut->select == tr->select_lex)
+  if (ut->select == tr->query_block)
     ut->used_tables |= tr->map();
-  else if (ut->select->nest_level > tr->select_lex->nest_level)
+  else if (ut->select->nest_level > tr->query_block->nest_level)
     ut->used_tables |= OUTER_REF_TABLE_BIT;
 
   return false;
 }
 
-void Item_ident::fix_after_pullout(SELECT_LEX *parent_select,
-                                   SELECT_LEX *removed_select) {
+void Item_ident::fix_after_pullout(Query_block *parent_query_block,
+                                   Query_block *removed_query_block) {
   /*
     Some field items may be created for use in execution only, without
     a name resolution context. They have already been used in execution,
@@ -3035,18 +3036,19 @@ void Item_ident::fix_after_pullout(SELECT_LEX *parent_select,
     return;
   }
 
-  // context->select_lex should already have been updated.
-  DBUG_ASSERT(context->select_lex != removed_select);
+  // context->query_block should already have been updated.
+  DBUG_ASSERT(context->query_block != removed_query_block);
 
-  if (context->select_lex == parent_select) {
-    if (parent_select == depended_from) depended_from = nullptr;
+  if (context->query_block == parent_query_block) {
+    if (parent_query_block == depended_from) depended_from = nullptr;
   } else {
     /*
       The definition scope of this field item reference is inner to the removed
-      select_lex object.
+      query_block object.
       No new resolution is needed, but we may need to update the dependency.
     */
-    if (removed_select == depended_from) depended_from = parent_select;
+    if (removed_query_block == depended_from)
+      depended_from = parent_query_block;
   }
 
   if (depended_from) {
@@ -3054,25 +3056,27 @@ void Item_ident::fix_after_pullout(SELECT_LEX *parent_select,
       Refresh used_tables information for subqueries between the definition
       scope and resolution scope of the field item reference.
     */
-    SELECT_LEX *child_select = context->select_lex;
+    Query_block *child_query_block = context->query_block;
 
-    while (child_select->outer_select() != depended_from) {
+    while (child_query_block->outer_query_block() != depended_from) {
       /*
         The subquery on this level is outer-correlated with respect to the field
       */
-      child_select->master_unit()->accumulate_used_tables(OUTER_REF_TABLE_BIT);
-      child_select = child_select->outer_select();
+      child_query_block->master_query_expression()->accumulate_used_tables(
+          OUTER_REF_TABLE_BIT);
+      child_query_block = child_query_block->outer_query_block();
     }
 
     /*
-      child_select is select_lex immediately inner to the depended_from level.
-      Now, locate the subquery predicate that contains this select_lex and
-      update used tables information.
+      child_query_block is query_block immediately inner to the depended_from
+      level. Now, locate the subquery predicate that contains this query_block
+      and update used tables information.
     */
     Used_tables ut(depended_from);
     (void)walk(&Item::used_tables_for_level, enum_walk::SUBQUERY_POSTFIX,
                pointer_cast<uchar *>(&ut));
-    child_select->master_unit()->accumulate_used_tables(ut.used_tables);
+    child_query_block->master_query_expression()->accumulate_used_tables(
+        ut.used_tables);
   }
 }
 
@@ -4492,7 +4496,7 @@ bool Item_ref_null_helper::get_date(MYSQL_TIME *ltime,
 }
 
 /**
-  Mark item and SELECT_LEXs as dependent if item was resolved in
+  Mark item and Query_blocks as dependent if item was resolved in
   outer SELECT.
 
   @param thd             Current session.
@@ -4503,13 +4507,13 @@ bool Item_ref_null_helper::get_date(MYSQL_TIME *ltime,
   marked anyway.
 */
 
-static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
+static void mark_as_dependent(THD *thd, Query_block *last, Query_block *current,
                               Item_ident *resolved_item,
                               Item_ident *mark_item) {
   const char *db_name = (resolved_item->db_name ? resolved_item->db_name : "");
   const char *table_name =
       (resolved_item->table_name ? resolved_item->table_name : "");
-  /* store pointer on SELECT_LEX from which item is dependent */
+  /* store pointer on Query_block from which item is dependent */
   if (mark_item) mark_item->depended_from = last;
   /*
     resolved_item is the one we are resolving (and we just found that it is an
@@ -4517,7 +4521,7 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
     we set depended_from for it.
   */
   resolved_item->depended_from = last;
-  DBUG_ASSERT(resolved_item->context->select_lex == current);
+  DBUG_ASSERT(resolved_item->context->query_block == current);
 
   current->mark_as_dependent(last, false);
   if (thd->lex->is_explain()) {
@@ -4529,7 +4533,9 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
     */
     uint sel_nr = (last->select_number < INT_MAX)
                       ? last->select_number
-                      : last->master_unit()->first_select()->select_number;
+                      : last->master_query_expression()
+                            ->first_query_block()
+                            ->select_number;
     push_warning_printf(thd, Sql_condition::SL_NOTE, ER_WARN_FIELD_RESOLVED,
                         ER_THD(thd, ER_WARN_FIELD_RESOLVED), db_name,
                         (db_name[0] ? "." : ""), table_name,
@@ -4668,7 +4674,7 @@ static Item **find_field_in_group_list(Item *find_item, ORDER *group_list) {
 */
 
 static Item **resolve_ref_in_select_and_group(THD *thd, Item_ident *ref,
-                                              SELECT_LEX *select) {
+                                              Query_block *select) {
   DBUG_TRACE;
   Item **select_ref = nullptr;
   ORDER *group_list = select->group_list.first;
@@ -4791,19 +4797,19 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
   Name_resolution_context *last_checked_context = context;
   Item **ref = not_found_item;
   Name_resolution_context *outer_context = context->outer_context;
-  SELECT_LEX *select = nullptr;
-  SELECT_LEX_UNIT *cur_unit = nullptr;
+  Query_block *select = nullptr;
+  Query_expression *cur_query_expression = nullptr;
   enum_parsing_context place = CTX_NONE;
-  SELECT_LEX *cur_select = context->select_lex;
+  Query_block *cur_query_block = context->query_block;
   for (; outer_context; outer_context = outer_context->outer_context) {
-    select = outer_context->select_lex;
+    select = outer_context->query_block;
 
     last_checked_context = outer_context;
     upward_lookup = true;
 
     /*
       We want to locate the qualifying query of our Item_field 'this'.
-      'this' is simply contained in a subquery (SELECT_LEX_UNIT) which is
+      'this' is simply contained in a subquery (Query_expression) which is
       immediately contained
       - in a scalar/row subquery (Item_subselect), or
       - in a table subquery itself immediately contained in a quantified
@@ -4834,31 +4840,32 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
                ("must reach target ctx (having SL#%d)", select->select_number));
     /*
       Walk from the innermost query block to the outermost until we find
-      OUTER_CONTEXT_OBJECT; cur_select and cur_unit track where the walk
-      currently is.
+      OUTER_CONTEXT_OBJECT; cur_query_block and cur_query_expression track where
+      the walk currently is.
     */
     while (true) {
-      if (!cur_select) goto loop;
+      if (!cur_query_block) goto loop;
       DBUG_PRINT("outer_field",
-                 ("in loop, in ctx of SL#%d", cur_select->select_number));
-      DBUG_ASSERT(cur_select != select);
-      cur_unit = cur_select->master_unit();
-      if (cur_unit->outer_select() == select)
-        break;  // the immediate container of cur_unit is OUTER_CONTEXT_OBJECT
+                 ("in loop, in ctx of SL#%d", cur_query_block->select_number));
+      DBUG_ASSERT(cur_query_block != select);
+      cur_query_expression = cur_query_block->master_query_expression();
+      if (cur_query_expression->outer_query_block() == select)
+        break;  // the immediate container of cur_query_expression is
+                // OUTER_CONTEXT_OBJECT
       DBUG_PRINT("outer_field",
                  ("in loop, in ctx of SL#%d, not yet immediate child of target",
-                  cur_select->select_number));
-      // cur_unit belongs to an object inside OUTER_CONTEXT_OBJECT, mark it and
-      // go up:
-      cur_unit->accumulate_used_tables(OUTER_REF_TABLE_BIT);
-      cur_select = cur_unit->outer_select();
+                  cur_query_block->select_number));
+      // cur_query_expression belongs to an object inside OUTER_CONTEXT_OBJECT,
+      // mark it and go up:
+      cur_query_expression->accumulate_used_tables(OUTER_REF_TABLE_BIT);
+      cur_query_block = cur_query_expression->outer_query_block();
     }
 
     DBUG_PRINT("outer_field", ("out of loop, reached target ctx (having SL#%d)",
-                               cur_select->select_number));
+                               cur_query_block->select_number));
 
     // Place of OUTER_CONTEXT_OBJECT in 'outer_context' e.g. WHERE :
-    place = cur_unit->place();
+    place = cur_query_expression->place();
 
     // A non-lateral derived table cannot see tables of its owning query
     if (place == CTX_DERIVED && select->end_lateral_table == nullptr) continue;
@@ -4867,9 +4874,10 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
       If field was already found by first call
       to find_field_in_tables(), we only need to find appropriate context.
     */
-    if (field_found && outer_context->select_lex != cached_table->select_lex) {
+    if (field_found &&
+        outer_context->query_block != cached_table->query_block) {
       DBUG_PRINT("outer_field", ("but cached is of SL#%d, continue",
-                                 cached_table->select_lex->select_number));
+                                 cached_table->query_block->select_number));
       continue;
     }
 
@@ -4886,11 +4894,11 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
             not_found_field) {
       if (*from_field) {
         if (*from_field != view_ref_found) {
-          cur_unit->accumulate_used_tables(
+          cur_query_expression->accumulate_used_tables(
               (*from_field)->table->pos_in_table_list->map());
           set_field(*from_field);
 
-          if (!last_checked_context->select_lex->having_fix_field &&
+          if (!last_checked_context->query_block->having_fix_field &&
               select->group_list.elements &&
               (place == CTX_SELECT_LIST || place == CTX_HAVING)) {
             Item_outer_ref *rf;
@@ -4913,7 +4921,7 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
             max_aggr_level for the function if it's needed.
           */
           if (thd->lex->in_sum_func &&
-              thd->lex->in_sum_func->base_select->nest_level >=
+              thd->lex->in_sum_func->base_query_block->nest_level >=
                   select->nest_level) {
             Item::Type ref_type = (*reference)->type();
             thd->lex->in_sum_func->max_aggr_level =
@@ -4921,8 +4929,8 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
                     int8(select->nest_level));
             set_field(*from_field);
             fixed = true;
-            mark_as_dependent(thd, last_checked_context->select_lex,
-                              context->select_lex, this,
+            mark_as_dependent(thd, last_checked_context->query_block,
+                              context->query_block, this,
                               ((ref_type == REF_ITEM || ref_type == FIELD_ITEM)
                                    ? (Item_ident *)(*reference)
                                    : nullptr));
@@ -4934,7 +4942,7 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
           (void)(*reference)
               ->walk(&Item::used_tables_for_level, enum_walk::SUBQUERY_POSTFIX,
                      pointer_cast<uchar *>(&ut));
-          cur_unit->accumulate_used_tables(ut.used_tables);
+          cur_query_expression->accumulate_used_tables(ut.used_tables);
 
           if (select->group_list.elements && place == CTX_HAVING) {
             /*
@@ -4954,15 +4962,15 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
           }
 
           if (thd->lex->in_sum_func &&
-              thd->lex->in_sum_func->base_select->nest_level >=
+              thd->lex->in_sum_func->base_query_block->nest_level >=
                   select->nest_level)
             thd->lex->in_sum_func->max_aggr_level =
                 max(thd->lex->in_sum_func->max_aggr_level,
                     int8(select->nest_level));
 
           if ((*reference)->used_tables() != 0)
-            mark_as_dependent(thd, last_checked_context->select_lex,
-                              context->select_lex, this,
+            mark_as_dependent(thd, last_checked_context->query_block,
+                              context->query_block, this,
                               ref_type == REF_ITEM || ref_type == FIELD_ITEM
                                   ? down_cast<Item_ident *>(*reference)
                                   : NULL);
@@ -4986,7 +4994,7 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
       if (ref != not_found_item) {
         // The item which we found is already fixed
         DBUG_ASSERT((*ref)->fixed);
-        cur_unit->accumulate_used_tables((*ref)->used_tables());
+        cur_query_expression->accumulate_used_tables((*ref)->used_tables());
         break;
       }
     }
@@ -4998,7 +5006,7 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
     */
     DBUG_PRINT("outer_field",
                ("out of loop, reached end of big block, continue"));
-    cur_unit->accumulate_used_tables(OUTER_REF_TABLE_BIT);
+    cur_query_expression->accumulate_used_tables(OUTER_REF_TABLE_BIT);
   loop:;
   }
 
@@ -5052,13 +5060,13 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
     DBUG_ASSERT(!rf->fixed);  // Assured by Item_ref()
     if (rf->fix_fields(thd, reference) || rf->check_cols(1)) return -1;
     if (rf->used_tables() != 0)
-      mark_as_dependent(thd, last_checked_context->select_lex,
-                        context->select_lex, this, rf);
+      mark_as_dependent(thd, last_checked_context->query_block,
+                        context->query_block, this, rf);
     return 0;
   } else {
-    mark_as_dependent(thd, last_checked_context->select_lex,
-                      context->select_lex, this, (Item_ident *)*reference);
-    if (last_checked_context->select_lex->having_fix_field) {
+    mark_as_dependent(thd, last_checked_context->query_block,
+                      context->query_block, this, (Item_ident *)*reference);
+    if (last_checked_context->query_block->having_fix_field) {
       Item_ref *rf;
       rf = new Item_ref(context,
                         (cached_table->db[0] ? cached_table->db : nullptr),
@@ -5122,8 +5130,8 @@ bool is_null_on_empty_table(THD *thd, Item_field *i) {
     aggregated by testing QQ->with_sum_func
     - if it's outer reference, QQ->with_sum_func may not yet be set, e.g. if
     there is single set function referenced later in subquery and not yet
-    resolved; but then context.select_lex->with_sum_func is surely set (it's set
-    at parsing time), so we test both members.
+    resolved; but then context.query_block->with_sum_func is surely set (it's
+    set at parsing time), so we test both members.
     - in_sum_func is the innermost set function SF containing the item;
     - if item is not an outer reference, and in_sum_func is set, SF is
     necessarily aggregated in QQ, and will not be evaluated (just be replaced
@@ -5142,15 +5150,15 @@ bool is_null_on_empty_table(THD *thd, Item_field *i) {
     agg_func_used() (== is aggregation query) would be better but is not
     reliable yet at this stage.
   */
-  SELECT_LEX *sl = i->context->select_lex;
-  SELECT_LEX *qsl = i->depended_from;
+  Query_block *sl = i->context->query_block;
+  Query_block *qsl = i->depended_from;
 
   if (qsl != nullptr)
-    return qsl->resolve_place == SELECT_LEX::RESOLVE_SELECT_LIST &&
+    return qsl->resolve_place == Query_block::RESOLVE_SELECT_LIST &&
            (sl->with_sum_func || qsl->with_sum_func) &&
            qsl->group_list.elements == 0;
   else
-    return sl->resolve_place == SELECT_LEX::RESOLVE_SELECT_LIST &&
+    return sl->resolve_place == Query_block::RESOLVE_SELECT_LIST &&
            sl->with_sum_func && sl->group_list.elements == 0 &&
            thd->lex->in_sum_func == nullptr;
 }
@@ -5225,12 +5233,12 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
     if (from_field == not_found_field) {
       int ret;
       /* Look up in current select's item_list to find aliased fields */
-      if (thd->lex->current_select()->is_item_list_lookup) {
+      if (thd->lex->current_query_block()->is_item_list_lookup) {
         uint counter;
         enum_resolution_type resolution;
-        Item **res =
-            find_item_in_list(thd, this, &thd->lex->current_select()->fields,
-                              &counter, REPORT_EXCEPT_NOT_FOUND, &resolution);
+        Item **res = find_item_in_list(
+            thd, this, &thd->lex->current_query_block()->fields, &counter,
+            REPORT_EXCEPT_NOT_FOUND, &resolution);
         if (!res) return true;
         if (resolution == RESOLVED_AGAINST_ALIAS) set_alias_of_expr();
         if (res != not_found_item) {
@@ -5259,7 +5267,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
             // The found column may be an outer reference
             if (item_field->depended_from)
               mark_as_dependent(thd, item_field->depended_from,
-                                context->select_lex, this, this);
+                                context->query_block, this, this);
 
             return false;
           } else {
@@ -5281,11 +5289,12 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
             if (!rf->fixed) {
               // No need for recursive resolving of aliases.
               const bool group_fix_field =
-                  thd->lex->current_select()->group_fix_field;
-              thd->lex->current_select()->group_fix_field = false;
+                  thd->lex->current_query_block()->group_fix_field;
+              thd->lex->current_query_block()->group_fix_field = false;
               bool fix_error =
                   rf->fix_fields(thd, (Item **)&rf) || rf->check_cols(1);
-              thd->lex->current_select()->group_fix_field = group_fix_field;
+              thd->lex->current_query_block()->group_fix_field =
+                  group_fix_field;
               if (fix_error) return true;
             }
             *reference = rf;
@@ -5306,13 +5315,14 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
     /*
       We should resolve this as an outer field reference if
       1. we haven't done it before, and
-      2. the select_lex of the table that contains this field is
-         different from the select_lex of the current name resolution
+      2. the query_block of the table that contains this field is
+         different from the query_block of the current name resolution
          context.
      */
-    if (!outer_fixed &&                                                     // 1
-        cached_table && cached_table->select_lex && context->select_lex &&  // 2
-        cached_table->select_lex != context->select_lex) {
+    if (!outer_fixed &&  // 1
+        cached_table && cached_table->query_block &&
+        context->query_block &&  // 2
+        cached_table->query_block != context->query_block) {
       int ret;
       if ((ret = fix_outer_field(thd, &from_field, reference)) < 0) goto error;
       outer_fixed = true;
@@ -5326,14 +5336,14 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
     */
     DBUG_ASSERT(
         from_field != view_ref_found ||
-        context->select_lex ==
-            dynamic_cast<Item_ident *>(*reference)->context->select_lex);
+        context->query_block ==
+            dynamic_cast<Item_ident *>(*reference)->context->query_block);
     if (thd->lex->in_sum_func &&
-        thd->lex->in_sum_func->base_select->nest_level ==
-            context->select_lex->nest_level)
+        thd->lex->in_sum_func->base_query_block->nest_level ==
+            context->query_block->nest_level)
       thd->lex->in_sum_func->max_aggr_level =
           max(thd->lex->in_sum_func->max_aggr_level,
-              int8(context->select_lex->nest_level));
+              int8(context->query_block->nest_level));
 
     // If view column reference, Item in *reference is completely resolved:
     if (from_field == view_ref_found) {
@@ -7264,7 +7274,7 @@ bool Item_field::send(Protocol *protocol, String *) {
 */
 
 Item *Item_field::update_value_transformer(uchar *select_arg) {
-  SELECT_LEX *select = pointer_cast<SELECT_LEX *>(select_arg);
+  Query_block *select = pointer_cast<Query_block *>(select_arg);
   DBUG_ASSERT(fixed);
 
   DBUG_ASSERT((table_ref == select->context.table_list) ==
@@ -7435,9 +7445,9 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
       thd, context->view_error_handler, context->view_error_handler_arg);
 
   if (!ref || ref == not_found_item) {
-    DBUG_ASSERT(context->select_lex == thd->lex->current_select());
+    DBUG_ASSERT(context->query_block == thd->lex->current_query_block());
     if (!(ref =
-              resolve_ref_in_select_and_group(thd, this, context->select_lex)))
+              resolve_ref_in_select_and_group(thd, this, context->query_block)))
       goto error; /* Some error occurred (e.g. ambiguous names). */
 
     if (ref == not_found_item) /* This reference was not resolved. */
@@ -7464,25 +7474,25 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
       */
       from_field = not_found_field;
 
-      SELECT_LEX *cur_select = context->select_lex;
+      Query_block *cur_query_block = context->query_block;
 
       do {
-        SELECT_LEX *select = outer_context->select_lex;
+        Query_block *select = outer_context->query_block;
         last_checked_context = outer_context;
-        SELECT_LEX_UNIT *cur_unit = nullptr;
+        Query_expression *cur_query_expression = nullptr;
         enum_parsing_context place = CTX_NONE;
 
         // See comments and similar loop in Item_field::fix_outer_field()
         while (true) {
-          if (!cur_select) goto loop;
-          DBUG_ASSERT(cur_select != select);
-          cur_unit = cur_select->master_unit();
-          if (cur_unit->outer_select() == select) break;
-          cur_unit->accumulate_used_tables(OUTER_REF_TABLE_BIT);
-          cur_select = cur_unit->outer_select();
+          if (!cur_query_block) goto loop;
+          DBUG_ASSERT(cur_query_block != select);
+          cur_query_expression = cur_query_block->master_query_expression();
+          if (cur_query_expression->outer_query_block() == select) break;
+          cur_query_expression->accumulate_used_tables(OUTER_REF_TABLE_BIT);
+          cur_query_block = cur_query_expression->outer_query_block();
         }
 
-        place = cur_unit->place();
+        place = cur_query_expression->place();
 
         if (place == CTX_DERIVED && select->end_lateral_table == nullptr)
           goto loop;
@@ -7494,7 +7504,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
             goto error; /* Some error occurred (e.g. ambiguous names). */
           if (ref != not_found_item) {
             DBUG_ASSERT((*ref)->fixed);
-            cur_unit->accumulate_used_tables((*ref)->used_tables());
+            cur_query_expression->accumulate_used_tables((*ref)->used_tables());
             break;
           }
           /*
@@ -7529,10 +7539,11 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
           if (!from_field) goto error;
           if (from_field == view_ref_found) {
             Item::Type refer_type = (*reference)->type();
-            cur_unit->accumulate_used_tables((*reference)->used_tables());
+            cur_query_expression->accumulate_used_tables(
+                (*reference)->used_tables());
             DBUG_ASSERT((*reference)->type() == REF_ITEM);
             mark_as_dependent(
-                thd, last_checked_context->select_lex, context->select_lex,
+                thd, last_checked_context->query_block, context->query_block,
                 this,
                 ((refer_type == REF_ITEM || refer_type == FIELD_ITEM)
                      ? (Item_ident *)(*reference)
@@ -7544,9 +7555,9 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
             return false;
           }
           if (from_field != not_found_field) {
-            if (cached_table && cached_table->select_lex &&
-                outer_context->select_lex &&
-                cached_table->select_lex != outer_context->select_lex) {
+            if (cached_table && cached_table->query_block &&
+                outer_context->query_block &&
+                cached_table->query_block != outer_context->query_block) {
               /*
                 Due to cache, find_field_in_tables() can return field which
                 doesn't belong to provided outer_context. In this case we have
@@ -7554,14 +7565,15 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
               */
               do {
                 outer_context = outer_context->outer_context;
-                select = outer_context->select_lex;
-                cur_unit = last_checked_context->select_lex->master_unit();
+                select = outer_context->query_block;
+                cur_query_expression = last_checked_context->query_block
+                                           ->master_query_expression();
                 last_checked_context = outer_context;
-              } while (outer_context && outer_context->select_lex &&
-                       cached_table->select_lex != outer_context->select_lex);
-              place = cur_unit->place();
+              } while (outer_context && outer_context->query_block &&
+                       cached_table->query_block != outer_context->query_block);
+              place = cur_query_expression->place();
             }
-            cur_unit->accumulate_used_tables(
+            cur_query_expression->accumulate_used_tables(
                 from_field->table->pos_in_table_list->map());
             break;
           }
@@ -7569,7 +7581,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
         DBUG_ASSERT(from_field == not_found_field);
 
         /* Reference is not found => depend on outer (or just error). */
-        cur_unit->accumulate_used_tables(OUTER_REF_TABLE_BIT);
+        cur_query_expression->accumulate_used_tables(OUTER_REF_TABLE_BIT);
 
       loop:
         outer_context = outer_context->outer_context;
@@ -7590,19 +7602,19 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
         // WL#6570 remove-after-qa
         DBUG_ASSERT(thd->stmt_arena->is_regular() ||
                     !thd->lex->is_exec_started());
-        mark_as_dependent(thd, last_checked_context->select_lex,
-                          context->select_lex, this, fld);
+        mark_as_dependent(thd, last_checked_context->query_block,
+                          context->query_block, this, fld);
         /*
           A reference is resolved to a nest level that's outer or the same as
           the nest level of the enclosing set function : adjust the value of
           max_aggr_level for the function if it's needed.
         */
         if (thd->lex->in_sum_func &&
-            thd->lex->in_sum_func->base_select->nest_level >=
-                last_checked_context->select_lex->nest_level)
+            thd->lex->in_sum_func->base_query_block->nest_level >=
+                last_checked_context->query_block->nest_level)
           thd->lex->in_sum_func->max_aggr_level =
               max(thd->lex->in_sum_func->max_aggr_level,
-                  int8(last_checked_context->select_lex->nest_level));
+                  int8(last_checked_context->query_block->nest_level));
         return false;
       }
       if (ref == nullptr) {
@@ -7613,19 +7625,19 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
       }
       /* Should be checked in resolve_ref_in_select_and_group(). */
       DBUG_ASSERT((*ref)->fixed);
-      mark_as_dependent(thd, last_checked_context->select_lex,
-                        context->select_lex, this, this);
+      mark_as_dependent(thd, last_checked_context->query_block,
+                        context->query_block, this, this);
       /*
         A reference is resolved to a nest level that's outer or the same as
         the nest level of the enclosing set function : adjust the value of
         max_aggr_level for the function if it's needed.
       */
       if (thd->lex->in_sum_func &&
-          thd->lex->in_sum_func->base_select->nest_level >=
-              last_checked_context->select_lex->nest_level)
+          thd->lex->in_sum_func->base_query_block->nest_level >=
+              last_checked_context->query_block->nest_level)
         thd->lex->in_sum_func->max_aggr_level =
             max(thd->lex->in_sum_func->max_aggr_level,
-                int8(last_checked_context->select_lex->nest_level));
+                int8(last_checked_context->query_block->nest_level));
     }
   }
 
@@ -7647,8 +7659,8 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
     happens before aggregation.
   */
   if (((*ref)->has_aggregation() &&
-       !thd->lex->current_select()->having_fix_field) ||  // 1
-      walk(&Item::has_aggregate_ref_in_group_by,          // 2
+       !thd->lex->current_query_block()->having_fix_field) ||  // 1
+      walk(&Item::has_aggregate_ref_in_group_by,               // 2
            enum_walk::SUBQUERY_POSTFIX, nullptr)) {
     my_error(ER_ILLEGAL_REFERENCE, MYF(0), full_name(),
              "reference to group function");
@@ -8006,22 +8018,22 @@ bool Item_outer_ref::fix_fields(THD *thd, Item **reference) {
   return false;
 }
 
-void Item_outer_ref::fix_after_pullout(SELECT_LEX *parent_select,
-                                       SELECT_LEX *removed_select) {
+void Item_outer_ref::fix_after_pullout(Query_block *parent_query_block,
+                                       Query_block *removed_query_block) {
   /*
     If this assertion holds, we need not call fix_after_pullout() on both
     *ref and outer_ref, and Item_ref::fix_after_pullout() is sufficient.
   */
   DBUG_ASSERT(*ref == outer_ref);
 
-  Item_ref::fix_after_pullout(parent_select, removed_select);
+  Item_ref::fix_after_pullout(parent_query_block, removed_query_block);
 }
 
-void Item_ref::fix_after_pullout(SELECT_LEX *parent_select,
-                                 SELECT_LEX *removed_select) {
-  (*ref)->fix_after_pullout(parent_select, removed_select);
+void Item_ref::fix_after_pullout(Query_block *parent_query_block,
+                                 Query_block *removed_query_block) {
+  (*ref)->fix_after_pullout(parent_query_block, removed_query_block);
 
-  Item_ident::fix_after_pullout(parent_select, removed_select);
+  Item_ident::fix_after_pullout(parent_query_block, removed_query_block);
 }
 
 /**
@@ -8121,7 +8133,7 @@ type_conversion_status Item_view_ref::save_in_field_inner(Field *field,
 bool Item_view_ref::collect_item_field_or_view_ref_processor(uchar *arg) {
   auto *info = pointer_cast<Collect_item_fields_or_view_refs *>(arg);
   if (info->is_stopped(this)) return false;
-  if (context->select_lex == info->m_transformed_block)
+  if (context->query_block == info->m_transformed_block)
     info->m_item_fields_or_view_refs->push_back(this);
   info->stop_at(this);
   return false;
@@ -9991,7 +10003,7 @@ void convert_and_print(const String *from_str, String *to_str,
    @retval unknown3 it's a non-direct-view Item_ref, we don't know if it
    contains a column => caller please analyze "*ref"
 */
-Bool3 Item_ident::local_column(const SELECT_LEX *sl) const
+Bool3 Item_ident::local_column(const Query_block *sl) const
 
 {
   DBUG_ASSERT(fixed);
@@ -10012,7 +10024,7 @@ Bool3 Item_ident::local_column(const SELECT_LEX *sl) const
       */
       DBUG_ASSERT(t == FIELD_ITEM);
       return Bool3::true3();
-    } else if (context->select_lex == sl)
+    } else if (context->query_block == sl)
       return Bool3::true3();  // qualifying query is 'sl'
   } else if (t == REF_ITEM) {
     /*
@@ -10029,7 +10041,7 @@ bool Item_ident::aggregate_check_distinct(uchar *arg) {
 
   if (dc->is_stopped(this)) return false;
 
-  SELECT_LEX *const sl = dc->select;
+  Query_block *const sl = dc->select;
   const Bool3 local = local_column(sl);
   if (local.is_false()) {
     // not a column => ignored, skip child. Other tree parts deserve checking.
@@ -10118,11 +10130,11 @@ bool Item_field::strip_db_table_name_processor(uchar *) {
 }
 
 bool Item_ref::references_select_expr_of(uchar *arg) {
-  const SELECT_LEX *sl = pointer_cast<const SELECT_LEX *>(arg);
+  const Query_block *sl = pointer_cast<const Query_block *>(arg);
   if (depended_from)  // outer reference
   {
     if (depended_from == sl) return true;
-  } else if (context->select_lex == sl)
+  } else if (context->query_block == sl)
     return true;
   return false;
 }

@@ -181,7 +181,7 @@ class ItemFilterTest : public ::testing::Test {
     PT_item_list *list = new (thd()->mem_root) PT_item_list;
     list->value = lst;
     Item_func_in *in_item = new Item_func_in(POS(), list, false);
-    Parse_context pc(thd(), thd()->lex->current_select());
+    Parse_context pc(thd(), thd()->lex->current_query_block());
     EXPECT_FALSE(in_item->itemize(&pc, (Item **)&in_item));
 
     Item *itm = static_cast<Item *>(in_item);
@@ -243,7 +243,7 @@ Item_func *ItemFilterTest::create_item(Item_func::Functype type, Field *fld,
       result = new Item_func_isnotnull(new Item_field(fld));
       break;
     case Item_func::BETWEEN: {
-      Parse_context pc(thd(), thd()->lex->current_select());
+      Parse_context pc(thd(), thd()->lex->current_query_block());
       result =
           new Item_func_between(POS(), new Item_field(fld), new Item_int(val1),
                                 new Item_int(val2), false);

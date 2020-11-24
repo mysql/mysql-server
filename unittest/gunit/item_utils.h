@@ -35,7 +35,7 @@ using my_testing::Mock_pt_item_list;
 template <typename Func_item, typename... Arg_type>
 static Item *make_resolved(THD *thd, Arg_type... args) {
   auto arglist = new (thd->mem_root) Mock_pt_item_list(args...);
-  Parse_context pc(thd, thd->lex->select_lex);
+  Parse_context pc(thd, thd->lex->query_block);
   POS pos;  // We expect this object to be copied.
   Item *item = new (thd->mem_root) Func_item(pos, arglist);
   item->itemize(&pc, &item);

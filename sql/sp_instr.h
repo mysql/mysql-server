@@ -548,7 +548,7 @@ class sp_instr_set : public sp_lex_instr {
   void invalidate() override { m_value_item = nullptr; }
 
   bool on_after_expr_parsing(THD *thd) override {
-    m_value_item = thd->lex->select_lex->single_visible_field();
+    m_value_item = thd->lex->query_block->single_visible_field();
     DBUG_ASSERT(m_value_item != nullptr);
 
     return false;
@@ -680,7 +680,7 @@ class sp_instr_freturn : public sp_lex_instr {
   }
 
   bool on_after_expr_parsing(THD *thd) override {
-    m_expr_item = thd->lex->select_lex->single_visible_field();
+    m_expr_item = thd->lex->query_block->single_visible_field();
     DBUG_ASSERT(m_expr_item != nullptr);
     return false;
   }
@@ -893,7 +893,7 @@ class sp_instr_jump_if_not : public sp_lex_branch_instr {
   bool exec_core(THD *thd, uint *nextp) override;
 
   bool on_after_expr_parsing(THD *thd) override {
-    m_expr_item = thd->lex->select_lex->single_visible_field();
+    m_expr_item = thd->lex->query_block->single_visible_field();
     DBUG_ASSERT(m_expr_item != nullptr);
     return false;
   }
@@ -966,7 +966,7 @@ class sp_instr_set_case_expr : public sp_lex_branch_instr {
   bool exec_core(THD *thd, uint *nextp) override;
 
   bool on_after_expr_parsing(THD *thd) override {
-    m_expr_item = thd->lex->select_lex->single_visible_field();
+    m_expr_item = thd->lex->query_block->single_visible_field();
     DBUG_ASSERT(m_expr_item != nullptr);
     return false;
   }

@@ -842,7 +842,7 @@ static void prepare_new_connection_state(THD *thd) {
                   sctx->host_or_ip().str, what, da->mysql_errno(),
                   da->message_text());
 
-      thd->lex->set_current_select(nullptr);
+      thd->lex->set_current_query_block(nullptr);
       my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
       thd->clear_error();
       net_new_transaction(net);

@@ -94,7 +94,7 @@ Sql_cmd_ddl_table::Sql_cmd_ddl_table(Alter_info *alter_info)
   @returns false if success, true if error
 */
 static bool populate_table(THD *thd, LEX *lex) {
-  SELECT_LEX_UNIT *const unit = lex->unit;
+  Query_expression *const unit = lex->unit;
 
   if (lex->set_var_list.elements && resolve_var_assignments(thd, lex))
     return true;
@@ -105,7 +105,7 @@ static bool populate_table(THD *thd, LEX *lex) {
     Table creation may perform an intermediate commit and must therefore
     be performed before locking the tables in the query expression.
   */
-  if (unit->query_result()->create_table_for_select(thd)) return true;
+  if (unit->query_result()->create_table_for_query_block(thd)) return true;
 
   if (lock_tables(thd, lex->query_tables, lex->table_count, 0)) return true;
 
@@ -118,8 +118,8 @@ static bool populate_table(THD *thd, LEX *lex) {
 
 bool Sql_cmd_create_table::execute(THD *thd) {
   LEX *const lex = thd->lex;
-  SELECT_LEX *const select_lex = lex->select_lex;
-  SELECT_LEX_UNIT *const unit = lex->unit;
+  Query_block *const query_block = lex->query_block;
+  Query_expression *const unit = lex->unit;
   TABLE_LIST *const create_table = lex->query_tables;
   partition_info *part_info = lex->part_info;
 
@@ -220,7 +220,7 @@ bool Sql_cmd_create_table::execute(THD *thd) {
   }
   bool res = false;
 
-  if (!select_lex->field_list_is_empty())  // With select
+  if (!query_block->field_list_is_empty())  // With select
   {
     /*
       CREATE TABLE...IGNORE/REPLACE SELECT... can be unsafe, unless
@@ -275,7 +275,7 @@ bool Sql_cmd_create_table::execute(THD *thd) {
         !mysql_bin_log.is_query_in_union(thd, thd->query_id)) {
       uint splocal_refs = 0;
       /* Count SP local vars in the top-level SELECT list */
-      for (Item *item : select_lex->visible_fields()) {
+      for (Item *item : query_block->visible_fields()) {
         if (item->is_splocal()) splocal_refs++;
       }
       /*
@@ -344,7 +344,7 @@ bool Sql_cmd_create_table::execute(THD *thd) {
     if (!unit->is_prepared()) {
       Prepared_stmt_arena_holder ps_arena_holder(thd);
       result = new (thd->mem_root)
-          Query_result_create(create_table, &select_lex->fields,
+          Query_result_create(create_table, &query_block->fields,
                               lex->duplicates, query_expression_tables);
       if (result == nullptr) return true;
       if (unit->prepare(thd, result, nullptr, SELECT_NO_UNLOCK, 0)) return true;
@@ -353,7 +353,7 @@ bool Sql_cmd_create_table::execute(THD *thd) {
     } else {
       result = down_cast<Query_result_create *>(
           unit->query_result() != nullptr ? unit->query_result()
-                                          : select_lex->query_result());
+                                          : query_block->query_result());
       // Restore prepared statement properties, bind table and field information
       lex->restore_cmd_properties();
       bind_fields(thd->stmt_arena->item_list());
@@ -435,8 +435,8 @@ bool Sql_cmd_create_or_drop_index_base::execute(THD *thd) {
   */
 
   LEX *const lex = thd->lex;
-  SELECT_LEX *const select_lex = lex->select_lex;
-  TABLE_LIST *const first_table = select_lex->get_table_list();
+  Query_block *const query_block = lex->query_block;
+  TABLE_LIST *const first_table = query_block->get_table_list();
   TABLE_LIST *const all_tables = first_table;
 
   /* Prepare stack copies to be re-execution safe */
@@ -461,7 +461,7 @@ bool Sql_cmd_create_or_drop_index_base::execute(THD *thd) {
   /* Push Strict_error_handler */
   Strict_error_handler strict_handler;
   if (thd->is_strict_mode()) thd->push_internal_handler(&strict_handler);
-  DBUG_ASSERT(!select_lex->order_list.elements);
+  DBUG_ASSERT(!query_block->order_list.elements);
   const bool res =
       mysql_alter_table(thd, first_table->db, first_table->table_name,
                         &create_info, first_table, &alter_info);
@@ -471,7 +471,7 @@ bool Sql_cmd_create_or_drop_index_base::execute(THD *thd) {
 }
 
 bool Sql_cmd_cache_index::execute(THD *thd) {
-  TABLE_LIST *const first_table = thd->lex->select_lex->get_table_list();
+  TABLE_LIST *const first_table = thd->lex->query_block->get_table_list();
   if (check_table_access(thd, INDEX_ACL, first_table, true, UINT_MAX, false))
     return true;
 
@@ -479,7 +479,7 @@ bool Sql_cmd_cache_index::execute(THD *thd) {
 }
 
 bool Sql_cmd_load_index::execute(THD *thd) {
-  TABLE_LIST *const first_table = thd->lex->select_lex->get_table_list();
+  TABLE_LIST *const first_table = thd->lex->query_block->get_table_list();
   if (check_table_access(thd, INDEX_ACL, first_table, true, UINT_MAX, false))
     return true;
   return preload_keys(thd, first_table);

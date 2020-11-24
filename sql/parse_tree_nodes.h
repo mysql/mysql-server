@@ -184,7 +184,7 @@ inline PT_table_ddl_stmt_base::~PT_table_ddl_stmt_base() {}
   For internal use in the contextualization code.
 */
 struct Table_ddl_parse_context final : public Parse_context {
-  Table_ddl_parse_context(THD *thd_arg, SELECT_LEX *select_arg,
+  Table_ddl_parse_context(THD *thd_arg, Query_block *select_arg,
                           Alter_info *alter_info);
   HA_CREATE_INFO *const create_info;
   Alter_info *const alter_info;
@@ -305,7 +305,7 @@ class PT_common_table_expr : public Parse_tree_node {
   */
   Common_table_expr m_postparse;
 
-  friend bool SELECT_LEX_UNIT::clear_correlated_query_blocks();
+  friend bool Query_expression::clear_correlated_query_blocks();
 };
 
 /**
@@ -376,7 +376,7 @@ class PT_with_clause : public Parse_tree_node {
   */
   const TABLE_LIST *m_most_inner_in_parsing;
 
-  friend bool SELECT_LEX_UNIT::clear_correlated_query_blocks();
+  friend bool Query_expression::clear_correlated_query_blocks();
 };
 
 class PT_select_item_list : public PT_item_list {
@@ -1356,7 +1356,7 @@ class PT_exclusion : public Parse_tree_node {
 */
 class PT_frame : public Parse_tree_node {
  public:
-  enum_window_frame_unit m_unit;
+  enum_window_frame_unit m_query_expression;
 
   PT_border *m_from;
   PT_border *m_to;
@@ -1368,7 +1368,7 @@ class PT_frame : public Parse_tree_node {
 
   PT_frame(enum_window_frame_unit unit, PT_borders *from_to,
            PT_exclusion *exclusion)
-      : m_unit(unit),
+      : m_query_expression(unit),
         m_from(from_to->m_borders[0]),
         m_to(from_to->m_borders[1]),
         m_exclusion(exclusion) {}
@@ -1573,9 +1573,9 @@ class PT_query_expression final : public PT_query_primary {
   /**
     Contextualizes the order and limit clauses, re-interpreting them according
     to the rules. If the `<query expression body>` can absorb the clauses,
-    they are simply contextualized into the current SELECT_LEX. If not, we
-    have to create the "fake" SELECT_LEX unless there is one already
-    (SELECT_LEX_UNIT::new_union_query() is known to do this.)
+    they are simply contextualized into the current Query_block. If not, we
+    have to create the "fake" Query_block unless there is one already
+    (Query_expression::new_union_query() is known to do this.)
 
     @see PT_query_expression::can_absorb_order_and_limit()
   */
@@ -1633,7 +1633,7 @@ class PT_subquery : public Parse_tree_node {
 
   PT_query_primary *qe;
   POS pos;
-  SELECT_LEX *select_lex;
+  Query_block *query_block;
 
  public:
   bool m_is_derived_table;
@@ -1641,12 +1641,12 @@ class PT_subquery : public Parse_tree_node {
   PT_subquery(POS p, PT_query_primary *query_expression)
       : qe(query_expression),
         pos(p),
-        select_lex(nullptr),
+        query_block(nullptr),
         m_is_derived_table(false) {}
 
   bool contextualize(Parse_context *pc) override;
 
-  SELECT_LEX *value() { return select_lex; }
+  Query_block *value() { return query_block; }
 };
 
 class PT_union : public PT_query_expression_body {
@@ -1915,7 +1915,7 @@ class PT_insert final : public Parse_tree_root {
   Sql_cmd *make_cmd(THD *thd) override;
 
  private:
-  bool has_select() const { return insert_query_expression != nullptr; }
+  bool has_query_block() const { return insert_query_expression != nullptr; }
 };
 
 class PT_call final : public Parse_tree_root {

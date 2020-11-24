@@ -32,7 +32,7 @@
 #include "sql/sql_const.h"
 
 class Field;
-class SELECT_LEX;
+class Query_block;
 class THD;
 struct MEM_ROOT;
 struct TABLE;
@@ -98,7 +98,7 @@ struct JoinHypergraph {
 };
 
 /**
-  Make a join hypergraph from the query block given by “select_lex”,
+  Make a join hypergraph from the query block given by “query_block”,
   converting from MySQL's join list structures to the ones expected
   by the hypergraph join optimizer. This includes pushdown of WHERE
   predicates, and detection of conditions suitable for hash join.
@@ -108,7 +108,7 @@ struct JoinHypergraph {
   The result is suitable for running DPhyp (subgraph_enumeration.h)
   to find optimal join planning.
  */
-bool MakeJoinHypergraph(THD *thd, SELECT_LEX *select_lex, std::string *trace,
+bool MakeJoinHypergraph(THD *thd, Query_block *query_block, std::string *trace,
                         JoinHypergraph *graph);
 
 #endif  // SQL_JOIN_OPTIMIZER_MAKE_JOIN_HYPERGRAPH

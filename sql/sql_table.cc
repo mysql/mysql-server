@@ -8967,7 +8967,7 @@ bool mysql_create_table_no_lock(THD *thd, const char *db,
 
   // Only needed for CREATE TABLE LIKE / SELECT, as warnings for
   // pure CREATE TABLE is reported in the parser.
-  if (!thd->lex->select_lex->field_list_is_empty()) {
+  if (!thd->lex->query_block->field_list_is_empty()) {
     for (const Create_field &sql_field : alter_info->create_list) {
       warn_on_deprecated_float_precision(thd, sql_field);
       warn_on_deprecated_float_unsigned(thd, sql_field);
@@ -17826,8 +17826,8 @@ static int copy_data_between_tables(
   Field **gen_fields, **gen_fields_end;
   bool auto_increment_field_copied = false;
   sql_mode_t save_sql_mode;
-  SELECT_LEX_UNIT *const unit = thd->lex->unit;
-  SELECT_LEX *const select = unit->first_select();
+  Query_expression *const unit = thd->lex->unit;
+  Query_block *const select = unit->first_query_block();
 
   QEP_TAB_standalone qep_tab_st;
   QEP_TAB &qep_tab = qep_tab_st.as_QEP_TAB();

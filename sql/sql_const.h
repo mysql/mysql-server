@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -309,7 +309,7 @@ static const ulong EVENT_DEF_CACHE_MIN = 256;
 */
 #define CONTEXT_ANALYSIS_ONLY_PREPARE 1
 /*
-  Special SELECT_LEX::prepare mode: changing of query is prohibited.
+  Special Query_block::prepare mode: changing of query is prohibited.
   When creating a view, we need to just check its syntax omitting
   any optimizations: afterwards definition of the view will be
   reconstructed by means of ::print() methods and written to
@@ -434,7 +434,7 @@ enum enum_resolution_type {
   RESOLVED_IGNORING_ALIAS
 };
 
-/// Enumeration for {Item,SELECT_LEX[_UNIT],Table_function}::walk
+/// Enumeration for {Item,Query_block[_UNIT],Table_function}::walk
 enum class enum_walk {
   PREFIX = 0x01,
   POSTFIX = 0x02,
@@ -452,10 +452,10 @@ inline bool operator&(enum_walk lhs, enum_walk rhs) {
 }
 
 class Item;
-/// Processor type for {Item,SELECT_LEX[_UNIT],Table_function}::walk
+/// Processor type for {Item,Query_block[_UNIT],Table_function}::walk
 typedef bool (Item::*Item_processor)(uchar *arg);
 
-/// Enumeration for SELECT_LEX::condition_context.
+/// Enumeration for Query_block::condition_context.
 /// If the expression being resolved belongs to a condition clause (WHERE, etc),
 /// it is connected to the clause's root through a chain of Items; tells if this
 /// chain matches ^(AND)*$ ("is top-level"), ^(AND|OR)*$, or neither.

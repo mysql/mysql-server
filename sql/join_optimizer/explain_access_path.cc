@@ -119,20 +119,20 @@ static void GetAccessPathsFromItem(Item *item_arg, const char *source_text,
     }
 
     Item_subselect *subselect = down_cast<Item_subselect *>(item);
-    SELECT_LEX *select_lex = subselect->unit->first_select();
+    Query_block *query_block = subselect->unit->first_query_block();
     char description[256];
-    if (select_lex->is_dependent()) {
+    if (query_block->is_dependent()) {
       snprintf(description, sizeof(description),
                "Select #%d (subquery in %s; dependent)",
-               select_lex->select_number, source_text);
-    } else if (!select_lex->is_cacheable()) {
+               query_block->select_number, source_text);
+    } else if (!query_block->is_cacheable()) {
       snprintf(description, sizeof(description),
                "Select #%d (subquery in %s; uncacheable)",
-               select_lex->select_number, source_text);
+               query_block->select_number, source_text);
     } else {
       snprintf(description, sizeof(description),
                "Select #%d (subquery in %s; run only once)",
-               select_lex->select_number, source_text);
+               query_block->select_number, source_text);
     }
     AccessPath *path;
     if (subselect->unit->root_access_path() != nullptr) {
@@ -140,7 +140,7 @@ static void GetAccessPathsFromItem(Item *item_arg, const char *source_text,
     } else {
       path = subselect->unit->item->root_access_path();
     }
-    children->push_back({path, description, select_lex->join});
+    children->push_back({path, description, query_block->join});
     return false;
   });
 }
@@ -878,7 +878,7 @@ string PrintQueryPlan(int level, AccessPath *path, JOIN *join,
   if (is_root_of_join) {
     // If we know that the join will return zero rows, we don't bother
     // optimizing any subqueries in the SELECT list, but end optimization
-    // early (see SELECT_LEX::optimize()). If so, don't attempt to print
+    // early (see Query_block::optimize()). If so, don't attempt to print
     // them either, as they have no query plan.
     if (path->type == AccessPath::ZERO_ROWS) {
       return ret;

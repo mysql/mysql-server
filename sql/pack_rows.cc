@@ -66,7 +66,7 @@ TableCollection::TableCollection(const JOIN *join, table_map tables,
   // (so we can't use it for the non-hypergraph optimizer), but the hypergraph
   // optimizer does not use semijoin materialization.
   if (join->thd->lex->using_hypergraph_optimizer) {
-    for (TABLE_LIST *tl = join->select_lex->leaf_tables; tl;
+    for (TABLE_LIST *tl = join->query_block->leaf_tables; tl;
          tl = tl->next_leaf) {
       TABLE *table = tl->table;
       if (table == nullptr || table->pos_in_table_list == nullptr) {

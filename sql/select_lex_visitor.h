@@ -1,6 +1,6 @@
-#ifndef SELECT_LEX_VISITOR_INCLUDED
-#define SELECT_LEX_VISITOR_INCLUDED
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#ifndef Query_block_VISITOR_INCLUDED
+#define Query_block_VISITOR_INCLUDED
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,12 +27,12 @@
   Visitor interface for parse trees.
 */
 
-class SELECT_LEX_UNIT;
-class SELECT_LEX;
+class Query_expression;
+class Query_block;
 class Item;
 
 /**
-  Abstract base class for traversing the SELECT_LEX tree. In order to use it,
+  Abstract base class for traversing the Query_block tree. In order to use it,
   a client defines a subclass, overriding the member functions that visit the
   objects of interest. If a function returns true, traversal is aborted.
 */
@@ -40,8 +40,10 @@ class Select_lex_visitor {
  public:
   virtual bool visits_in_prefix_order() const { return true; }
 
-  bool visit(SELECT_LEX_UNIT *unit) { return visit_union(unit); }
-  bool visit(SELECT_LEX *select_lex) { return visit_query_block(select_lex); }
+  bool visit(Query_expression *unit) { return visit_union(unit); }
+  bool visit(Query_block *query_block) {
+    return visit_query_block(query_block);
+  }
 
   /// Called for all nodes of all expression trees (i.e. Item trees).
   bool visit(Item *item) { return visit_item(item); }
@@ -49,9 +51,9 @@ class Select_lex_visitor {
   virtual ~Select_lex_visitor() = 0;
 
  protected:
-  virtual bool visit_union(SELECT_LEX_UNIT *) { return false; }
-  virtual bool visit_query_block(SELECT_LEX *) { return false; }
+  virtual bool visit_union(Query_expression *) { return false; }
+  virtual bool visit_query_block(Query_block *) { return false; }
   virtual bool visit_item(Item *) { return false; }
 };
 
-#endif  // SELECT_LEX_VISITOR_INCLUDED
+#endif  // Query_block_VISITOR_INCLUDED

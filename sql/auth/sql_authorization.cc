@@ -1773,7 +1773,7 @@ bool lock_tables_precheck(THD *thd, TABLE_LIST *tables) {
 bool create_table_precheck(THD *thd, TABLE_LIST *tables,
                            TABLE_LIST *create_table) {
   LEX *lex = thd->lex;
-  SELECT_LEX *select_lex = lex->select_lex;
+  Query_block *query_block = lex->query_block;
   ulong want_priv;
   bool error = true;  // Error message is given
   DBUG_TRACE;
@@ -1783,10 +1783,10 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
     CREATE TABLE ... SELECT, also require INSERT.
   */
 
-  want_priv =
-      (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)
-          ? CREATE_TMP_ACL
-          : (CREATE_ACL | (select_lex->field_list_is_empty() ? 0 : INSERT_ACL));
+  want_priv = (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)
+                  ? CREATE_TMP_ACL
+                  : (CREATE_ACL |
+                     (query_block->field_list_is_empty() ? 0 : INSERT_ACL));
 
   if (check_access(thd, want_priv, create_table->db,
                    &create_table->grant.privilege,
@@ -1840,7 +1840,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
       check_grant(thd, want_priv, create_table, false, 1, false))
     goto err;
 
-  if (!select_lex->fields.empty()) {
+  if (!query_block->fields.empty()) {
     /* Check permissions for used tables in CREATE TABLE ... SELECT */
     if (tables &&
         check_table_access(thd, SELECT_ACL, tables, false, UINT_MAX, false))
@@ -2415,7 +2415,7 @@ bool check_table_access(THD *thd, ulong requirements, TABLE_LIST *tables,
       element from the main query block.
     */
     DBUG_ASSERT(!table_ref->schema_table_reformed ||
-                table_ref == thd->lex->select_lex->table_list.first);
+                table_ref == thd->lex->query_block->table_list.first);
 
     DBUG_PRINT("info",
                ("table: %s derived: %d  view: %d", table_ref->table_name,
@@ -2653,7 +2653,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
       if (open_tables_for_query(thd, table_list, 0)) return true;
 
-      if (table_list->is_view() && !table_list->derived_unit()->is_prepared()) {
+      if (table_list->is_view() &&
+          !table_list->derived_query_expression()->is_prepared()) {
         Prepared_stmt_arena_holder ps_arena_holder(thd);
 
         if (table_list->resolve_derived(thd, false))

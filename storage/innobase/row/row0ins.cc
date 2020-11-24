@@ -3483,7 +3483,8 @@ void row_ins_get_row_from_values(ins_node_t *node) /*!< in: row insert node */
 
 /** Gets a row to insert from the select list. */
 UNIV_INLINE
-void row_ins_get_row_from_select(ins_node_t *node) /*!< in: row insert node */
+void row_ins_get_row_from_query_block(
+    ins_node_t *node) /*!< in: row insert node */
 {
   que_node_t *list_node;
   dfield_t *dfield;
@@ -3528,7 +3529,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     node->entry = UT_LIST_GET_FIRST(node->entry_list);
 
     if (node->ins_type == INS_SEARCHED) {
-      row_ins_get_row_from_select(node);
+      row_ins_get_row_from_query_block(node);
 
     } else if (node->ins_type == INS_VALUES) {
       row_ins_get_row_from_values(node);

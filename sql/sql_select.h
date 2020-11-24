@@ -50,7 +50,7 @@ class JOIN_TAB;
 class KEY;
 class QEP_TAB;
 class Query_result;
-class SELECT_LEX;
+class Query_block;
 class Select_lex_visitor;
 class SJ_TMP_TABLE;
 class Temp_table_param;
@@ -66,9 +66,9 @@ struct TABLE_LIST;
 
 typedef ulonglong nested_join_map;
 
-class Sql_cmd_select : public Sql_cmd_dml {
+class Sql_cmd_query_block : public Sql_cmd_dml {
  public:
-  explicit Sql_cmd_select(Query_result *result_arg) : Sql_cmd_dml() {
+  explicit Sql_cmd_query_block(Query_result *result_arg) : Sql_cmd_dml() {
     result = result_arg;
   }
 
@@ -623,7 +623,7 @@ class JOIN_TAB : public QEP_shared_owner {
     - otherwise, pointer is the address of some TABLE_LIST::m_join_cond.
       Thus, the pointee is the same as TABLE_LIST::m_join_cond (changing one
       changes the other; thus, optimizations made on the second are reflected
-      in SELECT_LEX::print_table_array() which uses the first one).
+      in Query_block::print_table_array() which uses the first one).
   */
   Item **m_join_cond_ref;
 
@@ -754,7 +754,7 @@ inline JOIN_TAB::JOIN_TAB()
       reversed_access(false) {}
 
 /* Extern functions in sql_select.cc */
-void count_field_types(SELECT_LEX *select_lex, Temp_table_param *param,
+void count_field_types(Query_block *query_block, Temp_table_param *param,
                        const mem_root_deque<Item *> &fields,
                        bool reset_with_sum_func, bool save_sum_fields);
 uint find_shortest_key(TABLE *table, const Key_map *usable_keys);
@@ -769,7 +769,7 @@ enum aggregate_evaluated {
   AGGR_EMPTY      // Source tables empty, aggregates are NULL or 0 (for COUNT)
 };
 
-bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
+bool optimize_aggregated_query(THD *thd, Query_block *select,
                                const mem_root_deque<Item *> &all_fields,
                                Item *conds, aggregate_evaluated *decision);
 
@@ -868,7 +868,7 @@ bool error_if_full_join(JOIN *join);
 bool set_statement_timer(THD *thd);
 void reset_statement_timer(THD *thd);
 
-void free_underlaid_joins(THD *thd, SELECT_LEX *select);
+void free_underlaid_joins(THD *thd, Query_block *select);
 
 void calc_used_field_length(TABLE *table, bool needs_rowid,
                             uint *p_used_fieldlength);

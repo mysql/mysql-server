@@ -4437,7 +4437,7 @@ apply_event_and_update_pos(Log_event **ptr_ev, THD *thd, Relay_log_info *rli) {
   thd->server_id = ev->server_id;  // use the original server id for logging
   thd->unmasked_server_id = ev->common_header->unmasked_server_id;
   thd->set_time();  // time the query
-  thd->lex->set_current_select(nullptr);
+  thd->lex->set_current_query_block(nullptr);
   if (!ev->common_header->when.tv_sec)
     my_micro_time_to_timeval(my_micro_time(), &ev->common_header->when);
   ev->thd = thd;  // because up to this point, ev->thd == 0

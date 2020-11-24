@@ -479,7 +479,7 @@ THD::THD(bool enable_plugins)
   statement_id_counter = 0UL;
   // Must be reset to handle error with THD's created for init of mysqld
   lex->thd = nullptr;
-  lex->set_current_select(nullptr);
+  lex->set_current_query_block(nullptr);
   utime_after_lock = 0L;
   current_linfo = nullptr;
   slave_thread = false;
@@ -2665,7 +2665,7 @@ const String THD::normalized_query() {
 }
 
 bool add_item_to_list(THD *thd, Item *item) {
-  return thd->lex->select_lex->add_item_to_list(item);
+  return thd->lex->query_block->add_item_to_list(item);
 }
 
 THD::Transaction_state::Transaction_state()

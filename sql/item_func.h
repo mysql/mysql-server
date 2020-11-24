@@ -66,7 +66,7 @@
 class Json_wrapper;
 class PT_item_list;
 class Protocol;
-class SELECT_LEX;
+class Query_block;
 class THD;
 class sp_rcontext;
 struct MY_BITMAP;
@@ -404,8 +404,8 @@ class Item_func : public Item_result_field, public Func_args_handle {
 
   bool fix_fields(THD *, Item **ref) override;
   bool fix_func_arg(THD *, Item **arg);
-  void fix_after_pullout(SELECT_LEX *parent_select,
-                         SELECT_LEX *removed_select) override;
+  void fix_after_pullout(Query_block *parent_query_block,
+                         Query_block *removed_query_block) override;
   /**
     Resolve type of function after all arguments have had their data types
     resolved. Called from resolve_type() when no dynamic parameters
@@ -3823,8 +3823,8 @@ class Item_func_sp final : public Item_func {
   */
   table_map get_initial_pseudo_tables() const override;
   void update_used_tables() override;
-  void fix_after_pullout(SELECT_LEX *parent_select,
-                         SELECT_LEX *removed_select) override;
+  void fix_after_pullout(Query_block *parent_query_block,
+                         Query_block *removed_query_block) override;
   void cleanup() override;
 
   const char *func_name() const override;

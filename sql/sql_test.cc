@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -349,12 +349,12 @@ class Dbug_table_list_dumper {
  public:
   void dump_one_struct(TABLE_LIST *tbl);
 
-  int dump_graph(SELECT_LEX *select_lex, TABLE_LIST *first_leaf);
+  int dump_graph(Query_block *query_block, TABLE_LIST *first_leaf);
 };
 
-void dump_TABLE_LIST_graph(SELECT_LEX *select_lex, TABLE_LIST *tl) {
+void dump_TABLE_LIST_graph(Query_block *query_block, TABLE_LIST *tl) {
   Dbug_table_list_dumper dumper;
-  dumper.dump_graph(select_lex, tl);
+  dumper.dump_graph(query_block, tl);
 }
 
 /*
@@ -407,7 +407,7 @@ void Dbug_table_list_dumper::dump_one_struct(TABLE_LIST *tbl) {
   }
 }
 
-int Dbug_table_list_dumper::dump_graph(SELECT_LEX *select_lex,
+int Dbug_table_list_dumper::dump_graph(Query_block *query_block,
                                        TABLE_LIST *first_leaf) {
   DBUG_TRACE;
   char filename[500];
@@ -442,7 +442,7 @@ int Dbug_table_list_dumper::dump_graph(SELECT_LEX *select_lex,
   }
 
   mem_root_deque<TABLE_LIST *> *plist;
-  tbl_lists.push_back(&select_lex->top_join_list);
+  tbl_lists.push_back(&query_block->top_join_list);
   while (tbl_lists.pop_first(&plist)) {
     fprintf(out, "\"%p\" [\n", plist);
     fprintf(out, "  bgcolor = \"\"");

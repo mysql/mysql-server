@@ -43,7 +43,7 @@
 
 class Opt_trace_object;
 class Query_result;
-class SELECT_LEX_UNIT;
+class Query_expression;
 class Window;
 
 enum class enum_explain_type;
@@ -411,7 +411,7 @@ class qep_row {
     @param subquery     WHERE clause subquery's unit
   */
   virtual void register_where_subquery(
-      SELECT_LEX_UNIT *subquery MY_ATTRIBUTE((unused))) {}
+      Query_expression *subquery MY_ATTRIBUTE((unused))) {}
 
   void format_extra(Opt_trace_object *obj);
 };
@@ -545,7 +545,7 @@ class Explain_format {
     @param flags        Format flags, see Explain_format_flags.
   */
   virtual bool begin_context(enum_parsing_context context,
-                             SELECT_LEX_UNIT *subquery = nullptr,
+                             Query_expression *subquery = nullptr,
                              const Explain_format_flags *flags = nullptr) = 0;
 
   /**

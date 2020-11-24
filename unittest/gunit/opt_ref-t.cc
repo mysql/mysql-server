@@ -154,7 +154,7 @@ TEST_F(OptRefTest, addKeyFieldsFromInOneRow) {
   all_args->push_front(make_item_row(item_zero, item_zero));
   all_args->push_front(make_item_row(item_field_t1_a, item_field_t1_b));
   Item *cond = new Item_func_in(POS(), all_args, false);
-  Parse_context pc(thd(), thd()->lex->current_select());
+  Parse_context pc(thd(), thd()->lex->current_query_block());
   EXPECT_FALSE(cond->itemize(&pc, &cond));
 
   call_add_key_fields(cond);
@@ -175,7 +175,7 @@ TEST_F(OptRefTest, addKeyFieldsFromInTwoRows) {
   all_args->push_front(make_item_row(item_zero, item_zero));
   all_args->push_front(make_item_row(item_field_t1_a, item_field_t1_b));
   Item *cond = new Item_func_in(POS(), all_args, false);
-  Parse_context pc(thd(), thd()->lex->current_select());
+  Parse_context pc(thd(), thd()->lex->current_query_block());
   EXPECT_FALSE(cond->itemize(&pc, &cond));
 
   call_add_key_fields(cond);
@@ -193,7 +193,7 @@ TEST_F(OptRefTest, addKeyFieldsFromInOneRowWithCols) {
   all_args->push_front(make_item_row(item_field_t2_a, item_field_t2_b));
   all_args->push_front(make_item_row(item_field_t1_a, item_field_t1_b));
   Item *cond = new Item_func_in(POS(), all_args, false);
-  Parse_context pc(thd(), thd()->lex->current_select());
+  Parse_context pc(thd(), thd()->lex->current_query_block());
   EXPECT_FALSE(cond->itemize(&pc, &cond));
 
   call_add_key_fields(cond);

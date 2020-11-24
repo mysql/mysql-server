@@ -145,7 +145,7 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables) {
 bool Sql_cmd_handler_open::execute(THD *thd) {
   TABLE_LIST *hash_tables = nullptr;
   char *db, *name, *alias;
-  TABLE_LIST *tables = thd->lex->select_lex->get_table_list();
+  TABLE_LIST *tables = thd->lex->query_block->get_table_list();
   DBUG_TRACE;
   DBUG_PRINT("enter", ("'%s'.'%s' as '%s'", tables->db, tables->table_name,
                        tables->alias));
@@ -338,7 +338,7 @@ static bool mysql_ha_open_table(THD *thd, TABLE_LIST *hash_tables) {
 */
 
 bool Sql_cmd_handler_close::execute(THD *thd) {
-  TABLE_LIST *tables = thd->lex->select_lex->get_table_list();
+  TABLE_LIST *tables = thd->lex->query_block->get_table_list();
   DBUG_TRACE;
   DBUG_PRINT("enter", ("'%s'.'%s' as '%s'", tables->db, tables->table_name,
                        tables->alias));
@@ -394,11 +394,11 @@ bool Sql_cmd_handler_read::execute(THD *thd) {
   uint key_len = 0;
   MDL_deadlock_and_lock_abort_error_handler sql_handler_lock_error;
   LEX *lex = thd->lex;
-  SELECT_LEX *select_lex = lex->select_lex;
-  SELECT_LEX_UNIT *unit = lex->unit;
-  TABLE_LIST *tables = select_lex->get_table_list();
+  Query_block *query_block = lex->query_block;
+  Query_expression *unit = lex->unit;
+  TABLE_LIST *tables = query_block->get_table_list();
   enum_ha_read_modes mode = m_read_mode;
-  Item *cond = select_lex->where_cond();
+  Item *cond = query_block->where_cond();
   ha_rows select_limit_cnt, offset_limit_cnt;
   MDL_savepoint mdl_savepoint;
   bool res;
@@ -421,15 +421,15 @@ bool Sql_cmd_handler_read::execute(THD *thd) {
     able to open it (with SQLCOM_HA_OPEN) in the first place.
   */
 
-  /* Get limit counters from SELECT_LEX. */
-  select_lex->resolve_limits(thd);
-  unit->set_limit(thd, select_lex);
+  /* Get limit counters from Query_block. */
+  query_block->resolve_limits(thd);
+  unit->set_limit(thd, query_block);
   select_limit_cnt = unit->select_limit_cnt;
   offset_limit_cnt = unit->offset_limit_cnt;
 
-  select_lex->context.resolve_in_table_list_only(tables);
+  query_block->context.resolve_in_table_list_only(tables);
   mem_root_deque<Item *> list(thd->mem_root);
-  list.push_back(new Item_field(&select_lex->context, nullptr, nullptr, "*"));
+  list.push_back(new Item_field(&query_block->context, nullptr, nullptr, "*"));
 
 retry:
   const auto hash_it = thd->handler_tables_hash.find(tables->alias);
@@ -584,7 +584,7 @@ retry:
     const enum_mark_columns save_mark_columns = thd->mark_used_columns;
     thd->mark_used_columns = MARK_COLUMNS_READ;
     auto list_it = list.begin();
-    if (insert_fields(thd, select_lex, tables->db, tables->alias, &list,
+    if (insert_fields(thd, query_block, tables->db, tables->alias, &list,
                       &list_it, false))
       goto err;
     thd->mark_used_columns = save_mark_columns;

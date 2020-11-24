@@ -44,39 +44,39 @@ class TableFactorSyntaxTest : public ParserTest {
  protected:
   void test_table_factor_syntax(const char *query, int num_terms,
                                 bool expect_syntax_error) {
-    SELECT_LEX *term1 = parse(query, expect_syntax_error ? ER_PARSE_ERROR : 0);
-    EXPECT_EQ(nullptr, term1->first_inner_unit());
+    Query_block *term1 = parse(query, expect_syntax_error ? ER_PARSE_ERROR : 0);
+    EXPECT_EQ(nullptr, term1->first_inner_query_expression());
     EXPECT_EQ(nullptr, term1->next_select_in_list());
     EXPECT_EQ(1, term1->get_fields_list()->front()->val_int());
 
-    SELECT_LEX_UNIT *top_union = term1->master_unit();
-    EXPECT_EQ(nullptr, top_union->outer_select());
+    Query_expression *top_union = term1->master_query_expression();
+    EXPECT_EQ(nullptr, top_union->outer_query_block());
 
     if (num_terms > 1) {
-      SELECT_LEX *term2 = term1->next_select();
+      Query_block *term2 = term1->next_query_block();
       ASSERT_FALSE(term2 == nullptr);
 
-      EXPECT_EQ(nullptr, term2->first_inner_unit());
+      EXPECT_EQ(nullptr, term2->first_inner_query_expression());
       EXPECT_EQ(term1, term2->next_select_in_list());
       EXPECT_EQ(2, term2->get_fields_list()->front()->val_int());
 
       if (num_terms <= 2) {
-        EXPECT_EQ(nullptr, term2->next_select());
+        EXPECT_EQ(nullptr, term2->next_query_block());
       }
 
-      EXPECT_EQ(top_union, term2->master_unit());
+      EXPECT_EQ(top_union, term2->master_query_expression());
     }
   }
 
   void test_global_limit(const char *query) {
-    SELECT_LEX *first_term = parse(query);
-    SELECT_LEX_UNIT *unit = first_term->master_unit();
+    Query_block *first_term = parse(query);
+    Query_expression *unit = first_term->master_query_expression();
     EXPECT_EQ(1U, unit->global_parameters()->order_list.elements) << query;
     EXPECT_FALSE(unit->global_parameters()->select_limit == nullptr) << query;
   }
 };
 
-void check_query_block(SELECT_LEX *block, int select_list_item,
+void check_query_block(Query_block *block, int select_list_item,
                        const char *tablename) {
   ASSERT_EQ(1U, block->num_visible_fields());
   EXPECT_EQ(select_list_item, block->fields.front()->val_int());
@@ -86,53 +86,55 @@ void check_query_block(SELECT_LEX *block, int select_list_item,
 }
 
 TEST_F(TableFactorSyntaxTest, Single) {
-  SELECT_LEX *term = parse("SELECT 2 FROM (SELECT 1 FROM t1) dt;", 0);
-  EXPECT_EQ(nullptr, term->outer_select());
-  SELECT_LEX_UNIT *top_union = term->master_unit();
+  Query_block *term = parse("SELECT 2 FROM (SELECT 1 FROM t1) dt;", 0);
+  EXPECT_EQ(nullptr, term->outer_query_block());
+  Query_expression *top_union = term->master_query_expression();
 
-  EXPECT_EQ(term, top_union->first_select());
-  EXPECT_EQ(nullptr, term->next_select());
+  EXPECT_EQ(term, top_union->first_query_block());
+  EXPECT_EQ(nullptr, term->next_query_block());
 
   ASSERT_EQ(1U, term->top_join_list.size());
   EXPECT_STREQ("dt", term->top_join_list.front()->alias);
 
-  SELECT_LEX_UNIT *inner_union = term->first_inner_unit();
+  Query_expression *inner_union = term->first_inner_query_expression();
 
-  SELECT_LEX *inner_term = inner_union->first_select();
+  Query_block *inner_term = inner_union->first_query_block();
 
   check_query_block(inner_term, 1, "t1");
 }
 
 TEST_F(TableFactorSyntaxTest, TablelessTableSubquery) {
-  SELECT_LEX *term = parse("SELECT 1 FROM (SELECT 2) a;", 0);
-  EXPECT_EQ(nullptr, term->outer_select());
-  SELECT_LEX_UNIT *top_union = term->master_unit();
+  Query_block *term = parse("SELECT 1 FROM (SELECT 2) a;", 0);
+  EXPECT_EQ(nullptr, term->outer_query_block());
+  Query_expression *top_union = term->master_query_expression();
 
-  EXPECT_EQ(term, top_union->first_select());
-  EXPECT_EQ(nullptr, term->next_select());
+  EXPECT_EQ(term, top_union->first_query_block());
+  EXPECT_EQ(nullptr, term->next_query_block());
 
   ASSERT_EQ(1U, term->top_join_list.size());
   EXPECT_STREQ("a", term->top_join_list.front()->alias);
 
-  SELECT_LEX_UNIT *inner_union = term->first_inner_unit();
+  Query_expression *inner_union = term->first_inner_query_expression();
 
-  SELECT_LEX *inner_term = inner_union->first_select();
+  Query_block *inner_term = inner_union->first_query_block();
 
-  EXPECT_EQ(nullptr, inner_term->first_inner_unit());
+  EXPECT_EQ(nullptr, inner_term->first_inner_query_expression());
 
-  EXPECT_NE(term, term->table_list.first->derived_unit()->first_select())
+  EXPECT_NE(
+      term,
+      term->table_list.first->derived_query_expression()->first_query_block())
       << "No cycle in the AST, please.";
 }
 
 TEST_F(TableFactorSyntaxTest, Union) {
-  SELECT_LEX *block = parse(
+  Query_block *block = parse(
       "SELECT 1 FROM (SELECT 1 FROM t1 UNION SELECT 2 FROM t2) dt "
       "WHERE d1.a = 1",
       0);
-  SELECT_LEX_UNIT *top_union = block->master_unit();
+  Query_expression *top_union = block->master_query_expression();
 
-  EXPECT_EQ(block, top_union->first_select());
-  EXPECT_EQ(nullptr, block->next_select());
+  EXPECT_EQ(block, top_union->first_query_block());
+  EXPECT_EQ(nullptr, block->next_query_block());
 
   TABLE_LIST *dt = block->table_list.first;
   EXPECT_EQ(dt, block->context.first_name_resolution_table);
@@ -145,10 +147,10 @@ TEST_F(TableFactorSyntaxTest, Union) {
   EXPECT_EQ(1U, block->top_join_list.size());
   EXPECT_STREQ("dt", block->top_join_list.front()->alias);
 
-  SELECT_LEX_UNIT *inner_union = block->first_inner_unit();
+  Query_expression *inner_union = block->first_inner_query_expression();
 
-  SELECT_LEX *first_inner_block = inner_union->first_select();
-  SELECT_LEX *second_inner_block = first_inner_block->next_select();
+  Query_block *first_inner_block = inner_union->first_query_block();
+  Query_block *second_inner_block = first_inner_block->next_query_block();
 
   TABLE_LIST *t1 = first_inner_block->table_list.first;
   TABLE_LIST *t2 = second_inner_block->table_list.first;
@@ -162,36 +164,36 @@ TEST_F(TableFactorSyntaxTest, Union) {
   check_query_block(first_inner_block, 1, "t1");
   check_query_block(second_inner_block, 2, "t2");
 
-  EXPECT_EQ(nullptr, block->outer_select());
+  EXPECT_EQ(nullptr, block->outer_query_block());
 }
 
 TEST_F(TableFactorSyntaxTest, NestedJoin) {
-  SELECT_LEX *term = parse("SELECT * FROM (t1 JOIN t2 ON TRUE)", 0);
-  SELECT_LEX_UNIT *top_union = term->master_unit();
+  Query_block *term = parse("SELECT * FROM (t1 JOIN t2 ON TRUE)", 0);
+  Query_expression *top_union = term->master_query_expression();
 
-  EXPECT_EQ(term, top_union->first_select());
+  EXPECT_EQ(term, top_union->first_query_block());
 }
 
 TEST_F(TableFactorSyntaxTest, NestedNestedJoin) {
-  SELECT_LEX *term =
+  Query_block *term =
       parse("SELECT * FROM ((t1 JOIN t2 ON TRUE) JOIN t3 ON TRUE)", 0);
-  SELECT_LEX_UNIT *top_union = term->master_unit();
+  Query_expression *top_union = term->master_query_expression();
 
-  EXPECT_EQ(term, top_union->first_select());
+  EXPECT_EQ(term, top_union->first_query_block());
 }
 
 TEST_F(TableFactorSyntaxTest, NestedTableReferenceList) {
-  SELECT_LEX *term1 =
+  Query_block *term1 =
       parse("SELECT * FROM t1 LEFT JOIN ( t2 JOIN t3 JOIN t4 ) ON t1.a = t3.a");
 
-  SELECT_LEX *term2 =
+  Query_block *term2 =
       parse("SELECT * FROM t1 LEFT JOIN ( t2, t3, t4 ) ON t1.a = t3.a");
 
-  SELECT_LEX_UNIT *top_union = term1->master_unit();
-  SELECT_LEX_UNIT *top_union2 = term2->master_unit();
+  Query_expression *top_union = term1->master_query_expression();
+  Query_expression *top_union2 = term2->master_query_expression();
 
-  EXPECT_EQ(term1, top_union->first_select());
-  EXPECT_EQ(term2, top_union2->first_select());
+  EXPECT_EQ(term1, top_union->first_query_block());
+  EXPECT_EQ(term2, top_union2->first_query_block());
 
   EXPECT_EQ(4U, term1->table_list.elements);
   ASSERT_EQ(4U, term2->table_list.elements);

@@ -42,7 +42,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #define YYINITDEPTH 100
 #define YYMAXDEPTH 3200                        /* Because of 64K stack */
 #define Lex (YYTHD->lex)
-#define Select Lex->current_select()
+#define Select Lex->current_query_block()
 
 #include <sys/types.h>  // TODO: replace with cstdint
 
@@ -150,7 +150,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/sql_parse.h"                        /* comp_*_creator */
 #include "sql/sql_plugin.h"                      // plugin_is_ready
 #include "sql/sql_profile.h"
-#include "sql/sql_select.h"                      // Sql_cmd_select...
+#include "sql/sql_select.h"                      // Sql_cmd_query_block...
 #include "sql/sql_servers.h"
 #include "sql/sql_signal.h"
 #include "sql/sql_table.h"                        /* primary_key_name */
@@ -9590,7 +9590,7 @@ table_to_table:
           table_ident TO_SYM table_ident
           {
             LEX *lex=Lex;
-            SELECT_LEX *sl= Select;
+            Query_block *sl= Select;
             if (!sl->add_table_to_list(lex->thd, $1,NULL,TL_OPTION_UPDATING,
                                        TL_IGNORE, MDL_EXCLUSIVE) ||
                 !sl->add_table_to_list(lex->thd, $3,NULL,TL_OPTION_UPDATING,
@@ -14183,7 +14183,7 @@ use:
           {
             LEX *lex=Lex;
             lex->sql_command=SQLCOM_CHANGE_DB;
-            lex->select_lex->db= $2.str;
+            lex->query_block->db= $2.str;
           }
         ;
 
@@ -16380,7 +16380,7 @@ grant_ident:
           {
             LEX *lex= Lex;
             size_t dummy;
-            if (lex->copy_db_to(&lex->current_select()->db, &dummy))
+            if (lex->copy_db_to(&lex->current_query_block()->db, &dummy))
               MYSQL_YYABORT;
             if (lex->grant == GLOBAL_ACLS)
               lex->grant = DB_OP_ACLS;
@@ -16393,7 +16393,7 @@ grant_ident:
         | schema '.' '*'
           {
             LEX *lex= Lex;
-            lex->current_select()->db = $1.str;
+            lex->current_query_block()->db = $1.str;
             if (lex->grant == GLOBAL_ACLS)
               lex->grant = DB_OP_ACLS;
             else if (lex->columns.elements)
@@ -16405,7 +16405,7 @@ grant_ident:
         | '*' '.' '*'
           {
             LEX *lex= Lex;
-            lex->current_select()->db = NULL;
+            lex->current_query_block()->db = NULL;
             if (lex->grant == GLOBAL_ACLS)
               lex->grant= GLOBAL_ACLS & ~GRANT_ACL;
             else if (lex->columns.elements)
@@ -16420,7 +16420,7 @@ grant_ident:
             if (tmp == NULL)
               MYSQL_YYABORT;
             LEX *lex=Lex;
-            if (!lex->current_select()->add_table_to_list(lex->thd, tmp, NULL,
+            if (!lex->current_query_block()->add_table_to_list(lex->thd, tmp, NULL,
                                                         TL_OPTION_UPDATING))
               MYSQL_YYABORT;
             if (lex->grant == GLOBAL_ACLS)
@@ -16434,7 +16434,7 @@ grant_ident:
             if (tmp == NULL)
               MYSQL_YYABORT;
             LEX *lex=Lex;
-            if (!lex->current_select()->add_table_to_list(lex->thd, tmp, NULL,
+            if (!lex->current_query_block()->add_table_to_list(lex->thd, tmp, NULL,
                                                         TL_OPTION_UPDATING))
               MYSQL_YYABORT;
             if (lex->grant == GLOBAL_ACLS)
@@ -17042,7 +17042,7 @@ view_tail:
             LEX *lex= thd->lex;
             lex->sql_command= SQLCOM_CREATE_VIEW;
             /* first table in list is target VIEW name */
-            if (!lex->select_lex->add_table_to_list(thd, $3, NULL,
+            if (!lex->query_block->add_table_to_list(thd, $3, NULL,
                                                     TL_OPTION_UPDATING,
                                                     TL_IGNORE,
                                                     MDL_EXCLUSIVE))
@@ -17072,10 +17072,10 @@ view_tail:
                 set_derived_column_names(static_cast<Create_col_name_list* >(rawmem));
             }
           }
-          AS view_select
+          AS view_query_block
         ;
 
-view_select:
+view_query_block:
           query_expression_or_parens view_check_option
           {
             THD *thd= YYTHD;
@@ -17091,14 +17091,14 @@ view_select:
               table_list finally.
 
               @todo: Don't save the CREATE destination table in
-                     SELECT_LEX::table_list and remove this backup & restore.
+                     Query_block::table_list and remove this backup & restore.
 
               The following work only with the local list, the global list
               is created correctly in this case
             */
             SQL_I_List<TABLE_LIST> save_list;
-            SELECT_LEX * const save_select= Select;
-            save_select->table_list.save_and_clear(&save_list);
+            Query_block * const save_query_block= Select;
+            save_query_block->table_list.save_and_clear(&save_list);
 
             CONTEXTUALIZE($1);
 
@@ -17106,7 +17106,7 @@ view_select:
               The following work only with the local list, the global list
               is created correctly in this case
             */
-            save_select->table_list.push_front(&save_list);
+            save_query_block->table_list.push_front(&save_list);
 
             Lex->create_view_check= $2;
 
@@ -17116,10 +17116,10 @@ view_select:
               so let use explicit @1 and @2 to memdup this view definition:
             */
             const size_t len= @2.cpp.end - @1.cpp.start;
-            lex->create_view_select.str=
+            lex->create_view_query_block.str=
               static_cast<char *>(thd->memdup(@1.cpp.start, len));
-            lex->create_view_select.length= len;
-            trim_whitespace(thd->charset(), &lex->create_view_select);
+            lex->create_view_query_block.length= len;
+            trim_whitespace(thd->charset(), &lex->create_view_query_block);
 
             lex->parsing_options.allows_variable= true;
             lex->parsing_options.allows_select_into= true;
@@ -17220,7 +17220,7 @@ trigger_tail:
               sp_proc_stmt alternatives are not saving/restoring LEX, so
               lex->query_tables can be wiped out.
             */
-            if (!lex->select_lex->add_table_to_list(thd, $6,
+            if (!lex->query_block->add_table_to_list(thd, $6,
                                                     nullptr,
                                                     TL_OPTION_UPDATING,
                                                     TL_READ_NO_INSERT,

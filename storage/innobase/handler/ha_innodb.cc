@@ -1568,7 +1568,7 @@ ibool thd_trx_is_auto_commit(THD *thd) /*!< in: thread handle, can be NULL */
 {
   return (thd != nullptr &&
           !thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN) &&
-          thd_is_select(thd));
+          thd_is_query_block(thd));
 }
 
 extern "C" time_t thd_start_time(const THD *thd);
@@ -1673,7 +1673,7 @@ ibool thd_has_edited_nontrans_tables(THD *thd) /*!< in: thread handle */
 
 /** Returns true if the thread is executing a SELECT statement.
  @return true if thd is executing SELECT */
-ibool thd_is_select(const THD *thd) /*!< in: thread handle */
+ibool thd_is_query_block(const THD *thd) /*!< in: thread handle */
 {
   return (thd_sql_command(thd) == SQLCOM_SELECT);
 }

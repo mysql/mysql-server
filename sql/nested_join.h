@@ -105,7 +105,7 @@ struct NESTED_JOIN {
     1. In make_outerjoin_info().
     2. check_interleaving_with_nj/backout_nj_state (these are called
        by the join optimizer.
-    Before each use the counters are zeroed by SELECT_LEX::reset_nj_counters.
+    Before each use the counters are zeroed by Query_block::reset_nj_counters.
   */
   uint nj_counter{0};
   /**

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,7 @@ using Local_tables_iterator =
 using Local_tables_list = IteratorContainer<Local_tables_iterator>;
 
 TEST_F(LockingClauseSyntaxTest, LegacyForUpdate) {
-  SELECT_LEX *term = parse("SELECT * FROM t0, t1, t2 FOR UPDATE");
+  Query_block *term = parse("SELECT * FROM t0, t1, t2 FOR UPDATE");
 
   for (auto table : Local_tables_list(term->table_list.first)) {
     EXPECT_EQ(TL_WRITE, table->lock_descriptor().type);
@@ -77,7 +77,7 @@ TEST_F(LockingClauseSyntaxTest, LegacyForUpdate) {
 }
 
 TEST_F(LockingClauseSyntaxTest, LegacyShared) {
-  SELECT_LEX *term = parse("SELECT * FROM t0, t1, t2 LOCK IN SHARE MODE");
+  Query_block *term = parse("SELECT * FROM t0, t1, t2 LOCK IN SHARE MODE");
 
   for (auto table : Local_tables_list(term->table_list.first)) {
     EXPECT_EQ(TL_READ_WITH_SHARED_LOCKS, table->lock_descriptor().type);
@@ -86,7 +86,7 @@ TEST_F(LockingClauseSyntaxTest, LegacyShared) {
 }
 
 TEST_F(LockingClauseSyntaxTest, NameResolution) {
-  SELECT_LEX *term = parse(
+  Query_block *term = parse(
       "SELECT * "
       "FROM t0 t0_alias, "
       "test.t1, "

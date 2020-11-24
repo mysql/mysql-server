@@ -5184,11 +5184,11 @@ String *Item_func_remove_dd_property_key::val_str(String *str) {
 String *Item_func_convert_interval_to_user_interval::val_str(String *str) {
   if (!args[0]->is_null() && !args[1]->is_null()) {
     longlong event_interval_val = args[0]->val_int();
-    interval_type event_interval_unit = dd::get_old_interval_type(
+    interval_type event_interval_query_expression = dd::get_old_interval_type(
         (dd::Event::enum_interval_field)args[1]->val_int());
     str->length(0);
-    Events::reconstruct_interval_expression(str, event_interval_unit,
-                                            event_interval_val);
+    Events::reconstruct_interval_expression(
+        str, event_interval_query_expression, event_interval_val);
     null_value = false;
     return str;
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,5 +24,5 @@
 
 #include "sql/sql_class.h"
 
-Parse_context::Parse_context(THD *thd_arg, SELECT_LEX *sl_arg)
+Parse_context::Parse_context(THD *thd_arg, Query_block *sl_arg)
     : thd(thd_arg), mem_root(thd->mem_root), select(sl_arg) {}

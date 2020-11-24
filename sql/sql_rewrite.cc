@@ -1119,7 +1119,7 @@ Rewriter_grant::Rewriter_grant(THD *thd, Consumer_type type,
 bool Rewriter_grant::rewrite(String &rlb) const {
   LEX *lex = m_thd->lex;
 
-  TABLE_LIST *first_table = lex->select_lex->table_list.first;
+  TABLE_LIST *first_table = lex->query_block->table_list.first;
   bool proxy_grant = lex->type == TYPE_ENUM_PROXY;
   String cols(1024);
   int c;
@@ -1187,7 +1187,7 @@ bool Rewriter_grant::rewrite(String &rlb) const {
       }
     }
     /* List extended global privilege IDs */
-    if (!first_table && !lex->current_select()->db) {
+    if (!first_table && !lex->current_query_block()->db) {
       List_iterator<LEX_CSTRING> it(lex->dynamic_privileges);
       LEX_CSTRING *privilege;
       while ((privilege = it++)) {
@@ -1225,9 +1225,9 @@ bool Rewriter_grant::rewrite(String &rlb) const {
     append_identifier(m_thd, &rlb, first_table->table_name,
                       strlen(first_table->table_name));
   } else {
-    if (lex->current_select()->db)
-      append_identifier(m_thd, &rlb, lex->current_select()->db,
-                        strlen(lex->current_select()->db));
+    if (lex->current_query_block()->db)
+      append_identifier(m_thd, &rlb, lex->current_query_block()->db,
+                        strlen(lex->current_query_block()->db));
     else
       rlb.append("*");
     rlb.append(STRING_WITH_LEN(".*"));

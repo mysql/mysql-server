@@ -433,7 +433,7 @@ ulonglong Table_statistics::get_stat(ha_statistics &stat,
 }
 
 // Read dynamic table statistics from SE by opening the user table
-// provided OR by reading cached statistics from SELECT_LEX.
+// provided OR by reading cached statistics from Query_block.
 ulonglong Table_statistics::read_stat(
     THD *thd, const String &schema_name_ptr, const String &table_name_ptr,
     const String &index_name_ptr, const char *partition_name,
@@ -700,14 +700,14 @@ ulonglong Table_statistics::read_stat_by_open_table(
     goto end;
   }
 
-  if (make_table_list(thd, lex->select_lex, db_name_lex_cstr,
+  if (make_table_list(thd, lex->query_block, db_name_lex_cstr,
                       table_name_lex_cstr)) {
     error = -1;
     goto end;
   }
 
   TABLE_LIST *table_list;
-  table_list = lex->select_lex->table_list.first;
+  table_list = lex->query_block->table_list.first;
   table_list->required_type = dd::enum_table_type::BASE_TABLE;
 
   /*

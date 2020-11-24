@@ -4018,7 +4018,7 @@ Query_log_event::Query_log_event(THD *thd_arg, const char *query_arg,
             lex->drop_temporary && thd->in_multi_stmt_transaction_mode();
         break;
       case SQLCOM_CREATE_TABLE:
-        cmd_must_go_to_trx_cache = !lex->select_lex->field_list_is_empty() &&
+        cmd_must_go_to_trx_cache = !lex->query_block->field_list_is_empty() &&
                                    thd->is_current_stmt_binlog_format_row();
         cmd_can_generate_row_events =
             ((lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
@@ -13833,7 +13833,7 @@ bool Transaction_payload_log_event::apply_payload_event(
   thd->server_id = ev->server_id;  // use the original server id for logging
   thd->unmasked_server_id = ev->common_header->unmasked_server_id;
   thd->set_time();  // time the query
-  thd->lex->set_current_select(0);
+  thd->lex->set_current_query_block(0);
   if (!ev->common_header->when.tv_sec)
     my_micro_time_to_timeval(my_micro_time(), &ev->common_header->when);
   ev->thd = thd;  // because up to this point, ev->thd == 0

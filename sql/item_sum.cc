@@ -151,7 +151,7 @@ bool Item_sum::init_sum_func_check(THD *thd) {
     */
     LEX *const lex = thd->lex;
     if (((~lex->allow_sum_func | lex->m_deny_window_func) >>
-         lex->current_select()->nest_level) &
+         lex->current_query_block()->nest_level) &
         0x1) {
       my_error(ER_WINDOW_INVALID_WINDOW_FUNC_USE, MYF(0), func_name());
       return true;
@@ -171,18 +171,19 @@ bool Item_sum::init_sum_func_check(THD *thd) {
     thd->lex->in_sum_func = this;
   }
   save_deny_window_func = thd->lex->m_deny_window_func;
-  thd->lex->m_deny_window_func |= (nesting_map)1
-                                  << thd->lex->current_select()->nest_level;
+  thd->lex->m_deny_window_func |=
+      (nesting_map)1 << thd->lex->current_query_block()->nest_level;
   // @todo: When resolving once, move following code to constructor
-  base_select = thd->lex->current_select();
-  aggr_select = nullptr;  // Aggregation query block is undetermined yet
+  base_query_block = thd->lex->current_query_block();
+  aggr_query_block = nullptr;  // Aggregation query block is undetermined yet
   referenced_by[0] = nullptr;
   /*
     Leave referenced_by[1] unchanged as in execution of PS, in-to-exists is not
     re-done, so referenced_by[1] isn't set again. So keep it as it was in
     preparation.
   */
-  if (thd->lex->current_select()->first_execution) referenced_by[1] = nullptr;
+  if (thd->lex->current_query_block()->first_execution)
+    referenced_by[1] = nullptr;
   max_aggr_level = -1;
   max_sum_func_level = -1;
   used_tables_cache = 0;
@@ -245,10 +246,11 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref) {
   }
 
   const nesting_map allow_sum_func = thd->lex->allow_sum_func;
-  const nesting_map nest_level_map = (nesting_map)1 << base_select->nest_level;
+  const nesting_map nest_level_map = (nesting_map)1
+                                     << base_query_block->nest_level;
 
-  DBUG_ASSERT(thd->lex->current_select() == base_select);
-  DBUG_ASSERT(aggr_select == nullptr);
+  DBUG_ASSERT(thd->lex->current_query_block() == base_query_block);
+  DBUG_ASSERT(aggr_query_block == nullptr);
 
   /*
     max_aggr_level is the level of the innermost qualifying query block of
@@ -256,24 +258,26 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref) {
     no column references, max_aggr_level is -1.
     max_aggr_level cannot be greater than nest level of the current query block.
   */
-  DBUG_ASSERT(max_aggr_level <= base_select->nest_level);
+  DBUG_ASSERT(max_aggr_level <= base_query_block->nest_level);
 
-  if (base_select->nest_level == max_aggr_level) {
+  if (base_query_block->nest_level == max_aggr_level) {
     /*
       The function must be aggregated in the current query block,
       and it must be referred within a clause where it is valid
       (ie. HAVING clause, ORDER BY clause or SELECT list)
     */
-    if ((allow_sum_func & nest_level_map) != 0) aggr_select = base_select;
+    if ((allow_sum_func & nest_level_map) != 0)
+      aggr_query_block = base_query_block;
   } else if (max_aggr_level >= 0 || !(allow_sum_func & nest_level_map)) {
     /*
       Look for an outer query block where the set function should be
-      aggregated. If it finds such a query block, then aggr_select is set
+      aggregated. If it finds such a query block, then aggr_query_block is set
       to this query block
     */
-    for (SELECT_LEX *sl = base_select->outer_select();
-         sl && sl->nest_level >= max_aggr_level; sl = sl->outer_select()) {
-      if (allow_sum_func & ((nesting_map)1 << sl->nest_level)) aggr_select = sl;
+    for (Query_block *sl = base_query_block->outer_query_block();
+         sl && sl->nest_level >= max_aggr_level; sl = sl->outer_query_block()) {
+      if (allow_sum_func & ((nesting_map)1 << sl->nest_level))
+        aggr_query_block = sl;
     }
   } else  // max_aggr_level < 0
   {
@@ -281,28 +285,29 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref) {
       Set function without column reference is aggregated in innermost query,
       without any validation.
     */
-    aggr_select = base_select;
+    aggr_query_block = base_query_block;
   }
 
-  if (aggr_select == nullptr && (allow_sum_func & nest_level_map) != 0 &&
+  if (aggr_query_block == nullptr && (allow_sum_func & nest_level_map) != 0 &&
       !(thd->variables.sql_mode & MODE_ANSI))
-    aggr_select = base_select;
+    aggr_query_block = base_query_block;
 
   /*
     At this place a query block where the set function is to be aggregated
-    has been found and is assigned to aggr_select, or aggr_select is NULL to
-    indicate an invalid set function.
+    has been found and is assigned to aggr_query_block, or aggr_query_block is
+    NULL to indicate an invalid set function.
 
     Additionally, check whether possible nested set functions are acceptable
     here: their aggregation level must be greater than this set function's
     aggregation level.
   */
-  if (aggr_select == nullptr || aggr_select->nest_level <= max_sum_func_level) {
+  if (aggr_query_block == nullptr ||
+      aggr_query_block->nest_level <= max_sum_func_level) {
     my_error(ER_INVALID_GROUP_FUNC_USE, MYF(0));
     return true;
   }
 
-  if (aggr_select != base_select) {
+  if (aggr_query_block != base_query_block) {
     referenced_by[0] = ref;
     /*
       Add the set function to the list inner_sum_func_list for the
@@ -314,14 +319,14 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref) {
         a query block in one chain. It would simplify the process of 'splitting'
         for set functions.
     */
-    if (!aggr_select->inner_sum_func_list)
+    if (!aggr_query_block->inner_sum_func_list)
       next_sum = this;
     else {
-      next_sum = aggr_select->inner_sum_func_list->next_sum;
-      aggr_select->inner_sum_func_list->next_sum = this;
+      next_sum = aggr_query_block->inner_sum_func_list->next_sum;
+      aggr_query_block->inner_sum_func_list->next_sum = this;
     }
-    aggr_select->inner_sum_func_list = this;
-    aggr_select->with_sum_func = true;
+    aggr_query_block->inner_sum_func_list = this;
+    aggr_query_block->with_sum_func = true;
 
     /*
       Mark subqueries as containing set function all the way up to the
@@ -340,12 +345,13 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref) {
       If, going up, we meet a derived table, we do nothing special for it:
       it doesn't need this information.
     */
-    for (SELECT_LEX *sl = base_select; sl && sl != aggr_select;
-         sl = sl->outer_select()) {
-      if (sl->master_unit()->item) sl->master_unit()->item->set_aggregation();
+    for (Query_block *sl = base_query_block; sl && sl != aggr_query_block;
+         sl = sl->outer_query_block()) {
+      if (sl->master_query_expression()->item)
+        sl->master_query_expression()->item->set_aggregation();
     }
 
-    base_select->mark_as_dependent(aggr_select, true);
+    base_query_block->mark_as_dependent(aggr_query_block, true);
   }
 
   if (in_sum_func) {
@@ -363,15 +369,17 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref) {
       function that is to be aggregated outside or on the same level
       as its parent's nest level.
     */
-    if (in_sum_func->base_select->nest_level >= aggr_select->nest_level)
-      in_sum_func->max_sum_func_level =
-          max(in_sum_func->max_sum_func_level, int8(aggr_select->nest_level));
+    if (in_sum_func->base_query_block->nest_level >=
+        aggr_query_block->nest_level)
+      in_sum_func->max_sum_func_level = max(in_sum_func->max_sum_func_level,
+                                            int8(aggr_query_block->nest_level));
     in_sum_func->max_sum_func_level =
         max(in_sum_func->max_sum_func_level, max_sum_func_level);
   }
 
-  aggr_select->set_agg_func_used(true);
-  if (sum_func() == JSON_AGG_FUNC) aggr_select->set_json_agg_func_used(true);
+  aggr_query_block->set_agg_func_used(true);
+  if (sum_func() == JSON_AGG_FUNC)
+    aggr_query_block->set_json_agg_func_used(true);
   update_used_tables();
   thd->lex->in_sum_func = in_sum_func;
   thd->lex->m_deny_window_func = save_deny_window_func;
@@ -379,7 +387,7 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref) {
   return false;
 }
 
-bool Item_sum::check_wf_semantics1(THD *, SELECT_LEX *,
+bool Item_sum::check_wf_semantics1(THD *, Query_block *,
                                    Window_evaluation_requirements *r) {
   const PT_frame *frame = m_window->frame();
 
@@ -388,7 +396,7 @@ bool Item_sum::check_wf_semantics1(THD *, SELECT_LEX *,
     accumulate as we see rows, never need to invert old rows or to look at
     future rows, so don't need a frame buffer.
   */
-  r->needs_buffer = !(frame->m_unit == WFU_ROWS &&
+  r->needs_buffer = !(frame->m_query_expression == WFU_ROWS &&
                       frame->m_from->m_border_type == WBT_UNBOUNDED_PRECEDING &&
                       frame->m_to->m_border_type == WBT_CURRENT_ROW);
 
@@ -429,8 +437,8 @@ Item_sum::Item_sum(THD *thd, const Item_sum *item)
       m_window(item->m_window),
       m_window_resolved(false),
       next_sum(nullptr),
-      base_select(item->base_select),
-      aggr_select(item->aggr_select),
+      base_query_block(item->base_query_block),
+      aggr_query_block(item->aggr_query_block),
       allow_group_via_temp_table(item->allow_group_via_temp_table),
       used_tables_cache(item->used_tables_cache),
       forced_const(item->forced_const) {
@@ -449,12 +457,12 @@ Item_sum::Item_sum(THD *thd, const Item_sum *item)
 }
 
 void Item_sum::mark_as_sum_func() {
-  mark_as_sum_func(current_thd->lex->current_select());
+  mark_as_sum_func(current_thd->lex->current_query_block());
 }
 
-void Item_sum::mark_as_sum_func(SELECT_LEX *cur_select) {
-  cur_select->n_sum_items++;
-  cur_select->with_sum_func = true;
+void Item_sum::mark_as_sum_func(Query_block *cur_query_block) {
+  cur_query_block->n_sum_items++;
+  cur_query_block->with_sum_func = true;
   set_aggregation();
 }
 
@@ -532,16 +540,16 @@ Item *Item_sum::transform(Item_transformer transformer, uchar *argument) {
 
 /**
   Remove the item from the list of inner aggregation functions in the
-  SELECT_LEX it was moved to by Item_sum::check_sum_func().
+  Query_block it was moved to by Item_sum::check_sum_func().
 
   This is done to undo some of the effects of Item_sum::check_sum_func() so
   that the item may be removed from the query.
 
   @note This doesn't completely undo Item_sum::check_sum_func(), as
   aggregation information is left untouched. This means that if this
-  item is removed, aggr_select and all subquery items between aggr_select
-  and this item may be left with has_aggregation() set to true, even if
-  there are no aggregation functions. To our knowledge, this has no
+  item is removed, aggr_query_block and all subquery items between
+  aggr_query_block and this item may be left with has_aggregation() set to true,
+  even if there are no aggregation functions. To our knowledge, this has no
   impact on the query result.
 
   @see Item_sum::check_sum_func()
@@ -566,9 +574,10 @@ bool Item_sum::clean_up_after_removal(uchar *arg) {
     3) the item is not an element in the inner_sum_func_list.
   */
   if (!fixed ||  // 1
-      (m_window == nullptr && (aggr_select == nullptr ||
-                               aggr_select->inner_sum_func_list == nullptr  // 2
-                               || next_sum == nullptr)))                    // 3
+      (m_window == nullptr &&
+       (aggr_query_block == nullptr ||
+        aggr_query_block->inner_sum_func_list == nullptr  // 2
+        || next_sum == nullptr)))                         // 3
     return false;
 
   if (m_window) {
@@ -586,7 +595,7 @@ bool Item_sum::clean_up_after_removal(uchar *arg) {
     }
   } else {
     if (next_sum == this)
-      aggr_select->inner_sum_func_list = nullptr;
+      aggr_query_block->inner_sum_func_list = nullptr;
     else {
       Item_sum *prev;
       for (prev = this; prev->next_sum != this; prev = prev->next_sum)
@@ -594,8 +603,8 @@ bool Item_sum::clean_up_after_removal(uchar *arg) {
       prev->next_sum = next_sum;
       next_sum = nullptr;
 
-      if (aggr_select->inner_sum_func_list == this)
-        aggr_select->inner_sum_func_list = prev;
+      if (aggr_query_block->inner_sum_func_list == this)
+        aggr_query_block->inner_sum_func_list = prev;
     }
   }
 
@@ -642,9 +651,9 @@ bool Item_sum::aggregate_check_distinct(uchar *arg) {
     One case where the aggregate is surely functionally dependent on the
     selected expressions, is if all GROUP BY expressions are in the SELECT
     list. But in that case DISTINCT is redundant and we have removed it in
-    SELECT_LEX::prepare().
+    Query_block::prepare().
   */
-  if (aggr_select == dc->select) return true;
+  if (aggr_query_block == dc->select) return true;
 
   return false;
 }
@@ -656,10 +665,10 @@ bool Item_sum::aggregate_check_group(uchar *arg) {
 
   if (gc->is_stopped(this)) return false;
 
-  if (aggr_select != gc->select) {
+  if (aggr_query_block != gc->select) {
     /*
-      If aggr_select is inner to gc's select_lex, this aggregate function might
-      reference some columns of gc, so we need to analyze its arguments.
+      If aggr_query_block is inner to gc's query_block, this aggregate function
+      might reference some columns of gc, so we need to analyze its arguments.
       If it is outer, analyzing its arguments should not cause a problem, we
       will meet outer references which we will ignore.
     */
@@ -679,7 +688,7 @@ bool Item_sum::has_aggregate_ref_in_group_by(uchar *) {
     We reject references to aggregates in the GROUP BY clause of the
     query block where the aggregation happens.
   */
-  return aggr_select != nullptr && aggr_select->group_fix_field;
+  return aggr_query_block != nullptr && aggr_query_block->group_fix_field;
 }
 
 Field *Item_sum::create_tmp_field(bool, TABLE *table) {
@@ -714,7 +723,8 @@ bool Item_sum::collect_grouped_aggregates(uchar *arg) {
 
   if (m_is_window_function || info->m_break_off) return false;
 
-  if (info->m_select == aggr_select && (used_tables() & OUTER_REF_TABLE_BIT)) {
+  if (info->m_query_block == aggr_query_block &&
+      (used_tables() & OUTER_REF_TABLE_BIT)) {
     // This aggregate function aggregates in the transformed query block, but is
     // located inside a subquery. Currently, transform cannot get to this since
     // it doesn't descend into subqueries. This means we cannot substitute a
@@ -723,7 +733,7 @@ bool Item_sum::collect_grouped_aggregates(uchar *arg) {
     return false;
   }
 
-  if (info->m_select != aggr_select) {
+  if (info->m_query_block != aggr_query_block) {
     // Aggregated either inside a subquery of the transformed query block or
     // outside of it. In either case, ignore it.
     return false;
@@ -788,13 +798,14 @@ void Item_sum::update_used_tables() {
   add_used_tables_for_aggr_func();
 }
 
-void Item_sum::fix_after_pullout(SELECT_LEX *parent_select,
-                                 SELECT_LEX *removed_select) {
+void Item_sum::fix_after_pullout(Query_block *parent_query_block,
+                                 Query_block *removed_query_block) {
   // Cannot aggregate into a context that is merged up.
-  DBUG_ASSERT(aggr_select != removed_select);
+  DBUG_ASSERT(aggr_query_block != removed_query_block);
 
   // We may merge up a query block, if it is not the aggregating query context
-  if (base_select == removed_select) base_select = parent_select;
+  if (base_query_block == removed_query_block)
+    base_query_block = parent_query_block;
 
   // Perform pullout of arguments to aggregate function
   used_tables_cache = 0;
@@ -802,7 +813,7 @@ void Item_sum::fix_after_pullout(SELECT_LEX *parent_select,
   Item **arg, **arg_end;
   for (arg = args, arg_end = args + arg_count; arg != arg_end; arg++) {
     Item *const item = *arg;
-    item->fix_after_pullout(parent_select, removed_select);
+    item->fix_after_pullout(parent_query_block, removed_query_block);
     used_tables_cache |= item->used_tables();
   }
   // Complete used_tables information by looking at aggregate function
@@ -825,9 +836,10 @@ void Item_sum::fix_after_pullout(SELECT_LEX *parent_select,
 */
 
 void Item_sum::add_used_tables_for_aggr_func() {
-  used_tables_cache |= aggr_select == base_select || m_is_window_function
-                           ? base_select->all_tables_map()
-                           : OUTER_REF_TABLE_BIT;
+  used_tables_cache |=
+      aggr_query_block == base_query_block || m_is_window_function
+          ? base_query_block->all_tables_map()
+          : OUTER_REF_TABLE_BIT;
   /*
     Aggregate functions are not allowed to be const, but they may
     be const-for-execution.
@@ -1038,13 +1050,13 @@ bool Aggregator_distinct::setup(THD *thd) {
   */
   if (tree || table || tmp_table_param) return false;
 
-  DBUG_ASSERT(thd->lex->current_select() == item_sum->aggr_select);
+  DBUG_ASSERT(thd->lex->current_query_block() == item_sum->aggr_query_block);
 
   if (item_sum->setup(thd)) return true;
   if (item_sum->sum_func() == Item_sum::COUNT_FUNC ||
       item_sum->sum_func() == Item_sum::COUNT_DISTINCT_FUNC) {
     mem_root_deque<Item *> list(thd->mem_root);
-    SELECT_LEX *select_lex = item_sum->aggr_select;
+    Query_block *query_block = item_sum->aggr_query_block;
 
     if (!(tmp_table_param = new (thd->mem_root) Temp_table_param)) return true;
 
@@ -1077,7 +1089,7 @@ bool Aggregator_distinct::setup(THD *thd) {
       const_distinct = CONST_NOT_NULL;
       return false;
     }
-    count_field_types(select_lex, tmp_table_param, list, false, false);
+    count_field_types(query_block, tmp_table_param, list, false, false);
     tmp_table_param->force_copy_fields = item_sum->has_force_copy_fields();
     DBUG_ASSERT(table == nullptr);
     /*
@@ -1092,9 +1104,9 @@ bool Aggregator_distinct::setup(THD *thd) {
         item->marker = Item::MARKER_BIT;
       DBUG_ASSERT(!item->hidden);
     }
-    if (!(table =
-              create_tmp_table(thd, tmp_table_param, list, nullptr, true, false,
-                               select_lex->active_options(), HA_POS_ERROR, "")))
+    if (!(table = create_tmp_table(thd, tmp_table_param, list, nullptr, true,
+                                   false, query_block->active_options(),
+                                   HA_POS_ERROR, "")))
       return true;
     table->file->ha_extra(HA_EXTRA_NO_ROWS);  // Don't update rows
     table->no_rows = true;
@@ -1405,7 +1417,7 @@ bool Item_sum_num::fix_fields(THD *thd, Item **ref) {
 
   if (init_sum_func_check(thd)) return true;
 
-  Condition_context CCT(thd->lex->current_select());
+  Condition_context CCT(thd->lex->current_query_block());
 
   set_nullable(false);
 
@@ -1434,7 +1446,7 @@ bool Item_sum_bit::fix_fields(THD *thd, Item **ref) {
 
   if (init_sum_func_check(thd)) return true;
 
-  Condition_context CCT(thd->lex->current_select());
+  Condition_context CCT(thd->lex->current_query_block());
 
   for (uint i = 0; i < arg_count; i++) {
     if ((!args[i]->fixed && args[i]->fix_fields(thd, args + i)) ||
@@ -1739,7 +1751,7 @@ bool Item_sum_hybrid::fix_fields(THD *thd, Item **ref) {
 
   if (init_sum_func_check(thd)) return true;
 
-  Condition_context CCT(thd->lex->current_select());
+  Condition_context CCT(thd->lex->current_query_block());
 
   // 'item' can be changed during fix_fields
   if ((!item->fixed && item->fix_fields(thd, args)) ||
@@ -1910,7 +1922,7 @@ bool Item_sum_sum::resolve_type(THD *thd) {
   return false;
 }
 
-bool Item_sum_sum::check_wf_semantics1(THD *thd, SELECT_LEX *select,
+bool Item_sum_sum::check_wf_semantics1(THD *thd, Query_block *select,
                                        Window_evaluation_requirements *r) {
   bool result = Item_sum::check_wf_semantics1(thd, select, r);
   if (hybrid_type == REAL_RESULT) {
@@ -2571,7 +2583,7 @@ Item_sum_variance::Item_sum_variance(THD *thd, Item_sum_variance *item)
   recurrence_s2 = item->recurrence_s2;
 }
 
-bool Item_sum_variance::check_wf_semantics1(THD *thd, SELECT_LEX *select,
+bool Item_sum_variance::check_wf_semantics1(THD *thd, Query_block *select,
                                             Window_evaluation_requirements *r) {
   bool result = Item_sum::check_wf_semantics1(thd, select, r);
   const PT_frame *f = m_window->frame();
@@ -2752,7 +2764,7 @@ void Item_sum_hybrid::clear() {
   m_saved_last_value_at = 0;
 }
 
-bool Item_sum_hybrid::check_wf_semantics1(THD *thd, SELECT_LEX *select,
+bool Item_sum_hybrid::check_wf_semantics1(THD *thd, Query_block *select,
                                           Window_evaluation_requirements *r) {
   bool result = Item_sum::check_wf_semantics1(thd, select, r);
 
@@ -4393,7 +4405,7 @@ bool Item_func_group_concat::fix_fields(THD *thd, Item **ref) {
 
   set_nullable(true);
 
-  Condition_context CCT(thd->lex->current_select());
+  Condition_context CCT(thd->lex->current_query_block());
 
   /*
     Fix fields for select list and ORDER clause
@@ -4450,7 +4462,7 @@ bool Item_func_group_concat::fix_fields(THD *thd, Item **ref) {
 bool Item_func_group_concat::setup(THD *thd) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(thd->lex->current_select() == aggr_select);
+  DBUG_ASSERT(thd->lex->current_query_block() == aggr_query_block);
 
   if (group_concat_max_len < thd->variables.group_concat_max_len) {
     /*
@@ -4498,7 +4510,7 @@ bool Item_func_group_concat::setup(THD *thd) {
                   &fields, order_array.begin()))
     return true;
 
-  count_field_types(aggr_select, tmp_table_param, fields, false, true);
+  count_field_types(aggr_query_block, tmp_table_param, fields, false, true);
   tmp_table_param->force_copy_fields = force_copy_fields;
   DBUG_ASSERT(table == nullptr);
   if (order_or_distinct) {
@@ -4523,9 +4535,9 @@ bool Item_func_group_concat::setup(THD *thd) {
     Note that in the table, we first have the ORDER BY fields, then the
     field list.
   */
-  if (!(table =
-            create_tmp_table(thd, tmp_table_param, fields, nullptr, false, true,
-                             aggr_select->active_options(), HA_POS_ERROR, "")))
+  if (!(table = create_tmp_table(thd, tmp_table_param, fields, nullptr, false,
+                                 true, aggr_query_block->active_options(),
+                                 HA_POS_ERROR, "")))
     return true;
   table->file->ha_extra(HA_EXTRA_NO_ROWS);
   table->no_rows = true;
@@ -4698,7 +4710,7 @@ my_decimal *Item_row_number::val_decimal(my_decimal *buffer) {
 
 void Item_row_number::clear() { m_ctr = 0; }
 
-bool Item_rank::check_wf_semantics1(THD *thd, SELECT_LEX *select,
+bool Item_rank::check_wf_semantics1(THD *thd, Query_block *select,
                                     Window_evaluation_requirements *) {
   const PT_order_list *order = m_window->effective_order_by();
   // SQL2015 6.10 <window function> SR 6.a: require ORDER BY; we don't.
@@ -4786,7 +4798,7 @@ Item_rank::~Item_rank() {
   m_previous.clear();
 }
 
-bool Item_cume_dist::check_wf_semantics1(THD *, SELECT_LEX *,
+bool Item_cume_dist::check_wf_semantics1(THD *, Query_block *,
                                          Window_evaluation_requirements *r) {
   // we need to know partition cardinality, so two passes
   r->needs_buffer = true;
@@ -4825,7 +4837,7 @@ my_decimal *Item_cume_dist::val_decimal(my_decimal *buffer) {
   return buffer;
 }
 
-bool Item_percent_rank::check_wf_semantics1(THD *, SELECT_LEX *,
+bool Item_percent_rank::check_wf_semantics1(THD *, Query_block *,
                                             Window_evaluation_requirements *r) {
   // we need to know partition cardinality, so two passes
   r->needs_buffer = true;
@@ -4983,7 +4995,7 @@ my_decimal *Item_ntile::val_decimal(my_decimal *buffer) {
   return buffer;
 }
 
-bool Item_ntile::check_wf_semantics1(THD *, SELECT_LEX *,
+bool Item_ntile::check_wf_semantics1(THD *, Query_block *,
                                      Window_evaluation_requirements *r) {
   r->needs_buffer =
       true;  // we need to know partition cardinality, so two passes
@@ -5008,7 +5020,7 @@ bool Item_ntile::check_wf_semantics2(Window_evaluation_requirements *) {
 }
 
 bool Item_first_last_value::check_wf_semantics1(
-    THD *thd, SELECT_LEX *select, Window_evaluation_requirements *r) {
+    THD *thd, Query_block *select, Window_evaluation_requirements *r) {
   if (super::check_wf_semantics1(thd, select, r)) return true;
 
   r->opt_first_row = m_is_first;
@@ -5236,7 +5248,7 @@ void Item_nth_value::clear() {
   m_cnt = 0;
 }
 
-bool Item_nth_value::check_wf_semantics1(THD *thd, SELECT_LEX *select,
+bool Item_nth_value::check_wf_semantics1(THD *thd, Query_block *select,
                                          Window_evaluation_requirements *r) {
   if (super::check_wf_semantics1(thd, select, r)) return true;
 
@@ -5466,7 +5478,7 @@ bool Item_lead_lag::setup_lead_lag() {
 }
 
 bool Item_lead_lag::check_wf_semantics1(
-    THD *thd MY_ATTRIBUTE((unused)), SELECT_LEX *select MY_ATTRIBUTE((unused)),
+    THD *thd MY_ATTRIBUTE((unused)), Query_block *select MY_ATTRIBUTE((unused)),
     Window_evaluation_requirements *r) {
   if (m_null_treatment == NT_IGNORE_NULLS) {
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "IGNORE NULLS");
@@ -5617,7 +5629,7 @@ Item_sum_json::Item_sum_json(unique_ptr_destroy_only<Json_wrapper> wrapper,
 
 Item_sum_json::~Item_sum_json() = default;
 
-bool Item_sum_json::check_wf_semantics1(THD *thd, SELECT_LEX *select,
+bool Item_sum_json::check_wf_semantics1(THD *thd, Query_block *select,
                                         Window_evaluation_requirements *reqs) {
   return Item_sum::check_wf_semantics1(thd, select, reqs);
 }
@@ -5630,7 +5642,7 @@ bool Item_sum_json::fix_fields(THD *thd, Item **ref) {
 
   if (init_sum_func_check(thd)) return true;
 
-  Condition_context CCT(thd->lex->current_select());
+  Condition_context CCT(thd->lex->current_query_block());
 
   for (uint i = 0; i < arg_count; i++) {
     if ((!args[i]->fixed && args[i]->fix_fields(thd, args + i)) ||
@@ -5840,7 +5852,7 @@ void Item_sum_json_object::clear() {
 }
 
 bool Item_sum_json_object::check_wf_semantics1(
-    THD *thd, SELECT_LEX *select, Window_evaluation_requirements *r) {
+    THD *thd, Query_block *select, Window_evaluation_requirements *r) {
   Item_sum_json::check_wf_semantics1(thd, select, r);
   /*
     As Json_object always stores only the last value for a key,
@@ -5867,7 +5879,7 @@ bool Item_sum_json_array::add() {
   DBUG_ASSERT(fixed == 1);
   DBUG_ASSERT(arg_count == 1);
 
-  const THD *thd = base_select->parent_lex->thd;
+  const THD *thd = base_query_block->parent_lex->thd;
   /*
      Checking if an error happened inside one of the functions that have no
      way of returning an error status. (reset_field(), update_field() or
@@ -5929,7 +5941,7 @@ bool Item_sum_json_object::add() {
   DBUG_ASSERT(fixed == 1);
   DBUG_ASSERT(arg_count == 2);
 
-  const THD *thd = base_select->parent_lex->thd;
+  const THD *thd = base_query_block->parent_lex->thd;
   /*
      Checking if an error happened inside one of the functions that have no
      way of returning an error status. (reset_field(), update_field() or
@@ -6041,7 +6053,7 @@ Item *Item_sum_json_object::copy_or_same(THD *thd) {
   in HAVING clause and requires WITH ROLLUP. Check that this holds.
   We also need to check if all the arguments of the function
   are present in GROUP BY clause. As GROUP BY columns are not
-  resolved at this time, we do it in SELECT_LEX::resolve_rollup().
+  resolved at this time, we do it in Query_block::resolve_rollup().
   However, if the GROUPING function is found in HAVING clause,
   we can check here. Also, resolve_rollup() does not
   check for items present in HAVING clause.
@@ -6071,7 +6083,7 @@ bool Item_func_grouping::fix_fields(THD *thd, Item **ref) {
   if (Item_func::fix_fields(thd, ref)) return true;
 
   // Make GROUPING function dependent upon all tables (prevents const-ness)
-  used_tables_cache |= thd->lex->current_select()->all_tables_map();
+  used_tables_cache |= thd->lex->current_query_block()->all_tables_map();
 
   /*
     More than 64 args cannot be supported as the bitmask which is
@@ -6086,11 +6098,11 @@ bool Item_func_grouping::fix_fields(THD *thd, Item **ref) {
     GROUPING() is not allowed in a WHERE condition or a JOIN condition and
     cannot be used without rollup.
   */
-  SELECT_LEX *select = thd->lex->current_select();
+  Query_block *select = thd->lex->current_query_block();
 
   if (select->olap == UNSPECIFIED_OLAP_TYPE ||
-      select->resolve_place == SELECT_LEX::RESOLVE_JOIN_NEST ||
-      select->resolve_place == SELECT_LEX::RESOLVE_CONDITION) {
+      select->resolve_place == Query_block::RESOLVE_JOIN_NEST ||
+      select->resolve_place == Query_block::RESOLVE_CONDITION) {
     my_error(ER_INVALID_GROUP_FUNC_USE, MYF(0));
     return true;
   }
@@ -6159,7 +6171,8 @@ void Item_func_grouping::update_used_tables() {
     GROUPING function can never be a constant item. It's
     result always depends on ROLLUP result.
   */
-  used_tables_cache |= current_thd->lex->current_select()->all_tables_map();
+  used_tables_cache |=
+      current_thd->lex->current_query_block()->all_tables_map();
 }
 
 inline Item *Item_rollup_sum_switcher::current_arg() const {

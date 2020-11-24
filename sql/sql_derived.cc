@@ -108,7 +108,7 @@ class Opt_trace_context;
    - a particular recursive ref is the UNION table, if UNION DISTINCT is
    present in the CTE's definition: there is a single TABLE for it,
    writes/reads to/from it happen interlaced (writes are done by
-   Query_result_union::send_data(); reads are done by the fake_select_lex's
+   Query_result_union::send_data(); reads are done by the fake_query_block's
    JOIN).
    - Finally all non-recursive refs set up a read access method and do reads,
    possibly interlaced.
@@ -228,14 +228,14 @@ TABLE *Common_table_expr::clone_tmp_table(THD *thd, TABLE_LIST *tl) {
    @returns true if error
 */
 bool Common_table_expr::substitute_recursive_reference(THD *thd,
-                                                       SELECT_LEX *sl) {
+                                                       Query_block *sl) {
   TABLE_LIST *tl = sl->recursive_reference;
   DBUG_ASSERT(tl != nullptr && tl->table == nullptr);
   TABLE *t = clone_tmp_table(thd, tl);
   if (t == nullptr) return true; /* purecov: inspected */
   // Eliminate the dummy unit:
-  tl->derived_unit()->exclude_tree(thd);
-  tl->set_derived_unit(nullptr);
+  tl->derived_query_expression()->exclude_tree(thd);
+  tl->set_derived_query_expression(nullptr);
   tl->set_privileges(SELECT_ACL);
   return false;
 }
@@ -291,16 +291,17 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
   if (!is_view_or_derived() || is_merged() || is_table_function()) return false;
 
   // Dummy derived tables for recursive references disappear before this stage
-  DBUG_ASSERT(this != select_lex->recursive_reference);
+  DBUG_ASSERT(this != query_block->recursive_reference);
 
   if (is_derived() && derived->m_lateral_deps)
-    select_lex->end_lateral_table = this;
+    query_block->end_lateral_table = this;
 
   Context_handler ctx_handler(thd);
 
 #ifndef DBUG_OFF  // CTEs, derived tables can have outer references
   if (is_view())  // but views cannot.
-    for (SELECT_LEX *sl = derived->first_select(); sl; sl = sl->next_select()) {
+    for (Query_block *sl = derived->first_query_block(); sl;
+         sl = sl->next_query_block()) {
       // Make sure there are no outer references
       DBUG_ASSERT(sl->context.outer_context == nullptr);
     }
@@ -316,8 +317,8 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
     if (derived->global_parameters()->is_ordered()) {
       /*
         ORDER BY applied to the UNION causes the use of the union tmp
-        table. The fake_select_lex would want to sort that table, which isn't
-        going to work as the table is incomplete when fake_select_lex first
+        table. The fake_query_block would want to sort that table, which isn't
+        going to work as the table is incomplete when fake_query_block first
         reads it. Workaround: put ORDER BY in the top query.
         Another reason: allowing
         ORDER BY <condition using fulltext> would make the UNION tmp table be
@@ -344,16 +345,17 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
       it to have more than one recursive SELECT.
     */
     bool previous_is_recursive = false;
-    SELECT_LEX *last_non_recursive = nullptr;
-    for (SELECT_LEX *sl = derived->first_select(); sl; sl = sl->next_select()) {
+    Query_block *last_non_recursive = nullptr;
+    for (Query_block *sl = derived->first_query_block(); sl;
+         sl = sl->next_query_block()) {
       if (sl->is_recursive()) {
         if (sl->is_ordered() || sl->has_limit() || sl->is_distinct()) {
           /*
             On top of posing implementation problems, it looks meaningless to
             want to order/limit every iterative sub-result.
             SELECT DISTINCT, if all expressions are constant, is implemented
-            as LIMIT in QEP_TAB::remove_duplicates(); do_select() starts with
-            send_records=0 so loses track of rows which have been sent in
+            as LIMIT in QEP_TAB::remove_duplicates(); do_query_block() starts
+            with send_records=0 so loses track of rows which have been sent in
             previous iterations.
           */
           my_error(ER_NOT_SUPPORTED_YET, MYF(0),
@@ -361,7 +363,7 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
                    " in recursive query block of Common Table Expression");
           return true;
         }
-        if (sl == derived->union_distinct && sl->next_select()) {
+        if (sl == derived->union_distinct && sl->next_query_block()) {
           /*
             Consider
               anchor UNION ALL rec1 UNION DISTINCT rec2 UNION ALL rec3:
@@ -392,7 +394,7 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
       my_error(ER_CTE_RECURSIVE_REQUIRES_NONRECURSIVE_FIRST, MYF(0), alias);
       return true;
     }
-    derived->first_recursive = last_non_recursive->next_select();
+    derived->first_recursive = last_non_recursive->next_query_block();
     DBUG_ASSERT(derived->is_recursive());
   }
 
@@ -405,7 +407,8 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
 
   /// Give the unit to the result (the other fields are ignored).
   mem_root_deque<Item *> empty_list(thd->mem_root);
-  if (derived_result->prepare(thd, empty_list, derived_unit())) return true;
+  if (derived_result->prepare(thd, empty_list, derived_query_expression()))
+    return true;
 
   /*
     Prepare the underlying query expression of the derived table.
@@ -420,7 +423,8 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
 
   if (is_derived()) {
     // The underlying tables of a derived table are all readonly:
-    for (SELECT_LEX *sl = derived->first_select(); sl; sl = sl->next_select())
+    for (Query_block *sl = derived->first_query_block(); sl;
+         sl = sl->next_query_block())
       sl->set_tables_readonly();
     /*
       A derived table is transparent with respect to privilege checking.
@@ -432,7 +436,7 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
     set_privileges(SELECT_ACL);
 
     if (derived->m_lateral_deps) {
-      select_lex->end_lateral_table = nullptr;
+      query_block->end_lateral_table = nullptr;
       derived->m_lateral_deps &= ~PSEUDO_TABLE_BITS;
       /*
         It is possible that derived->m_lateral_deps is now 0, if it was
@@ -488,13 +492,13 @@ static void swap_column_names_of_unit_and_tmp_table(
   SELECT * FROM (SELECT i+10 AS n FROM
   (SELECT a+7 AS i FROM t1) AS dt1 ) AS dt2 WHERE n > 100;
 
-  The first call to SELECT_LEX::push_conditions_to_derived_tables would
+  The first call to Query_block::push_conditions_to_derived_tables would
   result in the following query. "n" in the where clause is
   replaced with (i+10).
   SELECT * FROM (SELECT i+10 AS n FROM
   (SELECT a+7 AS i FROM t1) AS dt1 WHERE (dt1.i+10) > 100) as dt2;
 
-  The next call to SELECT_LEX::push_conditions_to_derived_tables should
+  The next call to Query_block::push_conditions_to_derived_tables should
   result in the following query. "i" is replaced with "a+7".
   SELECT * FROM (SELECT i+10 AS n FROM
   (SELECT a+7 AS i FROM t1 WHERE ((t1.a+7)+10) > 100) AS dt1) as dt2;
@@ -567,15 +571,17 @@ Item *TABLE_LIST::get_clone_for_derived_expr(THD *thd, Item *item) {
   Item *cloned_item = parser_state.result;
 
   // Resolve the expression with derived table's context
-  Item_ident::Change_context ctx(&derived_unit()->first_select()->context);
+  Item_ident::Change_context ctx(
+      &derived_query_expression()->first_query_block()->context);
   cloned_item->walk(&Item::change_context_processor, enum_walk::POSTFIX,
                     reinterpret_cast<uchar *>(&ctx));
 
-  SELECT_LEX *saved_current_select = thd->lex->current_select();
-  thd->lex->set_current_select(derived_unit()->first_select());
+  Query_block *saved_current_query_block = thd->lex->current_query_block();
+  thd->lex->set_current_query_block(
+      derived_query_expression()->first_query_block());
   nesting_map save_allow_sum_func = thd->lex->allow_sum_func;
   thd->lex->allow_sum_func |= static_cast<nesting_map>(1)
-                              << thd->lex->current_select()->nest_level;
+                              << thd->lex->current_query_block()->nest_level;
 
   if (item->item_name.is_set())
     cloned_item->item_name.set(item->item_name.ptr(), item->item_name.length());
@@ -583,7 +589,7 @@ Item *TABLE_LIST::get_clone_for_derived_expr(THD *thd, Item *item) {
 
   // Reset original state back
   thd->want_privilege = save_old_privilege;
-  thd->lex->set_current_select(saved_current_select);
+  thd->lex->set_current_query_block(saved_current_query_block);
   thd->lex->allow_sum_func = save_allow_sum_func;
   thd->parsing_system_view = parsing_system_view_saved;
   // If fix_fields returned error, do not return an unresolved cloned
@@ -627,7 +633,7 @@ bool TABLE_LIST::setup_materialized_derived_tmp_table(THD *thd)
   Opt_trace_object trace_wrapper(trace);
   Opt_trace_object trace_derived(trace, is_view() ? "view" : "derived");
   trace_derived.add_utf8_table(this)
-      .add("select#", derived->first_select()->select_number)
+      .add("select#", derived->first_query_block()->select_number)
       .add("materialized", true);
 
   set_uses_materialization();
@@ -645,7 +651,7 @@ bool TABLE_LIST::setup_materialized_derived_tmp_table(THD *thd)
   if (table == nullptr) {
     // Create the result table for the materialization
     ulonglong create_options =
-        derived->first_select()->active_options() | TMP_TABLE_ALL_COLUMNS;
+        derived->first_query_block()->active_options() | TMP_TABLE_ALL_COLUMNS;
 
     if (m_derived_column_names) {
       /*
@@ -701,8 +707,8 @@ bool TABLE_LIST::setup_materialized_derived_tmp_table(THD *thd)
   @return false if successful, true if error
 */
 
-bool SELECT_LEX_UNIT::check_materialized_derived_query_blocks(THD *thd_arg) {
-  for (SELECT_LEX *sl = first_select(); sl; sl = sl->next_select()) {
+bool Query_expression::check_materialized_derived_query_blocks(THD *thd_arg) {
+  for (Query_block *sl = first_query_block(); sl; sl = sl->next_query_block()) {
     // All underlying tables are read-only
     sl->set_tables_readonly();
     /*
@@ -761,7 +767,7 @@ bool TABLE_LIST::setup_table_function(THD *thd) {
     make sure a table function won't access tables located after it in FROM
     clause.
   */
-  select_lex->end_lateral_table = this;
+  query_block->end_lateral_table = this;
 
   if (table_function->init()) return true;
 
@@ -792,7 +798,7 @@ bool TABLE_LIST::setup_table_function(THD *thd) {
       .add_utf8("function_name", func_name, func_name_len)
       .add("materialized", true);
 
-  select_lex->end_lateral_table = nullptr;
+  query_block->end_lateral_table = nullptr;
 
   thd->where = saved_where;
 
@@ -818,10 +824,10 @@ bool TABLE_LIST::setup_table_function(THD *thd) {
 */
 
 bool TABLE_LIST::can_push_condition_to_derived(THD *thd) {
-  SELECT_LEX_UNIT const *unit = derived_unit();
+  Query_expression const *unit = derived_query_expression();
   return hint_table_state(thd, this, DERIVED_CONDITION_PUSHDOWN_HINT_ENUM,
                           OPTIMIZER_SWITCH_DERIVED_CONDITION_PUSHDOWN) &&
-         !unit->is_union() && !unit->first_select()->has_limit() &&
+         !unit->is_union() && !unit->first_query_block()->has_limit() &&
          !is_inner_table_of_outer_join() &&
          !(common_table_expr() && common_table_expr()->references.size() >= 2);
 }
@@ -886,13 +892,15 @@ bool Condition_pushdown::make_cond_for_derived() {
   // Replace columns in the condition with derived table expressions.
   if (replace_columns_in_cond()) return true;
 
-  SELECT_LEX *derived_select = m_derived_table->derived_unit()->first_select();
+  Query_block *derived_query_block =
+      m_derived_table->derived_query_expression()->first_query_block();
   // Attach the conditions to the derived table select
-  if (m_having_cond && attach_cond_to_derived(derived_select->having_cond(),
-                                              m_having_cond, true))
+  if (m_having_cond &&
+      attach_cond_to_derived(derived_query_block->having_cond(), m_having_cond,
+                             true))
     return true;
-  if (m_where_cond &&
-      attach_cond_to_derived(derived_select->where_cond(), m_where_cond, false))
+  if (m_where_cond && attach_cond_to_derived(derived_query_block->where_cond(),
+                                             m_where_cond, false))
     return true;
   if (m_remainder_cond != nullptr && !m_remainder_cond->fixed &&
       m_remainder_cond->fix_fields(thd, &m_remainder_cond))
@@ -1004,7 +1012,8 @@ Item *Condition_pushdown::extract_cond_for_table(Item *cond) {
 */
 
 Item *TABLE_LIST::get_derived_expr(uint expr_index) {
-  for (auto item : derived_unit()->first_select()->visible_fields())
+  for (auto item :
+       derived_query_expression()->first_query_block()->visible_fields())
     if (expr_index-- == 0) return item;
 
   assert(false);
@@ -1021,8 +1030,9 @@ Item *TABLE_LIST::get_derived_expr(uint expr_index) {
   used to filter after window function execution.
 */
 void Condition_pushdown::push_past_window_functions() {
-  if (m_derived_table->derived_unit()->first_select()->m_windows.elements ==
-      0) {
+  if (m_derived_table->derived_query_expression()
+          ->first_query_block()
+          ->m_windows.elements == 0) {
     m_having_cond = m_cond_to_push;
     return;
   }
@@ -1045,12 +1055,15 @@ void Condition_pushdown::push_past_window_functions() {
   WHERE clause. It will have to stay in HAVING clause.
 */
 void Condition_pushdown::push_past_group_by() {
-  if (!m_derived_table->derived_unit()->first_select()->is_grouped()) {
+  if (!m_derived_table->derived_query_expression()
+           ->first_query_block()
+           ->is_grouped()) {
     m_where_cond = m_having_cond;
     m_having_cond = nullptr;
     return;
   }
-  if (m_derived_table->derived_unit()->first_select()->olap == ROLLUP_TYPE)
+  if (m_derived_table->derived_query_expression()->first_query_block()->olap ==
+      ROLLUP_TYPE)
     return;
   m_checking_purpose = CHECK_FOR_WHERE;
   Opt_trace_object step_wrapper(trace);
@@ -1204,7 +1217,7 @@ void Condition_pushdown::remove_sj_exprs(Item *cond, NESTED_JOIN *sj_nest) {
         if (sj_nest->sj_inner_exprs.empty()) {
           assert(sj_nest->sj_outer_exprs.empty());
           // Materialization needs non-empty lists (same as in
-          // SELECT_LEX::build_sj_cond())
+          // Query_block::build_sj_cond())
           Item *const_item = new Item_int(1);
           sj_nest->sj_inner_exprs.push_back(const_item);
           sj_nest->sj_outer_exprs.push_back(const_item);
@@ -1222,7 +1235,8 @@ void Condition_pushdown::remove_sj_exprs(Item *cond, NESTED_JOIN *sj_nest) {
   number of BETWEEN functions pushed down.
 */
 void Condition_pushdown::update_between_count(Item *cond) {
-  SELECT_LEX *select = m_derived_table->derived_unit()->first_select();
+  Query_block *select =
+      m_derived_table->derived_query_expression()->first_query_block();
   if (cond->type() == Item::COND_ITEM) {
     Item_cond *cond_item = down_cast<Item_cond *>(cond);
     List_iterator<Item> li(*cond_item->argument_list());
@@ -1251,23 +1265,24 @@ void Condition_pushdown::update_between_count(Item *cond) {
 bool Condition_pushdown::attach_cond_to_derived(Item *derived_cond,
                                                 Item *cond_to_attach,
                                                 bool having) {
-  SELECT_LEX *derived_select = m_derived_table->derived_unit()->first_select();
-  SELECT_LEX *saved_select = thd->lex->current_select();
-  thd->lex->set_current_select(derived_select);
-  bool fix_having = derived_select->having_fix_field;
+  Query_block *derived_query_block =
+      m_derived_table->derived_query_expression()->first_query_block();
+  Query_block *saved_query_block = thd->lex->current_query_block();
+  thd->lex->set_current_query_block(derived_query_block);
+  bool fix_having = derived_query_block->having_fix_field;
 
   derived_cond = and_items(derived_cond, cond_to_attach);
-  if (having) derived_select->having_fix_field = true;
+  if (having) derived_query_block->having_fix_field = true;
   if (!derived_cond->fixed && derived_cond->fix_fields(thd, &derived_cond)) {
-    derived_select->having_fix_field = fix_having;
-    thd->lex->set_current_select(saved_select);
+    derived_query_block->having_fix_field = fix_having;
+    thd->lex->set_current_query_block(saved_query_block);
     return true;
   }
-  derived_select->having_fix_field = fix_having;
+  derived_query_block->having_fix_field = fix_having;
   update_between_count(cond_to_attach);
-  having ? derived_select->set_having_cond(derived_cond)
-         : derived_select->set_where_cond(derived_cond);
-  thd->lex->set_current_select(saved_select);
+  having ? derived_query_block->set_having_cond(derived_cond)
+         : derived_query_block->set_where_cond(derived_cond);
+  thd->lex->set_current_query_block(saved_query_block);
   return false;
 }
 
@@ -1286,7 +1301,7 @@ bool Condition_pushdown::attach_cond_to_derived(Item *derived_cond,
 bool TABLE_LIST::optimize_derived(THD *thd) {
   DBUG_TRACE;
 
-  SELECT_LEX_UNIT *const unit = derived_unit();
+  Query_expression *const unit = derived_query_expression();
 
   DBUG_ASSERT(unit && !unit->is_optimized());
 
@@ -1294,9 +1309,9 @@ bool TABLE_LIST::optimize_derived(THD *thd) {
     Derived_refs_iterator ref_it(this);
     TABLE *t;
     while ((t = ref_it.get_next())) {
-      if (setup_tmp_table_handler(
-              thd, t,
-              unit->first_select()->active_options() | TMP_TABLE_ALL_COLUMNS))
+      if (setup_tmp_table_handler(thd, t,
+                                  unit->first_query_block()->active_options() |
+                                      TMP_TABLE_ALL_COLUMNS))
         return true; /* purecov: inspected */
       t->set_not_started();
     }
@@ -1333,7 +1348,7 @@ bool TABLE_LIST::create_materialized_table(THD *thd) {
   DBUG_TRACE;
 
   // @todo: Be able to assert !table->is_created() as well
-  DBUG_ASSERT((is_table_function() || derived_unit()) &&
+  DBUG_ASSERT((is_table_function() || derived_query_expression()) &&
               uses_materialization() && table);
 
   if (!table->is_created()) {
@@ -1350,9 +1365,9 @@ bool TABLE_LIST::create_materialized_table(THD *thd) {
     1) Table is already created, or
     2) Table is a constant one with all NULL values.
   */
-  if (table->is_created() ||                          // 1
-      (select_lex->join != nullptr &&                 // 2
-       (select_lex->join->const_table_map & map())))  // 2
+  if (table->is_created() ||                           // 1
+      (query_block->join != nullptr &&                 // 2
+       (query_block->join->const_table_map & map())))  // 2
   {
     /*
       At this point, JT_CONST derived tables should be null rows. Otherwise
@@ -1412,7 +1427,7 @@ bool TABLE_LIST::materialize_derived(THD *thd) {
     be the same as insertion order.
     So let's verify that the table has no MySQL-created PK.
   */
-  SELECT_LEX_UNIT *const unit = derived_unit();
+  Query_expression *const unit = derived_query_expression();
   if (unit->is_recursive()) {
     DBUG_ASSERT(table->s->primary_key == MAX_KEY);
   }
@@ -1454,5 +1469,5 @@ bool TABLE_LIST::materialize_derived(THD *thd) {
 
 void TABLE_LIST::cleanup_derived(THD *thd) {
   DBUG_ASSERT(is_view_or_derived() && uses_materialization());
-  derived_unit()->cleanup(thd, false);
+  derived_query_expression()->cleanup(thd, false);
 }

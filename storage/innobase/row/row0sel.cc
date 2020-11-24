@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2020, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -4801,7 +4801,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
 
   if (prebuilt->table->skip_gap_locks() ||
       (trx->skip_gap_locks() && prebuilt->select_lock_type != LOCK_NONE &&
-       trx->mysql_thd != nullptr && thd_is_select(trx->mysql_thd))) {
+       trx->mysql_thd != nullptr && thd_is_query_block(trx->mysql_thd))) {
     /* It is a plain locking SELECT and the isolation
     level is low: do not lock gaps */
 

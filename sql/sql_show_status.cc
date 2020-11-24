@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,10 +83,10 @@
               WHERE @<where_clause@>
   </code>
 */
-static SELECT_LEX *build_query(const POS &pos, THD *thd,
-                               enum_sql_command command,
-                               const LEX_CSTRING &table_name,
-                               const String *wild, Item *where_cond) {
+static Query_block *build_query(const POS &pos, THD *thd,
+                                enum_sql_command command,
+                                const LEX_CSTRING &table_name,
+                                const String *wild, Item *where_cond) {
   /*
     MAINTAINER:
     This code builds a parsed tree for a query.
@@ -256,8 +256,8 @@ static SELECT_LEX *build_query(const POS &pos, THD *thd,
   if (query_expression2 == nullptr) return nullptr;
 
   LEX *lex = thd->lex;
-  SELECT_LEX *current_select = lex->current_select();
-  Parse_context pc(thd, current_select);
+  Query_block *current_query_block = lex->current_query_block();
+  Parse_context pc(thd, current_query_block);
   if (thd->is_error()) return nullptr;
 
   lex->sql_command = SQLCOM_SELECT;
@@ -266,35 +266,36 @@ static SELECT_LEX *build_query(const POS &pos, THD *thd,
   /* contextualize sets to COM_SELECT */
   lex->sql_command = command;
 
-  return current_select;
+  return current_query_block;
 }
 
-SELECT_LEX *build_show_session_status(const POS &pos, THD *thd,
-                                      const String *wild, Item *where_cond) {
+Query_block *build_show_session_status(const POS &pos, THD *thd,
+                                       const String *wild, Item *where_cond) {
   static const LEX_CSTRING table_name = {STRING_WITH_LEN("session_status")};
 
   return build_query(pos, thd, SQLCOM_SHOW_STATUS, table_name, wild,
                      where_cond);
 }
 
-SELECT_LEX *build_show_global_status(const POS &pos, THD *thd,
-                                     const String *wild, Item *where_cond) {
+Query_block *build_show_global_status(const POS &pos, THD *thd,
+                                      const String *wild, Item *where_cond) {
   static const LEX_CSTRING table_name = {STRING_WITH_LEN("global_status")};
 
   return build_query(pos, thd, SQLCOM_SHOW_STATUS, table_name, wild,
                      where_cond);
 }
 
-SELECT_LEX *build_show_session_variables(const POS &pos, THD *thd,
-                                         const String *wild, Item *where_cond) {
+Query_block *build_show_session_variables(const POS &pos, THD *thd,
+                                          const String *wild,
+                                          Item *where_cond) {
   static const LEX_CSTRING table_name = {STRING_WITH_LEN("session_variables")};
 
   return build_query(pos, thd, SQLCOM_SHOW_VARIABLES, table_name, wild,
                      where_cond);
 }
 
-SELECT_LEX *build_show_global_variables(const POS &pos, THD *thd,
-                                        const String *wild, Item *where_cond) {
+Query_block *build_show_global_variables(const POS &pos, THD *thd,
+                                         const String *wild, Item *where_cond) {
   static const LEX_CSTRING table_name = {STRING_WITH_LEN("global_variables")};
 
   return build_query(pos, thd, SQLCOM_SHOW_VARIABLES, table_name, wild,

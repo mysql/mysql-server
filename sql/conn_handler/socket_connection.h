@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -230,7 +230,7 @@ class Mysqld_socket_listener {
   void setup_connection_events(const socket_vector_t &socket_vector);
 };
 
-ulong get_connection_errors_select();
+ulong get_connection_errors_query_block();
 
 ulong get_connection_errors_accept();
 

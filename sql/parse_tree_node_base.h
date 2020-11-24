@@ -36,7 +36,7 @@
 #include "sql/parse_location.h"
 #include "sql/sql_const.h"
 
-class SELECT_LEX;
+class Query_block;
 class THD;
 
 // uncachable cause
@@ -87,11 +87,11 @@ enum enum_parsing_context {
   Environment data for the contextualization phase
 */
 struct Parse_context {
-  THD *const thd;      ///< Current thread handler
-  MEM_ROOT *mem_root;  ///< Current MEM_ROOT
-  SELECT_LEX *select;  ///< Current SELECT_LEX object
+  THD *const thd;       ///< Current thread handler
+  MEM_ROOT *mem_root;   ///< Current MEM_ROOT
+  Query_block *select;  ///< Current Query_block object
 
-  Parse_context(THD *thd, SELECT_LEX *sl);
+  Parse_context(THD *thd, Query_block *sl);
 };
 
 /**

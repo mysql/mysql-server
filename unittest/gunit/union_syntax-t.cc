@@ -42,44 +42,44 @@ class UnionSyntaxTest : public ParserTest {
  protected:
   void test_union_syntax(const char *query, int num_terms,
                          bool expect_syntax_error = false) {
-    SELECT_LEX *term1 = parse(query, expect_syntax_error ? ER_PARSE_ERROR : 0);
-    EXPECT_EQ(nullptr, term1->first_inner_unit());
+    Query_block *term1 = parse(query, expect_syntax_error ? ER_PARSE_ERROR : 0);
+    EXPECT_EQ(nullptr, term1->first_inner_query_expression());
     EXPECT_EQ(nullptr, term1->next_select_in_list());
     EXPECT_EQ(1, term1->get_fields_list()->front()->val_int());
 
-    SELECT_LEX_UNIT *top_union = term1->master_unit();
-    EXPECT_EQ(nullptr, top_union->outer_select());
+    Query_expression *top_union = term1->master_query_expression();
+    EXPECT_EQ(nullptr, top_union->outer_query_block());
 
     if (num_terms > 1) {
-      SELECT_LEX *term2 = term1->next_select();
+      Query_block *term2 = term1->next_query_block();
       ASSERT_FALSE(term2 == nullptr);
 
-      EXPECT_EQ(nullptr, term2->first_inner_unit());
+      EXPECT_EQ(nullptr, term2->first_inner_query_expression());
       EXPECT_EQ(term1, term2->next_select_in_list());
       EXPECT_EQ(2, term2->get_fields_list()->front()->val_int());
 
       if (num_terms > 2) {
       } else
-        EXPECT_EQ(nullptr, term2->next_select());
+        EXPECT_EQ(nullptr, term2->next_query_block());
 
-      EXPECT_EQ(top_union, term2->master_unit());
+      EXPECT_EQ(top_union, term2->master_query_expression());
     }
   }
 
-  SELECT_LEX *test_ignored_trailing_limit_on_query_term(const char *query) {
-    SELECT_LEX *term1 = parse(query);
+  Query_block *test_ignored_trailing_limit_on_query_term(const char *query) {
+    Query_block *term1 = parse(query);
 
     EXPECT_EQ(nullptr, term1->select_limit);
 
-    SELECT_LEX_UNIT *top_union = term1->master_unit();
+    Query_expression *top_union = term1->master_query_expression();
 
-    EXPECT_EQ(4, top_union->fake_select_lex->select_limit->val_int());
+    EXPECT_EQ(4, top_union->fake_query_block->select_limit->val_int());
 
-    EXPECT_EQ(nullptr, top_union->outer_select());
+    EXPECT_EQ(nullptr, top_union->outer_query_block());
 
-    SELECT_LEX *term2 = term1->next_select();
+    Query_block *term2 = term1->next_query_block();
 
-    EXPECT_EQ(nullptr, term2->first_inner_unit());
+    EXPECT_EQ(nullptr, term2->first_inner_query_expression());
     EXPECT_EQ(term1, term2->next_select_in_list());
     EXPECT_EQ(2, term2->get_fields_list()->front()->val_int());
 
@@ -88,18 +88,19 @@ class UnionSyntaxTest : public ParserTest {
 
   void test_ignored_trailing_limit_on_query_term(const char *query,
                                                  int expected_limit) {
-    SELECT_LEX *term1 = test_ignored_trailing_limit_on_query_term(query);
-    EXPECT_EQ(expected_limit, term1->next_select()->select_limit->val_int())
+    Query_block *term1 = test_ignored_trailing_limit_on_query_term(query);
+    EXPECT_EQ(expected_limit,
+              term1->next_query_block()->select_limit->val_int())
         << " Outer limit clause should be ignored.";
   }
 };
 
 TEST_F(UnionSyntaxTest, First) {
-  SELECT_LEX *top = parse("SELECT 1");
-  SELECT_LEX_UNIT *top_union = top->master_unit();
+  Query_block *top = parse("SELECT 1");
+  Query_expression *top_union = top->master_query_expression();
 
-  EXPECT_EQ(nullptr, top->outer_select());
-  EXPECT_EQ(top, top_union->first_select());
+  EXPECT_EQ(nullptr, top->outer_query_block());
+  EXPECT_EQ(top, top_union->first_query_block());
 }
 
 using std::string;
@@ -112,15 +113,15 @@ string parenthesize(string query, int n) {
 }
 
 TEST_F(UnionSyntaxTest, QueryExpParensDualOrder) {
-  SELECT_LEX *term = parse("( SELECT 1 FROM t1 ORDER BY 2 ) ORDER BY 3");
+  Query_block *term = parse("( SELECT 1 FROM t1 ORDER BY 2 ) ORDER BY 3");
   ASSERT_FALSE(term == nullptr);
-  EXPECT_EQ(nullptr, term->next_select());
-  EXPECT_EQ(nullptr, term->first_inner_unit());
+  EXPECT_EQ(nullptr, term->next_query_block());
+  EXPECT_EQ(nullptr, term->first_inner_query_expression());
 
   // The query expression.
-  SELECT_LEX_UNIT *exp = term->master_unit();
+  Query_expression *exp = term->master_query_expression();
   ASSERT_FALSE(exp == nullptr);
-  EXPECT_EQ(term, exp->first_select());
+  EXPECT_EQ(term, exp->first_query_block());
 
   // Table expression
   EXPECT_EQ(1U, term->table_list.elements);
@@ -135,15 +136,15 @@ TEST_F(UnionSyntaxTest, QueryExpParensDualOrder) {
 }
 
 TEST_F(UnionSyntaxTest, QueryExpParensOrder) {
-  SELECT_LEX *term = parse("(SELECT 1 FROM t1) ORDER BY 3");
+  Query_block *term = parse("(SELECT 1 FROM t1) ORDER BY 3");
   ASSERT_FALSE(term == nullptr);
-  EXPECT_EQ(nullptr, term->next_select());
-  EXPECT_EQ(nullptr, term->first_inner_unit());
+  EXPECT_EQ(nullptr, term->next_query_block());
+  EXPECT_EQ(nullptr, term->first_inner_query_expression());
 
   // The query expression.
-  SELECT_LEX_UNIT *exp = term->master_unit();
+  Query_expression *exp = term->master_query_expression();
   ASSERT_FALSE(exp == nullptr);
-  EXPECT_EQ(term, exp->first_select());
+  EXPECT_EQ(term, exp->first_query_block());
 
   // Table expression
   EXPECT_EQ(1U, term->table_list.elements);
@@ -159,15 +160,15 @@ TEST_F(UnionSyntaxTest, QueryExpParensOrder) {
 }
 
 TEST_F(UnionSyntaxTest, QueryExpParensLimit) {
-  SELECT_LEX *term = parse("(SELECT 1 FROM t1 LIMIT 2) LIMIT 3");
+  Query_block *term = parse("(SELECT 1 FROM t1 LIMIT 2) LIMIT 3");
   ASSERT_FALSE(term == nullptr);
-  EXPECT_EQ(nullptr, term->next_select());
-  EXPECT_EQ(nullptr, term->first_inner_unit());
+  EXPECT_EQ(nullptr, term->next_query_block());
+  EXPECT_EQ(nullptr, term->first_inner_query_expression());
 
   // The query expression.
-  SELECT_LEX_UNIT *exp = term->master_unit();
+  Query_expression *exp = term->master_query_expression();
   ASSERT_FALSE(exp == nullptr);
-  EXPECT_EQ(term, exp->first_select());
+  EXPECT_EQ(term, exp->first_query_block());
 
   // Table expression
   EXPECT_EQ(1U, term->table_list.elements);
@@ -179,9 +180,9 @@ TEST_F(UnionSyntaxTest, QueryExpParensLimit) {
 }
 
 TEST_F(UnionSyntaxTest, Simple) {
-  SELECT_LEX *block1 = parse("SELECT 1 UNION SELECT 2 UNION SELECT 3");
-  SELECT_LEX *block2 = block1->next_select();
-  SELECT_LEX *block3 = block2->next_select();
+  Query_block *block1 = parse("SELECT 1 UNION SELECT 2 UNION SELECT 3");
+  Query_block *block2 = block1->next_query_block();
+  Query_block *block3 = block2->next_query_block();
 
   EXPECT_EQ(1, block1->get_fields_list()->front()->val_int());
   EXPECT_EQ(2, block2->get_fields_list()->front()->val_int());
@@ -204,7 +205,7 @@ TEST_F(UnionSyntaxTest, ThreeWay) {
         }
 }
 
-const char *get_order_by_column_name(SELECT_LEX *query_block, int index = 0) {
+const char *get_order_by_column_name(Query_block *query_block, int index = 0) {
   EXPECT_EQ(nullptr, *query_block->order_list.next);
   ORDER *current = query_block->order_list.first;
   for (int i = 0; i < index; ++i) current = current->next;
@@ -215,22 +216,22 @@ const char *get_order_by_column_name(SELECT_LEX *query_block, int index = 0) {
   return order_expression->item_name.ptr();
 }
 
-const char *get_order_by_column_name(SELECT_LEX_UNIT *query_expression,
+const char *get_order_by_column_name(Query_expression *query_expression,
                                      int index = 0) {
-  SELECT_LEX *fake = query_expression->fake_select_lex;
+  Query_block *fake = query_expression->fake_query_block;
   // Why can't I use ASSERT_FALSE here?!
   EXPECT_FALSE(fake == nullptr);
   return get_order_by_column_name(fake, index);
 }
 
-int get_limit(SELECT_LEX *query_block) {
+int get_limit(Query_block *query_block) {
   return query_block->select_limit->val_int();
 }
 
 TEST_F(UnionSyntaxTest, UnionOrderLimit) {
-  SELECT_LEX *block1 =
+  Query_block *block1 =
       parse("SELECT 1 UNION SELECT 2 FROM t1 ORDER BY a LIMIT 123");
-  SELECT_LEX *block2 = block1->next_select();
+  Query_block *block2 = block1->next_query_block();
 
   EXPECT_EQ(nullptr, block1->select_limit)
       << "First query block should not have a limit clause.";
@@ -244,11 +245,11 @@ TEST_F(UnionSyntaxTest, UnionOrderLimit) {
   EXPECT_EQ(0U, block2->order_list.elements)
       << "Second query block should not have an order by clause.";
 
-  SELECT_LEX_UNIT *query_expression = block1->master_unit();
+  Query_expression *query_expression = block1->master_query_expression();
 
   // The limit and order by clauses should belong to the whole query
   // expression, i.e. the "fake select lex".
-  SELECT_LEX *fake = query_expression->fake_select_lex;
+  Query_block *fake = query_expression->fake_query_block;
   EXPECT_EQ(123, get_limit(fake));
   EXPECT_STREQ("a", get_order_by_column_name(fake));
 
@@ -257,9 +258,9 @@ TEST_F(UnionSyntaxTest, UnionOrderLimit) {
 }
 
 TEST_F(UnionSyntaxTest, UnionNestedQueryBlock) {
-  SELECT_LEX *block1 =
+  Query_block *block1 =
       parse("SELECT 1 UNION (SELECT 2 FROM t1 ORDER BY a LIMIT 123)");
-  SELECT_LEX *block2 = block1->next_select();
+  Query_block *block2 = block1->next_query_block();
 
   EXPECT_EQ(nullptr, block1->select_limit)
       << "First query block should not have a limit clause.";
@@ -270,11 +271,11 @@ TEST_F(UnionSyntaxTest, UnionNestedQueryBlock) {
   EXPECT_EQ(123, get_limit(block2));
   EXPECT_STREQ("a", get_order_by_column_name(block2));
 
-  SELECT_LEX_UNIT *query_expression = block1->master_unit();
+  Query_expression *query_expression = block1->master_query_expression();
 
   // The limit and order by clauses should belong to the whole query
   // expression, i.e. the "fake select lex".
-  SELECT_LEX *fake = query_expression->fake_select_lex;
+  Query_block *fake = query_expression->fake_query_block;
   //  EXPECT_EQ(nullptr, fake->select_limit);
 
   EXPECT_EQ(0U, fake->order_list.elements)
@@ -282,33 +283,33 @@ TEST_F(UnionSyntaxTest, UnionNestedQueryBlock) {
 }
 
 TEST_F(UnionSyntaxTest, NestedQueryExpWithLimit) {
-  SELECT_LEX *block1 =
+  Query_block *block1 =
       parse("(SELECT 1 ORDER BY a LIMIT 5) UNION SELECT 2 ORDER BY b LIMIT 8");
 
-  SELECT_LEX_UNIT *query_expression = block1->master_unit();
+  Query_expression *query_expression = block1->master_query_expression();
 
   EXPECT_STREQ("a", get_order_by_column_name(block1, 0));
   EXPECT_EQ(5, block1->select_limit->val_int());
 
-  SELECT_LEX *fake = query_expression->fake_select_lex;
+  Query_block *fake = query_expression->fake_query_block;
   EXPECT_STREQ("b", get_order_by_column_name(fake, 0));
   EXPECT_EQ(8, fake->select_limit->val_int());
 }
 
 TEST_F(UnionSyntaxTest, IgnoredTrailingLimitOnQueryTerm) {
-  SELECT_LEX *block1 = parse("(SELECT 1) UNION SELECT 2 LIMIT 123");
-  SELECT_LEX *block2 = block1->next_select();
+  Query_block *block1 = parse("(SELECT 1) UNION SELECT 2 LIMIT 123");
+  Query_block *block2 = block1->next_query_block();
   EXPECT_EQ(2, block2->get_fields_list()->front()->val_int());
 
   // Neither query block should have a limit clause.
   EXPECT_EQ(nullptr, block1->select_limit);
   EXPECT_EQ(nullptr, block2->select_limit);
 
-  SELECT_LEX_UNIT *query_expression = block1->master_unit();
+  Query_expression *query_expression = block1->master_query_expression();
 
   // The limit clause should belong to the whole query expression, i.e. the
   // "fake select lex".
-  EXPECT_EQ(123, query_expression->fake_select_lex->select_limit->val_int());
+  EXPECT_EQ(123, query_expression->fake_query_block->select_limit->val_int());
 
   return;
   test_ignored_trailing_limit_on_query_term(
@@ -325,17 +326,17 @@ TEST_F(UnionSyntaxTest, IgnoredTrailingLimitOnQueryTerm) {
 }
 
 TEST_F(UnionSyntaxTest, InnerVsOuterOrder) {
-  SELECT_LEX *query_block =
+  Query_block *query_block =
       parse("(SELECT b, a FROM t1 ORDER by b, a LIMIT 3) ORDER by a, b");
 
   EXPECT_STREQ("b", get_order_by_column_name(query_block, 0));
   EXPECT_STREQ("a", get_order_by_column_name(query_block, 1));
   EXPECT_EQ(3, get_limit(query_block));
 
-  SELECT_LEX_UNIT *query_expression = query_block->master_unit();
+  Query_expression *query_expression = query_block->master_query_expression();
   EXPECT_STREQ("a", get_order_by_column_name(query_expression, 0));
   EXPECT_STREQ("b", get_order_by_column_name(query_expression, 1));
-  //    EXPECT_EQ(2, get_limit(query_expression->fake_select_lex));
+  //    EXPECT_EQ(2, get_limit(query_expression->fake_query_block));
 }
 
 }  // namespace union_syntax_unittest

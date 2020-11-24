@@ -592,7 +592,7 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx) {
       materialize_path = NewMaterializedTableFunctionAccessPath(
           m_thd, table, tl->table_function, path);
     } else {
-      bool rematerialize = tl->derived_unit()->uncacheable != 0;
+      bool rematerialize = tl->derived_query_expression()->uncacheable != 0;
       if (tl->common_table_expr()) {
         // Handled in clear_corr_something_something, not here
         rematerialize = false;
@@ -1109,9 +1109,10 @@ AccessPath *CostingReceiver::ProposeAccessPathForNodes(
 /**
   Create a table array from a table bitmap.
  */
-Mem_root_array<TABLE *> CollectTables(SELECT_LEX *select_lex, table_map tmap) {
-  Mem_root_array<TABLE *> tables(select_lex->join->thd->mem_root);
-  for (TABLE_LIST *tl = select_lex->leaf_tables; tl != nullptr;
+Mem_root_array<TABLE *> CollectTables(Query_block *query_block,
+                                      table_map tmap) {
+  Mem_root_array<TABLE *> tables(query_block->join->thd->mem_root);
+  for (TABLE_LIST *tl = query_block->leaf_tables; tl != nullptr;
        tl = tl->next_leaf) {
     if (tl->map() & tmap) {
       tables.push_back(tl->table);
@@ -1125,11 +1126,11 @@ bool CheckSupportedQuery(THD *thd, JOIN *join) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "ROLLUP");
     return true;
   }
-  if (join->select_lex->has_ft_funcs()) {
+  if (join->query_block->has_ft_funcs()) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "fulltext search");
     return true;
   }
-  if (join->select_lex->is_recursive()) {
+  if (join->query_block->is_recursive()) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "recursive CTEs");
     return true;
   }
@@ -1139,17 +1140,17 @@ bool CheckSupportedQuery(THD *thd, JOIN *join) {
              "the secondary engine in use");
     return true;
   }
-  if (join->select_lex->has_windows()) {
+  if (join->query_block->has_windows()) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "windowing functions");
     return true;
   }
-  if (join->select_lex->active_options() & OPTION_BUFFER_RESULT) {
+  if (join->query_block->active_options() & OPTION_BUFFER_RESULT) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "SQL_BUFFER_RESULT");
     return true;
   }
-  for (TABLE_LIST *tl = join->select_lex->leaf_tables; tl != nullptr;
+  for (TABLE_LIST *tl = join->query_block->leaf_tables; tl != nullptr;
        tl = tl->next_leaf) {
-    if (tl->is_derived() && tl->derived_unit()->m_lateral_deps) {
+    if (tl->is_derived() && tl->derived_query_expression()->m_lateral_deps) {
       my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "LATERAL");
       return true;
     }
@@ -1206,21 +1207,22 @@ void EstimateSortCost(AccessPath *path) {
   Thus, that job is deferred to CreateMaterializationPathForSortingAggregates().
  */
 TABLE *CreateTemporaryTableForSortingAggregates(
-    THD *thd, SELECT_LEX *select_lex, Temp_table_param **temp_table_param_arg) {
-  JOIN *join = select_lex->join;
+    THD *thd, Query_block *query_block,
+    Temp_table_param **temp_table_param_arg) {
+  JOIN *join = query_block->join;
 
   Temp_table_param *temp_table_param = new (thd->mem_root) Temp_table_param;
   *temp_table_param_arg = temp_table_param;
   temp_table_param->precomputed_group_by = false;
   temp_table_param->hidden_field_count = CountHiddenFields(*join->fields);
   temp_table_param->skip_create_table = false;
-  count_field_types(select_lex, temp_table_param, *join->fields,
+  count_field_types(query_block, temp_table_param, *join->fields,
                     /*reset_with_sum_func=*/true, /*save_sum_fields=*/true);
 
   TABLE *temp_table = create_tmp_table(
       thd, temp_table_param, *join->fields,
       /*group=*/nullptr, /*distinct=*/false, /*save_sum_fields=*/true,
-      select_lex->active_options(), /*rows_limit=*/HA_POS_ERROR, "");
+      query_block->active_options(), /*rows_limit=*/HA_POS_ERROR, "");
   temp_table->alias = "<temporary>";
 
   // Replace the SELECT list with items that read from our temporary table.
@@ -1248,7 +1250,7 @@ TABLE *CreateTemporaryTableForSortingAggregates(
   // This isn't important for streaming (the items would get the correct
   // value anyway -- although possibly with some extra calculations),
   // but it is for materialization.
-  for (ORDER *order = select_lex->order_list.first; order != nullptr;
+  for (ORDER *order = query_block->order_list.first; order != nullptr;
        order = order->next) {
     Field *field = (*order->item)->get_tmp_table_field();
     if (field != nullptr) {
@@ -1360,25 +1362,25 @@ JoinHypergraph::Node *FindNodeWithTable(JoinHypergraph *graph, TABLE *table) {
 }
 
 Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
-    THD *thd, SELECT_LEX *select_lex,
+    THD *thd, Query_block *query_block,
     Prealloced_array<AccessPath *, 4> root_candidates,
     secondary_engine_modify_access_path_cost_t secondary_engine_cost_hook,
     string *trace) {
-  JOIN *join = select_lex->join;
-  assert(join->select_distinct || select_lex->is_ordered());
+  JOIN *join = query_block->join;
+  assert(join->select_distinct || query_block->is_ordered());
 
   TABLE *temp_table = nullptr;
   Temp_table_param *temp_table_param = nullptr;
 
   Mem_root_array<TABLE *> tables = CollectTables(
-      select_lex,
+      query_block,
       GetUsedTables(root_candidates[0]));  // Should be same for all paths.
 
   // If we have grouping followed by a sort, we need to bounce via
   // the buffers of a temporary table. See the comments on
   // CreateTemporaryTableForSortingAggregates().
-  if (select_lex->is_grouped()) {
-    temp_table = CreateTemporaryTableForSortingAggregates(thd, select_lex,
+  if (query_block->is_grouped()) {
+    temp_table = CreateTemporaryTableForSortingAggregates(thd, query_block,
                                                           &temp_table_param);
     // Filesort now only needs to worry about one input -- this temporary
     // table. This holds whether we are actually materializing or just
@@ -1392,12 +1394,12 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
   // before we decide on iterators.
   bool need_rowid = false;
   Filesort *filesort = nullptr;
-  if (select_lex->is_ordered()) {
+  if (query_block->is_ordered()) {
     Mem_root_array<TABLE *> table_copy(thd->mem_root, tables.begin(),
                                        tables.end());
     filesort = new (thd->mem_root)
         Filesort(thd, std::move(table_copy), /*keep_buffers=*/false,
-                 select_lex->order_list.first,
+                 query_block->order_list.first,
                  /*limit_arg=*/HA_POS_ERROR, /*force_stable_sort=*/false,
                  /*remove_duplicates=*/false, /*force_sort_positions=*/false,
                  /*unwrap_rollup=*/false);
@@ -1433,7 +1435,7 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
     // If there's an ORDER BY on the query, it needs to be heeded in the
     // re-sort for DISTINCT.
     ORDER *desired_order =
-        select_lex->is_ordered() ? select_lex->order_list.first : nullptr;
+        query_block->is_ordered() ? query_block->order_list.first : nullptr;
 
     ORDER *order = create_order_from_distinct(
         thd, Ref_item_array(), desired_order, join->fields,
@@ -1500,7 +1502,7 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
   }
 
   // Apply ORDER BY, if applicable.
-  if (select_lex->is_ordered() && order_by_subsumed_by_distinct) {
+  if (query_block->is_ordered() && order_by_subsumed_by_distinct) {
     // The ordering for DISTINCT already gave us the right sort order,
     // so no need to sort again.
     //
@@ -1511,7 +1513,7 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
     if (trace != nullptr) {
       *trace += "ORDER BY subsumed by sort for DISTINCT, ignoring\n";
     }
-  } else if (select_lex->is_ordered() && !order_by_subsumed_by_distinct) {
+  } else if (query_block->is_ordered() && !order_by_subsumed_by_distinct) {
     if (trace != nullptr) {
       *trace += "Applying sort for ORDER BY\n";
     }
@@ -1533,8 +1535,9 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
   return root_candidates;
 }
 
-AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
-  JOIN *join = select_lex->join;
+AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
+                              string *trace) {
+  JOIN *join = query_block->join;
   if (CheckSupportedQuery(thd, join)) return nullptr;
 
   assert(join->temp_tables.empty());
@@ -1542,7 +1545,7 @@ AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
 
   // Convert the join structures into a hypergraph.
   JoinHypergraph graph(thd->mem_root);
-  if (MakeJoinHypergraph(thd, select_lex, trace, &graph)) {
+  if (MakeJoinHypergraph(thd, query_block, trace, &graph)) {
     return nullptr;
   }
 
@@ -1599,9 +1602,9 @@ AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
 
   // Figure out if any later sort will need row IDs.
   bool need_rowid = false;
-  if (select_lex->is_explicitly_grouped() || select_lex->is_ordered() ||
+  if (query_block->is_explicitly_grouped() || query_block->is_ordered() ||
       join->select_distinct) {
-    for (TABLE_LIST *tl = select_lex->leaf_tables; tl != nullptr;
+    for (TABLE_LIST *tl = query_block->leaf_tables; tl != nullptr;
          tl = tl->next_leaf) {
       if (SortWillBeOnRowId(tl->table)) {
         need_rowid = true;
@@ -1691,7 +1694,7 @@ AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
 
   // Apply GROUP BY, if applicable. We currently always do this by sorting
   // first and then using streaming aggregation.
-  if (select_lex->is_grouped()) {
+  if (query_block->is_grouped()) {
     if (join->make_sum_func_list(*join->fields, /*before_group_by=*/true))
       return nullptr;
 
@@ -1701,12 +1704,12 @@ AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
 
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
-      if (select_lex->is_explicitly_grouped()) {
+      if (query_block->is_explicitly_grouped()) {
         Mem_root_array<TABLE *> tables =
-            CollectTables(select_lex, GetUsedTables(root_path));
+            CollectTables(query_block, GetUsedTables(root_path));
         Filesort *filesort = new (thd->mem_root) Filesort(
             thd, std::move(tables), /*keep_buffers=*/false,
-            select_lex->group_list.first,
+            query_block->group_list.first,
             /*limit_arg=*/HA_POS_ERROR, /*force_stable_sort=*/false,
             /*remove_duplicates=*/false, /*force_sort_positions=*/false,
             /*unwrap_rollup=*/false);
@@ -1786,14 +1789,14 @@ AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
     root_candidates = std::move(new_root_candidates);
   }
 
-  if (join->select_distinct || select_lex->is_ordered()) {
+  if (join->select_distinct || query_block->is_ordered()) {
     root_candidates =
-        ApplyDistinctAndOrder(thd, select_lex, std::move(root_candidates),
+        ApplyDistinctAndOrder(thd, query_block, std::move(root_candidates),
                               secondary_engine_cost_hook, trace);
   }
 
   // Apply LIMIT, if applicable.
-  SELECT_LEX_UNIT *unit = join->unit;
+  Query_expression *unit = join->unit;
   if (unit->select_limit_cnt != HA_POS_ERROR || unit->offset_limit_cnt != 0) {
     if (trace != nullptr) {
       *trace += "Applying LIMIT\n";

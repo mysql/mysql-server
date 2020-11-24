@@ -42,9 +42,9 @@ namespace info_schema {
 
 //  Build a substitute query for SHOW CHARSETS.
 
-SELECT_LEX *build_show_character_set_query(const POS &pos, THD *thd,
-                                           const String *wild,
-                                           Item *where_cond) {
+Query_block *build_show_character_set_query(const POS &pos, THD *thd,
+                                            const String *wild,
+                                            Item *where_cond) {
   static const LEX_CSTRING system_view_name = {
       STRING_WITH_LEN("CHARACTER_SETS")};
 
@@ -147,7 +147,7 @@ SELECT_LEX *build_show_character_set_query(const POS &pos, THD *thd,
   // ... ORDER BY 'Charset' ...
   if (top_query.add_order_by(alias_charset)) return nullptr;
 
-  SELECT_LEX *sl = top_query.prepare_select_lex();
+  Query_block *sl = top_query.prepare_query_block();
 
   // sql_command is set to SQL_QUERY after above call, so.
   thd->lex->sql_command = SQLCOM_SHOW_CHARSETS;
@@ -157,8 +157,8 @@ SELECT_LEX *build_show_character_set_query(const POS &pos, THD *thd,
 
 // Build a substitute query for SHOW COLLATION.
 
-SELECT_LEX *build_show_collation_query(const POS &pos, THD *thd,
-                                       const String *wild, Item *where_cond) {
+Query_block *build_show_collation_query(const POS &pos, THD *thd,
+                                        const String *wild, Item *where_cond) {
   static const LEX_CSTRING system_view_name = {STRING_WITH_LEN("COLLATIONS")};
 
   // Define field name literal used in query to be built.
@@ -290,7 +290,7 @@ SELECT_LEX *build_show_collation_query(const POS &pos, THD *thd,
   // ... ORDER BY 'Collation' ...
   if (top_query.add_order_by(alias_collation)) return nullptr;
 
-  SELECT_LEX *sl = top_query.prepare_select_lex();
+  Query_block *sl = top_query.prepare_query_block();
 
   // sql_command is set to SQL_QUERY after above call, so.
   thd->lex->sql_command = SQLCOM_SHOW_COLLATIONS;
@@ -300,8 +300,8 @@ SELECT_LEX *build_show_collation_query(const POS &pos, THD *thd,
 
 // Build a substitute query for SHOW DATABASES.
 
-SELECT_LEX *build_show_databases_query(const POS &pos, THD *thd, String *wild,
-                                       Item *where_cond) {
+Query_block *build_show_databases_query(const POS &pos, THD *thd, String *wild,
+                                        Item *where_cond) {
   static const LEX_CSTRING system_view_name = {STRING_WITH_LEN("SCHEMATA")};
 
   // Define field name literal used in query to be built.
@@ -359,7 +359,7 @@ SELECT_LEX *build_show_databases_query(const POS &pos, THD *thd, String *wild,
   // ... ORDER BY 'Database' ...
   if (top_query.add_order_by(alias_database)) return nullptr;
 
-  SELECT_LEX *sl = top_query.prepare_select_lex();
+  Query_block *sl = top_query.prepare_query_block();
 
   // sql_command is set to SQL_QUERY after above call, so.
   thd->lex->sql_command = SQLCOM_SHOW_DATABASES;
@@ -493,9 +493,9 @@ static bool add_table_status_fields(Select_lex_builder *query,
 
 // Build a substitute query for SHOW TABLES / TABLE STATUS.
 
-SELECT_LEX *build_show_tables_query(const POS &pos, THD *thd, String *wild,
-                                    Item *where_cond,
-                                    bool include_status_fields) {
+Query_block *build_show_tables_query(const POS &pos, THD *thd, String *wild,
+                                     Item *where_cond,
+                                     bool include_status_fields) {
   static const LEX_CSTRING system_view_name = {STRING_WITH_LEN("TABLES")};
 
   // Define field name literal used in query to be built.
@@ -510,16 +510,16 @@ SELECT_LEX *build_show_tables_query(const POS &pos, THD *thd, String *wild,
 
   // Get the current logged in schema name
   size_t dummy;
-  if (thd->lex->select_lex->db == nullptr &&
-      thd->lex->copy_db_to(&thd->lex->select_lex->db, &dummy))
+  if (thd->lex->query_block->db == nullptr &&
+      thd->lex->copy_db_to(&thd->lex->query_block->db, &dummy))
     return nullptr;
 
   // Convert IS db and table name to desired form.
-  dd::info_schema::convert_table_name_case(thd->lex->select_lex->db,
+  dd::info_schema::convert_table_name_case(thd->lex->query_block->db,
                                            wild ? wild->ptr() : nullptr);
 
-  LEX_STRING cur_db = {thd->lex->select_lex->db,
-                       strlen(thd->lex->select_lex->db)};
+  LEX_STRING cur_db = {thd->lex->query_block->db,
+                       strlen(thd->lex->query_block->db)};
 
   if (check_and_convert_db_name(&cur_db, false) != Ident_name_check::OK)
     return nullptr;
@@ -598,7 +598,7 @@ SELECT_LEX *build_show_tables_query(const POS &pos, THD *thd, String *wild,
   // ... ORDER BY 'Table' ...
   if (top_query.add_order_by(alias_lex_string)) return nullptr;
 
-  SELECT_LEX *sl = top_query.prepare_select_lex();
+  Query_block *sl = top_query.prepare_query_block();
 
   // sql_command is set to SQL_QUERY after above call, so.
   if (include_status_fields)
@@ -611,9 +611,9 @@ SELECT_LEX *build_show_tables_query(const POS &pos, THD *thd, String *wild,
 
 // Build a substitute query for SHOW COLUMNS/FIELDS OR DESCRIBE.
 
-SELECT_LEX *build_show_columns_query(const POS &pos, THD *thd,
-                                     Table_ident *table_ident,
-                                     const String *wild, Item *where_cond) {
+Query_block *build_show_columns_query(const POS &pos, THD *thd,
+                                      Table_ident *table_ident,
+                                      const String *wild, Item *where_cond) {
   static const LEX_CSTRING system_view_name = {STRING_WITH_LEN("COLUMNS")};
 
   // Define field name literal used in query to be built.
@@ -742,8 +742,8 @@ SELECT_LEX *build_show_columns_query(const POS &pos, THD *thd,
   // ... ORDER BY 'Ordinal_position' ...
   if (top_query.add_order_by(alias_ordinal_position)) return nullptr;
 
-  // Prepare the SELECT_LEX
-  SELECT_LEX *sl = top_query.prepare_select_lex();
+  // Prepare the Query_block
+  Query_block *sl = top_query.prepare_query_block();
   if (sl == nullptr) return nullptr;
 
   // sql_command is set to SQL_QUERY after above call, so.
@@ -754,8 +754,8 @@ SELECT_LEX *build_show_columns_query(const POS &pos, THD *thd,
 
 // Build a substitute query for SHOW INDEX|KEYS|INDEXES
 
-SELECT_LEX *build_show_keys_query(const POS &pos, THD *thd,
-                                  Table_ident *table_ident, Item *where_cond) {
+Query_block *build_show_keys_query(const POS &pos, THD *thd,
+                                   Table_ident *table_ident, Item *where_cond) {
   LEX_CSTRING system_view_name = {STRING_WITH_LEN("SHOW_STATISTICS")};
 
   // Define field name literal used in query to be built.
@@ -906,8 +906,8 @@ SELECT_LEX *build_show_keys_query(const POS &pos, THD *thd,
       top_query.add_order_by(alias_column_pos))
     return nullptr;
 
-  // Prepare the SELECT_LEX
-  SELECT_LEX *sl = top_query.prepare_select_lex();
+  // Prepare the Query_block
+  Query_block *sl = top_query.prepare_query_block();
   if (sl == nullptr) return nullptr;
 
   // sql_command is set to SQL_QUERY after above call, so.
@@ -918,8 +918,8 @@ SELECT_LEX *build_show_keys_query(const POS &pos, THD *thd,
 
 // Build a substitute query for SHOW TRIGGERS
 
-SELECT_LEX *build_show_triggers_query(const POS &pos, THD *thd, String *wild,
-                                      Item *where_cond) {
+Query_block *build_show_triggers_query(const POS &pos, THD *thd, String *wild,
+                                       Item *where_cond) {
   static const LEX_CSTRING system_view_name = {STRING_WITH_LEN("TRIGGERS")};
 
   // Define field name literal used in query to be built.
@@ -976,16 +976,16 @@ SELECT_LEX *build_show_triggers_query(const POS &pos, THD *thd, String *wild,
 
   // Get the current logged in schema name
   size_t dummy;
-  if (thd->lex->select_lex->db == nullptr &&
-      thd->lex->copy_db_to(&thd->lex->select_lex->db, &dummy))
+  if (thd->lex->query_block->db == nullptr &&
+      thd->lex->copy_db_to(&thd->lex->query_block->db, &dummy))
     return nullptr;
 
   // Convert IS db and table name to desired form.
-  dd::info_schema::convert_table_name_case(thd->lex->select_lex->db,
+  dd::info_schema::convert_table_name_case(thd->lex->query_block->db,
                                            wild ? wild->ptr() : nullptr);
 
-  LEX_STRING cur_db = {thd->lex->select_lex->db,
-                       strlen(thd->lex->select_lex->db)};
+  LEX_STRING cur_db = {thd->lex->query_block->db,
+                       strlen(thd->lex->query_block->db)};
 
   if (check_and_convert_db_name(&cur_db, false) != Ident_name_check::OK)
     return nullptr;
@@ -1057,7 +1057,7 @@ SELECT_LEX *build_show_triggers_query(const POS &pos, THD *thd, String *wild,
       top_query.add_order_by(alias_action_order))
     return nullptr;
 
-  SELECT_LEX *sl = top_query.prepare_select_lex();
+  Query_block *sl = top_query.prepare_query_block();
 
   // sql_command is set to SQL_QUERY after above call, so.
   thd->lex->sql_command = SQLCOM_SHOW_TRIGGERS;
@@ -1067,8 +1067,8 @@ SELECT_LEX *build_show_triggers_query(const POS &pos, THD *thd, String *wild,
 
 // Build a substitute query for SHOW PROCEDURES / FUNCTIONS
 
-SELECT_LEX *build_show_procedures_query(const POS &pos, THD *thd, String *wild,
-                                        Item *where_cond) {
+Query_block *build_show_procedures_query(const POS &pos, THD *thd, String *wild,
+                                         Item *where_cond) {
   enum_sql_command current_cmd = thd->lex->sql_command;
 
   static const LEX_CSTRING system_view_name = {STRING_WITH_LEN("ROUTINES")};
@@ -1171,7 +1171,7 @@ SELECT_LEX *build_show_procedures_query(const POS &pos, THD *thd, String *wild,
   if (top_query.add_order_by(alias_db) || top_query.add_order_by(alias_name))
     return nullptr;
 
-  SELECT_LEX *sl = top_query.prepare_select_lex();
+  Query_block *sl = top_query.prepare_query_block();
 
   // sql_command is set to SQL_QUERY after above call, so.
   thd->lex->sql_command = current_cmd;
@@ -1181,8 +1181,8 @@ SELECT_LEX *build_show_procedures_query(const POS &pos, THD *thd, String *wild,
 
 // Build a substitute query for SHOW EVENTS
 
-SELECT_LEX *build_show_events_query(const POS &pos, THD *thd, String *wild,
-                                    Item *where_cond) {
+Query_block *build_show_events_query(const POS &pos, THD *thd, String *wild,
+                                     Item *where_cond) {
   static const LEX_CSTRING system_view_name = {STRING_WITH_LEN("EVENTS")};
 
   // Define field name literal used in query to be built.
@@ -1243,16 +1243,16 @@ SELECT_LEX *build_show_events_query(const POS &pos, THD *thd, String *wild,
 
   // Get the current logged in schema name
   size_t dummy;
-  if (thd->lex->select_lex->db == nullptr &&
-      thd->lex->copy_db_to(&thd->lex->select_lex->db, &dummy))
+  if (thd->lex->query_block->db == nullptr &&
+      thd->lex->copy_db_to(&thd->lex->query_block->db, &dummy))
     return nullptr;
 
   // Convert IS db and table name to desired form.
-  dd::info_schema::convert_table_name_case(thd->lex->select_lex->db,
+  dd::info_schema::convert_table_name_case(thd->lex->query_block->db,
                                            wild ? wild->ptr() : nullptr);
 
-  LEX_STRING cur_db = {thd->lex->select_lex->db,
-                       strlen(thd->lex->select_lex->db)};
+  LEX_STRING cur_db = {thd->lex->query_block->db,
+                       strlen(thd->lex->query_block->db)};
 
   if (check_and_convert_db_name(&cur_db, false) != Ident_name_check::OK)
     return nullptr;
@@ -1313,7 +1313,7 @@ SELECT_LEX *build_show_events_query(const POS &pos, THD *thd, String *wild,
   if (top_query.add_order_by(alias_db) || top_query.add_order_by(alias_name))
     return nullptr;
 
-  SELECT_LEX *sl = top_query.prepare_select_lex();
+  Query_block *sl = top_query.prepare_query_block();
 
   // sql_command is set to SQL_QUERY after above call, so.
   thd->lex->sql_command = SQLCOM_SHOW_EVENTS;

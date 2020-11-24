@@ -89,7 +89,7 @@ extern "C" {
 using std::max;
 
 /** Number of connection errors when selecting on the listening port */
-static std::atomic<ulong> connection_errors_select{0};
+static std::atomic<ulong> connection_errors_query_block{0};
 
 /** Number of connection errors when accepting sockets in the listening port. */
 static std::atomic<ulong> connection_errors_accept{0};
@@ -116,7 +116,9 @@ AddrInfoPtr GetAddrInfoPtr(const char *node, const char *service,
 }
 }  // namespace
 
-ulong get_connection_errors_select() { return connection_errors_select.load(); }
+ulong get_connection_errors_query_block() {
+  return connection_errors_query_block.load();
+}
 
 ulong get_connection_errors_accept() { return connection_errors_accept.load(); }
 
@@ -1081,7 +1083,7 @@ static bool handle_admin_socket(
         There is not much details to report about the client,
         increment the server global status variable.
       */
-      ++connection_errors_select;
+      ++connection_errors_query_block;
       if (!select_errors++ && !connection_events_loop_aborted())
         LogErr(ERROR_LEVEL, ER_CONN_SOCKET_SELECT_FAILED, socket_errno);
     }
@@ -1350,7 +1352,7 @@ Channel_info *Mysqld_socket_listener::listen_for_connection_event() {
       There is not much details to report about the client,
       increment the server global status variable.
     */
-    ++connection_errors_select;
+    ++connection_errors_query_block;
     if (!select_errors++ && !connection_events_loop_aborted())
       LogErr(ERROR_LEVEL, ER_CONN_SOCKET_SELECT_FAILED, socket_errno);
   }

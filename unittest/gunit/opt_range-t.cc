@@ -1620,7 +1620,7 @@ TEST_F(OptRangeTest, RowConstructorIn2) {
   all_args->push_front(new_Item_row(3, 4));
   all_args->push_front(new_Item_row(m_opt_param->table->field, 2));
   Item *cond = new Item_func_in(POS(), all_args, false);
-  Parse_context pc(thd(), thd()->lex->current_select());
+  Parse_context pc(thd(), thd()->lex->current_query_block());
   EXPECT_FALSE(cond->itemize(&pc, &cond));
 
   // ... and resolve it.
@@ -1650,7 +1650,7 @@ TEST_F(OptRangeTest, RowConstructorIn3) {
   all_args->push_front(new_Item_row(4, 5, 6));
   all_args->push_front(new_Item_row(m_opt_param->table->field, 3));
   Item *cond = new Item_func_in(POS(), all_args, false);
-  Parse_context pc(thd(), thd()->lex->current_select());
+  Parse_context pc(thd(), thd()->lex->current_query_block());
   EXPECT_FALSE(cond->itemize(&pc, &cond));
 
   // ... and resolve it.

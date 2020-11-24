@@ -26,7 +26,7 @@
    Helpers connecting the optimizer trace to THD or Information Schema. They
    are dedicated "to the server" (hence the file's name).
    In order to create a unit test of the optimizer trace without defining
-   Item_field (and all its parent classes), SELECT_LEX..., these helpers
+   Item_field (and all its parent classes), Query_block..., these helpers
    are defined in opt_trace2server.cc.
 */
 
@@ -96,7 +96,7 @@ inline bool sql_command_can_be_traced(enum enum_sql_command sql_command) {
     Reasons to not trace other commands:
     - it reduces the range of potential unknown bugs and misuse
     - they probably don't have anything interesting optimizer-related
-    - select_lex for them might be uninitialized and unprintable.
+    - query_block for them might be uninitialized and unprintable.
     - SHOW WARNINGS would create an uninteresting trace and thus overwrite the
       previous interesting one.
 
@@ -240,13 +240,13 @@ Opt_trace_start::~Opt_trace_start() {
   if (likely(!error)) ctx->end();
 }
 
-void opt_trace_print_expanded_query(const THD *thd, SELECT_LEX *select_lex,
+void opt_trace_print_expanded_query(const THD *thd, Query_block *query_block,
                                     Opt_trace_object *trace_object)
 
 {
   const Opt_trace_context *const trace = &thd->opt_trace;
   /**
-     It's hard to prove that SELECT_LEX::print() doesn't modify any of its
+     It's hard to prove that Query_block::print() doesn't modify any of its
      Item-s in a dangerous way. Item_int::print(), for example, modifies its
      internal str_value.
      To make the danger rare, we print the expanded query as rarely as
@@ -265,9 +265,9 @@ void opt_trace_print_expanded_query(const THD *thd, SELECT_LEX *select_lex,
     This is acceptable given the audience (developers) and the goal (the
     inexact parts are irrelevant for the optimizer).
   */
-  select_lex->print(thd, &str,
-                    enum_query_type(QT_TO_SYSTEM_CHARSET |
-                                    QT_SHOW_SELECT_NUMBER | QT_NO_DEFAULT_DB));
+  query_block->print(thd, &str,
+                     enum_query_type(QT_TO_SYSTEM_CHARSET |
+                                     QT_SHOW_SELECT_NUMBER | QT_NO_DEFAULT_DB));
   trace_object->add_utf8("expanded_query", str.ptr(), str.length());
 }
 

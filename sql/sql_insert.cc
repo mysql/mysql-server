@@ -190,8 +190,8 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
     }
   } else {
     // INSERT with explicit field list.
-    SELECT_LEX *select_lex = thd->lex->select_lex;
-    Name_resolution_context *context = &select_lex->context;
+    Query_block *query_block = thd->lex->query_block;
+    Name_resolution_context *context = &query_block->context;
     Name_resolution_context_state ctx_state;
 
     /* Save the state of the current name resolution context. */
@@ -454,7 +454,8 @@ bool Sql_cmd_insert_base::check_privileges(THD *thd) {
       return true;
   }
 
-  for (SELECT_LEX *sl = lex->unit->first_select(); sl; sl = sl->next_select()) {
+  for (Query_block *sl = lex->unit->first_query_block(); sl;
+       sl = sl->next_query_block()) {
     if (sl->check_column_privileges(thd)) return true;
   }
   return false;
@@ -491,7 +492,7 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
   COPY_INFO update(COPY_INFO::UPDATE_OPERATION, &update_field_list,
                    &update_value_list);
 
-  SELECT_LEX *const select_lex = lex->select_lex;
+  Query_block *const query_block = lex->query_block;
 
   TABLE_LIST *const table_list = lex->insert_table;
   TABLE *const insert_table = lex->insert_table_leaf->table;
@@ -516,7 +517,8 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
     DEBUG_SYNC(thd, "planned_single_insert");
 
     if (lex->is_explain()) {
-      bool err = explain_single_table_modification(thd, thd, &plan, select_lex);
+      bool err =
+          explain_single_table_modification(thd, thd, &plan, query_block);
       return err;
     }
 
@@ -810,7 +812,7 @@ static bool check_view_insertability(THD *thd, TABLE_LIST *view,
                                      const TABLE_LIST *insert_table_ref) {
   DBUG_TRACE;
 
-  const uint num = view->view_query()->select_lex->num_visible_fields();
+  const uint num = view->view_query()->query_block->num_visible_fields();
   TABLE *const table = insert_table_ref->table;
   MY_BITMAP used_fields;
   enum_mark_columns save_mark_used_columns = thd->mark_used_columns;
@@ -1005,8 +1007,8 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
   // Number of update fields must match number of update values
   DBUG_ASSERT(update_field_list.size() == update_value_list.size());
 
-  SELECT_LEX_UNIT *const unit = lex->unit;
-  SELECT_LEX *const select = lex->select_lex;
+  Query_expression *const unit = lex->unit;
+  Query_block *const select = lex->query_block;
 
   Name_resolution_context *const context = &select->context;
   Name_resolution_context_state ctx_state;
@@ -1029,8 +1031,8 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
   // This flag is used only for INSERT, make sure it is clear
   lex->in_update_value_clause = false;
 
-  // first_select_table is the first table after the table inserted into
-  TABLE_LIST *first_select_table = table_list->next_local;
+  // first_query_block_table is the first table after the table inserted into
+  TABLE_LIST *first_query_block_table = table_list->next_local;
 
   // Setup the insert table only
   table_list->next_local = nullptr;
@@ -1114,11 +1116,12 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
     ORDER BY clause nor LIMIT clause. Table list is empty, except when an alias
     name is given for VALUES, which is represented as a derived table.
   */
-  DBUG_ASSERT(
-      select_insert ||
-      ((first_select_table == nullptr || first_select_table->is_derived()) &&
-       select->where_cond() == nullptr && select->group_list.elements == 0 &&
-       select->having_cond() == nullptr && !select->has_limit()));
+  DBUG_ASSERT(select_insert ||
+              ((first_query_block_table == nullptr ||
+                first_query_block_table->is_derived()) &&
+               select->where_cond() == nullptr &&
+               select->group_list.elements == 0 &&
+               select->having_cond() == nullptr && !select->has_limit()));
 
   // Prepare the lists of columns and values in the statement.
 
@@ -1236,7 +1239,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
     not a UNION and the query block is not explicitly grouped.
 
     This has implications if ON DUPLICATE KEY values contain subqueries,
-    due to the way SELECT_LEX::apply_local_transforms() is called: it is
+    due to the way Query_block::apply_local_transforms() is called: it is
     usually triggered only on the outer-most query block. Such subqueries
     are attached to the last query block of the INSERT statement (relevant if
     this is an INSERT statement with a query expression containing UNION).
@@ -1327,20 +1330,20 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
 
     // Remove the insert table from the first query block
     select->table_list.first = context->table_list =
-        context->first_name_resolution_table = first_select_table;
+        context->first_name_resolution_table = first_query_block_table;
 
     if (unit->prepare(thd, result, &insert_field_list, added_options, 0))
       return true;
 
     /* Restore the insert table but not the name resolution context */
-    if (first_select_table != select->table_list.first) {
+    if (first_query_block_table != select->table_list.first) {
       // If we have transformation of the top block table list
-      // by SELECT_LEX::transform_grouped_to_derived, we must update:
-      first_select_table = select->table_list.first;
-      ctx_state.update_next_local(first_select_table);
+      // by Query_block::transform_grouped_to_derived, we must update:
+      first_query_block_table = select->table_list.first;
+      ctx_state.update_next_local(first_query_block_table);
     }
     select->table_list.first = context->table_list = table_list;
-    table_list->next_local = first_select_table;
+    table_list->next_local = first_query_block_table;
 
     if (field_count != unit->num_visible_fields()) {
       my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1);
@@ -1400,7 +1403,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
   if (select_insert) {
     // Restore the insert table and the name resolution context
     select->table_list.first = context->table_list = table_list;
-    table_list->next_local = first_select_table;
+    table_list->next_local = first_query_block_table;
     ctx_state.restore_state(context, table_list);
   }
 
@@ -1555,7 +1558,7 @@ bool Sql_cmd_insert_base::prepare_values_table(THD *thd) {
   Prepared_stmt_arena_holder ps_arena_holder(thd);
 
   if (insert_field_list.empty()) {
-    TABLE_LIST *insert_table = lex->select_lex->table_list.first;
+    TABLE_LIST *insert_table = lex->query_block->table_list.first;
     Field_iterator_table_ref it;
     it.set(insert_table);
 
@@ -1592,10 +1595,10 @@ bool Sql_cmd_insert_base::prepare_values_table(THD *thd) {
   uint field_count = 0;
   for (Item *item : values_field_list) {
     Item_field *field_arg = down_cast<Item_field *>(item);
-    Item_insert_value *insert_value =
-        new Item_insert_value(&thd->lex->current_select()->context, field_arg);
+    Item_insert_value *insert_value = new Item_insert_value(
+        &thd->lex->current_query_block()->context, field_arg);
     if (insert_value == nullptr) return true;
-    insert_value->context = &lex->select_lex->context;
+    insert_value->context = &lex->query_block->context;
 
     transl[field_count].name = values_column_list->at(field_count).str;
     transl[field_count++].item = insert_value;
@@ -1694,7 +1697,7 @@ bool Sql_cmd_insert_base::resolve_update_expressions(THD *thd) {
       order to get correct values from those fields when the select
       employs a temporary table.
     */
-    SELECT_LEX *const select = lex->select_lex;
+    Query_block *const select = lex->query_block;
 
     for (auto it = update_value_list.begin(); it != update_value_list.end();
          ++it) {
@@ -2241,7 +2244,7 @@ bool check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
 }
 
 bool Query_result_insert::prepare(THD *thd, const mem_root_deque<Item *> &,
-                                  SELECT_LEX_UNIT *u) {
+                                  Query_expression *u) {
   DBUG_TRACE;
 
   LEX *const lex = thd->lex;
@@ -2816,7 +2819,7 @@ Query_result_create::Query_result_create(TABLE_LIST *table_arg,
       select_tables(select_tables_arg) {}
 
 bool Query_result_create::prepare(THD *, const mem_root_deque<Item *> &,
-                                  SELECT_LEX_UNIT *u) {
+                                  Query_expression *u) {
   DBUG_TRACE;
 
   unit = u;
@@ -2831,7 +2834,7 @@ bool Query_result_create::prepare(THD *, const mem_root_deque<Item *> &,
 
   @returns false on success, true on error
 */
-bool Query_result_create::create_table_for_select(THD *thd) {
+bool Query_result_create::create_table_for_query_block(THD *thd) {
   DBUG_TRACE;
   DEBUG_SYNC(thd, "create_table_select_before_lock");
 
@@ -3357,7 +3360,7 @@ bool Sql_cmd_insert_base::accept(THD *thd, Select_lex_visitor *visitor) {
     }
   } else {
     // INSERT...SELECT statement
-    if (thd->lex->select_lex->accept(visitor)) return true;
+    if (thd->lex->query_block->accept(visitor)) return true;
   }
 
   // Update list (on duplicate update)
@@ -3370,5 +3373,5 @@ bool Sql_cmd_insert_base::accept(THD *thd, Select_lex_visitor *visitor) {
     if (walk_item(column, visitor) || walk_item(value, visitor)) return true;
   }
 
-  return visitor->visit(thd->lex->select_lex);
+  return visitor->visit(thd->lex->query_block);
 }

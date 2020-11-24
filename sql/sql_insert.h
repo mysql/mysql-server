@@ -39,7 +39,7 @@
 class Alter_info;
 class Field;
 class Item;
-class SELECT_LEX_UNIT;
+class Query_expression;
 class THD;
 struct HA_CREATE_INFO;
 struct handlerton;
@@ -144,7 +144,7 @@ are found inside the COPY_INFO.
  public:
   bool need_explain_interceptor() const override { return true; }
   bool prepare(THD *thd, const mem_root_deque<Item *> &list,
-               SELECT_LEX_UNIT *u) override;
+               Query_expression *u) override;
   bool start_execution(THD *thd) override;
   bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
   virtual void store_values(THD *thd, const mem_root_deque<Item *> &values);
@@ -194,12 +194,12 @@ class Query_result_create final : public Query_result_insert {
                       enum_duplicates duplic, TABLE_LIST *select_tables_arg);
 
   bool prepare(THD *thd, const mem_root_deque<Item *> &list,
-               SELECT_LEX_UNIT *u) override;
+               Query_expression *u) override;
   void store_values(THD *thd, const mem_root_deque<Item *> &values) override;
   void send_error(THD *thd, uint errcode, const char *err) override;
   bool send_eof(THD *thd) override;
   void abort_result_set(THD *thd) override;
-  bool create_table_for_select(THD *thd) override;
+  bool create_table_for_query_block(THD *thd) override;
   bool start_execution(THD *thd) override;
   void set_two_fields(HA_CREATE_INFO *create_info_arg,
                       Alter_info *alter_info_arg) {

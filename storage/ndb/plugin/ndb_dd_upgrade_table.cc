@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -459,7 +459,7 @@ bool migrate_table_to_dd(THD *thd, Ndb_dd_client *dd_client,
   }
 
   // open_table_from_share and partition expression parsing needs a
-  // valid SELECT_LEX to parse generated columns
+  // valid Query_block to parse generated columns
   LEX *lex_saved = thd->lex;
   thd->lex = &lex;
   lex_start(thd);

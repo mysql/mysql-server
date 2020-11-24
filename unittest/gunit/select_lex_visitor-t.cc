@@ -51,15 +51,15 @@ class Remembering_visitor : public Select_lex_visitor {
   vector<const char *> field_names;
 
   Remembering_visitor()
-      : m_saw_select_lex(false), m_saw_select_lex_unit(false) {}
+      : m_saw_query_block(false), m_saw_query_block_query_expression(false) {}
 
-  bool visit_union(SELECT_LEX_UNIT *) override {
-    m_saw_select_lex_unit = true;
+  bool visit_union(Query_expression *) override {
+    m_saw_query_block_query_expression = true;
     return false;
   }
 
-  bool visit_query_block(SELECT_LEX *) override {
-    m_saw_select_lex = true;
+  bool visit_query_block(Query_block *) override {
+    m_saw_query_block = true;
     return false;
   }
 
@@ -72,13 +72,15 @@ class Remembering_visitor : public Select_lex_visitor {
     return false;
   }
 
-  bool saw_select_lex() { return m_saw_select_lex; }
-  bool saw_select_lex_unit() { return m_saw_select_lex_unit; }
+  bool saw_query_block() { return m_saw_query_block; }
+  bool saw_query_block_query_expression() {
+    return m_saw_query_block_query_expression;
+  }
 
   ~Remembering_visitor() override {}
 
  private:
-  bool m_saw_select_lex, m_saw_select_lex_unit;
+  bool m_saw_query_block, m_saw_query_block_query_expression;
 };
 
 /**
@@ -113,9 +115,9 @@ TEST_F(SelectLexVisitorTest, SelectLex) {
   EXPECT_CALL(where, walk(_, _, _)).Times(1);
   EXPECT_CALL(having, walk(_, _, _)).Times(1);
 
-  SELECT_LEX query_block(thd()->mem_root, &where, &having);
+  Query_block query_block(thd()->mem_root, &where, &having);
 
-  SELECT_LEX_UNIT unit(CTX_NONE);
+  Query_expression unit(CTX_NONE);
 
   LEX lex;
   query_block.include_down(&lex, &unit);
@@ -129,13 +131,13 @@ TEST_F(SelectLexVisitorTest, SelectLex) {
 
   Remembering_visitor visitor;
   unit.accept(&visitor);
-  EXPECT_TRUE(visitor.saw_select_lex());
-  EXPECT_TRUE(visitor.saw_select_lex_unit());
+  EXPECT_TRUE(visitor.saw_query_block());
+  EXPECT_TRUE(visitor.saw_query_block_query_expression());
 }
 
 TEST_F(SelectLexVisitorTest, InsertList) {
-  SELECT_LEX *select_lex = parse("INSERT INTO t VALUES (1, 2, 3)", 0);
-  ASSERT_FALSE(select_lex == nullptr);
+  Query_block *query_block = parse("INSERT INTO t VALUES (1, 2, 3)", 0);
+  ASSERT_FALSE(query_block == nullptr);
 
   Remembering_visitor visitor;
   thd()->lex->accept(&visitor);
@@ -146,8 +148,8 @@ TEST_F(SelectLexVisitorTest, InsertList) {
 }
 
 TEST_F(SelectLexVisitorTest, InsertList2) {
-  SELECT_LEX *select_lex = parse("INSERT INTO t VALUES (1, 2), (3, 4)", 0);
-  ASSERT_FALSE(select_lex == nullptr);
+  Query_block *query_block = parse("INSERT INTO t VALUES (1, 2), (3, 4)", 0);
+  ASSERT_FALSE(query_block == nullptr);
 
   Remembering_visitor visitor;
   thd()->lex->accept(&visitor);
@@ -159,8 +161,8 @@ TEST_F(SelectLexVisitorTest, InsertList2) {
 }
 
 TEST_F(SelectLexVisitorTest, InsertSet) {
-  SELECT_LEX *select_lex = parse("INSERT INTO t SET a=1, b=2, c=3", 0);
-  ASSERT_FALSE(select_lex == nullptr);
+  Query_block *query_block = parse("INSERT INTO t SET a=1, b=2, c=3", 0);
+  ASSERT_FALSE(query_block == nullptr);
 
   Remembering_visitor visitor;
   thd()->lex->accept(&visitor);
@@ -176,9 +178,9 @@ TEST_F(SelectLexVisitorTest, InsertSet) {
 }
 
 TEST_F(SelectLexVisitorTest, ReplaceList) {
-  SELECT_LEX *select_lex =
+  Query_block *query_block =
       parse("REPLACE INTO t(a, b, c) VALUES (1,2,3), (4,5,6)", 0);
-  ASSERT_FALSE(select_lex == nullptr);
+  ASSERT_FALSE(query_block == nullptr);
 
   Remembering_visitor visitor;
   thd()->lex->accept(&visitor);
@@ -194,9 +196,9 @@ TEST_F(SelectLexVisitorTest, ReplaceList) {
 }
 
 TEST_F(SelectLexVisitorTest, InsertOnDuplicateKey) {
-  SELECT_LEX *select_lex = parse(
+  Query_block *query_block = parse(
       "INSERT INTO t VALUES (1,2) ON DUPLICATE KEY UPDATE c= 44, a= 55", 0);
-  ASSERT_FALSE(select_lex == nullptr);
+  ASSERT_FALSE(query_block == nullptr);
 
   Remembering_visitor visitor;
   thd()->lex->accept(&visitor);
@@ -211,8 +213,8 @@ TEST_F(SelectLexVisitorTest, InsertOnDuplicateKey) {
 }
 
 TEST_F(SelectLexVisitorTest, Update) {
-  SELECT_LEX *select_lex = parse("UPDATE t SET a= 0, c= 25", 0);
-  ASSERT_FALSE(select_lex == nullptr);
+  Query_block *query_block = parse("UPDATE t SET a= 0, c= 25", 0);
+  ASSERT_FALSE(query_block == nullptr);
 
   Remembering_visitor visitor;
   thd()->lex->accept(&visitor);

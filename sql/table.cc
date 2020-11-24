@@ -2690,7 +2690,7 @@ bool unpack_value_generator(THD *thd, TABLE *table,
 
 parse_err:
   // Any created window is eliminated as not allowed:
-  thd->lex->current_select()->m_windows.clear();
+  thd->lex->current_query_block()->m_windows.clear();
   thd->free_items();
   lex_end(thd->lex);
   thd->lex = old_lex;
@@ -4360,7 +4360,7 @@ void TABLE::reset_item_list(const mem_root_deque<Item *> &item_list) const {
 
 TABLE_LIST *TABLE_LIST::new_nested_join(
     MEM_ROOT *allocator, const char *alias, TABLE_LIST *embedding,
-    mem_root_deque<TABLE_LIST *> *belongs_to, SELECT_LEX *select) {
+    mem_root_deque<TABLE_LIST *> *belongs_to, Query_block *select) {
   DBUG_ASSERT(belongs_to && select);
 
   TABLE_LIST *const join_nest = new (allocator) TABLE_LIST;
@@ -4377,7 +4377,7 @@ TABLE_LIST *TABLE_LIST::new_nested_join(
 
   join_nest->embedding = embedding;
   join_nest->join_list = belongs_to;
-  join_nest->select_lex = select;
+  join_nest->query_block = select;
   join_nest->nested_join->first_nested = NO_PLAN_IDX;
 
   join_nest->nested_join->join_list.clear();
@@ -4393,7 +4393,7 @@ TABLE_LIST *TABLE_LIST::new_nested_join(
   @return false if success, true if error
 */
 
-bool TABLE_LIST::merge_underlying_tables(SELECT_LEX *select) {
+bool TABLE_LIST::merge_underlying_tables(Query_block *select) {
   DBUG_ASSERT(nested_join->join_list.empty());
 
   for (TABLE_LIST *tl : select->top_join_list) {
@@ -4527,7 +4527,8 @@ bool TABLE_LIST::merge_where(THD *thd) {
 
   DBUG_ASSERT(is_merged());
 
-  Item *const condition = derived_unit()->first_select()->where_cond();
+  Item *const condition =
+      derived_query_expression()->first_query_block()->where_cond();
 
   if (!condition) return false;
 
@@ -4559,7 +4560,7 @@ bool TABLE_LIST::merge_where(THD *thd) {
 */
 
 bool TABLE_LIST::create_field_translation(THD *thd) {
-  SELECT_LEX *select = derived->first_select();
+  Query_block *select = derived->first_query_block();
   uint field_count = 0;
 
   DBUG_ASSERT(derived->is_prepared());
@@ -5039,7 +5040,7 @@ const char *Natural_join_column::name() {
 Item *Natural_join_column::create_item(THD *thd) {
   if (view_field) {
     DBUG_ASSERT(table_field == nullptr);
-    SELECT_LEX *select = thd->lex->current_select();
+    Query_block *select = thd->lex->current_query_block();
     return create_view_field(thd, table_ref, &view_field->item,
                              view_field->name, &select->context);
   }
@@ -5086,7 +5087,7 @@ const char *Field_iterator_table::name() { return (*ptr)->field_name; }
 
 Item *Field_iterator_table::create_item(THD *thd) {
   TABLE_LIST *tr = (*ptr)->table->pos_in_table_list;
-  Item_field *item = new Item_field(thd, &tr->select_lex->context, tr, *ptr);
+  Item_field *item = new Item_field(thd, &tr->query_block->context, tr, *ptr);
   if (item == nullptr) return nullptr;
   /*
     This function creates Item-s which don't go through fix_fields(); see same
@@ -5103,7 +5104,7 @@ Item *Field_iterator_table::create_item(THD *thd) {
 const char *Field_iterator_view::name() { return ptr->name; }
 
 Item *Field_iterator_view::create_item(THD *thd) {
-  SELECT_LEX *select = thd->lex->current_select();
+  Query_block *select = thd->lex->current_query_block();
   return create_view_field(thd, view, &ptr->item, ptr->name, &select->context);
 }
 
@@ -5317,7 +5318,7 @@ Natural_join_column *Field_iterator_table_ref::get_or_create_column_ref(
     /* The field belongs to a stored table. */
     Field *tmp_field = table_field_it.field();
     DBUG_ASSERT(table_ref == tmp_field->table->pos_in_table_list);
-    Item_field *tmp_item = new Item_field(thd, &table_ref->select_lex->context,
+    Item_field *tmp_item = new Item_field(thd, &table_ref->query_block->context,
                                           table_ref, tmp_field);
     if (tmp_item == nullptr) return nullptr;
     nj_col = new (thd->mem_root) Natural_join_column(tmp_item, table_ref);
@@ -6305,16 +6306,16 @@ void TABLE::mark_check_constraint_columns(bool is_update) {
 
 uint TABLE_LIST::query_block_id() const {
   if (!derived) return 0;
-  return derived->first_select()->select_number;
+  return derived->first_query_block()->select_number;
 }
 
 uint TABLE_LIST::query_block_id_for_explain() const {
   if (!derived) return 0;
   if (!m_common_table_expr || !m_common_table_expr->tmp_tables.size())
-    return derived->first_select()->select_number;
+    return derived->first_query_block()->select_number;
   return m_common_table_expr->tmp_tables[0]
-      ->derived_unit()
-      ->first_select()
+      ->derived_query_expression()
+      ->first_query_block()
       ->select_number;
 }
 
@@ -6511,9 +6512,9 @@ bool TABLE_LIST::is_mergeable() const {
 
 bool TABLE_LIST::materializable_is_const() const {
   DBUG_ASSERT(uses_materialization());
-  const SELECT_LEX_UNIT *unit = derived_unit();
+  const Query_expression *unit = derived_query_expression();
   return unit->query_result()->estimated_rowcount <= 1 &&
-         (unit->first_select()->active_options() &
+         (unit->first_query_block()->active_options() &
           OPTION_NO_SUBQUERY_DURING_OPTIMIZATION) == 0;
 }
 
@@ -6571,7 +6572,9 @@ int TABLE_LIST::fetch_number_of_rows() {
       table will contain, at least, the rows produced by those blocks.
     */
     table->file->stats.records =
-        std::max(select_lex->master_unit()->query_result()->estimated_rowcount,
+        std::max(query_block->master_query_expression()
+                     ->query_result()
+                     ->estimated_rowcount,
                  // Recursive reference is never a const table
                  (ha_rows)PLACEHOLDER_TABLE_ROW_ESTIMATE);
   } else
@@ -6938,7 +6941,7 @@ bool TABLE_LIST::generate_keys() {
     }
 
   if (table->s->owner_of_possible_tmp_keys != nullptr &&
-      table->s->owner_of_possible_tmp_keys != select_lex)
+      table->s->owner_of_possible_tmp_keys != query_block)
     return false;
 
   uint new_key_parts = 0;
@@ -6972,14 +6975,14 @@ bool TABLE_LIST::generate_keys() {
     ref_it.rewind();
     while (TABLE *t = ref_it.get_next()) {
       if (!t->add_tmp_key(&key->used_fields,
-                          t->pos_in_table_list->select_lex != select_lex,
+                          t->pos_in_table_list->query_block != query_block,
                           ref_it.is_first()))
         break;  // Failed to create this key (not fatal), will try next key
     }
   }
 
   if (table->s->keys)
-    table->s->owner_of_possible_tmp_keys = select_lex;  // Acquire lock
+    table->s->owner_of_possible_tmp_keys = query_block;  // Acquire lock
 
   return false;
 }
@@ -7279,8 +7282,8 @@ void TABLE::column_bitmaps_set(MY_BITMAP *read_set_arg,
 }
 
 bool TABLE_LIST::set_recursive_reference() {
-  if (select_lex->recursive_reference != nullptr) return true;
-  select_lex->recursive_reference = this;
+  if (query_block->recursive_reference != nullptr) return true;
+  query_block->recursive_reference = this;
   m_is_recursive_reference = true;
   return false;
 }

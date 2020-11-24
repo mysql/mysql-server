@@ -2164,13 +2164,13 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref) {
   return false;
 }
 
-void Item_in_optimizer::fix_after_pullout(SELECT_LEX *parent_select,
-                                          SELECT_LEX *removed_select) {
+void Item_in_optimizer::fix_after_pullout(Query_block *parent_query_block,
+                                          Query_block *removed_query_block) {
   used_tables_cache = get_initial_pseudo_tables();
   not_null_tables_cache = 0;
 
-  args[0]->fix_after_pullout(parent_select, removed_select);
-  args[1]->fix_after_pullout(parent_select, removed_select);
+  args[0]->fix_after_pullout(parent_query_block, removed_query_block);
+  args[1]->fix_after_pullout(parent_query_block, removed_query_block);
 
   used_tables_cache |= args[0]->used_tables() | args[1]->used_tables();
   not_null_tables_cache |=
@@ -2855,16 +2855,16 @@ longlong Item_func_interval::val_int() {
 bool Item_func_between::fix_fields(THD *thd, Item **ref) {
   if (Item_func_opt_neg::fix_fields(thd, ref)) return true;
 
-  thd->lex->current_select()->between_count++;
+  thd->lex->current_query_block()->between_count++;
 
   update_not_null_tables();
 
   return false;
 }
 
-void Item_func_between::fix_after_pullout(SELECT_LEX *parent_select,
-                                          SELECT_LEX *removed_select) {
-  Item_func_opt_neg::fix_after_pullout(parent_select, removed_select);
+void Item_func_between::fix_after_pullout(Query_block *parent_query_block,
+                                          Query_block *removed_query_block) {
+  Item_func_opt_neg::fix_after_pullout(parent_query_block, removed_query_block);
   update_not_null_tables();
 }
 
@@ -3327,9 +3327,9 @@ bool Item_func_if::fix_fields(THD *thd, Item **ref) {
   return false;
 }
 
-void Item_func_if::fix_after_pullout(SELECT_LEX *parent_select,
-                                     SELECT_LEX *removed_select) {
-  Item_func::fix_after_pullout(parent_select, removed_select);
+void Item_func_if::fix_after_pullout(Query_block *parent_query_block,
+                                     Query_block *removed_query_block) {
+  Item_func::fix_after_pullout(parent_query_block, removed_query_block);
   update_not_null_tables();
 }
 
@@ -4827,9 +4827,9 @@ bool Item_func_in::fix_fields(THD *thd, Item **ref) {
   return false;
 }
 
-void Item_func_in::fix_after_pullout(SELECT_LEX *parent_select,
-                                     SELECT_LEX *removed_select) {
-  Item_func_opt_neg::fix_after_pullout(parent_select, removed_select);
+void Item_func_in::fix_after_pullout(Query_block *parent_query_block,
+                                     Query_block *removed_query_block) {
+  Item_func_opt_neg::fix_after_pullout(parent_query_block, removed_query_block);
   update_not_null_tables();
 }
 
@@ -5331,7 +5331,7 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
   DBUG_ASSERT(fixed == 0);
   List_iterator<Item> li(list);
   Item *item;
-  SELECT_LEX *select = thd->lex->current_select();
+  Query_block *select = thd->lex->current_query_block();
 
   auto func_type = functype();
   DBUG_ASSERT(func_type == COND_AND_FUNC || func_type == COND_OR_FUNC);
@@ -5572,8 +5572,8 @@ bool Item_cond::remove_const_conds(THD *thd, Item *item, Item **new_item) {
   }
 }
 
-void Item_cond::fix_after_pullout(SELECT_LEX *parent_select,
-                                  SELECT_LEX *removed_select) {
+void Item_cond::fix_after_pullout(Query_block *parent_query_block,
+                                  Query_block *removed_query_block) {
   List_iterator<Item> li(list);
   Item *item;
 
@@ -5585,7 +5585,7 @@ void Item_cond::fix_after_pullout(SELECT_LEX *parent_select,
     not_null_tables_cache = ~(table_map)0;
 
   while ((item = li++)) {
-    item->fix_after_pullout(parent_select, removed_select);
+    item->fix_after_pullout(parent_query_block, removed_query_block);
     used_tables_cache |= item->used_tables();
     if (functype() == COND_AND_FUNC && ignore_unknown())
       not_null_tables_cache |= item->not_null_tables();
@@ -5958,11 +5958,11 @@ bool Item_func_isnull::fix_fields(THD *thd, Item **ref) {
       even cause a problem (as we can't distinguish JOIN ON from WHERE
       anymore).
     */
-    if (thd->lex->current_select()->resolve_place ==
-            SELECT_LEX::RESOLVE_CONDITION &&
-        thd->lex->current_select()->condition_context ==
+    if (thd->lex->current_query_block()->resolve_place ==
+            Query_block::RESOLVE_CONDITION &&
+        thd->lex->current_query_block()->condition_context ==
             enum_condition_context::ANDS &&
-        thd->lex->current_select()->first_execution &&
+        thd->lex->current_query_block()->first_execution &&
         (field->type() == MYSQL_TYPE_DATE ||
          field->type() == MYSQL_TYPE_DATETIME) &&
         field->is_flag_set(NOT_NULL_FLAG)) {
@@ -5995,7 +5995,7 @@ bool Item_func_isnull::fix_fields(THD *thd, Item **ref) {
 
       SELECT * FROM table_name WHERE auto_increment_column = LAST_INSERT_ID()
     */
-    if (thd->lex->current_select()->where_cond() == this &&
+    if (thd->lex->current_query_block()->where_cond() == this &&
         (thd->variables.option_bits & OPTION_AUTO_IS_NULL) != 0 &&
         field->is_flag_set(AUTO_INCREMENT_FLAG) &&
         !field->table->is_nullable()) {
@@ -6189,7 +6189,7 @@ Item_func::optimize_type Item_func_like::select_optimize(const THD *thd) {
   if (!args[1]->may_evaluate_const(thd)) return OPTIMIZE_NONE;
 
   // Don't evaluate the pattern if evaluation during optimization is disabled.
-  if (!evaluate_during_optimization(args[1], thd->lex->current_select()))
+  if (!evaluate_during_optimization(args[1], thd->lex->current_query_block()))
     return OPTIMIZE_NONE;
 
   String *res2 = args[1]->val_str(&cmp.value2);
@@ -6234,7 +6234,7 @@ bool Item_func_like::check_covering_prefix_keys(THD *thd) {
 bool Item_func_like::fix_fields(THD *thd, Item **ref) {
   DBUG_ASSERT(fixed == 0);
 
-  Condition_context CCT(thd->lex->current_select());
+  Condition_context CCT(thd->lex->current_query_block());
 
   args[0]->real_item()->set_can_use_prefix_key();
 

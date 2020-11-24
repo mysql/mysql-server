@@ -573,7 +573,7 @@ enum {
   /**
      The slice which is used during evaluation of expressions; Item_ref::ref
      points there. This is the only slice that is not allocated on the heap;
-     it always points to select_lex->base_ref_items.
+     it always points to query_block->base_ref_items.
 
      If we have a simple query (no temporary tables or GROUP BY needed),
      this slice always contains the base slice, i.e., the actual Items used

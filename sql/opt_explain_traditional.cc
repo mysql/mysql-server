@@ -191,7 +191,7 @@ bool Explain_format_traditional::push_select_type(
                       (sel_type == enum_explain_type::EXPLAIN_PRIMARY ||
                        sel_type == enum_explain_type::EXPLAIN_SIMPLE))
                          ? mod_type_name[column_buffer.mod_type]
-                         : SELECT_LEX::get_type_str(sel_type);
+                         : Query_block::get_type_str(sel_type);
 
   if (buff.append(type)) return true;
 

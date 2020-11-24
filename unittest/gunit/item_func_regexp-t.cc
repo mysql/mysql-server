@@ -56,7 +56,7 @@ class ItemFuncRegexpTest : public ::testing::Test {
                   std::initializer_list<const char *> args) {
     auto items = new (thd()->mem_root) Mock_pt_item_list(args);
     Item *item = new Item_type(POS(), items);
-    Parse_context pc(thd(), thd()->lex->select_lex);
+    Parse_context pc(thd(), thd()->lex->query_block);
     item->itemize(&pc, &item);
     item->fix_fields(thd(), nullptr);
     String buf;

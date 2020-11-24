@@ -133,7 +133,7 @@ static Item *handle_sql2003_note184_exception(Parse_context *pc, Item *left,
 
     if (expr2->substype() == Item_subselect::SINGLEROW_SUBS) {
       Item_singlerow_subselect *expr3 = (Item_singlerow_subselect *)expr2;
-      SELECT_LEX *subselect;
+      Query_block *subselect;
 
       /*
         Implement the mandated change, by altering the semantic tree:
@@ -143,7 +143,7 @@ static Item *handle_sql2003_note184_exception(Parse_context *pc, Item *left,
         which is represented as
           Item_in_subselect(left, subselect)
       */
-      subselect = expr3->invalidate_and_restore_select_lex();
+      subselect = expr3->invalidate_and_restore_query_block();
       result = new (pc->mem_root) Item_in_subselect(left, subselect);
 
       if (!equal)

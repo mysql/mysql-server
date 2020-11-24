@@ -2177,9 +2177,8 @@ static int fill_used_fields_bitmap(PARAM *param) {
                         if it is more expensive.
       interesting_order The sort order the range access method must be able
                         to provide. Three-value logic: asc/desc/don't care
-      needed_reg        this info is used in make_join_select() even if there is
-                        no quick.
-      quick[out]        Calculated QUICK, or NULL.
+      needed_reg        this info is used in make_join_query_block() even if
+  there is no quick. quick[out]        Calculated QUICK, or NULL.
       ignore_table_scan Disregard table scan while looking for range.
 
   NOTES
@@ -2242,7 +2241,7 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
                       const enum_order interesting_order,
                       const QEP_shared_owner *tab, Item *cond,
                       Key_map *needed_reg, QUICK_SELECT_I **quick,
-                      bool ignore_table_scan, SELECT_LEX *select_lex) {
+                      bool ignore_table_scan, Query_block *query_block) {
   DBUG_TRACE;
 
   *quick = nullptr;
@@ -2320,7 +2319,7 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
     param.read_tables = read_tables | INNER_TABLE_BIT;
     param.current_table = head->pos_in_table_list->map();
     param.table = head;
-    param.select_lex = select_lex;
+    param.query_block = query_block;
     param.keys = 0;
     param.is_ror_scan = false;
     param.mem_root = &alloc;
@@ -2821,7 +2820,7 @@ static void dbug_print_singlepoint_range(SEL_ARG **start, uint num);
 
   @param      thd            Thread handle
   @param      table          Table to perform partition pruning for
-  @param      select_lex     Query block the table is part of
+  @param      query_block     Query block the table is part of
   @param      pprune_cond    Condition to use for partition pruning
 
   @note This function assumes that lock_partitions are setup when it
@@ -2839,7 +2838,7 @@ static void dbug_print_singlepoint_range(SEL_ARG **start, uint num);
     @retval false Success
 */
 
-bool prune_partitions(THD *thd, TABLE *table, SELECT_LEX *select_lex,
+bool prune_partitions(THD *thd, TABLE *table, Query_block *query_block,
                       Item *pprune_cond) {
   partition_info *part_info = table->part_info;
   DBUG_TRACE;
@@ -2897,7 +2896,7 @@ bool prune_partitions(THD *thd, TABLE *table, SELECT_LEX *select_lex,
   dbug_tmp_use_all_columns(table, old_sets, table->read_set, table->write_set);
   range_par->thd = thd;
   range_par->table = table;
-  range_par->select_lex = select_lex;
+  range_par->query_block = query_block;
   /* range_par->cond doesn't need initialization */
   range_par->prev_tables = range_par->read_tables = INNER_TABLE_BIT;
   range_par->current_table = table->pos_in_table_list->map();
@@ -4052,7 +4051,7 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param,
   /* Calculate cost(rowid_to_row_scan) */
   {
     Cost_estimate sweep_cost;
-    JOIN *join = param->select_lex->join;
+    JOIN *join = param->query_block->join;
     const bool is_interrupted = join && join->tables != 1;
     get_sweep_read_cost(param->table, non_cpk_scan_records, is_interrupted,
                         &sweep_cost);
@@ -4187,7 +4186,7 @@ skip_to_ror_scan:
   */
   Cost_estimate roru_total_cost;
   {
-    JOIN *join = param->select_lex->join;
+    JOIN *join = param->query_block->join;
     const bool is_interrupted = join && join->tables != 1;
     get_sweep_read_cost(param->table, roru_total_records, is_interrupted,
                         &roru_total_cost);
@@ -4748,7 +4747,7 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info, ROR_SCAN_INFO *ror_scan,
 
   if (!info->is_covering) {
     Cost_estimate sweep_cost;
-    JOIN *join = info->param->select_lex->join;
+    JOIN *join = info->param->query_block->join;
     const bool is_interrupted = join && join->tables != 1;
 
     get_sweep_read_cost(info->param->table, double2rows(info->out_rows),
@@ -6368,7 +6367,7 @@ static SEL_TREE *get_mm_parts(RANGE_OPT_PARAM *param, Item_func *cond_func,
   @param [out] impossible_cond_cause Set to a descriptive string if an
                                     impossible condition is found.
   @param memroot                    Memroot for creation of new SEL_ARG.
-  @param select_lex                 Query block the field is part of
+  @param query_block                 Query block the field is part of
 
   @retval false  if saving went fine and it makes sense to continue
                  optimizing for this predicate.
@@ -6382,7 +6381,7 @@ static bool save_value_and_handle_conversion(SEL_ROOT **tree, Item *value,
                                              Field *field,
                                              const char **impossible_cond_cause,
                                              MEM_ROOT *memroot,
-                                             SELECT_LEX *select_lex) {
+                                             Query_block *query_block) {
   // A SEL_ARG should not have been created for this predicate yet.
   DBUG_ASSERT(*tree == nullptr);
 
@@ -6393,7 +6392,7 @@ static bool save_value_and_handle_conversion(SEL_ROOT **tree, Item *value,
       We cannot evaluate the value yet (i.e. required tables are not yet
       locked.)
       This is the case of prune_partitions() called during
-      SELECT_LEX::prepare().
+      Query_block::prepare().
     */
     return true;
   }
@@ -6402,10 +6401,10 @@ static bool save_value_and_handle_conversion(SEL_ROOT **tree, Item *value,
     Don't evaluate subqueries during optimization if they are disabled. This
     function can be called during execution when doing dynamic range access, and
     we only want to disable subquery evaluation during optimization, so check if
-    we're in the optimization phase by calling SELECT_LEX_UNIT::is_optimized().
+    we're in the optimization phase by calling Query_expression::is_optimized().
   */
-  if (!select_lex->master_unit()->is_optimized() &&
-      !evaluate_during_optimization(value, select_lex))
+  if (!query_block->master_query_expression()->is_optimized() &&
+      !evaluate_during_optimization(value, query_block))
     return true;
 
   // For comparison purposes allow invalid dates like 2000-01-32
@@ -6813,7 +6812,7 @@ static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func,
 
     bool always_true_or_false = save_value_and_handle_conversion(
         &tree, value, type, field, &impossible_cond_cause, alloc,
-        param->select_lex);
+        param->query_block);
 
     if (field->type() == MYSQL_TYPE_GEOMETRY &&
         save_geom_type != Field::GEOM_GEOMETRY) {
@@ -10793,7 +10792,7 @@ static void cost_group_min_max(TABLE *table, uint key, uint used_key_parts,
 static TRP_GROUP_MIN_MAX *get_best_group_min_max(
     PARAM *param, SEL_TREE *tree, const Cost_estimate *cost_est) {
   THD *thd = param->thd;
-  JOIN *join = param->select_lex->join;
+  JOIN *join = param->query_block->join;
   TABLE *table = param->table;
   bool have_min = false; /* true if there is a MIN function. */
   bool have_max = false; /* true if there is a MAX function. */
@@ -10831,7 +10830,7 @@ static TRP_GROUP_MIN_MAX *get_best_group_min_max(
     cause = "no_join";
   else if (join->primary_tables != 1) /* Query must reference one table. */
     cause = "not_single_table";
-  else if (join->select_lex->olap == ROLLUP_TYPE) /* Check (B3) for ROLLUP */
+  else if (join->query_block->olap == ROLLUP_TYPE) /* Check (B3) for ROLLUP */
     cause = "rollup";
   else if (table->s->keys == 0) /* There are no indexes to use. */
     cause = "no_index";
@@ -11844,7 +11843,7 @@ SEL_ROOT *get_index_range_tree(uint index, SEL_TREE *range_tree, PARAM *param) {
 }
 
 /*
-  Compute the cost of a quick_group_min_max_select for a particular index.
+  Compute the cost of a quick_group_min_max_query_block for a particular index.
 
   SYNOPSIS
     cost_group_min_max()
@@ -12057,7 +12056,7 @@ QUICK_SELECT_I *TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool,
   DBUG_TRACE;
 
   quick = new QUICK_GROUP_MIN_MAX_SELECT(
-      param->table, param->select_lex->join, have_min, have_max,
+      param->table, param->query_block->join, have_min, have_max,
       have_agg_distinct, min_max_arg_part, group_prefix_len, group_key_parts,
       used_key_parts, index_info, index, &cost_est, records, key_infix_len,
       parent_alloc, is_index_scan);
@@ -12071,14 +12070,14 @@ QUICK_SELECT_I *TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool,
   if (range_tree) {
     DBUG_ASSERT(quick_prefix_records > 0);
     if (quick_prefix_records == HA_POS_ERROR)
-      quick->quick_prefix_select =
+      quick->quick_prefix_query_block =
           nullptr; /* Can't construct a quick select. */
     else {
       /* Make a QUICK_RANGE_SELECT to be used for group prefix retrieval. */
-      quick->quick_prefix_select =
+      quick->quick_prefix_query_block =
           get_quick_select(param, param_idx, index_tree, HA_MRR_SORTED, 0,
                            &quick->alloc, group_key_parts);
-      if (!quick->quick_prefix_select) {
+      if (!quick->quick_prefix_query_block) {
         delete quick;
         return nullptr;
       }
@@ -12149,7 +12148,7 @@ QUICK_SELECT_I *TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool,
       }
     }
   } else
-    quick->quick_prefix_select = nullptr;
+    quick->quick_prefix_query_block = nullptr;
 
   quick->update_key_stat();
   quick->adjust_prefix_ranges();
@@ -12175,7 +12174,7 @@ QUICK_SELECT_I *TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool,
     records           Number of records returned
     key_infix_len     Length of the key infix appended to the group prefix
     key_infix         Infix of constants from equality predicates
-    parent_alloc      Memory pool for this and quick_prefix_select data
+    parent_alloc      Memory pool for this and quick_prefix_query_block data
     is_index_scan     get the next different key not by jumping on it via
                       index read, but by scanning until the end of the
                       rows with equal key value.
@@ -12324,7 +12323,7 @@ QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT() {
   free_root(&alloc, MYF(0));
   delete min_functions_it;
   delete max_functions_it;
-  delete quick_prefix_select;
+  delete quick_prefix_query_block;
 }
 
 /*
@@ -12392,14 +12391,14 @@ bool QUICK_GROUP_MIN_MAX_SELECT::add_range(SEL_ARG *sel_range, int idx) {
 }
 
 /*
-  Opens the ranges if there are more conditions in quick_prefix_select than
+  Opens the ranges if there are more conditions in quick_prefix_query_block than
   the ones used for jumping through the prefixes.
 
   SYNOPSIS
     QUICK_GROUP_MIN_MAX_SELECT::adjust_prefix_ranges()
 
   NOTES
-    quick_prefix_select is made over the conditions on the whole key.
+    quick_prefix_query_block is made over the conditions on the whole key.
     It defines a number of ranges of length x.
     However when jumping through the prefixes we use only the the first
     few most significant keyparts in the range key. However if there
@@ -12409,10 +12408,10 @@ bool QUICK_GROUP_MIN_MAX_SELECT::add_range(SEL_ARG *sel_range, int idx) {
     To achive the above we must turn off the NEAR_MIN/NEAR_MAX
 */
 void QUICK_GROUP_MIN_MAX_SELECT::adjust_prefix_ranges() {
-  if (quick_prefix_select &&
-      group_prefix_len < quick_prefix_select->max_used_key_length) {
-    for (size_t ix = 0; ix < quick_prefix_select->ranges.size(); ++ix) {
-      QUICK_RANGE *range = quick_prefix_select->ranges[ix];
+  if (quick_prefix_query_block &&
+      group_prefix_len < quick_prefix_query_block->max_used_key_length) {
+    for (size_t ix = 0; ix < quick_prefix_query_block->ranges.size(); ++ix) {
+      QUICK_RANGE *range = quick_prefix_query_block->ranges[ix];
       range->flag &= ~(NEAR_MIN | NEAR_MAX);
     }
   }
@@ -12503,7 +12502,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void) {
     head->file->print_error(result, MYF(0));
     return result;
   }
-  if (quick_prefix_select && quick_prefix_select->reset()) return 1;
+  if (quick_prefix_query_block && quick_prefix_query_block->reset()) return 1;
 
   result = head->file->ha_index_last(record);
   if (result != 0) {
@@ -12838,9 +12837,9 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_prefix() {
   int result;
   DBUG_TRACE;
 
-  if (quick_prefix_select) {
+  if (quick_prefix_query_block) {
     uchar *cur_prefix = seen_first_key ? group_prefix : nullptr;
-    if ((result = quick_prefix_select->get_next_prefix(
+    if ((result = quick_prefix_query_block->get_next_prefix(
              group_prefix_len, group_key_parts, cur_prefix)))
       return result;
     seen_first_key = true;
@@ -13401,7 +13400,7 @@ QUICK_SELECT_I *TRP_SKIP_SCAN::make_quick(PARAM *param, bool,
   DBUG_TRACE;
 
   quick = new QUICK_SKIP_SCAN_SELECT(
-      param->table, param->select_lex->join, index_info, index, range_key_part,
+      param->table, param->query_block->join, index_info, index, range_key_part,
       index_range_tree, eq_prefix_len, eq_prefix_parts, used_key_parts,
       &cost_est, records, parent_alloc, has_aggregate_function);
 
@@ -13473,7 +13472,7 @@ static void cost_skip_scan(TABLE *table, uint key, uint distinct_key_parts,
 
 static TRP_SKIP_SCAN *get_best_skip_scan(PARAM *param, SEL_TREE *tree,
                                          bool force_skip_scan) {
-  JOIN *join = param->select_lex->join;
+  JOIN *join = param->query_block->join;
   TABLE *table = param->table;
   const char *cause = nullptr;
   TRP_SKIP_SCAN *read_plan = nullptr;
@@ -14987,15 +14986,15 @@ void QUICK_ROR_UNION_SELECT::dbug_dump(int indent, bool verbose) {
 
 void QUICK_GROUP_MIN_MAX_SELECT::dbug_dump(int indent, bool verbose) {
   fprintf(DBUG_FILE,
-          "%*squick_group_min_max_select: index %s (%d), length: %d\n", indent,
-          "", index_info->name, index, max_used_key_length);
+          "%*squick_group_min_max_query_block: index %s (%d), length: %d\n",
+          indent, "", index_info->name, index, max_used_key_length);
   if (key_infix_len > 0) {
     fprintf(DBUG_FILE, "%*susing key_infix with length %d:\n", indent, "",
             key_infix_len);
   }
-  if (quick_prefix_select) {
-    fprintf(DBUG_FILE, "%*susing quick_range_select:\n", indent, "");
-    quick_prefix_select->dbug_dump(indent + 2, verbose);
+  if (quick_prefix_query_block) {
+    fprintf(DBUG_FILE, "%*susing quick_range_query_block:\n", indent, "");
+    quick_prefix_query_block->dbug_dump(indent + 2, verbose);
   }
   if (min_max_ranges.size() > 0) {
     fprintf(DBUG_FILE, "%*susing %d quick_ranges for MIN/MAX:\n", indent, "",
@@ -15004,8 +15003,9 @@ void QUICK_GROUP_MIN_MAX_SELECT::dbug_dump(int indent, bool verbose) {
 }
 
 void QUICK_SKIP_SCAN_SELECT::dbug_dump(int indent, bool verbose) {
-  fprintf(DBUG_FILE, "%*squick_skip_scan_select: index %s (%d), length: %d\n",
-          indent, "", index_info->name, index, max_used_key_length);
+  fprintf(DBUG_FILE,
+          "%*squick_skip_scan_query_block: index %s (%d), length: %d\n", indent,
+          "", index_info->name, index, max_used_key_length);
   if (eq_prefix_len > 0) {
     fprintf(DBUG_FILE, "%*susing eq_prefix with length %d:\n", indent, "",
             eq_prefix_len);

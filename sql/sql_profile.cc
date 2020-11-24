@@ -146,7 +146,7 @@ int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table) {
   };
 
   ST_FIELD_INFO *field_info;
-  Name_resolution_context *context = &thd->lex->select_lex->context;
+  Name_resolution_context *context = &thd->lex->query_block->context;
   int i;
 
   for (i = 0; schema_table->fields_info[i].field_name != nullptr; i++) {
@@ -441,8 +441,8 @@ bool PROFILING::show_profiles() {
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 
-  SELECT_LEX *sel = thd->lex->select_lex;
-  SELECT_LEX_UNIT *unit = thd->lex->unit;
+  Query_block *sel = thd->lex->query_block;
+  Query_expression *unit = thd->lex->unit;
   ha_rows idx = 0;
   Protocol *protocol = thd->get_protocol();
 

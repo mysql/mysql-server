@@ -274,7 +274,7 @@ bool Item_func::fix_fields(THD *thd, Item **) {
   Item **arg, **arg_end;
   uchar buff[STACK_BUFF_ALLOC];  // Max argument in function
 
-  Condition_context CCT(thd->lex->current_select());
+  Condition_context CCT(thd->lex->current_query_block());
 
   used_tables_cache = get_initial_pseudo_tables();
   not_null_tables_cache = 0;
@@ -322,8 +322,8 @@ bool Item_func::fix_func_arg(THD *thd, Item **arg) {
   return false;
 }
 
-void Item_func::fix_after_pullout(SELECT_LEX *parent_select,
-                                  SELECT_LEX *removed_select) {
+void Item_func::fix_after_pullout(Query_block *parent_query_block,
+                                  Query_block *removed_query_block) {
   if (const_item()) {
     /*
       Pulling out a const item changes nothing to it. Moreover, some items may
@@ -341,7 +341,7 @@ void Item_func::fix_after_pullout(SELECT_LEX *parent_select,
   if (arg_count) {
     for (arg = args, arg_end = args + arg_count; arg != arg_end; arg++) {
       Item *const item = *arg;
-      item->fix_after_pullout(parent_select, removed_select);
+      item->fix_after_pullout(parent_query_block, removed_query_block);
       used_tables_cache |= item->used_tables();
       if (null_on_null) not_null_tables_cache |= item->not_null_tables();
     }
@@ -873,14 +873,14 @@ bool Item_func::check_column_in_window_functions(uchar *arg) {
   // See also Item_field::check_column_from_derived_table.
   if (!(used_tables() & RAND_TABLE_BIT)) return false;
   TABLE_LIST *tl = pointer_cast<TABLE_LIST *>(arg);
-  SELECT_LEX *select = tl->derived_unit()->first_select();
+  Query_block *select = tl->derived_query_expression()->first_query_block();
   return !select->m_windows.is_empty();
 }
 
 bool Item_func::check_column_in_group_by(uchar *arg) {
   if (!(used_tables() & RAND_TABLE_BIT)) return false;
   TABLE_LIST *tl = pointer_cast<TABLE_LIST *>(arg);
-  SELECT_LEX *select = tl->derived_unit()->first_select();
+  Query_block *select = tl->derived_query_expression()->first_query_block();
   return select->is_grouped();
 }
 
@@ -8260,9 +8260,9 @@ void Item_func_sp::update_used_tables() {
   set_stored_program();
 }
 
-void Item_func_sp::fix_after_pullout(SELECT_LEX *parent_select,
-                                     SELECT_LEX *removed_select) {
-  Item_func::fix_after_pullout(parent_select, removed_select);
+void Item_func_sp::fix_after_pullout(Query_block *parent_query_block,
+                                     Query_block *removed_query_block) {
+  Item_func::fix_after_pullout(parent_query_block, removed_query_block);
 }
 
 /*

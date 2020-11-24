@@ -440,8 +440,8 @@ int ha_myisammrg::add_children_list(void) {
 
     /* Set parent reference. Used to detect MERGE in children list. */
     child_l->parent_l = parent_l;
-    /* Copy select_lex. Used in unique_table() at least. */
-    child_l->select_lex = parent_l->select_lex;
+    /* Copy query_block. Used in unique_table() at least. */
+    child_l->query_block = parent_l->query_block;
     /* Set the expected table version, to not cause spurious re-prepare. */
     child_l->set_table_ref_id(mrg_child_def->get_child_table_ref_type(),
                               mrg_child_def->get_child_def_version());

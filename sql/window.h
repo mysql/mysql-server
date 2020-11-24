@@ -98,7 +98,7 @@ class Window {
    *
    *------------------------------------------------------------------------*/
  protected:
-  SELECT_LEX *m_select;                 ///< The SELECT the window is on
+  Query_block *m_query_block;           ///< The SELECT the window is on
   PT_order_list *const m_partition_by;  ///< \<window partition clause\>
   PT_order_list *const m_order_by;      ///< \<window order clause\>
   ORDER *m_sorting_order;               ///< merged partition/order by
@@ -593,7 +593,7 @@ class Window {
   */
   Window(Item_string *name, PT_order_list *part, PT_order_list *ord,
          PT_frame *frame, bool is_reference, Item_string *inherit)
-      : m_select(nullptr),
+      : m_query_block(nullptr),
         m_partition_by(part),
         m_order_by(ord),
         m_sorting_order(nullptr),
@@ -782,7 +782,7 @@ class Window {
     window are fulfilled, and accumulate evaluation requirements.
     This is run at resolution.
   */
-  bool check_window_functions1(THD *thd, SELECT_LEX *select);
+  bool check_window_functions1(THD *thd, Query_block *select);
   /**
     Like check_window_functions1() but contains checks which must wait until
     the start of the execution phase.
@@ -905,7 +905,7 @@ class Window {
 
     @return false if success, true if error
   */
-  static bool setup_windows1(THD *thd, SELECT_LEX *select,
+  static bool setup_windows1(THD *thd, Query_block *select,
                              Ref_item_array ref_item_array, TABLE_LIST *tables,
                              mem_root_deque<Item *> *fields,
                              List<Window> &windows);
@@ -963,7 +963,7 @@ class Window {
 
     @returns false if success, true if error
   */
-  bool setup_ordering_cached_items(THD *thd, SELECT_LEX *select,
+  bool setup_ordering_cached_items(THD *thd, Query_block *select,
                                    const PT_order_list *o,
                                    bool partition_order);
 
@@ -975,7 +975,7 @@ class Window {
             input table before evaluating the window functions, unless it has
             been made redundant by a previous windowing step, cf.
             reorder_and_eliminate_sorts, or due to a single row result set,
-            cf. SELECT_LEX::is_implicitly_grouped().
+            cf. Query_block::is_implicitly_grouped().
   */
   bool needs_sorting() const { return m_sorting_order != nullptr; }
 
@@ -1207,7 +1207,7 @@ class Window {
     See #m_is_last_row_in_frame
   */
   bool is_last_row_in_frame() const {
-    return m_is_last_row_in_frame || m_select->table_list.elements == 0;
+    return m_is_last_row_in_frame || m_query_block->table_list.elements == 0;
   }
 
   /**
@@ -1301,7 +1301,7 @@ class Window {
   /**
     Free up any resource used to process the window functions of this window,
     e.g. temporary files and in-memory data structures. Called when done
-    with all window processing steps from SELECT_LEX::cleanup.
+    with all window processing steps from Query_block::cleanup.
   */
   void cleanup(THD *thd);
 

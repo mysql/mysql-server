@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -342,7 +342,7 @@ int group_replication_trans_before_commit(Trans_param *param) {
       change any data, it will just persist that GTID as applied.
     */
     if ((write_set == nullptr) && (!is_gtid_specified) &&
-        (!param->is_create_table_as_select)) {
+        (!param->is_create_table_as_query_block)) {
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_EXTRACT_TRANS_WRITE_SET,
                    param->thread_id);
       error = pre_wait_error;
@@ -383,7 +383,7 @@ int group_replication_trans_before_commit(Trans_param *param) {
       executed on parallel applier after all precedent transactions like any
       other DDL.
     */
-    if (param->is_create_table_as_select) {
+    if (param->is_create_table_as_query_block) {
       sequence_number = 0;
       may_have_sbr_stmts = true;
     }
