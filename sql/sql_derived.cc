@@ -894,8 +894,8 @@ bool Condition_pushdown::make_cond_for_derived() {
   if (m_where_cond &&
       attach_cond_to_derived(derived_select->where_cond(), m_where_cond, false))
     return true;
-  if (m_remainder_cond && !m_remainder_cond->fixed &&
-      !m_remainder_cond->fix_fields(thd, &m_remainder_cond))
+  if (m_remainder_cond != nullptr && !m_remainder_cond->fixed &&
+      m_remainder_cond->fix_fields(thd, &m_remainder_cond))
     return true;
   return false;
 }

@@ -666,3 +666,17 @@ set optimizer_switch="derived_merge=off";
 SELECT 1 FROM information_schema.tables WHERE 123 IN (CONCAT_WS(TABLE_ROWS, ''));
 
 set optimizer_switch="derived_merge=on";
+--echo # BUG#32150145: 8.0.22+ RELEASE BUILD QUERY FAILS SILENTLY,
+--echo #                DEBUG ASSERTION `THD->IS_ERROR()'
+--echo #
+
+CREATE TABLE t1(g INTEGER);
+
+# For the following statement, condition "w.g is null" is pushed down to the
+# derived table "w". In doing so, it should not crash because of a bad error
+# state.
+SELECT w.g FROM t1 INNER JOIN (
+SELECT g, ROW_NUMBER() OVER (PARTITION BY g) AS r FROM t1
+) w ON w.g=t1.g AND w.r=1 WHERE w.g IS NULL;
+
+DROP TABLE t1;

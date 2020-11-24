@@ -1148,3 +1148,12 @@ set optimizer_switch="derived_merge=off";
 SELECT 1 FROM information_schema.tables WHERE 123 IN (CONCAT_WS(TABLE_ROWS, ''));
 1
 set optimizer_switch="derived_merge=on";
+# BUG#32150145: 8.0.22+ RELEASE BUILD QUERY FAILS SILENTLY,
+#                DEBUG ASSERTION `THD->IS_ERROR()'
+#
+CREATE TABLE t1(g INTEGER);
+SELECT w.g FROM t1 INNER JOIN (
+SELECT g, ROW_NUMBER() OVER (PARTITION BY g) AS r FROM t1
+) w ON w.g=t1.g AND w.r=1 WHERE w.g IS NULL;
+g
+DROP TABLE t1;
