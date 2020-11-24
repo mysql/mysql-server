@@ -25,6 +25,7 @@
 #include "sql/sql_class.h"
 
 #include "sql/auth/auth_acls.h"
+#include "sql/derror.h" /* ER_THD */
 #include "sql/rpl_async_conn_failover_add_managed_udf.h"
 #include "sql/rpl_async_conn_failover_table_operations.h"
 #include "sql/rpl_io_monitor.h"
@@ -69,8 +70,6 @@ char *Rpl_async_conn_failover_add_managed::add_managed(
   std::string managed_name(args->args[2], args->lengths[2]);    // managed name
   std::string host(args->args[3], args->lengths[3]);            // hostname
   uint port = *(reinterpret_cast<long long *>(args->args[4]));  // port
-  // network_namespace
-  std::string network_namespace{args->args[5], args->lengths[5]};
 
   // primary weight
   uint primary_weight = *(reinterpret_cast<long long *>(args->args[6]));
@@ -80,8 +79,8 @@ char *Rpl_async_conn_failover_add_managed::add_managed(
 
   /* add row */
   std::tie(err_val, err_msg) = sql_operations.add_managed(
-      channel, host, port, network_namespace, managed_type, managed_name,
-      primary_weight, secondary_weight);
+      channel, host, port, "", managed_type, managed_name, primary_weight,
+      secondary_weight);
 
   if (err_val) {
     *error = 1;
@@ -90,6 +89,13 @@ char *Rpl_async_conn_failover_add_managed::add_managed(
     err_msg.assign(
         "The UDF asynchronous_connection_failover_add_managed() "
         "executed successfully.");
+
+    if (args->lengths[5] > 0) {
+      push_warning(
+          current_thd, Sql_condition::SL_WARNING,
+          ER_WARN_ASYNC_CONN_FAILOVER_NETWORK_NAMESPACE,
+          ER_THD(current_thd, ER_WARN_ASYNC_CONN_FAILOVER_NETWORK_NAMESPACE));
+    }
   }
 
   strcpy(result, err_msg.c_str());
@@ -151,7 +157,7 @@ bool Rpl_async_conn_failover_add_managed::add_managed_init(UDF_INIT *init_id,
 
   if (args->arg_type[5] != STRING_RESULT) {
     my_stpcpy(message,
-              "Wrong arguments: You need to specify correct value for "
+              "Wrong arguments: You need to specify a string value for "
               "network_namespace.");
     return true;
   }

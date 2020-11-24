@@ -105,11 +105,17 @@ bool PFS_index_rpl_async_conn_failover::match(
   std::string channel_name;
   std::string host;
   uint port;
-  std::string network_namespace;
+  std::string network_namespace{};
   std::string managed_name;
 
-  std::tie(channel_name, host, port, network_namespace, std::ignore,
-           std::ignore) = source_conn_detail;
+  std::tie(channel_name, host, port, std::ignore, std::ignore, std::ignore) =
+      source_conn_detail;
+  channel_map.rdlock();
+  Master_info *mi = channel_map.get_mi(channel_name.c_str());
+  if (nullptr != mi) {
+    network_namespace.assign(mi->network_namespace_str());
+  }
+  channel_map.unlock();
 
   row.channel_name_length = channel_name.length();
   memcpy(row.channel_name, channel_name.c_str(), row.channel_name_length);
@@ -254,13 +260,19 @@ int table_replication_asynchronous_connection_failover::make_row(
   DBUG_TRACE;
   std::string channel{};
   std::string host{};
-  uint port;
   std::string network_namespace{};
+  uint port;
   uint weight;
   std::string managed_name{};
 
-  std::tie(channel, host, port, network_namespace, weight, managed_name) =
+  std::tie(channel, host, port, std::ignore, weight, managed_name) =
       source_tuple;
+  channel_map.rdlock();
+  Master_info *mi = channel_map.get_mi(channel.c_str());
+  if (nullptr != mi) {
+    network_namespace.assign(mi->network_namespace_str());
+  }
+  channel_map.unlock();
 
   m_row.channel_name_length = channel.length();
   memcpy(m_row.channel_name, channel.c_str(), channel.length());

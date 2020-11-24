@@ -227,7 +227,7 @@ SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaa
 --echo #
 
 --error ER_CANT_INITIALIZE_UDF
-SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, 100, 80, 60);
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb', '127.0.0.1', 3310, 100, 80, 60);
 
 --let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover'
 --let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
@@ -240,38 +240,36 @@ SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaa
 SELECT * FROM performance_schema.replication_asynchronous_connection_failover;
 SELECT * FROM performance_schema.replication_asynchronous_connection_failover_managed;
 
-# network_space only exists on mysql.replication_asynchronous_connection_failover table,
-# as such the below managed entry is equal to the previous and its `add` must error out,
-# without changing any configuration.
---error ER_UDF_ERROR
-SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '10.0.0.10', 1111, 'nets', 20, 10);
+
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb', '10.0.0.10', 1111, 'nets', 20, 10);
 
 --let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover'
---let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
---source include/assert.inc
-
---let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover_managed'
---let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 1
---source include/assert.inc
-
-SELECT * FROM performance_schema.replication_asynchronous_connection_failover;
-SELECT * FROM performance_schema.replication_asynchronous_connection_failover_managed;
-
-# Adding a different managed channel does work.
-SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '10.0.0.11', 2222, 'blue', 25, 15);
-
---let $assert_text= 'There are 2 rows in performance_schema.replication_asynchronous_connection_failover'
 --let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 2
 --source include/assert.inc
 
---let $assert_text= 'There are 2 rows in performance_schema.replication_asynchronous_connection_failover_managed'
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover_managed'
 --let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 2
 --source include/assert.inc
 
 SELECT * FROM performance_schema.replication_asynchronous_connection_failover;
 SELECT * FROM performance_schema.replication_asynchronous_connection_failover_managed;
 
-SELECT asynchronous_connection_failover_delete_managed('ch1', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+# Adding a different managed channel does work.
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb', '10.0.0.11', 2222, 'blue', 25, 15);
+
+--let $assert_text= 'There are 2 rows in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 3
+--source include/assert.inc
+
+--let $assert_text= 'There are 2 rows in performance_schema.replication_asynchronous_connection_failover_managed'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 3
+--source include/assert.inc
+
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover;
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover_managed;
+
+SELECT asynchronous_connection_failover_delete_managed('', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb');
+SELECT asynchronous_connection_failover_delete_managed('ch1', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb');
 
 
 # Checks for delete managed sender configuration UDF

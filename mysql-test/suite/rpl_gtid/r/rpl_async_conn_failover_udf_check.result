@@ -55,15 +55,30 @@ SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', 3100);
 asynchronous_connection_failover_delete_source('', '127.0.0.1', 3100)
 The UDF asynchronous_connection_failover_delete_source() executed successfully.
 #
-# 7. Check correct string value is provided for network_namespace.
+# 7. Check asynchronous_connection_failover_add_source returns warning
+#    on network_namespace value. Also if network_namespace is set through
+#    CHANGE REPLICATION SOURCE TO command that network_namespace is
+#    returned on querying
+#    performance_schema.replication_asynchronous_connection_failover
+#    table for the channel.
 #
 SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 3100, 100);
-ERROR HY000: Can't initialize function 'asynchronous_connection_failover_add_source'; Wrong arguments: You need to specify correct value for network_namespace.
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_add_source'; Wrong arguments: You need to specify a string value for network_namespace.
 include/assert.inc ['There is no row in performance_schema.replication_asynchronous_connection_failover']
-SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 3100, '');
-asynchronous_connection_failover_add_source('', '127.0.0.1', 3100, '')
+include/assert.inc ['There is no row in performance_schema.replication_asynchronous_connection_failover']
+SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 3100, 'blue');
+asynchronous_connection_failover_add_source('', '127.0.0.1', 3100, 'blue')
 The UDF asynchronous_connection_failover_add_source() executed successfully.
+Warnings:
+Warning	4030	The parameter network_namespace is reserved for future use. Please use the CHANGE REPLICATION SOURCE command to set channel network_namespace parameter.
 include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=SERVER_1_PORT, NETWORK_NAMESPACE='red' FOR CHANNEL "";
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover with NETWORK_NAMESPACE="red"']
 #
 # 8. Check that the parameter count is greater than 3 and less then 4,
 #    i.e. channel_name, hostname and port must be provided.
@@ -96,7 +111,7 @@ include/assert.inc ['There is one row in performance_schema.replication_asynchro
 # 12. Check correct string value is provided for network_namespace.
 #
 SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', 3100, 100);
-ERROR HY000: Can't initialize function 'asynchronous_connection_failover_delete_source'; Wrong arguments: You need to specify correct value for network_namespace.
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_delete_source'; Wrong arguments: You need to specify a string value for network_namespace.
 include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
 #
 # 13. Add existing credentials. Delete non existing credentials.
@@ -142,4 +157,5 @@ The UDF asynchronous_connection_failover_delete_source() executed successfully.
 [connection master]
 DROP USER 'async_user';
 include/assert.inc ['There are 0 rows in performance_schema.replication_asynchronous_connection_failover']
+RESET REPLICA ALL;
 include/rpl_end.inc
