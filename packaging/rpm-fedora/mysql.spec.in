@@ -468,15 +468,7 @@ Hibernate and JPA.
 
 ClusterJPA is an OpenJPA implementation for MySQL Cluster that
 attempts to offer the best possible performance by leveraging the
-strengths of both ClusterJ and JDBC.
-
-%package        memcached
-Summary:        Memcached API for MySQL Cluster implemented as a loadable storage engine for memcached
-Requires:       %{name}-server%{?_isa} = %{version}-%{release}
-%description    memcached
-This package contains the standard memcached server and a loadable
-storage engine for memcached using the Memcache API for MySQL Cluster
-to provide a persistent MySQL Cluster data store.
+strengths of both ClusterJ and JDBC
 
 %endif # cluster
 
@@ -1113,13 +1105,6 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_sbindir}/ndbmtd
 %attr(644, root, root) %{_mandir}/man8/ndbd.8*
 %attr(644, root, root) %{_mandir}/man8/ndbmtd.8*
-
-%files memcached
-%doc %{?license_files_server}
-%attr(755, root, root) %{_bindir}/memclient
-%attr(755, root, root) %{_sbindir}/memcached
-%attr(755, root, root) %{_libdir}/mysql/ndb_engine.so
-%{_datadir}/mysql-*/memcache-api/
 
 %files ndbclient
 %defattr(-, root, root, -)

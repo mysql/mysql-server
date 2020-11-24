@@ -314,13 +314,9 @@ rm -f %{buildroot}%{_datadir}/mysql-*/{mysql.server,mysqld_multi.server,mysql-lo
 
 # Extra files/dirs removed from Cluster build
 %if 0%{?cluster}
-rm -f %{buildroot}/lib/memcached_path.pl
-rm -f %{buildroot}/%{_bindir}/memclient
 rm -rf %{buildroot}%{_datadir}/mysql-*/nodejs/
 rm -rf %{buildroot}%{_datadir}/mysql-*/java/
-rm -rf %{buildroot}%{_sbindir}/memcached
 rm -rf %{buildroot}%{_libdir}/mysql/ndb_engine.so
-rm -rf %{buildroot}%{_datadir}/mysql-*/memcache-api/
 rm -rf %{buildroot}%{_libdir}/mysql/libndbclient_static.a
 rm -rf %{buildroot}%{_libdir}/mysql/libndbclient.so
 %endif

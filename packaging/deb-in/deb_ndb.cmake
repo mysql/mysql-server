@@ -36,12 +36,6 @@ Section: debug
 Depends: mysql-${DEB_PRODUCTNAME}-management-server (=\${binary:Version}), \${misc:Depends}
 Description: Debugging symbols for management server
 
-Package: mysql-${DEB_PRODUCTNAME}-memcached-dbgsym
-Architecture: any
-Section: debug
-Depends: mysql-${DEB_PRODUCTNAME}-memcached (=\${binary:Version}), \${misc:Depends}
-Description: Debugging symbols for memcached
-
 Package: mysql-${DEB_PRODUCTNAME}-nodejs-dbgsym
 Architecture: any
 Section: debug
@@ -58,7 +52,6 @@ SET (DEB_NDB_RULES_STRIP
 "
 	dh_strip -pmysql-${DEB_PRODUCTNAME}-data-node --dbg-package=mysql-${DEB_PRODUCTNAME}-data-node-dbgsym
 	dh_strip -pmysql-${DEB_PRODUCTNAME}-management-server --dbg-package=mysql-${DEB_PRODUCTNAME}-management-server-dbgsym
-	dh_strip -pmysql-${DEB_PRODUCTNAME}-memcached --dbg-package=mysql-${DEB_PRODUCTNAME}-memcached-dbgsym
 	dh_strip -pmysql-${DEB_PRODUCTNAME}-nodejs --dbg-package=mysql-${DEB_PRODUCTNAME}-nodejs-dbgsym
 	dh_strip -pndbclient --dbg-package=ndbclient-dbgsym
 ")
@@ -110,14 +103,6 @@ Description: Java connector
  ClusterJPA is an OpenJPA implementation for MySQL Cluster that
  attempts to offer the best possible performance by leveraging the
  strengths of both ClusterJ and JDBC
-
-Package: mysql-${DEB_PRODUCTNAME}-memcached
-Architecture: any
-Depends: \${shlibs:Depends}, \${misc:Depends}, mysql-${DEB_PRODUCTNAME}-server
-Description: memcached
- This package contains the standard memcached server and a loadable
- storage engine for memcached using the Memcache API for MySQL Cluster
- to provide a persistent MySQL Cluster data store.
 
 Package: mysql-${DEB_PRODUCTNAME}-nodejs
 Architecture: any
