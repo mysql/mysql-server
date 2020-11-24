@@ -41,8 +41,6 @@ using byte = unsigned char;
 
 static int g_compress = 0;
 
-static constexpr size_t MAX_PWD_LEN = 1023;
-
 static ndb_password_state opt_decrypt_password_state("decrypt", nullptr);
 static ndb_password_option opt_decrypt_password(opt_decrypt_password_state);
 static ndb_password_from_stdin_option opt_decrypt_password_from_stdin(
