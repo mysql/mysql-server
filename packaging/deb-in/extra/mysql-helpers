@@ -111,9 +111,9 @@ verify_ready() {
 			chown --reference="${MYSQLDATA}" "${MYSQLDATA}/mysql_upgrade_info"
 		fi
 
-		if [ ! -d ${MYSQLFILES} -a ! -L ${MYSQLFILES} ]; then
-			if [ "$(dirname "${MYSQLFILES}")" = "/var/lib" -o ${MYSQLFILES} = NULL ]; then
-				install -d -m0770 -omysql -gmysql ${MYSQLFILES}
+		if [ "${MYSQLFILES}" != "NULL" -a ! -d "${MYSQLFILES}" -a ! -L "${MYSQLFILES}" ]; then
+			if [ "$(dirname ${MYSQLFILES})" = "/var/lib" ]; then
+				install -d -m0770 -omysql -gmysql "${MYSQLFILES}"
 			else
 				echo "Error: Secure-file-priv dir ${MYSQLFILES} does not exist. For security reasons the service will not automatically create directories outside /var/lib."
 				ERROR_FLAG=1
