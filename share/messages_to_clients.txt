@@ -9502,11 +9502,11 @@ ER_TABLE_MUST_HAVE_A_VISIBLE_COLUMN
 ER_WARN_IMPORT_COMPRESSION_FAIL
   eng "Compression failed while doing import with the following error : %s"
 
-ER_CLIENT_INTERACTION_TIMEOUT
-    eng "The client was disconnected by the server because of inactivity. See wait_timeout and interactive_timeout for configuring this behavior."
-
 ER_WARN_ASYNC_CONN_FAILOVER_NETWORK_NAMESPACE
   eng "The parameter network_namespace is reserved for future use. Please use the CHANGE REPLICATION SOURCE command to set channel network_namespace parameter."
+
+ER_CLIENT_INTERACTION_TIMEOUT
+    eng "The client was disconnected by the server because of inactivity. See wait_timeout and interactive_timeout for configuring this behavior."
 
 #
 #  End of 8.0 error messages (server-to-client).

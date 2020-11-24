@@ -94,7 +94,7 @@ SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaa
 asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb', '10.0.0.10', 1111, 'nets', 20, 10)
 The UDF asynchronous_connection_failover_add_managed() executed successfully.
 Warnings:
-Warning	4031	The parameter network_namespace is reserved for future use. Please use the CHANGE REPLICATION SOURCE command to set channel network_namespace parameter.
+Warning	4030	The parameter network_namespace is reserved for future use. Please use the CHANGE REPLICATION SOURCE command to set channel network_namespace parameter.
 include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
 include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover_managed']
 SELECT * FROM performance_schema.replication_asynchronous_connection_failover;
@@ -109,7 +109,7 @@ SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', '
 asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb', '10.0.0.11', 2222, 'blue', 25, 15)
 The UDF asynchronous_connection_failover_add_managed() executed successfully.
 Warnings:
-Warning	4031	The parameter network_namespace is reserved for future use. Please use the CHANGE REPLICATION SOURCE command to set channel network_namespace parameter.
+Warning	4030	The parameter network_namespace is reserved for future use. Please use the CHANGE REPLICATION SOURCE command to set channel network_namespace parameter.
 include/assert.inc ['There are 2 rows in performance_schema.replication_asynchronous_connection_failover']
 include/assert.inc ['There are 2 rows in performance_schema.replication_asynchronous_connection_failover_managed']
 SELECT * FROM performance_schema.replication_asynchronous_connection_failover;
