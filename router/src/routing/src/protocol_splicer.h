@@ -53,6 +53,7 @@
 #include "mysqlrouter/classic_protocol_message.h"
 #include "mysqlrouter/utils.h"  // to_string
 #include "protocol/base_protocol.h"
+#include "tcp_address.h"
 #include "x_protocol_splicer.h"
 
 // #define DEBUG_SSL
@@ -108,12 +109,14 @@ std::unique_ptr<BasicSplicer> make_splicer(
       return std::make_unique<ClassicProtocolSplicer>(
           conn->context().source_ssl_mode(), conn->context().dest_ssl_mode(),
           [conn]() { return conn->context().source_ssl_ctx()->get(); },
-          [conn]() {
-            return conn->context()
-                .dest_ssl_ctx(
-                    mysqlrouter::split_addr_port(conn->get_destination_id())
-                        .first)
-                ->get();
+          [conn]() -> SSL_CTX * {
+            auto make_res =
+                mysql_harness::make_tcp_address(conn->get_destination_id());
+            if (!make_res) {
+              return nullptr;
+            }
+
+            return conn->context().dest_ssl_ctx(make_res->address())->get();
           },
           initial_connection_attributes<ClientProtocol>(
               conn->client_endpoint()));
@@ -121,12 +124,14 @@ std::unique_ptr<BasicSplicer> make_splicer(
       return std::make_unique<XProtocolSplicer>(
           conn->context().source_ssl_mode(), conn->context().dest_ssl_mode(),
           [conn]() { return conn->context().source_ssl_ctx()->get(); },
-          [conn]() {
-            return conn->context()
-                .dest_ssl_ctx(
-                    mysqlrouter::split_addr_port(conn->get_destination_id())
-                        .first)
-                ->get();
+          [conn]() -> SSL_CTX * {
+            auto make_res =
+                mysql_harness::make_tcp_address(conn->get_destination_id());
+            if (!make_res) {
+              return nullptr;
+            }
+
+            return conn->context().dest_ssl_ctx(make_res->address())->get();
           },
           initial_connection_attributes<ClientProtocol>(
               conn->client_endpoint()));

@@ -1356,13 +1356,18 @@ void MySQLRouting::set_destinations_from_csv(const string &csv) {
 
   // Fall back to comma separated list of MySQL servers
   while (std::getline(ss, part, ',')) {
-    const auto info = mysqlrouter::split_addr_port(part);
+    auto make_res = mysql_harness::make_tcp_address(part);
+    if (!make_res) {
+      throw std::runtime_error(
+          string_format("Destination address '%s' is invalid", part.c_str()));
+    }
 
-    if (mysql_harness::is_valid_domainname(info.first)) {
-      mysql_harness::TCPAddress addr(
-          info.first, info.second == 0
-                          ? Protocol::get_default_port(context_.get_protocol())
-                          : info.second);
+    auto addr = make_res.value();
+
+    if (mysql_harness::is_valid_domainname(addr.address())) {
+      if (addr.port() == 0) {
+        addr.port(Protocol::get_default_port(context_.get_protocol()));
+      }
 
       destination_->add(addr);
     } else {

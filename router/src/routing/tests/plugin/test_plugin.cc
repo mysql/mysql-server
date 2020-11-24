@@ -413,12 +413,14 @@ TEST_F(RoutingPluginTests, ListeningHostIsInvalid) {
     validate_socket_info_test_proxy("", &section, config);
     FAIL() << "Expected std::invalid_argument to be thrown";
   } catch (const std::invalid_argument &e) {
-    EXPECT_THAT(e.what(),
-                ::testing::HasSubstr("is invalid IP-address or hostname in "
-                                     "'host.that.does.not..exist:15508'"));
+    EXPECT_THAT(
+        e.what(),
+        ::testing::HasSubstr(
+            "'host.that.does.not..exist' in 'host.that.does.not..exist:15508' "
+            "is not a valid IP-address or hostname"));
     SUCCEED();
-  } catch (...) {
-    FAIL() << "Expected std::invalid_argument to be thrown";
+  } catch (const std::exception &e) {
+    FAIL() << "Expected std::invalid_argument to be thrown, got " << e.what();
   }
 }
 #endif
@@ -450,8 +452,10 @@ TEST_F(RoutingPluginTests, InvalidIpv6) {
     validate_socket_info_test_proxy("", &section, config);
     FAIL() << "expected to throw, but succeeded";
   } catch (const std::exception &e) {
-    EXPECT_THAT(e.what(), ::testing::HasSubstr(
-                              "invalid IPv6 address: illegal character(s)"));
+    EXPECT_THAT(e.what(),
+                ::testing::HasSubstr(
+                    "address in destination list "
+                    "'[fe80::3617:ebff:fecb:587e@3]:3306' is invalid"));
   }
 }
 

@@ -39,8 +39,9 @@
 #include "mysql_router_thread.h"         // kDefaultStackSizeInKiloByte
 #include "mysqlrouter/routing.h"         // AccessMode
 #include "mysqlrouter/uri.h"
-#include "mysqlrouter/utils.h"  // split_addr_port
+#include "mysqlrouter/utils.h"  // is_valid_socket_name
 #include "ssl_mode.h"
+#include "tcp_address.h"
 
 using namespace stdx::string_view_literals;
 
@@ -232,16 +233,16 @@ static std::string get_option_destinations(
             get_log_prefix(section, option) +
             ": empty address found in destination list (was '" + value + "')");
       }
-      std::pair<std::string, uint16_t> info;
-      try {
-        info = mysqlrouter::split_addr_port(part);
-      } catch (const std::runtime_error &e) {
+
+      auto make_res = mysql_harness::make_tcp_address(part);
+
+      if (!make_res) {
         throw std::invalid_argument(get_log_prefix(section, option) +
                                     ": address in destination list '" + part +
-                                    "' is invalid: " + e.what());
+                                    "' is invalid");
       }
 
-      auto address = info.first;
+      auto address = make_res->address();
 
       if (!mysql_harness::is_valid_ip_address(address) &&
           !mysql_harness::is_valid_hostname(address)) {
@@ -290,32 +291,31 @@ static mysql_harness::TCPAddress get_option_tcp_address(
     return mysql_harness::TCPAddress{};
   }
 
-  try {
-    std::pair<std::string, uint16_t> bind_info =
-        mysqlrouter::split_addr_port(value);
-
-    auto address = bind_info.first;
-    uint16_t port = bind_info.second;
-
-    if (port <= 0) {
-      if (default_port > 0) {
-        port = static_cast<uint16_t>(default_port);
-      } else if (require_port) {
-        throw std::runtime_error("TCP port missing");
-      }
-    }
-
-    if (!(mysql_harness::is_valid_hostname(address) ||
-          mysql_harness::is_valid_ip_address(address))) {
-      throw std::runtime_error("'" + address +
-                               "' is invalid IP-address or hostname");
-    }
-
-    return {bind_info.first, port};
-  } catch (const std::runtime_error &exc) {
-    throw std::invalid_argument(get_log_prefix(section, option) + ": " +
-                                exc.what() + " in '" + value + "'");
+  auto make_res = mysql_harness::make_tcp_address(value);
+  if (!make_res) {
+    throw std::invalid_argument(get_log_prefix(section, option) + ": '" +
+                                value + "' is not a valid endpoint");
   }
+
+  auto address = make_res->address();
+  uint16_t port = make_res->port();
+
+  if (port <= 0) {
+    if (default_port > 0) {
+      port = static_cast<uint16_t>(default_port);
+    } else if (require_port) {
+      throw std::runtime_error("TCP port missing");
+    }
+  }
+
+  if (!(mysql_harness::is_valid_hostname(address) ||
+        mysql_harness::is_valid_ip_address(address))) {
+    throw std::invalid_argument(get_log_prefix(section, option) + ": '" +
+                                address + "' in '" + value +
+                                "' is not a valid IP-address or hostname");
+  }
+
+  return {address, port};
 }
 
 template <typename T>
