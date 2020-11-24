@@ -41,6 +41,5 @@ bool is_valid_named_pipe_full_access_group(const char *group_name);
 bool my_security_attr_add_rights_to_group(SECURITY_ATTRIBUTES *psa,
                                           const char *group_name,
                                           DWORD group_rights);
-#define DEFAULT_NAMED_PIPE_FULL_ACCESS_GROUP ""
-#define NAMED_PIPE_FULL_ACCESS_GROUP_EVERYONE "*everyone*"
+#define DEFAULT_NAMED_PIPE_FULL_ACCESS_GROUP "*everyone*"
 #endif /* NAMED_PIPE_INCLUDED */
