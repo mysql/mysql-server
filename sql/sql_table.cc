@@ -17814,6 +17814,8 @@ static int copy_data_between_tables(
     THD *thd, PSI_stage_progress *psi MY_ATTRIBUTE((unused)), TABLE *from,
     TABLE *to, List<Create_field> &create, ha_rows *copied, ha_rows *deleted,
     Alter_info::enum_enable_or_disable keys_onoff, Alter_table_ctx *alter_ctx) {
+  DBUG_TRACE;
+
   int error;
   Copy_field *copy, *copy_end;
   Field **ptr;
@@ -17822,12 +17824,13 @@ static int copy_data_between_tables(
     generated fields or newly added fields with generated default values.
   */
   Field **gen_fields, **gen_fields_end;
-  ulong found_count, delete_count;
   bool auto_increment_field_copied = false;
   sql_mode_t save_sql_mode;
+  SELECT_LEX_UNIT *const unit = thd->lex->unit;
+  SELECT_LEX *const select = unit->first_select();
+
   QEP_TAB_standalone qep_tab_st;
   QEP_TAB &qep_tab = qep_tab_st.as_QEP_TAB();
-  DBUG_TRACE;
 
   /*
     If target storage engine supports atomic DDL we should not commit
@@ -17861,6 +17864,9 @@ static int copy_data_between_tables(
   alter_table_manage_keys(thd, to, from->file->indexes_are_disabled(),
                           keys_onoff);
 
+  if (unit->is_prepared()) {
+    bind_fields(thd->stmt_arena->item_list());
+  }
   /*
     We want warnings/errors about data truncation emitted when we
     copy data to new version of table.
@@ -17921,17 +17927,17 @@ static int copy_data_between_tables(
     }
   }
 
-  found_count = delete_count = 0;
+  ulong found_count = 0;
+  ulong delete_count = 0;
 
-  SELECT_LEX *const select_lex = thd->lex->select_lex;
-  ORDER *order = select_lex->order_list.first;
+  ORDER *order = select->order_list.first;
 
   unique_ptr_destroy_only<Filesort> fsort;
   unique_ptr_destroy_only<RowIterator> iterator;
   AccessPath *path = create_table_access_path(thd, from, nullptr,
                                               /*count_examined_rows=*/false);
 
-  if (order && to->s->primary_key != MAX_KEY &&
+  if (order != nullptr && to->s->primary_key != MAX_KEY &&
       to->file->primary_key_is_clustered()) {
     char warn_buff[MYSQL_ERRMSG_SIZE];
     snprintf(warn_buff, sizeof(warn_buff),
@@ -17944,20 +17950,22 @@ static int copy_data_between_tables(
   qep_tab.set_table(from);
   /* Tell handler that we have values for all columns in the to table */
   to->use_all_columns();
-  if (order) {
+  if (order != nullptr) {
     TABLE_LIST tables;
     tables.table = from;
     tables.alias = tables.table_name = from->s->table_name.str;
     tables.db = from->s->db.str;
     error = 1;
 
-    Column_privilege_tracker column_privilege(thd, SELECT_ACL);
-
-    if (select_lex->setup_base_ref_items(thd))
-      goto err; /* purecov: inspected */
-    mem_root_deque<Item *> fields(thd->mem_root);
-    if (setup_order(thd, select_lex->base_ref_items, &tables, &fields, order))
-      goto err;
+    if (!unit->is_prepared()) {
+      Column_privilege_tracker column_privilege(thd, SELECT_ACL);
+      if (select->setup_base_ref_items(thd)) {
+        goto err; /* purecov: inspected */
+      }
+      mem_root_deque<Item *> fields(thd->mem_root);
+      if (setup_order(thd, select->base_ref_items, &tables, &fields, order))
+        goto err;
+    }
     fsort.reset(new (thd->mem_root) Filesort(
         thd, {from}, /*keep_buffers=*/false, order, HA_POS_ERROR,
         /*force_stable_sort=*/false, /*remove_duplicates=*/false,
@@ -17965,6 +17973,8 @@ static int copy_data_between_tables(
     path = NewSortAccessPath(thd, path, fsort.get(),
                              /*count_examined_rows=*/false);
   }
+
+  if (!unit->is_prepared()) unit->set_prepared();
 
   iterator = CreateIteratorFromAccessPath(thd, path, /*join=*/nullptr,
                                           /*eligible_for_batch_mode=*/true);
