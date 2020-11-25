@@ -364,29 +364,29 @@ insert into t2 values('AAA','AAA','AA','AME');
 select * from t1;
 a1	a2	a3	a4	a5
 AME	0	SEA	0.1	1942-02-19
-HBR	1	SEA	0.085	1948-03-05
-BOT	2	SEA	0.085	1951-11-29
-BMC	3	SEA	0.085	1958-09-08
-TWU	0	LAX	0.08	1969-10-05
 BDL	0	DEN	0.08	1960-11-27
+BMC	3	SEA	0.085	1958-09-08
+BOT	2	SEA	0.085	1951-11-29
 DTX	1	NYC	0.08	1961-05-04
-PLS	1	WDC	0.075	1949-01-02
-ZAJ	2	CHI	0.075	1960-06-15
-VVV	2	MIN	0.075	1959-06-28
 GTM	3	DAL	0.07	1977-09-23
-SSJ	NULL	CHI	NULL	1974-03-19
+HBR	1	SEA	0.085	1948-03-05
 KKK	3	ATL	NULL	NULL
-XXX	NULL	MIN	NULL	NULL
+PLS	1	WDC	0.075	1949-01-02
+SSJ	NULL	CHI	NULL	1974-03-19
+TWU	0	LAX	0.08	1969-10-05
+VVV	2	MIN	0.075	1959-06-28
 WWW	1	LED	NULL	NULL
+XXX	NULL	MIN	NULL	NULL
+ZAJ	2	CHI	0.075	1960-06-15
 select * from t2;
 a1	a2	a3	a4
-TKF	Seattle	WA	AME
-LCC	Los Angeles	CA	TWU
-DEN	Denver	CO	BDL
-SDC	San Diego	CA	TWU
-NOL	New Orleans	LA	GTM
-LAK	Los Angeles	CA	TWU
 AAA	AAA	AA	AME
+DEN	Denver	CO	BDL
+LAK	Los Angeles	CA	TWU
+LCC	Los Angeles	CA	TWU
+NOL	New Orleans	LA	GTM
+SDC	San Diego	CA	TWU
+TKF	Seattle	WA	AME
 explain 
 select min(a1) from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -678,26 +678,26 @@ AME	AME
 explain 
 select min(a1) from t1 where a1 > 'KKK' or a1 < 'XXX';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	12	NULL	15	55.55	Using where; Using index
+1	SIMPLE	t1	NULL	index	PRIMARY	k1	16	NULL	15	55.55	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t1`.`a1`) AS `min(a1)` from `test`.`t1` where ((`test`.`t1`.`a1` > 'KKK') or (`test`.`t1`.`a1` < 'XXX'))
 explain 
 select min(a1) from t1 where a1 != 'KKK';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	12	NULL	15	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	PRIMARY	k1	16	NULL	15	93.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t1`.`a1`) AS `min(a1)` from `test`.`t1` where (`test`.`t1`.`a1` <> 'KKK')
 explain
 select max(a3) from t1 where a2 < 2 and a3 < 'SEA';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	k1	k1	3	NULL	6	33.33	Using where; Using index
+1	SIMPLE	t1	NULL	range	k1	k1	3	NULL	7	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select max(`test`.`t1`.`a3`) AS `max(a3)` from `test`.`t1` where ((`test`.`t1`.`a2` < 2) and (`test`.`t1`.`a3` < 'SEA'))
 explain
 select max(t1.a3), min(t2.a2) from t1, t2 where t1.a2 = 2 and t1.a3 < 'MIN' and t2.a3 > 'CA';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	k1	k1	16	NULL	1	100.00	Using where; Using index
-1	SIMPLE	t2	NULL	range	k1	k1	9	NULL	4	100.00	Using where; Using index; Using join buffer (hash join)
+1	SIMPLE	t2	NULL	range	k1	k1	9	NULL	3	100.00	Using where; Using index; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select max(`test`.`t1`.`a3`) AS `max(t1.a3)`,min(`test`.`t2`.`a2`) AS `min(t2.a2)` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a2` = 2) and (`test`.`t1`.`a3` < 'MIN') and (`test`.`t2`.`a3` > 'CA'))
 explain
@@ -739,7 +739,7 @@ Note	1003	/* select#1 */ select min(`test`.`t1`.`a2`) AS `min(a2)` from `test`.`
 explain
 select min(a1) from t1  where a1 between a3 and 'KKK';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	15	11.11	Using where
+1	SIMPLE	t1	NULL	index	PRIMARY	k1	16	NULL	15	11.11	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t1`.`a1`) AS `min(a1)` from `test`.`t1` where (`test`.`t1`.`a1` between `test`.`t1`.`a3` and 'KKK')
 explain
@@ -752,7 +752,7 @@ explain
 select concat(min(t1.a1),min(t2.a4)) from t1, t2 where t2.a4 <> 'AME';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	range	k2	k2	13	NULL	6	100.00	Using where; Using index
-1	SIMPLE	t1	NULL	index	NULL	PRIMARY	12	NULL	15	100.00	Using index; Using join buffer (hash join)
+1	SIMPLE	t1	NULL	index	NULL	k1	16	NULL	15	100.00	Using index; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select concat(min(`test`.`t1`.`a1`),min(`test`.`t2`.`a4`)) AS `concat(min(t1.a1),min(t2.a4))` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a4` <> 'AME')
 drop table t1, t2;
@@ -772,21 +772,21 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(1) CHARACTER SET latin2 COLLATE latin2_general_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 create table t2 select max(a),min(a) from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `max(a)` char(1) CHARACTER SET latin2 DEFAULT NULL,
   `min(a)` char(1) CHARACTER SET latin2 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2;
 create table t2 select concat(a) from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `concat(a)` varchar(1) CHARACTER SET latin2 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2,t1;
 create table t1 (a int);
 insert into t1 values (1);
@@ -881,7 +881,7 @@ show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `MAX(b)` datetime DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1(f1 datetime);
@@ -940,6 +940,9 @@ aa
 DROP TABLE t1;
 CREATE TABLE t1 (id int PRIMARY KEY, b char(16), INDEX(b(4)));
 INSERT INTO t1 VALUES (1, 'xxxxbbbb'), (2, 'xxxxaaaa');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT MAX(b) FROM t1;
 MAX(b)
 xxxxbbbb
@@ -956,6 +959,9 @@ INSERT INTO t1 VALUES
 SELECT MAX(b) FROM t1;
 MAX(b)
 __________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________zz
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT MAX(b) FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
@@ -1129,14 +1135,14 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `variance(0)` double DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 select stddev(0);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `stddev(0)` double DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table bug22555 (i smallint primary key auto_increment, s1 smallint, s2 smallint, e decimal(30,10), o double);
 insert into bug22555 (s1, s2, e, o) values (53, 78, 11.4276528, 6.828112), (17, 78, 5.916793, 1.8502951), (18, 76, 2.679231, 9.17975591), (31, 62, 6.07831, 0.1), (19, 41, 5.37463, 15.1), (83, 73, 14.567426, 7.959222), (92, 53, 6.10151, 13.1856852), (7, 12, 13.92272, 3.442007), (92, 35, 11.95358909, 6.01376678), (38, 84, 2.572, 7.904571);
@@ -1453,7 +1459,7 @@ CREATE TABLE t2( a INT, b INT, c INT, KEY(a, b) );
 INSERT INTO t2 ( a, b, c ) VALUES ( 1, NULL, 2 ), ( 1, 3, 4 ), ( 1, 4, 4 );
 EXPLAIN SELECT MIN(b), MIN(c) FROM t2 WHERE a = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	a	a	5	const	2	100.00	NULL
+1	SIMPLE	t2	NULL	ref	a	a	5	const	3	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t2`.`b`) AS `MIN(b)`,min(`test`.`t2`.`c`) AS `MIN(c)` from `test`.`t2` where (`test`.`t2`.`a` = 1)
 SELECT MIN(b), MIN(c) FROM t2 WHERE a = 1;
@@ -1626,6 +1632,9 @@ ORDER BY max;
 max	i
 3	#
 
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN
 SELECT MAX(pk) as max, i
 FROM t1

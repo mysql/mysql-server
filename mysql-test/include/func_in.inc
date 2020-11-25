@@ -396,6 +396,7 @@ DROP TABLE t1;
 #
 create table t1(f1 char(1));
 insert into t1 values ('a'),('b'),('1');
+ANALYZE TABLE t1;
 --sorted_result
 select f1 from t1 where f1 in ('a',1);
 select f1, case f1 when 'a' then '+' when 1 then '-' end from t1;
