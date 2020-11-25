@@ -107,18 +107,28 @@ static int ndb_get_password_read_line_from_tty(int fd_in,
   tcsetattr(fd_in, TCSADRAIN, &new_mode);
 #endif
 
+  int ret = 0;
   if (fd_out != -1)
   {
     if (prompt == nullptr) prompt = "Enter password: ";
-    write(fd_out, prompt, strlen(prompt));
+    if (write(fd_out, prompt, strlen(prompt)) == -1)
+    {
+      ret = static_cast<int>(ndb_get_password_error::system_error);
+    }
   }
 
-  int ret = ndb_get_password_read_line(fd_in, buf, size);
+  if (ret == 0)
+  {
+    ret = ndb_get_password_read_line(fd_in, buf, size);
+  }
 
 #if defined(_WIN32)
   if (fd_out != -1)
   {
-    write(fd_out, "\n", 1);
+    if (write(fd_out, "\n", 1) == -1 && ret >= 0)
+    {
+      ret = static_cast<int>(ndb_get_password_error::system_error);
+    }
   }
   SetConsoleMode(hin, old_mode);
 #else
