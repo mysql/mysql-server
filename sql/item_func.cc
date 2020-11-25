@@ -7806,7 +7806,7 @@ longlong Item_func_row_count::val_int() {
 Item_func_sp::Item_func_sp(const POS &pos, const LEX_STRING &db_name,
                            const LEX_STRING &fn_name, bool use_explicit_name,
                            PT_item_list *opt_list)
-    : Item_func(pos, opt_list), m_sp(nullptr), sp_result_field(nullptr) {
+    : Item_func(pos, opt_list) {
   /*
     Set to false here, which is the default according to SQL standard.
     RETURNS NULL ON NULL INPUT can be implemented by modifying this member.
@@ -7881,7 +7881,7 @@ table_map Item_func_sp::get_initial_pseudo_tables() const {
             Due to bug#26422182, a function cannot be executed before tables
             are locked, even though it accesses no tables.
   */
-  return m_sp->m_chistics->detistic ? INNER_TABLE_BIT : RAND_TABLE_BIT;
+  return m_deterministic ? INNER_TABLE_BIT : RAND_TABLE_BIT;
 }
 
 static void my_missing_function_error(const LEX_STRING &token,
@@ -7919,11 +7919,14 @@ bool Item_func_sp::init_result_field(THD *thd) {
 
   Internal_error_handler_holder<View_error_handler, TABLE_LIST> view_handler(
       thd, context->view_error_handler, context->view_error_handler_arg);
-  if (!(m_sp = sp_setup_routine(thd, enum_sp_type::FUNCTION, m_name,
-                                &thd->sp_func_cache))) {
+  m_sp = sp_find_routine(thd, enum_sp_type::FUNCTION, m_name,
+                         &thd->sp_func_cache, true);
+  if (m_sp == nullptr) {
     my_missing_function_error(m_name->m_name, m_name->m_qname.str);
     return true;
   }
+
+  m_deterministic = m_sp->m_chistics->detistic;
 
   /*
      A Field need to be attached to a Table.
@@ -7999,6 +8002,18 @@ bool Item_func_sp::execute() {
 
   Internal_error_handler_holder<View_error_handler, TABLE_LIST> view_handler(
       thd, context->view_error_handler, context->view_error_handler_arg);
+
+  // Bind to an instance of the stored function:
+  if (m_sp == nullptr) {
+    m_sp = sp_setup_routine(thd, enum_sp_type::FUNCTION, m_name,
+                            &thd->sp_func_cache);
+    if (m_sp == nullptr) return true;
+    if (sp_result_field != nullptr) {
+      assert(sp_result_field->table->in_use == nullptr);
+      sp_result_field->table->in_use = thd;
+    }
+  }
+
   /* Execute function and store the return value in the field. */
 
   if (execute_impl(thd)) {
@@ -8045,7 +8060,7 @@ bool Item_func_sp::execute_impl(THD *thd) {
     statement-based replication (SBR) is active.
   */
 
-  if (!m_sp->m_chistics->detistic && !trust_function_creators &&
+  if (!m_deterministic && !trust_function_creators &&
       (access == SP_CONTAINS_SQL || access == SP_MODIFIES_SQL_DATA) &&
       (mysql_bin_log.is_open() &&
        thd->variables.binlog_format == BINLOG_FORMAT_STMT)) {
@@ -8203,6 +8218,9 @@ bool Item_func_sp::fix_fields(THD *thd, Item **ref) {
     m_sp->m_security_ctx.restore_security_context(thd, save_security_context);
   }
 
+  // Cleanup immediately, thus execute() will always attach to the routine.
+  cleanup();
+
   return false;
 }
 
@@ -8216,19 +8234,6 @@ void Item_func_sp::update_used_tables() {
 void Item_func_sp::fix_after_pullout(SELECT_LEX *parent_select,
                                      SELECT_LEX *removed_select) {
   Item_func::fix_after_pullout(parent_select, removed_select);
-}
-
-void Item_func_sp::bind_fields() {
-  if (!fixed) return;
-  assert(m_sp == nullptr);
-  THD *thd = current_thd;
-  m_sp = sp_setup_routine(thd, enum_sp_type::FUNCTION, m_name,
-                          &thd->sp_func_cache);
-  assert(m_sp != nullptr);
-  if (sp_result_field != nullptr) {
-    assert(sp_result_field->table->in_use == nullptr);
-    sp_result_field->table->in_use = thd;
-  }
 }
 
 /*

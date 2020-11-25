@@ -1222,7 +1222,7 @@ select * from v1|
 # And what will happen if we have recursion which involves
 # views and functions ?
 create function f1() returns int
-  return (select sum(data) from t1) + (select sum(data) from v1)|
+  return (select sum(data) from t1) + (select sum(a) from v1)|
 --error ER_SP_NO_RECURSION
 select f1()|
 --error ER_SP_NO_RECURSION
@@ -9982,3 +9982,22 @@ CALL test();
 CALL test();
 DROP PROCEDURE test;
 DROP TABLE foo;
+
+--echo # Bug#31731334: m_sp != nullptr' at Item_func_sp::bind_fields in sql/item_func.cc
+
+DELIMITER //;
+CREATE FUNCTION f1 (i INTEGER) RETURNS INTEGER
+BEGIN
+  IF i = 0 THEN
+   RETURN 0;
+  END IF;
+  RETURN f2();
+END //
+CREATE FUNCTION f2 () RETURNS INTEGER
+ RETURN f1(0) //
+DELIMITER ;//
+SELECT f2();
+--error ER_SP_NO_RECURSION
+SELECT f1(1);
+DROP FUNCTION f1;
+DROP FUNCTION f2;

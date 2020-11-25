@@ -3792,13 +3792,15 @@ class Item_func_sp final : public Item_func {
   typedef Item_func super;
 
  private:
-  Name_resolution_context *context;
-  sp_name *m_name;
-  sp_head *m_sp;
-  /*
-     The result field of the concrete stored function.
-  */
-  Field *sp_result_field;
+  Name_resolution_context *context{nullptr};
+  /// The name of the stored function
+  sp_name *m_name{nullptr};
+  /// Pointer to actual function instance (null when not resolved or executing)
+  sp_head *m_sp{nullptr};
+  /// The result field of the concrete stored function.
+  Field *sp_result_field{nullptr};
+  /// @true when function execution is deterministic
+  bool m_deterministic{false};
 
   bool execute();
   bool execute_impl(THD *thd);
@@ -3824,8 +3826,6 @@ class Item_func_sp final : public Item_func {
   void cleanup() override;
 
   const char *func_name() const override;
-
-  void bind_fields() override;
 
   Field *tmp_table_field(TABLE *t_arg) override;
 

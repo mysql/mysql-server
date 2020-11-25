@@ -1047,7 +1047,7 @@ drop function f1|
 select * from v1|
 ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 create function f1() returns int
-return (select sum(data) from t1) + (select sum(data) from v1)|
+return (select sum(data) from t1) + (select sum(a) from v1)|
 select f1()|
 ERROR HY000: Recursive stored functions and triggers are not allowed.
 select * from v1|
@@ -8567,3 +8567,20 @@ CALL test();
 1
 DROP PROCEDURE test;
 DROP TABLE foo;
+# Bug#31731334: m_sp != nullptr' at Item_func_sp::bind_fields in sql/item_func.cc
+CREATE FUNCTION f1 (i INTEGER) RETURNS INTEGER
+BEGIN
+IF i = 0 THEN
+RETURN 0;
+END IF;
+RETURN f2();
+END //
+CREATE FUNCTION f2 () RETURNS INTEGER
+RETURN f1(0) //
+SELECT f2();
+f2()
+0
+SELECT f1(1);
+ERROR HY000: Recursive stored functions and triggers are not allowed.
+DROP FUNCTION f1;
+DROP FUNCTION f2;
