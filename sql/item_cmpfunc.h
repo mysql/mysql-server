@@ -2130,7 +2130,7 @@ class Item_func_isnull : public Item_bool_func {
 
  protected:
   bool cache_used = false;
-  longlong cached_value;
+  bool cached_value;
 
  public:
   Item_func_isnull(Item *a) : super(a) { null_on_null = false; }

@@ -140,3 +140,13 @@ eval EXPLAIN $query;
 eval $query;
 
 DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug #32171239: HYPERGRAPH: ASSERTION `!(USED_TABS & (~READ_TABLES & ~FILTER_FOR_TABLE))' FAILED.
+--echo #
+
+# The XOR is to make sure the IS NULL condition is not optimized away straight
+# away, but instead gets to the point where we want to estimate its selectivity.
+CREATE TABLE t1 (a INTEGER NOT NULL);
+SELECT 1 FROM t1 WHERE (a IS NULL) XOR (RAND() > 2.0);
+DROP TABLE t1;

@@ -5875,7 +5875,7 @@ void Item_func_isnull::update_used_tables() {
   cache_used = false;
   if (!args[0]->is_nullable()) {
     used_tables_cache = 0;
-    cached_value = 0;
+    cached_value = false;
     cache_used = true;
   } else {
     args[0]->update_used_tables();
@@ -5885,7 +5885,7 @@ void Item_func_isnull::update_used_tables() {
 
     // If const, remember if value is always NULL or never NULL
     if (const_item()) {
-      cached_value = (longlong)args[0]->is_null();
+      cached_value = args[0]->is_null();
       cache_used = true;
     }
   }
@@ -5900,6 +5900,10 @@ float Item_func_isnull::get_filtering_effect(THD *thd,
                                              table_map read_tables,
                                              const MY_BITMAP *fields_to_ignore,
                                              double rows_in_table) {
+  if (cache_used) {
+    return cached_value ? COND_FILTER_ALLPASS : 0.0f;
+  }
+
   const Item_field *fld =
       contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
   if (!fld) return COND_FILTER_ALLPASS;
@@ -6049,7 +6053,7 @@ void Item_is_not_null_test::update_used_tables() {
   used_tables_cache = initial_pseudo_tables;
   cache_used = false;
   if (!args[0]->is_nullable()) {
-    cached_value = 1;
+    cached_value = true;
     cache_used = true;
     return;
   }

@@ -130,3 +130,10 @@ Note	1003	/* select#1 */ select `test`.`t3`.`pk` AS `pk`,`test`.`t1`.`pk` AS `pk
 select * from t3, t1 where (t1.col_date_key is null) is true;
 pk	pk	col_int_key	col_date_key
 DROP TABLE t1,t2,t3;
+#
+# Bug #32171239: HYPERGRAPH: ASSERTION `!(USED_TABS & (~READ_TABLES & ~FILTER_FOR_TABLE))' FAILED.
+#
+CREATE TABLE t1 (a INTEGER NOT NULL);
+SELECT 1 FROM t1 WHERE (a IS NULL) XOR (RAND() > 2.0);
+1
+DROP TABLE t1;
