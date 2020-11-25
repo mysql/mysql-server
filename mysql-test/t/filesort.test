@@ -122,3 +122,18 @@ EXPLAIN FORMAT=tree SELECT * FROM
   ORDER BY t1.f2;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #32169770: HYPERGRAPH: ASSERTION `M_PART_INFO->IS_PARTITION_USED(M_LAST_PART)' FAILED.
+--echo #
+
+# The LONGTEXT is to force a sort by row ID.
+# The ... ON FALSE condition is to make sure the Read() call never
+# hits the partitioned table, so that it isn't properly initialized
+# when filesort wants row IDs.
+
+CREATE TABLE t1 (a LONGTEXT);
+INSERT INTO t1 VALUES ('a');
+CREATE TABLE t2 (a INTEGER PRIMARY KEY) PARTITION BY key() PARTITIONS 2;
+SELECT 1 AS a FROM t1 LEFT JOIN t2 ON FALSE GROUP BY a;
+DROP TABLE t1, t2;

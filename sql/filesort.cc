@@ -999,6 +999,9 @@ static ha_rows read_all_rows(
     // Note where we are, for the case where we are not using addon fields.
     if (!param->using_addon_fields()) {
       for (TABLE *table : tables) {
+        if (!can_call_position(table)) {
+          continue;
+        }
         if (table->pos_in_table_list == nullptr ||
             (table->pos_in_table_list->map() & tables_to_get_rowid_for)) {
           table->file->position(table->record[0]);
