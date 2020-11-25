@@ -3297,7 +3297,7 @@ class Item : public Parse_tree_node {
     JSON column.
 
     For example, the expression `JSON_REPLACE(col, '$.foo', 'bar')`
-    can be used to partially update the column `foo`.
+    can be used to partially update the column `col`.
 
     @param field  the JSON column that is being updated
     @return true if this expression can be used for partial update,

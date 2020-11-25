@@ -206,7 +206,7 @@ SELECT  json_extract(j1, '$[1]') FROM view_tab;
 let $sql_to_do= UPDATE view_tab SET j1 = JSON_REPLACE(j1, '$[1]', concat('Repview',@chars128));
 --source suite/innodb/include/explain_then_rollback_and_commit.inc
 
---echo # Show Reviewp
+--echo # Show Repview
 SELECT json_extract(j1, '$[1]') FROM view_tab;
 
 ANALYZE TABLE tab;
