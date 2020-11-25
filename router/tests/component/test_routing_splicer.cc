@@ -520,10 +520,10 @@ const SplicerFailParam splicer_fail_params[] = {
                    ::testing::Contains(::testing::HasSubstr(
                        "setting server_ssl_curves=not-a-curve failed")));
 #else
-       ASSERT_THAT(output_lines,
-                   ::testing::Contains(::testing::HasSubstr(
-                       "setting client_ssl_curves is not supported by the ssl "
-                       "library, it should stay unset")));
+       ASSERT_THAT(output_lines, ::testing::Contains(::testing::HasSubstr(
+                                     "setting server_ssl_curves=not-a-curve is "
+                                     "not supported by the ssl "
+                                     "library, it should stay unset")));
 #endif
      }},
     {"server_crl_bad",  // RT2_CRL_BAD_02

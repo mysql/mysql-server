@@ -295,6 +295,13 @@ static std::vector<std::string> build_exec_args(
     args.emplace_back(valgrind_exe ? valgrind_exe : "valgrind");
     args.emplace_back("--error-exitcode=77");
     args.emplace_back("--quiet");
+#if 0
+    args.emplace_back("--leak-check=full");
+    args.emplace_back("--show-leak-kinds=all");
+    // when debugging mem-leaks reported by ASAN, it can help to use valgrind
+    // instead and enable these options.
+    args.emplace_back("--errors-for-leak-kinds=all");
+#endif
   }
 
   args.emplace_back(mysqlrouter_exec);

@@ -84,11 +84,14 @@ add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   metadata_cache
   mock_server
   mysql_server_mock
+  mysqlrouter_passwd
   mysqlrouter
   rest_api
   rest_metadata_cache
   rest_router
   rest_routing
+  router_openssl
+  router_protobuf
   routing
   routertestplugin_logger
   )
@@ -120,6 +123,8 @@ add_router_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   rest_metadata_cache
   rest_router
   rest_routing
+  router_openssl
+  router_protobuf
   routing
   )
 ENDFOREACH()

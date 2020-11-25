@@ -638,9 +638,12 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   }
 }
 
-const static std::array<const char *, 2> required = {{
+const static std::array<const char *, 3> required = {{
     "logger",
     "router_openssl",
+    // as long as this plugin links against http_auth_backend_lib which links
+    // against metadata_cache there is a need to cleanup protobuf
+    "router_protobuf",
 }};
 
 extern "C" {
