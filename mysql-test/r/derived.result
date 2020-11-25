@@ -4570,3 +4570,28 @@ SELECT * FROM t1 LEFT JOIN ( SELECT 1 FROM t1 ) d1 ON TRUE ORDER BY a;
 a	1
 123	1
 DROP TABLE t1;
+#
+# Bug #32164724: HYPERGRAPH: ASSERTION `PATH->COST >= PATH->INIT_COST' FAILED.
+#
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1);
+SET sql_mode="";
+SELECT (
+SELECT 1 FROM (
+SELECT avg(1) FROM t1
+WHERE dayofyear(1) AND max(1)
+) d1
+GROUP BY a
+) FROM t1;
+(
+SELECT 1 FROM (
+SELECT avg(1) FROM t1
+WHERE dayofyear(1) AND max(1)
+) d1
+GROUP BY a
+)
+1
+Warnings:
+Warning	1292	Incorrect datetime value: '1'
+SET sql_mode=DEFAULT;
+DROP TABLE t1;

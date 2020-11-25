@@ -1074,6 +1074,9 @@ inline AccessPath *NewZeroRowsAggregatedAccessPath(THD *thd,
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::ZERO_ROWS_AGGREGATED;
   path->zero_rows_aggregated().cause = cause;
+  path->num_output_rows = 1.0;
+  path->cost = 0.0;
+  path->init_cost = 0.0;
   return path;
 }
 
