@@ -158,11 +158,11 @@ struct PSI_file_locker_state_v1 {
   /** Operation number of bytes. */
   size_t m_number_of_bytes;
   /** Timer start. */
-  unsigned long long m_timer_start;
+  unsigned long long m_timer_start{0ULL};
   /** Timer function. */
   unsigned long long (*m_timer)(void);
   /** Internal data. */
-  void *m_wait;
+  void *m_wait{nullptr};
 };
 typedef struct PSI_file_locker_state_v1 PSI_file_locker_state_v1;
 

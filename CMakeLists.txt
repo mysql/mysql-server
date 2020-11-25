@@ -608,7 +608,12 @@ IF(WIN32)
   OPTION(WITH_MSCRT_DEBUG "MS Visual Studio Debug CRT instrumentation" OFF)
 ENDIF()
 IF(NOT WITHOUT_SERVER)
-  OPTION(WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
+  IF(FPROFILE_GENERATE OR FPROFILE_USE)
+    # Do not use data from unit testing when optimizing.
+    OPTION(WITH_UNIT_TESTS "Compile MySQL with unit tests" OFF)
+  ELSE()
+    OPTION(WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
+  ENDIF()
   OPTION(WITH_ROUTER "Build MySQL Router" ON)
 ENDIF()
 

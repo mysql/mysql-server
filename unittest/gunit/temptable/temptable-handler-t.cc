@@ -89,7 +89,7 @@ class Handler_test : public testing::Test {
   handlerton m_temptable_handlerton;
 
   void init_handlerton() {
-    std::memset(&m_temptable_handlerton, 0, sizeof(m_temptable_handlerton));
+    m_temptable_handlerton = handlerton();
 
     m_temptable_handlerton.file_extensions = nullptr;
     m_temptable_handlerton.state = SHOW_OPTION_YES;

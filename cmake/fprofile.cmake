@@ -1,4 +1,4 @@
-# Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -35,21 +35,19 @@
 # in build-gen
 #   cmake <path to source> -DFPROFILE_GENERATE=1
 #   make
-#   rm -rf ../profile-data
 #   run whatever test suite is an appropriate training set
 # in build-use
 #   cmake <path to source> -DFPROFILE_USE=1
 #   make
 #
-# HowTo for gcc9:
+# HowTo for gcc9 and above:
 # Assuming we have two build directories
 #   <some path>/build
-#   <some path>/profile-data
+#   <some path>/build-profile-data
 #
 # in build
 #   cmake <path to source> -DFPROFILE_GENERATE=1
 #   make
-#   rm -rf ../profile-data
 #   run whatever test suite is an appropriate training set
 # now rename the build directory to something else, or simply 'rm -rf' it.
 # 'mkdir build' note: same name
@@ -66,7 +64,6 @@
 # in build-gen
 #   cmake <path to source> -DFPROFILE_GENERATE=1
 #   make
-#   rm -rf ../profile-data
 #   run whatever test suite is an appropriate training set
 # in profile-data
 #   llvm-profdata merge -output=default.profdata .
@@ -84,7 +81,16 @@ IF(NOT MY_COMPILER_IS_GNU_OR_CLANG)
   RETURN()
 ENDIF()
 
-SET(FPROFILE_DIR_DEFAULT "${CMAKE_BINARY_DIR}/../profile-data")
+IF(MY_COMPILER_IS_GNU)
+  IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
+    SET(FPROFILE_DIR_DEFAULT "${CMAKE_BINARY_DIR}/../profile-data")
+  ELSE()
+    SET(FPROFILE_DIR_DEFAULT "${CMAKE_BINARY_DIR}-profile-data")
+  ENDIF()
+ELSE()
+  SET(FPROFILE_DIR_DEFAULT "${CMAKE_BINARY_DIR}/../profile-data")
+ENDIF()
+
 IF(NOT DEFINED FPROFILE_DIR)
   SET(FPROFILE_DIR "${FPROFILE_DIR_DEFAULT}")
 ENDIF()

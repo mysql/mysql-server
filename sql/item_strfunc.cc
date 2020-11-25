@@ -3227,7 +3227,7 @@ String *Item_func_weight_string::val_str(String *str) {
 
   // Ask filesort what type it would sort this as. Currently, we support strings
   // and integers (the latter include temporal types).
-  st_sort_field sortorder;
+  st_sort_field sortorder = st_sort_field();
   sortorder.item = args[0];
   sortlength(current_thd, &sortorder, /*s_length=*/1);
   if (sortorder.result_type == INT_RESULT) {

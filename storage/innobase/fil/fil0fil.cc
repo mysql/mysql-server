@@ -2473,7 +2473,7 @@ fil_node_t *Fil_shard::create_node(const char *name, page_no_t size,
 
   file.space = space;
 
-  os_file_stat_t stat_info;
+  os_file_stat_t stat_info = os_file_stat_t();
 
 #ifdef UNIV_DEBUG
   dberr_t err =

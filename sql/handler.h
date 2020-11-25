@@ -2438,7 +2438,7 @@ struct handlerton {
   is_reserved_db_name_t is_reserved_db_name;
 
   /** Global handler flags. */
-  uint32 flags;
+  uint32 flags{0};
 
   /*
     Those handlerton functions below are properly initialized at handler

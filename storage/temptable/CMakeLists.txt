@@ -40,3 +40,9 @@ MYSQL_ADD_PLUGIN(temptable
   STORAGE_ENGINE
   MANDATORY
 )
+
+# Only used for debugging.
+MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  ADD_COMPILE_FLAGS(src/result.cc COMPILE_FLAGS "${HAS_WARN_FLAG}")
+ENDIF()

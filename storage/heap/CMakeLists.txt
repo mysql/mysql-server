@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,7 +21,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 SET(HEAP_SOURCES
-  _check.cc
+  # _check.cc only for debug, see below.
   _rectest.cc
   hp_block.cc
   hp_clear.cc
@@ -40,12 +40,15 @@ SET(HEAP_SOURCES
   hp_rnext.cc
   hp_rprev.cc
   hp_rrnd.cc
-  hp_rsame.cc
   hp_scan.cc
   hp_static.cc
   hp_update.cc
   hp_write.cc
   )
+
+IF(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
+  LIST(APPEND HEAP_SOURCES _check.cc)
+ENDIF()
 
 ADD_LIBRARY(heap_library STATIC ${HEAP_SOURCES})
 ADD_DEPENDENCIES(heap_library GenError)
@@ -57,9 +60,9 @@ MYSQL_ADD_PLUGIN(heap ha_heap.cc
   )
 
 IF(WITH_UNIT_TESTS)
-  MYSQL_ADD_EXECUTABLE(hp_test1 hp_test1.cc ADD_TEST hp_test1)
+  MYSQL_ADD_EXECUTABLE(hp_test1 hp_test1.cc _check.cc ADD_TEST hp_test1)
   TARGET_LINK_LIBRARIES(hp_test1 heap_library)
 
-  MYSQL_ADD_EXECUTABLE(hp_test2 hp_test2.cc ADD_TEST hp_test2)
+  MYSQL_ADD_EXECUTABLE(hp_test2 hp_test2.cc _check.cc hp_rsame.cc ADD_TEST hp_test2)
   TARGET_LINK_LIBRARIES(hp_test2 heap_library)
 ENDIF()
