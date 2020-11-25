@@ -127,6 +127,26 @@ SELECT user(), current_user();
 user()	current_user()
 a@localhost	a@%
 DROP USER a;
+CREATE USER a;
+GRANT CREATE USER ON *.* TO a;
+SELECT user(), current_user();
+user()	current_user()
+a@localhost	a@%
+RENAME USER a TO a@1;
+SELECT user(), current_user();
+user()	current_user()
+a@localhost	a@1
+DROP USER a@1;
+CREATE USER a;
+GRANT CREATE USER ON *.* TO a;
+SELECT user(), current_user();
+user()	current_user()
+a@localhost	a@%
+RENAME USER a TO b@1;
+SELECT user(), current_user();
+user()	current_user()
+b@localhost	b@1
+DROP USER b@1;
 # Proxy user
 CREATE USER a IDENTIFIED with 'mysql_native_password', b;
 GRANT CREATE USER ON *.* TO b;
