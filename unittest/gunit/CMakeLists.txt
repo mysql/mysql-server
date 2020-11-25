@@ -81,6 +81,9 @@ ADD_LIBRARY(gunit_small STATIC
 SET_TARGET_PROPERTIES(gunit_small
   PROPERTIES COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}"
 )
+IF(MY_COMPILER_IS_SUNPRO)
+  TARGET_COMPILE_OPTIONS(gunit_small PRIVATE $<$<CONFIG:RelWithDebInfo>:-xO4>)
+ENDIF()
 
 # Several "small" unit tests got 'missing symbol client_errors'
 # When building with Sun Studio

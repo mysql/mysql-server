@@ -291,6 +291,9 @@ FOREACH(googletest_library
   TARGET_INCLUDE_DIRECTORIES(${googletest_library} SYSTEM PUBLIC
     ${GMOCK_INCLUDE_DIRS}
     )
+  IF(MY_COMPILER_IS_SUNPRO)
+    TARGET_COMPILE_OPTIONS(${googletest_library} PRIVATE $<$<CONFIG:RelWithDebInfo>:-xO4>)
+  ENDIF()
 ENDFOREACH()
 
 IF(MY_COMPILER_IS_SUNPRO)
