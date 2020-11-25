@@ -112,12 +112,13 @@ constexpr double kMaterializeOneRowCost = 0.1;
 class CostingReceiver {
  public:
   CostingReceiver(
-      THD *thd, const JoinHypergraph &graph,
+      THD *thd, const JoinHypergraph &graph, bool need_rowid,
       uint64_t supported_access_path_types,
       secondary_engine_modify_access_path_cost_t secondary_engine_cost_hook,
       string *trace)
       : m_thd(thd),
         m_graph(graph),
+        m_need_rowid(need_rowid),
         m_supported_access_path_types(supported_access_path_types),
         m_secondary_engine_cost_hook(secondary_engine_cost_hook),
         m_trace(trace) {
@@ -161,6 +162,14 @@ class CostingReceiver {
 
   /// The graph we are running over.
   const JoinHypergraph &m_graph;
+
+  /// Whether we will be needing row IDs from our tables, typically for
+  /// a later sort. If this happens, derived tables cannot use streaming,
+  /// but need an actual materialization, since filesort expects to be
+  /// able to go back and ask for a given row. (This is different from
+  /// when we need row IDs for weedout, which doesn't preclude streaming.
+  /// The hypergraph optimizer does not use weedout.)
+  bool m_need_rowid;
 
   /// The supported access path types. Access paths of types not in
   /// this set should not be created. It is currently only used to
@@ -588,9 +597,9 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx) {
         // Handled in clear_corr_something_something, not here
         rematerialize = false;
       }
-      materialize_path =
-          GetAccessPathForDerivedTable(m_thd, tl, table, rematerialize,
-                                       /*invalidators=*/nullptr, path);
+      materialize_path = GetAccessPathForDerivedTable(
+          m_thd, tl, table, rematerialize,
+          /*invalidators=*/nullptr, m_need_rowid, path);
     }
 
     // TODO(sgunders): Take rematerialization cost into account,
@@ -1588,6 +1597,19 @@ AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
     }
   }
 
+  // Figure out if any later sort will need row IDs.
+  bool need_rowid = false;
+  if (select_lex->is_explicitly_grouped() || select_lex->is_ordered() ||
+      join->select_distinct) {
+    for (TABLE_LIST *tl = select_lex->leaf_tables; tl != nullptr;
+         tl = tl->next_leaf) {
+      if (SortWillBeOnRowId(tl->table)) {
+        need_rowid = true;
+        break;
+      }
+    }
+  }
+
   // Run the actual join optimizer algorithm. This creates an access path
   // for the join as a whole (with lowest possible cost, and thus also
   // hopefully optimal execution time), with all pushable predicates applied.
@@ -1599,7 +1621,8 @@ AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
   }
   const secondary_engine_modify_access_path_cost_t secondary_engine_cost_hook =
       SecondaryEngineCostHook(thd);
-  CostingReceiver receiver(thd, graph, SupportedAccessPathTypes(thd),
+  CostingReceiver receiver(thd, graph, need_rowid,
+                           SupportedAccessPathTypes(thd),
                            secondary_engine_cost_hook, trace);
   if (EnumerateAllConnectedPartitions(graph.graph, &receiver) &&
       !thd->is_error()) {

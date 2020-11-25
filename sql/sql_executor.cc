@@ -1450,14 +1450,15 @@ static bool IsTableScan(AccessPath *path) {
 
 AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
                                          AccessPath *table_path) {
-  return GetAccessPathForDerivedTable(thd, qep_tab->table_ref, qep_tab->table(),
-                                      qep_tab->rematerialize,
-                                      qep_tab->invalidators, table_path);
+  return GetAccessPathForDerivedTable(
+      thd, qep_tab->table_ref, qep_tab->table(), qep_tab->rematerialize,
+      qep_tab->invalidators, /*need_rowid=*/false, table_path);
 }
 
 AccessPath *GetAccessPathForDerivedTable(
     THD *thd, TABLE_LIST *table_ref, TABLE *table, bool rematerialize,
-    Mem_root_array<const AccessPath *> *invalidators, AccessPath *table_path) {
+    Mem_root_array<const AccessPath *> *invalidators, bool need_rowid,
+    AccessPath *table_path) {
   SELECT_LEX_UNIT *unit = table_ref->derived_unit();
   JOIN *subjoin = nullptr;
   Temp_table_param *tmp_table_param;
@@ -1509,7 +1510,7 @@ AccessPath *GetAccessPathForDerivedTable(
           /*send_records_override=*/nullptr);
     }
   } else if (table_ref->common_table_expr() == nullptr && rematerialize &&
-             IsTableScan(table_path)) {
+             IsTableScan(table_path) && !need_rowid) {
     // We don't actually need the materialization for anything (we would
     // just be reading the rows straight out from the table, never to be used
     // again), so we can just stream records directly over to the next

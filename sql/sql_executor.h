@@ -566,7 +566,8 @@ AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
                                          AccessPath *table_path);
 AccessPath *GetAccessPathForDerivedTable(
     THD *thd, TABLE_LIST *table_ref, TABLE *table, bool rematerialize,
-    Mem_root_array<const AccessPath *> *invalidators, AccessPath *table_path);
+    Mem_root_array<const AccessPath *> *invalidators, bool need_rowid,
+    AccessPath *table_path);
 
 void ConvertItemsToCopy(const mem_root_deque<Item *> &items, Field **fields,
                         Temp_table_param *param);

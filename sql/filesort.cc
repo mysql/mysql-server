@@ -2096,6 +2096,37 @@ uint sortlength(THD *thd, st_sort_field *sortorder, uint s_length) {
   return total_length;
 }
 
+bool SortWillBeOnRowId(TABLE *table) {
+  for (Field **pfield = table->field; *pfield != nullptr; ++pfield) {
+    Field *field = *pfield;
+    if (!bitmap_is_set(table->read_set, field->field_index())) continue;
+
+    // Having large blobs in addon fields could be very inefficient,
+    // but small blobs are OK (where “small” is a bit fuzzy, and relative
+    // to the size of the sort buffer). There are two types of small blobs:
+    //
+    //  - Those explicitly bounded to small lengths, namely tinyblob
+    //    (255 bytes) and blob (65535 bytes).
+    //  - Those that are _typically_ fairly small, which includes JSON and
+    //    geometries. We don't actually declare anywhere that they are
+    //    implemented using blobs under the hood, so it's not unreasonable to
+    //    demand that the user have large enough sort buffers for a few rows.
+    //    (If a user has multi-megabyte JSON rows and wishes to sort them,
+    //    they would usually have a fair bit of RAM anyway, since they'd need
+    //    that to hold the result set and process it in a reasonable fashion.)
+    //
+    // That leaves only mediumblob and longblob. If a user declares a field as
+    // one of those, it's reasonable for them to expect that sorting doesn't
+    // need to pull many of them up in memory, so we should stick to sorting
+    // row IDs.
+    if (field->type() == MYSQL_TYPE_BLOB &&
+        field->max_packed_col_length() > 70000u) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /**
   Get descriptors of fields appended to sorted fields and
   calculate their total length.
@@ -2146,34 +2177,14 @@ Addon_fields *Filesort::get_addon_fields(
     if (table->is_nullable()) {
       null_fields++;
     }
+    if (SortWillBeOnRowId(table)) {
+      DBUG_ASSERT(m_sort_param.addon_fields == nullptr);
+      *addon_fields_status = Addon_fields_status::row_contains_blob;
+      return nullptr;
+    }
     for (Field **pfield = table->field; *pfield != nullptr; ++pfield) {
       Field *field = *pfield;
       if (!bitmap_is_set(table->read_set, field->field_index())) continue;
-
-      // Having large blobs in addon fields could be very inefficient,
-      // but small blobs are OK (where “small” is a bit fuzzy, and relative
-      // to the size of the sort buffer). There are two types of small blobs:
-      //
-      //  - Those explicitly bounded to small lengths, namely tinyblob
-      //    (255 bytes) and blob (65535 bytes).
-      //  - Those that are _typically_ fairly small, which includes JSON and
-      //    geometries. We don't actually declare anywhere that they are
-      //    implemented using blobs under the hood, so it's not unreasonable to
-      //    demand that the user have large enough sort buffers for a few rows.
-      //    (If a user has multi-megabyte JSON rows and wishes to sort them,
-      //    they would usually have a fair bit of RAM anyway, since they'd need
-      //    that to hold the result set and process it in a reasonable fashion.)
-      //
-      // That leaves only mediumblob and longblob. If a user declares a field as
-      // one of those, it's reasonable for them to expect that sorting doesn't
-      // need to pull many of them up in memory, so we should stick to sorting
-      // row IDs.
-      if (field->type() == MYSQL_TYPE_BLOB &&
-          field->max_packed_col_length() > 70000u) {
-        DBUG_ASSERT(m_sort_param.addon_fields == nullptr);
-        *addon_fields_status = Addon_fields_status::row_contains_blob;
-        return nullptr;
-      }
 
       const uint field_length = field->max_packed_col_length();
       AddWithSaturate(field_length, &total_length);

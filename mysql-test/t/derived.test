@@ -3280,3 +3280,24 @@ SELECT (
 ) FROM t1;
 SET sql_mode=DEFAULT;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #32169846: HYPERGRAPH: ASSERTION `M_OPENED_TABLE != NULLPTR' FAILED.
+--echo #
+
+CREATE TABLE t1 (a LONGTEXT);
+INSERT INTO t1 VALUES ('');
+CREATE TABLE t2 (b INTEGER);
+INSERT INTO t2 VALUES (0);
+
+# The sort for GROUP BY needs to be on row ID due to the long blob in t1.
+# This is incompatible with streaming of d1, so we want to check that it
+# uses materialization instead. The rand() is there to force rematerialization
+# every time (otherwise, streaming is not considered). The inner GROUP BY
+# is there to preclude merging.
+SELECT 1 FROM t2, (
+  SELECT a, rand() FROM t1 GROUP BY a
+) d1
+GROUP BY b;
+
+DROP TABLE t1, t2;
