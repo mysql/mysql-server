@@ -128,11 +128,11 @@ create table test.t1 (
 --echo --------------------
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 STOP SLAVE;
-set global ndb_slave_conflict_role="PRIMARY";
+set global ndb_applier_conflict_role="PRIMARY";
 START SLAVE;
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 STOP SLAVE;
-set global ndb_slave_conflict_role="SECONDARY";
+set global ndb_applier_conflict_role="SECONDARY";
 START SLAVE;
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
@@ -586,7 +586,7 @@ if ($loop_count)
   --source suite/ndb_rpl/t/ndb_conflict_info_epoch2_init.inc
 
   # Switch Primary -> Secondary
-  set global ndb_slave_conflict_role="SECONDARY";
+  set global ndb_applier_conflict_role="SECONDARY";
   --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
   STOP SLAVE;
   # Reset exceptions table + counters on old primary
@@ -594,7 +594,7 @@ if ($loop_count)
   --source suite/ndb_rpl/t/ndb_conflict_info_epoch2_init.inc
   
   # Switch Secondary -> Primary
-  set global ndb_slave_conflict_role="PRIMARY";
+  set global ndb_applier_conflict_role="PRIMARY";
   
   # TODO : Make it work for more iterations that 1 + 0
   let $switchroles=query_get_value('SELECT $loop_count %2 as odd', odd, 1);
@@ -648,14 +648,14 @@ if ($loop_count)
 --echo Lets set it up
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 STOP SLAVE;
-set global ndb_slave_conflict_role="NONE";
-set global ndb_slave_conflict_role="PASS";
+set global ndb_applier_conflict_role="NONE";
+set global ndb_applier_conflict_role="PASS";
 --source suite/ndb_rpl/t/ndb_conflict_info_epoch2_init.inc
 START SLAVE;
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 STOP SLAVE;
-set global ndb_slave_conflict_role="NONE";
-set global ndb_slave_conflict_role="PASS";
+set global ndb_applier_conflict_role="NONE";
+set global ndb_applier_conflict_role="PASS";
 --source suite/ndb_rpl/t/ndb_conflict_info_epoch2_init.inc
 START SLAVE;
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
@@ -807,13 +807,13 @@ delete from test.t1 where k in (3, 6);
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 STOP SLAVE;
-set global ndb_slave_conflict_role="NONE";
-set global ndb_slave_conflict_role="PRIMARY";
+set global ndb_applier_conflict_role="NONE";
+set global ndb_applier_conflict_role="PRIMARY";
 START SLAVE;
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 STOP SLAVE;
-set global ndb_slave_conflict_role="NONE";
-set global ndb_slave_conflict_role="SECONDARY";
+set global ndb_applier_conflict_role="NONE";
+set global ndb_applier_conflict_role="SECONDARY";
 START SLAVE;
 
 --echo Test ndb_conflict_last_stable_epoch
@@ -947,11 +947,11 @@ SELECT (@ndb_last_stable_epoch+0) = (@ndb_max_replicated_epoch+0) AS STABLE_EPOC
 --echo --------------------
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 STOP SLAVE;
-set global ndb_slave_conflict_role="NONE";
+set global ndb_applier_conflict_role="NONE";
 START SLAVE;
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 STOP SLAVE;
-set global ndb_slave_conflict_role="NONE";
+set global ndb_applier_conflict_role="NONE";
 START SLAVE;
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 

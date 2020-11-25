@@ -5,7 +5,9 @@
 
 if ($extended_exceptions_table)
 {
-call mtr.add_suppression("NDB Slave: exceptions table .* has suspicious definition .*");
+--disable_query_log
+call mtr.add_suppression("NDB Replica: exceptions table .* has suspicious definition .*");
+--enable_query_log
 }
 
 if (!$extended_exceptions_table)

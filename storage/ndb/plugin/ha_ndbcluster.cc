@@ -476,14 +476,14 @@ static int check_slave_config() {
 
   if (ndb_get_number_of_channels() > 1) {
     ndb_log_error(
-        "NDB Slave: Configuration with number of replication "
-        "masters = %u is not supported when applying to NDB",
+        "NDB Replica: Configuration with number of replication "
+        "sources = %u is not supported when applying to NDB",
         ndb_get_number_of_channels());
     return HA_ERR_UNSUPPORTED;
   }
   if (ndb_mi_get_slave_parallel_workers() > 0) {
     ndb_log_error(
-        "NDB Slave: Configuration 'slave_parallel_workers = %lu' is "
+        "NDB Replica: Configuration 'slave_parallel_workers = %lu' is "
         "not supported when applying to NDB",
         ndb_mi_get_slave_parallel_workers());
     return HA_ERR_UNSUPPORTED;
@@ -590,8 +590,8 @@ static int check_slave_state(THD *thd) {
 
       if (ndb_error.code != 0) {
         ndb_log_warning(
-            "NDB Slave: Could not determine maximum replicated "
-            "epoch from '%s.%s' at Slave start, error %u %s",
+            "NDB Replica: Could not determine maximum replicated "
+            "epoch from '%s.%s' at Replica start, error %u %s",
             Ndb_apply_status_table::DB_NAME.c_str(),
             Ndb_apply_status_table::TABLE_NAME.c_str(), ndb_error.code,
             ndb_error.message);
@@ -604,8 +604,8 @@ static int check_slave_state(THD *thd) {
       */
       g_ndb_slave_state.max_rep_epoch = highestAppliedEpoch;
       ndb_log_info(
-          "NDB Slave: MaxReplicatedEpoch set to %llu (%u/%u) at "
-          "Slave start",
+          "NDB Replica: MaxReplicatedEpoch set to %llu (%u/%u) at "
+          "Replica start",
           g_ndb_slave_state.max_rep_epoch,
           (Uint32)(g_ndb_slave_state.max_rep_epoch >> 32),
           (Uint32)(g_ndb_slave_state.max_rep_epoch & 0xffffffff));
@@ -766,7 +766,10 @@ static SHOW_VAR ndb_status_vars_dynamic[] = {
 
 static SHOW_VAR ndb_status_vars_slave[] = {
     NDBAPI_COUNTERS("_slave", &g_slave_api_client_stats),
+    NDBAPI_COUNTERS("_replica", &g_slave_api_client_stats),
     {"slave_max_replicated_epoch", (char *)&g_ndb_slave_state.max_rep_epoch,
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+    {"replica_max_replicated_epoch", (char *)&g_ndb_slave_state.max_rep_epoch,
      SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
 
@@ -853,6 +856,7 @@ int ndb_to_mysql_error(const NdbError *ndberr) {
 }
 
 ulong opt_ndb_slave_conflict_role;
+ulong opt_ndb_applier_conflict_role;
 
 static int handle_conflict_op_error(NdbTransaction *trans, const NdbError &err,
                                     const NdbOperation *op);
@@ -4324,8 +4328,8 @@ int ha_ndbcluster::prepare_conflict_detection(
     Ndb_binlog_extra_row_info extra_row_info;
     if (extra_row_info.loadFromBuffer(thd->binlog_row_event_extra_data) != 0) {
       ndb_log_warning(
-          "NDB Slave: Malformed event received on table %s "
-          "cannot parse.  Stopping Slave.",
+          "NDB Replica: Malformed event received on table %s "
+          "cannot parse. Stopping SQL thread.",
           m_share->key_string());
       return ER_SLAVE_CORRUPT_EVENT;
     }
@@ -4371,9 +4375,9 @@ int ha_ndbcluster::prepare_conflict_detection(
       switch (opt_ndb_slave_conflict_role) {
         case SCR_NONE: {
           ndb_log_warning(
-              "NDB Slave: Conflict function %s defined on "
-              "table %s requires ndb_slave_conflict_role variable "
-              "to be set.  Stopping slave.",
+              "NDB Replica: Conflict function %s defined on "
+              "table %s requires ndb_applier_conflict_role variable "
+              "to be set. Stopping SQL thread.",
               conflict_fn->name, m_share->key_string());
           return ER_SLAVE_CONFIGURATION;
         }
@@ -4445,7 +4449,7 @@ int ha_ndbcluster::prepare_conflict_detection(
                (transaction_id ==
                 Ndb_binlog_extra_row_info::InvalidTransactionId))) {
     ndb_log_warning(
-        "NDB Slave: Transactional conflict detection defined on "
+        "NDB Replica: Transactional conflict detection defined on "
         "table %s, but events received without transaction ids.  "
         "Check --ndb-log-transaction-id setting on "
         "upstream Cluster.",
@@ -4549,7 +4553,7 @@ int ha_ndbcluster::prepare_conflict_detection(
       }
     } else {
       ndb_log_warning(
-          "NDB Slave: Binlog event on table %s missing "
+          "NDB Replica: Binlog event on table %s missing "
           "info necessary for conflict detection.  "
           "Check binlog format options on upstream cluster.",
           m_share->key_string());
@@ -7806,7 +7810,7 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
         */
         push_warning(thd, Sql_condition::SL_WARNING,
                      ER_SLAVE_SILENT_RETRY_TRANSACTION,
-                     "Slave transaction rollback requested");
+                     "Replica transaction rollback requested");
         /*
           Set retry count to zero to:
           1) Avoid consuming slave-temp-error retry attempts
@@ -7822,7 +7826,7 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
            too many retries mechanism will cause exit
          */
         ndb_log_error(
-            "Ndb slave retried transaction %u time(s) in vain.  "
+            "Ndb replica retried transaction %u time(s) in vain.  "
             "Giving up.",
             st_ndb_slave_state::MAX_RETRY_TRANS_COUNT);
       }
@@ -12200,7 +12204,7 @@ static int ndb_wait_setup_replication_applier(void *) {
   g_ndb_slave_state.applier_sql_thread_start = true;
   if (ndb_wait_setup_func(opt_ndb_wait_setup) != 0) {
     ndb_log_error(
-        "NDB Slave: Tables not available after %lu seconds. Consider "
+        "NDB Replica: Tables not available after %lu seconds. Consider "
         "increasing --ndb-wait-setup value",
         opt_ndb_wait_setup);
   }
@@ -12561,6 +12565,27 @@ static int ndbcluster_init(void *handlerton_ptr) {
 
   if (ndb_pfs_init()) {
     return ndbcluster_init_abort("Failed to init pfs");
+  }
+
+  // Mysql client not available. So, pusing the warning to log file
+  if (opt_ndb_slave_conflict_role != SCR_NONE) {
+    push_deprecated_warn(nullptr, "ndb_slave_conflict_role",
+                         "ndb_applier_conflict_role");
+  }
+
+  /*
+    If user sets both deprecated and new variable use
+    the value in new variable.
+  */
+  if (opt_ndb_applier_conflict_role != SCR_NONE) {
+    /*
+      new variable opt_ndb_applier_conflict_role is introduced only to identify
+      and report above deprecated warning during startup. And, the plugin code
+      only uses opt_ndb_slave_conflict_role internally. So, when ever
+      opt_ndb_applier_conflict_role is updated, opt_ndb_slave_conflict_role
+      needs to be set to the same value.
+    */
+    opt_ndb_slave_conflict_role = opt_ndb_applier_conflict_role;
   }
 
   ndbcluster_inited = 1;
@@ -17760,7 +17785,7 @@ static MYSQL_SYSVAR_BOOL(
     clear_apply_status,         /* name */
     opt_ndb_clear_apply_status, /* var  */
     PLUGIN_VAR_OPCMDARG,
-    "Whether RESET SLAVE will clear all entries in ndb_apply_status",
+    "Whether RESET REPLICA will clear all entries in ndb_apply_status",
     NULL, /* check func. */
     NULL, /* update func. */
     1     /* default */
@@ -17917,6 +17942,69 @@ static int slave_conflict_role_check_func(THD *thd, SYS_VAR *, void *save,
 }
 
 /**
+ * applier_conflict_role_check_func.
+ *
+ * Perform most validation of a role change request.
+ * Inspired by sql_plugin.cc::check_func_enum()
+ */
+static int applier_conflict_role_check_func(THD *thd, SYS_VAR *, void *save,
+                                            st_mysql_value *value) {
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  const char *str;
+  long result;
+  int length;
+
+  if (value->value_type(value) == MYSQL_VALUE_TYPE_STRING) {
+    length = sizeof(buff);
+    if (!(str = value->val_str(value, buff, &length))) return 1;
+    if ((result = static_cast<long>(
+             find_type(str, &slave_conflict_role_typelib, 0) - 1)) < 0)
+      return 1;
+  } else {
+    long long tmp;
+    if (value->val_int(value, &tmp)) return 1;
+    if (tmp < 0 ||
+        tmp >= static_cast<long long>(slave_conflict_role_typelib.count))
+      return 1;
+    result = static_cast<long>(tmp);
+  }
+
+  const char *failure_cause_str = nullptr;
+  if (!st_ndb_slave_state::checkSlaveConflictRoleChange(
+          (enum_slave_conflict_role)opt_ndb_applier_conflict_role,
+          (enum_slave_conflict_role)result, &failure_cause_str)) {
+    char msgbuf[256];
+    snprintf(
+        msgbuf, sizeof(msgbuf), "Role change from %s to %s failed : %s",
+        get_type(&slave_conflict_role_typelib, opt_ndb_applier_conflict_role),
+        get_type(&slave_conflict_role_typelib, result), failure_cause_str);
+
+    thd->raise_error_printf(ER_ERROR_WHEN_EXECUTING_COMMAND,
+                            "SET GLOBAL ndb_applier_conflict_role", msgbuf);
+
+    return 1;
+  }
+
+  /* Ok */
+  *(long *)save = result;
+  return 0;
+}
+
+/**
+ * applier_conflict_role_update_func
+ *
+ * Perform actual change of role, using saved 'long' enum value
+ * prepared by the update func above.
+ *
+ * Inspired by sql_plugin.cc::update_func_long()
+ */
+static void applier_conflict_role_update_func(THD *, SYS_VAR *, void *tgt,
+                                              const void *save) {
+  *(long *)tgt = *static_cast<const long *>(save);
+  opt_ndb_slave_conflict_role = *static_cast<const long *>(save);
+}
+
+/**
  * slave_conflict_role_update_func
  *
  * Perform actual change of role, using saved 'long' enum value
@@ -17924,20 +18012,43 @@ static int slave_conflict_role_check_func(THD *thd, SYS_VAR *, void *save,
  *
  * Inspired by sql_plugin.cc::update_func_long()
  */
-static void slave_conflict_role_update_func(THD *, SYS_VAR *, void *tgt,
+static void slave_conflict_role_update_func(THD *thd, SYS_VAR *, void *tgt,
                                             const void *save) {
+  push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
+                      ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX),
+                      "ndb_slave_conflict_role", "ndb_applier_conflict_role");
   *(long *)tgt = *static_cast<const long *>(save);
+  opt_ndb_applier_conflict_role = *static_cast<const long *>(save);
 }
 
 static MYSQL_SYSVAR_ENUM(
     slave_conflict_role,         /* Name */
     opt_ndb_slave_conflict_role, /* Var */
     PLUGIN_VAR_RQCMDARG,
-    "Role for Slave to play in asymmetric conflict algorithms.",
+    "Role for applier to play in asymmetric conflict algorithms. "
+    "This variable is deprecated and will be removed in a future release. Use "
+    "ndb_applier_conflict_role instead",
     slave_conflict_role_check_func,  /* Check func */
     slave_conflict_role_update_func, /* Update func */
     SCR_NONE,                        /* Default value */
     &slave_conflict_role_typelib     /* typelib */
+);
+
+/*
+  opt_ndb_applier_conflict_role is a hack and is used only to identify if the
+  user sets slave_conflict_role during startup. pugin code only uses
+  opt_ndb_slave_conflict_role. So, if one of the variables is changed then
+  other variable also need to be set to the same value.
+*/
+static MYSQL_SYSVAR_ENUM(
+    applier_conflict_role,         /* Name */
+    opt_ndb_applier_conflict_role, /* Var */
+    PLUGIN_VAR_RQCMDARG,
+    "Role for applier to play in asymmetric conflict algorithms.",
+    applier_conflict_role_check_func,  /* Check func */
+    applier_conflict_role_update_func, /* Update func */
+    SCR_NONE,                          /* Default value */
+    &slave_conflict_role_typelib       /* typelib */
 );
 
 #ifndef DBUG_OFF
@@ -18019,6 +18130,7 @@ static SYS_VAR *system_variables[] = {
     MYSQL_SYSVAR(version_string),
     MYSQL_SYSVAR(show_foreign_key_mock_tables),
     MYSQL_SYSVAR(slave_conflict_role),
+    MYSQL_SYSVAR(applier_conflict_role),
     MYSQL_SYSVAR(default_column_format),
     MYSQL_SYSVAR(metadata_check),
     MYSQL_SYSVAR(metadata_check_interval),

@@ -6,7 +6,6 @@ Note	####	Storing MySQL user name or password information in the master info rep
 use test;
 create table test.t1 (a int primary key, content varchar(1000)) engine=ndb;
 reset master;
-call mtr.add_suppression("NDB Slave: At SQL thread start applying epoch .*");
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
@@ -107,9 +106,6 @@ insert into test.t1 values (4 + 6, repeat('E', 1000));
 insert into test.t1 values (3 + 6, repeat('E', 1000));
 insert into test.t1 values (2 + 6, repeat('E', 1000));
 insert into test.t1 values (1 + 6, repeat('E', 1000));
-call mtr.add_suppression("NDB Slave: SQL thread stopped as applying epoch .*");
-call mtr.add_suppression("Slave SQL for channel '': Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
-call mtr.add_suppression("Slave: Got error 173 .*");
 Check that slave stopped with an error
 include/wait_for_slave_sql_error.inc [errno=1296]
 Let's look at the warnings and errors now...
@@ -158,9 +154,6 @@ insert into test.t1 values (4, repeat('E', 1000));
 insert into test.t1 values (3, repeat('E', 1000));
 insert into test.t1 values (2, repeat('E', 1000));
 insert into test.t1 values (1, repeat('E', 1000));
-call mtr.add_suppression("NDB Slave: SQL thread stopped as attempted to reapply already committed epoch .*");
-call mtr.add_suppression("Slave SQL for channel '': Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
-call mtr.add_suppression("Slave: Got error 173 .*");
 Check that slave stopped with an error
 include/wait_for_slave_sql_error.inc [errno=1296]
 Let's look at the warnings and errors now...
@@ -208,9 +201,6 @@ insert into test.t1 values (4, repeat('E', 1000));
 insert into test.t1 values (3, repeat('E', 1000));
 insert into test.t1 values (2, repeat('E', 1000));
 insert into test.t1 values (1, repeat('E', 1000));
-call mtr.add_suppression("NDB Slave: SQL thread stopped as attempting to apply new epoch .*");
-call mtr.add_suppression("Slave SQL for channel '': Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
-call mtr.add_suppression("Slave: Got error 173 .*");
 Check that slave stopped with an error
 include/wait_for_slave_sql_error.inc [errno=1296]
 Let's look at the warnings and errors now...
