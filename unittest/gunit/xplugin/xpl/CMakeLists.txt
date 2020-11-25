@@ -45,6 +45,21 @@ IF(MY_COMPILER_IS_SUNPRO)
   )
 ENDIF()
 
+# googlemock uses GTEST_DISALLOW_ASSIGN_ which will generate:
+# definition of implicit copy constructor for  ....
+# is deprecated because it has a user-declared copy assignment operator
+IF(APPLE)
+  ADD_COMPILE_FLAGS(
+    account_verification_handler_t.cc
+    admin_cmd_index_t.cc
+    index_field_t.cc
+    listener_unix_socket_t.cc
+    protocol_decoder_t.cc
+    timeouts_t.cc
+    COMPILE_FLAGS "-Wno-deprecated"
+    )
+ENDIF()
+
 IF(MYSQLX_ADDITIONAL_TESTS_ENABLE)
   INCLUDE(mysql_function_names.cmake)
   LIST(APPEND XPL_TEST_SRC "${MYSQLX_GENERATE_DIR}/mysql_function_names_t.cc")
