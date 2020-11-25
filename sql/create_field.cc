@@ -121,18 +121,18 @@ Create_field::Create_field(Field *old_field, Field *orig_field)
   */
   if (!(flags & (NO_DEFAULT_VALUE_FLAG | BLOB_FLAG)) &&
       old_field->field_ptr() != nullptr && orig_field != nullptr) {
-    bool default_now = false;
     if (real_type_with_now_as_default(sql_type)) {
       // The SQL type of the new field allows a function default:
-      default_now = orig_field->has_insert_default_datetime_value_expression();
+      const bool default_now =
+          orig_field->has_insert_default_datetime_value_expression();
       auto_flags = default_now ? Field::DEFAULT_NOW : Field::NONE;
       if (orig_field->has_update_default_datetime_value_expression())
         auto_flags |= Field::ON_UPDATE_NOW;
       if (orig_field->has_insert_default_general_value_expression())
         auto_flags |= Field::GENERATED_FROM_EXPRESSION;
     }
-    if (!default_now)  // Give a constant default
-    {
+
+    if (orig_field->has_insert_default_constant_expression()) {
       /* Get the value from default_values */
       ptrdiff_t diff = orig_field->table->default_values_offset();
       orig_field->move_field_offset(diff);  // Points now at default_values

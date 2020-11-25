@@ -612,6 +612,21 @@ class Field {
     return auto_flags & ON_UPDATE_NOW;
   }
 
+  /**
+    Checks if the field is marked as having a constant expression to generate
+    default values. Relevant when re-creating a Create_field from a Field
+    during ALTER.
+
+     @retval true  The field has a constant expression as default
+     @retval false The field doesn't have a constant expression as default
+  */
+  bool has_insert_default_constant_expression() const {
+    // For now this is true whenever neither GENERATED_FROM_EXPRESSION nor
+    // DEFAULT_NOW is set. If this changes in the future, we can add a separate
+    // flag for this.
+    return (auto_flags & (GENERATED_FROM_EXPRESSION | DEFAULT_NOW)) == 0;
+  }
+
  protected:
   /// Holds the position to the field in record
   uchar *ptr;
