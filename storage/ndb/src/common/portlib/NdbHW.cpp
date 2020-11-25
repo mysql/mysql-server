@@ -92,6 +92,8 @@ int NdbHW_Init()
       ncpu = (Uint32) tmp;
     }
   }
+#elif _WIN32
+  ncpu = GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
 #else
   ncpu = std::thread::hardware_concurrency();
 #endif
@@ -1264,26 +1266,22 @@ int set_num_groups(struct ndb_hwinfo *hwinfo,
   ptr = buf;
   Uint32 cpu_no = 0;
   Uint32 byte_offset = 0;
-  while (byte_offset + ptr->Size <= buf_len && ptr->Size > 0)
+  while (byte_offset < buf_len)
   {
-    switch (ptr->Relationship)
+    require(ptr->Relationship == RelationProcessorCore);
+    PROCESSOR_RELATIONSHIP *processor = &ptr->Processor;
+    GROUP_AFFINITY *group_aff = &processor->GroupMask[0];
+    Uint32 group_number = group_aff->Group;
+    KAFFINITY mask = group_aff->Mask;
+    for (Uint32 cpu_index = 0; cpu_index < 64; cpu_index++)
     {
-      case RelationProcessorCore:
+      if (get_bit_kaffinity(mask, cpu_index))
       {
-        PROCESSOR_RELATIONSHIP *processor = &ptr->Processor;
-        GROUP_AFFINITY *group_aff = &processor->GroupMask[0];
-        Uint32 group_number = group_aff->Group;
-        KAFFINITY mask = group_aff->Mask;
-        for (Uint32 cpu_index = 0; cpu_index < 64; cpu_index++)
-        {
-          if (get_bit_kaffinity(mask, cpu_index))
-          {
-            hwinfo->cpu_info[cpu_no].group_number = group_number;
-            hwinfo->cpu_info[cpu_no].group_index = cpu_index;
-            cpu_no++;
-          }
-        }
+        hwinfo->cpu_info[cpu_no].group_number = group_number;
+        hwinfo->cpu_info[cpu_no].group_index = cpu_index;
+        cpu_no++;
       }
+      require(cpu_no <= hwinfo->cpu_cnt_max);
     }
     byte_offset += ptr->Size;
     char *new_ptr = (char*)buf;
@@ -1336,7 +1334,7 @@ static int Ndb_ReloadHWInfo(struct ndb_hwinfo *hwinfo)
   Uint32 core_id = 0;
   Uint32 byte_offset = 0;
   Uint32 min_cpus_per_core = 4;
-  while (byte_offset + ptr->Size <= buf_len && ptr->Size > 0)
+  while (byte_offset < buf_len)
   {
     switch (ptr->Relationship)
     {
