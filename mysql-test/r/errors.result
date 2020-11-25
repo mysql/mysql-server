@@ -197,3 +197,14 @@ DROP USER nopriv_user@localhost;
 #
 # End Bug#54812
 #
+#
+# Bug #32162954: REGRESSION: ASSERTION `!THD()->IS_ERROR()' FAILED. IN AGGREGATEITERATOR::READ()
+#
+do count(((bin_to_uuid(connection_id()))xor 1));
+ERROR HY000: Incorrect string value: '9' for function bin_to_uuid
+do count(rand(st_latfromgeohash(st_geohash(point(5920138304254667057,24370),41))));
+ERROR 22003: longitude value is out of range in 'st_geohash'
+do ((1)between(cot(_hebrew  ' $[  d'))and(var_pop((1))over()));
+ERROR 22003: DOUBLE value is out of range in 'cot(_hebrew' $[  d')'
+do ((st_isvalid(1))=(std(format(-29867 ,54,'es_DO')) over()));
+ERROR 22023: Invalid GIS data provided to function st_isvalid.
