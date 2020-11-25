@@ -19,6 +19,12 @@
 #       start libevent.sln
 #
 
+MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_MISSING_PROFILE)
+IF(HAS_MISSING_PROFILE)
+  STRING_APPEND(CMAKE_C_FLAGS " ${HAS_MISSING_PROFILE}")
+ENDIF()
+
+
 cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
 
 if (POLICY CMP0054)

@@ -22,6 +22,8 @@
 # 
 # Test session API
 
+DISABLE_MISSING_PROFILE_WARNING()
+
 MYSQL_ADD_PLUGIN(test_session_in_thd
   test_session_in_thd.cc
   MODULE_ONLY

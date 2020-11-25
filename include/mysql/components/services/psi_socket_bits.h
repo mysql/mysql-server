@@ -164,7 +164,7 @@ struct PSI_socket_locker_state_v1 {
   /** Operation number of bytes. */
   size_t m_number_of_bytes;
   /** Timer start. */
-  unsigned long long m_timer_start;
+  unsigned long long m_timer_start{0};
   /** Timer function. */
   unsigned long long (*m_timer)(void);
   /** Current operation. */

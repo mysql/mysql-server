@@ -2104,7 +2104,7 @@ static bool rm_table_sort_into_groups(THD *thd, Drop_tables_ctx *drop_ctx,
       const dd::Table *table_def =
           dynamic_cast<const dd::Table *>(abstract_table_def);
 
-      handlerton *hton;
+      handlerton *hton{nullptr};
       if (dd::table_storage_engine(thd, table_def, &hton)) return true;
 
       /*
@@ -2787,7 +2787,7 @@ static bool drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
                                     *table_def, false))
     return true; /* purecov: inspected */
 
-  handlerton *hton;
+  handlerton *hton{nullptr};
   if (dd::table_storage_engine(thd, table_def, &hton)) {
     assert(false);
     return true;

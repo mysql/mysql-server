@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 #
 #
 # This program is free software; you can redistribute it and/or modify
@@ -21,6 +21,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+DISABLE_MISSING_PROFILE_WARNING()
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 
 MYSQL_ADD_PLUGIN(pfs_example_plugin_employee

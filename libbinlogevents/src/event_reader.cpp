@@ -108,7 +108,7 @@ void Event_reader::alloc_and_strncpy(char **destination, size_t length,
     set_error("Out of memory");
     return;
   }
-  strncpy(*destination, m_ptr, length);
+  if (length > 0) strncpy(*destination, m_ptr, length);
   (*destination)[length] = '\0';
   m_ptr = m_ptr + length;
 }
@@ -205,7 +205,7 @@ void Event_reader::strncpyz(char *destination, size_t max_length,
     set_error("Cannot read from out of buffer bounds");
     return;
   }
-  strncpy(destination, m_ptr, max_length);
+  if (max_length > 0) strncpy(destination, m_ptr, max_length);
   destination[dest_length - 1] = 0;
   m_ptr = m_ptr + strlen(destination) + 1;
 }

@@ -323,14 +323,12 @@ struct pfs_lock {
     @return true if the data read is safe to use.
   */
   bool end_optimistic_lock(const pfs_optimistic_state *copy) {
-    uint32 version_state;
-
     /* Check there was valid data to look at. */
     if ((copy->m_version_state & STATE_MASK) != PFS_LOCK_ALLOCATED) {
       return false;
     }
 
-    version_state = m_version_state.load();
+    uint32 version_state = m_version_state.load();
 
     /* Check the version + state has not changed. */
     if (copy->m_version_state != version_state) {
