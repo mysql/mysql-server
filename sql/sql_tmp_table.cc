@@ -701,14 +701,14 @@ static void set_real_row_type(TABLE *table) {
 
 /**
   Moves to the end of the 'copy_func' array the elements which contain a
-  reference to an expression of the SELECT list of 'select'.
+  reference to an expression of the SELECT list of 'query_block'.
+  @param        query_block  query block to search in
   @param[in,out]  copy_func  array to sort
-  @param          select     query block to search in.
 */
-static void sort_copy_func(const Query_block *select,
+static void sort_copy_func(const Query_block *query_block,
                            Func_ptr_array *copy_func) {
   /*
-    In the select->all_fields list, there are hidden elements first, then
+    In the query_block->fields list, there are hidden elements first, then
     non-hidden. Non-hidden are those of the SELECT list. Hidden ones are:
     (a) those of GROUP BY, HAVING, ORDER BY
     (b) those which have been extracted from higher-level elements (of the
@@ -745,15 +745,12 @@ static void sort_copy_func(const Query_block *select,
     reflected in the order.
 
     A simpler and more robust solution would be to break the design that
-    hidden elements are always first in Query_block::all_fields: references
+    hidden elements are always first in Query_block::fields: references
     using aliases (in GROUP BY, HAVING, ORDER BY) would be added to
-    all_fields last (after the SELECT list); an inner element (split by
+    fields last (after the SELECT list); an inner element (split by
     split_sum_func) would be added right before its containing element. That
     would reflect dependencies naturally. But it is hard to implement, as
-    some code relies on the fact that non-hidden elements are last, and
-    other code relies on the fact that SELECT::fields is just a part of
-    SELECT::all_fields (i.e. they share 'next' pointers, in the
-    implementation).
+    some code relies on the fact that non-hidden elements are last.
 
     You may wonder why we need a (relatively complex) sort, instead of just
     putting all the hidden elements last: With window functions,
@@ -770,13 +767,31 @@ static void sort_copy_func(const Query_block *select,
     expressions in the query block first, and put those that reference other
     expressions last.
   */
-  const auto without_reference_to_select_expr = [select](const Func_ptr &ptr) {
-    // We cast 'const' away, but the walker will not modify '*select'.
-    uchar *walk_arg = const_cast<uchar *>(pointer_cast<const uchar *>(select));
-    return !ptr.func()->walk(&Item::references_select_expr_of,
-                             // the reference might be in a subquery
-                             enum_walk::SUBQUERY_PREFIX, walk_arg);
-  };
+  const auto without_reference_to_select_expr =
+      [query_block](const Func_ptr &ptr) {
+        Item *const item_to_copy = ptr.func();
+        return !WalkItem(
+            item_to_copy, enum_walk::SUBQUERY_PREFIX,
+            [query_block,
+             check_aliases_only =
+                 !item_to_copy->created_by_in2exists()](const Item *item) {
+              if (item->type() != Item::REF_ITEM) {
+                return false;  // Check references only.
+              }
+              const auto item_ref = down_cast<const Item_ref *>(item);
+              // Normally only check references via aliases, but also check
+              // non-alias references for conditions synthesized by query
+              // transformations. See the comment above for details.
+              if (check_aliases_only && !item_ref->is_alias_of_expr()) {
+                return false;
+              }
+              if (item_ref->depended_from != nullptr) {  // outer reference
+                return item_ref->depended_from == query_block;
+              } else {
+                return item_ref->context->query_block == query_block;
+              }
+            });
+      };
   std::stable_partition(copy_func->begin(), copy_func->end(),
                         without_reference_to_select_expr);
 }

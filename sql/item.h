@@ -2489,14 +2489,6 @@ class Item : public Parse_tree_node {
   virtual bool mark_field_in_map(uchar *arg MY_ATTRIBUTE((unused))) {
     return false;
   }
-  /**
-    @returns true if the expression contains a reference to
-    an expression of the SELECT list of the given query block.
-    @param arg   query block to search in.
-  */
-  virtual bool references_select_expr_of(uchar *arg MY_ATTRIBUTE((unused))) {
-    return false;
-  }
 
   /// Traverse the item tree and replace fields that are outside of reach with
   /// fields that are within reach. This is used by hash join when it detects
@@ -5585,7 +5577,6 @@ class Item_ref : public Item_ident {
   }
 
   bool repoint_const_outer_ref(uchar *arg) override;
-  bool references_select_expr_of(uchar *arg) override;
   bool is_non_const_over_literals(uchar *) override { return true; }
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
