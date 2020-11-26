@@ -228,7 +228,6 @@ rm -f %{buildroot}%{_datadir}/mysql/{mysql.server,mysqld_multi.server,mysql-log-
 
 # Extra files/dirs removed from Cluster build
 %if 0%{?cluster}
-rm -f %{buildroot}/lib/memcached_path.pl
 rm -f %{buildroot}/%{_libdir}/mysql/libndbclient*
 rm -rf %{buildroot}%{_datadir}/mysql/java/
 %endif
@@ -278,10 +277,8 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_sbindir}/ndbd
 %attr(755, root, root) %{_sbindir}/ndbmtd
 %attr(755, root, root) %{_bindir}/memclient
-%attr(755, root, root) %{_sbindir}/memcached
 %attr(755, root, root) %{_libdir}/mysql/ndb_engine.so
 %attr(644, root, root) %{_datadir}/mysql/ndb_dist_priv.sql
-%{_datadir}/mysql/memcache-api/
 %endif
 
 %attr(755, root, root) %{_sbindir}/mysqld
