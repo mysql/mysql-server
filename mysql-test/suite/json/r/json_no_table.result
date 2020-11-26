@@ -4141,3 +4141,46 @@ set @x='"xyz"';
 execute s using @x;
 JSON_SET('{"a" : 1}', '$.a', ?)
 {"a": "\"xyz\""}
+#
+# Bug #32162329 BOOL JSON_VALUE: ASSERTION `!CURRENT_THD->IS_ERROR()' FAILED.
+#
+DO TO_BASE64
+(((JSON_PRETTY(CONVERT(JSON_KEYS(1,1) USING utf8mb4)))
++
+(JSON_MERGE_PRESERVE('{ }' ,'{ }')))
+);
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_keys; a JSON string or JSON type is required.
+DO TO_BASE64
+(((JSON_PRETTY(CONVERT(JSON_KEYS(1,1) USING utf8mb4)))
+-
+(JSON_MERGE_PRESERVE('{ }' ,'{ }')))
+);
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_keys; a JSON string or JSON type is required.
+DO TO_BASE64
+(((JSON_PRETTY(CONVERT(JSON_KEYS(1,1) USING utf8mb4)))
+*
+(JSON_MERGE_PRESERVE('{ }' ,'{ }')))
+);
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_keys; a JSON string or JSON type is required.
+DO TO_BASE64
+(((JSON_PRETTY(CONVERT(JSON_KEYS(1,1) USING utf8mb4)))
+/
+(JSON_MERGE_PRESERVE('{ }' ,'{ }')))
+);
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_keys; a JSON string or JSON type is required.
+DO TO_BASE64
+(((JSON_PRETTY(CONVERT(JSON_KEYS(1,1) USING utf8mb4)))
+%
+(JSON_MERGE_PRESERVE('{ }' ,'{ }')))
+);
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_keys; a JSON string or JSON type is required.
+DO CAST(JSON_PRETTY('') AS SIGNED) + CAST(JSON_PRETTY('') AS SIGNED);
+ERROR 22032: Invalid JSON text in argument 1 to function json_pretty: "The document is empty." at position 0.
+DO CAST(JSON_PRETTY('') AS SIGNED) - CAST(JSON_PRETTY('') AS SIGNED);
+ERROR 22032: Invalid JSON text in argument 1 to function json_pretty: "The document is empty." at position 0.
+DO CAST(JSON_PRETTY('') AS SIGNED) * CAST(JSON_PRETTY('') AS SIGNED);
+ERROR 22032: Invalid JSON text in argument 1 to function json_pretty: "The document is empty." at position 0.
+DO CAST(JSON_PRETTY('') AS SIGNED) / CAST(JSON_PRETTY('') AS SIGNED);
+ERROR 22032: Invalid JSON text in argument 1 to function json_pretty: "The document is empty." at position 0.
+DO CAST(JSON_PRETTY('') AS SIGNED) % CAST(JSON_PRETTY('') AS SIGNED);
+ERROR 22032: Invalid JSON text in argument 1 to function json_pretty: "The document is empty." at position 0.
