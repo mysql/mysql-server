@@ -70,8 +70,8 @@ NdbBackup::clearOldBackups()
   for(size_t i = 0; i < ndbNodes.size(); i++)
   {
     int nodeId = ndbNodes[i].node_id;
-    const char* path = getBackupDataDirForNode(nodeId);
-    if (path == NULL)
+    const std::string path = getBackupDataDirForNode(nodeId);
+    if (path.empty())
       return -1;  
     
     const char *host;
@@ -85,14 +85,14 @@ NdbBackup::clearOldBackups()
     if (!isHostLocal(host))
     {
       // clean up backup from BackupDataDir
-      tmp1.assfmt("ssh %s rm -rf %s/BACKUP", host, path);
+      tmp1.assfmt("ssh %s rm -rf %s/BACKUP", host, path.c_str());
       // clean up local copy created by scp
       tmp2.assfmt("rm -rf ./BACKUP*");
     }
     else
     {
       // clean up backup from BackupDataDir
-      tmp1.assfmt("rm -rf %s/BACKUP", path);
+      tmp1.assfmt("rm -rf %s/BACKUP", path.c_str());
       // clean up copy created by cp
       tmp2.assfmt("rm -rf ./BACKUP*");
     }
@@ -215,51 +215,49 @@ NdbBackup::checkBackupStatus(){
 }
 
 
-const char * 
-NdbBackup::getBackupDataDirForNode(int _node_id){
-
-  /**
-   * Fetch configuration from management server
-   */
-  ndb_mgm_configuration *p;
+std::string
+NdbBackup::getBackupDataDirForNode(int node_id)
+{
   if (connect())
-    return NULL;
+    return "";
 
-  if ((p = ndb_mgm_get_configuration(handle, 0)) == 0)
+  // Fetch configuration from management server
+  ndb_mgm_config_unique_ptr conf(ndb_mgm_get_configuration(handle, 0));
+  if (!conf)
   {
-    const char * s= ndb_mgm_get_latest_error_msg(handle);
-    if(s == 0)
-      s = "No error given!";
+    const char * err_msg = ndb_mgm_get_latest_error_msg(handle);
+    if(!err_msg)
+      err_msg = "No error given!";
       
     ndbout << "Could not fetch configuration" << endl;
-    ndbout << s << endl;
-    return NULL;
+    ndbout << "error: " << err_msg << endl;
+    return "";
   }
   
-  /**
-   * Setup cluster configuration data
-   */
-  ndb_mgm_configuration_iterator iter(* p, CFG_SECTION_NODE);
-  if (iter.find(CFG_NODE_ID, _node_id)){
-    ndbout << "Invalid configuration fetched, DB missing" << endl;
-    return NULL;
+  // Find section for node with given node id
+  ndb_mgm_configuration_iterator iter(* conf, CFG_SECTION_NODE);
+  if (iter.find(CFG_NODE_ID, node_id)) {
+    ndbout << "Invalid configuration fetched, no section for nodeid: "
+           << node_id << endl;
+    return "";
   }
 
-  unsigned int type = NODE_TYPE_DB + 1;
+  // Check that the found section is for a DB node
+  unsigned int type;
   if(iter.get(CFG_TYPE_OF_SECTION, &type) || type != NODE_TYPE_DB){
-    ndbout <<"type = " << type << endl;
-    ndbout <<"Invalid configuration fetched, I'm wrong type of node" << endl;
-    return NULL;
+    ndbout << "type = " << type << endl;
+    ndbout << "Invalid configuration fetched, expected DB node" << endl;
+    return "";
   }  
   
+  // Extract the backup path
   const char * path;
   if (iter.get(CFG_DB_BACKUP_DATADIR, &path)){
     ndbout << "BackupDataDir not found" << endl;
-    return NULL;
+    return "";
   }
 
   return path;
-
 }
 
 BaseString
@@ -303,8 +301,8 @@ NdbBackup::execRestore(bool _restore_data,
 {
   ndbout << "getBackupDataDir "<< _node_id <<endl;
 
-  const char* path = getBackupDataDirForNode(_node_id);
-  if (path == NULL)
+  const std::string path = getBackupDataDirForNode(_node_id);
+  if (path.empty())
     return -1;  
 
   BaseString ndb_restore_bin_path = getNdbRestoreBinaryPath();
@@ -350,13 +348,13 @@ NdbBackup::execRestore(bool _restore_data,
   if (!isHostLocal(host))
   {
     tmp.assfmt("scp -r %s:%s/BACKUP/BACKUP-%d/* .",
-               host, path,
+               host, path.c_str(),
                _backup_id);
   }
   else
   {
     tmp.assfmt("scp -r %s/BACKUP/BACKUP-%d/* .",
-               path,
+               path.c_str(),
                _backup_id);
   }
 

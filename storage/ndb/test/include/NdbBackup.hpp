@@ -26,6 +26,8 @@
 #ifndef NDBT_BACKUP_HPP
 #define NDBT_BACKUP_HPP
 
+#include <string>
+
 #include <mgmapi.h>
 #include <Vector.hpp>
 #include "NdbConfig.hpp"
@@ -74,7 +76,7 @@ private:
                   const char* encryption_password = nullptr,
                   int password_length = -1);
 
-  const char * getBackupDataDirForNode(int _node_id);
+  std::string getBackupDataDirForNode(int node_id);
   NdbLogEventHandle log_handle;
   BaseString getNdbRestoreBinaryPath();
   char * m_default_encryption_password;
