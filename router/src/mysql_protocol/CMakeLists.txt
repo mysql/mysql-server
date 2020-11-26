@@ -24,7 +24,6 @@ INCLUDE(GenerateExportHeader)
 
 SET(include_dirs
   include
-  ${CMAKE_CURRENT_BINARY_DIR}/include/
   )
 
 ADD_LIBRARY(mysql_protocol INTERFACE)
