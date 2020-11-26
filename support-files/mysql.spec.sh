@@ -1163,9 +1163,6 @@ echo "====="                                                       >> $STATUS_HI
 %attr(755, root, root) %{_bindir}/ndb_show_tables
 %attr(755, root, root) %{_bindir}/ndb_waiter
 
-%if %(test "@MEMCACHED_ROOT_DIR@" '!=' "MEMCACHED_ROOT_DIR-NOTFOUND" && echo 1 || echo 0)
-%attr(755, root, root) %{_sbindir}/memcached
-%endif
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %attr(755, root, root) %{_sbindir}/ndbd
@@ -1177,9 +1174,6 @@ echo "====="                                                       >> $STATUS_HI
 
 %attr(755, root, root) %{_libdir}/libndbclient.so
 %attr(755, root, root) %{_libdir}/libndbclient.so.6.0.0
-%if %(test "@MEMCACHED_ROOT_DIR@" '!=' "MEMCACHED_ROOT_DIR-NOTFOUND" && echo 1 || echo 0)
-%attr(755, root, root) %{_libdir}/ndb_engine.so
-%endif
 
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
 %attr(755, root, root) %{_sysconfdir}/init.d/mysql
