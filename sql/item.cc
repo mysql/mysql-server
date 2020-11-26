@@ -809,7 +809,7 @@ bool Item_ident::update_depended_from(uchar *arg) {
 
 bool Item_field::collect_item_field_processor(uchar *arg) {
   DBUG_TRACE;
-  DBUG_PRINT("info", ("%s", field->field_name ? field->field_name : "noname"));
+  DBUG_PRINT("info", ("%s", field_name ? field_name : "noname"));
   mem_root_deque<Item_field *> *item_list =
       reinterpret_cast<mem_root_deque<Item_field *> *>(arg);
   for (Item_field *curr_item : *item_list) {

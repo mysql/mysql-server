@@ -166,3 +166,11 @@ disconnect con1;
 disconnect con2;
 SET DEBUG_SYNC='RESET';
 DROP TABLE t1, t2;
+#
+# Bug#32018406 - CREATE TABLE MAY ASSERT IN DEBUG MODE
+#
+SET SESSION DEBUG= +d,info:O,trace_file;
+CREATE TABLE t1 (c1 INT, c2 INT CHECK (c2 < 100));
+ALTER TABLE t1 DROP COLUMN c2;
+DROP TABLE t1;
+SET SESSION debug= '-d,info:-O';
