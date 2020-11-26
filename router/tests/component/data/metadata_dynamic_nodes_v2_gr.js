@@ -52,6 +52,10 @@ if (mysqld.global.cluster_type === undefined) {
   mysqld.global.cluster_type = "gr";
 }
 
+if (mysqld.global.innodb_cluster_name === undefined) {
+  mysqld.global.innodb_cluster_name = "test";
+}
+
 var nodes = function(host, port_and_state) {
   return port_and_state.map(function(current_value) {
     return [
@@ -70,6 +74,7 @@ var nodes = function(host, port_and_state) {
       group_replication_membership: group_replication_membership_online,
       gr_id: mysqld.global.gr_id,
       cluster_type: mysqld.global.cluster_type,
+      innodb_cluster_name: mysqld.global.innodb_cluster_name,
     };
 
     // first node is PRIMARY

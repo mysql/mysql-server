@@ -230,4 +230,19 @@ std::string get_file_output(const std::string &file_name,
 void connect_client_and_query_port(unsigned router_port, std::string &out_port,
                                    bool should_fail = false);
 
+/**
+ * Add a "<key>=<value>" line in a configuration file in a given config section.
+ *
+ * @param config_path configuration file path
+ * @param section_name configuration section name
+ * @param key part of configuration to be added
+ * @param value part of configuration to be added
+ *
+ * @retval true config line inserted successfully
+ * @retval false config line not inserted
+ */
+bool add_line_to_config_file(const std::string &config_path,
+                             const std::string &section_name,
+                             const std::string &key, const std::string &value);
+
 #endif  // ROUTER_TESTS_TEST_HELPERS_INCLUDED

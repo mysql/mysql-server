@@ -93,29 +93,11 @@ class TestRestApiEnable : public RouterComponentTest {
     EXPECT_TRUE(router_bootstrap.expect_output(
         "MySQL Router configured for the InnoDB Cluster 'mycluster'"));
 
-    add_plugin_folder_to_config(config_path.str());
+    auto plugin_dir = mysql_harness::get_plugin_dir(get_origin().str());
+    EXPECT_TRUE(add_line_to_config_file(config_path.str(), "DEFAULT",
+                                        "plugin_folder", plugin_dir));
 
     return router_bootstrap;
-  }
-
-  void add_plugin_folder_to_config(const std::string &config_path) {
-    std::fstream config_stream{config_path};
-    std::vector<std::string> config;
-    std::string line;
-    while (std::getline(config_stream, line)) {
-      config.push_back(line);
-    }
-    config_stream.close();
-
-    auto plugin_dir = mysql_harness::get_plugin_dir(get_origin().str());
-    if (config.size() > 2) {
-      config.insert(std::begin(config) + 2, "plugin_folder=" + plugin_dir);
-    }
-
-    std::ofstream out_stream{config_path};
-    std::copy(std::begin(config), std::end(config),
-              std::ostream_iterator<std::string>(out_stream, "\n"));
-    out_stream.close();
   }
 
   void assert_rest_config(const mysql_harness::Path &config_path,
