@@ -531,8 +531,14 @@ BasicSplicer::State ClassicProtocolSplicer::client_greeting() {
 
       return State::SPLICE_INIT;
     } else {
+      auto *ssl_ctx = client_ssl_ctx_getter_();
       // tls <-> (any)
-      client_channel()->init_ssl(client_ssl_ctx_getter_());
+      if (ssl_ctx == nullptr) {
+        // shouldn't happen. But if it does, close the connection.
+        log_warning("failed to create SSL_CTX");
+        return State::DONE;
+      }
+      client_channel()->init_ssl(ssl_ctx);
 
       return State::TLS_ACCEPT;
     }
@@ -541,8 +547,15 @@ BasicSplicer::State ClassicProtocolSplicer::client_greeting() {
     // plain <-> tls
     server_channel()->is_tls(true);
 
+    auto *ssl_ctx = server_ssl_ctx_getter_();
+    if (ssl_ctx == nullptr) {
+      // shouldn't happen. But if it does, close the connection.
+      log_warning("failed to create SSL_CTX");
+      return State::DONE;
+    }
+
     // open an TLS endpoint to the server.
-    server_channel()->init_ssl(server_ssl_ctx_getter_());
+    server_channel()->init_ssl(ssl_ctx);
 
     return State::TLS_CONNECT;
   } else {
@@ -705,7 +718,13 @@ BasicSplicer::State ClassicProtocolSplicer::tls_client_greeting_response() {
 #if defined(DEBUG_STATE)
   log_debug("%d: >> %s", __LINE__, state_to_string(state()));
 #endif
-  server_channel()->init_ssl(server_ssl_ctx_getter_());
+  auto *ssl_ctx = server_ssl_ctx_getter_();
+  if (ssl_ctx == nullptr) {
+    // shouldn't happen. But if it does, close the connection.
+    log_warning("failed to create SSL_CTX");
+    return State::DONE;
+  }
+  server_channel()->init_ssl(ssl_ctx);
   return State::TLS_CONNECT;
 }
 

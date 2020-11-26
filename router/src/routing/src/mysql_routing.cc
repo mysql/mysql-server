@@ -44,6 +44,7 @@
 #include "dest_next_available.h"
 #include "dest_round_robin.h"
 #include "destination_ssl_context.h"
+#include "hostname_validator.h"
 #include "mysql/harness/filesystem.h"  // make_file_private
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
@@ -137,7 +138,7 @@ MySQLRouting::MySQLRouting(
   // This test is only a basic assertion.  Calling code is expected to check the
   // validity of these arguments more thoroughally. At the time of writing,
   // routing_plugin.cc : init() is one such place.
-  if (!context_.get_bind_address().port && !named_socket.is_set()) {
+  if (!context_.get_bind_address().port() && !named_socket.is_set()) {
     throw std::invalid_argument(
         string_format("No valid address:port (%s:%d) or socket (%s) to bind to",
                       bind_address.c_str(), port, named_socket.c_str()));
@@ -148,7 +149,7 @@ void MySQLRouting::start(mysql_harness::PluginFuncEnv *env) {
   mysql_harness::rename_thread(
       get_routing_thread_name(context_.get_name(), "RtM")
           .c_str());  // "Rt main" would be too long :(
-  if (context_.get_bind_address().port > 0) {
+  if (context_.get_bind_address().port() > 0) {
     auto res = setup_tcp_service();
     if (!res) {
       clear_running(env);
@@ -184,7 +185,7 @@ void MySQLRouting::start(mysql_harness::PluginFuncEnv *env) {
              context_.get_bind_named_socket().c_str());
   }
 #endif
-  if (context_.get_bind_address().port > 0 ||
+  if (context_.get_bind_address().port() > 0 ||
       context_.get_bind_named_socket().is_set()) {
     start_acceptor(env);
 #ifndef _WIN32
@@ -993,8 +994,8 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv *env) {
                                    const std::string &reason) {
     std::ostringstream oss;
 
-    if (!context_.get_bind_address().addr.empty()) {
-      oss << context_.get_bind_address().port;
+    if (!context_.get_bind_address().address().empty()) {
+      oss << context_.get_bind_address().port();
       if (!context_.get_bind_named_socket().str().empty()) oss << " and ";
     }
 
@@ -1152,8 +1153,8 @@ stdx::expected<void, std::error_code> MySQLRouting::setup_tcp_service() {
   net::ip::tcp::resolver resolver(io_ctx_);
 
   auto resolve_res =
-      resolver.resolve(context_.get_bind_address().addr,
-                       std::to_string(context_.get_bind_address().port));
+      resolver.resolve(context_.get_bind_address().address(),
+                       std::to_string(context_.get_bind_address().port()));
 
   if (!resolve_res) {
     return stdx::make_unexpected(resolve_res.error());
@@ -1342,7 +1343,6 @@ std::unique_ptr<RouteDestination> create_standalone_destination(
 void MySQLRouting::set_destinations_from_csv(const string &csv) {
   std::stringstream ss(csv);
   std::string part;
-  std::pair<std::string, uint16_t> info;
 
   // if no routing_strategy is defined for standalone routing
   // we set the default based on the mode
@@ -1356,16 +1356,23 @@ void MySQLRouting::set_destinations_from_csv(const string &csv) {
 
   // Fall back to comma separated list of MySQL servers
   while (std::getline(ss, part, ',')) {
-    info = mysqlrouter::split_addr_port(part);
-    if (info.second == 0) {
-      info.second = Protocol::get_default_port(context_.get_protocol());
+    auto make_res = mysql_harness::make_tcp_address(part);
+    if (!make_res) {
+      throw std::runtime_error(
+          string_format("Destination address '%s' is invalid", part.c_str()));
     }
-    mysql_harness::TCPAddress addr(info.first, info.second);
-    if (addr.is_valid()) {
+
+    auto addr = make_res.value();
+
+    if (mysql_harness::is_valid_domainname(addr.address())) {
+      if (addr.port() == 0) {
+        addr.port(Protocol::get_default_port(context_.get_protocol()));
+      }
+
       destination_->add(addr);
     } else {
-      throw std::runtime_error(string_format(
-          "Destination address '%s' is invalid", addr.str().c_str()));
+      throw std::runtime_error(
+          string_format("Destination address '%s' is invalid", part.c_str()));
     }
   }
 

@@ -495,12 +495,12 @@ const RoutingConfigParam routing_config_param[] = {
          {"bind_address", "127.0.0.1:999292"},
      },
      [](const std::vector<std::string> &lines) {
-       EXPECT_THAT(lines,
-                   ::testing::Contains(::testing::HasSubstr(
-                       "option bind_address in [routing] is incorrect (invalid "
-                       "TCP port: invalid characters or too long)")));
+       EXPECT_THAT(
+           lines, ::testing::Contains(::testing::HasSubstr(
+                      "option bind_address in [routing]: '127.0.0.1:999292' is "
+                      "not a valid endpoint")));
      }},
-    {"invalid_bind_port",
+    {"too_large_bind_port",
      {
          {"destinations", "127.0.0.1:3306"},
          {"routing_strategy", "first-available"},
@@ -615,6 +615,128 @@ const RoutingConfigParam routing_config_param[] = {
                    ::testing::Contains(::testing::HasSubstr(
                        "option thread_stack_size in [routing] needs "
                        "value between 1 and 65535 inclusive, was 'dfs4'")));
+     }},
+    {"invalid_destination_host_start",
+     {
+         {"bind_address", "127.0.0.1"},
+         {"bind_port", "6000"},
+         {"routing_strategy", "first-available"},
+         {"destinations", "{#mysqld1}"},
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines, ::testing::Contains(::testing::HasSubstr(
+                              "option destinations in [routing] has an "
+                              "invalid destination address '{#mysqld1}'")));
+     }},
+    {"invalid_destination_host_mid",
+     {
+         {"bind_address", "127.0.0.1"},
+         {"bind_port", "6000"},
+         {"routing_strategy", "first-available"},
+         {"destinations", "{mysqld1@1}"},
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines, ::testing::Contains(::testing::HasSubstr(
+                              "option destinations in [routing] has an "
+                              "invalid destination address '{mysqld1@1}'")));
+     }},
+    {"invalid_destination_host_end",
+     {
+         {"bind_address", "127.0.0.1"},
+         {"bind_port", "6000"},
+         {"routing_strategy", "first-available"},
+         {"destinations", "{mysqld1`}"},
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines, ::testing::Contains(::testing::HasSubstr(
+                              "option destinations in [routing] has an "
+                              "invalid destination address '{mysqld1`}'")));
+     }},
+    {"invalid_destination_host_many",
+     {
+         {"bind_address", "127.0.0.1"},
+         {"bind_port", "6000"},
+         {"routing_strategy", "first-available"},
+         {"destinations", "{mysql$d1%1}"},
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines, ::testing::Contains(::testing::HasSubstr(
+                              "option destinations in [routing] has an "
+                              "invalid destination address '{mysql$d1%1}'")));
+     }},
+    {"invalid_destination_space_start",
+     {
+         {"bind_address", "127.0.0.1"},
+         {"bind_port", "6000"},
+         {"routing_strategy", "first-available"},
+         {"destinations", "{ mysql1}"},
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines, ::testing::Contains(::testing::HasSubstr(
+                              "option destinations in [routing] has an "
+                              "invalid destination address '{ mysql1}'")));
+     }},
+    {"invalid_destination_space_mid",
+     {
+         {"bind_address", "127.0.0.1"},
+         {"bind_port", "6000"},
+         {"routing_strategy", "first-available"},
+         {"destinations", "{my sql1}"},
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines, ::testing::Contains(::testing::HasSubstr(
+                              "option destinations in [routing] has an "
+                              "invalid destination address '{my sql1}'")));
+     }},
+    {"invalid_destination_space_end",
+     {
+         {"bind_address", "127.0.0.1"},
+         {"bind_port", "6000"},
+         {"routing_strategy", "first-available"},
+         {"destinations", "{mysql1 }"},
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines, ::testing::Contains(::testing::HasSubstr(
+                              "option destinations in [routing] has an "
+                              "invalid destination address '{mysql1 }'")));
+     }},
+    {"invalid_destination_space",
+     {
+         {"bind_address", "127.0.0.1"},
+         {"bind_port", "6000"},
+         {"routing_strategy", "first-available"},
+         {"destinations", "{m@ysql d1}"},
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines, ::testing::Contains(::testing::HasSubstr(
+                              "option destinations in [routing] has an "
+                              "invalid destination address '{m@ysql d1}'")));
+     }},
+    {"invalid_destination_multiple_space",
+     {
+         {"bind_address", "127.0.0.1"},
+         {"bind_port", "6000"},
+         {"routing_strategy", "first-available"},
+         {"destinations", "{my sql d1}"},
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines, ::testing::Contains(::testing::HasSubstr(
+                              "option destinations in [routing] has an "
+                              "invalid destination address '{my sql d1}'")));
+     }},
+    {"invalid_bind_port",
+     {
+         {"destinations", "127.0.0.1:3306"},
+         {"bind_address", "127.0.0.1"},
+         {"routing_strategy", "first-available"},
+
+         {"bind_port", "{mysqld@1}"},
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines,
+                   ::testing::Contains(::testing::HasSubstr(
+                       "option bind_port in [routing] needs value "
+                       "between 1 and 65535 inclusive, was '{mysqld@1}'")));
      }},
 };
 

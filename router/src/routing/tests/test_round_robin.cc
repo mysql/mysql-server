@@ -86,12 +86,12 @@ TEST_F(RoundRobinDestinationTest, Get) {
   ASSERT_NO_THROW(d.get("addr1", 1));
 
   mysql_harness::TCPAddress addr = d.get("addr1", 1);
-  ASSERT_THAT(addr.addr, StrEq("addr1"));
-  EXPECT_EQ(addr.port, 1);
+  ASSERT_THAT(addr.address(), StrEq("addr1"));
+  EXPECT_EQ(addr.port(), 1);
 
   d.remove("addr1", 1);
-  ASSERT_THAT(addr.addr, StrEq("addr1"));
-  EXPECT_EQ(addr.port, 1);
+  ASSERT_THAT(addr.address(), StrEq("addr1"));
+  EXPECT_EQ(addr.port(), 1);
 }
 
 TEST_F(RoundRobinDestinationTest, Size) {

@@ -32,14 +32,16 @@
 #include <vector>
 
 #include "context.h"
+#include "hostname_validator.h"
 #include "mysql/harness/config_option.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/string_utils.h"  // trim
 #include "mysql_router_thread.h"         // kDefaultStackSizeInKiloByte
 #include "mysqlrouter/routing.h"         // AccessMode
 #include "mysqlrouter/uri.h"
-#include "mysqlrouter/utils.h"  // split_addr_port
+#include "mysqlrouter/utils.h"  // is_valid_socket_name
 #include "ssl_mode.h"
+#include "tcp_address.h"
 
 using namespace stdx::string_view_literals;
 
@@ -176,8 +178,8 @@ static routing::RoutingStrategy get_option_routing_strategy(
 
 static std::string get_option_destinations(
     const mysql_harness::ConfigSection *section,
-    const mysql_harness::ConfigOption &option,
-    const Protocol::Type &protocol_type, bool &metadata_cache) {
+    const mysql_harness::ConfigOption &option, const Protocol::Type &,
+    bool &metadata_cache) {
   auto res = option.get_option_string(section);
 
   if (!res) {
@@ -224,7 +226,6 @@ static std::string get_option_destinations(
 
     std::stringstream ss(value);
     std::string part;
-    std::pair<std::string, uint16_t> info;
     while (std::getline(ss, part, delimiter)) {
       mysql_harness::trim(part);
       if (part.empty()) {
@@ -232,21 +233,22 @@ static std::string get_option_destinations(
             get_log_prefix(section, option) +
             ": empty address found in destination list (was '" + value + "')");
       }
-      try {
-        info = mysqlrouter::split_addr_port(part);
-      } catch (const std::runtime_error &e) {
+
+      auto make_res = mysql_harness::make_tcp_address(part);
+
+      if (!make_res) {
         throw std::invalid_argument(get_log_prefix(section, option) +
                                     ": address in destination list '" + part +
-                                    "' is invalid: " + e.what());
+                                    "' is invalid");
       }
-      if (info.second == 0) {
-        info.second = Protocol::get_default_port(protocol_type);
-      }
-      mysql_harness::TCPAddress addr(info.first, info.second);
-      if (!addr.is_valid()) {
+
+      auto address = make_res->address();
+
+      if (!mysql_harness::is_valid_ip_address(address) &&
+          !mysql_harness::is_valid_hostname(address)) {
         throw std::invalid_argument(get_log_prefix(section, option) +
                                     " has an invalid destination address '" +
-                                    addr.str() + "'");
+                                    address + "'");
       }
     }
   }
@@ -289,26 +291,31 @@ static mysql_harness::TCPAddress get_option_tcp_address(
     return mysql_harness::TCPAddress{};
   }
 
-  try {
-    std::pair<std::string, uint16_t> bind_info =
-        mysqlrouter::split_addr_port(value);
-
-    uint16_t port = bind_info.second;
-
-    if (port <= 0) {
-      if (default_port > 0) {
-        port = static_cast<uint16_t>(default_port);
-      } else if (require_port) {
-        throw std::runtime_error("TCP port missing");
-      }
-    }
-
-    return mysql_harness::TCPAddress(bind_info.first, port);
-
-  } catch (const std::runtime_error &exc) {
-    throw std::invalid_argument(get_log_prefix(section, option) +
-                                " is incorrect (" + exc.what() + ")");
+  auto make_res = mysql_harness::make_tcp_address(value);
+  if (!make_res) {
+    throw std::invalid_argument(get_log_prefix(section, option) + ": '" +
+                                value + "' is not a valid endpoint");
   }
+
+  auto address = make_res->address();
+  uint16_t port = make_res->port();
+
+  if (port <= 0) {
+    if (default_port > 0) {
+      port = static_cast<uint16_t>(default_port);
+    } else if (require_port) {
+      throw std::runtime_error("TCP port missing");
+    }
+  }
+
+  if (!(mysql_harness::is_valid_hostname(address) ||
+        mysql_harness::is_valid_ip_address(address))) {
+    throw std::invalid_argument(get_log_prefix(section, option) + ": '" +
+                                address + "' in '" + value +
+                                "' is not a valid IP-address or hostname");
+  }
+
+  return {address, port};
 }
 
 template <typename T>
@@ -561,7 +568,7 @@ RoutingPluginConfig::RoutingPluginConfig(
   using namespace std::string_literals;
 
   // either bind_address or socket needs to be set, or both
-  if (!bind_address.port && !named_socket.is_set()) {
+  if (!bind_address.port() && !named_socket.is_set()) {
     throw std::invalid_argument(
         "either bind_address or socket option needs to be supplied, or both");
   }

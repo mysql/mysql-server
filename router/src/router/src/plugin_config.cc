@@ -31,12 +31,11 @@
 #include <unistd.h>
 #endif
 
-using std::invalid_argument;
-using std::string;
+#include "tcp_address.h"
 
 namespace mysqlrouter {
 
-string BasePluginConfig::get_section_name(
+std::string BasePluginConfig::get_section_name(
     const mysql_harness::ConfigSection *section) const noexcept {
   auto name = section->name;
   if (!section->key.empty()) {
@@ -45,10 +44,11 @@ string BasePluginConfig::get_section_name(
   return name;
 }
 
-string BasePluginConfig::get_option_string(
-    const mysql_harness::ConfigSection *section, const string &option) const {
+std::string BasePluginConfig::get_option_string(
+    const mysql_harness::ConfigSection *section,
+    const std::string &option) const {
   bool required = is_required(option);
-  string value;
+  std::string value;
 
   try {
     value = section->get(option);
@@ -68,7 +68,7 @@ string BasePluginConfig::get_option_string(
   return value;
 }
 
-string BasePluginConfig::get_log_prefix(
+std::string BasePluginConfig::get_log_prefix(
     const std::string &option,
     const mysql_harness::ConfigSection *section) const noexcept {
   return "option " + option + " in [" +
@@ -109,7 +109,7 @@ std::chrono::milliseconds BasePluginConfig::get_option_milliseconds(
 }
 
 mysql_harness::TCPAddress BasePluginConfig::get_option_tcp_address(
-    const mysql_harness::ConfigSection *section, const string &option,
+    const mysql_harness::ConfigSection *section, const std::string &option,
     bool require_port, int default_port) {
   std::string value = get_option_string(section, option);
 
@@ -117,29 +117,27 @@ mysql_harness::TCPAddress BasePluginConfig::get_option_tcp_address(
     return mysql_harness::TCPAddress{};
   }
 
-  try {
-    std::pair<string, uint16_t> bind_info = mysqlrouter::split_addr_port(value);
-
-    uint16_t port = bind_info.second;
-
-    if (port <= 0) {
-      if (default_port > 0) {
-        port = static_cast<uint16_t>(default_port);
-      } else if (require_port) {
-        throw std::runtime_error("TCP port missing");
-      }
-    }
-
-    return mysql_harness::TCPAddress(bind_info.first, port);
-
-  } catch (const std::runtime_error &exc) {
-    throw invalid_argument(get_log_prefix(option) + " is incorrect (" +
-                           exc.what() + ")");
+  auto make_res = mysql_harness::make_tcp_address(value);
+  if (!make_res) {
+    throw std::invalid_argument(get_log_prefix(option) + " is invalid");
   }
+
+  auto address = make_res->address();
+  auto port = make_res->port();
+
+  if (port <= 0) {
+    if (default_port > 0) {
+      port = static_cast<uint16_t>(default_port);
+    } else if (require_port) {
+      throw std::runtime_error("TCP port missing");
+    }
+  }
+
+  return {address, port};
 }
 
 int BasePluginConfig::get_option_tcp_port(
-    const mysql_harness::ConfigSection *section, const string &option) {
+    const mysql_harness::ConfigSection *section, const std::string &option) {
   auto value = get_option_string(section, option);
 
   if (!value.empty()) {
@@ -164,12 +162,12 @@ int BasePluginConfig::get_option_tcp_port(
 }
 
 mysql_harness::Path BasePluginConfig::get_option_named_socket(
-    const mysql_harness::ConfigSection *section, const string &option) {
+    const mysql_harness::ConfigSection *section, const std::string &option) {
   std::string value = get_option_string(section, option);
 
   std::string error;
   if (!is_valid_socket_name(value, error)) {
-    throw invalid_argument(error);
+    throw std::invalid_argument(error);
   }
 
   if (value.empty()) {

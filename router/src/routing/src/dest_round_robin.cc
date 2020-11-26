@@ -114,7 +114,7 @@ Destinations DestRoundRobin::destinations() {
       auto const &dest = *cur;
 
       dests.push_back(std::make_unique<QuanrantinableDestination>(
-          dest.str(), dest.addr, dest.port, this, n));
+          dest.str(), dest.address(), dest.port(), this, n));
     }
 
     // from begin to before-last
@@ -125,7 +125,7 @@ Destinations DestRoundRobin::destinations() {
       auto const &dest = *cur;
 
       dests.push_back(std::make_unique<QuanrantinableDestination>(
-          dest.str(), dest.addr, dest.port, this, n));
+          dest.str(), dest.address(), dest.port(), this, n));
     }
 
     if (++start_pos_ >= sz) start_pos_ = 0;
@@ -255,7 +255,7 @@ void DestRoundRobin::cleanup_quarantine() noexcept {
     }
 
     const auto addr = destinations_.at(ndx);
-    const auto sock_res = tcp_port_alive(io_ctx_, addr.addr, addr.port,
+    const auto sock_res = tcp_port_alive(io_ctx_, addr.address(), addr.port(),
                                          kQuarantinedConnectTimeout);
 
     if (sock_res) {

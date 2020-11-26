@@ -53,7 +53,7 @@ int MySQLRoutingAPI::get_active_connections() const {
 }
 
 std::string MySQLRoutingAPI::get_bind_address() const {
-  return r_->get_context().get_bind_address().addr;
+  return r_->get_context().get_bind_address().address();
 }
 
 std::chrono::milliseconds MySQLRoutingAPI::get_destination_connect_timeout()
@@ -101,7 +101,7 @@ std::string MySQLRoutingAPI::get_socket() const {
 }
 
 uint16_t MySQLRoutingAPI::get_bind_port() const {
-  return r_->get_context().get_bind_address().port;
+  return r_->get_context().get_bind_address().port();
 }
 
 std::vector<std::string> MySQLRoutingAPI::get_blocked_client_hosts() const {

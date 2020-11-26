@@ -42,7 +42,6 @@
 #include "mysqld_error.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/uri.h"
-#include "mysqlrouter/utils.h"
 #include "mysqlrouter/utils_sqlstring.h"
 #include "tcp_address.h"
 
@@ -179,25 +178,27 @@ bool set_instance_ports(metadata_cache::ManagedInstance &instance,
                         const mysqlrouter::MySQLSession::Row &row,
                         const size_t classic_port_column,
                         const size_t x_port_column) {
-  try {
+  {
     const std::string classic_port = get_string(row[classic_port_column]);
-    const auto addr_port = mysqlrouter::split_addr_port(classic_port);
-    instance.host = addr_port.first;
-    instance.port = addr_port.second != 0 ? addr_port.second : 3306;
 
-  } catch (const std::runtime_error &e) {
-    log_warning("Error parsing host:port in metadata for instance %s: '%s': %s",
-                instance.mysql_server_uuid.c_str(), row[classic_port_column],
-                e.what());
-    return false;
+    auto make_res = mysql_harness::make_tcp_address(classic_port);
+    if (!make_res) {
+      log_warning(
+          "Error parsing host:port in metadata for instance %s: '%s': %s",
+          instance.mysql_server_uuid.c_str(), row[classic_port_column],
+          make_res.error().message().c_str());
+      return false;
+    }
+
+    instance.host = make_res->address();
+    instance.port = make_res->port() != 0 ? make_res->port() : 3306;
   }
+
   // X protocol support is not mandatory
   if (row[x_port_column] && *row[x_port_column]) {
-    try {
-      const std::string x_port = get_string(row[x_port_column]);
-      const auto addr_port = mysqlrouter::split_addr_port(x_port);
-      instance.xport = addr_port.second != 0 ? addr_port.second : 33060;
-    } catch (const std::runtime_error &) {
+    const std::string x_port = get_string(row[x_port_column]);
+    auto make_res = mysql_harness::make_tcp_address(x_port);
+    if (!make_res) {
       // There is a Shell bug (#27677227) that can cause the mysqlx port be
       // invalid in the metadata (>65535). For the backward compatibility we
       // need to tolerate this and still let the node be used for classic
@@ -209,6 +210,8 @@ bool set_instance_ports(metadata_cache::ManagedInstance &instance,
       //   instance.mysql_server_uuid.c_str(), row[x_port_column],
       //   e.what());
       instance.xport = 0;
+    } else {
+      instance.xport = make_res->port() != 0 ? make_res->port() : 33060;
     }
   } else {
     instance.xport = instance.port * 10;

@@ -175,7 +175,14 @@ BasicSplicer::State XProtocolSplicer::tls_client_greeting() {
     // client-side as an established TLS session and server-side is expecting a
     // Tls Client Hello now.
     server_channel()->is_tls(true);
-    server_channel()->init_ssl(server_ssl_ctx_getter_());
+
+    auto *ssl_ctx = server_ssl_ctx_getter_();
+    if (ssl_ctx == nullptr) {
+      // shouldn't happen. But if it does, close the connection.
+      log_warning("failed to create SSL_CTX");
+      return State::DONE;
+    }
+    server_channel()->init_ssl(ssl_ctx);
 
     return State::TLS_CONNECT;
   } else if (dest_ssl_mode() != SslMode::kDisabled) {
@@ -261,17 +268,24 @@ BasicSplicer::State XProtocolSplicer::tls_client_greeting_response() {
     const uint8_t message_type = recv_buf[header_size + 0];
 
 #if 0
-      log_debug("%d: .. %s -> %s", __LINE__, state_to_string(state()),
-                xproto_server_message_to_string(message_type));
+    log_debug("%d: .. %s -> %s", __LINE__, state_to_string(state()),
+              xproto_server_message_to_string(message_type));
 #endif
 
     if (message_type == Mysqlx::ServerMessages::OK) {
       net::dynamic_buffer(recv_buf).consume(header_size + payload_size);
 
       server_channel()->is_tls(true);
-      server_channel()->init_ssl(server_ssl_ctx_getter_());
+
+      auto *ssl_ctx = server_ssl_ctx_getter_();
+      if (ssl_ctx == nullptr) {
+        // shouldn't happen. But if it does, close the connection.
+        log_warning("failed to create SSL_CTX");
+        return State::DONE;
+      }
+      server_channel()->init_ssl(ssl_ctx);
 #if 0
-        log_debug("%d: << %s", __LINE__, state_to_string(state()));
+      log_debug("%d: << %s", __LINE__, state_to_string(state()));
 #endif
       return State::TLS_CONNECT;
     } else if (message_type == Mysqlx::ServerMessages::ERROR) {
@@ -780,7 +794,14 @@ BasicSplicer::State XProtocolSplicer::xproto_splice_int(
                       auto write_res = src_channel->write(net::buffer(out_buf));
 
                       client_channel()->is_tls(true);
-                      client_channel()->init_ssl(client_ssl_ctx_getter_());
+                      auto *ssl_ctx = client_ssl_ctx_getter_();
+                      if (ssl_ctx == nullptr) {
+                        // shouldn't happen. But if it does, close the
+                        // connection.
+                        log_warning("failed to create SSL_CTX");
+                        return State::DONE;
+                      }
+                      client_channel()->init_ssl(ssl_ctx);
 
                       return State::TLS_ACCEPT;
                     } else {
@@ -838,6 +859,13 @@ BasicSplicer::State XProtocolSplicer::xproto_splice_int(
                   plain_buf.consume(write_res.value());
 
                   client_channel()->is_tls(true);
+                  auto *ssl_ctx = client_ssl_ctx_getter_();
+                  if (ssl_ctx == nullptr) {
+                    // shouldn't happen. But if it does, close the
+                    // connection.
+                    log_warning("failed to create SSL_CTX");
+                    return State::DONE;
+                  }
                   client_channel()->init_ssl(client_ssl_ctx_getter_());
 
                   return State::TLS_ACCEPT;
