@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -3362,7 +3362,7 @@ sub check_ndbcluster_support ($) {
   mtr_report(" - enabling ndbcluster");
   $ndbcluster_enabled= 1;
   # Add MySQL Cluster test suites
-  $DEFAULT_SUITES.=",ndb,ndb_binlog,rpl_ndb,ndb_rpl,ndb_memcache,ndbcluster,ndb_ddl,gcol_ndb";
+  $DEFAULT_SUITES.=",ndb,ndb_binlog,rpl_ndb,ndb_rpl,ndbcluster,ndb_ddl,gcol_ndb";
   return;
 }
 
@@ -3612,163 +3612,6 @@ sub ndbd_start {
 
   return;
 }
-
-# Start memcached with the special ndb_engine.so plugin
-# making it use NDB as backend.
-sub memcached_start {
-  my ($cluster, $memcached) = @_;
-
-  my $name = $memcached->name();
-  mtr_verbose("memcached_start '$name'");
-
-  # Clear env used by include/have_memcached.inc
-  $ENV{'NDB_MEMCACHED_STARTED'} = 0;
-
-  # Look for the ndb_engine.so memcache plugin
-  my $found_so = my_find_file($bindir,
-    ["storage/ndb/memcache",        # source or build
-     "lib", "lib64"],               # install
-    "ndb_engine.so", NOT_REQUIRED);
-  if ($found_so eq "")
-  {
-    # The ndb_engine memcache plugin is not a mandatory
-    # component, silently skip to start memcached if it's not
-    # found
-    mtr_verbose("Could not find the ndb_engine memcache plugin");
-    return;
-  }
-  mtr_verbose("Found memcache plugin: '$found_so'");
- 
-  # Look for the generated perl script which tells
-  # location of memcached etc.
-  my $found_perl_source = my_find_file($bindir,
-     ["storage/ndb/memcache",        # source
-      "mysql-test/lib",              # install
-      "share/mysql-test/lib"],       # install
-      "memcached_path.pl");
-  mtr_verbose("Found memcache script: '$found_perl_source'");
-
-  # Source the found perl script which tells
-  # location of memcached etc.
-  require "$found_perl_source";
-
-  if(! memcached_is_available())
-  {
-    mtr_error("Memcached not available.");
-  }
-  my $exe = "";
-  if(memcached_is_bundled())
-  {
-    # The bundled memcached has been built
-    # and made part of the package, find where
-    # it ended up and use it.
-    $exe = my_find_bin($bindir,
-      ["libexec",
-       "sbin",
-       "bin",
-       "storage/ndb/memcache/extra/memcached"],
-      "memcached");
-    mtr_verbose("Found bundled memcached '$exe'");
-  }
-  else
-  {
-    # External memcached has been used to build ndb_engine.so
-    # The path to that memcached has been hardcoded in
-    # memcached_path.pl, use that path.
-    # This requires same machine as build or memcached
-    # also installed in same location as when it was built.
-    $exe = get_memcached_exe_path();
-    if ($exe eq "" or ! -x $exe)
-    {
-      mtr_error("Failed to find memcached binary '$exe'");
-    }
-    mtr_verbose("Using memcached binary '$exe'");
-  }
-
-
-  my $args;
-  mtr_init_args(\$args);
-  # TCP port number to listen on
-  mtr_add_arg($args, "-p %d", $memcached->value('port'));
-  # Max simultaneous connections
-  mtr_add_arg($args, "-c %d", $memcached->value('max_connections'));
-  # Load engine as storage engine, ie. /path/ndb_engine.so
-  mtr_add_arg($args, "-E");
-  mtr_add_arg($args, $found_so);
-  # Config options for loaded storage engine
-  {
-    my @opts;
-    push(@opts, "connectstring=" . $memcached->value('ndb_connectstring'));
-    push(@opts, $memcached->if_exist("options"));
-    mtr_add_arg($args, "-e");
-    mtr_add_arg($args, join(";", @opts));
-  }
-
-  if($opt_gdb)
-  {
-    gdb_arguments(\$args, \$exe, "memcached");
-  }
-
-  my $proc = My::SafeProcess->new
-  ( name     =>  $name,
-    path     =>  $exe,
-    args     => \$args,
-    output   =>  "$opt_vardir/log/$name.out",
-    error    =>  "$opt_vardir/log/$name.out",
-    append   =>  1,
-    verbose  => $opt_verbose,
-  );
-  mtr_verbose("Started $proc");
-
-  $memcached->{proc} = $proc;
-  
-  # Set env used by include/have_memcached.inc
-  $ENV{'NDB_MEMCACHED_STARTED'} = 1;
-
-  return;
-}
-
-
-sub memcached_load_metadata($) {
-  my $cluster= shift;
-
-  foreach my $mysqld (mysqlds())
-  {
-    if(-d $mysqld->value('datadir') . "/" . "ndbmemcache")
-    {
-      mtr_verbose("skipping memcache metadata (already stored)");
-      return;
-    }
-  }
-
-  my $sql_script= my_find_file($bindir,
-                              ["share/mysql/memcache-api", # RPM install
-                               "share/memcache-api",       # Other installs
-                               "scripts"                   # Build tree
-                              ],
-                              "ndb_memcache_metadata.sql", NOT_REQUIRED);
-  mtr_verbose("memcached_load_metadata: '$sql_script'");
-  if (-f $sql_script )
-  {
-    my $args;
-    mtr_init_args(\$args);
-    mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
-    mtr_add_arg($args, "--defaults-group-suffix=%s", $cluster->suffix());
-    mtr_add_arg($args, "--connect-timeout=20");
-    if ( My::SafeProcess->run(
-           name   => "ndbmemcache config loader",
-           path   => $exe_mysql,
-           args   => \$args,
-           input  => $sql_script,
-           output => "$opt_vardir/log/memcache_config.log",
-           error  => "$opt_vardir/log/memcache_config.log"
-       ) != 0)
-    {
-      mtr_error("Could not load ndb_memcache_metadata.sql file");
-    }
-  }
-}
-
 
 sub ndbcluster_start ($) {
   my $cluster= shift;
@@ -6315,7 +6158,7 @@ sub servers_need_restart($) {
   }
 
   # Check if any remaining servers need restart
-  foreach my $server (ndb_mgmds(), ndbds(), memcacheds())
+  foreach my $server (ndb_mgmds(), ndbds())
   {
     if (server_need_restart($tinfo, $server, $master_restarted))
     {
@@ -6337,8 +6180,7 @@ sub mysqlds { return _like('mysqld.'); }
 sub ndbds   { return _like('cluster_config.ndbd.');}
 sub ndb_mgmds { return _like('cluster_config.ndb_mgmd.'); }
 sub clusters  { return _like('mysql_cluster.'); }
-sub memcacheds { return _like('memcached.'); }
-sub all_servers { return ( mysqlds(), ndb_mgmds(), ndbds(), memcacheds() ); }
+sub all_servers { return ( mysqlds(), ndb_mgmds(), ndbds() ); }
 
 #
 # Filter a list of servers and return only those that are part
@@ -6421,7 +6263,7 @@ sub stop_servers($$) {
 
     # cluster processes
     My::SafeProcess::shutdown( $opt_shutdown_timeout,
-			       started(ndbds(), ndb_mgmds(), memcacheds()) );
+			       started(ndbds(), ndb_mgmds() ) );
   }
   else
   {
@@ -6635,22 +6477,6 @@ sub start_servers($) {
 	$tinfo->{logfile}= "Could not open server logfile: '$logfile'";
       }
       return 1;
-    }
-  }
-
-  # Start memcached(s) for each cluster
-  foreach my $cluster ( clusters() )
-  {
-    next if !in_cluster($cluster, memcacheds());
-
-    # Load the memcache metadata into this cluster
-    memcached_load_metadata($cluster);
-
-    # Start memcached(s)
-    foreach my $memcached ( in_cluster($cluster, memcacheds()))
-    {
-      next if started($memcached);
-      memcached_start($cluster, $memcached);
     }
   }
 
