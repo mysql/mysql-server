@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@
 NdbRestarter::NdbRestarter(const char* _addr, Ndb_cluster_connection * con):
   handle(NULL),
   connected(false),
-  m_config(0),
+  m_config(nullptr),
   m_reconnect(false),
   m_cluster_connection(con)
 {
@@ -60,6 +60,7 @@ NdbRestarter::NdbRestarter(const char* _addr, Ndb_cluster_connection * con):
 
 NdbRestarter::~NdbRestarter(){
   disconnect();
+  ndb_mgm_destroy_configuration(m_config);
 }
 
 
