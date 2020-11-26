@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -378,7 +378,7 @@ int runTestMgmApiGetConfigTimeout(NDBT_Context* ctx, NDBT_Step* step)
     struct ndb_mgm_configuration *c= ndb_mgm_get_configuration(h,0);
 
     if(c!=NULL)
-      free(c);
+      ndb_mgm_destroy_configuration(c);
 
     if(error_ins!=0 && c!=NULL)
     {
@@ -793,7 +793,7 @@ int runSetConfig(NDBT_Context* ctx, NDBT_Step* step)
     }
 
     int r= ndb_mgm_set_configuration(mgmd.handle(), conf);
-    free(conf);
+    ndb_mgm_destroy_configuration(conf);
 
     if (r != 0)
     {
@@ -832,7 +832,7 @@ int runGetConfig(NDBT_Context* ctx, NDBT_Step* step)
       ndb_mgm_get_configuration(mgmd.handle(), 0);
     if (!conf)
       return NDBT_FAILED;
-    free(conf);
+    ndb_mgm_destroy_configuration(conf);
   }
   return NDBT_OK;
 }
