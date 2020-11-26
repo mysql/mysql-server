@@ -89,7 +89,7 @@ let SEARCH_PATTERN=CORRUPT LOG RECORD FOUND;
 --source include/search_pattern.inc
 
 --echo # Server shouldn't have restarted, so query should fail.
---error CR_SERVER_GONE_ERROR
+--error CR_SERVER_LOST
 SELECT * from test.t1 limit 10;
 
 --echo #########################################################################
