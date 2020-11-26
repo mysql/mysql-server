@@ -1632,14 +1632,19 @@ AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
   if (thd->is_error()) return nullptr;
 
   // Get the root candidates. If there is a secondary engine cost hook, there
-  // may be no candidates, as the hook may have rejected all valid plans.
-  // Otherwise, expect there to be at least one candidate.
-  Prealloced_array<AccessPath *, 4> root_candidates(PSI_NOT_INSTRUMENTED);
-  if (secondary_engine_cost_hook == nullptr ||
-      receiver.HasSeen(TablesBetween(0, graph.nodes.size()))) {
-    root_candidates = receiver.root_candidates();
-    assert(!root_candidates.empty());
+  // may be no candidates, as the hook may have rejected so many access paths
+  // that we could not build a complete plan. Otherwise, expect at least one
+  // candidate.
+  if (secondary_engine_cost_hook != nullptr &&
+      (!receiver.HasSeen(TablesBetween(0, graph.nodes.size())) ||
+       receiver.root_candidates().empty())) {
+    my_error(ER_SECONDARY_ENGINE, MYF(0),
+             "All plans were rejected by the secondary storage engine.");
+    return nullptr;
   }
+  Prealloced_array<AccessPath *, 4> root_candidates =
+      receiver.root_candidates();
+  assert(!root_candidates.empty());
   thd->m_current_query_partial_plans += receiver.num_access_paths();
   if (trace != nullptr) {
     *trace += StringPrintf(
@@ -1809,8 +1814,8 @@ AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
   if (thd->is_error()) return nullptr;
 
   if (root_candidates.empty()) {
-    // The secondary engine has rejected so many access paths that we could not
-    // build a complete plan.
+    // The secondary engine has rejected so many of the post-processing paths
+    // (e.g., sorting, limit, grouping) that we could not build a complete plan.
     assert(secondary_engine_cost_hook != nullptr);
     my_error(ER_SECONDARY_ENGINE, MYF(0),
              "All plans were rejected by the secondary storage engine.");

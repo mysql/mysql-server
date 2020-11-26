@@ -933,6 +933,26 @@ TEST_F(HypergraphSecondaryEngineTest, RejectAllPlans) {
   EXPECT_EQ(nullptr, root);
 }
 
+TEST_F(HypergraphSecondaryEngineTest, RejectAllCompletePlans) {
+  SELECT_LEX *select_lex = ParseAndResolve(
+      "SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x JOIN t3 ON t2.y=t3.y",
+      /*nullable=*/true);
+
+  handlerton *hton = EnableSecondaryEngine();
+  hton->secondary_engine_modify_access_path_cost = [](THD *, AccessPath *path) {
+    // Reject the path if all three tables are referenced.
+    return GetUsedTables(path) == 0b111;
+  };
+
+  // No plans will be found, so expect an error.
+  ErrorChecker error_checker{m_thd, ER_SECONDARY_ENGINE};
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, select_lex, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  EXPECT_EQ(nullptr, root);
+}
+
 TEST_F(HypergraphSecondaryEngineTest, RejectJoinOrders) {
   SELECT_LEX *select_lex = ParseAndResolve(
       "SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x JOIN t3 ON t2.y=t3.y",
