@@ -2758,35 +2758,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
    ======================================================================
    ======================================================================
 
-Memcached.pm
-
-   Memcached.pm
-Memcached.pm is licensed under the Perl license.
-
-Oracle may use, redistribute and/or modify this code under the terms of
-either:
-
-        a) the GNU General Public License as published by the Free Software
-Foundation; either version 1, or (at your option) any later version, or
-
-        b) the "Artistic License" which comes with the Expect/pr code.
-
-Oracle elects to use the GPLv2 for version of MySQL that are licensed under
-the GPL.
-
-Oracle elects to use the Artistic license for all other (commercial) versions
-of MySQL.
-
-A copy of the GPLv2 and the Artistic License (Perl) 1.0 must be included with
-any distribution.
-
-   This component is licensed under the GNU GPL license, version 2.0.
-
-   This component is licensed under Artistic License (Perl) 1.0
-
-   ======================================================================
-   ======================================================================
-
 mkpasswd.pl
 
    mkpasswd.pl Perl module
