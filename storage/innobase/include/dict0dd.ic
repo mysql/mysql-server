@@ -283,14 +283,23 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) bool dd_mdl_acquire(
     THD *thd, MDL_ticket **mdl, const char *db, const char *table) {
   bool ret = false;
   char table_name[MAX_TABLE_NAME_LEN + 1];
-  const char *namep = table;
+  const char *table_p = table;
+
+  char db_name[MAX_DATABASE_NAME_LEN + 1];
+  const char *db_p = db;
 
   if (innobase_get_lower_case_table_names() == 2) {
     ulint len = strlen(table);
     ut_memcpy(table_name, table, len);
     table_name[len] = '\0';
     innobase_casedn_str(table_name);
-    namep = table_name;
+    table_p = table_name;
+
+    len = strlen(db);
+    ut_memcpy(db_name, db, len);
+    db_name[len] = '\0';
+    innobase_casedn_str(db_name);
+    db_p = db_name;
   } else {
 #ifndef _WIN32
     if (innobase_get_lower_case_table_names() == 1) {
@@ -298,12 +307,18 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) bool dd_mdl_acquire(
       ut_memcpy(table_name, table, len);
       table_name[len] = '\0';
       innobase_casedn_str(table_name);
-      namep = table_name;
+      table_p = table_name;
+
+      len = strlen(db);
+      ut_memcpy(db_name, db, len);
+      db_name[len] = '\0';
+      innobase_casedn_str(db_name);
+      db_p = db_name;
     }
 #endif /* !_WIN32 */
   }
 
-  ret = dd::acquire_shared_table_mdl(thd, db, namep, false, mdl);
+  ret = dd::acquire_shared_table_mdl(thd, db_p, table_p, false, mdl);
 
   return (ret);
 }

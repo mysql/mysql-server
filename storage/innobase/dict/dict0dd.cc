@@ -442,108 +442,110 @@ static dict_table_t *dd_table_open_on_id_low(THD *thd, MDL_ticket **mdl,
     return nullptr;
   }
 
-  const dd::Table *dd_table;
-  const dd::Partition *dd_part = nullptr;
-  dd::cache::Dictionary_client *dc = dd::get_dd_client(thd);
-  dd::cache::Dictionary_client::Auto_releaser releaser(dc);
-
-  /* Since we start with table se_private_id, and we do not have
-  table name, so we cannot MDL lock the table(name). So we will
-  try to get the table name without MDL protection, and verify later,
-  after we got the table name and MDL lock it. Thus a loop is needed
-  in case the verification failed, and another attempt is made until
-  all things matches */
-  for (;;) {
-    dd::String_type schema;
-    dd::String_type tablename;
-    if (dc->get_table_name_by_se_private_id(handler_name, table_id, &schema,
-                                            &tablename)) {
-      return nullptr;
-    }
-
-    const bool not_table = schema.empty();
-
-    if (not_table) {
-      if (dc->get_table_name_by_partition_se_private_id(handler_name, table_id,
-                                                        &schema, &tablename) ||
-          schema.empty()) {
-        return nullptr;
-      }
-    }
-
-    /* Now we have tablename, and MDL locked it if necessary. */
-    if (mdl != nullptr) {
-      if (*mdl == nullptr &&
-          dd_mdl_acquire(thd, mdl, schema.c_str(), tablename.c_str())) {
-        return nullptr;
-      }
-
-      ut_ad(*mdl != nullptr);
-    }
-
-    if (dc->acquire(schema, tablename, &dd_table) || dd_table == nullptr) {
-      if (mdl != nullptr) {
-        dd_mdl_release(thd, mdl);
-      }
-      return nullptr;
-    }
-
-    const bool is_part = dd_table_is_partitioned(*dd_table);
-
-    /* Verify facts between dd_table and facts we know
-    1) Partiton table or not
-    2) Table ID matches or not
-    3) Table in InnoDB */
-    bool same_name = not_table == is_part &&
-                     (not_table || dd_table->se_private_id() == table_id) &&
-                     dd_table->engine() == handler_name;
-
-    /* Do more verification for partition table */
-    if (same_name && is_part) {
-      auto end = dd_table->leaf_partitions().end();
-      auto i =
-          std::search_n(dd_table->leaf_partitions().begin(), end, 1, table_id,
-                        [](const dd::Partition *p, table_id_t id) {
-                          return (p->se_private_id() == id);
-                        });
-
-      if (i == end) {
-        same_name = false;
-      } else {
-        dd_part = *i;
-        ut_ad(dd_part_is_stored(dd_part));
-
-        std::string partition;
-        /* Build the partition name. */
-        dict_name::build_partition(dd_part, partition);
-
-        /* Build the partitioned table name. */
-        dict_name::build_table(schema.c_str(), tablename.c_str(), partition,
-                               false, true, part_table);
-        name_to_open = part_table.c_str();
-      }
-    }
-
-    /* facts do not match, retry */
-    if (!same_name) {
-      if (mdl != nullptr) {
-        dd_mdl_release(thd, mdl);
-      }
-      continue;
-    }
-
-    ut_ad(same_name);
-    break;
-  }
-
-  ut_ad(dd_part != nullptr || dd_table->se_private_id() == table_id);
-  ut_ad(dd_part == nullptr || dd_table == &dd_part->table());
-  ut_ad(dd_part == nullptr || dd_part->se_private_id() == table_id);
-
   dict_table_t *ib_table = nullptr;
 
-  dd_table_open_on_dd_obj(thd, dc, *dd_table, dd_part, name_to_open, ib_table,
-                          nullptr);
+  {
+    const dd::Table *dd_table;
+    const dd::Partition *dd_part = nullptr;
+    dd::cache::Dictionary_client *dc = dd::get_dd_client(thd);
+    dd::cache::Dictionary_client::Auto_releaser releaser(dc);
+
+    /* Since we start with table se_private_id, and we do not have
+    table name, so we cannot MDL lock the table(name). So we will
+    try to get the table name without MDL protection, and verify later,
+    after we got the table name and MDL lock it. Thus a loop is needed
+    in case the verification failed, and another attempt is made until
+    all things matches */
+    for (;;) {
+      dd::String_type schema;
+      dd::String_type tablename;
+      if (dc->get_table_name_by_se_private_id(handler_name, table_id, &schema,
+                                              &tablename)) {
+        return nullptr;
+      }
+
+      const bool not_table = schema.empty();
+
+      if (not_table) {
+        if (dc->get_table_name_by_partition_se_private_id(
+                handler_name, table_id, &schema, &tablename) ||
+            schema.empty()) {
+          return nullptr;
+        }
+      }
+
+      /* Now we have tablename, and MDL locked it if necessary. */
+      if (mdl != nullptr) {
+        if (*mdl == nullptr &&
+            dd_mdl_acquire(thd, mdl, schema.c_str(), tablename.c_str())) {
+          return nullptr;
+        }
+
+        ut_ad(*mdl != nullptr);
+      }
+
+      if (dc->acquire(schema, tablename, &dd_table) || dd_table == nullptr) {
+        if (mdl != nullptr) {
+          dd_mdl_release(thd, mdl);
+        }
+        return nullptr;
+      }
+
+      const bool is_part = dd_table_is_partitioned(*dd_table);
+
+      /* Verify facts between dd_table and facts we know
+      1) Partiton table or not
+      2) Table ID matches or not
+      3) Table in InnoDB */
+      bool same_name = not_table == is_part &&
+                       (not_table || dd_table->se_private_id() == table_id) &&
+                       dd_table->engine() == handler_name;
+
+      /* Do more verification for partition table */
+      if (same_name && is_part) {
+        auto end = dd_table->leaf_partitions().end();
+        auto i =
+            std::search_n(dd_table->leaf_partitions().begin(), end, 1, table_id,
+                          [](const dd::Partition *p, table_id_t id) {
+                            return (p->se_private_id() == id);
+                          });
+
+        if (i == end) {
+          same_name = false;
+        } else {
+          dd_part = *i;
+          ut_ad(dd_part_is_stored(dd_part));
+
+          std::string partition;
+          /* Build the partition name. */
+          dict_name::build_partition(dd_part, partition);
+
+          /* Build the partitioned table name. */
+          dict_name::build_table(schema.c_str(), tablename.c_str(), partition,
+                                 false, true, part_table);
+          name_to_open = part_table.c_str();
+        }
+      }
+
+      /* facts do not match, retry */
+      if (!same_name) {
+        if (mdl != nullptr) {
+          dd_mdl_release(thd, mdl);
+        }
+        continue;
+      }
+
+      ut_ad(same_name);
+      break;
+    }
+
+    ut_ad(dd_part != nullptr || dd_table->se_private_id() == table_id);
+    ut_ad(dd_part == nullptr || dd_table == &dd_part->table());
+    ut_ad(dd_part == nullptr || dd_part->se_private_id() == table_id);
+
+    dd_table_open_on_dd_obj(thd, dc, *dd_table, dd_part, name_to_open, ib_table,
+                            nullptr);
+  }
 
   if (mdl && ib_table == nullptr) {
     dd_mdl_release(thd, mdl);
