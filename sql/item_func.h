@@ -1120,7 +1120,7 @@ class Item_func_div final : public Item_num_op {
   uint prec_increment;
   Item_func_div(const POS &pos, Item *a, Item *b) : Item_num_op(pos, a, b) {}
   longlong int_op() override {
-    DBUG_ASSERT(0);
+    assert(false);
     return 0;
   }
   double real_op() override;

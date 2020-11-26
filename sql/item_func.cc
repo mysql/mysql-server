@@ -1886,14 +1886,21 @@ void Item_typecast_real::print(const THD *thd, String *str,
 }
 
 double Item_func_plus::real_op() {
-  double value = args[0]->val_real() + args[1]->val_real();
+  double val1 = args[0]->val_real();
+  if (current_thd->is_error()) return error_real();
+  double val2 = args[1]->val_real();
+  if (current_thd->is_error()) return error_real();
+
   if ((null_value = args[0]->null_value || args[1]->null_value)) return 0.0;
+  double value = val1 + val2;
   return check_float_overflow(value);
 }
 
 longlong Item_func_plus::int_op() {
   longlong val0 = args[0]->val_int();
+  if (current_thd->is_error()) return error_int();
   longlong val1 = args[1]->val_int();
+  if (current_thd->is_error()) return error_int();
   longlong res = val0 + val1;
   bool res_unsigned = false;
 
@@ -1989,14 +1996,21 @@ bool Item_func_minus::resolve_type(THD *thd) {
 }
 
 double Item_func_minus::real_op() {
-  double value = args[0]->val_real() - args[1]->val_real();
+  double val1 = args[0]->val_real();
+  if (current_thd->is_error()) return error_real();
+  double val2 = args[1]->val_real();
+  if (current_thd->is_error()) return error_real();
+
   if ((null_value = args[0]->null_value || args[1]->null_value)) return 0.0;
+  double value = val1 - val2;
   return check_float_overflow(value);
 }
 
 longlong Item_func_minus::int_op() {
   longlong val0 = args[0]->val_int();
+  if (current_thd->is_error()) return error_int();
   longlong val1 = args[1]->val_int();
+  if (current_thd->is_error()) return error_int();
   longlong res = val0 - val1;
   bool res_unsigned = false;
 
@@ -2081,15 +2095,22 @@ my_decimal *Item_func_minus::decimal_op(my_decimal *decimal_value) {
 
 double Item_func_mul::real_op() {
   DBUG_ASSERT(fixed == 1);
-  double value = args[0]->val_real() * args[1]->val_real();
+  double val1 = args[0]->val_real();
+  if (current_thd->is_error()) return error_real();
+  double val2 = args[1]->val_real();
+  if (current_thd->is_error()) return error_real();
+
   if ((null_value = args[0]->null_value || args[1]->null_value)) return 0.0;
+  double value = val1 * val2;
   return check_float_overflow(value);
 }
 
 longlong Item_func_mul::int_op() {
   DBUG_ASSERT(fixed == 1);
   longlong a = args[0]->val_int();
+  if (current_thd->is_error()) return error_int();
   longlong b = args[1]->val_int();
+  if (current_thd->is_error()) return error_int();
   longlong res;
   ulonglong res0, res1;
 
@@ -2199,14 +2220,17 @@ void Item_func_mul::result_precision() {
 
 double Item_func_div::real_op() {
   DBUG_ASSERT(fixed == 1);
-  double value = args[0]->val_real();
+  double val1 = args[0]->val_real();
+  if (current_thd->is_error()) return error_real();
   double val2 = args[1]->val_real();
+  if (current_thd->is_error()) return error_real();
+
   if ((null_value = args[0]->null_value || args[1]->null_value)) return 0.0;
   if (val2 == 0.0) {
     signal_divide_by_null();
     return 0.0;
   }
-  return check_float_overflow(value / val2);
+  return check_float_overflow(val1 / val2);
 }
 
 my_decimal *Item_func_div::decimal_op(my_decimal *decimal_value) {
@@ -2359,7 +2383,9 @@ bool Item_func_int_div::resolve_type(THD *thd) {
 longlong Item_func_mod::int_op() {
   DBUG_ASSERT(fixed == 1);
   longlong val0 = args[0]->val_int();
+  if (current_thd->is_error()) return error_int();
   longlong val1 = args[1]->val_int();
+  if (current_thd->is_error()) return error_int();
   bool val0_negative, val1_negative;
   ulonglong uval0, uval1;
   ulonglong res;
@@ -2391,15 +2417,17 @@ longlong Item_func_mod::int_op() {
 
 double Item_func_mod::real_op() {
   DBUG_ASSERT(fixed == 1);
-  double value = args[0]->val_real();
+  double val1 = args[0]->val_real();
+  if (current_thd->is_error()) return error_real();
   double val2 = args[1]->val_real();
-  if ((null_value = args[0]->null_value || args[1]->null_value))
-    return 0.0; /* purecov: inspected */
+  if (current_thd->is_error()) return error_real();
+
+  if ((null_value = args[0]->null_value || args[1]->null_value)) return 0.0;
   if (val2 == 0.0) {
     signal_divide_by_null();
     return 0.0;
   }
-  return fmod(value, val2);
+  return fmod(val1, val2);
 }
 
 my_decimal *Item_func_mod::decimal_op(my_decimal *decimal_value) {
