@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -1168,9 +1168,6 @@ echo "====="                                                       >> $STATUS_HI
 %attr(755, root, root) %{_bindir}/ndb_show_tables
 %attr(755, root, root) %{_bindir}/ndb_waiter
 
-%if %(test "@MEMCACHED_ROOT_DIR@" '!=' "MEMCACHED_ROOT_DIR-NOTFOUND" && echo 1 || echo 0)
-%attr(755, root, root) %{_sbindir}/memcached
-%endif
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %attr(755, root, root) %{_sbindir}/ndbd

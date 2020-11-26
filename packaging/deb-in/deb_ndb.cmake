@@ -71,14 +71,6 @@ Description: Java connector
  attempts to offer the best possible performance by leveraging the
  strengths of both ClusterJ and JDBC
 
-Package: mysql-${DEB_PRODUCTNAME}-memcached
-Architecture: any
-Depends: \${shlibs:Depends}, \${misc:Depends}, mysql-${DEB_PRODUCTNAME}-server
-Description: memcached
- This package contains the standard memcached server and a loadable
- storage engine for memcached using the Memcache API for MySQL Cluster
- to provide a persistent MySQL Cluster data store.
-
 ")
 
   SET (DEB_NDB_CLIENT_EXTRA
@@ -146,7 +138,6 @@ Description: memcached
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/${DEB_INSTALL_LICENSEFILE} debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-data-node/${DEB_INSTALL_LICENSEFILE}
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/${DEB_INSTALL_LICENSEFILE} debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-java/${DEB_INSTALL_LICENSEFILE}
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/${DEB_INSTALL_LICENSEFILE} debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-management-server/${DEB_INSTALL_LICENSEFILE}
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/${DEB_INSTALL_LICENSEFILE} debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-memcached/${DEB_INSTALL_LICENSEFILE}
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/${DEB_INSTALL_LICENSEFILE} debian/tmp/usr/share/doc/ndbclient/${DEB_INSTALL_LICENSEFILE}
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/${DEB_INSTALL_LICENSEFILE} debian/tmp/usr/share/doc/ndbclient-dev/${DEB_INSTALL_LICENSEFILE}
 ")
@@ -155,7 +146,6 @@ Description: memcached
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-data-node/README
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-java/README
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-management-server/README
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-memcached/README
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/ndbclient/README
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/ndbclient-dev/README
 ")
@@ -164,7 +154,6 @@ SET (DEB_NDB_RULES_DOCDIRS
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-data-node
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-java
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-management-server
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-memcached
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/ndbclient
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/ndbclient-dev
 ")
