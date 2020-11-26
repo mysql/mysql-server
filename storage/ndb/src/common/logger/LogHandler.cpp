@@ -27,6 +27,7 @@
 #include <time.h>
 
 #include <NdbTick.h>
+#include "util/cstrbuf.h"
 
 //
 // PUBLIC
@@ -60,8 +61,14 @@ LogHandler::append(const char* pCategory, Logger::LoggerLevel level,
       append_impl(m_last_category, m_last_level, m_last_message, now);
 
     m_last_level= level;
-    snprintf(m_last_category, sizeof(m_last_category), "%s", pCategory);
-    snprintf(m_last_message, sizeof(m_last_message), "%s", pMsg);
+    if (cstrbuf_copy(m_last_category, pCategory) == 1)
+    {
+      // truncated category
+    }
+    if (cstrbuf_copy(m_last_message, pMsg) == 1)
+    {
+      // truncated message
+    }
   }
   else // repeated message
   {

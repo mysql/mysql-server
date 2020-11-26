@@ -65,7 +65,8 @@ private:
  */
 class Properties {
 public:
-  static const char delimiter;
+  static constexpr char delimiter = ':';
+  static constexpr char truncated_prefix_mark[] = "...:";
   static const char version[];
 
   Properties(bool case_insensitive= false);
