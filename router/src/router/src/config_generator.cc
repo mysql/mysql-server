@@ -1957,6 +1957,10 @@ void ConfigGenerator::create_config(
   auto ttl = options.use_gr_notifications ? kDefaultMetadataTTLGRNotificationsON
                                           : kDefaultMetadataTTL;
 
+  const auto auth_cache_refresh_interval =
+      options.use_gr_notifications ? kDefaultMetadataTTLGRNotificationsON
+                                   : kDefaultAuthCacheRefreshInterval;
+
   const std::string use_gr_notifications =
       mysqlrouter::ClusterType::RS_V2 == metadata_->get_type()
           ? ""
@@ -1975,8 +1979,7 @@ void ConfigGenerator::create_config(
               << "auth_cache_ttl="
               << mysqlrouter::ms_to_seconds_string(kDefaultAuthCacheTTL) << "\n"
               << "auth_cache_refresh_interval="
-              << mysqlrouter::ms_to_seconds_string(
-                     kDefaultAuthCacheRefreshInterval)
+              << mysqlrouter::ms_to_seconds_string(auth_cache_refresh_interval)
               << "\n"
               << use_gr_notifications;
 

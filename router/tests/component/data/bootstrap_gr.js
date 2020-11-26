@@ -1,10 +1,18 @@
 var common_stmts = require("common_statements");
 
+if (mysqld.global.innodb_cluster_instances === undefined) {
+  mysqld.global.innodb_cluster_instances =
+      [["localhost", 5500], ["localhost", 5510], ["localhost", 5520]];
+}
+
+if (mysqld.global.cluster_name == undefined) {
+  mysqld.global.cluster_name = "mycluster";
+}
+
 var options = {
   cluster_type: "gr",
-  innodb_cluster_name: "mycluster",
-  innodb_cluster_instances:
-      [["localhost", 5500], ["localhost", 5510], ["localhost", 5520]],
+  innodb_cluster_name: mysqld.global.cluster_name,
+  innodb_cluster_instances: mysqld.global.innodb_cluster_instances,
 };
 
 var common_responses = common_stmts.prepare_statement_responses(
