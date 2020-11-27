@@ -22,11 +22,11 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef MYSQL_ROUTER_DESTINATION_TLS_CONTEXT_INCLUDED
-#define MYSQL_ROUTER_DESTINATION_TLS_CONTEXT_INCLUDED
+#ifndef MYSQL_ROUTING_DESTINATION_TLS_CONTEXT_INCLUDED
+#define MYSQL_ROUTING_DESTINATION_TLS_CONTEXT_INCLUDED
 
 #include <map>
-#include <memory>  // make_unique
+#include <mutex>
 #include <string>
 
 #include "mysql/harness/tls_client_context.h"
@@ -37,44 +37,64 @@
  */
 class DestinationTlsContext {
  public:
-  void verify(SslVerify ssl_verify) { ssl_verify_ = ssl_verify; }
-  void ca_file(const std::string &file) { ca_file_ = file; }
-  void ca_path(const std::string &path) { ca_path_ = path; }
-  void crl_file(const std::string &file) { crl_file_ = file; }
-  void crl_path(const std::string &path) { crl_path_ = path; }
-  void curves(const std::string &curves) { curves_ = curves; }
-  void ciphers(const std::string &ciphers) { ciphers_ = ciphers; }
+  /**
+   * set SslVerify.
+   */
+  void verify(SslVerify ssl_verify);
 
-  TlsClientContext *get(const std::string &dest_id) {
-    auto it = tls_contexts_.find(dest_id);
-    if (it == tls_contexts_.end()) {
-      // not found
-      auto res =
-          tls_contexts_.emplace(dest_id, std::make_unique<TlsClientContext>());
-      auto *tls_ctx = res.first->second.get();
+  /**
+   * set CA file.
+   */
+  void ca_file(const std::string &file);
 
-      if (!ciphers_.empty()) tls_ctx->cipher_list(ciphers_);
-      if (!curves_.empty()) tls_ctx->curves_list(curves_);
+  /**
+   * set CA path.
+   */
+  void ca_path(const std::string &path);
 
-      switch (ssl_verify_) {
-        case SslVerify::kDisabled:
-          tls_ctx->verify(TlsVerify::NONE);
-          break;
-        case SslVerify::kVerifyIdentity:
-          tls_ctx->verify_hostname(dest_id);
-          // fallthrough
-        case SslVerify::kVerifyCa:
-          tls_ctx->ssl_ca(ca_file_, ca_path_);
-          tls_ctx->crl(crl_file_, crl_path_);
-          tls_ctx->verify(TlsVerify::PEER);
-          break;
-      }
+  /**
+   * set CRL file.
+   */
+  void crl_file(const std::string &file);
 
-      return tls_ctx;
-    } else {
-      return it->second.get();
-    }
-  }
+  /**
+   * set CRL path.
+   */
+  void crl_path(const std::string &path);
+
+  /**
+   * set allowed EC curves.
+   */
+  void curves(const std::string &curves);
+
+  /**
+   * set allowed ciphers.
+   */
+  void ciphers(const std::string &ciphers);
+
+  /**
+   * get a TlsClientContent for a destination.
+   *
+   * If no TlsClientContext exists for the destination, creates a
+   * TlsClientContent based on:
+   *
+   * - verify()
+   * - ca_file()
+   * - ca_path()
+   * - crl_file()
+   * - crl_path()
+   * - curves()
+   * - ciphers()
+   *
+   * If that succeeds, it the resulting TlsClientContext is cached and a pointer
+   * to it is returned.
+   *
+   * If a TlsClientContext for the destination exists, a pointer to it is
+   * returned.
+   *
+   * @param dest_id identified of a destination
+   */
+  TlsClientContext *get(const std::string &dest_id);
 
  private:
   SslVerify ssl_verify_{SslVerify::kDisabled};
@@ -86,6 +106,8 @@ class DestinationTlsContext {
   std::string ciphers_;
 
   std::map<std::string, std::unique_ptr<TlsClientContext>> tls_contexts_;
+
+  std::mutex mtx_;
 };
 
 #endif
