@@ -60,12 +60,8 @@ include/wait_condition.inc [Client connection must wait for state]
 ROLLBACK;
 SET GTID_NEXT = AUTOMATIC;
 [connection slave1]
-[connection slave]
-include/wait_for_slave_sql_error.inc [errno=3030]
 [connection slave1]
 SET GLOBAL read_only = OFF;
-[connection slave]
-include/start_slave_sql.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/rpl_diff.inc
@@ -104,12 +100,8 @@ SET GLOBAL read_only = ON;
 ROLLBACK;
 SET GTID_NEXT = AUTOMATIC;
 [connection slave1]
-[connection slave]
-include/wait_for_slave_sql_error.inc [errno=3030]
 [connection slave1]
 SET GLOBAL read_only = OFF;
-[connection slave]
-include/start_slave_sql.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/rpl_diff.inc
@@ -149,15 +141,8 @@ include/wait_condition.inc [Client connection must wait for state]
 ROLLBACK;
 SET GTID_NEXT = AUTOMATIC;
 [connection slave1]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
 [connection slave1]
 UNLOCK TABLES;
-[connection slave]
-include/wait_for_slave_sql_error.inc [errno=3030]
-[connection slave1]
-UNLOCK TABLES;
-[connection slave]
-include/start_slave_sql.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/rpl_diff.inc
@@ -197,15 +182,8 @@ include/wait_condition.inc [Client connection must wait for state]
 ROLLBACK;
 SET GTID_NEXT = AUTOMATIC;
 [connection slave1]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
 [connection slave1]
 UNLOCK TABLES;
-[connection slave]
-include/wait_for_slave_sql_error.inc [errno=3030]
-[connection slave1]
-UNLOCK TABLES;
-[connection slave]
-include/start_slave_sql.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/rpl_diff.inc
@@ -214,7 +192,7 @@ include/sync_slave_sql_with_master.inc
 include/stop_slave_sql.inc
 
 #
-# TC6. DML issued by client and `XA PREPARE` replicated from source.
+# TC5. DML issued by client and `XA PREPARE` replicated from source.
 #------------------------------------------------------------------------
 [connection master]
 INSERT INTO t1 VALUES(24, 24);
@@ -241,14 +219,10 @@ include/wait_condition.inc [Client connection must wait for state]
 ROLLBACK;
 SET GTID_NEXT = AUTOMATIC;
 [connection slave1]
-[connection slave]
-include/wait_for_slave_sql_error.inc [errno=1205]
 [connection slave1]
 ROLLBACK;
 [connection master]
 XA COMMIT 'xa1';
-[connection slave]
-include/start_slave_sql.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/rpl_diff.inc

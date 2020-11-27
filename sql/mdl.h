@@ -934,7 +934,8 @@ class MDL_wait_for_subgraph {
   */
   virtual bool accept_visitor(MDL_wait_for_graph_visitor *gvisitor) = 0;
 
-  static const uint DEADLOCK_WEIGHT_DML = 0;
+  static const uint DEADLOCK_WEIGHT_CO = 0;
+  static const uint DEADLOCK_WEIGHT_DML = 25;
   static const uint DEADLOCK_WEIGHT_ULL = 50;
   static const uint DEADLOCK_WEIGHT_DDL = 100;
 

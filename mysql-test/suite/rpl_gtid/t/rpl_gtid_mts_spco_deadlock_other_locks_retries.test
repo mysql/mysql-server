@@ -4,6 +4,10 @@
 # multi-threaded replica when client connections issue global locking or
 # ACL statements concurrently with the applier worker threads.
 #
+# This test executes with transaction retries enabled in the replica
+# applier. See rpl_gtid_mts_spco_deadlock_other_locks for similar scenarios
+# with transaction retries disabled.
+#
 # ==== Requirements ====
 #
 #
@@ -57,9 +61,7 @@
 #      the locking circularity to be complete.
 #   6. Wait for the replica to error out or to overcome the deadlock,
 #      depending on the configuration. In this test-case, the replica
-#      should error out.
-#   7. Revert the effects of 3., breaking the deadlock and restart
-#      replication.
+#      overcome the deadlock and finish replicating without a restart.
 #
 # TC1. `GLOBAL READ_ONLY=ON` issued by client and DDL replicated from source.
 # -----------------------------------------------------------------------------
@@ -73,11 +75,8 @@
 #      transaction, leading to the following lock acquisition dependencies:
 #      Client B --commit lock--> Worker 2 --commit order lock--> Worker 1
 #      --global read lock--> Client B.
-#   4. Wait for the replication applier to error out with
-#      ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR.
-#   5. On the replica, using client connection B, execute `SET GLOBAL
-#      READ_ONLY=OFF` to let the applier worker threads to finish after
-#      restart of the applier.
+#   4. On the replica, using client connection B, execute `SET GLOBAL
+#      READ_ONLY=OFF` to let the applier worker threads to finish applying.
 #
 # TC2. `GLOBAL READ_ONLY=ON` issued by client and DML replicated from source.
 # -----------------------------------------------------------------------------
@@ -91,10 +90,8 @@
 #      transaction, leading to the following lock acquisition dependencies:
 #      Client B --commit lock--> Worker 2 --commit order lock--> Worker 1
 #      --global read lock--> Client B.
-#   4. Wait for the replication applier to error out with
-#      ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR.
-#   5. On the replica, using client connection B, execute `SET GLOBAL
-#      READ_ONLY=OFF` to let the applier worker threads to finish.
+#   4. On the replica, using client connection B, execute `SET GLOBAL
+#      READ_ONLY=OFF` to let the applier worker threads to finish applying.
 #
 # TC3. `FLUSH TABLES WITH READ LOCK` issued by client and DDL replicated
 #      from source.
@@ -109,10 +106,8 @@
 #      transaction, leading to the following lock acquisition dependencies:
 #      Client B --commit lock--> Worker 2 --commit order lock--> Worker 1
 #      --global read lock--> Client B.
-#   4. Wait for the replication applier to error out with
-#      ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR.
-#   5. On the replica, using client connection B, execute `UNLOCK TABLES`
-#      to let the applier worker threads to finish.
+#   4. On the replica, using client connection B, execute `UNLOCK TABLES`
+#      to let the applier worker threads to finish applying.
 #
 # TC4. `FLUSH TABLES WITH READ LOCK` issued by client and DML replicated
 #      from source.
@@ -127,33 +122,18 @@
 #      transaction, leading to the following lock acquisition dependencies:
 #      Client B --commit lock--> Worker 2 --commit order lock--> Worker 1
 #      --global read lock--> Client B.
-#   4. Wait for the replication applier to error out with
-#      ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR.
-#   5. On the replica, using client connection B, execute `UNLOCK TABLES`
-#      to let the applier worker threads to finish.
+#   4. On the replica, using client connection B, execute `UNLOCK TABLES`
+#      to let the applier worker threads to finish applying.
 #
-# TC5. `CREATE USER` and DML replicated from source
-# -----------------------------------------------------------------------------
-#   1. Insert 2 rows and create a user (by that order) on the source in a
-#      way that they will belong to the same commit group.
-#   2. On the replica, using client conneciton A, rollback the pending
-#      transaction, leading to the following lock acquisition dependencies:
-#      Worker1 --acl management lock--> Worker 3 --commit order lock-->
-#      Worker 2 --commit order lock--> Worker1.
-#   3. Wait for the replica applier to error out with
-#      ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR.
-#   4. Synchronize the replica with the source.
-#
-# TC6. DML issued by client and `XA PREPARE` replicated from source.
+# TC5. DML issued by client and `XA PREPARE` replicated from source.
 # -----------------------------------------------------------------------------
 #   1. Insert row on the source withing an XA transaction and issue `XA
 #      PREPARE` in a way that they will belong to the same commit group.
 #   2. On the replica, using client conneciton A, rollback the pending
 #      transaction, leading to the following lock acquisition dependencies:
 #      Worker 1 --data lock--> Client B.
-#   3. Wait for the replica applier to error out with ER_LOCK_WAIT_TIMEOUT.
-#   4. On the source, issue `XA COMMIT` to allow the applier worker threads
-#      to finish.
+#   3. On the source, issue `XA COMMIT` to allow the applier worker threads
+#      to finish applying.
 #
 # ==== References ====
 #
@@ -194,9 +174,9 @@ CREATE TABLE t2(a INT PRIMARY KEY);
 
 --source include/sync_slave_sql_with_master.inc
 
---source extra/rpl_tests/mts_spco_generate_deadlock_setup.inc
-
 --let $rpl_diff_statement = SELECT * FROM t1, t2
+--let $mts_spco_gd_transaction_retries = 10
+--source extra/rpl_tests/mts_spco_generate_deadlock_setup.inc
 
 --echo
 --echo #
@@ -211,7 +191,6 @@ INSERT INTO t1 VALUES(10, 10);
 --let $mts_spco_gd_trx_assigned_worker_3 = INSERT INTO t1 VALUES(12, NULL)
 --let $mts_spco_gd_trx_blocking_client = SET GLOBAL read_only = ON
 --let $mts_spco_gd_state_blocking_client = Waiting for commit lock
---let $mts_spco_gd_error_expected_replica = ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR
 --let $mts_spco_gd_trx_to_client_unblocking_workers = SET GLOBAL read_only = OFF
 --source extra/rpl_tests/mts_spco_generate_deadlock.inc
 
@@ -227,7 +206,6 @@ INSERT INTO t1 VALUES(13, 13);
 --let $mts_spco_gd_trx_assigned_worker_2 = INSERT INTO t1 VALUES(15, NULL)
 --let $mts_spco_gd_trx_assigned_worker_3 = INSERT INTO t1 VALUES(16, NULL)
 --let $mts_spco_gd_trx_blocking_client = SET GLOBAL read_only = ON
---let $mts_spco_gd_error_expected_replica = ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR
 --let $mts_spco_gd_trx_to_client_unblocking_workers = SET GLOBAL read_only = OFF
 --source extra/rpl_tests/mts_spco_generate_deadlock.inc
 
@@ -244,8 +222,6 @@ INSERT INTO t1 VALUES(17, 17);
 --let $mts_spco_gd_trx_assigned_worker_3 = INSERT INTO t1 VALUES(19, NULL)
 --let $mts_spco_gd_trx_blocking_client = FLUSH TABLES WITH READ LOCK
 --let $mts_spco_gd_state_blocking_client = Waiting for commit lock
---let $mts_spco_gd_wait_for_coordinator_running_state = Waiting for workers to exit
---let $mts_spco_gd_error_expected_replica = ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR
 --let $mts_spco_gd_trx_to_client_unblocking_workers = UNLOCK TABLES
 --source extra/rpl_tests/mts_spco_generate_deadlock.inc
 
@@ -262,27 +238,12 @@ INSERT INTO t1 VALUES(20, 20);
 --let $mts_spco_gd_trx_assigned_worker_3 = INSERT INTO t1 VALUES(23, NULL)
 --let $mts_spco_gd_trx_blocking_client = FLUSH TABLES WITH READ LOCK
 --let $mts_spco_gd_state_blocking_client = Waiting for commit lock
---let $mts_spco_gd_wait_for_coordinator_running_state = Waiting for workers to exit
---let $mts_spco_gd_error_expected_replica = ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR
 --let $mts_spco_gd_trx_to_client_unblocking_workers = UNLOCK TABLES
 --source extra/rpl_tests/mts_spco_generate_deadlock.inc
 
-# --echo
-# --echo #
-# --echo # TC5. `CREATE USER` and DML replicated from source
-# --echo #------------------------------------------------------------------------
-# --source include/rpl_connection_master.inc
-# INSERT INTO t1 VALUES(24, 24);
-
-# --let $mts_spco_gd_trx_blocking_worker_1 = INSERT INTO t1 VALUES(25, NULL)
-# --let $mts_spco_gd_trx_assigned_worker_2 = INSERT INTO t1 VALUES(26, NULL)
-# --let $mts_spco_gd_trx_assigned_worker_3 = CREATE USER u1
-# --let $mts_spco_gd_error_expected_replica = ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR
-# --source extra/rpl_tests/mts_spco_generate_deadlock.inc
-
 --echo
 --echo #
---echo # TC6. DML issued by client and `XA PREPARE` replicated from source.
+--echo # TC5. DML issued by client and `XA PREPARE` replicated from source.
 --echo #------------------------------------------------------------------------
 --source include/rpl_connection_master.inc
 INSERT INTO t1 VALUES(24, 24);
@@ -290,7 +251,6 @@ INSERT INTO t1 VALUES(24, 24);
 --let $mts_spco_gd_trx_blocking_worker_1 = XA START 'xa1'; INSERT INTO t1 VALUES(25, NULL); XA END 'xa1'; XA PREPARE 'xa1'
 --let $mts_spco_gd_trx_blocking_client = BEGIN; INSERT INTO t1 VALUES(25, NULL)
 --let $mts_spco_gd_state_blocking_client = None
---let $mts_spco_gd_error_expected_replica = ER_LOCK_WAIT_TIMEOUT
 --let $mts_spco_gd_trx_to_client_unblocking_workers = ROLLBACK
 --let $mts_spco_gd_trx_finishing_group = XA COMMIT 'xa1'
 --source extra/rpl_tests/mts_spco_generate_deadlock.inc
@@ -299,7 +259,6 @@ INSERT INTO t1 VALUES(24, 24);
 --source include/rpl_connection_master.inc
 DROP TABLE t1;
 DROP TABLE t2;
-# DROP USER u1;
 --source include/rpl_end.inc
 
 --source extra/rpl_tests/mts_spco_generate_deadlock_cleanup.inc
