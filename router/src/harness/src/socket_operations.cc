@@ -51,6 +51,7 @@ static void shrink(std::string &s) {
   }
 }
 
+#if !defined(_WIN32) && !defined(__APPLE__) && !defined(__FreeBSD__)
 static stdx::expected<std::string, std::error_code> endpoint_to_name(
     const net::ip::tcp::endpoint &ep) {
   std::string buf;
@@ -73,6 +74,7 @@ static stdx::expected<std::string, std::error_code> endpoint_to_name(
 
   return buf;
 }
+#endif
 
 static SocketOperationsBase::LocalHostnameResolutionError
 make_local_hostname_resolution_error(const std::error_code &ec) {
