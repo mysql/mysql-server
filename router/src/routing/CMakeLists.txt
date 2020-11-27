@@ -42,6 +42,7 @@ SET(ROUTING_SOURCE_FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/basic_protocol_splicer.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/classic_protocol_splicer.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/x_protocol_splicer.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/destination_ssl_context.cc
 )
 
 SET(ROUTING_PLUGIN_SOURCE_FILES
