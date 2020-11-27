@@ -245,6 +245,38 @@ require(request->error==0);
     }
   }
 
+  // Turn on direct io (OM_DIRECT, OM_DIRECT_SYNC)
+  if (flags & FsOpenReq::OM_DIRECT)
+  {
+    /* TODO:
+     * Size and alignment should be passed in request.
+     * And also checked in ndb_file append/write/read/set_pos/truncate/extend.
+     */
+    m_file.set_block_size_and_alignment(NDB_O_DIRECT_WRITE_BLOCKSIZE,
+                                        NDB_O_DIRECT_WRITE_ALIGNMENT);
+
+    /*
+     * Initializing file may write lots of pages sequentially.  Some
+     * implementation of direct io should be avoided in that case and
+     * direct io should be turned on after initialization.
+     */
+    if (m_file.have_direct_io_support() && !m_file.avoid_direct_io_on_append())
+    {
+      const bool direct_sync = flags & FsOpenReq::OM_DIRECT_SYNC;
+      if (m_file.set_direct_io(direct_sync) == -1)
+      {
+        ndbout_c("%s Failed to set ODirect errno: %u",
+                 theFileName.c_str(), get_last_os_error());
+      }
+#ifdef DEBUG_ODIRECT
+      else
+      {
+        ndbout_c("%s ODirect is set.", theFileName.c_str());
+      }
+#endif
+    }
+  }
+
   // Initialise file if OM_INIT
 
   if (flags & FsOpenReq::OM_INIT)
@@ -380,16 +412,10 @@ require(!"m_file.sync() != -1");
   use_enc = (theFileName.get_base_path_spec() == FsOpenReq::BP_BACKUP);
 #endif
 
-  // Turn on direct io (OM_DIRECT, OM_DIRECT_SYNC)
+  // Turn on direct io (OM_DIRECT, OM_DIRECT_SYNC) after init
   if (flags & FsOpenReq::OM_DIRECT)
   {
-    /* TODO:
-     * Size and alignment should be passed in request.
-     * And also checked in ndb_file append/write/read/set_pos/truncate/extend.
-     */
-    m_file.set_block_size_and_alignment(NDB_O_DIRECT_WRITE_BLOCKSIZE,
-                                        NDB_O_DIRECT_WRITE_ALIGNMENT);
-    if (m_file.have_direct_io_support())
+    if (m_file.have_direct_io_support() && m_file.avoid_direct_io_on_append())
     {
       const bool direct_sync = flags & FsOpenReq::OM_DIRECT_SYNC;
       if (m_file.set_direct_io(direct_sync) == -1)

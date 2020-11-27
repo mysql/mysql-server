@@ -368,6 +368,15 @@ bool ndb_file::have_direct_io_support() const
 #endif
 }
 
+bool ndb_file::avoid_direct_io_on_append() const
+{
+#if (defined(HAVE_DIRECTIO) && defined(DIRECTIO_ON))
+  return true;
+#else
+  return false;
+#endif
+}
+
 int ndb_file::set_direct_io(bool assume_implicit_datasync)
 {
 #if defined(O_DIRECT)
