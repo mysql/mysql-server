@@ -542,8 +542,8 @@ bool Commit_order_lock_graph::accept_visitor(
 }
 
 uint Commit_order_lock_graph::get_deadlock_weight() const {
-  return DEADLOCK_WEIGHT_DML;  // Return the lowest weight so that workers are
-                               // the threads to back-off because of more
-                               // advanced and automated transaction retry
-                               // capabilities.
+  return DEADLOCK_WEIGHT_CO;  // Return the lowest weight so that workers are
+                              // the threads to back-off because of more
+                              // advanced and automated transaction retry
+                              // capabilities.
 }

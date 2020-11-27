@@ -6,6 +6,10 @@
 #
 # ==== Usage ====
 #
+# [--let $rpl_diff_statemetn = <STATEMENT>]
+#  The statement to be used with `include/rpl_diff.inc`. This parameter is
+#  mandatory.
+#
 # [--let $mts_spco_gd_trx_blocking_worker_1 = <STATEMENT>]
 #  The statement to be executed by the first available worker that will be
 #  blocked until all workers are waiting on the commit order.
@@ -26,13 +30,13 @@
 #  The status text for the client connection when it becomes blocked by one
 #  of the workers, as appears in information_schema.processlist.STATE
 #
-# [--let $mts_spco_gd_error_expected_client = <ERROR>]
-#  The error that should be expected to get when executing the client
-#  connection statement in order to not reach the deadlock, if any.
-#
 # [--let $mts_spco_gd_error_expected_replica = <ERROR>]
 #  The error that should be expected the replica applier to reach in order
 #  to not reach the deadlock, if any.
+#
+# [--let $mts_spco_gd_wait_for_coordinator_running_state = <STATUS text>]
+#  The status text to wait for the coordinator to reach before letting it
+#  stop, if any.
 #
 # [--let $mts_spco_gd_trx_to_client_unblocking_workers = <STATEMENT>]
 #  The statement the client connection should execute after the replica
@@ -68,11 +72,13 @@
 #      Client B --statement required lock--> Worker 2 --commit order
 #      lock--> Worker 1 --statement required lock--> Client B.
 #   8. Wait for the client connection B to receive its return packet from
-#      the server. Expect it to be error or success according to
-#      $mts_spco_gd_error_expected_client.
-#   9. Wait for the replica applier thread to error out with
+#      the server.
+#   9. Wait for the coordinator to reach the
+#      $mts_spco_gd_wait_for_coordinator_running_state state before
+#      allowing it to error out, if any is defined.
+#  10. Wait for the replica applier thread to error out with
 #      $mts_spco_gd_error_expected_replica, if any is defined.
-#  10. Synchronize the replica with the source.
+#  11. Synchronize the replica with the source.
 #
 # ==== References ====
 #
@@ -86,10 +92,6 @@
 if ($mts_spco_gd_trx_blocking_worker_1 == '')
 {
   --die ERROR IN TEST: you must set `mts_spco_gd_trx_blocking_worker_1` before sourcing mts_spco_generate_deadlock.test
-}
-if ($mts_spco_gd_error_expected_client == '')
-{
-  --let $mts_spco_gd_error_expected_client = 0
 }
 if ($mts_spco_gd_error_expected_replica == '')
 {
@@ -197,7 +199,7 @@ if ($mts_spco_gd_trx_blocking_client != '')
 #      $mts_spco_gd_state_blocking_client.
 if ($mts_spco_gd_state_blocking_client != '')
 {
-  --echo include/wait_condition.inc [Client connection must for state]
+  --echo include/wait_condition.inc [Client connection must wait for state]
   --let $_mts_spco_gd_state_blocking_client = $mts_spco_gd_state_blocking_client
   if ($_mts_spco_gd_state_blocking_client == None)
   {
@@ -215,16 +217,30 @@ ROLLBACK;
 SET GTID_NEXT = AUTOMATIC;
 
 #   8. Wait for the client connection B to receive its return packet from
-#      the server. Expect it to be error or success according to
-#      $mts_spco_gd_error_expected_client.
+#      the server.
 if ($mts_spco_gd_trx_blocking_client != '')
 {
   --source include/rpl_connection_slave1.inc
-  --error $mts_spco_gd_error_expected_client
   --reap
 }
 
-#   9. Wait for the replica applier thread to error out with
+#   9. Wait for the coordinator to reach the
+#      $mts_spco_gd_wait_for_coordinator_running_state state before
+#      allowing it to error out, if any is defined.
+if ($mts_spco_gd_wait_for_coordinator_running_state != '')
+{
+  --let $slave_param = Slave_SQL_Running_State
+  --let $slave_param_value = $mts_spco_gd_wait_for_coordinator_running_state
+  --source include/wait_for_slave_param.inc
+
+  if ($mts_spco_gd_trx_to_client_unblocking_workers != '')
+  {
+    --source include/rpl_connection_slave1.inc
+    --eval $mts_spco_gd_trx_to_client_unblocking_workers
+  }
+}
+
+#  10. Wait for the replica applier thread to error out with
 #      $mts_spco_gd_error_expected_replica, if any is defined.
 if ($mts_spco_gd_error_expected_replica != 0)
 {
@@ -251,7 +267,7 @@ if ($mts_spco_gd_error_expected_replica != 0)
   --source include/start_slave_sql.inc
 }
 
-#  10. Synchronize the replica with the source.
+#  11. Synchronize the replica with the source.
 --source include/rpl_connection_master.inc
 --source include/sync_slave_sql_with_master.inc
 
@@ -266,7 +282,7 @@ if ($mts_spco_gd_error_expected_replica != 0)
 --let $mts_spco_gd_trx_assigned_worker_3 =
 --let $mts_spco_gd_trx_blocking_client =
 --let $mts_spco_gd_state_blocking_client =
---let $mts_spco_gd_error_expected_client =
+--let $mts_spco_gd_wait_for_coordinator_running_state =
 --let $mts_spco_gd_error_expected_replica =
 --let $mts_spco_gd_trx_to_client_unblocking_workers =
 --let $mts_spco_gd_trx_finishing_group =

@@ -297,9 +297,9 @@ memory::Aligned_atomic<T>::Aligned_atomic(T value)
 
 template <typename T>
 memory::Aligned_atomic<T>::Aligned_atomic(Aligned_atomic<T> &&rhs)
-    : m_storage_size{rhs.m_storage_size},
-      m_storage{rhs.m_storage},
-      m_underlying{rhs.m_underlying} {
+    : m_storage_size{rhs.m_storage_size}, m_underlying{rhs.m_underlying} {
+  delete[] this->m_storage;
+  this->m_storage = rhs.m_storage;
   rhs.m_storage_size = 0;
   rhs.m_storage = nullptr;
   rhs.m_underlying = nullptr;
@@ -319,6 +319,7 @@ memory::Aligned_atomic<T>::~Aligned_atomic() {
 template <typename T>
 memory::Aligned_atomic<T> &memory::Aligned_atomic<T>::operator=(
     Aligned_atomic<T> &&rhs) {
+  delete[] this->m_storage;
   this->m_storage_size = rhs.m_storage_size;
   this->m_storage = rhs.m_storage;
   this->m_underlying = rhs.m_underlying;
