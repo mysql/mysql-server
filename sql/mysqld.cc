@@ -9474,6 +9474,8 @@ static int mysql_init_variables() {
   character_set_filesystem_name = "binary";
   lc_messages = mysqld_default_locale_name;
   lc_time_names_name = mysqld_default_locale_name;
+  opt_replication_optimize_for_static_plugin_config = 0;
+  opt_replication_sender_observe_commit_only = 0;
 
   /* Variables that depends on compile options */
 #ifndef DBUG_OFF

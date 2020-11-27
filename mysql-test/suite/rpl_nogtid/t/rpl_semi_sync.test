@@ -1,3 +1,15 @@
+# Usage:
+#
+#  [--let $rpl_test_optimize_for_static_plugin_config = 1|0]
+#  --source suite/rpl/t/rpl_semi_sync.test
+#
+# Parameters:
+#
+#  $rpl_test_optimize_for_static_plugin_config
+#    When set to `1`, will run the contained test-cases with
+#    `replication_optimize_for_static_plugin_config` option enabled.
+#
+
 # Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
 # Adding big test option for this test.
@@ -108,6 +120,11 @@ echo [ status of semi-sync on master should be OFF ];
 show status like 'Rpl_semi_sync_master_clients';
 show status like 'Rpl_semi_sync_master_status';
 show status like 'Rpl_semi_sync_master_yes_tx';
+
+if ($rpl_test_optimize_for_static_plugin_config == 1)
+{
+  SET GLOBAL replication_optimize_for_static_plugin_config = 1;
+}
 
 # reset master and slave so the following test starts in a clean environment
 --let $rpl_only_running_threads= 1
@@ -575,6 +592,10 @@ source include/stop_slave.inc;
 connection master;
 echo [ on master ];
 --source include/stop_dump_threads.inc
+if ($rpl_test_optimize_for_static_plugin_config == 1)
+{
+  SET GLOBAL replication_optimize_for_static_plugin_config = 0;
+}
 UNINSTALL PLUGIN rpl_semi_sync_master;
 enable_query_log;
 SHOW VARIABLES LIKE 'rpl_semi_sync_master_enabled';
@@ -596,6 +617,10 @@ SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
 connection master;
 replace_result $SEMISYNC_MASTER_PLUGIN SEMISYNC_MASTER_PLUGIN;
 eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
+if ($rpl_test_optimize_for_static_plugin_config == 1)
+{
+  SET GLOBAL replication_optimize_for_static_plugin_config = 1;
+}
 set global rpl_semi_sync_master_timeout= 60000; /* 60s */
 set global rpl_semi_sync_master_enabled= 1;
 
@@ -622,6 +647,11 @@ SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
 --echo #
 --echo # Clean up
 --echo #
+if ($rpl_test_optimize_for_static_plugin_config == 1)
+{
+  connection master;
+  SET GLOBAL replication_optimize_for_static_plugin_config = 0;
+}
 --source include/uninstall_semisync.inc
 
 connection slave;

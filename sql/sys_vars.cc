@@ -109,6 +109,7 @@
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
 #include "sql/rpl_group_replication.h"  // is_group_replication_running
+#include "sql/rpl_handler.h"            // delegates_update_lock_type
 #include "sql/rpl_info_factory.h"       // Rpl_info_factory
 #include "sql/rpl_info_handler.h"       // INFO_REPOSITORY_TABLE
 #include "sql/rpl_log_encryption.h"
@@ -7028,3 +7029,34 @@ static Sys_var_bool Sys_var_require_row_format(
     "and DDLs with the exception of temporary table creation/deletion.",
     SESSION_ONLY(require_row_format), NO_CMD_LINE, DEFAULT(false),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_set_require_row_format));
+
+/**
+  Changes the `Delegate` internal state in regards to which type of lock to
+  use and in regards to whether or not to take plugin locks in each hook
+  invocation.
+*/
+static bool handle_plugin_lock_type_change(sys_var *, THD *, enum_var_type) {
+  DBUG_TRACE;
+  delegates_acquire_locks();
+  delegates_update_lock_type();
+  delegates_release_locks();
+  return false;
+}
+
+static Sys_var_bool Sys_replication_optimize_for_static_plugin_config(
+    "replication_optimize_for_static_plugin_config",
+    "Optional flag that blocks plugin install/uninstall and allows skipping "
+    "the acquisition of the lock to read from the plugin list and the usage "
+    "of read-optimized spin-locks. Use only when plugin hook callback needs "
+    "optimization (a lot of semi-sync slaves, for instance).",
+    GLOBAL_VAR(opt_replication_optimize_for_static_plugin_config),
+    CMD_LINE(OPT_ARG), DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(handle_plugin_lock_type_change));
+
+static Sys_var_bool Sys_replication_sender_observe_commit_only(
+    "replication_sender_observe_commit_only",
+    "Optional flag that allows for only calling back observer hooks at "
+    "commit.",
+    GLOBAL_VAR(opt_replication_sender_observe_commit_only), CMD_LINE(OPT_ARG),
+    DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(nullptr));

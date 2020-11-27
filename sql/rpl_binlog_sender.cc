@@ -76,6 +76,121 @@ const float Binlog_sender::PACKET_GROW_FACTOR = 2.0;
 const float Binlog_sender::PACKET_SHRINK_FACTOR = 0.5;
 
 /**
+  @class Observe_transmission_guard
+
+  Sentry class to guard the transitions for `Delegate::m_observe_transmission`
+  flag within given contexts.
+
+*/
+class Observe_transmission_guard {
+ public:
+  /**
+    Constructor for the class. It will change the value of the `flag` parameter
+    according with the `event_type` and `event_ptr` content. The `flag` will be
+    set to `true` as follows:
+
+    - The event is an `XID_EVENT`
+    - The event is an `XA_PREPARE_LOG_EVENT`.
+    - The event is a `QUERY_EVENT` with query equal to "XA COMMIT" or "XA ABORT"
+      or "COMMIT".
+    - The event is the first `QUERY_EVENT` after a `GTID_EVENT` and the query is
+      not "BEGIN" --the statement is a DDL, for instance.
+
+    @param flag            The flag variable to guard
+    @param event_type      The type of the event being processed
+    @param event_ptr       The raw content of the event being processed
+    @param event_len       The size of the raw content of the event being
+                           processed
+    @param checksum_alg    The checksum algorithm being used currently
+    @param prev_event_type The type of the event processed just before the
+                           current one
+  */
+  Observe_transmission_guard(bool &flag, binary_log::Log_event_type event_type,
+                             const char *event_ptr,
+                             binary_log::enum_binlog_checksum_alg checksum_alg,
+                             binary_log::Log_event_type prev_event_type)
+      : m_saved(flag), m_to_set(flag) {
+    if (opt_replication_sender_observe_commit_only) {
+      switch (event_type) {
+        case binary_log::TRANSACTION_PAYLOAD_EVENT:
+        case binary_log::XID_EVENT:
+        case binary_log::XA_PREPARE_LOG_EVENT: {
+          m_to_set = true;
+          break;
+        }
+        case binary_log::QUERY_EVENT: {
+          bool first_event_after_gtid =
+              prev_event_type == binary_log::ANONYMOUS_GTID_LOG_EVENT ||
+              prev_event_type == binary_log::GTID_LOG_EVENT;
+
+          Format_description_log_event fd_ev;
+          fd_ev.common_footer->checksum_alg = checksum_alg;
+          Query_log_event ev(event_ptr, &fd_ev, binary_log::QUERY_EVENT);
+          if (first_event_after_gtid)
+            m_to_set = (strcmp("BEGIN", ev.query) != 0);
+          else
+            m_to_set = (strncmp("XA COMMIT", ev.query, 9) == 0) ||
+                       (strncmp("XA ABORT", ev.query, 8) == 0) ||
+                       (strncmp("COMMIT", ev.query, 6) == 0);
+          break;
+        }
+        default: {
+          m_to_set = false;
+          break;
+        }
+      }
+    }
+  }
+
+  /**
+    Destructor for the sentry class. It will instantiate the guarded flag with
+    the value prior to the creation of this object.
+  */
+  ~Observe_transmission_guard() { m_to_set = m_saved; }
+
+ private:
+  /** The value of the guarded flag upon this object creation */
+  bool m_saved;
+  /** The flag variable to guard */
+  bool &m_to_set;
+};
+
+/**
+  @class Sender_context_guard
+
+  Sentry class that guards the Binlog_sender context and, at destruction, will
+  prepare it for the next event to be processed.
+*/
+class Sender_context_guard {
+ public:
+  /**
+    Class constructor that simply stores, internally, the reference for the
+    `Binlog_sender` to be guarded and the values to be set upon destruction.
+
+    @param target     The `Binlog_sender` object to be guarded.
+    @param event_type The currently processed event type, to be used for context
+                      of the next event processing round.
+  */
+  Sender_context_guard(Binlog_sender &target,
+                       binary_log::Log_event_type event_type)
+      : m_target(target), m_event_type(event_type) {}
+
+  /**
+    Class destructor that will set the proper context of the guarded
+    `Binlog_sender` object.
+  */
+  virtual ~Sender_context_guard() {
+    m_target.set_prev_event_type(m_event_type);
+  }
+
+ private:
+  /** The object to be guarded */
+  Binlog_sender &m_target;
+  /** The currently being processed event type */
+  binary_log::Log_event_type m_event_type;
+};
+
+/**
   Simple function to help readability w.r.t. chrono operations.
 
   This function SHALL return a nanoseconds duration representing
@@ -134,7 +249,8 @@ Binlog_sender::Binlog_sender(THD *thd, const char *start_file,
       m_new_shrink_size(PACKET_MIN_SIZE),
       m_flag(flag),
       m_observe_transmission(false),
-      m_transmit_started(false) {}
+      m_transmit_started(false),
+      m_prev_event_type(binary_log::UNKNOWN_EVENT) {}
 
 void Binlog_sender::init() {
   DBUG_TRACE;
@@ -487,6 +603,12 @@ int Binlog_sender::send_events(File_reader *reader, my_off_t end_pos) {
         DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
       }
     });
+
+    Sender_context_guard ctx_guard(*this, event_type);
+    Observe_transmission_guard obs_guard(
+        m_observe_transmission, event_type,
+        const_cast<const char *>(reinterpret_cast<char *>(event_ptr)),
+        m_event_checksum_alg, m_prev_event_type);
 
     log_pos = reader->position();
 
