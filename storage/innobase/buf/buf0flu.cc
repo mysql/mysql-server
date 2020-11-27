@@ -2615,6 +2615,14 @@ ulint set_flush_target_by_lsn(bool sync_flush, lsn_t sync_flush_limit_lsn) {
   ulint n_pages;
   if (sync_flush) {
     n_pages = pages_for_lsn;
+    /* For sync flush, make sure we flush at least at io capacity rate. This
+    lower bound works as a safeguard against any miscalculation leading to
+    too less flushing while we are in urgent flushing mode. Specifically, for
+    small target, if the target is evaluated to zero the flush could be stuck
+    in sync flush mode indefinitely, flushing nothing. */
+    if (n_pages < srv_io_capacity) {
+      n_pages = srv_io_capacity;
+    }
   } else {
     n_pages = (PCT_IO(pct_total) + page_avg_rate + pages_for_lsn) / 3;
     if (n_pages > srv_max_io_capacity) {
@@ -2635,7 +2643,7 @@ ulint set_flush_target_by_lsn(bool sync_flush, lsn_t sync_flush_limit_lsn) {
         pct_for_lsn > 30 ? page_cleaner->slots[i].n_pages_requested * n_pages /
                                    sum_pages_for_lsn +
                                1
-                         : n_pages / srv_buf_pool_instances;
+                         : n_pages / srv_buf_pool_instances + 1;
   }
   mutex_exit(&page_cleaner->mutex);
 
