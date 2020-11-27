@@ -2062,8 +2062,8 @@ EXPLAIN
     -> Stream results
         -> Aggregate: sum(t2.a)
             -> Index scan on t2 using PRIMARY  (cost=0.35 rows=1)
-    -> Stream results
-        -> Zero input rows (No matching min/max row), aggregated into one output row
+    -> Stream results  (cost=0.00..0.00 rows=1)
+        -> Zero input rows (No matching min/max row), aggregated into one output row  (cost=0.00..0.00 rows=1)
 
 SELECT a, SUM(a) FROM t2 UNION ALL SELECT a, MIN(a) FROM t1 ;
 a	SUM(a)
