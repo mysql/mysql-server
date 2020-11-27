@@ -259,8 +259,6 @@ DROP USER nopriv_user@localhost;
 --echo # Bug #32162954: REGRESSION: ASSERTION `!THD()->IS_ERROR()' FAILED. IN AGGREGATEITERATOR::READ()
 --echo #
 
---error ER_WRONG_VALUE_FOR_TYPE
-do count(((bin_to_uuid(connection_id()))xor 1));
 --error ER_DATA_OUT_OF_RANGE
 do count(rand(st_latfromgeohash(st_geohash(point(5920138304254667057,24370),41))));
 --error ER_DATA_OUT_OF_RANGE
