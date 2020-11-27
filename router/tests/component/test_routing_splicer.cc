@@ -1136,6 +1136,7 @@ INSTANTIATE_TEST_SUITE_P(ServerPlain, SplicerConnectParamTest,
                          });
 
 #if (OPENSSL_VERSION_NUMBER >= 0x1000200fL)
+// enable tests for curves with openssl 1.0.2 and later
 const SplicerConnectParam splicer_connect_openssl_102_params[] = {
     {"client_ssl_curves_p521r1",  // RT2_CIPHERS_RECOGNISED_02
      {
@@ -1158,114 +1159,6 @@ const SplicerConnectParam splicer_connect_openssl_102_params[] = {
                       "",          // socket
                       ""           // schema
          );
-         // ASSERT_STREQ(sess.ssl_cipher(), "AES128-SHA256");
-       } catch (const std::exception &e) {
-         FAIL() << e.what();
-       }
-     }},
-};
-
-INSTANTIATE_TEST_SUITE_P(ServerPlainOpenssl102, SplicerConnectParamTest,
-                         testing::ValuesIn(splicer_connect_openssl_102_params),
-                         [](auto &info) {
-                           auto p = info.param;
-                           return p.test_name;
-                         });
-#endif
-
-const SplicerConnectParam splicer_connect_tls_params[] = {
-    {"server_tlsv12_only",
-     {
-         {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key-sha512.pem"},
-         {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert-sha512.pem"},
-         {"client_ssl_mode", "REQUIRED"},
-
-         {"mock_server::--ssl-cert", SSL_TEST_DATA_DIR "server-cert.pem"},
-         {"mock_server::--ssl-key", SSL_TEST_DATA_DIR "server-key.pem"},
-         {"mock_server::--ssl-mode", "PREFERRED"},
-         {"mock_server::--tls-version", "TLSv1.2"},
-         {"server_ssl_mode", "REQUIRED"},
-     },
-     [](const std::string &router_host, uint16_t router_port) {
-       mysqlrouter::MySQLSession sess;
-
-       try {
-         sess.set_ssl_options(mysql_ssl_mode::SSL_MODE_REQUIRED, "", "", "", "",
-                              "", "");
-         sess.connect(router_host, router_port,
-                      "someuser",  // user
-                      "somepass",  // pass
-                      "",          // socket
-                      ""           // schema
-         );
-         auto row = sess.query_one("show status like 'ssl_cipher'");
-         ASSERT_EQ(row->size(), 2);
-
-         // some cipher is selected.
-         EXPECT_STRNE((*row)[1], "");
-       } catch (const std::exception &e) {
-         FAIL() << e.what();
-       }
-     }},
-    {"server_ssl_cipher_aes128_sha256",  // RT2_CIPHERS_RECOGNISED_03
-     {
-         {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key-sha512.pem"},
-         {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert-sha512.pem"},
-         {"client_ssl_mode", "REQUIRED"},
-
-         {"mock_server::--ssl-cert", SSL_TEST_DATA_DIR "server-cert.pem"},
-         {"mock_server::--ssl-key", SSL_TEST_DATA_DIR "server-key.pem"},
-         {"mock_server::--ssl-mode", "PREFERRED"},
-         {"mock_server::--tls-version", "TLSv1.2"},
-         {"server_ssl_mode", "REQUIRED"},
-         {"server_ssl_cipher", "AES128-SHA256"},
-     },
-     [](const std::string &router_host, uint16_t router_port) {
-       mysqlrouter::MySQLSession sess;
-
-       try {
-         sess.set_ssl_options(mysql_ssl_mode::SSL_MODE_REQUIRED, "", "", "", "",
-                              "", "");
-         sess.connect(router_host, router_port,
-                      "someuser",  // user
-                      "somepass",  // pass
-                      "",          // socket
-                      ""           // schema
-         );
-         auto row = sess.query_one("show status like 'ssl_cipher'");
-         ASSERT_EQ(row->size(), 2);
-
-         EXPECT_STREQ((*row)[1], "AES128-SHA256");
-       } catch (const std::exception &e) {
-         FAIL() << e.what();
-       }
-     }},
-    {"server_ssl_cipher_many",  // RT2_CIPHERS_RECOGNISED_07
-     {
-         {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key-sha512.pem"},
-         {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert-sha512.pem"},
-         {"client_ssl_mode", "REQUIRED"},
-
-         {"mock_server::--ssl-cert", SSL_TEST_DATA_DIR "server-cert.pem"},
-         {"mock_server::--ssl-key", SSL_TEST_DATA_DIR "server-key.pem"},
-         {"mock_server::--ssl-mode", "PREFERRED"},
-         {"server_ssl_mode", "REQUIRED"},
-         {"server_ssl_cipher", "AES128-SHA256:AES128-SHA"},
-     },
-     [](const std::string &router_host, uint16_t router_port) {
-       mysqlrouter::MySQLSession sess;
-
-       try {
-         sess.set_ssl_options(mysql_ssl_mode::SSL_MODE_REQUIRED, "", "", "", "",
-                              "", "");
-         sess.connect(router_host, router_port,
-                      "someuser",  // user
-                      "somepass",  // pass
-                      "",          // socket
-                      ""           // schema
-         );
-
-         // if server uses TLSv1.3 we can't check the cert :(
          // ASSERT_STREQ(sess.ssl_cipher(), "AES128-SHA256");
        } catch (const std::exception &e) {
          FAIL() << e.what();
@@ -1325,6 +1218,114 @@ const SplicerConnectParam splicer_connect_tls_params[] = {
                       "",          // socket
                       ""           // schema
          );
+       } catch (const std::exception &e) {
+         FAIL() << e.what();
+       }
+     }},
+};
+
+INSTANTIATE_TEST_SUITE_P(ServerPlainOpenssl102, SplicerConnectParamTest,
+                         testing::ValuesIn(splicer_connect_openssl_102_params),
+                         [](auto &info) {
+                           auto p = info.param;
+                           return p.test_name;
+                         });
+#endif
+
+const SplicerConnectParam splicer_connect_tls_params[] = {
+    {"server_tlsv12_only",
+     {
+         {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key-sha512.pem"},
+         {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert-sha512.pem"},
+         {"client_ssl_mode", "REQUIRED"},
+
+         {"mock_server::--ssl-cert", SSL_TEST_DATA_DIR "server-cert.pem"},
+         {"mock_server::--ssl-key", SSL_TEST_DATA_DIR "server-key.pem"},
+         {"mock_server::--ssl-mode", "PREFERRED"},
+         {"mock_server::--tls-version", "TLSv1.2"},
+         {"server_ssl_mode", "REQUIRED"},
+     },
+     [](const std::string &router_host, uint16_t router_port) {
+       mysqlrouter::MySQLSession sess;
+
+       try {
+         sess.set_ssl_options(mysql_ssl_mode::SSL_MODE_REQUIRED, "", "", "", "",
+                              "", "");
+         sess.connect(router_host, router_port,
+                      "someuser",  // user
+                      "somepass",  // pass
+                      "",          // socket
+                      ""           // schema
+         );
+         const auto row = sess.query_one("show status like 'ssl_cipher'");
+         ASSERT_EQ(row->size(), 2);
+
+         // some cipher is selected.
+         EXPECT_STRNE((*row)[1], "");
+       } catch (const std::exception &e) {
+         FAIL() << e.what();
+       }
+     }},
+    {"server_ssl_cipher_aes128_sha256",  // RT2_CIPHERS_RECOGNISED_03
+     {
+         {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key-sha512.pem"},
+         {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert-sha512.pem"},
+         {"client_ssl_mode", "REQUIRED"},
+
+         {"mock_server::--ssl-cert", SSL_TEST_DATA_DIR "server-cert.pem"},
+         {"mock_server::--ssl-key", SSL_TEST_DATA_DIR "server-key.pem"},
+         {"mock_server::--ssl-mode", "PREFERRED"},
+         {"mock_server::--tls-version", "TLSv1.2"},
+         {"server_ssl_mode", "REQUIRED"},
+         {"server_ssl_cipher", "AES128-SHA256"},
+     },
+     [](const std::string &router_host, uint16_t router_port) {
+       mysqlrouter::MySQLSession sess;
+
+       try {
+         sess.set_ssl_options(mysql_ssl_mode::SSL_MODE_REQUIRED, "", "", "", "",
+                              "", "");
+         sess.connect(router_host, router_port,
+                      "someuser",  // user
+                      "somepass",  // pass
+                      "",          // socket
+                      ""           // schema
+         );
+         const auto row = sess.query_one("show status like 'ssl_cipher'");
+         ASSERT_EQ(row->size(), 2);
+
+         EXPECT_STREQ((*row)[1], "AES128-SHA256");
+       } catch (const std::exception &e) {
+         FAIL() << e.what();
+       }
+     }},
+    {"server_ssl_cipher_many",  // RT2_CIPHERS_RECOGNISED_07
+     {
+         {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key-sha512.pem"},
+         {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert-sha512.pem"},
+         {"client_ssl_mode", "REQUIRED"},
+
+         {"mock_server::--ssl-cert", SSL_TEST_DATA_DIR "server-cert.pem"},
+         {"mock_server::--ssl-key", SSL_TEST_DATA_DIR "server-key.pem"},
+         {"mock_server::--ssl-mode", "PREFERRED"},
+         {"server_ssl_mode", "REQUIRED"},
+         {"server_ssl_cipher", "AES128-SHA256:AES128-SHA"},
+     },
+     [](const std::string &router_host, uint16_t router_port) {
+       mysqlrouter::MySQLSession sess;
+
+       try {
+         sess.set_ssl_options(mysql_ssl_mode::SSL_MODE_REQUIRED, "", "", "", "",
+                              "", "");
+         sess.connect(router_host, router_port,
+                      "someuser",  // user
+                      "somepass",  // pass
+                      "",          // socket
+                      ""           // schema
+         );
+
+         // if server uses TLSv1.3 we can't check the cert :(
+         // ASSERT_STREQ(sess.ssl_cipher(), "AES128-SHA256");
        } catch (const std::exception &e) {
          FAIL() << e.what();
        }
