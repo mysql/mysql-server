@@ -1,0 +1,299 @@
+include/rpl_init.inc [topology=1->2, 2->3, 2->4, 2->5, 2->6, 2->7, 2->8, 2->9]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server_1]
+CREATE TABLE t (a int);
+[connection server_2]
+SET GLOBAL replication_optimize_for_static_plugin_config = 1;
+SET GLOBAL replication_sender_observe_commit_only = 1;
+SHOW VARIABLES LIKE 'rpl_semi_sync_master_enabled';
+Variable_name	Value
+CALL mtr.add_suppression("Semi-sync master failed on net_flush.*");
+include/install_semisync_master.inc
+[connection server_3]
+SET GLOBAL replication_optimize_for_static_plugin_config = 1;
+SET GLOBAL replication_sender_observe_commit_only = 1;
+SHOW VARIABLES LIKE 'rpl_semi_sync_slave_enabled';
+Variable_name	Value
+CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+include/install_semisync_slave.inc
+[connection server_4]
+SET GLOBAL replication_optimize_for_static_plugin_config = 1;
+SET GLOBAL replication_sender_observe_commit_only = 1;
+SHOW VARIABLES LIKE 'rpl_semi_sync_slave_enabled';
+Variable_name	Value
+CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+include/install_semisync_slave.inc
+[connection server_5]
+SET GLOBAL replication_optimize_for_static_plugin_config = 1;
+SET GLOBAL replication_sender_observe_commit_only = 1;
+SHOW VARIABLES LIKE 'rpl_semi_sync_slave_enabled';
+Variable_name	Value
+CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+include/install_semisync_slave.inc
+[connection server_6]
+SET GLOBAL replication_optimize_for_static_plugin_config = 1;
+SET GLOBAL replication_sender_observe_commit_only = 1;
+SHOW VARIABLES LIKE 'rpl_semi_sync_slave_enabled';
+Variable_name	Value
+CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+include/install_semisync_slave.inc
+[connection server_7]
+SET GLOBAL replication_optimize_for_static_plugin_config = 1;
+SET GLOBAL replication_sender_observe_commit_only = 1;
+SHOW VARIABLES LIKE 'rpl_semi_sync_slave_enabled';
+Variable_name	Value
+CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+include/install_semisync_slave.inc
+[connection server_8]
+SET GLOBAL replication_optimize_for_static_plugin_config = 1;
+SET GLOBAL replication_sender_observe_commit_only = 1;
+SHOW VARIABLES LIKE 'rpl_semi_sync_slave_enabled';
+Variable_name	Value
+CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+include/install_semisync_slave.inc
+[connection server_9]
+SET GLOBAL replication_optimize_for_static_plugin_config = 1;
+SET GLOBAL replication_sender_observe_commit_only = 1;
+SHOW VARIABLES LIKE 'rpl_semi_sync_slave_enabled';
+Variable_name	Value
+CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+include/install_semisync_slave.inc
+[connection server_2]
+SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 7;
+SET GLOBAL replication_optimize_for_static_plugin_config = 1,
+replication_sender_observe_commit_only = 1;
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+include/stop_slave.inc
+include/start_slave.inc
+[connection server_9]
+include/stop_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+include/start_slave.inc
+include/stop_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 1,
+replication_sender_observe_commit_only = 1;
+include/start_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+SET GLOBAL replication_optimize_for_static_plugin_config = 1,
+replication_sender_observe_commit_only = 1;
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+include/stop_slave.inc
+include/start_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+SET GLOBAL replication_optimize_for_static_plugin_config = 1,
+replication_sender_observe_commit_only = 1;
+[connection server_8]
+include/stop_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+include/start_slave.inc
+include/stop_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 1,
+replication_sender_observe_commit_only = 1;
+include/start_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+SET GLOBAL replication_optimize_for_static_plugin_config = 1,
+replication_sender_observe_commit_only = 1;
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+include/stop_slave.inc
+include/start_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+SET GLOBAL replication_optimize_for_static_plugin_config = 1,
+replication_sender_observe_commit_only = 1;
+[connection server_7]
+include/stop_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+include/start_slave.inc
+include/stop_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 1,
+replication_sender_observe_commit_only = 1;
+include/start_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+SET GLOBAL replication_optimize_for_static_plugin_config = 1,
+replication_sender_observe_commit_only = 1;
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+include/stop_slave.inc
+include/start_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+SET GLOBAL replication_optimize_for_static_plugin_config = 1,
+replication_sender_observe_commit_only = 1;
+[connection server_6]
+include/stop_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+include/start_slave.inc
+include/stop_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 1,
+replication_sender_observe_commit_only = 1;
+include/start_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+SET GLOBAL replication_optimize_for_static_plugin_config = 1,
+replication_sender_observe_commit_only = 1;
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+include/stop_slave.inc
+include/start_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+SET GLOBAL replication_optimize_for_static_plugin_config = 1,
+replication_sender_observe_commit_only = 1;
+[connection server_5]
+include/stop_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+include/start_slave.inc
+include/stop_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 1,
+replication_sender_observe_commit_only = 1;
+include/start_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+SET GLOBAL replication_optimize_for_static_plugin_config = 1,
+replication_sender_observe_commit_only = 1;
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+include/stop_slave.inc
+include/start_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+SET GLOBAL replication_optimize_for_static_plugin_config = 1,
+replication_sender_observe_commit_only = 1;
+[connection server_4]
+include/stop_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+include/start_slave.inc
+include/stop_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 1,
+replication_sender_observe_commit_only = 1;
+include/start_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+SET GLOBAL replication_optimize_for_static_plugin_config = 1,
+replication_sender_observe_commit_only = 1;
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+include/stop_slave.inc
+include/start_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+SET GLOBAL replication_optimize_for_static_plugin_config = 1,
+replication_sender_observe_commit_only = 1;
+[connection server_3]
+include/stop_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+include/start_slave.inc
+include/stop_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 1,
+replication_sender_observe_commit_only = 1;
+include/start_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+SET GLOBAL replication_optimize_for_static_plugin_config = 1,
+replication_sender_observe_commit_only = 1;
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+include/stop_slave.inc
+include/start_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+SET GLOBAL replication_optimize_for_static_plugin_config = 1,
+replication_sender_observe_commit_only = 1;
+[connection server_2]
+include/stop_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+include/start_slave.inc
+include/stop_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 1,
+replication_sender_observe_commit_only = 1;
+include/start_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+SET GLOBAL replication_optimize_for_static_plugin_config = 1,
+replication_sender_observe_commit_only = 1;
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+include/stop_slave.inc
+include/start_slave.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+replication_sender_observe_commit_only = 0;
+SET GLOBAL replication_optimize_for_static_plugin_config = 1,
+replication_sender_observe_commit_only = 1;
+[connection server_1]
+include/rpl_sync.inc
+[connection server_2]
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:t, server_9:t, server_8:t, server_7:t, server_6:t, server_5:t, server_4:t, server_3:t, server_2:t]
+[connection server_9]
+SET GLOBAL replication_optimize_for_static_plugin_config = 0;
+SET GLOBAL replication_sender_observe_commit_only = 0;
+include/uninstall_semisync_slave.inc
+[connection server_8]
+SET GLOBAL replication_optimize_for_static_plugin_config = 0;
+SET GLOBAL replication_sender_observe_commit_only = 0;
+include/uninstall_semisync_slave.inc
+[connection server_7]
+SET GLOBAL replication_optimize_for_static_plugin_config = 0;
+SET GLOBAL replication_sender_observe_commit_only = 0;
+include/uninstall_semisync_slave.inc
+[connection server_6]
+SET GLOBAL replication_optimize_for_static_plugin_config = 0;
+SET GLOBAL replication_sender_observe_commit_only = 0;
+include/uninstall_semisync_slave.inc
+[connection server_5]
+SET GLOBAL replication_optimize_for_static_plugin_config = 0;
+SET GLOBAL replication_sender_observe_commit_only = 0;
+include/uninstall_semisync_slave.inc
+[connection server_4]
+SET GLOBAL replication_optimize_for_static_plugin_config = 0;
+SET GLOBAL replication_sender_observe_commit_only = 0;
+include/uninstall_semisync_slave.inc
+[connection server_3]
+SET GLOBAL replication_optimize_for_static_plugin_config = 0;
+SET GLOBAL replication_sender_observe_commit_only = 0;
+include/uninstall_semisync_slave.inc
+[connection server_2]
+SET GLOBAL replication_optimize_for_static_plugin_config = 0;
+SET GLOBAL replication_sender_observe_commit_only = 0;
+include/uninstall_semisync_master.inc
+[connection server_1]
+DROP TABLE t;
+include/rpl_end.inc

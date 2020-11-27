@@ -7173,6 +7173,8 @@ static int mysql_init_variables(void)
   character_set_filesystem_name= (char*) "binary";
   lc_messages= (char*) "en_US";
   lc_time_names_name= (char*) "en_US";
+  opt_replication_optimize_for_static_plugin_config= 0;
+  opt_replication_sender_observe_commit_only= 0;
 
   /* Variables that depends on compile options */
 #ifndef DBUG_OFF
