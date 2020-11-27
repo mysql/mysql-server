@@ -287,7 +287,7 @@ int AggregateIterator::Read() {
         } else {
           if ((*item)->reset_and_add()) return true;
         }
-        assert(!thd()->is_error());
+        if (thd()->is_error()) return true;
       }
 
       // Keep reading rows as long as they are part of the existing group.

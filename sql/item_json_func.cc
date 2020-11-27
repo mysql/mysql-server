@@ -316,8 +316,6 @@ static bool json_is_valid(Item **args, uint arg_idx, String *value,
                           bool require_str_or_json, bool *valid) {
   Item *const arg_item = args[arg_idx];
 
-  assert(!current_thd->is_error());
-
   enum_field_types field_type = get_normalized_field_type(arg_item);
 
   if (!is_convertible_to_json(arg_item)) {
@@ -1402,8 +1400,6 @@ bool sql_scalar_to_json(Item *arg, const char *calling_function, String *value,
     field_type = arg->actual_data_type();
   }
   Json_dom_ptr dom;
-
-  assert(!current_thd->is_error());
 
   switch (field_type) {
     case MYSQL_TYPE_INT24:
