@@ -1751,7 +1751,6 @@ int Arg_comparator::compare_binary_string() {
 
 int Arg_comparator::compare_real() {
   double val1, val2;
-  assert(!current_thd->is_error());
   val1 = (*left)->val_real();
   if (current_thd->is_error()) return 0;
   if (!(*left)->null_value) {
@@ -3168,7 +3167,6 @@ longlong Item_func_between::val_int() {  // ANSI BETWEEN
     else
       null_value = (my_decimal_cmp(dec, a_dec) >= 0);
   } else {
-    assert(!current_thd->is_error());
     double value = args[0]->val_real(), a, b;
     if (current_thd->is_error()) return false;
     if ((null_value = args[0]->null_value)) return 0; /* purecov: inspected */

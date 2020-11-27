@@ -319,8 +319,6 @@ static bool json_is_valid(Item **args, uint arg_idx, String *value,
                           bool require_str_or_json, bool *valid) {
   Item *const arg_item = args[arg_idx];
 
-  assert(!current_thd->is_error());
-
   enum_field_types field_type = get_normalized_field_type(arg_item);
 
   if (!is_convertible_to_json(arg_item)) {
@@ -1069,8 +1067,6 @@ longlong Item_func_json_contains_path::val_int() {
 }
 
 bool json_value(Item *arg, Json_wrapper *result, bool *has_value) {
-  assert(!current_thd->is_error());
-
   if (arg->data_type() == MYSQL_TYPE_NULL) {
     if (arg->update_null_value()) return true;
     DBUG_ASSERT(arg->null_value);
@@ -1087,7 +1083,6 @@ bool json_value(Item *arg, Json_wrapper *result, bool *has_value) {
   *has_value = true;
 
   const bool error = arg->val_json(result);
-  assert(error == current_thd->is_error());
   return error;
 }
 
@@ -1421,8 +1416,6 @@ bool sql_scalar_to_json(Item *arg, const char *calling_function, String *value,
     field_type = arg->actual_data_type();
   }
   Json_dom_ptr dom;
-
-  assert(!current_thd->is_error());
 
   switch (field_type) {
     case MYSQL_TYPE_INT24:

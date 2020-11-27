@@ -2352,7 +2352,6 @@ bool geometry_to_json(Json_wrapper *wr, String *swkb,
 */
 bool Item_func_as_geojson::val_json(Json_wrapper *wr) {
   DBUG_ASSERT(fixed == true);
-  assert(!current_thd->is_error());
 
   if (arg_count > 1) {
     if (parse_maxdecimaldigits_argument()) return error_json();
@@ -2382,7 +2381,6 @@ bool Item_func_as_geojson::val_json(Json_wrapper *wr) {
   }
 
   assert(!null_value);
-  assert(!current_thd->is_error());
   return false;
 }
 

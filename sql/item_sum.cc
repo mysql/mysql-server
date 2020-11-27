@@ -1309,7 +1309,6 @@ bool Aggregator_distinct::add() {
       return true;
     return false;
   } else {
-    assert(!current_thd->is_error());
     item_sum->get_arg(0)->save_in_field(table->field[0], false);
     if (current_thd->is_error()) {
       return true;
@@ -1688,7 +1687,6 @@ bool Item_sum_bit::add() {
   const String *argval_s = nullptr;
   ulonglong argval_i = 0;
 
-  assert(!current_thd->is_error());
   String tmp_str(buff, sizeof(buff), &my_charset_bin);
   if (hybrid_type == STRING_RESULT) {
     argval_s = args[0]->val_str(&tmp_str);
@@ -2180,7 +2178,6 @@ void Item_sum_count::clear() { count = 0; }
 
 bool Item_sum_count::add() {
   DBUG_ASSERT(!m_is_window_function);
-  assert(!current_thd->is_error());
   if (aggr->arg_is_null(false)) {
     return current_thd->is_error();
   }
@@ -2660,7 +2657,6 @@ bool Item_sum_variance::add() {
     Why use a temporary variable?  We don't know if it is null until we
     evaluate it, which has the side-effect of setting null_value .
   */
-  assert(!current_thd->is_error());
   double nr = args[0]->val_real();
   if (current_thd->is_error()) {
     return true;
@@ -3086,7 +3082,6 @@ static bool min_max_best_so_far(int comparison_result, bool is_min) {
 }
 
 bool Item_sum_hybrid::add() {
-  assert(!current_thd->is_error());
   arg_cache->cache_value();
   if (current_thd->is_error()) {
     return true;
@@ -3094,7 +3089,6 @@ bool Item_sum_hybrid::add() {
   if (!arg_cache->null_value &&
       (null_value || min_max_best_so_far(cmp->compare(), m_is_min))) {
     value->store(arg_cache);
-    assert(!current_thd->is_error());
     value->cache_value();
     if (current_thd->is_error()) {
       return true;
@@ -4388,7 +4382,6 @@ bool Item_func_group_concat::add() {
     row to the output buffer here. That will be done in val_str.
   */
   if (row_eligible && !warning_for_row && tree == nullptr && !distinct) {
-    assert(!current_thd->is_error());
     dump_leaf_key(table->record[0] + table->s->null_bytes, 1, this);
     if (current_thd->is_error()) {
       return true;
@@ -5689,7 +5682,6 @@ bool Item_sum_json::val_json(Json_wrapper *wr) {
     if (add()) return error_json();
   }
 
-  assert(!current_thd->is_error());
   assert(!m_wrapper->empty());
 
   if (null_value) return false;
