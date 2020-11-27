@@ -37,6 +37,8 @@
  */
 
 #include <stdint.h>
+
+#include <algorithm>
 #include <vector>
 
 namespace hypergraph {
