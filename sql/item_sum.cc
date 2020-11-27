@@ -2167,12 +2167,9 @@ void Item_sum_count::clear() { count = 0; }
 
 bool Item_sum_count::add() {
   DBUG_ASSERT(!m_is_window_function);
-  assert(!current_thd->is_error());
-  if (aggr->arg_is_null(false)) {
-    return current_thd->is_error();
-  }
+  if (aggr->arg_is_null(false)) return false;
   count++;
-  return current_thd->is_error();
+  return false;
 }
 
 longlong Item_sum_count::val_int() {
