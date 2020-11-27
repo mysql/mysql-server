@@ -140,7 +140,7 @@ static int ndb_get_password_read_line_from_tty(int fd_in,
 int ndb_get_password_read_line(int fd_in, char buf[], size_t size)
 {
   size_t len = 0;
-  int ret;
+  int ret = 0;
   while (len < size && (ret = read(fd_in, &buf[len], 1)) == 1)
   {
     if (buf[len] == '\n')
