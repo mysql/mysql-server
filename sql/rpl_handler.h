@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,8 @@
 #define RPL_HANDLER_H
 
 #include <sys/types.h>
+#include <atomic>
+#include <map>
 
 #include "my_alloc.h"
 #include "my_dbug.h"
@@ -33,8 +35,10 @@
 #include "mysql/components/services/mysql_rwlock_bits.h"
 #include "mysql/components/services/psi_rwlock_bits.h"
 #include "mysql/psi/mysql_rwlock.h"
-#include "sql/sql_list.h"        // List
-#include "sql/sql_plugin_ref.h"  // plugin_ref
+#include "sql/locks/shared_spin_lock.h"  // Shared_spin_lock
+#include "sql/sql_list.h"                // List
+#include "sql/sql_plugin.h"              // my_plugin_(un)lock
+#include "sql/sql_plugin_ref.h"          // plugin_ref
 
 class Master_info;
 class String;
@@ -47,6 +51,37 @@ struct Server_state_observer;
 struct Trans_observer;
 struct TABLE_LIST;
 
+/**
+  Variable to keep the value set for the
+  `replication_optimize_for_static_plugin_config` global.
+
+  When this global variable value is set to `1`, we prevent all plugins that
+  register replication observers to be unloaded until the variable is set to
+  `0`, again. While the value of the variable is `1`, we are also exchanging the
+  `Delegate` class read-write lock by an atomic-based shared spin-lock.
+
+  This behaviour is usefull for increasing the throughtput of the master when a
+  large number of slaves is connected, by preventing the acquisition of the
+  `LOCK_plugin` mutex and using a more read-friendly lock in the `Delegate`
+  class, when invoking the observer's hooks.
+
+  Note that a large number of slaves means a large number of dump threads, which
+  means a large number of threads calling the registered observers hooks.
+
+  If `UNINSTALL` is executed on a replication observer plugin while the variable
+  is set to `1`, the unload of the plugin will be deferred until the variable's
+  value is set to `0`.
+*/
+extern bool opt_replication_optimize_for_static_plugin_config;
+/**
+  Variable to keep the value set for the
+  `replication_sender_observe_commit_only` global.
+
+  When this global variable is set to `1`, only the replication observer's
+  commit hook will be called, every other registered hook invocation is skipped.
+*/
+extern std::atomic<bool> opt_replication_sender_observe_commit_only;
+
 class Observer_info {
  public:
   void *observer;
@@ -56,86 +91,179 @@ class Observer_info {
   Observer_info(void *ob, st_plugin_int *p);
 };
 
+/**
+  Base class for adding replication event observer infra-structure. It's
+  meant to be sub-classed by classes that will provide the support for the
+  specific event types. This class is meant just to provide basic support
+  for managing observers and managing resource access and lock acquisition.
+ */
 class Delegate {
  public:
   typedef List<Observer_info> Observer_info_list;
   typedef List_iterator<Observer_info> Observer_info_iterator;
 
-  int add_observer(void *observer, st_plugin_int *plugin) {
-    int ret = false;
-    if (!inited) return true;
-    write_lock();
-    Observer_info_iterator iter(observer_info_list);
-    Observer_info *info = iter++;
-    while (info && info->observer != observer) info = iter++;
-    if (!info) {
-      info = new Observer_info(observer, plugin);
-      if (!info || observer_info_list.push_back(info, &memroot)) ret = true;
-    } else
-      ret = true;
-    unlock();
-    return ret;
-  }
+  /**
+    Class constructor
 
-  int remove_observer(void *observer) {
-    int ret = false;
-    if (!inited) return true;
-    write_lock();
-    Observer_info_iterator iter(observer_info_list);
-    Observer_info *info = iter++;
-    while (info && info->observer != observer) info = iter++;
-    if (info) {
-      iter.remove();
-      delete info;
-    } else
-      ret = true;
-    unlock();
-    return ret;
-  }
-
-  inline Observer_info_iterator observer_info_iter() {
-    return Observer_info_iterator(observer_info_list);
-  }
-
-  inline bool is_empty() {
-    DBUG_PRINT("debug", ("is_empty: %d", observer_info_list.is_empty()));
-    return observer_info_list.is_empty();
-  }
-
-  inline int read_lock() {
-    if (!inited) return true;
-    return mysql_rwlock_rdlock(&lock);
-  }
-
-  inline int write_lock() {
-    if (!inited) return true;
-    return mysql_rwlock_wrlock(&lock);
-  }
-
-  inline int unlock() {
-    if (!inited) return true;
-    return mysql_rwlock_unlock(&lock);
-  }
-
-  inline bool is_inited() { return inited; }
-
+    @param key the PFS key for instrumenting the class lock
+   */
   explicit Delegate(
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
       PSI_rwlock_key key
 #endif
   );
+  /**
+    Class destructor
+   */
+  virtual ~Delegate();
 
-  ~Delegate() {
-    inited = false;
-    mysql_rwlock_destroy(&lock);
-    free_root(&memroot, MYF(0));
-  }
+  /**
+    Adds an observer to the observer list.
+
+    @param observer The observer object to be added to the list
+    @param plugin The plugin the observer is being loaded from
+
+    @return 0 upon success, 1 otherwise
+   */
+  int add_observer(void *observer, st_plugin_int *plugin);
+  /**
+    Removes an observer from the observer list.
+
+    @param observer The observer object to be added to the list
+    @param plugin The plugin the observer is being loaded from
+
+    @return 0 upon success, 1 otherwise
+   */
+  int remove_observer(void *observer);
+  /**
+    Retrieves an iterator for the observer list.
+
+    @return the iterator for the observer list
+   */
+  Observer_info_iterator observer_info_iter();
+  /**
+    Returns whether or not there are registered observers.
+
+    @return whether or not there are registered observers
+   */
+  bool is_empty();
+  /**
+    Acquires this Delegate class instance lock in read/shared mode.
+
+    @return 0 upon success, 1 otherwise
+   */
+  int read_lock();
+  /**
+    Acquires this Delegate class instance lock in write/exclusive mode.
+
+    @return 0 upon success, 1 otherwise
+   */
+  int write_lock();
+  /**
+    Releases this Delegate class instance lock.
+
+    @return 0 upon success, 1 otherwise
+   */
+  int unlock();
+  /**
+    Returns whether or not this instance was initialized.
+
+    @return whether or not this instance was initialized
+   */
+  bool is_inited();
+  /**
+    Toggles the type of lock between a classical read-write lock and a
+    shared-exclusive spin-lock.
+   */
+  void update_lock_type();
+  /**
+    Increases the `info->plugin` usage reference counting if
+    `replication_optimize_for_static_plugin_config` is being enabled, in order
+    to prevent plugin removal.
+
+    Decreases the `info->plugin` usage reference counting if
+    `replication_optimize_for_static_plugin_config` is being disabled, in order
+    to allow plugin removal.
+   */
+  void update_plugin_ref_count();
+  /**
+    Returns whether or not to use the classic read-write lock.
+
+    The read-write lock should be used if that type of lock is already
+    acquired by some thread or if the server is not optimized for static
+    plugin configuration.
+
+    @returns true if one should use the classic read-write lock, false otherwise
+   */
+  bool use_rw_lock_type();
+  /**
+    Returns whether or not to use the shared spin-lock.
+
+    The shared spin-lock should be used if that type of lock is already
+    acquired by some thread or if the server is optimized for static plugin
+    configuration.
+
+    @returns true if one should use the shared spin-lock, false otherwise
+   */
+  bool use_spin_lock_type();
 
  private:
+  /** List of registered observers */
   Observer_info_list observer_info_list;
+  /**
+    A read/write lock to be used when not optimizing for static plugin config
+   */
   mysql_rwlock_t lock;
+  /**
+    A shared-exclusive spin lock to be used when optimizing for static plugin
+    config.
+  */
+  lock::Shared_spin_lock m_spin_lock;
+  /** Memory pool to be used to allocate the observers list */
   MEM_ROOT memroot;
+  /** Flag statign whether or not this instance was initialized */
   bool inited;
+  /**
+    The type of lock configured to be used, either a classic read-write (-1)
+    lock or a shared-exclusive spin lock (1).
+   */
+  std::atomic<int> m_configured_lock_type;
+  /**
+    The count of locks acquired: -1 will be added for each classic
+    read-write lock acquisitions; +1 will be added for each
+    shared-exclusive spin lock acquisition.
+   */
+  std::atomic<int> m_acquired_locks;
+  /**
+    List of acquired plugin references, to be held while
+    `replication_optimize_for_static_plugin_config` option is enabled. If the
+    option is disabled, the references in this list will be released.
+  */
+  std::map<plugin_ref, size_t> m_acquired_references;
+
+  enum enum_delegate_lock_type {
+    DELEGATE_OS_LOCK = -1,   // Lock used by this class is an OS RW lock
+    DELEGATE_SPIN_LOCK = 1,  // Lock used by this class is a spin lock
+  };
+
+  enum enum_delegate_lock_mode {
+    DELEGATE_LOCK_MODE_SHARED = 0,     // Lock acquired in shared/read mode
+    DELEGATE_LOCK_MODE_EXCLUSIVE = 1,  // Lock acquired in exclusive/write mode
+  };
+
+  /**
+    Increases the `info->plugin` reference counting and stores that refernce
+    internally.
+   */
+  void acquire_plugin_ref_count(Observer_info *info);
+  /**
+    Locks the active lock (OS read-write lock or shared spin-lock)
+    according to the mode passed on as a parameter.
+
+    @param mode The mode to lock in, either DELEGATE_LOCK_MODE_SHARED or
+                DELEGATE_LOCK_MODE_EXCLUSIVE.
+   */
+  void lock_it(enum_delegate_lock_mode mode);
 };
 
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
@@ -268,6 +396,19 @@ class Binlog_relay_IO_delegate : public Delegate {
 
 int delegates_init();
 void delegates_destroy();
+/**
+  Invokes `write_lock()` for all the observer delegate objects.
+*/
+void delegates_acquire_locks();
+/**
+  Releases locks for all the observer delegate objects.
+*/
+void delegates_release_locks();
+/**
+  Toggles the type of lock between a classical read-write lock and a
+  shared-exclusive spin-lock.
+*/
+void delegates_update_lock_type();
 
 extern Trans_delegate *transaction_delegate;
 extern Binlog_storage_delegate *binlog_storage_delegate;
