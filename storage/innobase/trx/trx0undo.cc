@@ -44,6 +44,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "clone0clone.h"
 #include "current_thd.h"
 #include "dict0dd.h"
+#include "fil0fil.h"
 #include "mach0data.h"
 #include "mtr0log.h"
 #include "srv0mon.h"
@@ -2043,12 +2044,12 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
 
   auto space = fil_space_get(old_space_id);
 
-  auto n_pages = INITIAL_UNDO_SPACE_SIZE_IN_PAGES;
+  auto n_pages = UNDO_INITIAL_SIZE_IN_PAGES;
 
   /* If the default extend amount has been increased greater than the default
   and it has been less than 1 second since the last time the file was extended,
   then we consider the undo tablespace to be growing aggressively. */
-  if (space->m_undo_extend > INITIAL_UNDO_SPACE_SIZE_IN_PAGES &&
+  if (space->m_undo_extend > UNDO_INITIAL_SIZE_IN_PAGES &&
       space->m_last_extended.elapsed() < 1000) {
     /* UNDO is beeing extended aggressively, dont' reduce size to default. */
     n_pages = fil_space_get_size(old_space_id) / 4;
@@ -2091,8 +2092,10 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
 
   mtr.commit();
 
-  /* Step-4: Re-initialize rollback segment header that resides
-  in truncated tablespaces. */
+  /* Step-4: Add rollback segment header pages.
+  This is different from trx_rseg_add_rollback_segments() in that the
+  undo::Tablespace::m_rsegs already exist and we are assigning a new
+  space_id to each rseg as we create the rseg header page. */
 
   ut_d(undo::inject_crash("ib_undo_trunc_before_rsegs"));
 
@@ -2165,6 +2168,9 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
   /* Increment the space ID for this undo space now so that if anyone refers
   to this space, it is completely initialized. */
   marked_space->set_space_id(new_space_id);
+
+  /* Set the amount in which an undo tablespace grows. */
+  fil_space_set_undo_size(new_space_id, true);
 
   return (success);
 }
