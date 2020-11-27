@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -150,6 +150,9 @@ int main(int argc, char** argv)
     // run the application code
     run_application(mysql1, cluster1_connection, "api_simple_dual_1", "ndb_examples");
     run_application(mysql2, cluster2_connection, "api_simple_dual_2", "ndb_examples");
+
+    mysql_close(&mysql1);
+    mysql_close(&mysql2);
   }
   // Note: all connections must have been destroyed before calling ndb_end()
   ndb_end(0);
