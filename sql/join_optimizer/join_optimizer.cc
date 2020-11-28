@@ -1369,6 +1369,12 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
   JOIN *join = query_block->join;
   assert(join->select_distinct || query_block->is_ordered());
 
+  if (root_candidates.empty()) {
+    // Nothing to do if the secondary engine has rejected all candidates.
+    assert(secondary_engine_cost_hook != nullptr);
+    return root_candidates;
+  }
+
   TABLE *temp_table = nullptr;
   Temp_table_param *temp_table_param = nullptr;
 

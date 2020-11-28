@@ -23,6 +23,7 @@
 #include <assert.h>
 #include <gtest/gtest.h>
 #include <string.h>
+#include <initializer_list>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -62,7 +63,11 @@
 #include "unittest/gunit/parsertest.h"
 #include "unittest/gunit/test_utils.h"
 
-class MakeHypergraphTest : public ::testing::Test {
+// Base class for the hypergraph unit tests. Its parent class is a type
+// parameter, so that it can be used as a base class for both non-parametrized
+// tests (::testing::Test) and parametrized tests (::testing::TestWithParam).
+template <typename Parent>
+class HypergraphTestBase : public Parent {
  public:
   void SetUp() override { m_initializer.SetUp(); }
   void TearDown() override {
@@ -87,8 +92,9 @@ class MakeHypergraphTest : public ::testing::Test {
   std::unordered_map<std::string, Fake_TABLE *> m_fake_tables;
 };
 
-Query_block *MakeHypergraphTest::ParseAndResolve(const char *query,
-                                                 bool nullable) {
+template <typename T>
+Query_block *HypergraphTestBase<T>::ParseAndResolve(const char *query,
+                                                    bool nullable) {
   Query_block *query_block = ::parse(&m_initializer, query, 0);
   m_thd = m_initializer.thd();
 
@@ -150,14 +156,15 @@ Query_block *MakeHypergraphTest::ParseAndResolve(const char *query,
   // Create a fake, tiny JOIN. (This would normally be done in optimization.)
   query_block->join = new (m_thd->mem_root) JOIN(m_thd, query_block);
   query_block->join->where_cond = query_block->where_cond();
-  query_block->join->having_cond = nullptr;
+  query_block->join->having_cond = query_block->having_cond();
   query_block->join->fields = &query_block->fields;
   query_block->join->alloc_func_list();
 
   return query_block;
 }
 
-void MakeHypergraphTest::ResolveFieldToFakeTable(Item *item_arg) {
+template <typename T>
+void HypergraphTestBase<T>::ResolveFieldToFakeTable(Item *item_arg) {
   WalkItem(item_arg, enum_walk::POSTFIX, [&](Item *item) {
     if (item->type() == Item::FIELD_ITEM) {
       Item_field *item_field = down_cast<Item_field *>(item);
@@ -178,7 +185,8 @@ void MakeHypergraphTest::ResolveFieldToFakeTable(Item *item_arg) {
   });
 }
 
-void MakeHypergraphTest::ResolveAllFieldsToFakeTable(
+template <typename T>
+void HypergraphTestBase<T>::ResolveAllFieldsToFakeTable(
     const mem_root_deque<TABLE_LIST *> &join_list) {
   for (TABLE_LIST *tl : join_list) {
     if (tl->join_cond() != nullptr) {
@@ -190,7 +198,8 @@ void MakeHypergraphTest::ResolveAllFieldsToFakeTable(
   }
 }
 
-handlerton *MakeHypergraphTest::EnableSecondaryEngine() {
+template <typename T>
+handlerton *HypergraphTestBase<T>::EnableSecondaryEngine() {
   auto hton = new (m_thd->mem_root) Fake_handlerton;
   hton->flags = HTON_SUPPORTS_SECONDARY_ENGINE;
   hton->secondary_engine_supported_access_paths =
@@ -210,7 +219,8 @@ namespace {
 /// raised while the checker was alive, and that the error had the expected
 /// error number. If an error is raised, the THD::is_error() flag will be set,
 /// just as in the server. (The default error_handler_hook used by the unit
-/// tests, does not set the error flag in the THD.)
+/// tests, does not set the error flag in the THD.) If expected_errno is 0, it
+/// will instead check that no error was raised.
 class ErrorChecker {
  public:
   ErrorChecker(const THD *thd, unsigned expected_errno)
@@ -224,9 +234,13 @@ class ErrorChecker {
 
   ~ErrorChecker() {
     error_handler_hook = m_saved_error_hook;
-    EXPECT_TRUE(m_thd->is_error());
-    EXPECT_EQ(m_errno, m_thd->get_stmt_da()->mysql_errno());
-    EXPECT_EQ(1, m_thd->get_stmt_da()->current_statement_cond_count());
+    if (m_errno != 0) {
+      EXPECT_TRUE(m_thd->is_error());
+      EXPECT_EQ(m_errno, m_thd->get_stmt_da()->mysql_errno());
+      EXPECT_EQ(1, m_thd->get_stmt_da()->current_statement_cond_count());
+    } else {
+      EXPECT_FALSE(m_thd->is_error());
+    }
   }
 
  private:
@@ -235,6 +249,8 @@ class ErrorChecker {
   decltype(error_handler_hook) m_saved_error_hook;
 };
 }  // namespace
+
+using MakeHypergraphTest = HypergraphTestBase<::testing::Test>;
 
 TEST_F(MakeHypergraphTest, SingleTable) {
   Query_block *query_block =
@@ -1018,35 +1034,52 @@ TEST_F(HypergraphSecondaryEngineTest, RejectJoinOrders) {
   EXPECT_STREQ("t3", inner_hash.inner->table_scan().table->alias);
 }
 
-TEST_F(HypergraphSecondaryEngineTest, RejectSort) {
-  Query_block *query_block =
-      ParseAndResolve("SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x ORDER BY t1.x",
-                      /*nullable=*/true);
+namespace {
+struct RejectionParam {
+  // The query to test.
+  string query;
+  // Path type to reject in the secondary engine cost hook.
+  AccessPath::Type rejected_type;
+  // Whether or not to expect an error if the specified path type always gives
+  // an error or is rejected.
+  bool expect_error;
+};
+}  // namespace
 
-  handlerton *hton = EnableSecondaryEngine();
-  hton->secondary_engine_modify_access_path_cost = [](THD *, AccessPath *path) {
-    return path->type == AccessPath::SORT;
-  };
+using HypergraphSecondaryEngineRejectionTest =
+    HypergraphTestBase<::testing::TestWithParam<RejectionParam>>;
 
-  // Expect an error, since there is no valid plan without a sort.
-  ErrorChecker error_checker{m_thd, ER_SECONDARY_ENGINE};
-
-  string trace;
-  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
-  SCOPED_TRACE(trace);  // Prints out the trace on failure.
-  EXPECT_EQ(nullptr, root);
-}
-
-TEST_F(HypergraphSecondaryEngineTest, ErrorOnTableScan) {
-  Query_block *query_block =
-      ParseAndResolve("SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x",
-                      /*nullable=*/true);
+TEST_P(HypergraphSecondaryEngineRejectionTest, RejectPathType) {
+  const RejectionParam &param = GetParam();
+  Query_block *query_block = ParseAndResolve(param.query.data(),
+                                             /*nullable=*/true);
 
   handlerton *hton = EnableSecondaryEngine();
   hton->secondary_engine_modify_access_path_cost = [](THD *thd,
                                                       AccessPath *path) {
     EXPECT_FALSE(thd->is_error());
-    if (path->type == AccessPath::TABLE_SCAN) {
+    return path->type == GetParam().rejected_type;
+  };
+
+  ErrorChecker error_checker(m_thd,
+                             param.expect_error ? ER_SECONDARY_ENGINE : 0);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  EXPECT_EQ(param.expect_error, root == nullptr);
+}
+
+TEST_P(HypergraphSecondaryEngineRejectionTest, ErrorOnPathType) {
+  const RejectionParam &param = GetParam();
+  Query_block *query_block = ParseAndResolve(param.query.data(),
+                                             /*nullable=*/true);
+
+  handlerton *hton = EnableSecondaryEngine();
+  hton->secondary_engine_modify_access_path_cost = [](THD *thd,
+                                                      AccessPath *path) {
+    EXPECT_FALSE(thd->is_error());
+    if (path->type == GetParam().rejected_type) {
       my_error(ER_SECONDARY_ENGINE_PLUGIN, MYF(0), "");
       return true;
     } else {
@@ -1054,60 +1087,33 @@ TEST_F(HypergraphSecondaryEngineTest, ErrorOnTableScan) {
     }
   };
 
-  ErrorChecker error_checker{m_thd, ER_SECONDARY_ENGINE_PLUGIN};
+  ErrorChecker error_checker(
+      m_thd, param.expect_error ? ER_SECONDARY_ENGINE_PLUGIN : 0);
 
   string trace;
   AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
-  EXPECT_EQ(nullptr, root);
+  EXPECT_EQ(param.expect_error, root == nullptr);
 }
 
-TEST_F(HypergraphSecondaryEngineTest, ErrorOnHashJoin) {
-  Query_block *query_block =
-      ParseAndResolve("SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x",
-                      /*nullable=*/true);
+INSTANTIATE_TEST_SUITE_P(
+    ErrorCases, HypergraphSecondaryEngineRejectionTest,
+    ::testing::ValuesIn(std::initializer_list<RejectionParam>({
+        {"SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x", AccessPath::TABLE_SCAN, true},
+        {"SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x", AccessPath::HASH_JOIN, true},
+        {"SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x ORDER BY t1.x",
+         AccessPath::SORT, true},
+        {"SELECT DISTINCT t1.x FROM t1", AccessPath::SORT, true},
+        {"SELECT t1.x FROM t1 GROUP BY t1.x HAVING COUNT(*) > 5",
+         AccessPath::FILTER, true},
+        {"SELECT t1.x FROM t1 GROUP BY t1.x HAVING COUNT(*) > 5 ORDER BY t1.x",
+         AccessPath::FILTER, true},
+    })));
 
-  handlerton *hton = EnableSecondaryEngine();
-  hton->secondary_engine_modify_access_path_cost = [](THD *thd,
-                                                      AccessPath *path) {
-    EXPECT_FALSE(thd->is_error());
-    if (path->type == AccessPath::HASH_JOIN) {
-      my_error(ER_SECONDARY_ENGINE_PLUGIN, MYF(0), "");
-      return true;
-    } else {
-      return false;
-    }
-  };
-
-  ErrorChecker error_checker{m_thd, ER_SECONDARY_ENGINE_PLUGIN};
-
-  string trace;
-  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
-  SCOPED_TRACE(trace);  // Prints out the trace on failure.
-  EXPECT_EQ(nullptr, root);
-}
-
-TEST_F(HypergraphSecondaryEngineTest, ErrorOnSort) {
-  Query_block *query_block =
-      ParseAndResolve("SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x ORDER BY t1.x",
-                      /*nullable=*/true);
-
-  handlerton *hton = EnableSecondaryEngine();
-  hton->secondary_engine_modify_access_path_cost = [](THD *thd,
-                                                      AccessPath *path) {
-    EXPECT_FALSE(thd->is_error());
-    if (path->type == AccessPath::SORT) {
-      my_error(ER_SECONDARY_ENGINE_PLUGIN, MYF(0), "");
-      return true;
-    } else {
-      return false;
-    }
-  };
-
-  ErrorChecker error_checker{m_thd, ER_SECONDARY_ENGINE_PLUGIN};
-
-  string trace;
-  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
-  SCOPED_TRACE(trace);  // Prints out the trace on failure.
-  EXPECT_EQ(nullptr, root);
-}
+INSTANTIATE_TEST_SUITE_P(
+    SuccessCases, HypergraphSecondaryEngineRejectionTest,
+    ::testing::ValuesIn(std::initializer_list<RejectionParam>(
+        {{"SELECT 1 FROM t1 WHERE t1.x=1", AccessPath::HASH_JOIN, false},
+         {"SELECT 1 FROM t1 WHERE t1.x=1", AccessPath::SORT, false},
+         {"SELECT DISTINCT t1.y, t1.x, 3 FROM t1 GROUP BY t1.x, t1.y",
+          AccessPath::SORT, false}})));
