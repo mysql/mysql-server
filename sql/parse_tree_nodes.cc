@@ -37,6 +37,7 @@
 #include "mysql/mysql_lex_string.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
+#include "scope_guard.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/create_field.h"
 #include "sql/dd/info_schema/show.h"      // build_show_...
@@ -1778,6 +1779,15 @@ bool PT_query_block_locking_clause::set_lock_for_tables(Parse_context *pc) {
 }
 
 bool PT_column_def::contextualize(Table_ddl_parse_context *pc) {
+  // Since Alter_info objects are allocated on a mem_root and never
+  // destroyed we (move)-assign an empty vector to cf_appliers to
+  // ensure any dynamic memory is released. This must be done whenever
+  // leaving this scope since appliers may be added in
+  // field_def->contextualize(pc).
+  auto clr_appliers = create_scope_guard([&]() {
+    pc->alter_info->cf_appliers = decltype(pc->alter_info->cf_appliers)();
+  });
+
   if (super::contextualize(pc) || field_def->contextualize(pc) ||
       contextualize_safe(pc, opt_column_constraint))
     return true;
@@ -2523,6 +2533,15 @@ Sql_cmd *PT_show_warnings::make_cmd(THD *thd) {
 }
 
 bool PT_alter_table_change_column::contextualize(Table_ddl_parse_context *pc) {
+  // Since Alter_info objects are allocated on a mem_root and never
+  // destroyed we (move)-assign an empty vector to cf_appliers to
+  // ensure any dynamic memory is released. This must be done whenever
+  // leaving this scope since appliers may be added in
+  // m_field_def->contextualize(pc).
+  auto clr_appliers = create_scope_guard([&]() {
+    pc->alter_info->cf_appliers = decltype(pc->alter_info->cf_appliers)();
+  });
+
   if (super::contextualize(pc) || m_field_def->contextualize(pc)) return true;
   pc->alter_info->flags |= m_field_def->alter_info_flags;
   dd::Column::enum_hidden_type field_hidden_type =
@@ -4145,6 +4164,12 @@ PT_column_attr_base *make_column_engine_attribute(MEM_ROOT *mem_root,
                                                   LEX_CSTRING attr) {
   return new (mem_root) PT_attribute<LEX_CSTRING, PT_column_attr_base>(
       attr, +[](LEX_CSTRING a, Column_parse_context *pc) {
+        // Note that a std::function is created from the lambda and constructed
+        // directly in the vector.
+        // This means it is necessary to ensure that the elements of the vector
+        // are destroyed. This will not happen automatically when the vector is
+        // moved to the Alter_info struct which is allocated on the mem_root
+        // and not destroyed.
         pc->cf_appliers.emplace_back([=](Create_field *cf, Alter_info *ai) {
           cf->m_engine_attribute = a;
           ai->flags |= Alter_info::ANY_ENGINE_ATTRIBUTE;
@@ -4169,6 +4194,12 @@ PT_column_attr_base *make_column_secondary_engine_attribute(MEM_ROOT *mem_root,
                                                             LEX_CSTRING attr) {
   return new (mem_root) PT_attribute<LEX_CSTRING, PT_column_attr_base>(
       attr, +[](LEX_CSTRING a, Column_parse_context *pc) {
+        // Note that a std::function is created from the lambda and constructed
+        // directly in the vector.
+        // This means it is necessary to ensure that the elements of the vector
+        // are destroyed. This will not happen automatically when the vector is
+        // moved to the Alter_info struct which is allocated on the mem_root
+        // and not destroyed.
         pc->cf_appliers.emplace_back([=](Create_field *cf, Alter_info *) {
           cf->m_secondary_engine_attribute = a;
           return false;

@@ -4560,3 +4560,15 @@ no_default_newer_than_alter	create_default_newer_than_alter	alter_default_newer_
 1	1	1
 DROP TABLE t2, t1;
 SET TIMESTAMP=default;
+#
+# Bug#32187507: MEMORY LEAK WHEN SETTING SECONDARY_ENGINE_ATTRIBUTE
+#
+# Verify that CREATE TABLE with invalid type and SECONDARY_ENGINE
+# attribute does not leak.
+CREATE TABLE t1(a VARBINARY(9223372036854775806) SECONDARY_ENGINE_ATTRIBUTE '');
+ERROR 42000: Display width out of range for column 'a' (max = 4294967295)
+# Verify that ALTER TABLE with invalid type and SECONDARY_ENGINE
+# attribute does not leak.
+ALTER TABLE t1 ADD COLUMN b VARBINARY(9223372036854775806)
+SECONDARY_ENGINE_ATTRIBUTE '';
+ERROR 42000: Display width out of range for column 'b' (max = 4294967295)

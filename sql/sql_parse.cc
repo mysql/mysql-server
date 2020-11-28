@@ -5230,11 +5230,6 @@ bool Alter_info::add_field(
     if (a(new_field, this)) return true;
   }
 
-  // Since Alter_info objects are allocated on a mem_root and never
-  // destroyed we (move)-assign an empty vector to cf_appliers to
-  // ensure any dynamic memory is released
-  cf_appliers = decltype(cf_appliers)();
-
   create_list.push_back(new_field);
   if (opt_after != nullptr) {
     flags |= Alter_info::ALTER_COLUMN_ORDER;
