@@ -145,6 +145,14 @@ class CostingReceiver {
 
   size_t num_access_paths() const { return m_access_paths.size(); }
 
+  AccessPath *ProposeAccessPath(
+      AccessPath *path, Prealloced_array<AccessPath *, 4> *existing_paths,
+      const char *description_for_trace) const;
+
+  bool HasSecondaryEngineCostHook() const {
+    return m_secondary_engine_cost_hook != nullptr;
+  }
+
  private:
   THD *m_thd;
 
@@ -977,31 +985,29 @@ static string PrintCost(const AccessPath &path,
   write “hash join” when proposing a hash join access path. It may be
   the empty string.
  */
-static AccessPath *ProposeAccessPath(
-    THD *thd, AccessPath *path,
-    Prealloced_array<AccessPath *, 4> *existing_paths,
-    secondary_engine_modify_access_path_cost_t secondary_engine_cost_hook,
-    const char *description_for_trace, string *trace) {
-  if (secondary_engine_cost_hook != nullptr) {
+AccessPath *CostingReceiver::ProposeAccessPath(
+    AccessPath *path, Prealloced_array<AccessPath *, 4> *existing_paths,
+    const char *description_for_trace) const {
+  if (m_secondary_engine_cost_hook != nullptr) {
     // If an error was raised by a previous invocation of the hook, reject all
     // paths.
-    if (thd->is_error()) {
+    if (m_thd->is_error()) {
       return nullptr;
     }
 
-    if (secondary_engine_cost_hook(thd, path)) {
+    if (m_secondary_engine_cost_hook(m_thd, m_graph, path)) {
       // Rejected by the secondary engine.
       return nullptr;
     }
-    assert(!thd->is_error());
+    assert(!m_thd->is_error());
   }
 
   if (existing_paths->empty()) {
-    if (trace != nullptr) {
-      *trace += " - " + PrintCost(*path, description_for_trace) +
-                " is first alternative, keeping\n";
+    if (m_trace != nullptr) {
+      *m_trace += " - " + PrintCost(*path, description_for_trace) +
+                  " is first alternative, keeping\n";
     }
-    AccessPath *insert_position = new (thd->mem_root) AccessPath(*path);
+    AccessPath *insert_position = new (m_thd->mem_root) AccessPath(*path);
     existing_paths->push_back(insert_position);
     return insert_position;
   }
@@ -1017,10 +1023,10 @@ static AccessPath *ProposeAccessPath(
     if (result == PathComparisonResult::IDENTICAL ||
         result == PathComparisonResult::SECOND_DOMINATES) {
       assert(insert_position == nullptr);
-      if (trace != nullptr) {
-        *trace += " - " + PrintCost(*path, description_for_trace) +
-                  " is not better than existing path " +
-                  PrintCost(*(*existing_paths)[i], "") + ", discarding\n";
+      if (m_trace != nullptr) {
+        *m_trace += " - " + PrintCost(*path, description_for_trace) +
+                    " is not better than existing path " +
+                    PrintCost(*(*existing_paths)[i], "") + ", discarding\n";
       }
       return nullptr;
     }
@@ -1044,37 +1050,38 @@ static AccessPath *ProposeAccessPath(
   }
 
   if (insert_position == nullptr) {
-    if (trace != nullptr) {
-      *trace += " - " + PrintCost(*path, description_for_trace) +
-                " is potential alternative, appending to existing list: (";
+    if (m_trace != nullptr) {
+      *m_trace += " - " + PrintCost(*path, description_for_trace) +
+                  " is potential alternative, appending to existing list: (";
       bool first = true;
       for (const AccessPath *other_path : *existing_paths) {
         if (!first) {
-          *trace += ", ";
+          *m_trace += ", ";
         }
-        *trace += PrintCost(*other_path, "");
+        *m_trace += PrintCost(*other_path, "");
         first = false;
       }
-      *trace += ")\n";
+      *m_trace += ")\n";
     }
-    insert_position = new (thd->mem_root) AccessPath(*path);
+    insert_position = new (m_thd->mem_root) AccessPath(*path);
     existing_paths->emplace_back(insert_position);
     return insert_position;
   }
 
-  if (trace != nullptr) {
+  if (m_trace != nullptr) {
     if (existing_paths->size() == 1) {  // Only one left.
       if (num_dominated == 1) {
-        *trace += " - " + PrintCost(*path, description_for_trace) +
-                  " is better than previous " +
-                  PrintCost(*insert_position, "") + ", replacing\n";
+        *m_trace += " - " + PrintCost(*path, description_for_trace) +
+                    " is better than previous " +
+                    PrintCost(*insert_position, "") + ", replacing\n";
       } else {
-        *trace += " - " + PrintCost(*path, description_for_trace) +
-                  " is better than all previous alternatives, replacing all\n";
+        *m_trace +=
+            " - " + PrintCost(*path, description_for_trace) +
+            " is better than all previous alternatives, replacing all\n";
       }
     } else {
       assert(num_dominated > 0);
-      *trace += StringPrintf(
+      *m_trace += StringPrintf(
           " - %s is better than %d others, replacing them, remaining are: ",
           PrintCost(*path, description_for_trace).c_str(), num_dominated);
       bool first = true;
@@ -1084,12 +1091,12 @@ static AccessPath *ProposeAccessPath(
           continue;
         }
         if (!first) {
-          *trace += ", ";
+          *m_trace += ", ";
         }
-        *trace += PrintCost(*other_path, "");
+        *m_trace += PrintCost(*other_path, "");
         first = false;
       }
-      *trace += ")\n";
+      *m_trace += ")\n";
     }
   }
   *insert_position = *path;
@@ -1101,15 +1108,14 @@ AccessPath *CostingReceiver::ProposeAccessPathForNodes(
   // Insert an empty array if none exists.
   auto it_and_inserted = m_access_paths.emplace(
       nodes, Prealloced_array<AccessPath *, 4>{PSI_NOT_INSTRUMENTED});
-  return ProposeAccessPath(m_thd, path, &it_and_inserted.first->second,
-                           m_secondary_engine_cost_hook, description_for_trace,
-                           m_trace);
+  return ProposeAccessPath(path, &it_and_inserted.first->second,
+                           description_for_trace);
 }
 
 /**
   Create a table array from a table bitmap.
  */
-Mem_root_array<TABLE *> CollectTables(Query_block *query_block,
+Mem_root_array<TABLE *> CollectTables(const Query_block *query_block,
                                       table_map tmap) {
   Mem_root_array<TABLE *> tables(query_block->join->thd->mem_root);
   for (TABLE_LIST *tl = query_block->leaf_tables; tl != nullptr;
@@ -1207,7 +1213,7 @@ void EstimateSortCost(AccessPath *path) {
   Thus, that job is deferred to CreateMaterializationPathForSortingAggregates().
  */
 TABLE *CreateTemporaryTableForSortingAggregates(
-    THD *thd, Query_block *query_block,
+    THD *thd, const Query_block *query_block,
     Temp_table_param **temp_table_param_arg) {
   JOIN *join = query_block->join;
 
@@ -1362,16 +1368,14 @@ JoinHypergraph::Node *FindNodeWithTable(JoinHypergraph *graph, TABLE *table) {
 }
 
 Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
-    THD *thd, Query_block *query_block,
-    Prealloced_array<AccessPath *, 4> root_candidates,
-    secondary_engine_modify_access_path_cost_t secondary_engine_cost_hook,
-    string *trace) {
+    THD *thd, const CostingReceiver &receiver, Query_block *query_block,
+    Prealloced_array<AccessPath *, 4> root_candidates, string *trace) {
   JOIN *join = query_block->join;
   assert(join->select_distinct || query_block->is_ordered());
 
   if (root_candidates.empty()) {
     // Nothing to do if the secondary engine has rejected all candidates.
-    assert(secondary_engine_cost_hook != nullptr);
+    assert(receiver.HasSecondaryEngineCostHook());
     return root_candidates;
   }
 
@@ -1469,8 +1473,7 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
       root_path = CreateMaterializationPathForSortingAggregates(
           thd, join, root_path, temp_table, temp_table_param,
           /*using_addon_fields=*/!need_rowid);
-      ProposeAccessPath(thd, root_path, &new_root_candidates,
-                        secondary_engine_cost_hook, "", trace);
+      receiver.ProposeAccessPath(root_path, &new_root_candidates, "");
     }
     root_candidates = std::move(new_root_candidates);
   }
@@ -1489,8 +1492,7 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
             thd, root_path, /*limit=*/1, /*offset=*/0, join->calc_found_rows,
             /*reject_multiple_rows=*/false,
             /*send_records_override=*/nullptr);
-        ProposeAccessPath(thd, limit_path, &new_root_candidates,
-                          secondary_engine_cost_hook, "", trace);
+        receiver.ProposeAccessPath(limit_path, &new_root_candidates, "");
       } else {
         AccessPath *sort_path =
             NewSortAccessPath(thd, root_path, filesort_for_distinct,
@@ -1500,8 +1502,7 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
         if (!filesort_for_distinct->using_addon_fields()) {
           FindTablesToGetRowidFor(sort_path);
         }
-        ProposeAccessPath(thd, sort_path, &new_root_candidates,
-                          secondary_engine_cost_hook, "", trace);
+        receiver.ProposeAccessPath(sort_path, &new_root_candidates, "");
       }
     }
     root_candidates = std::move(new_root_candidates);
@@ -1533,8 +1534,7 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
       if (!filesort->using_addon_fields()) {
         FindTablesToGetRowidFor(sort_path);
       }
-      ProposeAccessPath(thd, sort_path, &new_root_candidates,
-                        secondary_engine_cost_hook, "", trace);
+      receiver.ProposeAccessPath(sort_path, &new_root_candidates, "");
     }
     root_candidates = std::move(new_root_candidates);
   }
@@ -1550,8 +1550,8 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   assert(join->filesorts_to_cleanup.empty());
 
   // Convert the join structures into a hypergraph.
-  JoinHypergraph graph(thd->mem_root);
-  if (MakeJoinHypergraph(thd, query_block, trace, &graph)) {
+  JoinHypergraph graph(thd->mem_root, query_block);
+  if (MakeJoinHypergraph(thd, trace, &graph)) {
     return nullptr;
   }
 
@@ -1745,8 +1745,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
           aggregate_path->num_output_rows;
       aggregate_path->cost_before_filter = aggregate_path->cost;
 
-      ProposeAccessPath(thd, aggregate_path, &new_root_candidates,
-                        secondary_engine_cost_hook, "", trace);
+      receiver.ProposeAccessPath(aggregate_path, &new_root_candidates, "");
     }
     root_candidates = std::move(new_root_candidates);
 
@@ -1789,16 +1788,14 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
       filter_path.num_output_rows_before_filter = filter_path.num_output_rows;
       filter_path.cost_before_filter = filter_path.cost;
 
-      ProposeAccessPath(thd, &filter_path, &new_root_candidates,
-                        secondary_engine_cost_hook, "", trace);
+      receiver.ProposeAccessPath(&filter_path, &new_root_candidates, "");
     }
     root_candidates = std::move(new_root_candidates);
   }
 
   if (join->select_distinct || query_block->is_ordered()) {
-    root_candidates =
-        ApplyDistinctAndOrder(thd, query_block, std::move(root_candidates),
-                              secondary_engine_cost_hook, trace);
+    root_candidates = ApplyDistinctAndOrder(thd, receiver, query_block,
+                                            std::move(root_candidates), trace);
   }
 
   // Apply LIMIT, if applicable.
@@ -1815,8 +1812,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
           query_expression->offset_limit_cnt, join->calc_found_rows,
           /*reject_multiple_rows=*/false,
           /*send_records_override=*/nullptr);
-      ProposeAccessPath(thd, limit_path, &new_root_candidates,
-                        secondary_engine_cost_hook, "", trace);
+      receiver.ProposeAccessPath(limit_path, &new_root_candidates, "");
     }
     root_candidates = std::move(new_root_candidates);
   }

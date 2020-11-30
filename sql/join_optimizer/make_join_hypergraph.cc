@@ -784,9 +784,11 @@ void MakeJoinGraphFromRelationalExpression(THD *thd,
 
 }  // namespace
 
-bool MakeJoinHypergraph(THD *thd, Query_block *query_block, string *trace,
-                        JoinHypergraph *graph) {
-  JOIN *join = query_block->join;
+const JOIN *JoinHypergraph::join() const { return m_query_block->join; }
+
+bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
+  const Query_block *query_block = graph->query_block();
+  const JOIN *join = graph->join();
   if (trace != nullptr) {
     // TODO(sgunders): Do we want to keep this in the trace indefinitely?
     // It's only useful for debugging, not as much for understanding what's

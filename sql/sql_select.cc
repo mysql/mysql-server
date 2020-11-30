@@ -3775,7 +3775,7 @@ bool const_expression_in_where(Item *cond, Item *comp_item,
                               given the same parameter.
 */
 
-void count_field_types(Query_block *query_block, Temp_table_param *param,
+void count_field_types(const Query_block *query_block, Temp_table_param *param,
                        const mem_root_deque<Item *> &fields,
                        bool reset_with_sum_func, bool save_sum_fields) {
   DBUG_TRACE;

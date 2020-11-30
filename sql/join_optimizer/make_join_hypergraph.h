@@ -32,6 +32,8 @@
 #include "sql/sql_const.h"
 
 class Field;
+class Item;
+class JOIN;
 class Query_block;
 class THD;
 struct MEM_ROOT;
@@ -65,8 +67,11 @@ struct SargablePredicate {
   indexed.
  */
 struct JoinHypergraph {
-  explicit JoinHypergraph(MEM_ROOT *mem_root)
-      : nodes(mem_root), edges(mem_root), predicates(mem_root) {}
+  JoinHypergraph(MEM_ROOT *mem_root, const Query_block *query_block)
+      : nodes(mem_root),
+        edges(mem_root),
+        predicates(mem_root),
+        m_query_block(query_block) {}
 
   hypergraph::Hypergraph graph;
 
@@ -95,10 +100,20 @@ struct JoinHypergraph {
   Mem_root_array<JoinPredicate> edges;
 
   Mem_root_array<Predicate> predicates;
+
+  /// Returns a pointer to the query block that is being planned.
+  const Query_block *query_block() const { return m_query_block; }
+
+  /// Returns a pointer to the JOIN object of the query block being planned.
+  const JOIN *join() const;
+
+ private:
+  /// A pointer to the query block being planned.
+  const Query_block *m_query_block;
 };
 
 /**
-  Make a join hypergraph from the query block given by “query_block”,
+  Make a join hypergraph from the query block given by “graph->query_block”,
   converting from MySQL's join list structures to the ones expected
   by the hypergraph join optimizer. This includes pushdown of WHERE
   predicates, and detection of conditions suitable for hash join.
@@ -108,7 +123,6 @@ struct JoinHypergraph {
   The result is suitable for running DPhyp (subgraph_enumeration.h)
   to find optimal join planning.
  */
-bool MakeJoinHypergraph(THD *thd, Query_block *query_block, std::string *trace,
-                        JoinHypergraph *graph);
+bool MakeJoinHypergraph(THD *thd, std::string *trace, JoinHypergraph *graph);
 
 #endif  // SQL_JOIN_OPTIMIZER_MAKE_JOIN_HYPERGRAPH

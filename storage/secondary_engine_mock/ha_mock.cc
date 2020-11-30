@@ -43,6 +43,7 @@
 #include "sql/debug_sync.h"
 #include "sql/handler.h"
 #include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/make_join_hypergraph.h"
 #include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
@@ -333,9 +334,11 @@ static bool CompareJoinCost(THD *thd, const JOIN &join, double optimizer_cost,
   return false;
 }
 
-static bool ModifyAccessPathCost(THD *thd MY_ATTRIBUTE((unused)),
-                                 AccessPath *path) {
+static bool ModifyAccessPathCost(
+    THD *thd MY_ATTRIBUTE((unused)),
+    const JoinHypergraph &hypergraph MY_ATTRIBUTE((unused)), AccessPath *path) {
   assert(!thd->is_error());
+  assert(hypergraph.query_block()->join == hypergraph.join());
   AssertSupportedPath(path);
   return false;
 }

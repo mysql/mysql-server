@@ -754,7 +754,7 @@ inline JOIN_TAB::JOIN_TAB()
       reversed_access(false) {}
 
 /* Extern functions in sql_select.cc */
-void count_field_types(Query_block *query_block, Temp_table_param *param,
+void count_field_types(const Query_block *query_block, Temp_table_param *param,
                        const mem_root_deque<Item *> &fields,
                        bool reset_with_sum_func, bool save_sum_fields);
 uint find_shortest_key(TABLE *table, const Key_map *usable_keys);

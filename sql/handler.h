@@ -91,6 +91,7 @@ namespace dd {
 class Properties;
 }  // namespace dd
 struct AccessPath;
+struct JoinHypergraph;
 struct KEY_CACHE;
 struct LEX;
 struct MY_BITMAP;
@@ -2220,13 +2221,14 @@ using compare_secondary_engine_cost_t = bool (*)(THD *thd, const JOIN &join,
   join optimizer will not suggest any plan for the query.
 
   @param thd The thread context.
+  @param hypergraph The hypergraph that represents the search space.
   @param[in,out] access_path The AccessPath to evaluate.
 
   @retval false on success.
   @retval true if the plan is to be rejected, or if an error was raised.
 */
-using secondary_engine_modify_access_path_cost_t =
-    bool (*)(THD *thd, AccessPath *access_path);
+using secondary_engine_modify_access_path_cost_t = bool (*)(
+    THD *thd, const JoinHypergraph &hypergraph, AccessPath *access_path);
 
 // FIXME: Temporary workaround to enable storage engine plugins to use the
 // before_commit hook. Remove after WL#11320 has been completed.
