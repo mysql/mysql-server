@@ -6250,7 +6250,7 @@ void Ndb_binlog_thread::remove_all_event_operations(Ndb *s_ndb,
   if (i_ndb) remove_event_operations(i_ndb);
 
   if (ndb_log_get_verbose_level() > 15) {
-    NDB_SHARE::print_remaining_open_tables();
+    NDB_SHARE::print_remaining_open_shares();
   }
 }
 
@@ -7436,7 +7436,7 @@ err:
 
   ndb_tdc_close_cached_tables();
   if (ndb_log_get_verbose_level() > 15) {
-    NDB_SHARE::print_remaining_open_tables();
+    NDB_SHARE::print_remaining_open_shares();
   }
 
   if (binlog_thread_state == BCCC_restart) {

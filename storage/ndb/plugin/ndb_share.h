@@ -236,15 +236,15 @@ struct NDB_SHARE {
   static int rename_share(NDB_SHARE *share, struct NDB_SHARE_KEY *new_key);
 
 #ifndef DBUG_OFF
-  static void dbg_check_shares_update(void);
+  static void dbg_check_shares_update();
 #endif
 
   static void initialize(CHARSET_INFO *charset);
-  static void deinitialize(void);
-  static void release_extra_share_references(void);
+  static void deinitialize();
+  static void release_extra_share_references();
 
-  // Print the list of open tables to stderr
-  static void print_remaining_open_tables();
+  // Print the list of open shares to stderr
+  static void print_remaining_open_shares();
 
   // Debug print the NDB_SHARE to string
   void debug_print(std::string &out, const char *line_separator = "") const;

@@ -49,7 +49,7 @@ static mysql_mutex_t shares_mutex;
 
 // List of NDB_SHARE's which correspond to an open table.
 static std::unique_ptr<collation_unordered_map<std::string, NDB_SHARE *>>
-    ndbcluster_open_tables;
+    ndb_shares;
 
 // List of NDB_SHARE's which have been dropped, they are kept in this list
 // until all references to them have been released.
@@ -224,7 +224,7 @@ const char *NDB_SHARE::key_string() const {
   return key->m_buffer;
 }
 
-const char *NDB_SHARE::share_state_string(void) const {
+const char *NDB_SHARE::share_state_string() const {
   switch (state) {
     case NSS_INITIAL:
       return "NSS_INITIAL";
@@ -276,11 +276,11 @@ NDB_SHARE *NDB_SHARE::acquire_or_create_reference(const char *db_name,
   }
 
   // Insert the new share in list of open shares
-  ndbcluster_open_tables->emplace(key, share);
+  ndb_shares->emplace(key, share);
 
-  // Add share refcount from 'ndbcluster_open_tables'
+  // Add share refcount from 'ndb_shares', the list owns a reference
   share->increment_use_count();
-  share->refs_insert("ndbcluster_open_tables");
+  share->refs_insert("ndb_shares");
 
   // Add refcount for returned 'share'.
   share->increment_use_count();
@@ -304,11 +304,11 @@ NDB_SHARE *NDB_SHARE::create_for_handler(const char *db_name,
     ndb_log_error("failed to create NDB_SHARE for key: %s", key);
   else {
     // Insert the new share in list of open shares
-    ndbcluster_open_tables->emplace(key, share);
+    ndb_shares->emplace(key, share);
 
-    // Add share refcount from 'ndbcluster_open_tables'
+    // Add share refcount from 'ndb_shares', the list owns a reference
     share->increment_use_count();
-    share->refs_insert("ndbcluster_open_tables");
+    share->refs_insert("ndb_shares");
 
     // Add refcount for returned 'share'.
     share->increment_use_count();
@@ -492,10 +492,10 @@ void NDB_SHARE::debug_print(std::string &out,
 
 void NDB_SHARE::debug_print_shares(std::string &out) {
   std::stringstream ss;
-  ss << "ndbcluster_open_tables {"
+  ss << "ndb_shares {"
      << "\n";
 
-  for (const auto &key_and_value : *ndbcluster_open_tables) {
+  for (const auto &key_and_value : *ndb_shares) {
     const NDB_SHARE *share = key_and_value.second;
     std::string s;
     share->debug_print(s, "\n");
@@ -513,9 +513,9 @@ uint NDB_SHARE::decrement_use_count() {
   return --m_use_count;
 }
 
-void NDB_SHARE::print_remaining_open_tables(void) {
+void NDB_SHARE::print_remaining_open_shares() {
   mysql_mutex_lock(&shares_mutex);
-  if (!ndbcluster_open_tables->empty()) {
+  if (!ndb_shares->empty()) {
     std::string s;
     NDB_SHARE::debug_print_shares(s);
     std::cerr << s << std::endl;
@@ -532,8 +532,7 @@ int NDB_SHARE::rename_share(NDB_SHARE *share, NDB_SHARE_KEY *new_key) {
   mysql_mutex_lock(&shares_mutex);
 
   // Make sure that no NDB_SHARE with new_key already exists
-  if (find_or_nullptr(*ndbcluster_open_tables,
-                      NDB_SHARE::key_get_key(new_key))) {
+  if (find_or_nullptr(*ndb_shares, NDB_SHARE::key_get_key(new_key))) {
     // Dump the list of open NDB_SHARE's since new_key already exists
     ndb_log_error(
         "INTERNAL ERROR: Found existing NDB_SHARE for "
@@ -548,15 +547,14 @@ int NDB_SHARE::rename_share(NDB_SHARE *share, NDB_SHARE_KEY *new_key) {
   /* Update the share hash key. */
   NDB_SHARE_KEY *old_key = share->key;
   share->key = new_key;
-  ndbcluster_open_tables->erase(NDB_SHARE::key_get_key(old_key));
-  ndbcluster_open_tables->emplace(NDB_SHARE::key_get_key(new_key), share);
+  ndb_shares->erase(NDB_SHARE::key_get_key(old_key));
+  ndb_shares->emplace(NDB_SHARE::key_get_key(new_key), share);
 
   // Make sure that NDB_SHARE with old key does not exist
-  DBUG_ASSERT(find_or_nullptr(*ndbcluster_open_tables,
-                              NDB_SHARE::key_get_key(old_key)) == nullptr);
+  DBUG_ASSERT(find_or_nullptr(*ndb_shares, NDB_SHARE::key_get_key(old_key)) ==
+              nullptr);
   // Make sure that NDB_SHARE with new key does exist
-  DBUG_ASSERT(find_or_nullptr(*ndbcluster_open_tables,
-                              NDB_SHARE::key_get_key(new_key)));
+  DBUG_ASSERT(find_or_nullptr(*ndb_shares, NDB_SHARE::key_get_key(new_key)));
 
   DBUG_PRINT("info", ("setting db and table_name to point at new key"));
   share->db = NDB_SHARE::key_get_db_name(share->key);
@@ -609,8 +607,8 @@ NDB_SHARE *NDB_SHARE::acquire_reference_impl(const char *key) {
 
   mysql_mutex_assert_owner(&shares_mutex);
 
-  auto it = ndbcluster_open_tables->find(key);
-  if (it == ndbcluster_open_tables->end()) {
+  auto it = ndb_shares->find(key);
+  if (it == ndb_shares->end()) {
     DBUG_PRINT("error", ("%s does not exist", key));
     return nullptr;
   }
@@ -625,12 +623,11 @@ NDB_SHARE *NDB_SHARE::acquire_reference_impl(const char *key) {
 
 void NDB_SHARE::initialize(CHARSET_INFO *charset) {
   mysql_mutex_init(PSI_INSTRUMENT_ME, &shares_mutex, MY_MUTEX_INIT_FAST);
-  ndbcluster_open_tables.reset(
-      new collation_unordered_map<std::string, NDB_SHARE *>(charset,
-                                                            PSI_INSTRUMENT_ME));
+  ndb_shares.reset(new collation_unordered_map<std::string, NDB_SHARE *>(
+      charset, PSI_INSTRUMENT_ME));
 }
 
-void NDB_SHARE::deinitialize(void) {
+void NDB_SHARE::deinitialize() {
   mysql_mutex_lock(&shares_mutex);
 
   // There should not be any NDB_SHARE's left -> crash after logging in debug
@@ -640,12 +637,12 @@ void NDB_SHARE::deinitialize(void) {
    public:
     Debug_require(bool val) : m_required_val(val) {}
     ~Debug_require() { DBUG_ASSERT(m_required_val); }
-  } shares_remaining(ndbcluster_open_tables->empty() && dropped_shares.empty());
+  } shares_remaining(ndb_shares->empty() && dropped_shares.empty());
 
   // Drop remaining open shares, drop one NDB_SHARE after the other
   // until open tables list is empty
-  while (!ndbcluster_open_tables->empty()) {
-    NDB_SHARE *share = ndbcluster_open_tables->begin()->second;
+  while (!ndb_shares->empty()) {
+    NDB_SHARE *share = ndb_shares->begin()->second;
     ndb_log_error("Still open NDB_SHARE '%s', use_count: %d, state: %s",
                   share->key_string(), share->use_count(),
                   share->share_state_string());
@@ -669,10 +666,10 @@ void NDB_SHARE::deinitialize(void) {
   mysql_mutex_destroy(&shares_mutex);
 }
 
-void NDB_SHARE::release_extra_share_references(void) {
+void NDB_SHARE::release_extra_share_references() {
   mysql_mutex_lock(&shares_mutex);
-  while (!ndbcluster_open_tables->empty()) {
-    NDB_SHARE *share = ndbcluster_open_tables->begin()->second;
+  while (!ndb_shares->empty()) {
+    NDB_SHARE *share = ndb_shares->begin()->second;
     /*
       The share kept by the server has not been freed, free it
       Will also take it out of _open_tables list
@@ -728,10 +725,10 @@ void NDB_SHARE::mark_share_dropped_impl(NDB_SHARE **share_ptr) {
   share->state = NSS_DROPPED;
 
   // Remove share from list of open shares
-  ndbcluster::ndbrequire(ndbcluster_open_tables->erase(share->key_string()));
+  ndbcluster::ndbrequire(ndb_shares->erase(share->key_string()));
 
   // Remove reference from list of open shares and decrement use count
-  share->refs_erase("ndbcluster_open_tables");
+  share->refs_erase("ndb_shares");
   share->decrement_use_count();
 
   // Destroy the NDB_SHARE if noone is using it, this is normally a special
@@ -778,7 +775,7 @@ void NDB_SHARE::mark_share_dropped_and_release(NDB_SHARE *share,
 #ifndef DBUG_OFF
 void NDB_SHARE::dbg_check_shares_update() {
   ndb_log_info("dbug_check_shares open:");
-  for (const auto &key_and_value : *ndbcluster_open_tables) {
+  for (const auto &key_and_value : *ndb_shares) {
     const NDB_SHARE *share = key_and_value.second;
     ndb_log_info("  %s.%s: state: %s(%u) use_count: %u", share->db,
                  share->table_name, share->share_state_string(),
@@ -797,7 +794,7 @@ void NDB_SHARE::dbg_check_shares_update() {
   /**
    * Only shares in mysql database may be open...
    */
-  for (const auto &key_and_value : *ndbcluster_open_tables) {
+  for (const auto &key_and_value : *ndb_shares) {
     const NDB_SHARE *share = key_and_value.second;
     assert(strcmp(share->db, "mysql") == 0);
   }
