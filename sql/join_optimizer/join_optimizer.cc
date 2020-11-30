@@ -1311,7 +1311,7 @@ AccessPath *CreateMaterializationPathForSortingAggregates(
                                     /*copy_fields_and_items=*/true,
                                     temp_table_param),
         /*invalidators=*/nullptr, temp_table, table_path, /*cte=*/nullptr,
-        /*unit=*/nullptr, /*ref_slice=*/-1, /*rematerialize=*/true,
+        /*query_expression=*/nullptr, /*ref_slice=*/-1, /*rematerialize=*/true,
         /*limit_rows=*/HA_POS_ERROR, /*reject_multiple_rows=*/false);
 
     EstimateMaterializeCost(materialize_path);
@@ -1802,16 +1802,17 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   }
 
   // Apply LIMIT, if applicable.
-  Query_expression *unit = join->unit;
-  if (unit->select_limit_cnt != HA_POS_ERROR || unit->offset_limit_cnt != 0) {
+  Query_expression *query_expression = join->query_expression();
+  if (query_expression->select_limit_cnt != HA_POS_ERROR ||
+      query_expression->offset_limit_cnt != 0) {
     if (trace != nullptr) {
       *trace += "Applying LIMIT\n";
     }
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
       AccessPath *limit_path = NewLimitOffsetAccessPath(
-          thd, root_path, unit->select_limit_cnt, unit->offset_limit_cnt,
-          join->calc_found_rows,
+          thd, root_path, query_expression->select_limit_cnt,
+          query_expression->offset_limit_cnt, join->calc_found_rows,
           /*reject_multiple_rows=*/false,
           /*send_records_override=*/nullptr);
       ProposeAccessPath(thd, limit_path, &new_root_candidates,
@@ -1858,7 +1859,8 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   // than one (so-called “const tables”). Make sure we don't give that
   // guarantee unless we have a LIMIT.
   if (join->best_rowcount <= 1 &&
-      unit->select_limit_cnt - unit->offset_limit_cnt > 1) {
+      query_expression->select_limit_cnt - query_expression->offset_limit_cnt >
+          1) {
     join->best_rowcount = PLACEHOLDER_TABLE_ROW_ESTIMATE;
   }
 

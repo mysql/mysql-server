@@ -1199,7 +1199,7 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
   pos->use_join_buffer = best_uses_jbuf;
 
   if (!best_ref && idx == join->const_tables && table == join->sort_by_table &&
-      join->unit->select_limit_cnt >= rows_fetched) {
+      join->query_expression()->select_limit_cnt >= rows_fetched) {
     trace_access_scan.add("use_tmp_table", true);
     join->sort_by_table = (TABLE *)1;  // Must use temporary table
   }
@@ -1262,8 +1262,9 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
                  ->outer_query_block() != nullptr ||     // 2c
          !tab->join()->query_block->sj_nests.empty() ||  // 2d
          ((!tab->join()->order.empty() || !tab->join()->group_list.empty()) &&
-          tab->join()->unit->select_limit_cnt != HA_POS_ERROR) ||  // 2e
-         thd->lex->is_explain())))                                 // 2f
+          tab->join()->query_expression()->select_limit_cnt !=
+              HA_POS_ERROR) ||      // 2e
+         thd->lex->is_explain())))  // 2f
     return COND_FILTER_ALLPASS;
 
   // No filtering is calculated if we expect less than one row to be fetched

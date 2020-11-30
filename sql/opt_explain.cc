@@ -435,7 +435,8 @@ class Explain_join : public Explain_table_base {
         join(query_block_arg->join) {
     DBUG_ASSERT(join->get_plan_state() == JOIN::PLAN_READY);
     /* it is not UNION: */
-    DBUG_ASSERT(join->query_block != join->unit->fake_query_block);
+    DBUG_ASSERT(join->query_block !=
+                join->query_expression()->fake_query_block);
     order_list = !join->order.empty();
   }
 
@@ -1411,13 +1412,14 @@ bool Explain_join::explain_join_type() {
   const join_type j_t = tab ? tab->type() : JT_ALL;
   const char *str = join_type_str[j_t];
   if ((j_t == JT_EQ_REF || j_t == JT_REF || j_t == JT_REF_OR_NULL) &&
-      join->unit->item) {
+      join->query_expression()->item) {
     /*
       For backward-compatibility, we have special presentation of "index
       lookup used for in(subquery)": we do not show "ref/etc", but
       "index_subquery/unique_subquery".
     */
-    if (join->unit->item->engine_type() == Item_subselect::INDEXSUBQUERY_ENGINE)
+    if (join->query_expression()->item->engine_type() ==
+        Item_subselect::INDEXSUBQUERY_ENGINE)
       str = (j_t == JT_EQ_REF) ? "unique_subquery" : "index_subquery";
   }
 

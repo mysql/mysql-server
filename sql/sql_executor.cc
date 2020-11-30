@@ -1459,7 +1459,7 @@ AccessPath *GetAccessPathForDerivedTable(
     THD *thd, TABLE_LIST *table_ref, TABLE *table, bool rematerialize,
     Mem_root_array<const AccessPath *> *invalidators, bool need_rowid,
     AccessPath *table_path) {
-  Query_expression *unit = table_ref->derived_query_expression();
+  Query_expression *query_expression = table_ref->derived_query_expression();
   JOIN *subjoin = nullptr;
   Temp_table_param *tmp_table_param;
   int select_number;
@@ -1469,44 +1469,48 @@ AccessPath *GetAccessPathForDerivedTable(
   // to copy, and we need to pass those to MaterializeIterator, so reuse its
   // tmp_table_param. If not, make a new object, so that we don't
   // disturb the materialization going on inside our own query block.
-  if (unit->is_simple()) {
-    subjoin = unit->first_query_block()->join;
-    select_number = unit->first_query_block()->select_number;
+  if (query_expression->is_simple()) {
+    subjoin = query_expression->first_query_block()->join;
+    select_number = query_expression->first_query_block()->select_number;
     tmp_table_param = &subjoin->tmp_table_param;
-  } else if (unit->fake_query_block != nullptr) {
+  } else if (query_expression->fake_query_block != nullptr) {
     // NOTE: subjoin here is never used, as ConvertItemsToCopy only uses it
     // for ROLLUP, and fake_query_block can't have ROLLUP.
-    subjoin = unit->fake_query_block->join;
+    subjoin = query_expression->fake_query_block->join;
     tmp_table_param = &subjoin->tmp_table_param;
-    select_number = unit->fake_query_block->select_number;
+    select_number = query_expression->fake_query_block->select_number;
   } else {
     tmp_table_param = new (thd->mem_root) Temp_table_param;
-    select_number = unit->first_query_block()->select_number;
+    select_number = query_expression->first_query_block()->select_number;
   }
-  ConvertItemsToCopy(*unit->get_field_list(), table->visible_field_ptr(),
-                     tmp_table_param);
+  ConvertItemsToCopy(*query_expression->get_field_list(),
+                     table->visible_field_ptr(), tmp_table_param);
 
   AccessPath *path;
 
-  if (unit->unfinished_materialization()) {
-    // The unit is a UNION capable of materializing directly into our result
-    // table. This saves us from doing double materialization (first into
-    // a UNION result table, then from there into our own).
+  if (query_expression->unfinished_materialization()) {
+    // The query expression is a UNION capable of materializing directly into
+    // our result table. This saves us from doing double materialization (first
+    // into a UNION result table, then from there into our own).
     //
     // We will already have set up a unique index on the table if
     // required; see TABLE_LIST::setup_materialized_derived_tmp_table().
     path = NewMaterializeAccessPath(
-        thd, unit->release_query_blocks_to_materialize(), invalidators, table,
-        table_path, table_ref->common_table_expr(), unit,
-        /*ref_slice=*/-1, rematerialize, unit->select_limit_cnt,
-        unit->offset_limit_cnt == 0 ? unit->m_reject_multiple_rows : false);
+        thd, query_expression->release_query_blocks_to_materialize(),
+        invalidators, table, table_path, table_ref->common_table_expr(),
+        query_expression,
+        /*ref_slice=*/-1, rematerialize, query_expression->select_limit_cnt,
+        query_expression->offset_limit_cnt == 0
+            ? query_expression->m_reject_multiple_rows
+            : false);
     EstimateMaterializeCost(path);
-    if (unit->offset_limit_cnt != 0) {
+    if (query_expression->offset_limit_cnt != 0) {
       // LIMIT is handled inside MaterializeIterator, but OFFSET is not.
       // SQL_CALC_FOUND_ROWS cannot occur in a derived table's definition.
       path = NewLimitOffsetAccessPath(
-          thd, path, unit->select_limit_cnt, unit->offset_limit_cnt,
-          /*count_all_rows=*/false, unit->m_reject_multiple_rows,
+          thd, path, query_expression->select_limit_cnt,
+          query_expression->offset_limit_cnt,
+          /*count_all_rows=*/false, query_expression->m_reject_multiple_rows,
           /*send_records_override=*/nullptr);
     }
   } else if (table_ref->common_table_expr() == nullptr && rematerialize &&
@@ -1522,20 +1526,23 @@ AccessPath *GetAccessPathForDerivedTable(
     // table of the join (assuming nested loop only). The test for CTEs is
     // also conservative; if the CTE is defined within this join and used
     // only once, we could still stream without losing performance.
-    path = NewStreamingAccessPath(thd, unit->root_access_path(), subjoin,
-                                  &subjoin->tmp_table_param, table,
+    path = NewStreamingAccessPath(thd, query_expression->root_access_path(),
+                                  subjoin, &subjoin->tmp_table_param, table,
                                   /*ref_slice=*/-1);
-    CopyCosts(*unit->root_access_path(), path);
+    CopyCosts(*query_expression->root_access_path(), path);
   } else {
-    JOIN *join = unit->is_union() ? nullptr : unit->first_query_block()->join;
+    JOIN *join = query_expression->is_union()
+                     ? nullptr
+                     : query_expression->first_query_block()->join;
     path = NewMaterializeAccessPath(
         thd,
         SingleMaterializeQueryBlock(
-            thd, unit->root_access_path(), select_number, join,
+            thd, query_expression->root_access_path(), select_number, join,
             /*copy_fields_and_items=*/true, tmp_table_param),
-        invalidators, table, table_path, table_ref->common_table_expr(), unit,
+        invalidators, table, table_path, table_ref->common_table_expr(),
+        query_expression,
         /*ref_slice=*/-1, rematerialize, tmp_table_param->end_write_records,
-        unit->m_reject_multiple_rows);
+        query_expression->m_reject_multiple_rows);
     EstimateMaterializeCost(path);
   }
 
@@ -1627,7 +1634,7 @@ AccessPath *GetTableAccessPath(THD *thd, QEP_TAB *qep_tab, QEP_TAB *qep_tabs) {
             &sjm->table_param),
         qep_tab->invalidators, qep_tab->table(), qep_tab->access_path(),
         /*cte=*/nullptr,
-        /*unit=*/nullptr,
+        /*query_expression=*/nullptr,
         /*ref_slice=*/-1, qep_tab->rematerialize,
         sjm->table_param.end_write_records,
         /*reject_multiple_rows=*/false);
@@ -2845,7 +2852,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
                 thd, path, query_block->select_number, this,
                 /*copy_fields_and_items=*/true, qep_tab->tmp_table_param),
             qep_tab->invalidators, qep_tab->table(), table_path,
-            /*cte=*/nullptr, unit, qep_tab->ref_item_slice,
+            /*cte=*/nullptr, query_expression(), qep_tab->ref_item_slice,
             /*rematerialize=*/true, qep_tab->tmp_table_param->end_write_records,
             /*reject_multiple_rows=*/false);
         EstimateMaterializeCost(path);
@@ -3011,7 +3018,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
                 thd, path, query_block->select_number, this,
                 /*copy_fields_and_items=*/false, qep_tab->tmp_table_param),
             qep_tab->invalidators, qep_tab->table(), table_path,
-            /*cte=*/nullptr, unit,
+            /*cte=*/nullptr, query_expression(),
             /*ref_slice=*/-1,
             /*rematerialize=*/true, tmp_table_param.end_write_records,
             /*reject_multiple_rows=*/false);
@@ -3058,7 +3065,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
                                         this, /*copy_fields_and_items=*/true,
                                         qep_tab->tmp_table_param),
             qep_tab->invalidators, qep_tab->table(), table_path,
-            /*cte=*/nullptr, unit, qep_tab->ref_item_slice,
+            /*cte=*/nullptr, query_expression(), qep_tab->ref_item_slice,
             /*rematerialize=*/true, qep_tab->tmp_table_param->end_write_records,
             /*reject_multiple_rows=*/false);
         EstimateMaterializeCost(path);
@@ -3132,11 +3139,12 @@ AccessPath *JOIN::attach_access_paths_for_having_and_limit(AccessPath *path) {
 
   // Note: For select_count, LIMIT 0 is handled in JOIN::optimize() for the
   // common case, but not for CALC_FOUND_ROWS. OFFSET also isn't handled there.
-  if (unit->select_limit_cnt != HA_POS_ERROR || unit->offset_limit_cnt != 0) {
-    path =
-        NewLimitOffsetAccessPath(thd, path, unit->select_limit_cnt,
-                                 unit->offset_limit_cnt, calc_found_rows, false,
-                                 /*send_records_override=*/nullptr);
+  if (query_expression()->select_limit_cnt != HA_POS_ERROR ||
+      query_expression()->offset_limit_cnt != 0) {
+    path = NewLimitOffsetAccessPath(
+        thd, path, query_expression()->select_limit_cnt,
+        query_expression()->offset_limit_cnt, calc_found_rows, false,
+        /*send_records_override=*/nullptr);
   }
 
   return path;

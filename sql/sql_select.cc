@@ -1610,7 +1610,7 @@ void JOIN::reset() {
 
   if (!executed) return;
 
-  unit->offset_limit_cnt = (ha_rows)(
+  query_expression()->offset_limit_cnt = (ha_rows)(
       query_block->offset_limit ? query_block->offset_limit->val_uint() : 0ULL);
 
   group_sent = false;
@@ -1814,12 +1814,13 @@ bool Query_block::optimize(THD *thd) {
 
   if (join->zero_result_cause && !is_implicitly_grouped()) return false;
 
-  for (Query_expression *unit = first_inner_query_expression(); unit;
-       unit = unit->next_query_expression()) {
+  for (Query_expression *query_expression = first_inner_query_expression();
+       query_expression;
+       query_expression = query_expression->next_query_expression()) {
     // Derived tables and const subqueries are already optimized
-    if (!unit->is_optimized() &&
-        unit->optimize(thd, /*materialize_destination=*/nullptr,
-                       /*create_iterators=*/false))
+    if (!query_expression->is_optimized() &&
+        query_expression->optimize(thd, /*materialize_destination=*/nullptr,
+                                   /*create_iterators=*/false))
       return true;
   }
 
@@ -1940,9 +1941,10 @@ bool check_privileges_for_list(THD *thd, const mem_root_deque<Item *> &items,
 */
 
 bool Query_block::check_privileges_for_subqueries(THD *thd) {
-  for (Query_expression *unit = first_inner_query_expression(); unit;
-       unit = unit->next_query_expression()) {
-    for (Query_block *sl = unit->first_query_block(); sl;
+  for (Query_expression *query_expression = first_inner_query_expression();
+       query_expression;
+       query_expression = query_expression->next_query_expression()) {
+    for (Query_block *sl = query_expression->first_query_block(); sl;
          sl = sl->next_query_block()) {
       if (sl->check_column_privileges(thd)) return true;
     }
@@ -4037,9 +4039,11 @@ bool JOIN::make_sum_func_list(const mem_root_deque<Item *> &fields,
 */
 
 void free_underlaid_joins(THD *thd, Query_block *select) {
-  for (Query_expression *unit = select->first_inner_query_expression(); unit;
-       unit = unit->next_query_expression())
-    unit->cleanup(thd, false);
+  for (Query_expression *query_expression =
+           select->first_inner_query_expression();
+       query_expression;
+       query_expression = query_expression->next_query_expression())
+    query_expression->cleanup(thd, false);
 }
 
 /**
@@ -4588,14 +4592,15 @@ bool JOIN::make_tmp_tables_info() {
         This allows us to use Bounded_queue for queries like:
           "select * from t1 order by b desc limit 1;"
         m_select_limit == HA_POS_ERROR (we need a full table scan)
-        unit->select_limit_cnt == 1 (we only need one row in the result set)
+        query_expression->select_limit_cnt == 1 (we only need one row in the
+        result set)
       */
       if (sort_tab->filesort)
         sort_tab->filesort->limit =
             (has_group_by || (primary_tables > curr_tmp_table + 1) ||
              calc_found_rows)
                 ? m_select_limit
-                : unit->select_limit_cnt;
+                : query_expression()->select_limit_cnt;
     }
   }
 

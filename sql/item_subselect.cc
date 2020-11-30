@@ -431,7 +431,7 @@ bool Item_in_subselect::finalize_materialization_transform(THD *thd,
   DBUG_ASSERT(join == subquery->single_query_block()->join);
   // No UNION in materialized subquery so this holds:
   DBUG_ASSERT(join->query_block == unit->first_query_block());
-  DBUG_ASSERT(join->unit == unit);
+  DBUG_ASSERT(join->query_expression() == unit);
   DBUG_ASSERT(unit->global_parameters()->select_limit == nullptr);
 
   strategy = Subquery_strategy::SUBQ_MATERIALIZATION;

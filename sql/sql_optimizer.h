@@ -128,12 +128,13 @@ class JOIN {
   JOIN(const JOIN &rhs) = delete;
   JOIN &operator=(const JOIN &rhs) = delete;
 
-  ~JOIN() {}
+  /// Query expression referring this query block
+  Query_expression *query_expression() const {
+    return query_block->master_query_expression();
+  }
 
   /// Query block that is optimized and executed using this JOIN
   Query_block *const query_block;
-  /// Query expression referring this query block
-  Query_expression *const unit;
   /// Thread handler
   THD *const thd;
 

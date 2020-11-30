@@ -155,7 +155,6 @@ static bool has_not_null_predicate(Item *cond, Item_field *not_null_item);
 
 JOIN::JOIN(THD *thd_arg, Query_block *select)
     : query_block(select),
-      unit(select->master_query_expression()),
       thd(thd_arg),
       // @todo Can this be substituted with select->is_explicitly_grouped()?
       grouped(select->is_explicitly_grouped()),
@@ -260,7 +259,7 @@ bool JOIN::optimize() {
 
   DBUG_ASSERT(query_block->leaf_table_count == 0 ||
               thd->lex->is_query_tables_locked() ||
-              query_block == unit->fake_query_block);
+              query_block == query_expression()->fake_query_block);
   DBUG_ASSERT(tables == 0 && primary_tables == 0 &&
               tables_list == (TABLE_LIST *)1);
 
@@ -341,11 +340,12 @@ bool JOIN::optimize() {
 
   row_limit = ((select_distinct || !order.empty() || !group_list.empty())
                    ? HA_POS_ERROR
-                   : unit->select_limit_cnt);
+                   : query_expression()->select_limit_cnt);
   // m_select_limit is used to decide if we are likely to scan the whole table.
-  m_select_limit = unit->select_limit_cnt;
+  m_select_limit = query_expression()->select_limit_cnt;
 
-  if (unit->first_query_block()->active_options() & OPTION_FOUND_ROWS) {
+  if (query_expression()->first_query_block()->active_options() &
+      OPTION_FOUND_ROWS) {
     /*
       Calculate found rows (ie., keep counting rows even after we hit LIMIT) if
       - LIMIT is set, and
@@ -353,13 +353,13 @@ bool JOIN::optimize() {
         fake query block that contains the limit applied on the final UNION
         evaluation).
      */
-    calc_found_rows =
-        m_select_limit != HA_POS_ERROR &&
-        (!unit->is_union() || query_block == unit->fake_query_block);
+    calc_found_rows = m_select_limit != HA_POS_ERROR &&
+                      (!query_expression()->is_union() ||
+                       query_block == query_expression()->fake_query_block);
   }
   if (having_cond || calc_found_rows) m_select_limit = HA_POS_ERROR;
 
-  if (unit->select_limit_cnt == 0 && !calc_found_rows) {
+  if (query_expression()->select_limit_cnt == 0 && !calc_found_rows) {
     zero_result_cause = "Zero limit";
     best_rowcount = 0;
     create_access_paths_for_zero_rows();
@@ -829,8 +829,9 @@ bool JOIN::optimize() {
                           (!group_list.empty() && !order.empty()))) ||  // (6)
         ((query_block->active_options() & OPTION_BUFFER_RESULT) &&
          !has_windows &&
-         !(unit->derived_table &&
-           unit->derived_table->uses_materialization())) ||     // (7)
+         !(query_expression()->derived_table &&
+           query_expression()
+               ->derived_table->uses_materialization())) ||     // (7)
         (has_windows && (primary_tables - const_tables) > 1 &&  // (8)
          m_windows[0]->needs_sorting() && !group_optimized_away))
       need_tmp_before_win = true;
@@ -1208,15 +1209,16 @@ int JOIN::replace_index_subquery() {
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
 
   if (!group_list.empty() ||
-      !(unit->item && unit->item->substype() == Item_subselect::IN_SUBS) ||
-      primary_tables != 1 || !where_cond || unit->is_union())
+      !(query_expression()->item &&
+        query_expression()->item->substype() == Item_subselect::IN_SUBS) ||
+      primary_tables != 1 || !where_cond || query_expression()->is_union())
     return 0;
 
   // Guaranteed by remove_redundant_subquery_clauses():
   DBUG_ASSERT(order.empty() && !select_distinct);
 
   Item_in_subselect *const in_subs =
-      static_cast<Item_in_subselect *>(unit->item);
+      static_cast<Item_in_subselect *>(query_expression()->item);
   bool found_engine = false;
 
   JOIN_TAB *const first_join_tab = best_ref[0];
@@ -1259,11 +1261,12 @@ int JOIN::replace_index_subquery() {
     first_qep_tab->table()->set_keyread(true);
   }
 
-  subselect_indexsubquery_engine *engine = new (thd->mem_root)
-      subselect_indexsubquery_engine(first_qep_tab,
-                                     down_cast<Item_in_subselect *>(unit->item),
-                                     first_qep_tab->condition(), having_cond);
-  unit->item->set_indexsubquery_engine(engine);
+  subselect_indexsubquery_engine *engine =
+      new (thd->mem_root) subselect_indexsubquery_engine(
+          first_qep_tab,
+          down_cast<Item_in_subselect *>(query_expression()->item),
+          first_qep_tab->condition(), having_cond);
+  query_expression()->item->set_indexsubquery_engine(engine);
   return 1;
 }
 
@@ -2179,8 +2182,9 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
               test_quick_select(
                   thd, new_ref_key_map,
                   0,  // empty table_map
-                  join->calc_found_rows ? HA_POS_ERROR
-                                        : join->unit->select_limit_cnt,
+                  join->calc_found_rows
+                      ? HA_POS_ERROR
+                      : join->query_expression()->select_limit_cnt,
                   false,  // don't force quick range
                   order.order->direction, tab,
                   // we are after make_join_query_block():
@@ -2290,7 +2294,8 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
       test_quick_select(
           thd, keys_to_use,
           0,  // empty table_map
-          join->calc_found_rows ? HA_POS_ERROR : join->unit->select_limit_cnt,
+          join->calc_found_rows ? HA_POS_ERROR
+                                : join->query_expression()->select_limit_cnt,
           true,  // force quick range
           order.order->direction, tab, tab->condition(), &tab->needed_reg, &qck,
           tab->table()->force_index, join->query_block);
@@ -5063,7 +5068,7 @@ bool JOIN::make_join_plan() {
   if (thd->killed || thd->is_error()) return true;
 
   // If this is a subquery, decide between In-to-exists and materialization
-  if (unit->item && decide_subquery_strategy()) return true;
+  if (query_expression()->item && decide_subquery_strategy()) return true;
 
   refine_best_rowcount();
 
@@ -7097,9 +7102,10 @@ bool add_key_fields(THD *thd, JOIN *join, Key_field **key_fields,
   if (cond->type() == Item::FUNC_ITEM &&
       down_cast<Item_func *>(cond)->functype() == Item_func::TRIG_COND_FUNC) {
     Item *const cond_arg = down_cast<Item_func *>(cond)->arguments()[0];
-    if (join->group_list.empty() && join->order.empty() && join->unit->item &&
-        join->unit->item->substype() == Item_subselect::IN_SUBS &&
-        !join->unit->is_union()) {
+    if (join->group_list.empty() && join->order.empty() &&
+        join->query_expression()->item &&
+        join->query_expression()->item->substype() == Item_subselect::IN_SUBS &&
+        !join->query_expression()->is_union()) {
       Key_field *save = *key_fields;
       if (add_key_fields(thd, join, key_fields, and_level, cond_arg,
                          usable_tables, sargables))
@@ -9325,7 +9331,7 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
             recheck_reason = NOT_FIRST_TABLE;
           else if (!tab->const_keys.is_clear_all() &&  // 2a
                    i == join->const_tables &&          // 2b
-                   (join->unit->select_limit_cnt <
+                   (join->query_expression()->select_limit_cnt <
                     (tab->position()->rows_fetched *
                      tab->position()->filter_effect)) &&  // 2c
                    !join->calc_found_rows)                // 2d
@@ -9351,7 +9357,7 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
               trace_table.add_alnum("recheck_reason", "not_first_table");
             else
               trace_table.add_alnum("recheck_reason", "low_limit")
-                  .add("limit", join->unit->select_limit_cnt)
+                  .add("limit", join->query_expression()->select_limit_cnt)
                   .add("row_estimate", tab->position()->rows_fetched *
                                            tab->position()->filter_effect);
 
@@ -9408,7 +9414,8 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
                    thd->optimizer_switch_flag(
                        OPTIMIZER_SWITCH_PREFER_ORDERING_INDEX))) {
                 int best_key = -1;
-                ha_rows select_limit = join->unit->select_limit_cnt;
+                ha_rows select_limit =
+                    join->query_expression()->select_limit_cnt;
 
                 /* Use index specified in FORCE INDEX FOR ORDER BY, if any. */
                 if (tab->table()->force_index_order)
@@ -9440,8 +9447,9 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
               search_if_impossible =
                   test_quick_select(
                       thd, usable_keys, used_tables & ~tab->table_ref->map(),
-                      join->calc_found_rows ? HA_POS_ERROR
-                                            : join->unit->select_limit_cnt,
+                      join->calc_found_rows
+                          ? HA_POS_ERROR
+                          : join->query_expression()->select_limit_cnt,
                       false,  // don't force quick range
                       interesting_order, tab, tab->condition(),
                       &tab->needed_reg, &qck, tab->table()->force_index,
@@ -9465,8 +9473,9 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
               const bool impossible_where =
                   test_quick_select(
                       thd, tab->keys(), used_tables & ~tab->table_ref->map(),
-                      join->calc_found_rows ? HA_POS_ERROR
-                                            : join->unit->select_limit_cnt,
+                      join->calc_found_rows
+                          ? HA_POS_ERROR
+                          : join->query_expression()->select_limit_cnt,
                       false,  // don't force quick range
                       ORDER_NOT_RELEVANT, tab, tab->condition(),
                       &tab->needed_reg, &qck, tab->table()->force_index,
@@ -10591,9 +10600,9 @@ static void calculate_materialization_costs(JOIN *join, TABLE_LIST *sj_nest,
 
  */
 bool JOIN::decide_subquery_strategy() {
-  DBUG_ASSERT(unit->item);
+  DBUG_ASSERT(query_expression()->item);
 
-  switch (unit->item->substype()) {
+  switch (query_expression()->item->substype()) {
     case Item_subselect::IN_SUBS:
     case Item_subselect::ALL_SUBS:
     case Item_subselect::ANY_SUBS:
@@ -10604,7 +10613,7 @@ bool JOIN::decide_subquery_strategy() {
   }
 
   Item_in_subselect *const in_pred =
-      static_cast<Item_in_subselect *>(unit->item);
+      static_cast<Item_in_subselect *>(query_expression()->item);
 
   Subquery_strategy chosen_method = in_pred->strategy;
   // Materialization does not allow UNION so this can't happen:
@@ -10663,7 +10672,7 @@ bool JOIN::compare_costs_of_subquery_strategies(Subquery_strategy *method) {
     to semi-join.
   */
   if (allowed_strategies == Subquery_strategy::CANDIDATE_FOR_IN2EXISTS_OR_MAT &&
-      (unit->uncacheable & UNCACHEABLE_RAND))
+      (query_expression()->uncacheable & UNCACHEABLE_RAND))
     allowed_strategies = Subquery_strategy::SUBQ_EXISTS;
 
   if (allowed_strategies == Subquery_strategy::SUBQ_EXISTS) return false;
@@ -10672,12 +10681,12 @@ bool JOIN::compare_costs_of_subquery_strategies(Subquery_strategy *method) {
                   Subquery_strategy::CANDIDATE_FOR_IN2EXISTS_OR_MAT ||
               allowed_strategies == Subquery_strategy::SUBQ_MATERIALIZATION);
 
-  const JOIN *parent_join = unit->outer_query_block()->join;
+  const JOIN *parent_join = query_expression()->outer_query_block()->join;
   if (!parent_join || !parent_join->child_subquery_can_materialize)
     return false;
 
   Item_in_subselect *const in_pred =
-      static_cast<Item_in_subselect *>(unit->item);
+      static_cast<Item_in_subselect *>(query_expression()->item);
 
   /*
     Testing subquery_allows_etc() at each optimization is necessary as each
@@ -10859,7 +10868,7 @@ double calculate_subquery_executions(const Item_subselect *subquery,
       outer rows. Example:
       SELECT ... IN(subq-with-in2exists WHERE ... IN (subq-with-mat))
     */
-    subquery = parent_join->unit->item;
+    subquery = parent_join->query_expression()->item;
     if (subquery == nullptr) {
       // derived table, materialized only once
       break;
@@ -10910,7 +10919,7 @@ void JOIN::refine_best_rowcount() {
     as an estimate. If LIMIT 1 is specified, the query block will be
     considered "const", with actual row count 0 or 1.
   */
-  best_rowcount = std::min(best_rowcount, unit->select_limit_cnt);
+  best_rowcount = std::min(best_rowcount, query_expression()->select_limit_cnt);
 }
 
 mem_root_deque<Item *> *JOIN::get_current_fields() {
