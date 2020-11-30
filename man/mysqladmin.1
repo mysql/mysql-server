@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqladmin\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2020
+.\"      Date: 11/26/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLADMIN\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLADMIN\FR" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -78,12 +78,12 @@ Create a new database named
 .\}
 debug
 .sp
-Tell the server to write debug information to the error log\&. The connected user must have the
+Prior to MySQL 8\&.0\&.20, tell the server to write debug information to the error log\&. The connected user must have the
 SUPER
 privilege\&. Format and content of this information is subject to change\&.
 .sp
 This includes information about the Event Scheduler\&. See
-Section\ \&24.4.5, \(lqEvent Scheduler Status\(rq\&.
+Section\ \&25.4.5, \(lqEvent Scheduler Status\(rq\&.
 .RE
 .sp
 .RS 4
@@ -243,7 +243,7 @@ for the account that you use with
 \fBmysqladmin\fR
 for connecting to the server\&. Thus, the next time you invoke
 \fBmysqladmin\fR
-(or any other client program) using the same account, you will need to specify the new password\&.
+(or any other client program) using the same account, you must specify the new password\&.
 .if n \{\
 .sp
 .\}
@@ -302,7 +302,7 @@ command line\&. Otherwise, the next argument is taken as the password\&.
 .br
 Do not use this command used if the server was started with the
 \fB\-\-skip\-grant\-tables\fR
-option\&. No password change will be applied\&. This is true even if you precede the
+option\&. No password change is applied\&. This is true even if you precede the
 password
 command with
 flush\-privileges
@@ -641,7 +641,7 @@ Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 Compress all information sent between the client and the server if possible\&. See
 Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
 .sp
-As of MySQL 8\&.0\&.18, this option is deprecated\&. It will be removed in a future MySQL version\&. See
+As of MySQL 8\&.0\&.18, this option is deprecated\&. Expect it to be removed in a future version of MySQL\&. See
 the section called \(lqConfiguring Legacy Connection Compression\(rq\&.
 .RE
 .sp

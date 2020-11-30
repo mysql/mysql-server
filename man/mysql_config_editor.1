@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_config_editor\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2020
+.\"      Date: 11/26/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_CONFIG_EDITOR\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQL_CONFIG_EDITOR\FR" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -200,7 +200,7 @@ prevents passwords from appearing in
 as cleartext and provides a measure of security by preventing inadvertent password exposure\&. For example, if you display a regular unobfuscated
 my\&.cnf
 option file on the screen, any passwords it contains are visible for anyone to see\&. With
-\&.mylogin\&.cnf, that is not true\&. But the obfuscation used will not deter a determined attacker and you should not consider it unbreakable\&. A user who can gain system administration privileges on your machine to access your files could unobfuscate the
+\&.mylogin\&.cnf, that is not true, but the obfuscation used is not likely to deter a determined attacker and you should not consider it unbreakable\&. A user who can gain system administration privileges on your machine to access your files could unobfuscate the
 \&.mylogin\&.cnf
 file with some effort\&.
 .PP
@@ -1004,7 +1004,7 @@ displays the prompt, type the password and press Enter\&. To prevent other users
 \fBmysql_config_editor\fR
 does not echo it\&.
 .sp
-To specify an empty password, press Enter at the password prompt\&. The resulting login path written to the login path file will include a line like this:
+To specify an empty password, press Enter at the password prompt\&. The resulting login path written to the login path file includes a line like this:
 .sp
 .if n \{\
 .RS 4

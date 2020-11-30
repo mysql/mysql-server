@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlbinlog\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2020
+.\"      Date: 11/26/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLBINLOG\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLBINLOG\FR" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -422,7 +422,7 @@ Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 Compress all information sent between the client and the server if possible\&. See
 Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
 .sp
-This option was added in MySQL 8\&.0\&.17\&. As of MySQL 8\&.0\&.18 it is deprecated\&. It will be removed in a future MySQL version\&. See
+This option was added in MySQL 8\&.0\&.17\&. As of MySQL 8\&.0\&.18 it is deprecated\&. Expect it to be removed in a future version of MySQL\&. See
 the section called \(lqConfiguring Legacy Connection Compression\(rq\&.
 .RE
 .sp
@@ -1498,7 +1498,7 @@ system variable enabled to support shared\-memory connections\&.
 .\}
 \fB\-\-short\-form\fR,
 \fB\-s\fR
-Display only the statements contained in the log, without any extra information or row\-based events\&. This is for testing only, and should not be used in production systems\&. It is deprecated, and will be removed in a future release\&.
+Display only the statements contained in the log, without any extra information or row\-based events\&. This is for testing only, and should not be used in production systems\&. It is deprecated, and you should expect it to be removed in a future release\&.
 .RE
 .sp
 .RS 4
@@ -1763,9 +1763,11 @@ the section called \(lqSPECIFYING THE MYSQLBINLOG SERVER ID\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-stop\-never\-slave\-server\-id=\fR\fB\fIid\fR\fR
-This option is deprecated and will be removed in a future release\&. Use the
+This option is deprecated; expect it to be removed in a future release\&. Use the
 \fB\-\-connection\-server\-id\fR
-option instead to specify a server ID for mysqlbinlog to report\&.
+option instead to specify a server ID for
+\fBmysqlbinlog\fR
+to report\&.
 .RE
 .sp
 .RS 4
@@ -2331,7 +2333,7 @@ with the
 \fB\-\-verbose\fR
 or
 \fB\-v\fR
-option\&. This output level also shows table partition information where applicable\&. The output will contain lines beginning with
+option\&. This output level also shows table partition information where applicable\&. The output contains lines beginning with
 ###:
 .sp
 .if n \{\
@@ -2391,7 +2393,7 @@ or
 twice to also display data types and some metadata for each column, and informational log events such as row query log events if the
 binlog_rows_query_log_events
 system variable is set to
-TRUE\&. The output will contain an additional comment following each column change:
+TRUE\&. The output contains an additional comment following each column change:
 .sp
 .if n \{\
 .RS 4
@@ -2579,7 +2581,7 @@ for variable\-length strings\&.
 .\}
 For multibyte character sets, the maximum number of bytes per character is not present in the binary log, so the length for string types is displayed in bytes rather than in characters\&. For example,
 STRING(4)
-will be used as the data type for values from either of these column types:
+is used as the data type for values from either of these column types:
 .sp
 .if n \{\
 .RS 4
@@ -2885,7 +2887,7 @@ binlog\&.000133
 before
 \fBmysqlbinlog\fR
 reaches the end of
-binlog\&.000132, the first command will not read it, but the second command will\&.
+binlog\&.000132, the first command does not read it, but the second command does\&.
 .RE
 .sp
 .RS 4
