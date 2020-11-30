@@ -1138,13 +1138,13 @@ The following options may be given as the first argument:
  replicate-wild-ignore-table=foo%.bar% will not do updates
  to tables in databases that start with foo and whose
  table names start with bar.
- --replication-optimize-for-static-plugin-config
+ --replication-optimize-for-static-plugin-config 
  Optional flag that blocks plugin install/uninstall and
  allows skipping the acquisition of the lock to read from
  the plugin list and the usage of read-optimized
  spin-locks. Use only when plugin hook callback needs
  optimization (a lot of semi-sync slaves, for instance).
- --replication-sender-observe-commit-only
+ --replication-sender-observe-commit-only 
  Optional flag that allows for only calling back observer
  hooks at commit.
  --report-host=name  Hostname or IP of the slave to be reported to the master
