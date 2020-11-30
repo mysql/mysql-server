@@ -5359,6 +5359,46 @@ select straight_join * from
 
 drop table t1;
 
+
+--echo ##################
+--echo #
+--echo # Bug#32203548 REQUIRE_FAILED WHEN COMPARE_NDBRECORD()
+--echo #                SORT-MERGE SPJ RESULTS FROM INDEX
+--echo #
+--echo ##################
+
+create table t1 (
+  a int not null,
+  b int not null,
+  c varchar(1) not null,
+  d varchar(1) not null,
+  primary key (a,b),
+  index ix2 (d,c)
+) engine=ndbcluster;
+
+# Note that we insert all "1" into column d, such that
+# the merge sort on index 'ix2 (d,c)' will always find
+# column 'd' equal, and continue comparing column 'c'
+# if we do not break out of compare loop for columns not
+# selected.
+#
+insert into t1 values
+(1,1,"1","1"), (2,2,"2","1"), (3,3,"3","1"), (4,4,"4","1"),
+(1,2,"5","1"), (1,3,"1","1"), (1,4,"2","1"),
+(2,1,"3","1"), (2,3,"4","1"), (2,4,"5","1");
+
+# We force index 'ix2' to be used for 'order by'
+explain
+select t1.d from t1 FORCE INDEX FOR ORDER BY (ix2)
+straight_join t1 as t2 on t2.a = t1.a
+  order by t1.d;
+
+select t1.d from t1 FORCE INDEX FOR ORDER BY (ix2)
+straight_join t1 as t2 on t2.a = t1.a
+  order by t1.d;
+
+drop table t1;
+
 ########################################
 # Verify counters for entire test:
 # Note: These tables are 'temporary' withing 'connection spj'
