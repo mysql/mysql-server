@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -299,13 +299,16 @@ private:
      * param[in] allocator For allocating arrays of pointers.
      * param[in] ordering Possible scan ordering.
      * param[in] capacity Max no of root fragments.
-     * @return 0 if ok, else errorcode
+     * param[in] keyRecord Describe index used for ordering.
+     * param[in] resultRecord Format of row retrieved.
+     * param[in] resultMask BitMap of columns present in result.
      */
     void prepare(NdbBulkAllocator& allocator,
                  NdbQueryOptions::ScanOrdering ordering, 
                  int capacity,  
                  const NdbRecord* keyRecord,
-                 const NdbRecord* resultRecord);
+                 const NdbRecord* resultRecord,
+                 const unsigned char* resultMask);
 
     /**
      * Add root fragments with completed ResultSets to this OrderedFragSet.
@@ -364,6 +367,9 @@ private:
     const NdbRecord* m_keyRecord;
     /** Needed for comparing records when ordering results.*/
     const NdbRecord* m_resultRecord;
+    /** Bitmap of columns present in m_resultRecord. */
+    const unsigned char* m_resultMask;
+
     /**
      * Fragments where some tuples in the current ResultSet has not 
      * yet been consumed.
