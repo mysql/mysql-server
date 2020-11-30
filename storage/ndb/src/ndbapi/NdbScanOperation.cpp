@@ -3676,6 +3676,7 @@ int compare_ndbrecord(const NdbReceiver *r1,
                       const NdbReceiver *r2,
                       const NdbRecord *key_record,
                       const NdbRecord *result_record,
+                      const unsigned char *result_mask,
                       bool descending,
                       bool read_range_no)
 {
@@ -3704,8 +3705,12 @@ int compare_ndbrecord(const NdbReceiver *r1,
     int col_idx = result_record->m_attrId_indexes[key_col->attrId];
     assert(col_idx >= 0);
     assert((Uint32)col_idx < result_record->noOfColumns);
-    const NdbRecord::Attr *result_col = &result_record->columns[col_idx];
 
+    /* Might be comparing only a subset of index key columns */
+    if (result_mask != NULL && !(result_mask[col_idx>>3] & 1<<(col_idx&7)))
+      return 0;  // Column not present -> done
+
+    const NdbRecord::Attr *result_col = &result_record->columns[col_idx];
     bool a_is_null= result_col->is_null(a_row);
     bool b_is_null= result_col->is_null(b_row);
     if (a_is_null)
@@ -3828,6 +3833,7 @@ NdbIndexScanOperation::ordered_insert_receiver(Uint32 start,
                                m_api_receivers[idx],
                                m_key_record,
                                m_attribute_record,
+                               NULL,  // Compare all index attrs
                                m_descending,
                                m_read_range_no);
     if (res <= 0)
