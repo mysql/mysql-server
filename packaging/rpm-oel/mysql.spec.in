@@ -236,7 +236,7 @@ Obsoletes:      MySQL-embedded-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-server < %{version}-%{release}
 %if 0%{?cluster}
 Provides:       MySQL-Cluster-server-advanced%{?_isa} = %{version}-%{release}
-Obsoletes:      MySQL-Cluster-server-advanced%{?_isa} < %{version}-%{release}
+Obsoletes:      MySQL-Cluster-server-advanced < %{version}-%{release}
 Obsoletes:      MySQL-Cluster-embedded-advanced < %{version}-%{release}
 Obsoletes:      mysql-commercial-server < %{version}-%{release}
 Obsoletes:      mysql-cluster-community-server < %{version}-%{release}
@@ -246,10 +246,10 @@ Obsoletes:      mysql-cluster-commercial-embedded-devel < 8.0.1
 %endif
 %if 0%{?cluster}
 Provides:       MySQL-Cluster-server-gpl%{?_isa} = %{version}-%{release}
-Obsoletes:      MySQL-Cluster-server-gpl%{?_isa} < %{version}-%{release}
+Obsoletes:      MySQL-Cluster-server-gpl < %{version}-%{release}
 Obsoletes:      mysql-cluster-community-embedded < 8.0.1
 Obsoletes:      mysql-cluster-community-embedded-devel < 8.0.1
-Obsoletes:      MySQL-Cluster-embedded-gpl%{?_isa} < %{version}-%{release}
+Obsoletes:      MySQL-Cluster-embedded-gpl < %{version}-%{release}
 %endif
 Provides:       MySQL-server%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-server < %{version}-%{release}
@@ -328,7 +328,7 @@ Obsoletes:      MySQL-client-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-client < %{version}-%{release}
 %if 0%{?cluster}
 Provides:       MySQL-Cluster-client-advanced%{?_isa} = %{version}-%{release}
-Obsoletes:      MySQL-Cluster-client-advanced%{?_isa} < %{version}-%{release}
+Obsoletes:      MySQL-Cluster-client-advanced < %{version}-%{release}
 Obsoletes:      mysql-commercial-client < %{version}-%{release}
 Obsoletes:      mysql-cluster-community-client < %{version}-%{release}
 %endif
@@ -407,7 +407,7 @@ Obsoletes:      MySQL-test-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-test < %{version}-%{release}
 %if 0%{?cluster}
 Provides:       MySQL-Cluster-test-advanced%{?_isa} = %{version}-%{release}
-Obsoletes:      MySQL-Cluster-test-advanced%{?_isa} < %{version}-%{release}
+Obsoletes:      MySQL-Cluster-test-advanced < %{version}-%{release}
 Obsoletes:      mysql-commercial-test < %{version}-%{release}
 Obsoletes:      mysql-cluster-community-test < %{version}-%{release}
 %endif
@@ -437,7 +437,7 @@ Obsoletes:      MySQL-devel-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-devel < %{version}-%{release}
 %if 0%{?cluster}
 Provides:       MySQL-Cluster-devel-advanced%{?_isa} = %{version}-%{release}
-Obsoletes:      MySQL-Cluster-devel-advanced%{?_isa} < %{version}-%{release}
+Obsoletes:      MySQL-Cluster-devel-advanced < %{version}-%{release}
 Obsoletes:      mysql-commercial-devel < %{version}-%{release}
 Obsoletes:      mysql-cluster-community-devel < %{version}-%{release}
 %endif
@@ -679,7 +679,6 @@ Group:          Applications/Databases
 Provides:       meb = %{version}-%{release}
 Provides:       meb%{?_isa} = %{version}-%{release}
 Obsoletes:      meb < %{version}-%{release}
-Obsoletes:      meb%{?_isa} < %{version}-%{release}
 %description    backup
 Implementing proper database backup and disaster recovery plans to
 protect against accidental loss of data, database corruption,

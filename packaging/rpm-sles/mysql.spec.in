@@ -200,7 +200,7 @@ Obsoletes:      mysql-cluster-community-embedded-devel < 8.0.1
 %endif
 %if 0%{?cluster}
 Provides:       MySQL-Cluster-server-gpl%{?_isa} = %{version}-%{release}
-Obsoletes:      MySQL-Cluster-server-gpl%{?_isa} < %{version}-%{release}
+Obsoletes:      MySQL-Cluster-server-gpl < %{version}-%{release}
 Obsoletes:      MySQL-Cluster-embedded-gpl < %{version}-%{release}
 %endif
 Obsoletes:      mysql-community-bench < 5.7.8
@@ -506,7 +506,6 @@ Group:          Applications/Databases
 Provides:       meb = %{version}-%{release}
 Provides:       meb%{?_isa} = %{version}-%{release}
 Obsoletes:      meb < %{version}-%{release}
-Obsoletes:      meb%{?_isa} < %{version}-%{release}
 %description    backup
 Implementing proper database backup and disaster recovery plans to
 protect against accidental loss of data, database corruption,
