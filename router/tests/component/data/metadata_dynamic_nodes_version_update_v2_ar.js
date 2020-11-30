@@ -70,6 +70,48 @@ var nodes = function(host, port_and_state) {
   });
 };
 
+var group_replication_membership_online =
+    nodes(gr_node_host, mysqld.global.gr_nodes, mysqld.global.gr_id);
+
+var metadata_version =
+    (mysqld.global.upgrade_in_progress === 1) ? [0, 0, 0] : [2, 0, 0];
+var options = {
+  metadata_schema_version: metadata_version,
+  group_replication_membership: group_replication_membership_online,
+  cluster_id: mysqld.global.gr_id,
+  view_id: mysqld.global.view_id,
+  primary_port:
+      group_replication_membership_online[mysqld.global.primary_id][2],
+  cluster_type: "ar",
+  innodb_cluster_name: "test",
+  router_version: mysqld.global.router_version,
+};
+
+// first node is PRIMARY
+options.group_replication_primary_member =
+    options.group_replication_membership[mysqld.global.primary_id][0];
+
+// prepare the responses for common statements
+var common_responses = common_stmts.prepare_statement_responses(
+    [
+      "router_set_session_options", "router_set_gr_consistency_level",
+      "router_start_transaction", "router_commit",
+      "router_select_schema_version", "router_select_cluster_type_v2",
+      "router_select_view_id_v2_ar", "router_update_last_check_in_v2",
+      "select_port"
+    ],
+    options);
+
+
+var router_select_metadata =
+    common_stmts.get("router_select_metadata_v2_ar", options);
+
+var router_update_version_strict_v2 =
+    common_stmts.get("router_update_version_strict_v2", options);
+
+var router_update_last_check_in_v2 =
+    common_stmts.get("router_update_last_check_in_v2", options);
+
 ({
   stmts: function(stmt) {
     // let's grab first queries for the verification
@@ -79,48 +121,6 @@ var nodes = function(host, port_and_state) {
       mysqld.global.queries = tmp;
       mysqld.global.queries_count++;
     }
-
-    var group_replication_membership_online =
-        nodes(gr_node_host, mysqld.global.gr_nodes, mysqld.global.gr_id);
-
-    var metadata_version =
-        (mysqld.global.upgrade_in_progress === 1) ? [0, 0, 0] : [2, 0, 0];
-    var options = {
-      metadata_schema_version: metadata_version,
-      group_replication_membership: group_replication_membership_online,
-      cluster_id: mysqld.global.gr_id,
-      view_id: mysqld.global.view_id,
-      primary_port:
-          group_replication_membership_online[mysqld.global.primary_id][2],
-      cluster_type: "ar",
-      innodb_cluster_name: "test",
-      router_version: mysqld.global.router_version,
-    };
-
-    // first node is PRIMARY
-    options.group_replication_primary_member =
-        options.group_replication_membership[mysqld.global.primary_id][0];
-
-    // prepare the responses for common statements
-    var common_responses = common_stmts.prepare_statement_responses(
-        [
-          "router_set_session_options", "router_set_gr_consistency_level",
-          "router_start_transaction", "router_commit",
-          "router_select_schema_version", "router_select_cluster_type_v2",
-          "router_select_view_id_v2_ar", "router_update_last_check_in_v2",
-          "select_port"
-        ],
-        options);
-
-
-    var router_select_metadata =
-        common_stmts.get("router_select_metadata_v2_ar", options);
-
-    var router_update_version_strict_v2 =
-        common_stmts.get("router_update_version_strict_v2", options);
-
-    var router_update_last_check_in_v2 =
-        common_stmts.get("router_update_last_check_in_v2", options);
 
     if (common_responses.hasOwnProperty(stmt)) {
       return common_responses[stmt];

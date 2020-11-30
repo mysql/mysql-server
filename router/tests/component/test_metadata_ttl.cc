@@ -543,9 +543,9 @@ TEST_P(MetadataChacheTTLTestInvalidMysqlXPort, InvalidMysqlXPort) {
 INSTANTIATE_TEST_SUITE_P(
     InvalidMysqlXPort, MetadataChacheTTLTestInvalidMysqlXPort,
     ::testing::Values(MetadataTTLTestParams("metadata_dynamic_nodes_v2_gr.js",
-                                            "gr_v2", ClusterType::GR_V1, "5"),
+                                            "gr_v2", ClusterType::GR_V2, "5"),
                       MetadataTTLTestParams("metadata_dynamic_nodes.js", "gr",
-                                            ClusterType::GR_V2, "5"),
+                                            ClusterType::GR_V1, "5"),
                       MetadataTTLTestParams("metadata_dynamic_nodes_v2_ar.js",
                                             "ar_v2", ClusterType::RS_V2, "5")),
     get_test_description);
