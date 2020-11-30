@@ -597,7 +597,7 @@ bool Resource_group_mgr::switch_resource_group_if_needed(
     mysql_mutex_unlock(&thd->LOCK_thd_data);
     DBUG_EXECUTE_IF("pause_after_rg_switch", {
       const char act[] =
-          "now SIGNAL execute_pfs_query_block "
+          "now SIGNAL execute_pfs_select "
           "WAIT_FOR signal_to_continue";
       DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
     };);
