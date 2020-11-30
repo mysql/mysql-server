@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1291,7 +1291,7 @@ void NdbRootFragment::prepareNextReceiveSet()
 }
 
 /**
- * Let the application thread takes ownership of an available
+ * Let the application thread take ownership of an available
  * ResultSet, prepare it for reading first row.
  * Need mutex lock as 'm_availResultSets' is accesed both from
  * receiver and application thread.
@@ -2821,7 +2821,8 @@ NdbQueryImpl::prepareSend()
                       getRoot().getOrdering(),
                       m_rootFragCount, 
                       keyRec,
-                      getRoot().m_ndbRecord);
+                      getRoot().m_ndbRecord,
+                      getRoot().m_read_mask);
 
   if (getQueryDef().isScanQuery())
   {
@@ -3491,6 +3492,7 @@ NdbQueryImpl::OrderedFragSet::OrderedFragSet():
   m_ordering(NdbQueryOptions::ScanOrdering_void),
   m_keyRecord(NULL),
   m_resultRecord(NULL),
+  m_resultMask(NULL),
   m_activeFrags(NULL),
   m_fetchMoreFrags(NULL)
 {
@@ -3513,7 +3515,8 @@ NdbQueryImpl::OrderedFragSet::prepare(NdbBulkAllocator& allocator,
                                       NdbQueryOptions::ScanOrdering ordering, 
                                       int capacity,                
                                       const NdbRecord* keyRecord,
-                                      const NdbRecord* resultRecord)
+                                      const NdbRecord* resultRecord,
+                                      const unsigned char* resultMask)
 {
   assert(m_activeFrags==NULL);
   assert(m_capacity==0);
@@ -3534,6 +3537,7 @@ NdbQueryImpl::OrderedFragSet::prepare(NdbBulkAllocator& allocator,
   m_ordering = ordering;
   m_keyRecord = keyRecord;
   m_resultRecord = resultRecord;
+  m_resultMask = resultMask;
 } // OrderedFragSet::prepare()
 
 
@@ -3781,6 +3785,7 @@ NdbQueryImpl::OrderedFragSet::compare(const NdbRootFragment& frag1,
                            &frag2.getResultStream(0).getReceiver(),
                            m_keyRecord,
                            m_resultRecord,
+                           m_resultMask,
                            m_ordering 
                            == NdbQueryOptions::ScanOrdering_descending,
                            false);
