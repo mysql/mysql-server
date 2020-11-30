@@ -1574,10 +1574,7 @@ class HttpServerAuthTest
                                                    {"method", "basic"},
                                                    {"name", "API"},
                                                    {"require", "valid-user"}})},
-                "\n"))},
-        http_server_{launch_router({"-c", conf_file_}, EXIT_SUCCESS,
-                                   /*catch_stderr*/ true, /*with_sudo*/ false,
-                                   /*wait_for_notify_ready*/ -1s)} {
+                "\n"))} {
     std::string pwf_name(
         mysql_harness::Path(conf_dir_.name()).join(passwd_filename_).str());
     std::fstream pwf{pwf_name, pwf.out};
@@ -1599,7 +1596,6 @@ class HttpServerAuthTest
   TempDirectory conf_dir_;
   std::string passwd_filename_;
   std::string conf_file_;
-  ProcessWrapper &http_server_;
 };
 
 /**
@@ -1609,10 +1605,9 @@ class HttpServerAuthTest
  * - make a client connect to the http-server
  */
 TEST_P(HttpServerAuthTest, ensure) {
-  SCOPED_TRACE("// wait http port connectable");
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server_, http_port_));
+  launch_router({"-c", conf_file_});
 
-  std::string http_uri = GetParam().url;
+  const std::string http_uri = GetParam().url;
   SCOPED_TRACE("// connecting " + http_hostname_ + ":" +
                std::to_string(http_port_) + " for " + http_uri);
 
@@ -1625,18 +1620,17 @@ TEST_P(HttpServerAuthTest, ensure) {
 }
 
 const HttpServerAuthParams http_server_auth_params[]{
-    {"good creds", "WL12503::TS_2_1", "/", 404, "user", "test"},
-    {"wrong user", "WL12503::TS_2_2", "/", 401, "user", "wrong"},
-    {"no creds", "WL12503::TS_2_3", "/", 401, "", ""},
-    {"wrong password", "WL12503::TS_2_2", "/", 401, "other", "test"},
+    {"good_creds", "WL12503::TS_2_1", "/", 404, "user", "test"},
+    {"wrong_user", "WL12503::TS_2_2", "/", 401, "user", "wrong"},
+    {"no_creds", "WL12503::TS_2_3", "/", 401, "", ""},
+    {"wrong_password", "WL12503::TS_2_2", "/", 401, "other", "test"},
 };
 
 INSTANTIATE_TEST_SUITE_P(
     Spec, HttpServerAuthTest, ::testing::ValuesIn(http_server_auth_params),
     [](const ::testing::TestParamInfo<HttpServerAuthParams> &info) {
-      return gtest_sanitize_param_name(
-          info.param.test_name +
-          (info.param.status_code == 401 ? " failed auth" : " succeeded auth"));
+      return info.param.test_name +
+             (info.param.status_code == 401 ? "_fails_auth" : "_succeeds_auth");
     });
 
 // Fail tests
