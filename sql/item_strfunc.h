@@ -884,11 +884,7 @@ class Item_func_unhex final : public Item_str_func {
   }
   const char *func_name() const override { return "unhex"; }
   String *val_str(String *) override;
-  bool resolve_type(THD *thd) override {
-    if (param_type_is_default(thd, 0, -1)) return true;
-    set_data_type_string((1U + args[0]->max_length) / 2U, &my_charset_bin);
-    return false;
-  }
+  bool resolve_type(THD *thd) override;
 };
 
 #ifndef DBUG_OFF

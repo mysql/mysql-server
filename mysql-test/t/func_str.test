@@ -2158,3 +2158,14 @@ remove_file $file;
 --echo #               < STD::NUMERIC_LIMITS<HA_CHECKSUM>::MAX()' FAILED.
 
 do crc32(char(1.134475e+308));
+
+--echo #
+--echo # Bug#32192454: WL14340: RPDSERVER SIG11 AT
+--echo # RPDMPR_BVFLT_RPDMPR_DTYPE_SB8_RPDOQC_OPT_TYPE_GT_TRUE
+--echo #
+CREATE TABLE t(x LONGTEXT);
+# The data type length of UNHEX(x) used to be 0. Should be 2147483648.
+--enable_metadata
+SELECT UNHEX(x) FROM t;
+--disable_metadata
+DROP TABLE t;

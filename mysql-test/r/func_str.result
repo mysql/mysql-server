@@ -5252,3 +5252,13 @@ DROP TABLE t1;
 # Bug #32163391 ASSERTION `CRC32_Z(CRC, POS, LENGTH)
 #               < STD::NUMERIC_LIMITS<HA_CHECKSUM>::MAX()' FAILED.
 do crc32(char(1.134475e+308));
+#
+# Bug#32192454: WL14340: RPDSERVER SIG11 AT
+# RPDMPR_BVFLT_RPDMPR_DTYPE_SB8_RPDOQC_OPT_TYPE_GT_TRUE
+#
+CREATE TABLE t(x LONGTEXT);
+SELECT UNHEX(x) FROM t;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					UNHEX(x)	251	2147483648	0	Y	128	31	63
+UNHEX(x)
+DROP TABLE t;

@@ -3337,6 +3337,16 @@ String *Item_func_hex::val_str_ascii(String *str) {
   return &tmp_value;
 }
 
+bool Item_func_unhex::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, -1)) return true;
+  // The length of the result is half the length of the input string, rounded
+  // up. Perform the calculation with 64-bit precision to not overflow the
+  // intermediate result if args[0]->max_length == UINT_MAX.
+  set_data_type_string((uint64_t{1} + args[0]->max_length) / 2,
+                       &my_charset_bin);
+  return false;
+}
+
 /** Convert given hex string to a binary string. */
 
 String *Item_func_unhex::val_str(String *str) {
