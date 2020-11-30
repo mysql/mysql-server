@@ -9386,8 +9386,8 @@ int main(int argc, char **argv) {
                   (void *)&opt_connect_timeout);
   if (opt_compress) mysql_options(&con->mysql, MYSQL_OPT_COMPRESS, NullS);
   mysql_options(&con->mysql, MYSQL_OPT_LOCAL_INFILE, nullptr);
-  if (std::strcmp(replace_utf8_utf8mb3(default_charset),
-                  replace_utf8_utf8mb3(charset_info->csname)) &&
+  if (0 != std::strcmp(replace_utf8_utf8mb3(default_charset),
+                       replace_utf8_utf8mb3(charset_info->csname)) &&
       !(charset_info =
             get_charset_by_csname(default_charset, MY_CS_PRIMARY, MYF(MY_WME))))
     die("Invalid character set specified.");
