@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlslap\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2020
+.\"      Date: 11/26/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLSLAP\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLSLAP\FR" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -140,7 +140,7 @@ file has multiple table creation statements delimited by
 and multiple insert statements delimited by
 \*(Aq;\*(Aq\&. The
 \fB\-\-query\fR
-file will have multiple queries delimited by
+file should contain multiple queries delimited by
 \*(Aq;\*(Aq\&. Run all the load statements, then run all the queries in the query file with five clients (five times each):
 .sp
 .if n \{\
@@ -326,7 +326,7 @@ How many statements to execute before committing\&. The default is 0 (no commits
 Compress all information sent between the client and the server if possible\&. See
 Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
 .sp
-As of MySQL 8\&.0\&.18, this option is deprecated\&. It will be removed in a future MySQL version\&. See
+As of MySQL 8\&.0\&.18, this option is deprecated\&. Expect it to be removed in a future version of MySQL\&. See
 the section called \(lqConfiguring Legacy Connection Compression\(rq\&.
 .RE
 .sp

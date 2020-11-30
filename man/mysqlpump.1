@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlpump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2020
+.\"      Date: 11/26/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLPUMP\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLPUMP\FR" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -104,6 +104,25 @@ The
 \fBmysqlpump\fR
 client utility performs
 logical backups, producing a set of SQL statements that can be executed to reproduce the original database object definitions and table data\&. It dumps one or more MySQL databases for backup or transfer to another SQL server\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBTip\fR
+.ps -1
+.br
+.PP
+Consider using the
+\m[blue]\fBMySQL Shell dump utilities\fR\m[]\&\s-2\u[1]\d\s+2, which provide parallel dumping with multiple threads, file compression, and progress information display, as well as cloud features such as Oracle Cloud Infrastructure Object Storage streaming, and MySQL Database Service compatibility checks and modifications\&. Dumps can be easily imported into a MySQL Server instance or a MySQL Database Service DB System using the
+\m[blue]\fBMySQL Shell load dump utilities\fR\m[]\&\s-2\u[2]\d\s+2\&. Installation instructions for MySQL Shell can be found
+\m[blue]\fBhere\fR\m[]\&\s-2\u[3]\d\s+2\&.
+.sp .5v
+.RE
 .PP
 \fBmysqlpump\fR
 features include:
@@ -242,7 +261,7 @@ shell> \fBmysqlpump [options] > dump\&.sql\fR
 .\}
 .PP
 However, UTF\-16 is not permitted as a connection character set (see
-Section\ \&10.4, \(lqConnection Character Sets and Collations\(rq), so the dump file will not load correctly\&. To work around this issue, use the
+Section\ \&10.4, \(lqConnection Character Sets and Collations\(rq), so the dump file cannot be loaded correctly\&. To work around this issue, use the
 \fB\-\-result\-file\fR
 option, which creates the output in ASCII format:
 .sp
@@ -424,7 +443,7 @@ is used with
 or with
 \fB\-\-databases\fR
 where the list of schemas to be dumped includes
-mysql, the dump file will contain a
+mysql, the dump file contains a
 DROP DATABASE `mysql`
 statement that causes an error when the dump file is reloaded\&.
 .sp
@@ -626,7 +645,7 @@ statements that include column names\&.
 Compress all information sent between the client and the server if possible\&. See
 Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
 .sp
-As of MySQL 8\&.0\&.18, this option is deprecated\&. It will be removed in a future MySQL version\&. See
+As of MySQL 8\&.0\&.18, this option is deprecated\&. Expect it to be removed in a future version of MySQL\&. See
 the section called \(lqConfiguring Legacy Connection Compression\(rq\&.
 .RE
 .sp
@@ -1725,7 +1744,7 @@ DEFINER
 and
 SQL SECURITY
 values\&. See
-Section\ \&24.6, \(lqStored Object Access Control\(rq\&.
+Section\ \&25.6, \(lqStored Object Access Control\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2478,6 +2497,22 @@ This documentation is distributed in the hope that it will be useful, but WITHOU
 .PP
 You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
 .sp
+.SH "NOTES"
+.IP " 1." 4
+MySQL Shell dump utilities
+.RS 4
+\%https://dev.mysql.com/doc/mysql-shell/8.0/en/mysql-shell-utilities-dump-instance-schema.html
+.RE
+.IP " 2." 4
+MySQL Shell load dump utilities
+.RS 4
+\%https://dev.mysql.com/doc/mysql-shell/8.0/en/mysql-shell-utilities-load-dump.html
+.RE
+.IP " 3." 4
+here
+.RS 4
+\%https://dev.mysql.com/doc/mysql-shell/8.0/en/mysql-shell-install.html
+.RE
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
 which may already be installed locally and which is also available
