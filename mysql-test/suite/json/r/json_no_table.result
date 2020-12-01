@@ -4168,3 +4168,46 @@ DO CAST(JSON_PRETTY('') AS SIGNED) / CAST(JSON_PRETTY('') AS SIGNED);
 ERROR 22032: Invalid JSON text in argument 1 to function json_pretty: "The document is empty." at position 0.
 DO CAST(JSON_PRETTY('') AS SIGNED) % CAST(JSON_PRETTY('') AS SIGNED);
 ERROR 22032: Invalid JSON text in argument 1 to function json_pretty: "The document is empty." at position 0.
+#
+# Bug #32206506 ASSERTION `!CURRENT_THD->IS_ERROR()' FAILED.
+#
+do nullif((week(json_merge(88,1,'[false,1001892796]' ,8 ))),(0x4622ae3d ));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_merge_preserve; a JSON string or JSON type is required.
+do truncate(sum(1),json_pretty((not(1))));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_pretty; a JSON string or JSON type is required.
+do ifnull((json_unquote(1)),(json_type(1)));
+ERROR HY000: Incorrect type for argument 1 in function json_unquote.
+do ((json_depth(from_unixtime(1536999222)))<=>(1));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_depth; a JSON string or JSON type is required.
+do ((json_length('key2','key1'))<=>(1));
+ERROR 22032: Invalid JSON text in argument 1 to function json_length: "Invalid value." at position 0.
+do ((1)not in((json_keys(4353)),(current_role())));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_keys; a JSON string or JSON type is required.
+do ((1)<=>(json_length(2,'key2')));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_length; a JSON string or JSON type is required.
+do aes_decrypt(json_type(1),json_keys('-4*2c*'));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_type; a JSON string or JSON type is required.
+do ((1)not in ((json_remove(19,'{}')),((not(1)))));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_remove; a JSON string or JSON type is required.
+do ((json_storage_size(1))<=(json_storage_size('')));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_storage_size; a JSON string or JSON type is required.
+do ((select(95))<=>(json_contains('{ }',' * }* ')));
+ERROR 22032: Invalid JSON text in argument 2 to function json_contains: "Invalid value." at position 1.
+do truncate(exp(0xa701c3bc),(not(json_valid('{}'))));
+ERROR 22003: DOUBLE value is out of range in 'exp(0xa701c3bc)'
+do ((' ')<=>(json_type(CURRENT_TIMESTAMP)));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_type; a JSON string or JSON type is required.
+do ((cot(':-%%& 1*'))>>(json_keys('{ }')));
+ERROR 22003: DOUBLE value is out of range in 'cot(':-%%& 1*')'
+do ((get_format(datetime,'JIS'))<=>(json_type('key3')));
+ERROR 22032: Invalid JSON text in argument 1 to function json_type: "Invalid value." at position 0.
+do strcmp(json_storage_size('*1'),json_valid(null));
+ERROR 22032: Invalid JSON text in argument 1 to function json_storage_size: "Invalid value." at position 0.
+do sha2((!(json_keys(abs('')))),json_pretty(null));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_keys; a JSON string or JSON type is required.
+do ((period_diff(20259,1872))>((not(('{ }')))));
+ERROR HY000: Incorrect arguments to period_diff
+do ((exp(4812))>>(year((!((not(degrees(''))))))));
+ERROR 22003: DOUBLE value is out of range in 'exp(4812)'
+do pow(json_storage_size(':*'),(!(oct(1))));
+ERROR 22032: Invalid JSON text in argument 1 to function json_storage_size: "Invalid value." at position 0.
