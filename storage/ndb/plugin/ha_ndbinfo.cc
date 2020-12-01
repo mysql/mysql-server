@@ -24,6 +24,8 @@
 
 #include "storage/ndb/plugin/ha_ndbinfo.h"
 
+#include <vector>
+
 #include <mysql/plugin.h>
 
 #include "my_compiler.h"
@@ -158,7 +160,7 @@ static handler *create_handler(handlerton *hton, TABLE_SHARE *table, bool,
 struct ha_ndbinfo_impl {
   const NdbInfo::Table *m_table;
   NdbInfoScanOperation *m_scan_op;
-  Vector<const NdbInfoRecAttr *> m_columns;
+  std::vector<const NdbInfoRecAttr *> m_columns;
   bool m_first_use;
 
   enum struct Table_Status {
@@ -839,5 +841,3 @@ struct st_mysql_plugin ndbinfo_plugin = {
     ndbinfo_system_variables, /* system variables */
     NULL,                     /* config options */
     0};
-
-template class Vector<const NdbInfoRecAttr *>;
