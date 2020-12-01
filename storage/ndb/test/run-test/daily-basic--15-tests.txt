@@ -64,7 +64,7 @@ max-time: 900
 
 cmd: testSystemRestart
 args: -n PLCP_3 T17
-max-time: 1000
+max-time: 1200
 
 cmd: testSystemRestart
 args: -n PLCP_4 T17
