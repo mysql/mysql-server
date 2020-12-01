@@ -196,8 +196,8 @@ innodb_read_io_threads
 log_replica_updates
 max_connections
 relay_log_space_limit
-session_track_system_variables
 replica_type_conversions
+session_track_system_variables
 table_open_cache_instances
 transaction_isolation
 # check for PERSIST_RO_VARIABLES_ADMIN privilege
