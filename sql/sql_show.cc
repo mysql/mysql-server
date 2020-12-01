@@ -2602,7 +2602,9 @@ static void view_store_create_info(const THD *thd, TABLE_LIST *table,
     database.
   */
   table->view_query()->unit->print(
-      thd, buff, enum_query_type(QT_TO_ARGUMENT_CHARSET | QT_NO_DEFAULT_DB));
+      thd, buff,
+      enum_query_type(QT_TO_ARGUMENT_CHARSET | QT_NO_DEFAULT_DB |
+                      QT_HIDE_ROLLUP_FUNCTIONS));
 
   if (table->with_check != VIEW_CHECK_NONE) {
     if (table->with_check == VIEW_CHECK_LOCAL)
