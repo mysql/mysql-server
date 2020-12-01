@@ -297,13 +297,13 @@ performance_schema_setup_objects_size
 performance_schema_users_size
 relay_log_recovery
 relay_log_space_limit
+replica_type_conversions
 report_host
 report_password
 report_port
 report_user
 skip_name_resolve
 skip_show_database
-replica_type_conversions
 table_open_cache_instances
 thread_handling
 thread_stack
