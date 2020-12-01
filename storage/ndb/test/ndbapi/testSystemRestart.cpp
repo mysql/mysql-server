@@ -3719,7 +3719,7 @@ int runAlterTableAndOptimize(NDBT_Context* ctx, NDBT_Step* step)
     g_info << "Executing query : "<< query.c_str() << endl;
     if(!sql.doQuery(query.c_str(), resultSet)){
       if(nodesKilledDuringStep &&
-          sql.getErrorNumber() == 0)
+         resultSet.mysqlErrno() == 0)
       {
         /* query failed probably because of a node kill in another step.
            wait for the nodes to get into start phase before retrying */

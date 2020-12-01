@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,9 @@
 /* DbUtil.cpp: implementation of the database utilities class.*/
 
 #include "DbUtil.hpp"
+
+#include <mysql.h>
+
 #include <NdbSleep.h>
 #include <NdbAutoPtr.hpp>
 
@@ -37,8 +40,7 @@ DbUtil::DbUtil(const char* _dbname,
   m_connected(false),
   m_user("root"),
   m_pass(""),
-  m_dbname(_dbname),
-  m_silent(false)
+  m_dbname(_dbname)
 {
   const char* env= getenv("MYSQL_HOME");
   if (env && strlen(env))
@@ -108,55 +110,6 @@ DbUtil::~DbUtil()
   disconnect();
 }
 
-/* Database Login */
-
-bool
-DbUtil::databaseLogin(const char* system, const char* usr,
-                           const char* password, unsigned int portIn,
-                           const char* sockIn, bool transactional)
-{
-  if (!(m_mysql = mysql_init(NULL)))
-  {
-    myerror("DB Login-> mysql_init() failed");
-    return false;
-  }
-  setUser(usr);
-  setHost(system);
-  setPassword(password);
-  setPort(portIn);
-  setSocket(sockIn);
-  m_dbname.assign("test");
-
-  if (!(mysql_real_connect(m_mysql, 
-                           m_host.c_str(), 
-                           m_user.c_str(), 
-                           m_pass.c_str(), 
-                           m_dbname.c_str(),
-                           m_port, 
-                           m_socket.c_str(), 0)))
-  {
-    myerror("connection failed");
-    disconnect();
-    return false;
-  }
-
-  m_mysql->reconnect = TRUE;
-
-  /* set AUTOCOMMIT */
-  if(!transactional)
-    mysql_autocommit(m_mysql, TRUE);
-  else
-    mysql_autocommit(m_mysql, FALSE);
-
-  #ifdef DEBUG
-    printf("\n\tConnected to MySQL server version: %s (%lu)\n\n", 
-           mysql_get_server_info(m_mysql),
-           (unsigned long) mysql_get_server_version(m_mysql));
-  #endif
-  selectDb();
-  m_connected= true;
-  return true;
-}
 
 /* Database Connect */
 
@@ -165,7 +118,7 @@ DbUtil::connect()
 {
   if (!(m_mysql = mysql_init(NULL)))
   {
-    myerror("DB connect-> mysql_init() failed");
+    printError("DB connect-> mysql_init() failed");
     return false;
   }
 
@@ -173,7 +126,7 @@ DbUtil::connect()
   if (mysql_options(m_mysql, MYSQL_READ_DEFAULT_FILE, m_default_file.c_str()) ||
       mysql_options(m_mysql, MYSQL_READ_DEFAULT_GROUP, m_default_group.c_str()))
   {
-    myerror("DB Connect -> mysql_options failed");
+    printError("DB Connect -> mysql_options failed");
     disconnect();
     return false;
   }
@@ -188,59 +141,20 @@ DbUtil::connect()
                          m_dbname.c_str(),
                          0, NULL, 0) == NULL)
   {
-    myerror("connection failed");
+    printError("connection failed");
     disconnect();
     return false;
   }
-  selectDb();
   m_connected= true;
   require(m_mysql);
   return true;
 }
 
 
-/* Database Logout */
-
-void
-DbUtil::databaseLogout()
-{
-  if (m_mysql){
-    #ifdef DEBUG
-      printf("\n\tClosing the MySQL database connection ...\n\n");
-    #endif
-    mysql_close(m_mysql);
-  }
-}
-
-/* Prepare MySQL Statements Cont */
-
-MYSQL_STMT *STDCALL 
-DbUtil::mysqlSimplePrepare(const char *query)
-{
-  #ifdef DEBUG
-    printf("Inside DbUtil::mysqlSimplePrepare\n");
-  #endif
-  MYSQL_STMT *my_stmt= mysql_stmt_init(this->getMysql());
-  if (my_stmt && mysql_stmt_prepare(my_stmt, query, (unsigned long)strlen(query))){
-    this->printStError(my_stmt,"Prepare Statement Failed");
-    mysql_stmt_close(my_stmt);
-    return NULL;
-  }
-  return my_stmt;
-}
-
-/* Close MySQL Statements Handle */
-
-void 
-DbUtil::mysqlCloseStmHandle(MYSQL_STMT *my_stmt)
-{
-  mysql_stmt_close(my_stmt);
-}
- 
 /* Error Printing */
 
 void
-DbUtil::printError(const char *msg)
+DbUtil::printError(const char *msg) const
 {
   if (m_mysql && mysql_errno(m_mysql))
   {
@@ -248,79 +162,11 @@ DbUtil::printError(const char *msg)
       printf("\n [MySQL-%s]", m_mysql->server_version);
     else
       printf("\n [MySQL]");
-    printf("[%d] %s\n", getErrorNumber(), getError());
+    printf("[%d] %s\n", mysql_errno(m_mysql), mysql_error(m_mysql));
   }
   else if (msg)
     printf(" [MySQL] %s\n", msg);
 }
-
-void
-DbUtil::printStError(MYSQL_STMT *stmt, const char *msg)
-{
-  if (stmt && mysql_stmt_errno(stmt))
-  {
-    if (m_mysql && m_mysql->server_version)
-      printf("\n [MySQL-%s]", m_mysql->server_version);
-    else
-      printf("\n [MySQL]");
-
-    printf("[%d] %s\n", mysql_stmt_errno(stmt),
-    mysql_stmt_error(stmt));
-  }
-  else if (msg)
-    printf("[MySQL] %s\n", msg);
-}
-
-/* Select which database to use */
-
-bool
-DbUtil::selectDb()
-{
-  if ((getDbName()) != NULL)
-  {
-    if(mysql_select_db(m_mysql, this->getDbName()))
-    {
-      //printError("mysql_select_db failed");
-      return false;
-    }
-    return true;   
-  }
-  printError("getDbName() == NULL");
-  return false;
-}
-
-bool
-DbUtil::selectDb(const char * m_db)
-{
-  {
-    if(mysql_select_db(m_mysql, m_db))
-    {
-      printError("mysql_select_db failed");
-      return false;
-    }
-    return true;
-  }
-}
-
-bool
-DbUtil::createDb(BaseString& m_db)
-{
-  BaseString stm;
-  setDbName(m_db.c_str());
-
-  if (selectDb())
-  {
-    stm.assfmt("DROP DATABASE %s", m_db.c_str());
-    if (!doQuery(stm))
-    {
-      return false;
-    }
-  }
-
-  stm.assfmt("CREATE DATABASE %s", m_db.c_str());
-  return doQuery(stm);
-}
-
 
 /* Count Table Rows */
 
@@ -347,7 +193,6 @@ DbUtil::runQuery(const char* sql,
                  const Properties& args,
                  SqlResultSet& rows){
 
-  clear_error();
   rows.clear();
   if (!isConnected())
     return false;
@@ -360,7 +205,7 @@ DbUtil::runQuery(const char* sql,
   MYSQL_STMT *stmt= mysql_stmt_init(m_mysql);
   if (mysql_stmt_prepare(stmt, sql, (unsigned long)strlen(sql)))
   {
-    report_error("Failed to prepare: ", m_mysql);
+    report_error("Failed to prepare");
     return false;
   }
 
@@ -405,14 +250,14 @@ DbUtil::runQuery(const char* sql,
   }
   if (mysql_stmt_bind_param(stmt, bind_param))
   {
-    report_error("Failed to bind param: ", m_mysql);
+    report_error("Failed to bind param");
     mysql_stmt_close(stmt);
     return false;
   }
 
   if (mysql_stmt_execute(stmt))
   {
-    report_error("Failed to execute: ", m_mysql);
+    report_error("Failed to execute");
     mysql_stmt_close(stmt);
     return false;
   }
@@ -426,7 +271,7 @@ DbUtil::runQuery(const char* sql,
 
   if (mysql_stmt_store_result(stmt))
   {
-    report_error("Failed to store result: ", m_mysql);
+    report_error("Failed to store result");
     mysql_stmt_close(stmt);
     return false;
   }
@@ -467,7 +312,7 @@ DbUtil::runQuery(const char* sql,
       bind_result[i].buffer= malloc(buf_len);
       if (bind_result[i].buffer == NULL)
       {
-          report_error("Unable to allocate memory for bind_result[].buffer", m_mysql);
+          report_error("Unable to allocate memory for bind_result[].buffer");
           mysql_stmt_close(stmt);
           return false;
       }
@@ -477,7 +322,7 @@ DbUtil::runQuery(const char* sql,
       if (bind_result[i].is_null == NULL)
       {
           free(bind_result[i].buffer);
-          report_error("Unable to allocate memory for bind_result[].is_null", m_mysql);
+          report_error("Unable to allocate memory for bind_result[].is_null");
           mysql_stmt_close(stmt);
           return false;
       }
@@ -486,7 +331,7 @@ DbUtil::runQuery(const char* sql,
     }
 
     if (mysql_stmt_bind_result(stmt, bind_result)){
-      report_error("Failed to bind result: ", m_mysql);
+      report_error("Failed to bind result");
       mysql_stmt_close(stmt);
       return false;
     }
@@ -597,42 +442,11 @@ DbUtil::doQuery(BaseString& str, const Properties& args){
 }
 
 
-/* Return MySQL Error String */
-
-const char *
-DbUtil::getError()
+void DbUtil::report_error(const char *message) const
 {
-  return mysql_error(this->getMysql());
+  g_err << "ERROR: " << message << ", mysql_errno: " << mysql_errno(m_mysql)
+        << ", mysql_error: '" << mysql_error(m_mysql) << "'" << endl;
 }
-
-/* Return MySQL Error Number */
-
-int
-DbUtil::getErrorNumber()
-{
-  return mysql_errno(this->getMysql());
-}
-
-void
-DbUtil::report_error(const char* message, MYSQL* mysql)
-{
-  m_last_errno= mysql_errno(mysql);
-  m_last_error.assfmt("%d: %s", m_last_errno, mysql_error(mysql));
-
-  if (!m_silent)
-    g_err << message << m_last_error << endl;
-}
-
-
-/* DIE */
-
-void
-DbUtil::die(const char *file, int line, const char *expr)
-{
-  printf("%s:%d: check failed: '%s'\n", file, line, expr);
-  abort();
-}
-
 
 /* SqlResultSet */
 
@@ -770,5 +584,4 @@ const char* SqlResultSet::get_string(const char* name){
   return value;
 }
 
-/* EOF */
 

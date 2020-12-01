@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,11 +86,14 @@ AtrtClient::writeCommand(AtrtCommandType _type,
   }
 
   sql.appfmt("'new', %d)", _type);
-  if (!doQuery(sql)){
+  SqlResultSet res;
+  if (!doQuery(sql, res)){
     return -1;
   }
 
-  return (int)mysql_insert_id(m_mysql);
+  // Return the generated AUTO_INCREMENT id as command id
+  const uint64_t last_insert_id = res.insertId();
+  return static_cast<int>(last_insert_id);
 }
 
 
@@ -111,8 +114,7 @@ AtrtClient::doCommand(AtrtCommandType type,
 
   int running_timeout= 10;
   int total_timeout= 120;
-  int commandId= writeCommand(type,
-                              args);
+  const int commandId= writeCommand(type, args);
   if (commandId == -1){
     g_err << "Failed to write command" << endl;
     return false;
