@@ -263,6 +263,32 @@ struct view {
     {"ndbinfo", "dict_obj_info",
      " SELECT * "
      "FROM `ndbinfo`.`ndb$dict_obj_info`"},
+    {"ndbinfo", "dict_obj_tree",
+     "WITH RECURSIVE tree (type, id, name,"
+     "  parent_type, parent_id, parent_name,"
+     "  root_type, root_id, root_name,"
+     "  level,path, indented_name) AS ("
+     "SELECT"
+     "  type, id, CAST(fq_name AS CHAR), "  // Current info
+     "  parent_obj_type, parent_obj_id, CAST(fq_name AS CHAR), "  // Parent info
+     "  type, id, CAST(fq_name AS CHAR), "                        // Root info
+     "  1, "                     // Current level
+     "  CAST(fq_name AS CHAR),"  // Current path
+     "  CAST(fq_name AS CHAR)"   // Current indented name
+     "  FROM ndbinfo.dict_obj_info"
+     "  WHERE parent_obj_id = 0 AND parent_obj_type = 0 "  // Only top level
+     "UNION ALL "
+     "SELECT"
+     "  i.type, i.id, i.fq_name, "                        // Current info
+     "  i.parent_obj_type, i.parent_obj_id, t.name, "     // Parent info
+     "  t.root_type, t.root_id, t.root_name, "            // Root info
+     "  t.level + 1, "                                    // Current level
+     "  CONCAT(t.path, ' -> ', i.fq_name), "              // Current path
+     "  CONCAT(REPEAT('  ', level),  '-> ', i.fq_name) "  // Current indented
+                                                          // name
+     "FROM tree t JOIN ndbinfo.dict_obj_info i "
+     "ON t.type = i.parent_obj_type AND t.id = i.parent_obj_id"
+     ") SELECT * FROM tree ORDER BY path"},
     {"ndbinfo", "dict_obj_types",
      "SELECT type_id, type_name "
      "FROM `ndbinfo`.`ndb$dict_obj_types`"},

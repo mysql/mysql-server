@@ -1801,3 +1801,63 @@ select * from cpudata_20sec;
 select * from backup_id;
 id
 <backup_id>
+
+#
+# Bug#32198754 EXTEND MTR CHECK TESTCASES TO CHECK NDB DICTIONARY ...
+#  - adds a new ndbinfo.dict_obj_tree view which can show
+#    the object tree of objects in NDB dictionary
+#
+CREATE LOGFILE GROUP first_lg
+  ADD UNDOFILE 'lg1_undofile.dat' INITIAL_SIZE 1M UNDO_BUFFER_SIZE = 1M
+  ENGINE=NDB;
+
+CREATE TABLESPACE first_ts
+  ADD DATAFILE 'ts1_datafile.dat'
+    USE LOGFILE GROUP first_lg INITIAL_SIZE 2M
+  ENGINE NDB;
+
+CREATE TABLE test.t1 (
+  a int PRIMARY KEY
+) ENGINE = NDB TABLESPACE first_ts STORAGE DISK;
+
+CREATE TABLE test.t2 (
+  a int PRIMARY KEY,
+  b int,
+  UNIQUE(b)
+) engine = NDB;
+
+SELECT name, parent_name, root_name, level, indented_name, path
+  FROM ndbinfo.dict_obj_tree
+  WHERE root_name IN ('first_lg', 'first_ts', 'test/def/t1', 'test/def/t2');
+name	parent_name	root_name	level	indented_name	path
+first_lg	first_lg	first_lg	1	first_lg	first_lg
+lg1_undofile.dat	first_lg	first_lg	2	  -> lg1_undofile.dat	first_lg -> lg1_undofile.dat
+first_ts	first_ts	first_ts	1	first_ts	first_ts
+ts1_datafile.dat	first_ts	first_ts	2	  -> ts1_datafile.dat	first_ts -> ts1_datafile.dat
+test/def/t1	test/def/t1	test/def/t1	1	test/def/t1	test/def/t1
+sys/def/<id>/PRIMARY	test/def/t1	test/def/t1	2	  -> sys/def/<id>/PRIMARY	test/def/t1 -> sys/def/<id>/PRIMARY
+NDB$INDEX_<id>_CUSTOM	sys/def/<id>/PRIMARY	test/def/t1	3	    -> NDB$INDEX_<id>_CUSTOM	test/def/t1 -> sys/def/<id>/PRIMARY -> NDB$INDEX_<id>_CUSTOM
+test/def/t2	test/def/t2	test/def/t2	1	test/def/t2	test/def/t2
+sys/def/<id>/b	test/def/t2	test/def/t2	2	  -> sys/def/<id>/b	test/def/t2 -> sys/def/<id>/b
+NDB$INDEX_<id>_CUSTOM	sys/def/<id>/b	test/def/t2	3	    -> NDB$INDEX_<id>_CUSTOM	test/def/t2 -> sys/def/<id>/b -> NDB$INDEX_<id>_CUSTOM
+sys/def/<id>/b$unique	test/def/t2	test/def/t2	2	  -> sys/def/<id>/b$unique	test/def/t2 -> sys/def/<id>/b$unique
+NDB$INDEX_<id>_UI	sys/def/<id>/b$unique	test/def/t2	3	    -> NDB$INDEX_<id>_UI	test/def/t2 -> sys/def/<id>/b$unique -> NDB$INDEX_<id>_UI
+sys/def/<id>/PRIMARY	test/def/t2	test/def/t2	2	  -> sys/def/<id>/PRIMARY	test/def/t2 -> sys/def/<id>/PRIMARY
+NDB$INDEX_<id>_CUSTOM	sys/def/<id>/PRIMARY	test/def/t2	3	    -> NDB$INDEX_<id>_CUSTOM	test/def/t2 -> sys/def/<id>/PRIMARY -> NDB$INDEX_<id>_CUSTOM
+
+SELECT indented_name, root_name FROM ndbinfo.dict_obj_tree
+  WHERE root_name = 'test/def/t2';
+indented_name	root_name
+test/def/t2	test/def/t2
+  -> sys/def/<id>/b	test/def/t2
+    -> NDB$INDEX_<id>_CUSTOM	test/def/t2
+  -> sys/def/<id>/b$unique	test/def/t2
+    -> NDB$INDEX_<id>_UI	test/def/t2
+  -> sys/def/<id>/PRIMARY	test/def/t2
+    -> NDB$INDEX_<id>_CUSTOM	test/def/t2
+
+DROP TABLE test.t2;
+DROP TABLE test.t1;
+ALTER TABLESPACE first_ts DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE first_ts;
+DROP LOGFILE GROUP first_lg ENGINE=NDB;

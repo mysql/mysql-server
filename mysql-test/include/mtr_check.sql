@@ -65,6 +65,34 @@ BEGIN
   END IF;
 END$$
 
+CREATE DEFINER=root@localhost PROCEDURE check_testcase_ndb()
+BEGIN
+  -- Check NDB only if the ndbcluster plugin is enabled
+  IF ((SELECT count(*) FROM information_schema.engines
+       WHERE engine='ndbcluster' AND support IN ('YES', 'DEFAULT')) = 1) THEN
+
+    -- Check only if connection information is available
+    IF (SELECT LENGTH(VARIABLE_VALUE) > 0
+          FROM performance_schema.global_variables
+             WHERE VARIABLE_NAME='ndb_connectstring') THEN
+
+      -- List dict objects in NDB, skip objects created by ndbcluster plugin
+      -- and HashMap's since those can't be dropped after having been
+      -- created by test
+      SELECT id, indented_name FROM ndbinfo.dict_obj_tree
+        WHERE root_type != 24 AND  -- HashMap
+              root_name NOT IN ( 'mysql/def/ndb_schema',
+                                 'mysql/def/ndb_schema_result',
+                                 'mysql/def/ndb_index_stat_head',
+                                 'mysql/def/ndb_index_stat_sample',
+                                 'mysql/def/ndb_apply_status',
+                                 'mysql/def/ndb_sql_metadata')
+        ORDER BY path;
+
+    END IF;
+  END IF;
+END$$
+
 -- Procedure used to check if server has been properly
 -- restored after testcase has been run
 
@@ -72,6 +100,8 @@ CREATE DEFINER=root@localhost PROCEDURE check_testcase()
 BEGIN
 
   CALL check_testcase_perfschema();
+
+  CALL check_testcase_ndb();
 
   -- Dump all global variables except those that may change.
   -- timestamp changes if time passes. server_uuid changes if server restarts.

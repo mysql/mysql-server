@@ -1052,3 +1052,47 @@ select * from cpudata_20sec;
 # Check that one column and one row is returned
 --replace_column 1 <backup_id>
 select * from backup_id;
+
+--echo #
+--echo # Bug#32198754 EXTEND MTR CHECK TESTCASES TO CHECK NDB DICTIONARY ...
+--echo #  - adds a new ndbinfo.dict_obj_tree view which can show
+--echo #    the object tree of objects in NDB dictionary
+--echo #
+# Create some objects and show the NDB dictionary object tree
+CREATE LOGFILE GROUP first_lg
+  ADD UNDOFILE 'lg1_undofile.dat' INITIAL_SIZE 1M UNDO_BUFFER_SIZE = 1M
+  ENGINE=NDB;
+
+CREATE TABLESPACE first_ts
+  ADD DATAFILE 'ts1_datafile.dat'
+    USE LOGFILE GROUP first_lg INITIAL_SIZE 2M
+  ENGINE NDB;
+
+CREATE TABLE test.t1 (
+  a int PRIMARY KEY
+) ENGINE = NDB TABLESPACE first_ts STORAGE DISK;
+
+CREATE TABLE test.t2 (
+  a int PRIMARY KEY,
+  b int,
+  UNIQUE(b)
+) engine = NDB;
+
+# Show report for objects created above
+# - mask internal ids in the object names
+--replace_regex /def\/[0-9]+/def\/<id>/ /INDEX_[0-9]+/INDEX_<id>/
+SELECT name, parent_name, root_name, level, indented_name, path
+  FROM ndbinfo.dict_obj_tree
+  WHERE root_name IN ('first_lg', 'first_ts', 'test/def/t1', 'test/def/t2');
+
+# Show report for table t2
+# - mask internal ids in the object names
+--replace_regex /def\/[0-9]+/def\/<id>/ /INDEX_[0-9]+/INDEX_<id>/
+SELECT indented_name, root_name FROM ndbinfo.dict_obj_tree
+  WHERE root_name = 'test/def/t2';
+
+DROP TABLE test.t2;
+DROP TABLE test.t1;
+ALTER TABLESPACE first_ts DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE first_ts;
+DROP LOGFILE GROUP first_lg ENGINE=NDB;
