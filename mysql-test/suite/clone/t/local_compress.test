@@ -1,5 +1,6 @@
 # Test remote clone with different table types with debug sync
 
+--source include/have_punch_hole.inc
 --disable_query_log
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Punch hole failed for .*");
 --enable_query_log
