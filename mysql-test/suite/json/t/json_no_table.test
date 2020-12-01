@@ -2835,3 +2835,48 @@ DO CAST(JSON_PRETTY('') AS SIGNED) * CAST(JSON_PRETTY('') AS SIGNED);
 DO CAST(JSON_PRETTY('') AS SIGNED) / CAST(JSON_PRETTY('') AS SIGNED);
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 DO CAST(JSON_PRETTY('') AS SIGNED) % CAST(JSON_PRETTY('') AS SIGNED);
+
+--echo #
+--echo # Bug #32206506 ASSERTION `!CURRENT_THD->IS_ERROR()' FAILED.
+--echo #
+
+--error ER_INVALID_TYPE_FOR_JSON
+do nullif((week(json_merge(88,1,'[false,1001892796]' ,8 ))),(0x4622ae3d ));
+--error ER_INVALID_TYPE_FOR_JSON
+do truncate(sum(1),json_pretty((not(1))));
+--error ER_INCORRECT_TYPE
+do ifnull((json_unquote(1)),(json_type(1)));
+--error ER_INVALID_TYPE_FOR_JSON
+do ((json_depth(from_unixtime(1536999222)))<=>(1));
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+do ((json_length('key2','key1'))<=>(1));
+--error ER_INVALID_TYPE_FOR_JSON
+do ((1)not in((json_keys(4353)),(current_role())));
+--error ER_INVALID_TYPE_FOR_JSON
+do ((1)<=>(json_length(2,'key2')));
+--error ER_INVALID_TYPE_FOR_JSON
+do aes_decrypt(json_type(1),json_keys('-4*2c*'));
+--error ER_INVALID_TYPE_FOR_JSON
+do ((1)not in ((json_remove(19,'{}')),((not(1)))));
+--error ER_INVALID_TYPE_FOR_JSON
+do ((json_storage_size(1))<=(json_storage_size('')));
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+do ((select(95))<=>(json_contains('{ }',' * }* ')));
+--error ER_DATA_OUT_OF_RANGE
+do truncate(exp(0xa701c3bc),(not(json_valid('{}'))));
+--error ER_INVALID_TYPE_FOR_JSON
+do ((' ')<=>(json_type(CURRENT_TIMESTAMP)));
+--error ER_DATA_OUT_OF_RANGE
+do ((cot(':-%%& 1*'))>>(json_keys('{ }')));
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+do ((get_format(datetime,'JIS'))<=>(json_type('key3')));
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+do strcmp(json_storage_size('*1'),json_valid(null));
+--error ER_INVALID_TYPE_FOR_JSON
+do sha2((!(json_keys(abs('')))),json_pretty(null));
+--error ER_WRONG_ARGUMENTS
+do ((period_diff(20259,1872))>((not(('{ }')))));
+--error ER_DATA_OUT_OF_RANGE
+do ((exp(4812))>>(year((!((not(degrees(''))))))));
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+do pow(json_storage_size(':*'),(!(oct(1))));
