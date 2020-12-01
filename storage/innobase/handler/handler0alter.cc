@@ -4246,7 +4246,6 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
   dict_index_t *fts_index = nullptr;
   ulint new_clustered = 0;
   dberr_t error;
-  const char *punch_hole_warning = nullptr;
   ulint num_fts_index;
   dict_add_v_col_t *add_v = nullptr;
   dict_table_t *table;
@@ -4644,24 +4643,8 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
 
     mutex_enter(&dict_sys->mutex);
 
-    punch_hole_warning = (error == DB_IO_NO_PUNCH_HOLE_FS)
-                             ? "Punch hole is not supported by the file system"
-                             : "Page Compression is not supported for this"
-                               " tablespace";
-
     switch (error) {
       dict_table_t *temp_table;
-      case DB_IO_NO_PUNCH_HOLE_FS:
-      case DB_IO_NO_PUNCH_HOLE_TABLESPACE:
-
-        push_warning_printf(ctx->prebuilt->trx->mysql_thd,
-                            Sql_condition::SL_WARNING, HA_ERR_UNSUPPORTED,
-                            "%s. Compression disabled for '%s'",
-                            punch_hole_warning, ctx->old_table->name.m_name);
-
-        error = DB_SUCCESS;
-        // Fall through.
-
       case DB_SUCCESS:
         /* To bump up the table ref count and move it
         to LRU list if it's not temporary table */
@@ -4691,6 +4674,15 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
         goto new_clustered_failed;
       case DB_UNSUPPORTED:
         my_error(ER_UNSUPPORTED_EXTENSION, MYF(0), ctx->new_table->name.m_name);
+        goto new_clustered_failed;
+      case DB_IO_NO_PUNCH_HOLE_FS:
+        my_error(ER_INNODB_COMPRESSION_FAILURE, MYF(0),
+                 "Punch hole not supported by the filesystem or the tablespace "
+                 "page size is not large enough.");
+        goto new_clustered_failed;
+      case DB_IO_NO_PUNCH_HOLE_TABLESPACE:
+        my_error(ER_INNODB_COMPRESSION_FAILURE, MYF(0),
+                 "Page Compression is not supported for this tablespace");
         goto new_clustered_failed;
       default:
         my_error_innodb(error, table_name, flags);

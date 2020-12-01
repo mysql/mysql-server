@@ -3889,18 +3889,13 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
 
   if (err == DB_SUCCESS && !Compression::is_none(compression_algorithm)) {
     err = dict_set_compression(table, compression_algorithm, true);
-
-    /* Throw a warning and proceed in case we cannot set the compression
-    attribute for the tablespace as compression is a best effort scenario. */
-    if (err != DB_SUCCESS) {
-      push_warning_printf(trx->mysql_thd, Sql_condition::SL_WARNING,
-                          ER_WARN_IMPORT_COMPRESSION_FAIL,
-                          ER_DEFAULT(ER_WARN_IMPORT_COMPRESSION_FAIL),
-                          ut_strerr(err));
-    }
   }
 
   row_mysql_unlock_data_dictionary(trx);
+
+  if (err != DB_SUCCESS) {
+    return row_import_cleanup(prebuilt, trx, err);
+  }
 
   /* Set the autoextend_size attribute. */
   {

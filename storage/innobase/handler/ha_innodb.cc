@@ -2023,6 +2023,10 @@ int convert_error_code_to_mysql(dberr_t error, uint32_t flags, THD *thd) {
       return (HA_ERR_INTERNAL_ERROR);
     case DB_FTS_TOO_MANY_NESTED_EXP:
       return (HA_ERR_FTS_TOO_MANY_NESTED_EXP);
+    case DB_IO_NO_PUNCH_HOLE:
+    case DB_IO_NO_PUNCH_HOLE_FS:
+    case DB_IO_NO_PUNCH_HOLE_TABLESPACE:
+      return HA_ERR_UNSUPPORTED;
   }
 }
 
@@ -11220,17 +11224,13 @@ inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
 
     if (err == DB_SUCCESS) {
       err = row_create_table_for_mysql(table, algorithm, m_create_info, m_trx);
-    }
 
-    if (err == DB_IO_NO_PUNCH_HOLE_FS) {
-      ut_ad(!dict_table_in_shared_tablespace(table));
-
-      push_warning_printf(m_thd, Sql_condition::SL_WARNING, HA_ERR_UNSUPPORTED,
-                          "InnoDB: Punch hole not supported by the "
-                          "file system or the tablespace page size "
-                          "is not large enough. Compression disabled");
-
-      err = DB_SUCCESS;
+      if (err == DB_IO_NO_PUNCH_HOLE_FS) {
+        ut_ad(!dict_table_in_shared_tablespace(table));
+        my_error(ER_INNODB_COMPRESSION_FAILURE, MYF(0),
+                 "Punch hole not supported by the filesystem or the tablespace "
+                 "page size is not large enough.");
+      }
     }
 
     DBUG_EXECUTE_IF("ib_crash_during_create_for_encryption", DBUG_SUICIDE(););
