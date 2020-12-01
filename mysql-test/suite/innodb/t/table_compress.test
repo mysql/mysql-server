@@ -7,6 +7,7 @@
 --echo #
 
 --source include/have_innodb_max_16k.inc
+--source include/have_punch_hole.inc
 
 SET DEFAULT_STORAGE_ENGINE=InnoDB;
 

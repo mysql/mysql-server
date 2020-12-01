@@ -4,6 +4,7 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_innodb_max_16k.inc
 --source include/have_debug.inc
+--source have_punch_hole.inc
 
 #let $KEYRING_PLUGIN = 'keyring_file.so';
 
