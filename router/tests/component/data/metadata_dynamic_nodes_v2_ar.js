@@ -57,61 +57,60 @@ var nodes = function(host, port_and_state) {
   });
 };
 
+var group_replication_membership_online = nodes(
+    mysqld.global.gr_node_host, mysqld.global.gr_nodes, mysqld.global.gr_id);
+
+var options = {
+  group_replication_membership: group_replication_membership_online,
+  cluster_id: mysqld.global.gr_id,
+  view_id: mysqld.global.view_id,
+  primary_port:
+      group_replication_membership_online[mysqld.global.primary_id][2],
+  cluster_type: mysqld.global.cluster_type,
+  innodb_cluster_name: "test",
+};
+
+// first node is PRIMARY
+options.group_replication_primary_member =
+    options.group_replication_membership[mysqld.global.primary_id][0];
+
+var select_port = common_stmts.get("select_port", options);
+
+var router_set_session_options =
+    common_stmts.get("router_set_session_options", options);
+
+var router_set_gr_consistency_level =
+    common_stmts.get("router_set_gr_consistency_level", options);
+
+// prepare the responses for common statements
+var common_responses = common_stmts.prepare_statement_responses(
+    [
+      "router_commit",
+      "router_rollback",
+      "router_select_cluster_type_v2",
+      "router_select_schema_version",
+      "router_select_view_id_v2_ar",
+      "router_update_last_check_in_v2",
+    ],
+    options);
+
+var common_responses_regex = common_stmts.prepare_statement_responses_regex(
+    [
+      "router_update_version_v2",
+    ],
+    options);
+
+var router_select_metadata =
+    common_stmts.get("router_select_metadata_v2_ar", options);
+
+var router_start_transaction =
+    common_stmts.get("router_start_transaction", options);
+
+var router_select_cluster_type =
+    common_stmts.get("router_select_cluster_type_v2", options);
+
 ({
   stmts: function(stmt) {
-    var group_replication_membership_online = nodes(
-        mysqld.global.gr_node_host, mysqld.global.gr_nodes,
-        mysqld.global.gr_id);
-
-    var options = {
-      group_replication_membership: group_replication_membership_online,
-      cluster_id: mysqld.global.gr_id,
-      view_id: mysqld.global.view_id,
-      primary_port:
-          group_replication_membership_online[mysqld.global.primary_id][2],
-      cluster_type: mysqld.global.cluster_type,
-      innodb_cluster_name: "test",
-    };
-
-    // first node is PRIMARY
-    options.group_replication_primary_member =
-        options.group_replication_membership[mysqld.global.primary_id][0];
-
-    var select_port = common_stmts.get("select_port", options);
-
-    var router_set_session_options =
-        common_stmts.get("router_set_session_options", options);
-
-    var router_set_gr_consistency_level =
-        common_stmts.get("router_set_gr_consistency_level", options);
-
-    // prepare the responses for common statements
-    var common_responses = common_stmts.prepare_statement_responses(
-        [
-          "router_commit",
-          "router_rollback",
-          "router_select_cluster_type_v2",
-          "router_select_schema_version",
-          "router_select_view_id_v2_ar",
-          "router_update_last_check_in_v2",
-        ],
-        options);
-
-    var common_responses_regex = common_stmts.prepare_statement_responses_regex(
-        [
-          "router_update_version_v2",
-        ],
-        options);
-
-    var router_select_metadata =
-        common_stmts.get("router_select_metadata_v2_ar", options);
-
-    var router_start_transaction =
-        common_stmts.get("router_start_transaction", options);
-
-    var router_select_cluster_type =
-        common_stmts.get("router_select_cluster_type_v2", options);
-
     if (stmt === select_port.stmt) {
       return select_port;
     }
