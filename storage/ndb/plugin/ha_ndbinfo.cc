@@ -77,7 +77,8 @@ static MYSQL_THDVAR_BOOL(show_hidden, /* name */
 static char *opt_ndbinfo_dbname = const_cast<char *>("ndbinfo");
 static MYSQL_SYSVAR_STR(database,           /* name */
                         opt_ndbinfo_dbname, /* var */
-                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY |
+                            PLUGIN_VAR_NOCMDOPT,
                         "Name of the database used by ndbinfo",
                         NULL, /* check func. */
                         NULL, /* update func. */
@@ -87,8 +88,9 @@ static MYSQL_SYSVAR_STR(database,           /* name */
 static char *opt_ndbinfo_table_prefix = const_cast<char *>("ndb$");
 static MYSQL_SYSVAR_STR(table_prefix,             /* name */
                         opt_ndbinfo_table_prefix, /* var */
-                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-                        "Prefix to use for all virtual tables loaded from NDB",
+                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY |
+                            PLUGIN_VAR_NOCMDOPT,
+                        "Prefix used for all virtual tables loaded from NDB",
                         NULL, /* check func. */
                         NULL, /* update func. */
                         NULL  /* default */
