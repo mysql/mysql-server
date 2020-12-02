@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1923,6 +1923,7 @@ bool Slave_worker::retry_transaction(uint start_relay_number,
 {
   THD *thd= info_thd;
   bool silent= false;
+  Slave_worker::Retry_context_sentry cleaned_up(*this);
 
   DBUG_ENTER("Slave_worker::retry_transaction");
 
@@ -1933,6 +1934,7 @@ bool Slave_worker::retry_transaction(uint start_relay_number,
   {
     /* Simulate a lock deadlock error */
     uint error= 0;
+    cleaned_up= false;
 
     if (found_order_commit_deadlock())
     {
@@ -1961,9 +1963,8 @@ bool Slave_worker::retry_transaction(uint start_relay_number,
         no error or the error is a temporary error.
       */
       Diagnostics_area *da= thd->get_stmt_da();
-      if (!thd->get_stmt_da()->is_error() ||
-          has_temporary_error(thd,
-                              da->is_error() ? da->mysql_errno() : error,
+      if (!da->is_error() ||
+          has_temporary_error(thd, da->is_error() ? da->mysql_errno() : error,
                               &silent))
       {
         error= ER_LOCK_DEADLOCK;
@@ -2004,8 +2005,7 @@ bool Slave_worker::retry_transaction(uint start_relay_number,
     c_rli->retried_trans++;
     mysql_mutex_unlock(&c_rli->data_lock);
 
-    cleanup_context(thd, 1);
-    reset_order_commit_deadlock();
+    cleaned_up.clean();
     worker_sleep(min<ulong>(trans_retries, MAX_SLAVE_RETRY_PAUSE));
 
   } while (read_and_apply_events(start_relay_number, start_relay_pos,
@@ -2212,6 +2212,28 @@ static int en_queue(Slave_jobs_queue *jobs, Slave_job_item *item)
               jobs->len == (jobs->avail >= jobs->entry) ?
               (jobs->avail - jobs->entry) : (jobs->size + jobs->avail - jobs->entry));
   return jobs->avail;
+}
+
+Slave_worker::Retry_context_sentry::Retry_context_sentry(Slave_worker &parent)
+    : m_parent(parent), m_is_cleaned_up(false) {}
+
+Slave_worker::Retry_context_sentry::~Retry_context_sentry() {
+  this->clean();
+}
+
+Slave_worker::Retry_context_sentry &Slave_worker::Retry_context_sentry::operator=(
+    bool is_cleaned_up)
+{
+  this->m_is_cleaned_up = is_cleaned_up;
+  return (*this);
+}
+
+void Slave_worker::Retry_context_sentry::clean() {
+  if (!this->m_is_cleaned_up) {
+    this->m_parent.cleanup_context(this->m_parent.info_thd, 1);
+    this->m_parent.reset_order_commit_deadlock();
+    this->m_is_cleaned_up = true;
+  }
 }
 
 /**

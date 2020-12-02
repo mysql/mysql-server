@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,6 +49,17 @@ public:
     all events(for mysqlbinlog) or encounters an error.
   */
   void run();
+
+  /**
+    Sets the value of the previously processed event.
+
+    @param type The last processed event type.
+   */
+  inline void set_prev_event_type(binary_log::Log_event_type type)
+  {
+    m_prev_event_type= type;
+  }
+
 private:
   THD *m_thd;
   String& m_packet;
@@ -161,6 +172,10 @@ private:
    * it will be false.
    */
   bool m_transmit_started;
+  /**
+    Type of the previously processed event.
+   */
+  binary_log::Log_event_type m_prev_event_type;
   /*
     It initializes the context, checks if the dump request is valid and
     if binlog status is correct.
@@ -283,9 +298,9 @@ private:
 
      @return It returns 0 if succeeds, otherwise 1 is returned.
   */
-  inline int read_event(IO_CACHE *log_cache,
-                        binary_log::enum_binlog_checksum_alg checksum_alg,
-                        uchar **event_ptr, uint32 *event_len);
+  int read_event(IO_CACHE *log_cache,
+                 binary_log::enum_binlog_checksum_alg checksum_alg,
+                 uchar **event_ptr, uint32 *event_len);
   /**
     Check if it is allowed to send this event type.
 
@@ -324,15 +339,15 @@ private:
 
     @return It returns true if it should be skipped, otherwise false is turned.
   */
-  inline bool skip_event(const uchar *event_ptr, uint32 event_len,
-                         bool in_exclude_group);
+  bool skip_event(const uchar *event_ptr, uint32 event_len,
+                  bool in_exclude_group);
 
-  inline void calc_event_checksum(uchar *event_ptr, size_t event_len);
-  inline int flush_net();
-  inline int send_packet();
-  inline int send_packet_and_flush();
-  inline int before_send_hook(const char *log_file, my_off_t log_pos);
-  inline int after_send_hook(const char *log_file, my_off_t log_pos);
+  void calc_event_checksum(uchar *event_ptr, size_t event_len);
+  int flush_net();
+  int send_packet();
+  int send_packet_and_flush();
+  int before_send_hook(const char *log_file, my_off_t log_pos);
+  int after_send_hook(const char *log_file, my_off_t log_pos);
   /*
     Reset the thread transmit packet buffer for event sending.
 
@@ -346,7 +361,7 @@ private:
                           if event_len is 0, then the caller needs to extend
                           the buffer itself.
   */
-  inline int reset_transmit_packet(ushort flags, size_t event_len= 0);
+  int reset_transmit_packet(ushort flags, size_t event_len= 0);
 
   /**
     It waits until receiving an update_cond signal. It will send heartbeat
@@ -357,9 +372,9 @@ private:
 
     @return It returns 0 if succeeds, otherwise 1 is returned.
   */
-  inline int wait_new_events(my_off_t log_pos);
-  inline int wait_with_heartbeat(my_off_t log_pos);
-  inline int wait_without_heartbeat();
+  int wait_new_events(my_off_t log_pos);
+  int wait_with_heartbeat(my_off_t log_pos);
+  int wait_without_heartbeat();
 
 #ifndef DBUG_OFF
   /* It is used to count the events that have been sent. */
@@ -368,11 +383,11 @@ private:
     It aborts dump thread with an error if m_event_count exceeds
     max_binlog_dump_events.
   */
-  inline int check_event_count();
+  int check_event_count();
 #endif
 
   bool has_error() { return m_errno != 0; }
-  void set_error(int errorno, const char *errmsg)
+  inline void set_error(int errorno, const char *errmsg)
   {
     my_snprintf(m_errmsg_buf, sizeof(m_errmsg_buf), "%.*s",
                 MYSQL_ERRMSG_SIZE - 1, errmsg);
@@ -380,34 +395,34 @@ private:
     m_errno= errorno;
   }
 
-  void set_unknow_error(const char *errmsg)
+  inline void set_unknow_error(const char *errmsg)
   {
     set_error(ER_UNKNOWN_ERROR, errmsg);
   }
 
-  void set_fatal_error(const char *errmsg)
+  inline void set_fatal_error(const char *errmsg)
   {
     set_error(ER_MASTER_FATAL_ERROR_READING_BINLOG, errmsg);
   }
 
-  bool is_fatal_error()
+  inline bool is_fatal_error()
   {
     return m_errno == ER_MASTER_FATAL_ERROR_READING_BINLOG;
   }
 
-  bool event_checksum_on()
+  inline bool event_checksum_on()
   {
     return m_event_checksum_alg > binary_log::BINLOG_CHECKSUM_ALG_OFF &&
       m_event_checksum_alg < binary_log::BINLOG_CHECKSUM_ALG_ENUM_END;
   }
 
-  void set_last_pos(my_off_t log_pos)
+  inline void set_last_pos(my_off_t log_pos)
   {
     m_last_file= m_linfo.log_file_name;
     m_last_pos= log_pos;
   }
 
-  void set_last_file(const char *log_file)
+  inline void set_last_file(const char *log_file)
   {
     strcpy(m_last_file_buf, log_file);
     m_last_file= m_last_file_buf;
@@ -427,7 +442,7 @@ private:
    * @param extra_size  The size in bytes that the caller wants to add to the buffer.
    * @return true if an error occurred, false otherwise.
    */
-  inline bool grow_packet(size_t extra_size);
+  bool grow_packet(size_t extra_size);
 
   /**
    * This function SHALL shrink the size of the buffer used.
@@ -441,7 +456,7 @@ private:
    *
    * @param packet  The buffer to shrink.
    */
-  inline bool shrink_packet();
+  bool shrink_packet();
 
   /**
    Helper function to recalculate a new size for the growing buffer.
@@ -451,7 +466,7 @@ private:
                    as this parameter states.
    @return The new buffer size, or 0 in the case of an error.
   */
-  inline size_t calc_grow_buffer_size(size_t current_size, size_t min_size);
+  size_t calc_grow_buffer_size(size_t current_size, size_t min_size);
 
   /**
    Helper function to recalculate the new size for the m_new_shrink_size.

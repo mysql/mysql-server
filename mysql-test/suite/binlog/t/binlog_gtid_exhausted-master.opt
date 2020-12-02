@@ -1,1 +1,1 @@
---skip-core-file
+--skip-core-file --log-error=$MYSQLTEST_VARDIR/tmp/binlog_gtid_exhausted.err

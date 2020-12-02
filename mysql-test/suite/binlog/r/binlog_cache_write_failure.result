@@ -34,7 +34,7 @@ INSERT INTO t1 VALUES (2);
 INSERT INTO t1 VALUES (3);
 ERROR HY000: Error writing file <tmp_file_name> (Errcode: ##)
 COMMIT;
-ERROR HY000: Binary logging not possible. Message: An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'. Hence aborting the server.
+ERROR HY000: Binary logging not possible. Message: An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'. Server is being stopped.
 include/assert_grep.inc [An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'.]
 include/assert.inc [Count of elements in t1 should be 0.]
 include/assert.inc [Query is not binlogged as expected.]
