@@ -6233,7 +6233,8 @@ Item *Item_field::equal_fields_propagator(uchar *arg)
       first converted to a string (in date/time format) and compared as such if
       compared with another string.
     */
-    if (item && field->type() != FIELD_TYPE_TIMESTAMP && cmp_context != INT_RESULT)
+    if (item && field->type() != FIELD_TYPE_TIMESTAMP && cmp_context != INT_RESULT
+        && item->real_item()->type() != Item::REAL_ITEM)
       convert_zerofill_number_to_string(&item, (Field_num *)field);
     else
       item= this;

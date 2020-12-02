@@ -2789,8 +2789,7 @@ static int show_routine_grants(THD* thd, LEX_USER *lex_user, HASH *hash,
 
     if (!(user=grant_proc->user))
       user= "";
-    if (!(host= grant_proc->host.get_host()))
-      host= "";
+    host= grant_proc->host.get_host();
 
     /*
       We do not make SHOW GRANTS case-sensitive here (like REVOKE),
@@ -3022,8 +3021,7 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 
     if (!(user=acl_db->user))
       user= "";
-    if (!(host=acl_db->host.get_host()))
-      host= "";
+    host= acl_db->host.get_host();
 
     /*
       We do not make SHOW GRANTS case-sensitive here (like REVOKE),
@@ -3092,8 +3090,7 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 
     if (!(user=grant_table->user))
       user= "";
-    if (!(host= grant_table->host.get_host()))
-      host= "";
+    host= grant_table->host.get_host();
 
     /*
       We do not make SHOW GRANTS case-sensitive here (like REVOKE),
@@ -3323,8 +3320,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 
         if (!(user=acl_db->user))
           user= "";
-        if (!(host=acl_db->host.get_host()))
-          host= "";
+        host= acl_db->host.get_host();
 
         if (!strcmp(lex_user->user.str,user) &&
             !strcmp(lex_user->host.str, host))
@@ -3365,8 +3361,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
           (GRANT_TABLE*) my_hash_element(&column_priv_hash, counter);
         if (!(user=grant_table->user))
           user= "";
-        if (!(host=grant_table->host.get_host()))
-          host= "";
+        host= grant_table->host.get_host();
 
         if (!strcmp(lex_user->user.str,user) &&
             !strcmp(lex_user->host.str, host))
@@ -3429,8 +3424,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
         GRANT_NAME *grant_proc= (GRANT_NAME*) my_hash_element(hash, counter);
         if (!(user=grant_proc->user))
           user= "";
-        if (!(host=grant_proc->host.get_host()))
-          host= "";
+        host= grant_proc->host.get_host();
 
         if (!strcmp(lex_user->user.str,user) &&
             !strcmp(lex_user->host.str, host))
@@ -3622,10 +3616,8 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
         LEX_USER lex_user;
         lex_user.user.str= grant_proc->user;
         lex_user.user.length= strlen(grant_proc->user);
-        lex_user.host.str= (char*) (grant_proc->host.get_host() ?
-          grant_proc->host.get_host() : "");
-        lex_user.host.length= grant_proc->host.get_host() ?
-          strlen(grant_proc->host.get_host()) : 0;
+        lex_user.host.str= (char *) (grant_proc->host.get_host());
+        lex_user.host.length= grant_proc->host.get_host_len();
 
         int ret=
           replace_routine_table(thd,grant_proc,tables[4].table,lex_user,
@@ -3947,8 +3939,7 @@ int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
     const char *user,*host, *is_grantable="YES";
     if (!(user=acl_user->user))
       user= "";
-    if (!(host=acl_user->host.get_host()))
-      host= "";
+    host= acl_user->host.get_host();
 
     if (no_global_access &&
         (strcmp(thd->security_context()->priv_user().str, user) ||
@@ -4021,8 +4012,7 @@ int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 
     if (!(user=acl_db->user))
       user= "";
-    if (!(host=acl_db->host.get_host()))
-      host= "";
+    host= acl_db->host.get_host();
 
     if (no_global_access &&
         (strcmp(thd->security_context()->priv_user().str, user) ||
@@ -4095,8 +4085,7 @@ int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
                                                           index);
     if (!(user=grant_table->user))
       user= "";
-    if (!(host= grant_table->host.get_host()))
-      host= "";
+    host= grant_table->host.get_host();
 
     if (no_global_access &&
         (strcmp(thd->security_context()->priv_user().str, user) ||
@@ -4178,8 +4167,7 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
                                                           index);
     if (!(user=grant_table->user))
       user= "";
-    if (!(host= grant_table->host.get_host()))
-      host= "";
+    host= grant_table->host.get_host();
 
     if (no_global_access &&
         (strcmp(thd->security_context()->priv_user().str, user) ||
