@@ -502,10 +502,19 @@ Conflicts:      mysql-commercial-client < 8.0.22
 Obsoletes:      mysql-community-client-plugins < %{version}-%{release}
 %if 0%{?cluster}
 Obsoletes:      mysql-commercial-client-plugins < %{version}-%{release}
+Conflicts:      mysql-cluster-commercial-server < 8.0.21
+Conflicts:      mysql-cluster-commercial-client < 8.0.22
+Obsoletes:      mysql-community-client-plugins < %{version}-%{release}
+Obsoletes:      mysql-commercial-client-plugins < %{version}-%{release}
 %endif
 %else
 Conflicts:      mysql-community-server < 8.0.21
 Conflicts:      mysql-community-client < 8.0.22
+%if 0%{?cluster}
+Conflicts:      mysql-cluster-community-server < 8.0.21
+Conflicts:      mysql-cluster-community-client < 8.0.22
+Obsoletes:      mysql-community-client-plugins < %{version}-%{release}
+%endif
 %endif
 
 %description    client-plugins
