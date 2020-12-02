@@ -2666,6 +2666,7 @@ bool Item_sum_variance::add() {
     variance_fp_recurrence_next(
         &recurrence_m, &recurrence_s, &recurrence_s2, &count, nr, optimize,
         m_is_window_function ? m_window->do_inverse() : false);
+  null_value = (count <= sample);
   return false;
 }
 
@@ -2683,20 +2684,16 @@ double Item_sum_variance::val_real() {
   */
   DBUG_ASSERT((sample == 0) || (sample == 1));
   if (m_is_window_function) {
-    if (wf_common_init()) return 0.0;
     /*
       For a group aggregate function, add() is called by Aggregator* classes;
       for a window function, which does not use Aggregator, it has to be called
       here.
     */
-    add();
-  }
-  if (count <= sample) {
-    null_value = true;
+    if (wf_common_init() || add() || null_value) return 0.0;
+  } else if ((null_value = (count <= sample)))
     return 0.0;
-  }
 
-  null_value = false;
+  assert(!null_value);
   return variance_fp_recurrence_result(recurrence_s, recurrence_s2, count,
                                        sample, optimize);
 }
