@@ -1,4 +1,4 @@
-// Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -21,48 +21,48 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 {
   "title": "MySQL Router dynamic state file",
-  "description": "JSON Schema of the MySQLRouter dynamic state file",
-  "$schema": "http://json-schema.org/draft-04/schema#",
+      "description": "JSON Schema of the MySQLRouter dynamic state file",
+      "$schema": "http://json-schema.org/draft-04/schema#",
 
-  "type": "object",
-  "additionalProperties": false,
+      "type": "object", "additionalProperties": false,
 
-  "properties": {
-    "version": {
-      "description": "State file version in the MAJOR.MINOR.PATCH format",
-      "type": "string"
-    },
-    "metadata-cache": {
-      "description": "metadata-cache section definition",
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["group-replication-id", "cluster-metadata-servers"],
       "properties": {
-        "group-replication-id": {
-          "description": "In case of the Group Replication ID the metadata cache module was bootstrapped against, in case of Async Replicaset cluster ID the metadata cache module was bootstrapped against",
+        "version": {
+          "description": "State file version in the MAJOR.MINOR.PATCH format",
           "type": "string"
         },
-        "cluster-metadata-servers": {
-          "description": "List of the metadata servers that metadata cache module uses for fetching metadata",
-          "type": "array",
-          "uniqueItems": true,
-          "items": {
-            "$ref": "#/definitions/nodeAddress"
-          },
-          "definitions": {
-            "nodeAddress": {
-              "description": "URI of the metadata server",
+        "metadata-cache": {
+          "description": "metadata-cache section definition",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["group-replication-id", "cluster-metadata-servers"],
+          "properties": {
+            "group-replication-id": {
+              "description":
+                  "In case of the Group Replication ID the metadata cache module was bootstrapped against, in case of Async Replicaset cluster ID the metadata cache module was bootstrapped against",
               "type": "string"
+            },
+            "cluster-metadata-servers": {
+              "description":
+                  "List of the metadata servers that metadata cache module uses for fetching metadata",
+              "type": "array",
+              "uniqueItems": true,
+              "items": {"$ref": "#/definitions/nodeAddress"},
+              "definitions": {
+                "nodeAddress": {
+                  "description": "URI of the metadata server",
+                  "type": "string"
+                }
+              }
+            },
+            "view-id": {
+              "description":
+                  "Last seen view_id of the AsyncReplicaset cluster metadata",
+              "type": "number"
             }
           }
-        },
-        "view-id": {
-          "description": "Last seen view_id of the AsyncReplicaset cluster metadata",
-          "type": "number"
         }
-      }
-    }
-  },
+      },
 
-  "required": ["version", "metadata-cache"]
+      "required": ["version", "metadata-cache"]
 }
