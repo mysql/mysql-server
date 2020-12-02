@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -214,6 +214,17 @@ void net_clear(NET *net,
                my_bool check_buffer MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("net_clear");
+
+  DBUG_EXECUTE_IF("simulate_bad_field_length_1", {
+    net->pkt_nr= net->compress_pkt_nr= 0;
+    net->write_pos= net->buff;
+    DBUG_VOID_RETURN;
+  });
+  DBUG_EXECUTE_IF("simulate_bad_field_length_2", {
+    net->pkt_nr= net->compress_pkt_nr= 0;
+    net->write_pos= net->buff;
+    DBUG_VOID_RETURN;
+  });
 
 #if !defined(EMBEDDED_LIBRARY)
   /* Ensure the socket buffer is empty, except for an EOF (at least 1). */
