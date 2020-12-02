@@ -1024,36 +1024,6 @@ class NodeHiddenTest : public MetadataChacheTTLTest {
     EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 3));
   }
 
-  std::unique_ptr<MySQLSession> make_new_connection_ok(
-      uint16_t router_port, uint16_t expected_node_port) {
-    std::unique_ptr<MySQLSession> session{std::make_unique<MySQLSession>()};
-    EXPECT_NO_THROW(session->connect("127.0.0.1", router_port, "username",
-                                     "password", "", ""));
-
-    auto result{session->query_one("select @@port")};
-    EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
-              expected_node_port);
-
-    return session;
-  }
-
-  void verify_new_connection_fails(uint16_t router_port) {
-    MySQLSession session;
-    ASSERT_ANY_THROW(session.connect("127.0.0.1", router_port, "username",
-                                     "password", "", ""));
-  }
-
-  void verify_existing_connection_ok(MySQLSession *session,
-                                     uint16_t expected_node) {
-    auto result{session->query_one("select @@port")};
-    EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
-              expected_node);
-  }
-
-  void verify_existing_connection_dropped(MySQLSession *session) {
-    ASSERT_ANY_THROW(session->query_one("select @@port"));
-  }
-
   std::vector<uint16_t> node_ports, node_http_ports;
   std::vector<ProcessWrapper *> cluster_nodes;
   ProcessWrapper *router;
