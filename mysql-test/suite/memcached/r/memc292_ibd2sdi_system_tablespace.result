@@ -402,7 +402,7 @@ Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a fu
 IBD2SDI Ver #.#.#
 # 11. Print help
 IBD2SDI Ver #.#.#
-Copyright (c) YEAR, YEAR, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) YEAR, YEAR, Oracle and/or its affiliates.
 
 Oracle is a registered trademark of Oracle Corporation and/or its
 affiliates. Other names may be trademarks of their respective
@@ -817,7 +817,7 @@ SET GLOBAL innodb_limit_optimistic_insert_debug = default;
 IBD2SDI Ver #.#.#
 # 11. Print help
 IBD2SDI Ver #.#.#
-Copyright (c) YEAR, YEAR, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) YEAR, YEAR, Oracle and/or its affiliates.
 
 Oracle is a registered trademark of Oracle Corporation and/or its
 affiliates. Other names may be trademarks of their respective
@@ -965,7 +965,7 @@ Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a fu
 IBD2SDI Ver #.#.#
 # 11. Print help
 IBD2SDI Ver #.#.#
-Copyright (c) YEAR, YEAR, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) YEAR, YEAR, Oracle and/or its affiliates.
 
 Oracle is a registered trademark of Oracle Corporation and/or its
 affiliates. Other names may be trademarks of their respective

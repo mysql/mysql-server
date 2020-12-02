@@ -39,12 +39,12 @@
   (strcmp(first_year, COPYRIGHT_NOTICE_CURRENT_YEAR)                           \
        ? "Copyright (c) " first_year ", " COPYRIGHT_NOTICE_CURRENT_YEAR        \
          ", "                                                                  \
-         "Oracle and/or its affiliates. All rights reserved.\n\nOracle is a "  \
+         "Oracle and/or its affiliates.\n\nOracle is a "                       \
          "registered trademark of Oracle Corporation and/or its\naffiliates. " \
          "Other names may be trademarks of their respective\nowners.\n"        \
        : "Copyright (c) " first_year                                           \
-         ", Oracle and/or its affiliates. "                                    \
-         "All rights reserved.\n\nOracle is a registered trademark of "        \
+         ", Oracle and/or its affiliates."                                     \
+         "\n\nOracle is a registered trademark of "                            \
          "Oracle Corporation and/or its\naffiliates. Other names may be "      \
          "trademarks of their respective\nowners.\n")
 
@@ -74,18 +74,18 @@
 #define ORACLE_COPYRIGHT_NOTICE(first_year)                                \
   (strcmp(first_year, COPYRIGHT_NOTICE_CURRENT_YEAR)                       \
        ? "/* Copyright (c) " first_year ", " COPYRIGHT_NOTICE_CURRENT_YEAR \
-         ", Oracle and/or its affiliates. All rights reserved. */\n"       \
+         ", Oracle and/or its affiliates.  */\n"                           \
          "\n"                                                              \
        : "/* Copyright (c) " first_year                                    \
-         ", Oracle and/or its affiliates. All rights reserved. */\n")
+         ", Oracle and/or its affiliates.  */\n")
 
 #define ORACLE_GPL_COPYRIGHT_NOTICE(first_year)                            \
   (strcmp(first_year, COPYRIGHT_NOTICE_CURRENT_YEAR)                       \
        ? "/* Copyright (c) " first_year ", " COPYRIGHT_NOTICE_CURRENT_YEAR \
-         ", Oracle and/or its affiliates. All rights reserved.\n"          \
+         ", Oracle and/or its affiliates.\n"                               \
          "\n" ORACLE_GPL_LICENSE_TEXT                                      \
        : "/* Copyright (c) " first_year                                    \
-         ", Oracle and/or its affiliates. All rights reserved.\n"          \
+         ", Oracle and/or its affiliates.\n"                               \
          "\n" ORACLE_GPL_LICENSE_TEXT)
 
 #define ORACLE_GPL_FOSS_LICENSE_TEXT                                          \
@@ -121,10 +121,10 @@
 #define ORACLE_GPL_FOSS_COPYRIGHT_NOTICE(first_year)                       \
   (strcmp(first_year, COPYRIGHT_NOTICE_CURRENT_YEAR)                       \
        ? "/* Copyright (c) " first_year ", " COPYRIGHT_NOTICE_CURRENT_YEAR \
-         ", Oracle and/or its affiliates. All rights reserved.\n"          \
+         ", Oracle and/or its affiliates.\n"                               \
          "\n" ORACLE_GPL_FOSS_LICENSE_TEXT                                 \
        : "/* Copyright (c) " first_year                                    \
-         ", Oracle and/or its affiliates. All rights reserved.\n"          \
+         ", Oracle and/or its affiliates.\n"                               \
          "\n" ORACLE_GPL_FOSS_LICENSE_TEXT)
 
 #endif /* _welcome_copyright_notice_h_ */
