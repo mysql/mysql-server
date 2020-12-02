@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,10 +23,6 @@
 */
 
 #include "duk_module_shim.h"
-#include "duk_module_duktape.h"
-#include "duk_module_node.h"
-#include "duk_node_fs.h"
-#include "duktape.h"
 
 #include <stdlib.h>  // _fullpath
 #include <string.h>
@@ -38,6 +34,11 @@
 #else
 #include <unistd.h>
 #endif
+
+#include "duk_module_duktape.h"
+#include "duk_module_node.h"
+#include "duk_node_fs.h"
+#include "duktape.h"
 
 #ifndef PATH_MAX
 #ifdef _MAX_PATH
@@ -318,11 +319,15 @@ static duk_ret_t dukopen_process_module(duk_context *ctx) {
 
 static duk_ret_t dukopen_process_module_init_env(duk_context *ctx) {
   duk_get_global_string(ctx, "process");
-  if (DUK_EXEC_SUCCESS != duk_pcompile_string(ctx, DUK_COMPILE_FUNCTION,
-                                              "function () { return new "
-                                              "Proxy({}, {get: function(targ, "
-                                              "key, recv) {return "
-                                              "process.getenv(key);}}); }")) {
+  if (DUK_EXEC_SUCCESS !=
+      duk_pcompile_string(ctx, DUK_COMPILE_FUNCTION,
+                          "function () {\n"
+                          "  return new Proxy({}, {\n"
+                          "    get: function(targ, key, recv) {\n"
+                          "        return process.getenv(key);\n"
+                          "      }\n"
+                          "  });\n"
+                          "}")) {
     return duk_throw(ctx);
   }
   if (DUK_EXEC_SUCCESS != duk_pcall(ctx, 0)) {
