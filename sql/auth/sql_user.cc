@@ -840,7 +840,7 @@ bool change_password(THD *thd, const char *host, const char *user,
 
     query_length= sprintf(buff, "SET PASSWORD FOR '%-.120s'@'%-.120s'='%s'",
                           acl_user->user ? acl_user->user : "",
-                          acl_user->host.get_host() ? acl_user->host.get_host() : "",
+                          acl_user->host.get_host(),
                           hash_str_escaped);
   }
   else
@@ -854,7 +854,7 @@ bool change_password(THD *thd, const char *host, const char *user,
 
     query_length= sprintf(buff, "ALTER USER '%-.120s'@'%-.120s' IDENTIFIED WITH '%-.120s' AS '%s'",
                           acl_user->user ? acl_user->user : "",
-                          acl_user->host.get_host() ? acl_user->host.get_host() : "",
+                          acl_user->host.get_host(),
                           acl_user->plugin.str,
                           hash_str_escaped);
   }
@@ -996,8 +996,6 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
     }
     if (! user)
       user= "";
-    if (! host)
-      host= "";
 
 #ifdef EXTRA_DEBUG
     DBUG_PRINT("loop",("scan struct: %u  index: %zu  user: '%s'  host: '%s'",

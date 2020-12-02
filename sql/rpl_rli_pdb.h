@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -784,6 +784,36 @@ public:
      Returns the index of the Channel_name field of the table repository.
   */
   static uint get_channel_field_index();
+
+  /**
+    This class aims to do cleanup for workers in retry_transaction method.
+  */
+  class Retry_context_sentry {
+  public:
+    /**
+      Constructor to inilizate class objects and flags.
+    */
+    Retry_context_sentry(Slave_worker& parent);
+    /**
+       This destructor calls clean() method which performs the cleanup.
+    */
+    virtual ~Retry_context_sentry();
+    /**
+       Operator to set the value of m_cleaned_up.
+
+       @param [out] Flag to check for cleanup.
+       @return the value of flag for each worker.
+
+    */
+    Retry_context_sentry& operator=(bool is_cleaned_up);
+    /**
+       This method performs the cleanup and resets m_order_commit_deadlock flag.
+    */
+    void clean();
+  private:
+    Slave_worker& m_parent;           // Object of enclosed class.
+    bool m_is_cleaned_up;             // Flag to check for cleanup.
+  };
 };
 
 void * head_queue(Slave_jobs_queue *jobs, Slave_job_item *ret);

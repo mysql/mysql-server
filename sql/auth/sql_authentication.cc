@@ -2373,14 +2373,12 @@ acl_authenticate(THD *thd, enum_server_command command)
       }
 
       my_snprintf(proxy_user_buf, sizeof(proxy_user_buf) - 1,
-                  "'%s'@'%s'", auth_user,
-                  acl_user->host.get_host() ? acl_user->host.get_host() : "");
+                  "'%s'@'%s'", auth_user, acl_user->host.get_host());
       sctx->assign_proxy_user(proxy_user_buf, strlen(proxy_user_buf));
 
       /* we're proxying : find the proxy user definition */
       mysql_mutex_lock(&acl_cache->lock);
-      acl_proxy_user= find_acl_user(proxy_user->get_proxied_host() ? 
-                                    proxy_user->get_proxied_host() : "",
+      acl_proxy_user= find_acl_user(proxy_user->get_proxied_host(),
                                     mpvio.auth_info.authenticated_as, TRUE);
       if (!acl_proxy_user)
       {
