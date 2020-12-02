@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,12 +41,253 @@ Binlog_transmit_delegate *binlog_transmit_delegate;
 Binlog_relay_IO_delegate *binlog_relay_io_delegate;
 #endif /* HAVE_REPLICATION */
 
+bool opt_replication_optimize_for_static_plugin_config= 0;
+bool opt_replication_sender_observe_commit_only= 0;
+int32 opt_atomic_replication_sender_observe_commit_only= 0;
+
 Observer_info::Observer_info(void *ob, st_plugin_int *p)
   : observer(ob), plugin_int(p)
 {
   plugin= plugin_int_to_ref(plugin_int);
 }
 
+Delegate::Delegate(
+#ifdef HAVE_PSI_INTERFACE
+    PSI_rwlock_key key
+#endif
+)
+{
+  inited= FALSE;
+  my_atomic_fas32(&m_configured_lock_type,
+                  opt_replication_optimize_for_static_plugin_config
+                      ? DELEGATE_SPIN_LOCK
+                      : DELEGATE_OS_LOCK);
+  my_atomic_store32(&m_acquired_locks, 0);
+#ifdef HAVE_PSI_INTERFACE
+  if (mysql_rwlock_init(key, &lock)) return;
+#else
+  if (mysql_rwlock_init(0, &lock)) return;
+#endif
+  init_sql_alloc(key_memory_delegate, &memroot, 1024, 0);
+  inited= TRUE;
+}
+
+Delegate::~Delegate()
+{
+  inited= FALSE;
+  mysql_rwlock_destroy(&lock);
+  free_root(&memroot, MYF(0));
+}
+
+int Delegate::add_observer(void *observer, st_plugin_int *plugin)
+{
+  int ret= FALSE;
+  if (!inited) return TRUE;
+  write_lock();
+  Observer_info_iterator iter(observer_info_list);
+  Observer_info *info= iter++;
+  while (info && info->observer != observer) info= iter++;
+  if (!info)
+  {
+    info= new Observer_info(observer, plugin);
+    if (!info || observer_info_list.push_back(info, &memroot))
+      ret= TRUE;
+    else if (this->use_spin_lock_type())
+      acquire_plugin_ref_count(info);
+  }
+  else
+    ret= TRUE;
+  unlock();
+  return ret;
+}
+
+int Delegate::remove_observer(void *observer, st_plugin_int *plugin)
+{
+  int ret= FALSE;
+  if (!inited) return TRUE;
+  write_lock();
+  Observer_info_iterator iter(observer_info_list);
+  Observer_info *info= iter++;
+  while (info && info->observer != observer) info= iter++;
+  if (info)
+  {
+    iter.remove();
+    delete info;
+  }
+  else
+    ret= TRUE;
+  unlock();
+  return ret;
+}
+
+Delegate::Observer_info_iterator Delegate::observer_info_iter()
+{
+  return Observer_info_iterator(observer_info_list);
+}
+
+bool Delegate::is_empty()
+{
+  DBUG_PRINT("debug", ("is_empty: %d", observer_info_list.is_empty()));
+  return observer_info_list.is_empty();
+}
+
+int Delegate::read_lock()
+{
+  if (!inited) return 1;
+  this->lock_it(DELEGATE_LOCK_MODE_SHARED);
+  return 0;
+}
+
+int Delegate::write_lock()
+{
+  if (!inited) return 1;
+  this->lock_it(DELEGATE_LOCK_MODE_EXCLUSIVE);
+  return 0;
+}
+
+int Delegate::unlock()
+{
+  if (!inited) return 1;
+
+  int result= 0;
+
+  if (my_atomic_load32(&m_acquired_locks) > 0)
+  {
+    my_atomic_add32(&m_acquired_locks, -DELEGATE_SPIN_LOCK);
+    if (m_spin_lock.is_exclusive_acquisition())
+      m_spin_lock.release_exclusive();
+    else
+    {
+      DBUG_ASSERT(m_spin_lock.is_shared_acquisition());
+      m_spin_lock.release_shared();
+    }
+  }
+  else
+  {
+    DBUG_ASSERT(my_atomic_load32(&m_acquired_locks) < 0);
+    my_atomic_add32(&m_acquired_locks, -DELEGATE_OS_LOCK);
+    result= mysql_rwlock_unlock(&lock);
+  }
+
+  return result;
+}
+
+bool Delegate::is_inited() { return inited; }
+
+void Delegate::update_lock_type()
+{
+  if (!inited) return;
+
+  int32 opt_value= opt_replication_optimize_for_static_plugin_config
+                       ? DELEGATE_SPIN_LOCK
+                       : DELEGATE_OS_LOCK;
+  my_atomic_fas32(&m_configured_lock_type, opt_value);
+}
+
+void Delegate::update_plugin_ref_count()
+{
+  if (!inited) return;
+  int32 opt_value= opt_replication_optimize_for_static_plugin_config
+                       ? DELEGATE_SPIN_LOCK
+                       : DELEGATE_OS_LOCK;
+  int32 intern_value= my_atomic_load32(&m_configured_lock_type);
+
+  if (intern_value == DELEGATE_SPIN_LOCK && opt_value == DELEGATE_OS_LOCK)
+  {
+    for (std::map<plugin_ref, size_t>::iterator ref=
+             m_acquired_references.begin();
+         ref != m_acquired_references.end(); ++ref)
+    {
+      for (size_t count= ref->second; count != 0; --count)
+        plugin_unlock(NULL, ref->first);
+    }
+    m_acquired_references.clear();
+  }
+  else if (intern_value == DELEGATE_OS_LOCK && opt_value == DELEGATE_SPIN_LOCK)
+  {
+    Observer_info_iterator iter= observer_info_iter();
+    for (Observer_info *info= iter++; info; info= iter++)
+    {
+      acquire_plugin_ref_count(info);
+    }
+  }
+}
+
+bool Delegate::use_rw_lock_type()
+{
+  return my_atomic_load32(&m_acquired_locks) <
+             0 ||  // If there are acquisitions using the read-write lock
+         (my_atomic_load32(&m_configured_lock_type) ==
+              DELEGATE_OS_LOCK &&  // or the lock type has been set to use the
+                                   // read-write lock
+          my_atomic_load32(&m_acquired_locks) ==
+              0);  // and there are no outstanding acquisitions using shared
+                   // spin-lock, use the read-write lock
+}
+
+bool Delegate::use_spin_lock_type()
+{
+  return my_atomic_load32(&m_acquired_locks) >
+             0 ||  // If there are acquisitions using the shared spin-lock
+         (my_atomic_load32(&m_configured_lock_type) ==
+              DELEGATE_SPIN_LOCK &&  // or the lock type has been set to use the
+                                     // shared spin-lock
+          my_atomic_load32(&m_acquired_locks) ==
+              0);  // and there are no outstanding acquisitions using read-write
+                   // lock, use the shared spin-lock
+}
+
+void Delegate::acquire_plugin_ref_count(Observer_info *info)
+{
+  plugin_ref internal_ref= plugin_lock(NULL, &info->plugin);
+  ++(m_acquired_references[internal_ref]);
+}
+
+void Delegate::lock_it(enum_delegate_lock_mode mode)
+{
+  do
+  {
+    if (this->use_spin_lock_type())
+    {
+      if (mode == DELEGATE_LOCK_MODE_SHARED)
+        m_spin_lock.acquire_shared();
+      else
+        m_spin_lock.acquire_exclusive();
+
+      if (my_atomic_load32(&m_configured_lock_type) !=
+          DELEGATE_SPIN_LOCK)  // Lock type changed in the meanwhile, lets
+                               // revert the acquisition and try again
+      {
+        if (mode == DELEGATE_LOCK_MODE_SHARED)
+          m_spin_lock.release_shared();
+        else
+          m_spin_lock.release_exclusive();
+      }
+      else
+      {
+        my_atomic_add32(&m_acquired_locks, DELEGATE_SPIN_LOCK);
+        break;
+      }
+    }
+    if (this->use_rw_lock_type())
+    {
+      if (mode == DELEGATE_LOCK_MODE_SHARED)
+        mysql_rwlock_rdlock(&lock);
+      else
+        mysql_rwlock_wrlock(&lock);
+
+      if (my_atomic_load32(&m_configured_lock_type) !=
+          DELEGATE_OS_LOCK)  // Lock type changed in the meanwhile, lets revert
+                             // the acquisition and try again
+        mysql_rwlock_unlock(&lock);
+      else
+      {
+        my_atomic_add32(&m_acquired_locks, DELEGATE_OS_LOCK);
+        break;
+      }
+    }
+  } while (true);
+}
 
 /*
   structure to save transaction log filename and position
@@ -211,6 +452,72 @@ void delegates_destroy()
 #endif /* HAVE_REPLICATION */
 }
 
+static void delegates_update_plugin_ref_count()
+{
+  if (transaction_delegate)
+    transaction_delegate->update_plugin_ref_count();
+  if (binlog_storage_delegate)
+    binlog_storage_delegate->update_plugin_ref_count();
+  if (server_state_delegate)
+    server_state_delegate->update_plugin_ref_count();
+#ifdef HAVE_REPLICATION
+  if (binlog_transmit_delegate)
+    binlog_transmit_delegate->update_plugin_ref_count();
+  if (binlog_relay_io_delegate)
+    binlog_relay_io_delegate->update_plugin_ref_count();
+#endif /* HAVE_REPLICATION */
+}
+
+void delegates_acquire_locks()
+{
+  if (transaction_delegate)
+    transaction_delegate->write_lock();
+  if (binlog_storage_delegate)
+    binlog_storage_delegate->write_lock();
+  if (server_state_delegate)
+    server_state_delegate->write_lock();
+#ifdef HAVE_REPLICATION
+  if (binlog_transmit_delegate)
+    binlog_transmit_delegate->write_lock();
+  if (binlog_relay_io_delegate)
+    binlog_relay_io_delegate->write_lock();
+#endif /* HAVE_REPLICATION */
+}
+
+void delegates_release_locks()
+{
+  if (transaction_delegate)
+    transaction_delegate->unlock();
+  if (binlog_storage_delegate)
+    binlog_storage_delegate->unlock();
+  if (server_state_delegate)
+    server_state_delegate->unlock();
+#ifdef HAVE_REPLICATION
+  if (binlog_transmit_delegate)
+    binlog_transmit_delegate->unlock();
+  if (binlog_relay_io_delegate)
+    binlog_relay_io_delegate->unlock();
+#endif /* HAVE_REPLICATION */
+}
+
+void delegates_update_lock_type()
+{
+  delegates_update_plugin_ref_count();
+
+  if (transaction_delegate)
+    transaction_delegate->update_lock_type();
+  if (binlog_storage_delegate)
+    binlog_storage_delegate->update_lock_type();
+  if (server_state_delegate)
+    server_state_delegate->update_lock_type();
+#ifdef HAVE_REPLICATION
+  if (binlog_transmit_delegate)
+    binlog_transmit_delegate->update_lock_type();
+  if (binlog_relay_io_delegate)
+    binlog_relay_io_delegate->update_lock_type();
+#endif /* HAVE_REPLICATION */
+}
+
 /*
   This macro is used by almost all the Delegate methods to iterate
   over all the observers running given callback function of the
@@ -219,91 +526,97 @@ void delegates_destroy()
   Add observer plugins to the thd->lex list, after each statement, all
   plugins add to thd->lex will be automatically unlocked.
  */
-#define FOREACH_OBSERVER(r, f, thd, args)                               \
-  /*
-     Use a struct to make sure that they are allocated adjacent, check
-     delete_dynamic().
-  */                                                                    \
-  Prealloced_array<plugin_ref, 8> plugins(PSI_NOT_INSTRUMENTED);        \
-  read_lock();                                                          \
-  Observer_info_iterator iter= observer_info_iter();                    \
-  Observer_info *info= iter++;                                          \
-  for (; info; info= iter++)                                            \
-  {                                                                     \
-    plugin_ref plugin=                                                  \
-      my_plugin_lock(0, &info->plugin);                                 \
-    if (!plugin)                                                        \
-    {                                                                   \
-      /* plugin is not intialized or deleted, this is not an error */   \
-      r= 0;                                                             \
-      break;                                                            \
-    }                                                                   \
-    plugins.push_back(plugin);                                          \
-    if (((Observer *)info->observer)->f                                 \
-        && ((Observer *)info->observer)->f args)                        \
-    {                                                                   \
-      r= 1;                                                             \
-      sql_print_error("Run function '" #f "' in plugin '%s' failed",    \
-                      info->plugin_int->name.str);                      \
-      break;                                                            \
-    }                                                                   \
-  }                                                                     \
-  unlock();                                                             \
-  /*
-     Unlock plugins should be done after we released the Delegate lock
-     to avoid possible deadlock when this is the last user of the
-     plugin, and when we unlock the plugin, it will try to
-     deinitialize the plugin, which will try to lock the Delegate in
-     order to remove the observers.
-  */                                                                    \
-  if (!plugins.empty())                                                 \
-    plugin_unlock_list(0, &plugins[0], plugins.size());
+#define FOREACH_OBSERVER(r, f, thd, args)                              \
+  /*                                                                   \
+     Use a struct to make sure that they are allocated adjacent, check \
+     delete_dynamic().                                                 \
+  */                                                                   \
+  Prealloced_array<plugin_ref, 8> plugins(PSI_NOT_INSTRUMENTED);       \
+  read_lock();                                                         \
+  Observer_info_iterator iter= observer_info_iter();                   \
+  Observer_info *info= iter++;                                         \
+  for (; info; info= iter++)                                           \
+  {                                                                    \
+    bool replication_optimize_for_static_plugin_config=                \
+        this->use_spin_lock_type();                                    \
+    plugin_ref plugin= (replication_optimize_for_static_plugin_config  \
+                            ? info->plugin                             \
+                            : my_plugin_lock(0, &info->plugin));       \
+    if (!plugin)                                                       \
+    {                                                                  \
+      /* plugin is not intialized or deleted, this is not an error */  \
+      r= 0;                                                            \
+      break;                                                           \
+    }                                                                  \
+    if (!replication_optimize_for_static_plugin_config)                \
+      plugins.push_back(plugin);                                       \
+    if (((Observer *)info->observer)->f &&                             \
+        ((Observer *)info->observer)->f args)                          \
+    {                                                                  \
+      r= 1;                                                            \
+      sql_print_error("Run function '" #f "' in plugin '%s' failed",   \
+                      info->plugin_int->name.str);                     \
+      break;                                                           \
+    }                                                                  \
+  }                                                                    \
+  unlock();                                                            \
+  /*                                                                   \
+     Unlock plugins should be done after we released the Delegate lock \
+     to avoid possible deadlock when this is the last user of the      \
+     plugin, and when we unlock the plugin, it will try to             \
+     deinitialize the plugin, which will try to lock the Delegate in   \
+     order to remove the observers.                                    \
+  */                                                                   \
+  if (!plugins.empty()) plugin_unlock_list(0, &plugins[0], plugins.size());
 
-#define FOREACH_OBSERVER_ERROR_OUT(r, f, thd, args, out)                \
-  /*
-     Use a struct to make sure that they are allocated adjacent, check
-     delete_dynamic().
-  */                                                                    \
-  Prealloced_array<plugin_ref, 8> plugins(PSI_NOT_INSTRUMENTED);        \
-  read_lock();                                                          \
-  Observer_info_iterator iter= observer_info_iter();                    \
-  Observer_info *info= iter++;                                          \
-                                                                        \
-  int error_out= 0;                                                     \
-  for (; info; info= iter++)                                            \
-  {                                                                     \
-    plugin_ref plugin=                                                  \
-      my_plugin_lock(0, &info->plugin);                                 \
-    if (!plugin)                                                        \
-    {                                                                   \
-      /* plugin is not intialized or deleted, this is not an error */   \
-      r= 0;                                                             \
-      break;                                                            \
-    }                                                                   \
-    plugins.push_back(plugin);                                          \
-                                                                        \
-    bool hook_error= false;                                             \
-    hook_error= ((Observer *)info->observer)->f (args, error_out);      \
-                                                                        \
-    out += error_out;                                                   \
-    if (hook_error)                                                     \
-    {                                                                   \
-      r= 1;                                                             \
-      sql_print_error("Run function '" #f "' in plugin '%s' failed",    \
-                      info->plugin_int->name.str);                      \
-      break;                                                            \
-    }                                                                   \
-  }                                                                     \
-  unlock();                                                             \
-  /*
-     Unlock plugins should be done after we released the Delegate lock
-     to avoid possible deadlock when this is the last user of the
-     plugin, and when we unlock the plugin, it will try to
-     deinitialize the plugin, which will try to lock the Delegate in
-     order to remove the observers.
-  */                                                                    \
-  if (!plugins.empty())                                                 \
-    plugin_unlock_list(0, &plugins[0], plugins.size());
+#define FOREACH_OBSERVER_ERROR_OUT(r, f, thd, args, out)               \
+  /*                                                                   \
+     Use a struct to make sure that they are allocated adjacent, check \
+     delete_dynamic().                                                 \
+  */                                                                   \
+  Prealloced_array<plugin_ref, 8> plugins(PSI_NOT_INSTRUMENTED);       \
+  read_lock();                                                         \
+  Observer_info_iterator iter= observer_info_iter();                   \
+  Observer_info *info= iter++;                                         \
+                                                                       \
+  int error_out= 0;                                                    \
+  for (; info; info= iter++)                                           \
+  {                                                                    \
+    bool replication_optimize_for_static_plugin_config=                \
+        this->use_spin_lock_type();                                    \
+    plugin_ref plugin= (replication_optimize_for_static_plugin_config  \
+                            ? info->plugin                             \
+                            : my_plugin_lock(0, &info->plugin));       \
+    if (!plugin)                                                       \
+    {                                                                  \
+      /* plugin is not intialized or deleted, this is not an error */  \
+      r= 0;                                                            \
+      break;                                                           \
+    }                                                                  \
+    if (!replication_optimize_for_static_plugin_config)                \
+      plugins.push_back(plugin);                                       \
+                                                                       \
+    bool hook_error= false;                                            \
+    hook_error= ((Observer *)info->observer)->f(args, error_out);      \
+                                                                       \
+    out+= error_out;                                                   \
+    if (hook_error)                                                    \
+    {                                                                  \
+      r= 1;                                                            \
+      sql_print_error("Run function '" #f "' in plugin '%s' failed",   \
+                      info->plugin_int->name.str);                     \
+      break;                                                           \
+    }                                                                  \
+  }                                                                    \
+  unlock();                                                            \
+  /*                                                                   \
+     Unlock plugins should be done after we released the Delegate lock \
+     to avoid possible deadlock when this is the last user of the      \
+     plugin, and when we unlock the plugin, it will try to             \
+     deinitialize the plugin, which will try to lock the Delegate in   \
+     order to remove the observers.                                    \
+  */                                                                   \
+  if (!plugins.empty()) plugin_unlock_list(0, &plugins[0], plugins.size());
 
 int Trans_delegate::before_commit(THD *thd, bool all,
                                   IO_CACHE *trx_cache_log,
@@ -764,8 +1077,11 @@ int Binlog_transmit_delegate::reserve_header(THD *thd, ushort flags,
   Observer_info *info= iter++;
   for (; info; info= iter++)
   {
-    plugin_ref plugin=
-      my_plugin_lock(thd, &info->plugin);
+    bool replication_optimize_for_static_plugin_config=
+        this->use_spin_lock_type();
+    plugin_ref plugin= (replication_optimize_for_static_plugin_config
+                            ? info->plugin
+                            : my_plugin_lock(thd, &info->plugin));
     if (!plugin)
     {
       ret= 1;
@@ -779,10 +1095,12 @@ int Binlog_transmit_delegate::reserve_header(THD *thd, ushort flags,
                                                         &hlen))
     {
       ret= 1;
-      plugin_unlock(thd, plugin);
+      if (!replication_optimize_for_static_plugin_config)
+        plugin_unlock(thd, plugin);
       break;
     }
-    plugin_unlock(thd, plugin);
+    if (!replication_optimize_for_static_plugin_config)
+      plugin_unlock(thd, plugin);
     if (hlen == 0)
       continue;
     if (hlen > RESERVE_HEADER_SIZE || packet->append((char *)header, hlen))

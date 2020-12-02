@@ -510,9 +510,15 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
   }
 
   my_stpcpy(suffix_pos, "CONNECT_NAMED_MUTEX");
-  connect_named_mutex = CreateMutex(NULL, TRUE, tmp);
+  connect_named_mutex = OpenMutex(SYNCHRONIZE, FALSE, tmp);
   if (connect_named_mutex == NULL) {
     error_allow = CR_SHARED_MEMORY_CONNECT_SET_ERROR;
+    goto err;
+  }
+
+  if (WaitForSingleObject(connect_named_mutex, connect_timeout) !=
+    WAIT_OBJECT_0) {
+    error_allow = CR_SHARED_MEMORY_CONNECT_ABANDONED_ERROR;
     goto err;
   }
 
@@ -684,7 +690,13 @@ void free_state_change_info(MYSQL_EXTENSION *ext) {
 */
 static inline my_bool buffer_check_remaining(MYSQL *mysql, uchar *packet,
                                    ulong packet_length, size_t bytes) {
-  size_t remaining_bytes = packet_length - (packet - mysql->net.read_pos);
+  size_t remaining_bytes;
+  /* Check to avoid underflow */
+  if (packet_length < (ulong)(packet - mysql->net.read_pos)) {
+    set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+    return FALSE;
+  }
+  remaining_bytes = packet_length - (packet - mysql->net.read_pos);
   if (remaining_bytes < bytes) {
     set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
     return FALSE;
@@ -711,6 +723,9 @@ static inline my_ulonglong net_field_length_ll_safe(MYSQL *mysql, uchar **packet
                                              ulong packet_length,
                                              my_bool *is_error) {
   size_t sizeof_len = net_field_length_size(*packet);
+  DBUG_EXECUTE_IF("simulate_bad_packet", {
+    *packet = *packet + packet_length + 1000000L;
+  });
   if (!buffer_check_remaining(mysql, *packet, packet_length, sizeof_len)) {
     *is_error = TRUE;
     return 0;
@@ -2387,7 +2402,17 @@ static int read_one_row(MYSQL *mysql, uint fields, MYSQL_ROW row,
   pos = net->read_pos;
   end_pos = pos + pkt_len;
   for (field = 0; field < fields; field++) {
+    if (pos >= end_pos) {
+      set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+      return -1;
+    }
     len = (ulong)net_field_length_checked(&pos, (ulong)(end_pos - pos));
+    DBUG_EXECUTE_IF("simulate_bad_field_length_1", {
+      len = 1000000L;
+    });
+    DBUG_EXECUTE_IF("simulate_bad_field_length_2", {
+      len = pkt_len - 1;
+    });
     if (pos > end_pos) {
       set_mysql_error(mysql, CR_UNKNOWN_ERROR, unknown_sqlstate);
       return -1;
@@ -2401,12 +2426,17 @@ static int read_one_row(MYSQL *mysql, uint fields, MYSQL_ROW row,
       pos += len;
       *lengths++ = len;
     }
+    /*
+     It's safe to write to prev_pos here because we already check
+     for a valid pos in the beginning of this loop.
+    */
     if (prev_pos)
       *prev_pos = 0; /* Terminate prev field */
     prev_pos = pos;
   }
   row[field] = (char *)prev_pos + 1; /* End of last field */
-  *prev_pos = 0;                     /* Terminate last field */
+  if (prev_pos < end_pos)
+    *prev_pos = 0;                     /* Terminate last field */
   return 0;
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -95,6 +95,7 @@ bool Commit_order_manager::wait_for_its_turn(Slave_worker *worker,
       {
         mysql_mutex_unlock(&m_mutex);
         thd->EXIT_COND(&old_stage);
+        my_error(ER_LOCK_DEADLOCK, MYF(0));
         DBUG_RETURN(true);
       }
       mysql_cond_wait(cond, &m_mutex);

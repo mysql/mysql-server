@@ -95,14 +95,16 @@ struct set_numa_interleave_t
 
 			ib::info() << "Setting NUMA memory policy to"
 				" MPOL_INTERLEAVE";
+			struct bitmask* numa_nodes = numa_get_mems_allowed();
 			if (set_mempolicy(MPOL_INTERLEAVE,
-					  numa_all_nodes_ptr->maskp,
-					  numa_all_nodes_ptr->size) != 0) {
+					  numa_nodes->maskp,
+					  numa_nodes->size) != 0) {
 
 				ib::warn() << "Failed to set NUMA memory"
 					" policy to MPOL_INTERLEAVE: "
 					<< strerror(errno);
 			}
+			numa_bitmask_free(numa_nodes);
 		}
 	}
 
@@ -1512,16 +1514,18 @@ buf_chunk_init(
 
 #ifdef HAVE_LIBNUMA
 	if (srv_numa_interleave) {
+		struct 	bitmask* numa_nodes = numa_get_mems_allowed();
 		int	st = mbind(chunk->mem, chunk->mem_size(),
 				   MPOL_INTERLEAVE,
-				   numa_all_nodes_ptr->maskp,
-				   numa_all_nodes_ptr->size,
+				   numa_nodes->maskp,
+				   numa_nodes->size,
 				   MPOL_MF_MOVE);
 		if (st != 0) {
 			ib::warn() << "Failed to set NUMA memory policy of"
 				" buffer pool page frames to MPOL_INTERLEAVE"
 				" (error: " << strerror(errno) << ").";
 		}
+		numa_bitmask_free(numa_nodes);
 	}
 #endif /* HAVE_LIBNUMA */
 

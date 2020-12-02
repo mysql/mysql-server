@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -221,7 +221,7 @@ ACL_USER::copy(MEM_ROOT *root)
     dst->plugin.length= plugin.length;
   }
   dst->auth_string.str= safe_strdup_root(root, auth_string.str);
-  dst->host.update_hostname(safe_strdup_root(root, host.get_host()));
+  dst->host.update_hostname(host.is_null() ? NULL : strdup_root(root, host.get_host()));
   return dst;
 }
 
@@ -265,21 +265,20 @@ ACL_PROXY_USER::init(TABLE *table, MEM_ROOT *mem)
                   table->field[MYSQL_PROXIES_PRIV_WITH_GRANT]->val_int() != 0);
 }
 
-bool
+void
 ACL_PROXY_USER::check_validity(bool check_no_resolve)
 {
-  if (check_no_resolve && 
+  if (check_no_resolve &&
       (hostname_requires_resolving(host.get_host()) ||
        hostname_requires_resolving(proxied_host.get_host())) &&
       strcmp(host.get_host(), "localhost") != 0) {
     sql_print_warning("'proxies_priv' entry '%s@%s %s@%s' "
                       "ignored in --skip-name-resolve mode.",
                       proxied_user ? proxied_user : "",
-                      proxied_host.get_host() ? proxied_host.get_host() : "",
+                      proxied_host.get_host(),
                       user ? user : "",
-                      host.get_host() ? host.get_host() : "");
+                      host.get_host());
   }
-  return FALSE;
 }
 
 bool
@@ -292,10 +291,10 @@ ACL_PROXY_USER::matches(const char *host_arg, const char *user_arg,
              "compare_hostname(%s,%s,%s) &&"
              "wild_compare (%s,%s) &&"
              "wild_compare (%s,%s)",
-             host.get_host() ? host.get_host() : "<NULL>",
+             host.get_host(),
              host_arg ? host_arg : "<NULL>",
              ip_arg ? ip_arg : "<NULL>",
-             proxied_host.get_host() ? proxied_host.get_host() : "<NULL>",
+             proxied_host.get_host(),
              host_arg ? host_arg : "<NULL>",
              ip_arg ? ip_arg : "<NULL>",
              user_arg ? user_arg : "<NULL>",
@@ -323,11 +322,10 @@ ACL_PROXY_USER::pk_equals(ACL_PROXY_USER *grant)
              grant->user ? grant->user : "<NULL>",
              proxied_user ? proxied_user : "<NULL>",
              grant->proxied_user ? grant->proxied_user : "<NULL>",
-             host.get_host() ? host.get_host() : "<NULL>",
-             grant->host.get_host() ? grant->host.get_host() : "<NULL>",
-             proxied_host.get_host() ? proxied_host.get_host() : "<NULL>",
-             grant->proxied_host.get_host() ? 
-             grant->proxied_host.get_host() : "<NULL>"));
+             host.get_host(),
+             grant->host.get_host(),
+             proxied_host.get_host(),
+             grant->proxied_host.get_host()));
 
   DBUG_RETURN(auth_element_equals(user, grant->user) &&
               auth_element_equals(proxied_user, grant->proxied_user) &&
@@ -343,14 +341,14 @@ ACL_PROXY_USER::print_grant(String *str)
   if (proxied_user)
     str->append(proxied_user, strlen(proxied_user));
   str->append(STRING_WITH_LEN("'@'"));
-  if (proxied_host.get_host())
-    str->append(proxied_host.get_host(), strlen(proxied_host.get_host()));
+  if (!proxied_host.is_null())
+    str->append(proxied_host.get_host(), proxied_host.get_host_len());
   str->append(STRING_WITH_LEN("' TO '"));
   if (user)
     str->append(user, strlen(user));
   str->append(STRING_WITH_LEN("'@'"));
-  if (host.get_host())
-    str->append(host.get_host(), strlen(host.get_host()));
+  if (!host.is_null())
+    str->append(host.get_host(), host.get_host_len());
   str->append(STRING_WITH_LEN("'"));
   if (with_grant)
     str->append(STRING_WITH_LEN(" WITH GRANT OPTION"));
@@ -744,7 +742,7 @@ bool GRANT_TABLE::init(TABLE *col_privs)
 
     KEY_PART_INFO *key_part= col_privs->key_info->key_part;
     col_privs->field[0]->store(host.get_host(),
-                               host.get_host() ? host.get_host_len() : 0,
+                               host.get_host_len(),
                                system_charset_info);
     col_privs->field[1]->store(db, strlen(db), system_charset_info);
     col_privs->field[2]->store(user, strlen(user), system_charset_info);
@@ -835,14 +833,12 @@ find_acl_user(const char *host, const char *user, my_bool exact)
       DBUG_PRINT("info",("strcmp('%s','%s'), compare_hostname('%s','%s'),",
                          user, acl_user->user ? acl_user->user : "",
                          host,
-                         acl_user->host.get_host() ? acl_user->host.get_host() :
-                         ""));
+                         acl_user->host.get_host()));
       if ((!acl_user->user && !user[0]) ||
           (acl_user->user && !strcmp(user,acl_user->user)))
       {
         if (exact ? !my_strcasecmp(system_charset_info, host,
-                                   acl_user->host.get_host() ?
-                                   acl_user->host.get_host() : "") :
+                                   acl_user->host.get_host()) :
             acl_user->host.compare_hostname(host,host))
         {
           DBUG_RETURN(acl_user);
@@ -1036,7 +1032,7 @@ ulong acl_get(const char *host, const char *ip,
         if (!acl_db->db || !wild_compare(db,acl_db->db,db_is_pattern))
         {
           db_access=acl_db->access;
-          if (acl_db->host.get_host())
+          if (!acl_db->host.is_null())
             goto exit;                          // Fully specified. Take it
           break; /* purecov: tested */
         }
@@ -1121,7 +1117,7 @@ static void init_check_host(void)
       }
       else if (!my_hash_search(&acl_check_hosts,(uchar*)
                                acl_user->host.get_host(),
-                               strlen(acl_user->host.get_host())))
+                               acl_user->host.get_host_len()))
       {
         if (my_hash_insert(&acl_check_hosts,(uchar*) acl_user))
         {                                       // End of memory
@@ -1243,8 +1239,7 @@ bool acl_getroot(Security_context *sctx, char *user, char *host,
     sctx->assign_priv_user(user, user ? strlen(user) : 0);
 
     sctx->assign_priv_host(acl_user->host.get_host(),
-                           acl_user->host.get_host() ?
-                           strlen(acl_user->host.get_host()) : 0);
+                           acl_user->host.get_host_len());
 
     sctx->set_password_expired(acl_user->password_expired);
   }
@@ -1543,7 +1538,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
       sql_print_warning("'user' entry '%s@%s' "
                         "ignored in --skip-name-resolve mode.",
                         user.user ? user.user : "",
-                        user.host.get_host() ? user.host.get_host() : "");
+                        user.host.get_host());
     }
 
     /* Read password from authentication_string field */
@@ -1702,7 +1697,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                 "pre-4.1 password. The user will be ignored and no one can "
                 "login with this user anymore.",
                 user.user ? user.user : "",
-                user.host.get_host() ? user.host.get_host() : "");
+                user.host.get_host());
                 plugin_unlock(0, native_plugin);
                 continue;
               }
@@ -1722,7 +1717,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
       			"value. The user will be ignored and no one can login "
       			"with this user anymore.",
       			user.user ? user.user : "",
-      			user.host.get_host() ? user.host.get_host() : "");
+                        user.host.get_host());
             continue;
           }
           /*
@@ -1757,7 +1752,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
           {
             sql_print_warning("Found invalid password for user: '%s@%s'; "
                               "Ignoring user", user.user ? user.user : "",
-                              user.host.get_host() ? user.host.get_host() : "");
+                              user.host.get_host());
             plugin_unlock(0, plugin);
             continue;
           }
@@ -1779,7 +1774,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                                 "doesn't support password expiration. "
                                 "The user id will be ignored.",
                                 user.user ? user.user : "",
-                                user.host.get_host() ? user.host.get_host() : "");
+                                user.host.get_host());
               continue;
             }
             password_expired= true;
@@ -1919,7 +1914,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                         "ignored in --skip-name-resolve mode.",
                         db.db,
                         db.user ? db.user : "",
-                        db.host.get_host() ? db.host.get_host() : "");
+                        db.host.get_host());
     }
     db.access=get_access(table,3,0);
     db.access=fix_rights_for_db(db.access);
@@ -1939,7 +1934,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                           "possible to remove this privilege using REVOKE.",
                           db.db,
                           db.user ? db.user : "",
-                          db.host.get_host() ? db.host.get_host() : "");
+                          db.host.get_host());
       }
     }
     db.sort=get_sort(3,db.host.get_host(),db.db,db.user);
@@ -1975,8 +1970,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
       /* Reading record in mysql.proxies_priv */
       ACL_PROXY_USER proxy;
       proxy.init(table, &global_acl_memory);
-      if (proxy.check_validity(check_no_resolve))
-        continue;
+      proxy.check_validity(check_no_resolve);
       if (acl_proxy_users->push_back(proxy))
       {
         end_read_record(&read_record_info);
@@ -2193,7 +2187,7 @@ GRANT_NAME *name_hash_search(HASH *name_hash,
   {
     if (exact)
     {
-      if (!grant_name->host.get_host() ||
+      if (grant_name->host.is_null() ||
           (host &&
            !my_strcasecmp(system_charset_info, host,
                           grant_name->host.get_host())) ||
@@ -2330,8 +2324,7 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
           sql_print_warning("'procs_priv' entry '%s %s@%s' "
                             "ignored in --skip-name-resolve mode.",
                             mem_check->tname, mem_check->user,
-                            mem_check->host.get_host() ?
-                            mem_check->host.get_host() : "");
+                            mem_check->host.get_host());
         }
       }
       if (p_table->field[4]->val_int() == SP_TYPE_PROCEDURE)
@@ -2464,8 +2457,7 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
                             "ignored in --skip-name-resolve mode.",
                             mem_check->tname,
                             mem_check->user ? mem_check->user : "",
-                            mem_check->host.get_host() ?
-                            mem_check->host.get_host() : "");
+                            mem_check->host.get_host());
         }
       }
 
@@ -2691,9 +2683,9 @@ void acl_update_user(const char *user, const char *host,
     if ((!acl_user->user && !user[0]) ||
         (acl_user->user && !strcmp(user,acl_user->user)))
     {
-      if ((!acl_user->host.get_host() && !host[0]) ||
-          (acl_user->host.get_host() &&
-          !my_strcasecmp(system_charset_info, host, acl_user->host.get_host())))
+      if ((acl_user->host.is_null() && !host[0]) ||
+          (!acl_user->host.is_null() &&
+           !my_strcasecmp(system_charset_info, host, acl_user->host.get_host())))
       {
         if (plugin.length > 0)
         {
@@ -2884,8 +2876,8 @@ void acl_update_db(const char *user, const char *host, const char *db,
         (acl_db->user &&
         !strcmp(user,acl_db->user)))
     {
-      if ((!acl_db->host.get_host() && !host[0]) ||
-          (acl_db->host.get_host() &&
+      if ((acl_db->host.is_null() && !host[0]) ||
+          (acl_db->host.get_host_len() &&
           !strcmp(host, acl_db->host.get_host())))
       {
         if ((!acl_db->db && !db[0]) ||
@@ -2981,8 +2973,6 @@ update_sctx_cache(Security_context *sctx, ACL_USER *acl_user_ptr, bool expired)
     sctx_user = sctx->user().str;
   }
 
-  if (!acl_host)
-    acl_host= "";
   if(!acl_user)
     acl_user= "";
   if (!sctx_host)

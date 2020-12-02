@@ -24,6 +24,8 @@
 call mtr.add_suppression("An error occurred during flush stage of the commit");
 call mtr.add_suppression("Attempting backtrace. You can use the following information to find out");
 
+--let $assert_file = $MYSQLTEST_VARDIR/tmp/binlog_gtid_exhausted.err
+
 #Test case 1:
 SET GLOBAL binlog_error_action=IGNORE_ERROR;
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
@@ -34,6 +36,12 @@ SET GLOBAL gtid_purged = CONCAT(@@GLOBAL.server_uuid, ':1-9223372036854775805');
 INSERT INTO t1 VALUES (1);
 --error ER_GNO_EXHAUSTED
 INSERT INTO t1 VALUES (2);
+
+# BUG26035544 Assert that an error was logged to the server error log.
+--let $assert_select = Impossible to generate GTID: the integer component reached the maximum value. Restart the server with a new server_uuid. Hence turning logging off for the whole duration of the MySQL server process. To turn it on again: fix the cause, shutdown the MySQL server and restart it.
+--let $assert_count = 1
+--let $assert_text = ER_GNO_EXHAUSTED found in server error log
+--source include/assert_grep.inc
 
 # Check that transaction is committed
 --let $assert_cond = COUNT(*) = 2 FROM t1;
@@ -62,3 +70,9 @@ INSERT INTO t1 VALUES (2);
 
 RESET MASTER;
 DROP TABLE t1;
+
+# BUG26035544 Assert that an error was logged to the server error log.
+--let $assert_select = Binary logging not possible. Message: Impossible to generate GTID: the integer component reached the maximum value. Restart the server with a new server_uuid. Server is being stopped.
+--let $assert_count = 1
+--let $assert_text = ER_GNO_EXHAUSTED server is being stopped found in server error log
+--source include/assert_grep.inc

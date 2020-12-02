@@ -3821,7 +3821,27 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
       }
     }
     else
-    {    
+    {
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+      if (!(thd->col_access & TABLE_ACLS))
+      {
+        TABLE_LIST table_list;
+
+        /*
+          Database name and table name have already been converted to lowercase
+          if lower_case_table_names is > 0. We can safely use lookup_field_vals
+          here.
+        */
+        table_list.db= db_name->str;
+        table_list.db_length= db_name->length;
+        table_list.table_name_length= lookup_field_vals->table_value.length;
+        table_list.table_name= lookup_field_vals->table_value.str;
+        table_list.grant.privilege=thd->col_access;
+
+        if (check_grant(thd, TABLE_ACLS, &table_list, TRUE, 1, TRUE))
+         return 2;
+      }
+#endif
       if (table_names->push_back(&lookup_field_vals->table_value))
         return 1;
       /*
