@@ -25522,9 +25522,9 @@ void Dblqh::checkInitCompletedLab(Signal* signal,
   LogFileRecordPtr logFilePtr;
   logPartPtrP->logPartState = LogPartRecord::SR_FIRST_PHASE_COMPLETED;
   g_eventLogger->info("LDM(%u): Completed REDO log initialisation of"
-                      " logPart = %u",
+                      " logPart %u",
                       instance(),
-                      logPartPtrP->ptrI);
+                      logPartPtrP->logPartNo);
   csrExecUndoLogState = EULS_COMPLETED;
 /*---------------------------------------------------------------------------*/
 /* WE HAVE NOW INITIALISED ALL FILES IN THIS LOG PART. WE CAN NOW SET THE    */
