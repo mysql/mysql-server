@@ -44,6 +44,18 @@
 IMPORT_LOG_FUNCTIONS()
 
 namespace server_mock {
+
+static duk_int_t process_get_shared(duk_context *ctx);
+static duk_int_t process_set_shared(duk_context *ctx);
+static duk_int_t process_get_keys(duk_context *ctx);
+static void check_stmts_section(duk_context *ctx);
+static bool check_notices_section(duk_context *ctx);
+static void check_handshake_section(duk_context *ctx);
+static duk_int_t process_erase(duk_context *ctx);
+static duk_int_t process_set_shared(duk_context *ctx);
+duk_int_t duk_pcompile_file(duk_context *ctx, const char *path,
+                            int compile_type);
+
 /*
  * get the names of the type.
  *
@@ -172,7 +184,247 @@ MySQLColumnType column_type_from_string(const std::string &type) {
   return static_cast<MySQLColumnType>(res);
 }
 
+/**
+ * memory heap of duk contexts.
+ *
+ * contains:
+ *
+ * - execution threads
+ * - stacks
+ * - stashes
+ * - ...
+ */
+class DukHeap {
+ public:
+  DukHeap(const std::string &module_prefix,
+          std::shared_ptr<MockServerGlobalScope> shared_globals)
+      : heap_{duk_create_heap(nullptr, nullptr, nullptr, nullptr,
+                              [](void *, const char *msg) {
+                                log_error("%s", msg);
+                                abort();
+                              })},
+        shared_{std::move(shared_globals)} {
+    duk_module_shim_init(context(), module_prefix.c_str());
+  }
+
+  void prepare(const std::string &filename,
+               const std::map<std::string, std::string> &session_data) {
+    auto ctx = context();
+    duk_push_global_stash(ctx);
+    if (nullptr == shared_.get()) {
+      // why is the shared-ptr empty?
+      throw std::logic_error(
+          "expected shared global variable object to be set, but it isn't.");
+    }
+
+    // process.*
+    prepare_process_object();
+
+    // mysqld.*
+    prepare_mysqld_object(session_data);
+
+    load_script(filename);
+
+    if (!duk_is_object(ctx, -1)) {
+      throw std::runtime_error(
+          filename + ": expected statement handler to return an object, got " +
+          duk_get_type_names(ctx, -1));
+    }
+
+    // check if the sections have the right types
+    check_stmts_section(ctx);
+    check_handshake_section(ctx);
+  }
+
+  duk_context *context() { return heap_.get(); }
+
+ private:
+  class HeapDeleter {
+   public:
+    void operator()(duk_context *p) { duk_destroy_heap(p); }
+  };
+
+  void prepare_process_object() {
+    auto ctx = context();
+
+    duk_push_pointer(ctx, shared_.get());
+    duk_put_prop_string(ctx, -2, "shared");
+    duk_pop(ctx);  // stash
+
+    duk_get_global_string(ctx, "process");
+    if (duk_is_undefined(ctx, -1)) {
+      // duk_module_shim_init() is expected to initialize it.
+      throw std::runtime_error(
+          "expected 'process' to exist, but it is undefined.");
+    }
+    duk_push_c_function(ctx, process_get_shared, 1);
+    duk_put_prop_string(ctx, -2, "get_shared");
+
+    duk_push_c_function(ctx, process_set_shared, 2);
+    duk_put_prop_string(ctx, -2, "set_shared");
+
+    duk_push_c_function(ctx, process_get_keys, 0);
+    duk_put_prop_string(ctx, -2, "get_keys");
+
+    duk_push_c_function(ctx, process_erase, 1);
+    duk_put_prop_string(ctx, -2, "erase");
+
+    duk_pop(ctx);
+  }
+
+  void prepare_mysqld_object(
+      const std::map<std::string, std::string> &session_data) {
+    auto ctx = context();
+    // mysqld = {
+    //   session: {
+    //     port: 3306
+    //   }
+    //   global: // proxy that calls process.get_shared()/.set_shared()
+    // }
+    duk_push_global_object(ctx);
+    duk_push_object(ctx);
+    duk_push_object(ctx);
+
+    // map of string and json-string
+    for (auto &el : session_data) {
+      duk_push_lstring(ctx, el.second.data(), el.second.size());
+      duk_json_decode(ctx, -1);
+      duk_put_prop_lstring(ctx, -2, el.first.data(), el.first.size());
+    }
+
+    duk_put_prop_string(ctx, -2, "session");
+
+    if (DUK_EXEC_SUCCESS !=
+        duk_pcompile_string(ctx, DUK_COMPILE_FUNCTION,
+                            "function () {\n"
+                            "  return new Proxy({}, {\n"
+                            "    ownKeys: function(target) {\n"
+                            "      process.get_keys().forEach(function(el) {\n"
+                            "        Object.defineProperty(\n"
+                            "          target, el, {\n"
+                            "            configurable: true,\n"
+                            "            enumerable: true});\n"
+                            "      });\n"
+                            "      return Object.keys(target);\n"
+                            "    },\n"
+                            "    get: function(target, key, recv) {\n"
+                            "      return process.get_shared(key);},\n"
+                            "    set: function(target, key, val, recv) {\n"
+                            "      return process.set_shared(key, val);},\n"
+                            "    deleteProperty: function(target, prop) {\n"
+                            "      if (process.erase(prop) > 0) {\n"
+                            "        delete target[prop];\n"
+                            "      }\n"
+                            "    },\n"
+                            "  });\n"
+                            "}\n")) {
+      throw DuktapeRuntimeError(ctx, -1);
+    }
+    if (DUK_EXEC_SUCCESS != duk_pcall(ctx, 0)) {
+      throw DuktapeRuntimeError(ctx, -1);
+    }
+
+    duk_put_prop_string(ctx, -2, "global");
+
+    duk_put_prop_string(ctx, -2, "mysqld");
+  }
+
+  void load_script(const std::string &filename) {
+    std::lock_guard<std::mutex> lk(scripts_mtx_);
+
+    auto ctx = context();
+    if (scripts_.find(filename) != scripts_.end()) {
+      // use the cached version of the script.
+      const auto &buffer = scripts_[filename];
+
+      auto *p = duk_push_fixed_buffer(ctx, buffer.size());
+      std::copy(buffer.begin(), buffer.end(), static_cast<char *>(p));
+    } else {
+      // load the script.
+      if (DUK_EXEC_SUCCESS !=
+          duk_pcompile_file(ctx, filename.c_str(), DUK_COMPILE_EVAL)) {
+        throw DuktapeRuntimeError(ctx, -1);
+      }
+// On Solaris we disable cache functionality as it causes mock server crash:
+// uncaught: 'invalid bytecode'
+//     Application got fatal signal: 6
+//              server_mock::DukHeap::DukHeap(std::string const&,
+//              std::shared_ptr<MockServerGlobalScope>)::{lambda(void*, char
+//              const*)#1}::__invoke(char const, {lambda(void*, char
+//              const*)#1})+0x28 [0xffffff02c0133bc8]
+#ifndef __SUNPRO_CC
+      duk_dump_function(ctx);
+      // store the compiled bytecode in our cache
+      size_t sz;
+      const auto *p = static_cast<const char *>(duk_get_buffer(ctx, -1, &sz));
+      scripts_[filename] = std::string(p, p + sz);
+#endif
+    }
+
+#ifndef __SUNPRO_CC
+    duk_load_function(ctx);
+#endif
+
+    duk_push_global_object(ctx);
+    if (DUK_EXEC_SUCCESS != duk_pcall_method(ctx, 0)) {
+      throw DuktapeRuntimeError(ctx, -1);
+    }
+  }
+
+  std::unique_ptr<duk_context, HeapDeleter> heap_{};
+  std::shared_ptr<MockServerGlobalScope> shared_;
+
+  static std::mutex scripts_mtx_;
+  static std::map<std::string, std::string> scripts_;
+};
+
+/*static*/ std::map<std::string, std::string> DukHeap::scripts_{};
+/*static*/ std::mutex DukHeap::scripts_mtx_{};
+
+class DukHeapPool {
+ public:
+  static DukHeapPool *instance() { return &instance_; }
+
+  std::unique_ptr<DukHeap> get(
+      const std::string &filename, const std::string &module_prefix,
+      std::map<std::string, std::string> session_data,
+      std::shared_ptr<MockServerGlobalScope> shared_globals) {
+    {
+      std::lock_guard<std::mutex> lock(pool_mtx_);
+      if (pool_.size() > 0) {
+        auto result = std::move(pool_.front());
+        pool_.pop_front();
+        result->prepare(filename, session_data);
+        return result;
+      }
+    }
+
+    // there is no free context object, create new one
+    auto result = std::make_unique<DukHeap>(module_prefix, shared_globals);
+    result->prepare(filename, session_data);
+
+    return result;
+  }
+
+  void release(std::unique_ptr<DukHeap> heap) {
+    std::lock_guard<std::mutex> lock(pool_mtx_);
+    pool_.push_back(std::move(heap));
+  }
+
+ private:
+  DukHeapPool() = default;
+  static DukHeapPool instance_;
+
+  std::list<std::unique_ptr<DukHeap>> pool_;
+  std::mutex pool_mtx_;
+};
+
+DukHeapPool DukHeapPool::instance_;
+
 struct DuktapeStatementReader::Pimpl {
+  Pimpl(std::unique_ptr<DukHeap> heap)
+      : heap_(std::move(heap)), ctx(heap_->context()) {}
+
   std::string get_object_string_value(duk_idx_t idx, const std::string &field,
                                       const std::string &default_val = "",
                                       bool is_required = false) {
@@ -343,7 +595,6 @@ struct DuktapeStatementReader::Pimpl {
     return response;
 #endif
   }
-  duk_context *ctx{nullptr};
 
   bool authenticate(const std::string &auth_username,
                     const std::vector<uint8_t> &auth_response) {
@@ -416,9 +667,12 @@ struct DuktapeStatementReader::Pimpl {
   std::string nonce_;
   std::string auth_method_;
   std::string username_;
+  std::unique_ptr<DukHeap> heap_;
+  duk_context *ctx{nullptr};
 };
 
-duk_int_t duk_peval_file(duk_context *ctx, const char *path) {
+duk_int_t duk_pcompile_file(duk_context *ctx, const char *path,
+                            int compile_type) {
   duk_push_c_function(ctx, duk_node_fs_read_file_sync, 1);
   duk_push_string(ctx, path);
   if (duk_int_t rc = duk_pcall(ctx, 1)) {
@@ -427,11 +681,11 @@ duk_int_t duk_peval_file(duk_context *ctx, const char *path) {
 
   duk_buffer_to_string(ctx, -1);
   duk_push_string(ctx, path);
-  if (duk_int_t rc = duk_pcompile(ctx, DUK_COMPILE_EVAL)) {
+  if (duk_int_t rc = duk_pcompile(ctx, compile_type)) {
     return rc;
   }
-  duk_push_global_object(ctx);
-  return duk_pcall_method(ctx, 0);
+
+  return 0;
 }
 
 static duk_int_t process_get_keys(duk_context *ctx) {
@@ -598,124 +852,14 @@ DuktapeStatementReader::DuktapeStatementReader(
     const std::string &filename, const std::string &module_prefix,
     std::map<std::string, std::string> session_data,
     std::shared_ptr<MockServerGlobalScope> shared_globals)
-    : pimpl_{new Pimpl()}, shared_{std::move(shared_globals)} {
-  auto *ctx = duk_create_heap_default();
-
-  // free the duk_context if an exception gets thrown as
-  // DuktapeStatementReaders's destructor will not be called in that case.
-  ScopeGuard duk_guard{[&ctx]() { duk_destroy_heap(ctx); }};
-
-  // init module-loader
-  duk_module_shim_init(ctx, module_prefix.c_str());
-
-  duk_push_global_stash(ctx);
-  if (nullptr == shared_.get()) {
-    // why is the shared-ptr empty?
-    throw std::logic_error(
-        "expected shared global variable object to be set, but it isn't.");
-  }
-
-  duk_push_pointer(ctx, shared_.get());
-  duk_put_prop_string(ctx, -2, "shared");
-  duk_pop(ctx);  // stash
-
-  duk_get_global_string(ctx, "process");
-  if (duk_is_undefined(ctx, -1)) {
-    // duk_module_shim_init() is expected to initialize it.
-    throw std::runtime_error(
-        "expected 'process' to exist, but it is undefined.");
-  }
-  duk_push_c_function(ctx, process_get_shared, 1);
-  duk_put_prop_string(ctx, -2, "get_shared");
-
-  duk_push_c_function(ctx, process_set_shared, 2);
-  duk_put_prop_string(ctx, -2, "set_shared");
-
-  duk_push_c_function(ctx, process_get_keys, 0);
-  duk_put_prop_string(ctx, -2, "get_keys");
-
-  duk_push_c_function(ctx, process_erase, 1);
-  duk_put_prop_string(ctx, -2, "erase");
-
-  duk_pop(ctx);
-
-  // mysqld = {
-  //   session: {
-  //     port: 3306
-  //   }
-  //   global: // proxy that calls process.get_shared()/.set_shared()
-  // }
-  duk_push_global_object(ctx);
-  duk_push_object(ctx);
-  duk_push_object(ctx);
-
-  // map of string and json-string
-  for (auto &el : session_data) {
-    duk_push_lstring(ctx, el.second.data(), el.second.size());
-    duk_json_decode(ctx, -1);
-    duk_put_prop_lstring(ctx, -2, el.first.data(), el.first.size());
-  }
-
-  duk_put_prop_string(ctx, -2, "session");
-
-  if (DUK_EXEC_SUCCESS !=
-      duk_pcompile_string(ctx, DUK_COMPILE_FUNCTION,
-                          "function () {\n"
-                          "  return new Proxy({}, {\n"
-                          "    ownKeys: function(target) {\n"
-                          "      process.get_keys().forEach(function(el) {\n"
-                          "        Object.defineProperty(\n"
-                          "          target, el, {\n"
-                          "            configurable: true,\n"
-                          "            enumerable: true});\n"
-                          "      });\n"
-                          "      return Object.keys(target);\n"
-                          "    },\n"
-                          "    get: function(target, key, recv) {\n"
-                          "      return process.get_shared(key);},\n"
-                          "    set: function(target, key, val, recv) {\n"
-                          "      return process.set_shared(key, val);},\n"
-                          "    deleteProperty: function(target, prop) {\n"
-                          "      if (process.erase(prop) > 0) {\n"
-                          "        delete target[prop];\n"
-                          "      }\n"
-                          "    },\n"
-                          "  });\n"
-                          "}\n")) {
-    throw DuktapeRuntimeError(ctx, -1);
-  }
-  if (DUK_EXEC_SUCCESS != duk_pcall(ctx, 0)) {
-    throw DuktapeRuntimeError(ctx, -1);
-  }
-
-  duk_put_prop_string(ctx, -2, "global");
-
-  duk_put_prop_string(ctx, -2, "mysqld");
-
-  if (DUK_EXEC_SUCCESS != duk_peval_file(ctx, filename.c_str())) {
-    throw DuktapeRuntimeError(ctx, -1);
-  }
-
-  if (!duk_is_object(ctx, -1)) {
-    throw std::runtime_error(
-        filename + ": expected statement handler to return an object, got " +
-        duk_get_type_names(ctx, -1));
-  }
-
-  // check if the sections have the right types
-  check_stmts_section(ctx);
+    : pimpl_{std::make_unique<Pimpl>(DukHeapPool::instance()->get(
+          filename, module_prefix, session_data, shared_globals))} {
+  auto ctx = pimpl_->ctx;
   has_notices_ = check_notices_section(ctx);
-  check_handshake_section(ctx);
-
-  // we are still alive, dismiss the guard
-  pimpl_->ctx = ctx;
-  duk_guard.dismiss();
 }
 
 DuktapeStatementReader::~DuktapeStatementReader() {
-  // duk_pop(pimpl_->ctx);
-
-  if (pimpl_->ctx) duk_destroy_heap(pimpl_->ctx);
+  DukHeapPool::instance()->release(std::move(pimpl_->heap_));
 }
 
 /*
