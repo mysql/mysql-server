@@ -1969,19 +1969,17 @@ CommandInterpreter::executeShow(char* parameters)
     }
     NdbAutoPtr<char> ap1((char*)state);
 
-    ndb_mgm_configuration * conf = ndb_mgm_get_configuration(m_mgmsrv,0);
-    if(conf == 0){
+    ndb_mgm_config_unique_ptr conf(ndb_mgm_get_configuration(m_mgmsrv, 0));
+    if (!conf) {
       ndbout_c("Could not get configuration");
       printError();
       return -1;
     }
 
-    ndb_mgm_configuration_iterator * it;
-    it = ndb_mgm_create_configuration_iterator((struct ndb_mgm_configuration *)conf, CFG_SECTION_NODE);
-
-    if(it == 0){
+    ndb_mgm_configuration_iterator *it =
+        ndb_mgm_create_configuration_iterator(conf.get(), CFG_SECTION_NODE);
+    if(!it){
       ndbout_c("Unable to create config iterator");
-      ndb_mgm_destroy_configuration(conf);
       return -1;
     }
     NdbAutoPtr<ndb_mgm_configuration_iterator> ptr(it);
@@ -2029,7 +2027,6 @@ CommandInterpreter::executeShow(char* parameters)
     print_nodes(state, it, "ndbd",     ndb_nodes, NDB_MGM_NODE_TYPE_NDB, master_id);
     print_nodes(state, it, "ndb_mgmd", mgm_nodes, NDB_MGM_NODE_TYPE_MGM, 0);
     print_nodes(state, it, "mysqld",   api_nodes, NDB_MGM_NODE_TYPE_API, 0);
-    ndb_mgm_destroy_configuration(conf);
     return 0;
   } else {
     ndbout << "Invalid argument: '" << parameters << "'" << endl;

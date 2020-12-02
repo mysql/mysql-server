@@ -886,8 +886,8 @@ get_nodeid_of_type(NdbMgmd& mgmd, ndb_mgm_node_type type, int *nodeId)
 static bool
 get_config_from_illegal_node(NdbMgmd& mgmd, int nodeId)
 {
-  struct ndb_mgm_configuration* conf=
-      ndb_mgm_get_configuration_from_node(mgmd.handle(), nodeId);
+  ndb_mgm_config_unique_ptr conf(
+      ndb_mgm_get_configuration_from_node(mgmd.handle(), nodeId));
 
   // Get conf from an illegal node should fail.
   if (ndb_mgm_get_latest_error(mgmd.handle()) != NDB_MGM_GET_CONFIG_FAILED)
@@ -906,7 +906,6 @@ get_config_from_illegal_node(NdbMgmd& mgmd, int nodeId)
           << nodeId << ", error: "
           << ndb_mgm_get_latest_error(mgmd.handle()) << " "
           << ndb_mgm_get_latest_error_msg(mgmd.handle()) << endl;
-    free(conf);
     return false;
   }
   return true;
@@ -983,8 +982,8 @@ int runGetConfigFromNode(NDBT_Context* ctx, NDBT_Step* step)
     int nodeId = 0;
     if (get_nodeid_of_type(mgmd,  NDB_MGM_NODE_TYPE_NDB, &nodeId))
     {
-      struct ndb_mgm_configuration* conf =
-        ndb_mgm_get_configuration_from_node(mgmd.handle(), nodeId);
+      ndb_mgm_config_unique_ptr conf(
+          ndb_mgm_get_configuration_from_node(mgmd.handle(), nodeId));
       if (!conf)
       {
         g_err << "ndb_mgm_get_configuration_from_node "
@@ -993,7 +992,6 @@ int runGetConfigFromNode(NDBT_Context* ctx, NDBT_Step* step)
               << ndb_mgm_get_latest_error_msg(mgmd.handle()) << endl;
         return NDBT_FAILED;
       }
-      free(conf);
     }
     else
     {

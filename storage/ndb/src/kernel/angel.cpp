@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -605,11 +605,8 @@ angel_run(const char* progname,
   }
   g_eventLogger->info("Angel allocated nodeid: %u", nodeid);
 
-  std::unique_ptr<ndb_mgm_configuration, ConfigRetriever::ConfigDeleter>
-      config_autoptr{retriever.getConfig(nodeid)};
-  ndb_mgm_configuration* config{config_autoptr.get()};
-
-  if (config == 0)
+  ndb_mgm_config_unique_ptr config(retriever.getConfig(nodeid));
+  if (!config)
   {
     g_eventLogger->error("Could not fetch configuration/invalid "
                          "configuration, error: '%s'",
@@ -617,7 +614,7 @@ angel_run(const char* progname,
     angel_exit(1);
   }
 
-  if (!configure(config, nodeid))
+  if (!configure(config.get(), nodeid))
   {
     // Failed to configure, error already printed
     angel_exit(1);
@@ -753,7 +750,7 @@ angel_run(const char* progname,
       switch (WEXITSTATUS(status)) {
       case NRT_Default:
         g_eventLogger->info("Angel shutting down");
-        reportShutdown(config, nodeid, 0, 0, false, false,
+        reportShutdown(config.get(), nodeid, 0, 0, false, false,
                        child_error, child_signal, child_sphase);
         angel_exit(0);
         break;
@@ -776,7 +773,7 @@ angel_run(const char* progname,
           /**
            * Error shutdown && stopOnError()
            */
-          reportShutdown(config, nodeid,
+          reportShutdown(config.get(), nodeid,
                          error_exit, 0, false, false,
                          child_error, child_signal, child_sphase);
           angel_exit(0);
@@ -805,7 +802,7 @@ angel_run(const char* progname,
         /**
          * Error shutdown && stopOnError()
          */
-        reportShutdown(config, nodeid,
+        reportShutdown(config.get(), nodeid,
                        error_exit, 0, false, false,
                        child_error, child_signal, child_sphase);
         angel_exit(0);
@@ -830,7 +827,7 @@ angel_run(const char* progname,
       {
         g_eventLogger->alert("Angel detected too many startup failures(%d), "
                              "not restarting again", failed_startups_counter);
-        reportShutdown(config, nodeid,
+        reportShutdown(config.get(), nodeid,
                        error_exit, 0, false, false,
                        child_error, child_signal, child_sphase);
         angel_exit(0);
@@ -846,7 +843,7 @@ angel_run(const char* progname,
       failed_startups_counter = 0;
     }
 
-    reportShutdown(config, nodeid,
+    reportShutdown(config.get(), nodeid,
                    error_exit, 1,
                    no_start,
                    initial,

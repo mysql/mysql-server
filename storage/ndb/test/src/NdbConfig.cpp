@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@
 bool
 NdbConfig::getHostName(unsigned int node_id, const char ** hostname) {
   
-  ndb_mgm_configuration * p = getConfig();
+  const ndb_mgm_configuration * p = getConfig();
   if(p == 0){
     return false;
   }
@@ -61,7 +61,7 @@ NdbConfig::getHostName(unsigned int node_id, const char ** hostname) {
 bool
 NdbConfig::getProperty(unsigned nodeid, 
 		       unsigned type, unsigned key, Uint32 * val){
-  ndb_mgm_configuration * p = getConfig();
+  const ndb_mgm_configuration * p = getConfig();
   if(p == 0){
     return false;
   }

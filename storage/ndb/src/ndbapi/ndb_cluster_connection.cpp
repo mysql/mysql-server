@@ -1446,20 +1446,18 @@ int Ndb_cluster_connection_impl::connect(int no_retries,
       break;
     }
 
-    ndb_mgm_configuration * props = m_config_retriever->getConfig(nodeId);
+    ndb_mgm_config_unique_ptr props = m_config_retriever->getConfig(nodeId);
     if(props == 0)
       break;
 
     if (configure(nodeId, *props))
     {
-      ndb_mgm_destroy_configuration(props);
       DBUG_PRINT("exit", ("malloc failure, ret: -1"));
       DBUG_RETURN(-1);
     }
 
-    if (m_transporter_facade->start_instance(nodeId, props) < 0)
+    if (m_transporter_facade->start_instance(nodeId, props.get()) < 0)
     {
-      ndb_mgm_destroy_configuration(props);
       DBUG_RETURN(-1);
     }
     // NOTE! The config generation used by this API node could also be sent to
@@ -1468,7 +1466,6 @@ int Ndb_cluster_connection_impl::connect(int no_retries,
                                                            m_uri_host.c_str(),
                                                            m_uri_port,
                                                            m_uri_path.c_str());
-    ndb_mgm_destroy_configuration(props);
     m_transporter_facade->connected();
     m_latest_error = 0;
     m_latest_error_msg.assign("");

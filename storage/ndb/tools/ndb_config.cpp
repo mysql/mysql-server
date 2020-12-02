@@ -225,10 +225,6 @@ static int print_diff(const Iter&);
 static ndb_mgm_configuration* fetch_configuration(int from_node);
 static ndb_mgm_configuration* load_configuration();
 
-typedef std::unique_ptr<ndb_mgm_configuration,
-  decltype(&ndb_mgm_destroy_configuration)> ndb_mgm_config_unique_ptr;
-
-
 static ndb_mgm_config_unique_ptr get_config()
 {
   ndb_mgm_configuration* conf;
@@ -236,7 +232,7 @@ static ndb_mgm_config_unique_ptr get_config()
     conf = load_configuration();
   else
     conf = fetch_configuration(g_config_from_node);
-  return ndb_mgm_config_unique_ptr({conf, ndb_mgm_destroy_configuration});
+  return ndb_mgm_config_unique_ptr(conf);
 }
 
 int
@@ -295,8 +291,7 @@ main(int argc, char** argv){
     g_section = CFG_SECTION_SYSTEM;
 
   ndb_mgm_config_unique_ptr conf = get_config();
-
-  if (conf == 0)
+  if (!conf)
   {
     exit(255);
   }

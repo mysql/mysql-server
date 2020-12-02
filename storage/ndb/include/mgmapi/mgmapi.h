@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,10 @@
 
 #ifndef MGMAPI_H
 #define MGMAPI_H
+
+#if defined(__cplusplus) && (__cplusplus >= 201103L)
+#include <memory> // std::unique_ptr for ndb_mgm_config_unique_ptr
+#endif
 
 #ifdef _WIN32
 #include <WinSock2.h>
@@ -1575,6 +1579,24 @@ extern "C" {
 
 #ifdef __cplusplus
 }
+#endif
+
+#if defined(__cplusplus) && (__cplusplus >= 201103L)
+/*
+ * Helper class to ease use of C++11 unique pointer with
+ * ndb_mgm_configuration.
+ */
+struct ndb_mgm_configuration_deleter
+{
+  void operator()(ndb_mgm_configuration* conf)
+  {
+    ndb_mgm_destroy_configuration(conf);
+  }
+};
+
+using ndb_mgm_config_unique_ptr =
+  std::unique_ptr<ndb_mgm_configuration, ndb_mgm_configuration_deleter>;
+
 #endif
 
 /** @} */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@
 
 class Config {
 public:
-  Config(struct ndb_mgm_configuration *config_values = NULL);
+  Config(ndb_mgm_configuration *config_values = NULL);
   Config(ConfigValues* config_values);
   Config(const Config*);
   virtual ~Config();
@@ -141,8 +141,8 @@ public:
   void get_nodemask(NodeBitmask& mask,
                     ndb_mgm_node_type type = NDB_MGM_NODE_TYPE_UNKNOWN) const;
 
-  struct ndb_mgm_configuration * m_configValues;
-  struct ndb_mgm_configuration * values(void) const { return m_configValues; }
+  ndb_mgm_configuration * m_configValues;
+  ndb_mgm_configuration * values(void) const { return m_configValues; }
 
 private:
   bool setValue(Uint32 section, Uint32 section_no,

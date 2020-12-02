@@ -2169,18 +2169,18 @@ ConfigManager::fetch_config(void)
     }
   }
   // read config from other management server
-  ndb_mgm_configuration * tmp =
+  ndb_mgm_config_unique_ptr conf =
     m_config_retriever.getConfig(m_config_retriever.get_mgmHandle());
 
   // Disconnect from other mgmd
   m_config_retriever.disconnect();
 
-  if (tmp == NULL) {
+  if (!conf) {
     g_eventLogger->error("%s", m_config_retriever.getErrorString());
     DBUG_RETURN(NULL);
   }
 
-  DBUG_RETURN(new Config(tmp));
+  DBUG_RETURN(new Config(conf.release()));
 }
 
 
@@ -2337,9 +2337,9 @@ ConfigManager::failed_config_change_exists() const
 Config*
 ConfigManager::load_saved_config(const BaseString& config_name)
 {
-  struct ndb_mgm_configuration * tmp =
-    m_config_retriever.getConfig(config_name.c_str());
-  if(tmp == NULL)
+  ndb_mgm_config_unique_ptr retrieved_config =
+      m_config_retriever.getConfig(config_name.c_str());
+  if(!retrieved_config)
   {
     g_eventLogger->error("Failed to load config from '%s', error: '%s'",
                          config_name.c_str(),
@@ -2347,8 +2347,8 @@ ConfigManager::load_saved_config(const BaseString& config_name)
     return NULL;
   }
 
-  Config* conf = new Config(tmp);
-  if (conf == NULL)
+  Config* conf = new Config(retrieved_config.release());
+  if (!conf)
     g_eventLogger->error("Failed to load config, out of memory");
   return conf;
 }

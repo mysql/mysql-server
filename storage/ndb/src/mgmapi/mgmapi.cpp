@@ -3091,7 +3091,7 @@ extern "C"
 void
 ndb_mgm_destroy_configuration(struct ndb_mgm_configuration *cfg)
 {
-    delete cfg;
+  delete cfg;
 }
 
 extern "C"

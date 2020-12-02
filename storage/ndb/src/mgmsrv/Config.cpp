@@ -30,14 +30,14 @@
 
 #include <HashMap.hpp>
 
-Config::Config(struct ndb_mgm_configuration *config_values) :
+Config::Config(ndb_mgm_configuration *config_values) :
   m_configValues(config_values)
 {
 }
 
 
 Config::Config(ConfigValues *config_values) :
-  m_configValues((struct ndb_mgm_configuration*)config_values)
+  m_configValues(reinterpret_cast<ndb_mgm_configuration*>(config_values))
 {
 }
 
@@ -48,7 +48,7 @@ Config::Config(const Config* conf)
   conf->pack(buf, OUR_V2_VERSION);
   ConfigValuesFactory cvf;
   cvf.unpack_buf(buf);
-  m_configValues= (struct ndb_mgm_configuration*)cvf.getConfigValues();
+  m_configValues= (ndb_mgm_configuration*)cvf.getConfigValues();
 }
 
 
