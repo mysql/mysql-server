@@ -36,8 +36,6 @@
 #include "util/ndbxfrm_writefile.h"
 #include "util/ndb_openssl_evp.h"
 
-//#define DUMMY_PASSWORD
-
 using byte = unsigned char;
 
 static int g_compress = 0;
@@ -56,9 +54,6 @@ static int g_info = 0;
 static int g_encrypt_kdf_iter_count = ndb_openssl_evp::DEFAULT_KDF_ITER_COUNT;
 #if defined(TODO_READ_REVERSE)
 static int g_read_reverse = 0;
-#endif
-#if defined(DUMMY_PASSWORD)
-static char g_dummy_password[] = "DUMMY";
 #endif
 
 static struct my_option my_long_options[] =
@@ -149,21 +144,6 @@ int main(int argc, char* argv[])
     }
     return 2;
   }
-
-#if defined(DUMMY_PASSWORD)
-  /*
-   * Replace given password to hard coded version to match what data nodes
-   * and ndb_restore use.
-   */
-  if (opt_decrypt_password)
-  {
-    opt_decrypt_password = g_dummy_password;
-  }
-  if (opt_encrypt_password)
-  {
-    opt_encrypt_password = g_dummy_password;
-  } 
-#endif
 
   if (g_info)
   {

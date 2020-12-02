@@ -47,8 +47,6 @@
 #include "portlib/NdbMem.h"
 #include "util/ndb_opts.h"
 
-//#define DUMMY_PASSWORD
-
 using byte = unsigned char;
 
 extern thread_local EmulatedJamBuffer* NDB_THREAD_TLS_JAM;
@@ -1688,14 +1686,10 @@ BackupFile::openFile(){
     m_file_size = 0;
   }
 
-#if !defined(DUMMY_PASSWORD)
   r = m_xfile.open(m_file,
                    reinterpret_cast<const byte*>(
                        g_backup_password_state.get_password()),
                    g_backup_password_state.get_password_length());
-#else
-  r = m_xfile.open(m_file, reinterpret_cast<const byte*>("DUMMY"), 5);
-#endif
   bool fail = (r == -1);
   if (g_backup_password_state.get_password() != nullptr)
   {
@@ -1714,11 +1708,9 @@ BackupFile::openFile(){
   {
     if (m_xfile.is_encrypted())
     {
-#if !defined(DUMMY_PASSWORD)
-        restoreLogger.log_error("File is encrypted but no decryption "
-                                "requested.");
-        fail = true;
-#endif
+      restoreLogger.log_error("File is encrypted but no decryption "
+                              "requested.");
+      fail = true;
     }
     else if (r == -1)
     {

@@ -47,7 +47,6 @@
 
 #define JAM_FILE_ID 387
 
-//#define DUMMY_PASSWORD
 //#define DEBUG_ODIRECT
 
 AsyncFile::AsyncFile(Ndbfs& fs) :
@@ -406,9 +405,6 @@ AsyncFile::openReq(Request * request)
   // Set flags for compression (OM_GZ) and encryption (OM_ENCRYPT)
   use_gz = (flags & FsOpenReq::OM_GZ);
   use_enc = (flags & FsOpenReq::OM_ENCRYPT);
-#if defined(DUMMY_PASSWORD)
-  use_enc = (theFileName.get_base_path_spec() == FsOpenReq::BP_BACKUP);
-#endif
 
   // Turn on direct io (OM_DIRECT, OM_DIRECT_SYNC) after init
   if (flags & FsOpenReq::OM_DIRECT)
@@ -580,14 +576,9 @@ AsyncFile::openReq(Request * request)
       openssl_evp.generate_salt256(salt);
       ndbxfrm1.set_encryption_salts(salt, ndb_openssl_evp::SALT_LEN, 1);
       Uint32 kdf_iter_count = ndb_openssl_evp::DEFAULT_KDF_ITER_COUNT;
-#if !defined(DUMMY_PASSWORD)
       int pwd_len = m_password.password_length;
       ndb_openssl_evp::byte* pwd =
         reinterpret_cast<ndb_openssl_evp::byte*>(m_password.encryption_password);
-#else
-      ndb_openssl_evp::byte pwd[6]="DUMMY";
-      int pwd_len = 5;
-#endif
       openssl_evp.derive_and_add_key_iv_pair(pwd, pwd_len, kdf_iter_count, salt);
       ndbxfrm1.set_encryption_kdf(1 /* pbkdf2_sha256 */);
       ndbxfrm1.set_encryption_kdf_iter_count(kdf_iter_count);

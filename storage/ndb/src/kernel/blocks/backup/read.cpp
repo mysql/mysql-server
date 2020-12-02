@@ -42,8 +42,6 @@
 
 #define JAM_FILE_ID 476
 
-//#define DUMMY_PASSWORD
-
 using byte = unsigned char;
 
 static ndb_password_state opt_backup_password_state("backup", nullptr);
@@ -519,14 +517,10 @@ void handle_print_restored_rows()
   int r = file.open(buf, FsOpenReq::OM_READONLY);
   if (r != -1)
   {
-#if !defined(DUMMY_PASSWORD)
     r = fo.open(file,
                 reinterpret_cast<const byte*>(
                     opt_backup_password_state.get_password()),
                 opt_backup_password_state.get_password_length());
-#else
-    r = fo.open(file, reinterpret_cast<const byte*>("DUMMY"), 5);
-#endif
   }
   if(r == -1)
   {
@@ -630,14 +624,10 @@ void handle_print_restored_rows()
     r = file.open(buf, FsOpenReq::OM_READONLY);
     if (r != -1)
     {
-#if !defined(DUMMY_PASSWORD)
       r = fo.open(file,
                   reinterpret_cast<const byte*>(
                       opt_backup_password_state.get_password()),
                   opt_backup_password_state.get_password_length());
-#else
-      r = fo.open(file, reinterpret_cast<const byte*>("DUMMY"), 5);
-#endif
     }
     if(r == -1)
     {
@@ -827,14 +817,10 @@ main(int argc, char * argv[])
   ndbxfrm_readfile fo;
 
   int r = file.open(file_name, FsOpenReq::OM_READONLY);
-#if !defined(DUMMY_PASSWORD)
   r = fo.open(file,
               reinterpret_cast<const byte*>(
                   opt_backup_password_state.get_password()),
               opt_backup_password_state.get_password_length());
-#else
-  r = fo.open(file, reinterpret_cast<const byte*>("DUMMY"), 5);
-#endif
 
   if(r == -1)
   {
