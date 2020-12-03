@@ -595,6 +595,7 @@ install -m 600 $MBD/%{src_dir}/support-files/RHEL4-SElinux/mysql.{fc,te} \
 # Remove man pages we explicitly do not want to package, avoids 'unpackaged
 # files' warning.
 # This has become obsolete:  rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
+rm -f $RBR%{_mandir}/man1/ndb_setup.py.1*
 
 ##############################################################################
 #  Post processing actions, i.e. when installed
@@ -1202,7 +1203,6 @@ echo "====="                                                       >> $STATUS_HI
 %attr(755, root, root) %{_bindir}/mysqlshow
 %attr(755, root, root) %{_bindir}/mysqlslap
 %attr(755, root, root) %{_bindir}/mysql_config_editor
-%attr(755, root, root) %{_bindir}/memclient
 
 %doc %attr(644, root, man) %{_mandir}/man1/msql2mysql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.1*
