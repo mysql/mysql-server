@@ -453,19 +453,33 @@ static bool load_process(atrt_config& config,
 
   proc.m_proc.m_env.appfmt(" ATRT_PID=%u", (unsigned)proc_no);
 
-  BaseString gcov_prefix = proc.m_host->m_basedir;
-  gcov_prefix.appfmt("/gcov/%s", proc.m_host->m_hostname.c_str());
-  proc.m_proc.m_env.appfmt(" GCOV_PREFIX=%s", gcov_prefix.c_str());
+  BaseString gcov_prefix;
+  switch (coverage_config.m_analysis) {
+    case coverage::Coverage::Testcase:
+      gcov_prefix = proc.m_host->m_basedir;
+      break;
+    case coverage::Coverage::Testsuite:
+      /**
+       * Setting gcov_prefix to current working directory ensures .gcda files
+       * to be persistent after each test case execution. This ensures coverage
+       * data for each test case to be accumulated in .gcda files.
+       */
+      gcov_prefix = g_cwd;
+      break;
+    case coverage::Coverage::None:
+      break;
+  }
+  if (coverage_config.m_analysis != coverage::Coverage::None) {
+    gcov_prefix.appfmt("/gcov/%s", proc.m_host->m_hostname.c_str());
+    proc.m_proc.m_env.appfmt(" GCOV_PREFIX=%s", gcov_prefix.c_str());
+    proc.m_proc.m_env.appfmt(" GCOV_PREFIX_STRIP=%d",
+                             coverage_config.m_prefix_strip);
+  }
 
   if (clean_shutdown) {
     proc.m_proc.m_shutdown_options = "SIGTERM";
   } else {
     proc.m_proc.m_shutdown_options = "SIGKILL";
-  }
-
-  if (coverage_config.m_enabled) {
-    proc.m_proc.m_env.appfmt(" GCOV_PREFIX_STRIP=%d",
-                             coverage_config.m_prefix_strip);
   }
 
   {

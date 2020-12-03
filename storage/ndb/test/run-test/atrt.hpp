@@ -83,6 +83,10 @@ enum RestartMode : long {
   Both,
 };
 
+namespace coverage {
+enum Coverage : long { None, Testcase, Testsuite };
+};
+
 struct atrt_host {
   unsigned m_index;
   BaseString m_user;
@@ -157,7 +161,7 @@ struct atrt_config {
 
 struct atrt_coverage_config {
   int m_prefix_strip;
-  bool m_enabled;
+  coverage::Coverage m_analysis;
 };
 
 struct atrt_testcase {

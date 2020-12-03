@@ -22,62 +22,75 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# Input parameters:
-#  * RESULTS_BASE_DIR = Directory holding "result.N" directories.
-#  * BUILD_DIR = Directory where source code was built.
-#  * TEST_CASE = Test case number is used to identify info files created
-#     for particular test case.
-#
-# Copies ".gcno" files into coverage_result/hostDir that holds ".gcda" files
-# after atrt-gather-result.sh is run with --coverage parameter. lcov is tool
-# is run to obtain ".info" files for each host. ".info" files from each host is
-# combined to obtain test coverage info which will be stored in
-# "test_coverage" directory as test_coverage_<test_number>.info.
-
 set -e
 
-if [ $# -lt 3 ]; then
-  echo "Usage: ${0} results-base-dir build-dir test-case-number" >&2
+usage()
+{
+  echo
+  echo "Analyzes coverage files gathered from each test host."
+  echo
+  echo "Usage: ${0} --results-dir=<results_dir> --build-dir=<build_dir> "\
+      "--test-case-no=<test_case_no> [--help]"
+  echo "Options:"
+  echo "  --results-dir  - Directory holding 'result.N' directories."
+  echo "  --build-dir    - Directory where source code was built with "\
+                           "coverage flags enabled."
+  echo "  --test-case-no - Optional, used only if test coverage is "\
+                           "computed per test case."
+  echo "  --help         - Displays help"
+}
+
+while [ "${1}" ]; do
+  case "${1}" in
+    --results-dir=*) results_dir=$(echo "${1}" | sed s/--results-dir=//);;
+    --build-dir=*) build_dir=$(echo "${1}" | sed s/--build-dir=//);;
+    --test-case-no=*) test_case_no=$(echo "${1}" | sed s/--test-case-no=//);;
+    --help) usage; exit 0;;
+    *) echo "ERROR: Invalid option ${1}..." >&2; usage; exit 1;;
+  esac
+  shift
+done
+
+gcno_files=$(find "${build_dir}" -name "*.gcno" | wc -l)
+if [ "${gcno_files}" -eq 0 ]; then
+  echo "Gcno files are not present in build directory, "\
+        "coverage cannot be computed." >&2
   exit 1
 fi
 
-RESULTS_BASE_DIR="${1}"
-BUILD_DIR="${2}"
-TEST_CASE="${3}"
-shift 3
+test_coverage_dir="${results_dir}/test_coverage"
+mkdir -p "${test_coverage_dir}"
 
-GCNO_FILES=$(find "${BUILD_DIR}" -name "*.gcno" | wc -l)
-if [ "${GCNO_FILES}" -eq 0 ]; then
-  echo "Gcno files are not present in build directory, coverage cannot" \
-       "be computed." >&2
-  exit 1
-fi
+resources_to_cleanup=''
+trap 'rm -rf ${resources_to_cleanup}' EXIT
 
-TEST_COVERAGE_DIR="${RESULTS_BASE_DIR}/test_coverage"
-mkdir -p "${TEST_COVERAGE_DIR}"
-
-RESOURCES_TO_CLEANUP=''
-trap 'rm -rf ${RESOURCES_TO_CLEANUP}' EXIT
-
-cd "${RESULTS_BASE_DIR}/coverage_result/"
+cd "${results_dir}/coverage_result/"
 
 for host_dir in */; do
   host_dir="${host_dir%%/}"
-  RESOURCES_TO_CLEANUP+="${RESULTS_BASE_DIR}/coverage_result/${host_dir} "
+  resources_to_cleanup+="${results_base_dir}/coverage_result/${host_dir} "
 
   find "${host_dir}" -name '*.gcda' -printf '%P\n' | \
     sed -e 's/[.]gcda$/.gcno/' > "${host_dir}/gcno-files"
+  rsync -am --files-from="${host_dir}/gcno-files" "${build_dir}" "${host_dir}"
 
-  rsync -am --files-from="${host_dir}/gcno-files" "${BUILD_DIR}" "${host_dir}"
   lcov -c -d "${host_dir}" -o "${host_dir}.info"
 done
 
+coverage_file=""
+if [ -n "${test_case_no}" ]; then
+  coverage_file="test_coverage.${test_case_no}.info"
+else
+  coverage_file="test_coverage.suite.info"
+fi
+
+result=0
 # Combine host.info files
 find . -name "*.info" -exec echo "-a {}" \; | \
-  xargs -r -x lcov -o "${TEST_COVERAGE_DIR}/test_coverage.${TEST_CASE}.info"
-RESULT="$?"
+  xargs -r -x lcov -o "${test_coverage_dir}/${coverage_file}"
+result="$?"
 
-if [ "${RESULT}" -ne 0 ]; then
-  echo "Coverage Analysis Failed: ${RESULT}" >&2
+if [ "${result}" -ne 0 ]; then
+  echo "Coverage Analysis Failed: ${result}" >&2
   exit 1
 fi

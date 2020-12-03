@@ -104,7 +104,7 @@ do
                     default_force_cluster_restart_arg="$1";;
                 --default-behaviour-on-failure=*) default_behaviour_on_failure_arg="$1";;
                 --*clean-shutdown*) clean_shutdown_arg="$1";;
-                --*-coverage*) coverage_arg="$1";;
+                --atrt-coverage*) coverage_arg="${1/#--atrt-/--}";;
                 --build-dir=*) build_dir_arg="$1";;
         esac
         shift

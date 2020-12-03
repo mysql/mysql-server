@@ -100,6 +100,12 @@ const char *force_cluster_restart_mode[] = {"none", "before", "after",
 TYPELIB restart_typelib = {array_elements(force_cluster_restart_mode) -1,
                            "force_cluster_restart_mode",
                            force_cluster_restart_mode, nullptr};
+
+coverage::Coverage g_coverage = coverage::Coverage::None;
+const char *coverage_mode[] = {"none", "testcase", "testsuite", nullptr};
+TYPELIB coverage_typelib = {array_elements(coverage_mode) - 1, "coverage_mode",
+                            coverage_mode, nullptr};
+
 const char *g_cwd = 0;
 const char *g_basedir = 0;
 const char *g_my_cnf = 0;
@@ -117,7 +123,6 @@ const char *g_dummy;
 char *g_env_path = 0;
 const char *g_mysqld_host = 0;
 
-bool g_coverage = false;
 
 TestExecutionResources g_resources;
 
@@ -128,10 +133,11 @@ const char *g_search_path[] = {"bin", "libexec",   "sbin", "scripts",
 static bool find_scripts(const char *path);
 static bool find_config_ini_files();
 
-TestResult run_test_case(ProcessManagement &processManagement,
-                         const atrt_testcase &testcase, bool is_last_testcase,
+TestResult run_test_case(ProcessManagement& processManagement,
+                         const atrt_testcase& testcase,
+                         bool is_last_testcase,
                          RestartMode next_testcase_forces_restart,
-                         atrt_coverage_config &coverage_config);
+                         atrt_coverage_config& coverage_config);
 int test_case_init(ProcessManagement &, const atrt_testcase &);
 int test_case_execution_loop(ProcessManagement &, const time_t, const time_t);
 void test_case_results(TestResult *, const atrt_testcase &);
@@ -142,7 +148,7 @@ void test_case_coverage_results(TestResult *,
                                 int);
 bool gather_coverage_results(atrt_config &,
                              atrt_coverage_config &,
-                             int);
+                             int test_case = 0);
 int compute_path_level(const char *);
 int compute_test_coverage(atrt_coverage_config &, const char *);
 
@@ -237,10 +243,11 @@ static struct my_option g_options[] = {
      "Enables clean cluster shutdown when passed as a command line argument",
      (uchar **)&g_clean_shutdown, (uchar **)&g_clean_shutdown, 0, GET_BOOL,
      NO_ARG, g_clean_shutdown, 0, 0, 0, 0, 0},
-    {"coverage", 0,
-     "Enables clean shutdown and cluster restart after every test case",
-     (uchar **)&g_coverage, (uchar **)&g_coverage, 0, GET_BOOL, NO_ARG,
-     g_coverage, 0, 0, 0, 0, 0},
+    {"coverage", 256,
+     "Enables coverage and specifies if coverage is computed, "
+     "per 'testcase' (default) or  per 'testsuite'.",
+     (uchar **)&g_coverage, (uchar **)&g_coverage,
+     &coverage_typelib, GET_ENUM, OPT_ARG, g_coverage, 0, 0, 0, 0, 0},
     {"build-dir", 256, "Full path to build directory which contains gcno files",
      (uchar **)&g_build_dir, (uchar **)&g_build_dir, 0, GET_STR, REQUIRED_ARG,
      0, 0, 0, 0, 0, 0},
@@ -273,9 +280,9 @@ int main(int argc, char **argv) {
 
   g_logger.info("Starting ATRT version : %s", getAtrtVersion().c_str());
 
-  atrt_coverage_config coverage_config;
-  coverage_config.m_enabled = g_coverage;
-  if (coverage_config.m_enabled) {
+  atrt_coverage_config coverage_config = {0, g_coverage};
+
+  if (coverage_config.m_analysis != coverage::Coverage::None) {
     if (g_default_force_cluster_restart == Before ||
         g_default_force_cluster_restart == Both) {
       g_logger.critical(
@@ -430,6 +437,17 @@ int main(int argc, char **argv) {
     return atrt_exit(ATRT_FAILURE);
   }
 
+  switch(coverage_config.m_analysis) {
+     case coverage::Coverage::Testcase:
+       g_logger.info("Running coverage analysis per test case");
+       break;
+     case coverage::Coverage::Testsuite:
+       g_logger.info("Running coverage analysis per test suite");
+       break;
+     case coverage::Coverage::None:
+       break;
+   }
+
   /**
    * Run all tests
    */
@@ -450,9 +468,10 @@ int main(int argc, char **argv) {
       if (!is_last_testcase) {
         next_testcase_forces_restart = testcases[i+1].m_force_cluster_restart;
       }
-      test_result =
-          run_test_case(processManagement, testcase, is_last_testcase,
-                        next_testcase_forces_restart, coverage_config);
+      test_result = run_test_case(processManagement, testcase,
+                                  is_last_testcase,
+                                  next_testcase_forces_restart,
+                                  coverage_config);
       if (test_result.result != ErrorCodes::ERR_OK) {
         current_failure_mode = testcase.m_behaviour_on_failure;
       }
@@ -480,10 +499,13 @@ int main(int argc, char **argv) {
     }
   }
 
-  if (coverage_config.m_enabled) {
+  if (coverage_config.m_analysis != coverage::Coverage::None) {
     if (testcases.empty()) {
       g_logger.debug("No testcases were run to compute coverage report");
     } else {
+      if (g_coverage == coverage::Coverage::Testsuite) {
+        gather_coverage_results(g_config, coverage_config);
+      }
       g_logger.debug("Computing coverage report..");
       if (compute_test_coverage(coverage_config, g_build_dir) == 0) {
         g_logger.debug("Coverage report generated for the run!!");
@@ -906,9 +928,9 @@ TestResult run_test_case(ProcessManagement &processManagement,
       }
     }
 
-    if (coverage_config.m_enabled) {
-      test_case_coverage_results(&test_result, g_config,
-                                 coverage_config, testcase.test_no);
+    if (coverage_config.m_analysis == coverage::Coverage::Testcase) {
+      test_case_coverage_results(&test_result, g_config, coverage_config,
+                                 testcase.test_no);
     }
   }
 
@@ -1029,10 +1051,10 @@ int compute_path_level(const char *g_build_dir) {
 
 int compute_test_coverage(atrt_coverage_config &coverage_config,
                           const char *build_dir) {
-  BaseString compute_coverage_progname = g_compute_coverage_progname;
-  compute_coverage_progname.appfmt(" %s", g_cwd);
-  compute_coverage_progname.appfmt(" %s", build_dir);
-  const int result = sh(compute_coverage_progname.c_str());
+  BaseString compute_coverage_cmd = g_compute_coverage_progname;
+  compute_coverage_cmd.appfmt(" --results-dir=%s", g_cwd);
+  compute_coverage_cmd.appfmt(" --build-dir=%s", build_dir);
+  const int result = sh(compute_coverage_cmd.c_str());
   if (result != 0) {
     g_logger.critical("Failed to compute coverage report");
     return -1;
@@ -1373,32 +1395,50 @@ bool setup_hosts(atrt_config &config) {
 bool gather_coverage_results(atrt_config &config,
                              atrt_coverage_config &coverage_config,
                              int test_number) {
-  BaseString gather_progname = g_gather_progname;
+  BaseString gather_cmd = g_gather_progname;
+  gather_cmd.appfmt(" --coverage");
 
-  gather_progname.appfmt(" --coverage");
+  BaseString coverage_gather_dir;
+  if (coverage_config.m_analysis == coverage::Coverage::Testsuite) {
+    coverage_gather_dir = g_cwd;
+  }
+
   for (unsigned i = 0; i < config.m_hosts.size(); i++) {
     if (config.m_hosts[i]->m_hostname.length() == 0) continue;
     const char *hostname = config.m_hosts[i]->m_hostname.c_str();
-    gather_progname.appfmt(" %s:%s/%s/%s", hostname,
-                           config.m_hosts[i]->m_basedir.c_str(), "gcov",
-                           hostname);
+
+    if (coverage_config.m_analysis == coverage::Coverage::Testcase) {
+      coverage_gather_dir = config.m_hosts[i]->m_basedir.c_str();
+    }
+    gather_cmd.appfmt(" %s:%s/%s/%s", hostname, coverage_gather_dir.c_str(),
+                      "gcov", hostname);
   }
 
-  g_logger.debug("system(%s)", gather_progname.c_str());
-  const int r1 = sh(gather_progname.c_str());
+  g_logger.debug("system(%s)", gather_cmd.c_str());
+  const int r1 = sh(gather_cmd.c_str());
   if (r1 != 0) {
     g_logger.critical("Failed to gather coverage files!");
     return false;
   }
 
-  BaseString analyze_coverage_progname = g_analyze_coverage_progname;
-  analyze_coverage_progname.appfmt(" %s", g_cwd);
-  analyze_coverage_progname.appfmt(" %s", g_build_dir);
-  analyze_coverage_progname.appfmt(" %d", test_number);
-  g_logger.debug("system(%s)", analyze_coverage_progname.c_str());
-  const int r2 = sh(analyze_coverage_progname.c_str());
+  BaseString analyze_coverage_cmd = g_analyze_coverage_progname;
+  analyze_coverage_cmd.appfmt(" --results-dir=%s", g_cwd);
+  analyze_coverage_cmd.appfmt(" --build-dir=%s", g_build_dir);
 
-  if (r2 != 0) {
+  switch (coverage_config.m_analysis) {
+    case coverage::Coverage::Testcase:
+      analyze_coverage_cmd.appfmt(" --test-case-no=%d", test_number);
+      break;
+    case coverage::Coverage::Testsuite:
+      /* Fall through */
+    case coverage::Coverage::None:
+      break;
+  }
+
+  g_logger.debug("system(%s)", analyze_coverage_cmd.c_str());
+  const int r2 = sh(analyze_coverage_cmd.c_str());
+
+  if (r2 != 0 ) {
     g_logger.critical("Failed to analyse coverage files!");
     return false;
   }

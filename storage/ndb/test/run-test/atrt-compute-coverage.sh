@@ -22,54 +22,65 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# Input parameters:
-#  * RESULTS_BASE_DIR = Directory holding "result/result.N" directories.
-#  * BUILD_DIR = Directory where source code was built.
-
-# Compute baseline.info and combines it with test coverage file of
-# each test case. Runs lcov tool on TEST_COVERAGE_DIR directory to then merge
-# these test coverage files to generate coverage.info file.
-
 set -e
 
-if [ $# -lt 2 ]; then
-  echo "Usage: ${0} result-base-dir build-dir" >&2
-  exit 1
-fi
+usage()
+{
+  echo
+  echo "Computes test coverage by generating baseline.info and "\
+       "combining coverage files from test_coverage directory."
+  echo
+  echo "Usage: ${0} --results-dir=<results_dir> --build-dir=<build_dir> "\
+      " [--help]"
+  echo "Options:"
+  echo "  --results-dir  - Directory holding 'result.N' directories."
+  echo "  --build-dir    - Directory where source code was built with "\
+                           "coverage flags enabled."
+  echo "  --help         - Displays help"
+}
 
-RESULTS_BASE_DIR="${1}"
-BUILD_DIR="${2}"
+while [ "$1" ]; do
+  case "$1" in
+    --results-dir=*) results_dir=$(echo "${1}" | sed s/--results-dir=//);;
+    --build-dir=*) build_dir=$(echo "${1}" | sed s/--build-dir=//);;
+    --help) usage; exit 0;;
+    *) echo "ERROR: Invalid option ${1}..." >&2; usage; exit 1;;
+  esac
+  shift
+done
 
-TEST_COVERAGE_DIR="${RESULTS_BASE_DIR}/test_coverage"
-if [ ! -d "${TEST_COVERAGE_DIR}" ]; then
+test_coverage_dir="${results_dir}/test_coverage"
+if [ ! -d "${test_coverage_dir}" ]; then
   echo "Test coverage files not present to compute coverage" >&2
   exit 1
 fi
 
-RESOURCES_TO_CLEANUP=''
-trap "rm -rf ${RESOURCES_TO_CLEANUP}" EXIT
+resources_to_cleanup=''
+trap "rm -rf ${resources_to_cleanup}" EXIT
 
-BASELINE_INFO="${RESULTS_BASE_DIR}/baseline.info"
-if [ ! -f "${BASELINE_INFO}" ]; then
-  lcov -c --no-external --initial -d "${BUILD_DIR}" -o "${BASELINE_INFO}"
-  RESOURCES_TO_CLEANUP+="${BASELINE_INFO}"
+baseline_info="${results_dir}/baseline.info"
+
+if [ ! -f "${baseline_info}" ]; then
+  lcov -c --initial --no-external -d "${build_dir}/storage/ndb" \
+    -o "${baseline_info}"
 fi
 
-for coverage_file in "${TEST_COVERAGE_DIR}"/*; do
-  lcov -a "${BASELINE_INFO}" -a "${coverage_file}" -o "${coverage_file}"
+for coverage_file in "${test_coverage_dir}"/*; do
+  lcov -a "${baseline_info}" -a "${coverage_file}" -o "${coverage_file}"
 
   # Filter out coverage from build files which will not be hit by any test.
-  lcov --remove "${coverage_file}" "${BUILD_DIR}*" -o "${coverage_file}"
+  lcov --remove "${coverage_file}" "${build_dir}*" -o "${coverage_file}"
 
   # Extract coverage for NDB code only.
   lcov --extract "${coverage_file}" "*/storage/ndb/*" -o "${coverage_file}"
 done
 
-find "${TEST_COVERAGE_DIR}" -name "*.info" -exec echo "-a {}" \; | \
-  xargs -r -x lcov -o "${RESULTS_BASE_DIR}/coverage.info"
-RESULT="$?"
+result=0
+find "${test_coverage_dir}" -name "*.info" -exec echo "-a {}" \; | \
+  xargs -r -x lcov -o "${results_dir}/coverage.info"
+result="$?"
 
-if [ "${RESULT}" -ne 0 ]; then
-  echo "Coverage report could not be generated: ${RESULT}" >&2
+if [ "${result}" -ne 0 ]; then
+  echo "Coverage report could not be generated: ${result}" >&2
   exit 1
 fi
