@@ -4397,14 +4397,47 @@ static Uint32 get_part_id(const NdbDictionary::Table *table,
     return (hash_value % no_frags);
 }
 
+static void
+callback_logentry(int result, NdbTransaction* trans, void* aObject)
+{
+  restore_callback_t *cb = (restore_callback_t *)aObject;
+  (cb->restore)->cback_logentry(result, cb);
+}
+
 void
-BackupRestore::logEntry(const LogEntry & tup)
+BackupRestore::logEntry(const LogEntry & le)
 {
   if (!m_restore)
     return;
 
-  bool use_mapping_idx = false;
 
+  if (le.m_table->isSYSTAB_0())
+  {
+    /* We don't restore from SYSTAB_0 log entries */
+    return;
+  }
+
+  restore_callback_t * cb = m_free_callback;
+
+  if (cb == 0)
+    abort();
+
+  cb->retries = 0;
+  cb->le = &le;
+  logEntry_a(cb);
+
+  // Poll existing logentry transaction
+  while (m_transactions > 0)
+  {
+    m_ndb->sendPollNdb(3000);
+  }
+}
+
+void
+BackupRestore::logEntry_a(restore_callback_t *cb)
+{
+  bool use_mapping_idx = false;
+  const LogEntry &tup = *(cb->le);
   if (unlikely((tup.m_table->m_pk_extended) &&
                (tup.m_type != LogEntry::LE_INSERT) &&
                (!tup.m_table->m_staging)))
@@ -4432,42 +4465,24 @@ BackupRestore::logEntry(const LogEntry & tup)
     use_mapping_idx = true;
   }
 
-  if (tup.m_table->isSYSTAB_0())
-  {
-    /* We don't restore from SYSTAB_0 log entries */
-    return;
-  }
-
-  int retries = 0;
-  NdbError errobj;
 retry:
   Uint32 mapping_idx_key_count = 0;
-
-  if (retries == MAX_RETRIES)
+  if (cb->retries == MAX_RETRIES)
   {
-    err << "execute failed: " << errobj << endl;
+    err << "execute failed: " << cb->connection->getNdbError() << endl;
     exitHandler();
   }
-  else if (retries > 0)
-  {
-    NdbSleep_MilliSleep(100 + retries * 300);
-  }
   
-  retries++;
-
-  NdbTransaction * trans = m_ndb->startTransaction();
+  cb->connection = m_ndb->startTransaction();
+  NdbTransaction * trans = cb->connection;
   if (trans == NULL) 
   {
-    errobj = m_ndb->getNdbError();
-    if (errobj.status == NdbError::TemporaryError)
-    {
+    if (errorHandler(cb)) // temp error, retry
       goto retry;
-    }
-    err << "Cannot start transaction: " << errobj << endl;
+    err << "Cannot start transaction: " << trans->getNdbError() << endl;
     exitHandler();
   } // if
   
-  TransGuard g(trans);
   const NdbDictionary::Table * table = get_table(*tup.m_table);
   NdbOperation* op = NULL;
 
@@ -4484,6 +4499,8 @@ retry:
   }
   if (op == NULL) 
   {
+    if (errorHandler(cb)) // temp error, retry
+      goto retry;
     err << "Cannot get operation: " << trans->getNdbError() << endl;
     exitHandler();
   } // if
@@ -4503,12 +4520,15 @@ retry:
   default:
     err << "Log entry has wrong operation type."
 	   << " Exiting...";
+    m_ndb->closeTransaction(trans);
     exitHandler();
   }
 
   if (check != 0) 
   {
     err << "Error defining op: " << trans->getNdbError() << endl;
+    if (errorHandler(cb)) // temp error, retry
+      goto retry;
     exitHandler();
   } // if
 
@@ -4668,30 +4688,44 @@ retry:
   {
     op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
   }
-  const int ret = trans->execute(NdbTransaction::Commit);
+  trans->executeAsynchPrepare(NdbTransaction::Commit,
+                                 &callback_logentry, cb);
+  m_transactions++;
+  return;
+}
+
+void BackupRestore::cback_logentry(int result, restore_callback_t *cb)
+{
+  m_transactions--;
+  const NdbError errobj = cb->connection->getNdbError();
+  m_ndb->closeTransaction(cb->connection);
+  cb->connection = NULL;
 
 #ifndef DBUG_OFF
   /* Test retry path */
   if ((m_logCount % 100000) == 3)
   {
-    if (retries < 3)
+    if (cb->retries++ < 3)
     {
       info << "Testing log retry path" << endl;
-      goto retry;
+      logEntry_a(cb);
+      return;
     }
   }
 #endif
 
-  if (ret != 0)
+  if (result < 0)
   {
-    // Both insert update and delete can fail during log running
-    // and it's ok
+    // Ignore errors and continue if
+    // - insert fails with ConstraintViolation or
+    // - update/delete fails with NoDataFound
     bool ok= false;
-    errobj= trans->getNdbError();
     if (errobj.status == NdbError::TemporaryError)
-      goto retry;
-
-    switch(tup.m_type)
+    {
+      logEntry_a(cb);
+      return;
+    }
+    switch(cb->le->m_type)
     {
     case LogEntry::LE_INSERT:
       if(errobj.status == NdbError::PermanentError &&
@@ -4712,7 +4746,7 @@ retry:
     }
   }
   
-  m_logBytes+= n_bytes;
+  m_logBytes+= cb->n_bytes;
   m_logCount++;
 }
 
