@@ -3044,7 +3044,7 @@ void Item_func_conv_charset::print(const THD *thd, String *str,
   str->append(STRING_WITH_LEN("convert("));
   args[0]->print(thd, str, query_type);
   str->append(STRING_WITH_LEN(" using "));
-  str->append(conv_charset->csname);
+  str->append(replace_utf8_utf8mb3(conv_charset->csname));
   str->append(')');
 }
 
@@ -3082,7 +3082,7 @@ bool Item_func_set_collation::resolve_type(THD *) {
       (!my_charset_same(args[0]->collation.collation, set_collation) &&
        args[0]->collation.derivation != DERIVATION_NUMERIC)) {
     my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0), colname,
-             args[0]->collation.collation->csname);
+             replace_utf8_utf8mb3(args[0]->collation.collation->csname));
     return true;
   }
   collation.set(set_collation, DERIVATION_EXPLICIT,
@@ -3435,7 +3435,7 @@ void Item_typecast_char::print(const THD *thd, String *str,
   if (cast_length >= 0) str->append_parenthesized(cast_length);
   if (cast_cs) {
     str->append(STRING_WITH_LEN(" charset "));
-    str->append(cast_cs->csname);
+    str->append(replace_utf8_utf8mb3(cast_cs->csname));
   }
   str->append(')');
 }

@@ -213,7 +213,7 @@ bool charset_prevents_inplace(const Field_str &from, const Create_field &to) {
     return false;
   }
   return (0 != strcmp(to.charset->csname, MY_UTF8MB4) ||
-          0 != strcmp(from.charset()->csname, MY_UTF8MB3));
+          0 != strcmp(replace_utf8_utf8mb3(from.charset()->csname), "utf8mb3"));
 }
 
 /**

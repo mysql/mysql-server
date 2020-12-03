@@ -173,7 +173,8 @@ class Table {
       return;
     } else {
       WRITE_VAL("\t[meta][charset result] number: %d\n", cs_info->number);
-      WRITE_VAL("\t[meta][charset result] name: %s\n", cs_info->csname);
+      WRITE_VAL("\t[meta][charset result] name: %s\n",
+                replace_utf8_utf8mb3(cs_info->csname));
       WRITE_VAL("\t[meta][charset result] collation: %s\n", cs_info->name);
       WRITE_VAL("\t[meta][charset result] sort order: %s\n",
                 cs_info->sort_order);

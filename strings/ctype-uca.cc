@@ -63,6 +63,8 @@
 #include "strings/uca_data.h"
 #include "template_utils.h"
 
+#define MY_UTF8MB3 "utf8"
+
 MY_UCA_INFO my_uca_v400 = {
     UCA_V400,
 
