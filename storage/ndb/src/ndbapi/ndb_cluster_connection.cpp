@@ -475,7 +475,7 @@ Ndb_cluster_connection_impl(const char * connect_string,
     m_uri_port(0)
 {
   DBUG_ENTER("Ndb_cluster_connection");
-  DBUG_PRINT("enter",("Ndb_cluster_connection this=0x%lx", (long) this));
+  DBUG_PRINT("enter",("Ndb_cluster_connection this=%p", this));
 
   NdbMutex_Lock(g_ndb_connection_mutex);
   if(g_ndb_connection_count++ == 0)
