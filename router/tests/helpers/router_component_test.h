@@ -30,6 +30,7 @@
 #include <gmock/gmock.h>
 
 #include "mysql/harness/stdx/attribute.h"
+#include "mysql_session.h"
 #include "mysqlrouter/cluster_metadata.h"
 #include "process_manager.h"
 #include "process_wrapper.h"
@@ -43,6 +44,8 @@
  **/
 class RouterComponentTest : public ProcessManager, public ::testing::Test {
  public:
+  using MySQLSession = mysqlrouter::MySQLSession;
+
   /** @brief Initializes the test
    */
   void SetUp() override;
@@ -69,6 +72,39 @@ class RouterComponentTest : public ProcessManager, public ::testing::Test {
    * increased 10 times for the run with VALGRIND.
    */
   static void sleep_for(std::chrono::milliseconds duration);
+
+  std::unique_ptr<MySQLSession> make_new_connection_ok(
+      uint16_t router_port, uint16_t expected_node_port) {
+    std::unique_ptr<MySQLSession> session{std::make_unique<MySQLSession>()};
+    EXPECT_NO_THROW(session->connect("127.0.0.1", router_port, "username",
+                                     "password", "", ""));
+
+    auto result{session->query_one("select @@port")};
+    EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
+              expected_node_port);
+
+    return session;
+  }
+
+  void verify_new_connection_fails(uint16_t router_port) {
+    MySQLSession session;
+    ASSERT_ANY_THROW(session.connect("127.0.0.1", router_port, "username",
+                                     "password", "", ""));
+  }
+
+  void verify_existing_connection_ok(
+      MySQLSession *session,
+      uint16_t expected_node = 0 /*0 means do not verify the port*/) {
+    auto result{session->query_one("select @@port")};
+    if (expected_node > 0) {
+      EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
+                expected_node);
+    }
+  }
+
+  void verify_existing_connection_dropped(MySQLSession *session) {
+    ASSERT_ANY_THROW(session->query_one("select @@port"));
+  }
 };
 
 /** @class CommonBootstrapTest
