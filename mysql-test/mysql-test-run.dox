@@ -5293,9 +5293,12 @@
     </li>
 
     <li>
-      <tt>`--with-ndbcluster-only`</tt>
+      <tt>`--with-ndbcluster-only`, `--with-ndb-only`</tt>
 
-      Run only test cases that have <b>ndb</b> in their name.
+      Run only <b>ndb</b> tests. If no suites are explicitly given, this
+      option also skip all non <b>ndb</b> suites without checking
+      individual test names.
+
     </li>
 
     <li>

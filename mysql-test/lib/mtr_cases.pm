@@ -71,7 +71,6 @@ our $defaults_extra_file;
 our $defaults_file;
 our $do_test;
 our $enable_disabled;
-our $with_ndbcluster_only;
 our $print_testcases;
 our $quick_collect;
 our $skip_rpl;
@@ -1351,7 +1350,7 @@ sub collect_one_test_case {
     }
   } else {
     # This is not a ndb test
-    if ($with_ndbcluster_only) {
+    if ($::ndbcluster_only) {
       # Only the ndb test should be run, all other should be skipped
       skip_test($tinfo, "Only ndbcluster tests");
       return $tinfo;

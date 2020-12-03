@@ -336,6 +336,7 @@ our $start_only;
 our $glob_debugger       = 0;
 our $group_replication   = 0;
 our $ndbcluster_enabled  = 0;
+our $ndbcluster_only     = 0;
 our $mysqlbackup_enabled = 0;
 
 our @share_locations;
@@ -1542,25 +1543,25 @@ sub command_line_setup {
     'defaults-extra-file=s' => \&collect_option,
 
     # Control what test suites or cases to run
-    'big-test'                 => \$opt_big_test,
-    'combination=s'            => \@opt_combinations,
-    'do-suite=s'               => \$opt_do_suite,
-    'do-test=s'                => \&collect_option,
-    'force'                    => \$opt_force,
-    'ndb|include-ndbcluster'   => \$opt_include_ndbcluster,
-    'no-skip'                  => \$opt_no_skip,
-    'only-big-test'            => \$opt_only_big_test,
-    'platform=s'               => \$opt_platform,
-    'exclude-platform=s'       => \$opt_platform_exclude,
-    'skip-combinations'        => \$opt_skip_combinations,
-    'skip-im'                  => \&ignore_option,
-    'skip-ndbcluster|skip-ndb' => \$opt_skip_ndbcluster,
-    'skip-rpl'                 => \&collect_option,
-    'skip-sys-schema'          => \$opt_skip_sys_schema,
-    'skip-test=s'              => \&collect_option,
-    'start-from=s'             => \&collect_option,
-    'suite|suites=s'           => \$opt_suites,
-    'with-ndbcluster-only'     => \&collect_option,
+    'big-test'                           => \$opt_big_test,
+    'combination=s'                      => \@opt_combinations,
+    'do-suite=s'                         => \$opt_do_suite,
+    'do-test=s'                          => \&collect_option,
+    'force'                              => \$opt_force,
+    'ndb|include-ndbcluster'             => \$opt_include_ndbcluster,
+    'no-skip'                            => \$opt_no_skip,
+    'only-big-test'                      => \$opt_only_big_test,
+    'platform=s'                         => \$opt_platform,
+    'exclude-platform=s'                 => \$opt_platform_exclude,
+    'skip-combinations'                  => \$opt_skip_combinations,
+    'skip-im'                            => \&ignore_option,
+    'skip-ndbcluster|skip-ndb'           => \$opt_skip_ndbcluster,
+    'skip-rpl'                           => \&collect_option,
+    'skip-sys-schema'                    => \$opt_skip_sys_schema,
+    'skip-test=s'                        => \&collect_option,
+    'start-from=s'                       => \&collect_option,
+    'suite|suites=s'                     => \$opt_suites,
+    'with-ndbcluster-only|with-ndb-only' => \$ndbcluster_only,
 
     # Specify ports
     'build-thread|mtr-build-thread=i' => \$opt_build_thread,
@@ -3410,6 +3411,10 @@ sub vs_config_dirs ($$) {
 sub check_ndbcluster_support ($) {
   my $mysqld_variables = shift;
 
+  if ($ndbcluster_only) {
+    $DEFAULT_SUITES = "";
+  }
+
   my $ndbcluster_supported = 0;
   if ($mysqld_variables{'ndb-connectstring'}) {
     $ndbcluster_supported = 1;
@@ -3467,7 +3472,8 @@ sub check_ndbcluster_support ($) {
       # Add only the test suite for ndbcluster integration check
       mtr_report(" - enabling ndbcluster(for integration checks)");
       $ndbcluster_enabled = 1;
-      $DEFAULT_SUITES .= ",ndbcluster";
+      $DEFAULT_SUITES .= "," if $DEFAULT_SUITES;
+      $DEFAULT_SUITES .= "ndbcluster";
       return;
     }
   }
@@ -3475,8 +3481,9 @@ sub check_ndbcluster_support ($) {
   mtr_report(" - enabling ndbcluster");
   $ndbcluster_enabled = 1;
   # Add MySQL Cluster test suites
-  $DEFAULT_SUITES .=
-",ndb,ndb_binlog,rpl_ndb,ndb_rpl,ndbcluster,ndb_ddl,gcol_ndb,json_ndb,ndb_opt";
+  $DEFAULT_SUITES .= "," if $DEFAULT_SUITES;
+  $DEFAULT_SUITES .= "ndb,ndb_binlog,rpl_ndb,ndb_rpl,ndbcluster,ndb_ddl,".
+                     "gcol_ndb,json_ndb,ndb_opt";
   # Increase the suite timeout when running with default ndb suites
   $opt_suite_timeout *= 2;
   return;
@@ -7483,7 +7490,9 @@ Options to control what test suites or cases to run
                         'non-default'- will scan the mysql directory for
                                        available suites and runs only the
                                        non-default suites.
-  with-ndbcluster-only  Run only ndb tests.
+  with-ndb[cluster]-only  Run only ndb tests. If no suites are explicitly given,
+                        this option also skip all non ndb suites without
+                        checking individual test names.
 
 Options that specify ports
 
