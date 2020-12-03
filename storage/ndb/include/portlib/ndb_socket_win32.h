@@ -106,9 +106,13 @@ ndb_socket_t ndb_socket_create_dual_stack(int type, int protocol)
   int on = 0;
   s.s= socket(AF_INET6, type, protocol);
 
+  if (s.s == INVALID_SOCKET)
+    return s;
+
   if (ndb_setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY,
                      (char *)&on, sizeof(on)) == -1)
   {
+    ndb_socket_close(s);
     ndb_socket_invalidate(&s);
   }
   return s;
