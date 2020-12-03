@@ -30,14 +30,15 @@ usage()
   echo "Analyzes coverage files gathered from each test host."
   echo
   echo "Usage: ${0} --results-dir=<results_dir> --build-dir=<build_dir> "\
-      "--test-case-no=<test_case_no> [--help]"
+      "--coverage-tool=lcov|fastcov --test-case-no=<test_case_no> [--help]"
   echo "Options:"
-  echo "  --results-dir  - Directory holding 'result.N' directories."
-  echo "  --build-dir    - Directory where source code was built with "\
-                           "coverage flags enabled."
-  echo "  --test-case-no - Optional, used only if test coverage is "\
+  echo "  --results-dir   - Directory holding 'result.N' directories."
+  echo "  --build-dir     - Directory where source code was built with "\
+                            "coverage flags enabled."
+  echo "  --test-case-no  - Optional, used only if test coverage is "\
                            "computed per test case."
-  echo "  --help         - Displays help"
+  echo "  --coverage-tool - Tool that will be used for coverage analysis."
+  echo "  --help          - Displays help"
 }
 
 while [ "${1}" ]; do
@@ -45,6 +46,13 @@ while [ "${1}" ]; do
     --results-dir=*) results_dir=$(echo "${1}" | sed s/--results-dir=//);;
     --build-dir=*) build_dir=$(echo "${1}" | sed s/--build-dir=//);;
     --test-case-no=*) test_case_no=$(echo "${1}" | sed s/--test-case-no=//);;
+    --coverage-tool=*) coverage_tool=$(echo "${1}" | sed s/--coverage-tool=//);
+        case "${coverage_tool}" in
+          lcov);;
+          fastcov);;
+          *) echo "Coverage tool ${coverage_tool} not supported."\
+              "lcov will be used..."; coverage_tool="lcov";
+        esac;;
     --help) usage; exit 0;;
     *) echo "ERROR: Invalid option ${1}..." >&2; usage; exit 1;;
   esac
@@ -74,7 +82,12 @@ for host_dir in */; do
     sed -e 's/[.]gcda$/.gcno/' > "${host_dir}/gcno-files"
   rsync -am --files-from="${host_dir}/gcno-files" "${build_dir}" "${host_dir}"
 
-  lcov -c -d "${host_dir}" -o "${host_dir}.info"
+  if  [ "${coverage_tool}" = "lcov" ]; then
+    lcov -c -d "${host_dir}" -o "${host_dir}.info"
+  elif [ "${coverage_tool}" = "fastcov" ]; then
+    ## --lcov generates coverage files that are compatible with lcov tool
+    fastcov -d "${host_dir}" --lcov -o "${host_dir}.info"
+  fi
 done
 
 coverage_file=""
@@ -86,9 +99,15 @@ fi
 
 result=0
 # Combine host.info files
-find . -name "*.info" -exec echo "-a {}" \; | \
-  xargs -r -x lcov -o "${test_coverage_dir}/${coverage_file}"
-result="$?"
+if [ "${coverage_tool}" = "lcov" ]; then
+  find . -name "*.info" -exec echo "-a {}" \; |
+    xargs -r -x lcov -o "${test_coverage_dir}/${coverage_file}"
+  result="$?"
+elif [ "${coverage_tool}" = "fastcov" ]; then
+  find . -name "*.info" -exec echo "{}" \; | xargs -r -x fastcov --lcov \
+    -o "${test_coverage_dir}/${coverage_file}" -C
+  result="$?"
+fi
 
 if [ "${result}" -ne 0 ]; then
   echo "Coverage Analysis Failed: ${result}" >&2

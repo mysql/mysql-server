@@ -104,6 +104,7 @@ do
                     default_force_cluster_restart_arg="$1";;
                 --default-behaviour-on-failure=*) default_behaviour_on_failure_arg="$1";;
                 --*clean-shutdown*) clean_shutdown_arg="$1";;
+                --atrt-coverage-tool=*) coverage_tool_arg="${1/#--atrt-/--}";;
                 --atrt-coverage*) coverage_arg="${1/#--atrt-/--}";;
                 --build-dir=*) build_dir_arg="$1";;
         esac
@@ -459,6 +460,7 @@ else
     args="$args ${clean_shutdown_arg}"
     args="$args ${coverage_arg}"
     args="$args ${build_dir_arg}"
+    args="$args ${coverage_tool_arg}"
     $atrt $args my.cnf | tee -a log.txt
 
     atrt_test_status=${PIPESTATUS[0]}

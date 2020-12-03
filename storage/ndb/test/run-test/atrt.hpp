@@ -87,6 +87,8 @@ namespace coverage {
 enum Coverage : long { None, Testcase, Testsuite };
 };
 
+enum CoverageTools : long { Lcov, Fastcov };
+
 struct atrt_host {
   unsigned m_index;
   BaseString m_user;
@@ -162,6 +164,7 @@ struct atrt_config {
 struct atrt_coverage_config {
   int m_prefix_strip;
   coverage::Coverage m_analysis;
+  CoverageTools m_tool;
 };
 
 struct atrt_testcase {

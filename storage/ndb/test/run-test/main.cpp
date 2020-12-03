@@ -48,7 +48,7 @@
 
 #define PATH_SEPARATOR DIR_SEPARATOR
 #define TESTCASE_RETRIES_THRESHOLD_WARNING 5
-#define ATRT_VERSION_NUMBER 10
+#define ATRT_VERSION_NUMBER 11
 
 /** Global variables */
 static const char progname[] = "ndb_atrt";
@@ -105,6 +105,11 @@ coverage::Coverage g_coverage = coverage::Coverage::None;
 const char *coverage_mode[] = {"none", "testcase", "testsuite", nullptr};
 TYPELIB coverage_typelib = {array_elements(coverage_mode) - 1, "coverage_mode",
                             coverage_mode, nullptr};
+
+CoverageTools g_coverage_tool = Lcov;
+const char *coverage_tools[] = {"lcov", "fastcov", nullptr};
+TYPELIB coverage_tools_typelib = {array_elements(coverage_tools) - 1,
+                                  "coverage_tools", coverage_tools, nullptr};
 
 const char *g_cwd = 0;
 const char *g_basedir = 0;
@@ -251,6 +256,11 @@ static struct my_option g_options[] = {
     {"build-dir", 256, "Full path to build directory which contains gcno files",
      (uchar **)&g_build_dir, (uchar **)&g_build_dir, 0, GET_STR, REQUIRED_ARG,
      0, 0, 0, 0, 0, 0},
+    {"coverage-tool", 256,
+     "Specifies if coverage is computed using 'lcov'(default) or 'fastcov'",
+     (uchar **)&g_coverage_tool, (uchar **)&g_coverage_tool,
+     &coverage_tools_typelib, GET_ENUM, REQUIRED_ARG, g_coverage_tool, 0, 0, 0,
+     0, 0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 static int check_testcase_file_main(int argc, char **argv);
@@ -280,7 +290,7 @@ int main(int argc, char **argv) {
 
   g_logger.info("Starting ATRT version : %s", getAtrtVersion().c_str());
 
-  atrt_coverage_config coverage_config = {0, g_coverage};
+  atrt_coverage_config coverage_config = {0, g_coverage, g_coverage_tool};
 
   if (coverage_config.m_analysis != coverage::Coverage::None) {
     if (g_default_force_cluster_restart == Before ||
@@ -447,6 +457,12 @@ int main(int argc, char **argv) {
      case coverage::Coverage::None:
        break;
    }
+
+  if (coverage_config.m_analysis != coverage::Coverage::None) {
+    const char *coverage_tool =
+        (g_coverage_tool == CoverageTools::Lcov) ? "lcov" : "fastcov";
+    g_logger.info("Using %s for coverage analysis", coverage_tool);
+  }
 
   /**
    * Run all tests
@@ -1054,6 +1070,15 @@ int compute_test_coverage(atrt_coverage_config &coverage_config,
   BaseString compute_coverage_cmd = g_compute_coverage_progname;
   compute_coverage_cmd.appfmt(" --results-dir=%s", g_cwd);
   compute_coverage_cmd.appfmt(" --build-dir=%s", build_dir);
+
+  switch (coverage_config.m_tool) {
+    case CoverageTools::Lcov:
+      compute_coverage_cmd.appfmt(" --coverage-tool=lcov");
+      break;
+    case CoverageTools::Fastcov:
+      compute_coverage_cmd.appfmt(" --coverage-tool=fastcov");
+      break;
+  }
   const int result = sh(compute_coverage_cmd.c_str());
   if (result != 0) {
     g_logger.critical("Failed to compute coverage report");
@@ -1435,6 +1460,14 @@ bool gather_coverage_results(atrt_config &config,
       break;
   }
 
+  switch (coverage_config.m_tool) {
+    case CoverageTools::Lcov:
+      analyze_coverage_cmd.appfmt(" --coverage-tool=lcov");
+      break;
+    case CoverageTools::Fastcov:
+      analyze_coverage_cmd.appfmt(" --coverage-tool=fastcov");
+      break;
+  }
   g_logger.debug("system(%s)", analyze_coverage_cmd.c_str());
   const int r2 = sh(analyze_coverage_cmd.c_str());
 

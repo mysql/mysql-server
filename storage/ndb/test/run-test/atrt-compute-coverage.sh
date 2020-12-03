@@ -31,18 +31,26 @@ usage()
        "combining coverage files from test_coverage directory."
   echo
   echo "Usage: ${0} --results-dir=<results_dir> --build-dir=<build_dir> "\
-      " [--help]"
+      "--coverage-tool=lcov|fastcov [--help]"
   echo "Options:"
-  echo "  --results-dir  - Directory holding 'result.N' directories."
-  echo "  --build-dir    - Directory where source code was built with "\
-                           "coverage flags enabled."
-  echo "  --help         - Displays help"
+  echo "  --results-dir   - Directory holding 'result.N' directories."
+  echo "  --build-dir     - Directory where source code was built with "\
+                            "coverage flags enabled."
+  echo "  --coverage-tool - Tool that will be used for coverage analysis."
+  echo "  --help          - Displays help"
 }
 
 while [ "$1" ]; do
   case "$1" in
     --results-dir=*) results_dir=$(echo "${1}" | sed s/--results-dir=//);;
     --build-dir=*) build_dir=$(echo "${1}" | sed s/--build-dir=//);;
+    --coverage-tool=*) coverage_tool=$(echo "${1}" | sed s/--coverage-tool=//);
+        case "${coverage_tool}" in
+          lcov);;
+          fastcov);;
+          *) echo "Coverage tool ${coverage_tool} not supported."\
+              "lcov will be used..."; coverage_tool="lcov";
+        esac;;
     --help) usage; exit 0;;
     *) echo "ERROR: Invalid option ${1}..." >&2; usage; exit 1;;
   esac
@@ -61,24 +69,50 @@ trap "rm -rf ${resources_to_cleanup}" EXIT
 baseline_info="${results_dir}/baseline.info"
 
 if [ ! -f "${baseline_info}" ]; then
-  lcov -c --initial --no-external -d "${build_dir}/storage/ndb" \
-    -o "${baseline_info}"
+  if [ "${coverage_tool}" = "lcov" ]; then
+    lcov -c --initial --no-external -d "${build_dir}/storage/ndb" \
+      -o "${baseline_info}"
+
+  elif [ "${coverage_tool}" = "fastcov" ]; then
+    # fastcov complains about missing .ypp files that are created during build
+    # time and deleted post build
+    fastcov --process-gcno --exclude .ypp /usr/ -d "${build_dir}/storage/ndb" --lcov \
+      -o "${baseline_info}"
+  fi
 fi
 
 for coverage_file in "${test_coverage_dir}"/*; do
-  lcov -a "${baseline_info}" -a "${coverage_file}" -o "${coverage_file}"
+  if [ "${coverage_tool}" = "lcov" ]; then
+    lcov -a "${baseline_info}" -a "${coverage_file}" -o "${coverage_file}"
 
-  # Filter out coverage from build files which will not be hit by any test.
-  lcov --remove "${coverage_file}" "${build_dir}*" -o "${coverage_file}"
+    # Filter out coverage from build files which will not be hit by any test.
+    lcov --remove "${coverage_file}" "${build_dir}*" -o "${coverage_file}"
 
-  # Extract coverage for NDB code only.
-  lcov --extract "${coverage_file}" "*/storage/ndb/*" -o "${coverage_file}"
+    # Extract coverage for NDB code only.
+    lcov --extract "${coverage_file}" "*/storage/ndb/*" -o "${coverage_file}"
+
+  elif [ "${coverage_tool}" = "fastcov" ]; then
+    fastcov -C "${baseline_info}" "${coverage_file}" --lcov \
+      -o "${coverage_file}"
+
+    fastcov --lcov -C "${coverage_file}" --exclude "${build_dir}" \
+      -o "${coverage_file}"
+
+    fastcov --lcov -C "${coverage_file}" --include "/storage/ndb/" \
+      -o "${coverage_file}"
+  fi
 done
 
 result=0
-find "${test_coverage_dir}" -name "*.info" -exec echo "-a {}" \; | \
-  xargs -r -x lcov -o "${results_dir}/coverage.info"
-result="$?"
+if [ "${coverage_tool}" = "lcov" ]; then
+  find "${test_coverage_dir}" -name "*.info" -exec echo "-a {}" \; | \
+    xargs -r -x lcov -o "${results_dir}/coverage.info"
+  result="$?"
+elif [ "${coverage_tool}" = "fastcov" ]; then
+  find "${test_coverage_dir}" -name "*.info" -exec echo "{}" \; | \
+    xargs -r -x fastcov --lcov -o "${results_dir}/coverage.info" -C
+  result="$?"
+fi
 
 if [ "${result}" -ne 0 ]; then
   echo "Coverage report could not be generated: ${result}" >&2
