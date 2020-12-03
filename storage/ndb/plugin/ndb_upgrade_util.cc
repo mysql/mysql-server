@@ -32,6 +32,10 @@
 // The first 8.0 GA version for MySQL NDBCluster
 static constexpr unsigned int NDB_VERSION_8_0_19 = NDB_MAKE_VERSION(8, 0, 19);
 
+// The first version supporting graceful schema distribution upgrade
+static constexpr unsigned int GRACEFUL_SCHEMA_DIST_UPGRADE_VERSION =
+    NDB_MAKE_VERSION(8, 0, 24);
+
 extern Ndb_cluster_connection *g_ndb_cluster_connection;
 extern bool opt_ndb_schema_dist_upgrade_allowed;
 
@@ -65,9 +69,10 @@ bool ndb_allow_ndb_schema_upgrade() {
     return false;
   }
 
-  // Allow ndb_schema table upgrade if all API nodes connected are atleast
-  // on 8.0.19 and the ndb-schema-dist-upgrade-allowed option is enabled
-  return (min_api_version >= NDB_VERSION_8_0_19) &&
+  // Allow ndb_schema table upgrade if all API nodes connected support graceful
+  // schema dist upgrade and the --ndb-schema-dist-upgrade-allowed option is
+  // enabled
+  return (min_api_version >= GRACEFUL_SCHEMA_DIST_UPGRADE_VERSION) &&
          opt_ndb_schema_dist_upgrade_allowed;
 }
 

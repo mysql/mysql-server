@@ -3,27 +3,33 @@
 #
 # Test behavior of ndbcluster and in particular the "ndb binlog thread"
 # when its util tables are dropped from NDB.
-# - the tables are vital for the functionality of binlog and schema distribution
+# - the tables are important for the functionality of binlog and schema
+#   distribution
 # - currently there are three util tables created by ndbcluster:
 #  1) mysql.ndb_schema
 #  -- communication between the MySQL Servers during schema distribution
 #  -- hidden for both DDL and DML for a MySQL Server user
+#  -- schema distribution will be disabled if table is dropped from NDB
+#  -- the "ndb binlog thread" will continously attempt to recreate the table
+#     in order to enable schema distribution functionality
 #  2) mysql.ndb_schema_result
 #  -- communication between the MySQL Servers during schema distribution
 #  -- hidden for both DDL and DML for a MySQL Server user
+#  -- schema distribution will be disabled if table is dropped from NDB
+#  -- the "ndb binlog thread" will continously attempt to recreate the table
+#     in order to enable schema distribution functionality
 #  3) mysql.ndb_apply_status
 #  -- keeps a record of the operations that have been replicated
 #  -- currently not hidden for either DDL or DML for a MySQL Server user
-# - if any of the tables are dropped from NDB, the "ndb binlog thread" will
-#   have a "hickup", which means it will:
-#  -- stop logging changes from NDB
-#  -- write error message(s) to log file
-#  -- tear everything down and restart itself
-#  -- create the tables again
+#  -- if this table is dropped from NDB, the "ndb binlog thread" will
+#     have an outage, which means it will:
+#  --- stop logging changes from NDB
+#  --- write error message(s) to log file
+#  --- tear everything down and restart itself
+#  --- create the table again while reconnecting to NDB
 #
 
-# Silence the expected errors written when "ndb binlog thread" is restarted
-# due to the util table drop
+# Silence the expected errors which occur when util tables are dropped
 --disable_query_log
 let $i = $NUM_MYSQLDS;
 while($i)

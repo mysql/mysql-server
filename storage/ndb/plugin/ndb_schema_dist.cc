@@ -147,7 +147,7 @@ bool Ndb_schema_dist_client::prepare(const char *db, const char *tabname) {
         // If the tablename is not empty, it is a non database DDL. Block it.
         my_printf_error(
             ER_DISALLOWED_OPERATION,
-            "DDLs are disallowed on NDB SE as there is atleast one node "
+            "DDLs are disallowed on NDB SE as there is at least one node "
             "without MySQL DD support connected to the cluster.",
             MYF(0));
         return false;

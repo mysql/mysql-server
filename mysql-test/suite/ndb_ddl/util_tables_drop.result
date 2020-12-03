@@ -16,11 +16,9 @@ NDBT_ProgramExit: 0 - OK
 # mysqld1: Wait until ready again...
 # mysqld3: Wait until ready again...
 # mysqld5: Wait until ready again...
-# Check that a LOST_EVENTS event was written to the binlog
+# Check if a LOST_EVENTS event was written to the binlog
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-binlog.000001	#	Incident	#	#	#1 (LOST_EVENTS)
-binlog.000001	#	Rotate	#	#	binlog.000002;pos=POS
 ALTER TABLE t1 ADD COLUMN b int not null;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -48,7 +46,7 @@ NDBT_ProgramExit: 0 - OK
 # mysqld1: Wait until ready again...
 # mysqld3: Wait until ready again...
 # mysqld5: Wait until ready again...
-# Check that a LOST_EVENTS event was written to the binlog
+# Check if a LOST_EVENTS event was written to the binlog
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Incident	#	#	#1 (LOST_EVENTS)
@@ -80,11 +78,9 @@ NDBT_ProgramExit: 0 - OK
 # mysqld1: Wait until ready again...
 # mysqld3: Wait until ready again...
 # mysqld5: Wait until ready again...
-# Check that a LOST_EVENTS event was written to the binlog
+# Check if a LOST_EVENTS event was written to the binlog
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-binlog.000001	#	Incident	#	#	#1 (LOST_EVENTS)
-binlog.000001	#	Rotate	#	#	binlog.000002;pos=POS
 ALTER TABLE t1 ADD COLUMN b int not null;
 SHOW CREATE TABLE t1;
 Table	Create Table
