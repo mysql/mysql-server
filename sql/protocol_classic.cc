@@ -2181,13 +2181,13 @@ int Protocol_classic::read_packet() {
   <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
       <td>iteration_count</td>
       <td>Number of times to execute the statement. Currently always 1.</td></tr>
+  <tr><td colspan="3">if num_params > 0 {</td></tr>
   <tr><td colspan="3">if ::CLIENT_QUERY_ATTRIBUTES is on {</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_int_le "int&lt;lenenc&gt;"</td>
     <td>parameter_count</td>
     <td>The number of parameter metadata and values supplied.
       Overrrides the count coming from prepare (num_params) if present.</td></tr>
-  <tr><td colspan="3">}</td></tr>
-  <tr><td colspan="3">if num_params > 0 {</td></tr>
+  <tr><td colspan="3">} -- if ::CLIENT_QUERY_ATTRIBUTES is on </td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_var "binary&lt;var&gt;"</td>
       <td>null_bitmap</td>
       <td>NULL bitmap, length= (num_params + 7) / 8</td></tr>
@@ -2202,11 +2202,12 @@ int Protocol_classic::read_packet() {
   <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
       <td>parameter_name</td>
       <td>Name of the parameter or empty if not present</td></tr>
-  <tr><td colspan="3">}</td></tr>
-  <tr><td colspan="3">}</td></tr>
+  <tr><td colspan="3">} -- if ::CLIENT_QUERY_ATTRIBUTES is on</td></tr>
+  <tr><td colspan="3">} -- if new_params_bind_flag is on</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_var "binary&lt;var&gt;"</td>
       <td>parameter_values</td>
       <td>value of each parameter</td></tr>
+  <tr><td colspan="3">} -- if (num_params > 0)</td></tr>
   </table>
 
   @par Example
