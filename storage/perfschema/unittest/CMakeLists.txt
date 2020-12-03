@@ -72,9 +72,16 @@ IF(WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO)
 ENDIF()
 
 ADD_DEPENDENCIES(pfs_connect_attr-t GenServerSource)
-# We need to explicitly link in everything referenced in sql/sql_builtin.cc
+# For static server_unittest_library we need to explicitly link in everything
+# referenced in sql/sql_builtin.cc
+IF(WITH_SHARED_UNITTEST_LIBRARY)
+  UNSET(MYSQLD_EXTRA_LIBRARIES)
+ELSE()
+  SET(MYSQLD_EXTRA_LIBRARIES ${MYSQLD_STATIC_PLUGIN_LIBS})
+ENDIF()
+
 TARGET_LINK_LIBRARIES(pfs_connect_attr-t
   mytap
   server_unittest_library
-  ${MYSQLD_STATIC_PLUGIN_LIBS}
+  ${MYSQLD_EXTRA_LIBRARIES}
   )
