@@ -11,6 +11,7 @@
 --source include/not_embedded.inc
 --source suite/ndb/include/have_clusterj.inc
 --source suite/ndb/include/have_ndbjtie_junit.inc
+--let JAVA_MIN_REQUIRED_VERSION=1.8
 --source suite/ndb/include/have_java.inc
 
 --let JAVA_CLASSPATH=$CLUSTERJ_JAR
