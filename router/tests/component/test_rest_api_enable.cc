@@ -195,7 +195,6 @@ class TestRestApiEnable : public RouterComponentTest {
 
   void assert_rest_works(const uint16_t port) {
     const auto uri = std::string(rest_api_basepath) + "/router/status";
-    wait_for_rest_endpoint_ready(uri, port);
 
     const auto ca_file =
         datadir_path.join(cert_filenames.at(CertFile::k_ca_cert));
@@ -281,6 +280,35 @@ class TestRestApiEnable : public RouterComponentTest {
     return result;
   }
 
+  void patch_config_file(const std::string &config_filename) {
+    // bootstrap does 'level = INFO', we need 'DEBUG'
+    // bootstrap sets logging_folder=..., we need where the ProcessManager
+    // expects it.
+
+    std::ifstream ifs;
+    std::stringstream ss;
+
+    ifs.open(config_filename);
+
+    std::string line;
+    while (std::getline(ifs, line)) {
+      if (line == "level = INFO") {
+        line = "level = DEBUG";
+      }
+      if (line.substr(0, sizeof("logging_folder") - 1) == "logging_folder") {
+        line = "logging_folder = " + get_logging_dir().str();
+      }
+      ss << line << "\n";
+    }
+
+    ifs.close();
+
+    std::ofstream ofs;
+
+    ofs.open(config_filename);
+    ofs << ss.str();
+  }
+
   ProcessWrapper &launch_router(
       const std::vector<std::string> &params, int expected_exit_code /*= 0*/,
       std::chrono::milliseconds wait_for_notify_ready = -1s) {
@@ -304,7 +332,6 @@ class TestRestApiEnable : public RouterComponentTest {
   TempDirectory temp_test_dir;
   mysql_harness::Path config_path;
   mysql_harness::Path datadir_path;
-  mysql_harness::Path logdir_path;
 
   static const std::string predefined_ca_key;
   static const std::string predefined_ca_cert;
@@ -324,7 +351,7 @@ class TestRestApiEnable : public RouterComponentTest {
       {CertFile::k_router_cert, "router-cert.pem"}};
 
  protected:
-  void set_globals() {
+  void set_globals(std::string cluster_id = "") {
     auto json_doc = mock_GR_metadata_as_json(cluster_id, {cluster_node_port},
                                              0 /*primary_id*/, 0 /*view_id*/,
                                              false /*error_on_md_query*/);
@@ -349,7 +376,6 @@ class TestRestApiEnable : public RouterComponentTest {
     config_path =
         mysql_harness::Path{temp_test_dir.name()}.join("mysqlrouter.conf");
     datadir_path = mysql_harness::Path{temp_test_dir.name()}.join("data");
-    logdir_path = mysql_harness::Path{temp_test_dir.name()}.join("log");
   }
 };
 
@@ -467,16 +493,15 @@ TEST_F(TestRestApiEnable, ensure_rest_is_disabled) {
        cert_file_t::k_router_cert}));
   assert_rest_config(config_path, false);
 
-  launch_router({"-c", config_path.str()}, EXIT_SUCCESS);
-  ASSERT_TRUE(wait_for_port_ready(router_port));
+  patch_config_file(config_path.str());
 
-  IOContext io_ctx;
-  auto http_client =
-      std::make_unique<HttpClient>(io_ctx, gr_member_ip, default_rest_port);
-  RestClient rest_client(std::move(http_client));
+  auto &router = ProcessManager::launch_router({"-c", config_path.str()});
 
-  const auto uri = std::string(rest_api_basepath) + "/router/status";
-  wait_endpoint_404(rest_client, uri, std::chrono::milliseconds(1000));
+  EXPECT_EQ(std::error_code{}, router.send_clean_shutdown_event());
+  EXPECT_EQ(0, router.wait_for_exit());
+
+  EXPECT_THAT(router.get_full_logfile(),
+              ::testing::Not(::testing::HasSubstr("rest_routing")));
 }
 
 /**
@@ -489,15 +514,16 @@ TEST_F(TestRestApiEnable, ensure_rest_is_disabled) {
  * WL13906:TS_FR05_01
  */
 TEST_F(TestRestApiEnable, ensure_rest_works) {
-  do_bootstrap({/*default command line arguments*/});
+  ASSERT_NO_FATAL_FAILURE(do_bootstrap({/*default command line arguments*/}));
 
   EXPECT_TRUE(certificate_files_exists(
       {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
        cert_file_t::k_router_cert}));
   assert_rest_config(config_path, true);
 
-  launch_router({"-c", config_path.str()}, EXIT_SUCCESS);
-  ASSERT_TRUE(wait_for_port_ready(router_port));
+  patch_config_file(config_path.str());
+
+  ProcessManager::launch_router({"-c", config_path.str()});
 
   assert_rest_works(default_rest_port);
 }
@@ -517,8 +543,9 @@ TEST_F(TestRestApiEnable, ensure_rest_works_on_custom_port) {
        cert_file_t::k_router_cert}));
   assert_rest_config(config_path, true);
 
-  launch_router({"-c", config_path.str()}, EXIT_SUCCESS);
-  ASSERT_TRUE(wait_for_port_ready(router_port));
+  patch_config_file(config_path.str());
+
+  ProcessManager::launch_router({"-c", config_path.str()});
 
   assert_rest_works(custom_port);
 }
@@ -659,8 +686,9 @@ TEST_P(RestApiEnableUserCertificates, ensure_rest_works_with_user_certs) {
   assert_rest_config(config_path, true);
   EXPECT_TRUE(certificate_files_not_changed(GetParam()));
 
-  launch_router({"-c", config_path.str()}, EXIT_SUCCESS);
-  ASSERT_TRUE(wait_for_port_ready(router_port));
+  patch_config_file(config_path.str());
+
+  ProcessManager::launch_router({"-c", config_path.str()});
 
   assert_rest_works(default_rest_port);
 }
@@ -804,6 +832,8 @@ TEST_P(RestApiInvalidUserCerts,
             GetParam());
   assert_rest_config(config_path, true);
 
+  patch_config_file(config_path.str());
+
   auto &router = launch_router({"-c", config_path.str()}, EXIT_FAILURE);
   check_exit_code(router, EXIT_FAILURE);
 
@@ -812,16 +842,9 @@ TEST_P(RestApiInvalidUserCerts,
       datadir_path.real_path().join(router_key_filename).str() +
       "' or SSL certificate file '" +
       datadir_path.real_path().join(router_cert_filename).str() + "' failed";
-  EXPECT_THAT(router.get_full_logfile("mysqlrouter.log", logdir_path.str()),
-              ::testing::HasSubstr(log_error));
-
-  IOContext io_ctx;
-  auto http_client =
-      std::make_unique<HttpClient>(io_ctx, gr_member_ip, default_rest_port);
-  RestClient rest_client(std::move(http_client));
-
-  const auto uri = std::string(rest_api_basepath) + "/router/status";
-  wait_endpoint_404(rest_client, uri, std::chrono::milliseconds(1000));
+  EXPECT_THAT(
+      router.get_full_logfile("mysqlrouter.log", get_logging_dir().str()),
+      ::testing::HasSubstr(log_error));
 }
 
 INSTANTIATE_TEST_SUITE_P(CheckRestApiInvalidUserCerts, RestApiInvalidUserCerts,
@@ -856,10 +879,12 @@ TEST_F(TestRestApiEnable, use_custom_datadir_absolute_path) {
 }
 
 /**
- * @test
- * Verify certificates and keys are cleaned up on error. Verify that 1)
- * bootstrap fails and exits with a meaningful error, 2) any key/certificate
- * files created during bootstrap are erased.
+ * @test Verify certificates and keys are cleaned up on error.
+ *
+ * Verify that
+ *
+ * 1) bootstrap fails and exits with a meaningful error,
+ * 2) any key/certificate files created during bootstrap are erased.
  *
  * WL13906:TS_Extra_03
  */
@@ -867,6 +892,10 @@ TEST_F(TestRestApiEnable, ensure_certificate_files_cleanup) {
   std::vector<std::string> cmdline = {
       "--bootstrap=" + gr_member_ip + ":" + std::to_string(cluster_node_port),
       "-d", temp_test_dir.name(), "--strict"};
+
+  // to fail account verification, use a cluster-id which leads to a failed
+  // query at bootstrap.
+  set_globals("some-garbage");
 
   // Account verification is done after the certificates are created, therefore
   // we expect the following order of events:
@@ -958,8 +987,9 @@ TEST_F(TestRestApiEnableBootstrapFailover,
        cert_file_t::k_router_cert}));
   assert_rest_config(config_path, true);
 
-  launch_router({"-c", config_path.str()}, EXIT_SUCCESS);
-  ASSERT_TRUE(wait_for_port_ready(router_port));
+  patch_config_file(config_path.str());
+
+  ProcessManager::launch_router({"-c", config_path.str()});
 
   assert_rest_works(default_rest_port);
 }
