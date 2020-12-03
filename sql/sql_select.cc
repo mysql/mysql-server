@@ -411,12 +411,12 @@ err:
   return true;
 }
 
-bool Sql_cmd_query_block::accept(THD *thd, Select_lex_visitor *visitor) {
+bool Sql_cmd_select::accept(THD *thd, Select_lex_visitor *visitor) {
   return thd->lex->unit->accept(visitor);
 }
 
-const MYSQL_LEX_CSTRING *
-Sql_cmd_query_block::eligible_secondary_storage_engine() const {
+const MYSQL_LEX_CSTRING *Sql_cmd_select::eligible_secondary_storage_engine()
+    const {
   // Don't use secondary storage engines for statements that call stored
   // routines.
   if (lex->uses_stored_routines()) return nullptr;
@@ -465,7 +465,7 @@ Sql_cmd_query_block::eligible_secondary_storage_engine() const {
   Prepare a SELECT statement.
 */
 
-bool Sql_cmd_query_block::prepare_inner(THD *thd) {
+bool Sql_cmd_select::prepare_inner(THD *thd) {
   if (lex->is_explain()) {
     /*
       Always use Query_result_send for EXPLAIN, even if it's an EXPLAIN for
@@ -915,7 +915,7 @@ static bool check_locking_clause_access(THD *thd, Global_tables_list tables) {
   of the query (and possibly to other entities).
 */
 
-bool Sql_cmd_query_block::precheck(THD *thd) {
+bool Sql_cmd_select::precheck(THD *thd) {
   /*
     lex->exchange != NULL implies SELECT .. INTO OUTFILE and this
     requires FILE_ACL access.
@@ -956,7 +956,7 @@ bool Sql_cmd_query_block::precheck(THD *thd) {
   Perform an authorization check for a prepared SELECT statement.
 */
 
-bool Sql_cmd_query_block::check_privileges(THD *thd) {
+bool Sql_cmd_select::check_privileges(THD *thd) {
   /*
     lex->exchange != nullptr implies SELECT .. INTO OUTFILE and this
     requires FILE_ACL access.

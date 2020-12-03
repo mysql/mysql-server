@@ -152,10 +152,10 @@ extern TYPELIB grant_types;
   Normally, preparation and execution is the same as for regular SELECT
   statements.
 */
-class Sql_cmd_show : public Sql_cmd_query_block {
+class Sql_cmd_show : public Sql_cmd_select {
  public:
   Sql_cmd_show(enum_sql_command sql_command)
-      : Sql_cmd_query_block(nullptr), m_sql_command(sql_command) {}
+      : Sql_cmd_select(nullptr), m_sql_command(sql_command) {}
   enum_sql_command sql_command_code() const override { return m_sql_command; }
   virtual bool check_parameters(THD *) { return false; }
   /// Generally, the SHOW commands do not distinguish precheck and regular check

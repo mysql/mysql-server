@@ -80,7 +80,7 @@
 #include "sql/sql_error.h"
 #include "sql/sql_insert.h"  // Sql_cmd_insert...
 #include "sql/sql_parse.h"
-#include "sql/sql_select.h"  // Sql_cmd_query_block...
+#include "sql/sql_select.h"  // Sql_cmd_select...
 #include "sql/sql_show.h"    // Sql_cmd_show...
 #include "sql/sql_show_processlist.h"
 #include "sql/sql_show_status.h"  // build_show_session_status, ...
@@ -637,7 +637,7 @@ Sql_cmd *PT_select_stmt::make_cmd(THD *thd) {
   }
 
   if (thd->lex->sql_command == SQLCOM_SELECT)
-    return new (thd->mem_root) Sql_cmd_query_block(thd->lex->result);
+    return new (thd->mem_root) Sql_cmd_select(thd->lex->result);
   else  // (thd->lex->sql_command == SQLCOM_DO)
     return new (thd->mem_root) Sql_cmd_do(nullptr);
 }
@@ -2112,7 +2112,7 @@ Sql_cmd *PT_show_count_base::make_cmd_generic(
 
   add_item_to_list(thd, var);
 
-  return new (thd->mem_root) Sql_cmd_query_block(nullptr);
+  return new (thd->mem_root) Sql_cmd_select(nullptr);
 }
 
 Sql_cmd *PT_show_create_database::make_cmd(THD *thd) {

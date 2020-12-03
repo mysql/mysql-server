@@ -66,9 +66,9 @@ struct TABLE_LIST;
 
 typedef ulonglong nested_join_map;
 
-class Sql_cmd_query_block : public Sql_cmd_dml {
+class Sql_cmd_select : public Sql_cmd_dml {
  public:
-  explicit Sql_cmd_query_block(Query_result *result_arg) : Sql_cmd_dml() {
+  explicit Sql_cmd_select(Query_result *result_arg) : Sql_cmd_dml() {
     result = result_arg;
   }
 

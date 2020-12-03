@@ -150,7 +150,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/sql_parse.h"                        /* comp_*_creator */
 #include "sql/sql_plugin.h"                      // plugin_is_ready
 #include "sql/sql_profile.h"
-#include "sql/sql_select.h"                      // Sql_cmd_query_block...
+#include "sql/sql_select.h"                      // Sql_cmd_select...
 #include "sql/sql_servers.h"
 #include "sql/sql_signal.h"
 #include "sql/sql_table.h"                        /* primary_key_name */

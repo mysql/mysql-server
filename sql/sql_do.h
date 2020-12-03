@@ -34,10 +34,9 @@ class THD;
 template <class T>
 class List;
 
-class Sql_cmd_do final : public Sql_cmd_query_block {
+class Sql_cmd_do final : public Sql_cmd_select {
  public:
-  explicit Sql_cmd_do(Query_result *result_arg)
-      : Sql_cmd_query_block(result_arg) {}
+  explicit Sql_cmd_do(Query_result *result_arg) : Sql_cmd_select(result_arg) {}
 
   enum_sql_command sql_command_code() const override { return SQLCOM_DO; }
 

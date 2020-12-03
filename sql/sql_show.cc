@@ -202,7 +202,7 @@ bool Sql_cmd_show::execute(THD *thd) {
   if (check_parameters(thd)) {
     return true;
   }
-  return Sql_cmd_query_block::execute(thd);
+  return Sql_cmd_select::execute(thd);
 }
 
 bool Sql_cmd_show_schema_base::set_metadata_lock(THD *thd) {
