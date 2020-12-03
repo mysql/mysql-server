@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@ bool map_nodegroups(Uint32 *ng_array, Uint32 no_parts);
 struct restore_callback_t {
   class BackupRestore *restore;
   class TupleS tup;
+  class LogEntry const *le;
   class NdbTransaction *connection;
   int    retries;
   int error_code;
@@ -122,10 +123,12 @@ public:
   virtual void tuple_a(restore_callback_t *cb);
   virtual void tuple_SYSTAB_0(restore_callback_t *cb, const TableS &);
   virtual void cback(int result, restore_callback_t *cb);
+  virtual void cback_logentry(int result, restore_callback_t *cb);
   virtual bool errorHandler(restore_callback_t *cb);
   virtual void exitHandler();
   virtual void endOfTuples();
   virtual void logEntry(const LogEntry &);
+  void logEntry_a(restore_callback_t *cb);
   virtual void endOfLogEntrys();
   virtual bool prepare_staging(const TableS &);
   virtual bool finalize_staging(const TableS &);
