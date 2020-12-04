@@ -69,6 +69,8 @@ IF(MY_COMPILER_IS_GNU)
     # GCC 8 has bugs with "final".
     MY_ADD_CXX_WARNING_FLAG("Wsuggest-override")
   ENDIF()
+  MY_ADD_C_WARNING_FLAG("Wmissing-include-dirs")
+  MY_ADD_CXX_WARNING_FLAG("Wmissing-include-dirs")
 ENDIF()
 
 #
