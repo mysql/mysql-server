@@ -192,6 +192,8 @@ std::ostream &operator<<(std::ostream &os, const MetadataTTLTestParams &param) {
             << param.ttl_expected_max.count() << "ms])";
 }
 
+namespace std {
+
 template <class T, class R>
 std::ostream &operator<<(std::ostream &os,
                          const std::chrono::duration<T, R> &duration) {
@@ -199,6 +201,8 @@ std::ostream &operator<<(std::ostream &os,
                    .count()
             << "ms";
 }
+
+}  // namespace std
 
 class MetadataChacheTTLTestParam
     : public MetadataChacheTTLTest,
@@ -578,13 +582,13 @@ TEST_F(MetadataChacheTTLTest, CheckMetadataUpgradeBetweenTTLs) {
                     /*wait_for_notify_ready=*/5s);
 
   // keep the router running for a while and change the metadata version
-  std::this_thread::sleep_for(1s);
+  EXPECT_TRUE(wait_for_transaction_count_increase(md_server_http_port, 2));
 
   MockServerRestClient(md_server_http_port)
       .set_globals("{\"new_metadata\" : 1}");
 
   // let the router run a bit more
-  std::this_thread::sleep_for(1s);
+  EXPECT_TRUE(wait_for_transaction_count_increase(md_server_http_port, 2));
 
   const std::string log_content = router.get_full_logfile();
 
@@ -640,8 +644,8 @@ TEST_P(CheckRouterVersionUpdateOnceTest, CheckRouterVersionUpdateOnce) {
   launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
                 /*wait_for_notify_ready=*/5s);
 
-  SCOPED_TRACE("// let the router run for about 10 ttl periods");
-  std::this_thread::sleep_for(1s);
+  SCOPED_TRACE("// let the router run for 3 ttl periods");
+  EXPECT_TRUE(wait_for_transaction_count_increase(md_server_http_port, 3));
 
   SCOPED_TRACE("// we still expect the version to be only set once");
   std::string server_globals =
@@ -732,8 +736,8 @@ TEST_P(PermissionErrorOnVersionUpdateTest, PermissionErrorOnVersionUpdate) {
       launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
                     /*wait_for_notify_ready=*/5s);
 
-  SCOPED_TRACE("// let the router run for about 10 ttl periods");
-  std::this_thread::sleep_for(1s);
+  SCOPED_TRACE("// let the router run for 3 ttl periods");
+  EXPECT_TRUE(wait_for_transaction_count_increase(md_server_http_port, 3));
 
   SCOPED_TRACE(
       "// we expect the error trying to update the version in the log");
@@ -804,10 +808,7 @@ TEST_P(UpgradeInProgressTest, UpgradeInProgress) {
                     /*wait_for_notify_ready=*/5s);
 
   SCOPED_TRACE("// let us make some user connection via the router port");
-  MySQLSession client;
-  std::this_thread::sleep_for(500ms);
-  ASSERT_NO_FATAL_FAILURE(
-      client.connect("127.0.0.1", router_port, "username", "password", "", ""));
+  auto client = make_new_connection_ok(router_port, md_server_port);
 
   SCOPED_TRACE("// let's mimmic start of the metadata update now");
   auto globals = mock_GR_metadata_as_json("", {md_server_port});
@@ -820,17 +821,17 @@ TEST_P(UpgradeInProgressTest, UpgradeInProgress) {
   SCOPED_TRACE(
       "// Wait some more and read the metadata update count once more to avoid "
       "race condition.");
-  std::this_thread::sleep_for(500ms);
+  EXPECT_TRUE(wait_for_transaction_count_increase(md_server_http_port, 2));
   MockServerRestClient(md_server_http_port).get_globals_as_json_string();
   std::string server_globals =
       MockServerRestClient(md_server_http_port).get_globals_as_json_string();
   int metadata_upd_count = get_ttl_queries_count(server_globals);
 
   SCOPED_TRACE(
-      "// Now wait another 5 ttl periods, since the metadata update is in "
+      "// Now wait another 3 ttl periods, since the metadata update is in "
       "progress we do not expect the increased number of metadata queries "
       "after that period");
-  std::this_thread::sleep_for(500ms);
+  EXPECT_TRUE(wait_for_transaction_count_increase(md_server_http_port, 3));
   server_globals =
       MockServerRestClient(md_server_http_port).get_globals_as_json_string();
   const int metadata_upd_count2 = get_ttl_queries_count(server_globals);
@@ -839,9 +840,7 @@ TEST_P(UpgradeInProgressTest, UpgradeInProgress) {
   SCOPED_TRACE(
       "// Even though the upgrade is in progress the existing connection "
       "should still be active.");
-  auto result{client.query_one("select @@port")};
-  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
-            md_server_port);
+  verify_existing_connection_ok(client.get());
 
   SCOPED_TRACE("// Also we should be able to create a new conenction.");
   MySQLSession client2;
@@ -912,14 +911,8 @@ TEST_P(NodeRemovedTest, NodeRemoved) {
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
   SCOPED_TRACE(
       "// Make a connection to the primary, it should be the first node");
-  {
-    MySQLSession client;
-    ASSERT_NO_FATAL_FAILURE(client.connect("127.0.0.1", router_port, "username",
-                                           "password", "", ""));
-
-    auto result{client.query_one("select @@port")};
-    EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
-              node_ports[0]);
+  { /*auto client =*/
+    make_new_connection_ok(router_port, node_ports[0]);
   }
 
   SCOPED_TRACE(
@@ -940,16 +933,9 @@ TEST_P(NodeRemovedTest, NodeRemoved) {
       "// Connect to the router primary port, the connection should be ok and "
       "we should be connected to the new primary now");
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[1], 2));
-  SCOPED_TRACE("// let us make some user connection via the router port");
-  {
-    MySQLSession client;
-    ASSERT_NO_FATAL_FAILURE(client.connect("127.0.0.1", router_port, "username",
-                                           "password", "", ""));
 
-    auto result{client.query_one("select @@port")};
-    EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
-              node_ports[1]);
-  }
+  SCOPED_TRACE("// let us make some user connection via the router port");
+  /*auto client =*/make_new_connection_ok(router_port, node_ports[1]);
 }
 
 INSTANTIATE_TEST_SUITE_P(

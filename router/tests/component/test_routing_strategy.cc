@@ -353,12 +353,9 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
 
   if (!test_params.round_robin) {
     // check if the server nodes are being used in the expected order
-    std::string node_port;
     for (auto expected_node_id : test_params.expected_node_connections) {
-      ASSERT_NO_FATAL_FAILURE(
-          connect_client_and_query_port(router_port, node_port));
-      EXPECT_EQ(std::to_string(cluster_nodes_ports[expected_node_id]),
-                node_port);
+      make_new_connection_ok(router_port,
+                             cluster_nodes_ports[expected_node_id]);
     }
   } else {
     // for round-robin we can't be sure which server will be the starting one
@@ -519,24 +516,13 @@ TEST_P(RouterRoutingStrategyTestRoundRobin, StaticRoutingStrategyRoundRobin) {
   const auto mode = GetParam().second;
   const std::string routing_section = get_static_routing_section(
       router_port, server_ports, routing_strategy, mode);
-  auto &router = launch_router_static(conf_dir.name(), routing_section);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
-
-  std::this_thread::sleep_for(
-      std::chrono::milliseconds(wait_for_static_ready_timeout));
+  /*auto &router =*/launch_router_static(conf_dir.name(), routing_section);
 
   // expect consecutive connections to be done in round-robin fashion
-  // will start with the second because wait_for_port_ready on the router will
-  // cause it to switch
-  std::string node_port;
-  connect_client_and_query_port(router_port, node_port);
-  EXPECT_EQ(std::to_string(server_ports[1]), node_port);
-  connect_client_and_query_port(router_port, node_port);
-  EXPECT_EQ(std::to_string(server_ports[2]), node_port);
-  connect_client_and_query_port(router_port, node_port);
-  EXPECT_EQ(std::to_string(server_ports[0]), node_port);
-  connect_client_and_query_port(router_port, node_port);
-  EXPECT_EQ(std::to_string(server_ports[1]), node_port);
+  make_new_connection_ok(router_port, server_ports[0]);
+  make_new_connection_ok(router_port, server_ports[1]);
+  make_new_connection_ok(router_port, server_ports[2]);
+  make_new_connection_ok(router_port, server_ports[0]);
 }
 
 // We expect round robin for routing-strategy=round-robin and as default for
@@ -584,30 +570,22 @@ TEST_P(RouterRoutingStrategyTestFirstAvailable,
   const auto mode = GetParam().second;
   const std::string routing_section = get_static_routing_section(
       router_port, server_ports, routing_strategy, mode);
-  auto &router = launch_router_static(conf_dir.name(), routing_section);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
-
-  std::this_thread::sleep_for(100ms);
+  /*auto &router =*/launch_router_static(conf_dir.name(), routing_section);
 
   // expect consecutive connections to be done in first-available fashion
-  std::string node_port;
-  connect_client_and_query_port(router_port, node_port);
-  EXPECT_EQ(std::to_string(server_ports[0]), node_port);
-  connect_client_and_query_port(router_port, node_port);
-  EXPECT_EQ(std::to_string(server_ports[0]), node_port);
+  make_new_connection_ok(router_port, server_ports[0]);
+  make_new_connection_ok(router_port, server_ports[0]);
 
   SCOPED_TRACE("// 'kill' server 1 and 2, expect moving to server 3");
   kill_server(server_instances[0]);
   kill_server(server_instances[1]);
   SCOPED_TRACE("// now we should connect to 3rd server");
-  connect_client_and_query_port(router_port, node_port);
-  EXPECT_EQ(std::to_string(server_ports[2]), node_port);
+  make_new_connection_ok(router_port, server_ports[2]);
 
   SCOPED_TRACE("// kill also 3rd server");
   kill_server(server_instances[2]);
   SCOPED_TRACE("// expect connection failure");
-  connect_client_and_query_port(router_port, node_port, /*should_fail=*/true);
-  EXPECT_EQ("", node_port);
+  verify_new_connection_fails(router_port);
 
   SCOPED_TRACE("// bring back 1st server on port " +
                std::to_string(server_ports[0]));
@@ -617,9 +595,7 @@ TEST_P(RouterRoutingStrategyTestFirstAvailable,
       *server_instances[server_instances.size() - 1], server_ports[0]));
   SCOPED_TRACE("// we should now succesfully connect to server on port " +
                std::to_string(server_ports[0]));
-  ASSERT_NO_FATAL_FAILURE(
-      connect_client_and_query_port(router_port, node_port));
-  EXPECT_EQ(std::to_string(server_ports[0]), node_port);
+  make_new_connection_ok(router_port, server_ports[0]);
 }
 
 // We expect first-available for routing-strategy=first-available and as default
@@ -659,31 +635,23 @@ TEST_F(RouterRoutingStrategyStatic, StaticRoutingStrategyNextAvailable) {
   const auto router_port = port_pool_.get_next_available();
   const std::string routing_section =
       get_static_routing_section(router_port, server_ports, "next-available");
-  auto &router = launch_router_static(conf_dir.name(), routing_section);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
-
-  std::this_thread::sleep_for(100ms);
+  /*auto &router =*/launch_router_static(conf_dir.name(), routing_section);
 
   // expect consecutive connections to be done in first-available fashion
-  std::string node_port;
-  connect_client_and_query_port(router_port, node_port);
-  EXPECT_EQ(std::to_string(server_ports[0]), node_port);
-  connect_client_and_query_port(router_port, node_port);
-  EXPECT_EQ(std::to_string(server_ports[0]), node_port);
+  make_new_connection_ok(router_port, server_ports[0]);
+  make_new_connection_ok(router_port, server_ports[0]);
 
   SCOPED_TRACE(
       "// 'kill' server 1 and 2, expect connection to server 3 after that");
   kill_server(server_instances[0]);
   kill_server(server_instances[1]);
   SCOPED_TRACE("// now we should connect to 3rd server");
-  connect_client_and_query_port(router_port, node_port);
-  EXPECT_EQ(std::to_string(server_ports[2]), node_port);
+  make_new_connection_ok(router_port, server_ports[2]);
 
   SCOPED_TRACE("// kill also 3rd server");
   kill_server(server_instances[2]);
   SCOPED_TRACE("// expect connection failure");
-  connect_client_and_query_port(router_port, node_port, /*should_fail=*/true);
-  EXPECT_EQ("", node_port);
+  verify_new_connection_fails(router_port);
 
   SCOPED_TRACE("// bring back 1st server");
   server_instances.emplace_back(
@@ -693,8 +661,7 @@ TEST_F(RouterRoutingStrategyStatic, StaticRoutingStrategyNextAvailable) {
   SCOPED_TRACE(
       "// we should NOT connect to this server (in next-available we NEVER go "
       "back)");
-  connect_client_and_query_port(router_port, node_port, /*should_fail=*/true);
-  EXPECT_EQ("", node_port);
+  verify_new_connection_fails(router_port);
 }
 
 // configuration error scenarios

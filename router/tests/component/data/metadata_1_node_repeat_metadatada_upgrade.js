@@ -19,6 +19,10 @@ if (mysqld.global.inside_transaction === undefined) {
   mysqld.global.inside_transaction = 0;
 }
 
+if (mysqld.global.transaction_count === undefined) {
+  mysqld.global.transaction_count = 0;
+}
+
 // make sure to not swith the version during the metadata queries
 // that is not supported and will make the test failing randomly
 if (mysqld.global.use_new_metadata === undefined) {
@@ -107,6 +111,7 @@ if (mysqld.global.use_new_metadata === 1) {
       return router_select_metadata;
     } else if (stmt === router_start_transaction.stmt) {
       mysqld.global.inside_transaction = 1;
+      mysqld.global.transaction_count++;
       return router_start_transaction;
     } else if (stmt === router_commit.stmt) {
       mysqld.global.inside_transaction = 0;
