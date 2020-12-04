@@ -14645,8 +14645,15 @@ bool Dbtc::sendScanFragReq(Signal* signal,
   if (ScanFragReq::getMultiFragFlag(scanP->scanRequestInfo))
   {
     jam();
-    Uint32 *fragIds = &signal->theData[25]; // temp storage
-    *(fragIds++) = scanFragP.p->lqhScanFragId;
+    Uint32 fragIdPtrI = RNIL;
+    if (unlikely(!appendToSection(fragIdPtrI, &fragId, 1)))
+    {
+      jam();
+      releaseSection(fragIdPtrI);
+      sections.clear();
+      scanError(signal, scanptr, ZGET_DATAREC_ERROR);
+      return false;
+    }
 
     /**
      * The fragLocations are sorted on blockRef. 
@@ -14655,25 +14662,22 @@ bool Dbtc::sendScanFragReq(Signal* signal,
     while (frags.first(ptr) && ptr.p->blockRef == scanFragP.p->lqhBlockref)
     {
       jamDebug();
-      *(fragIds++) = ptr.p->fragId;
+      if ((ERROR_INSERTED(8116)) ||
+          (ERROR_INSERTED(8117) && (rand() % 3) == 0) ||
+          unlikely(!appendToSection(fragIdPtrI, &ptr.p->fragId, 1)))
+      {
+        jam();
+        releaseSection(fragIdPtrI);
+        sections.clear();
+        scanError(signal, scanptr, ZGET_DATAREC_ERROR);
+        return false;
+      }
       scanP->scanNextFragId++;
       frags.removeFirst(ptr);
       m_fragLocationPool.release(ptr);  //Consumed it
     }
-
-    Ptr<SectionSegment> fragIdPtr;
-    const Uint32 length = (fragIds-&signal->theData[25]);
-
-    if ((ERROR_INSERTED(8116)) ||
-        (ERROR_INSERTED(8117) && (rand() % 3) == 0) ||
-	 !import(fragIdPtr, &signal->theData[25], length))
-    { 
-      jam();
-      sections.clear();
-      scanError(signal, scanptr, ZGET_DATAREC_ERROR);
-      return false;
-    }
-    sections.m_ptr[sections.m_cnt++].i = fragIdPtr.i;
+    jamDebug();
+    sections.m_ptr[sections.m_cnt++].i = fragIdPtrI;
   } //MultiFrag
 
   /* Determine whether this is the last scanFragReq.
