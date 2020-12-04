@@ -266,7 +266,7 @@ class GrNotificationsTest : public RouterComponentTest {
     return get_ttl_queries_count(server_globals);
   }
 
-  int wait_for_md_queries(const int expected_md_queries_count,
+  int wait_for_md_queries(const int expected_md_queries_count_min,
                           const uint16_t http_port,
                           std::chrono::milliseconds timeout = 40s) {
     auto kRetrySleep = 100ms;
@@ -279,8 +279,9 @@ class GrNotificationsTest : public RouterComponentTest {
     do {
       std::this_thread::sleep_for(kRetrySleep);
       md_queries_count = get_current_queries_count(http_port);
+
       timeout -= kRetrySleep;
-    } while (md_queries_count != expected_md_queries_count && timeout > 0ms);
+    } while (md_queries_count < expected_md_queries_count_min && timeout > 0ms);
 
     return md_queries_count;
   }
