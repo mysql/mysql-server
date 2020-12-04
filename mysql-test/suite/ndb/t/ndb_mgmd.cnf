@@ -3,3 +3,5 @@
 [cluster_config.ndb_mgmd.1.1]
 LogDestination=FILE:maxsize=32000000,maxfiles=6
 
+[ENV]
+NDB_MGMD_PORT=             @cluster_config.ndb_mgmd.1.1.PortNumber

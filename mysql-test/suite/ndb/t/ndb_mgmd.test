@@ -11,3 +11,11 @@
 --error 1
 --file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/ndb_mgmd.1/logger.log
 
+# To validate Mgmd when its started on port that is already in use, Mgmd node is
+# started on the Port which is used by ndb_mgmd started by MTR. The validation of
+# the ports is done before creating Daemon.
+--echo Bug32045786
+--replace_regex /MySQL Cluster Management Server.*/MySQL Cluster Management Server/ /.*\[MgmtSrvr\]//
+--replace_result $NDB_MGMD_PORT NDB_MGMD_PORT
+--error 1
+--exec $NDB_MGMD_EXE --defaults-group-suffix=.1.1 --defaults-file=$MYSQLTEST_VARDIR/my.cnf --configdir=$MYSQLTEST_VARDIR/mysql_cluster.1/ndb_mgmd.1 --mycnf --ndb-nodeid=3 2>&1

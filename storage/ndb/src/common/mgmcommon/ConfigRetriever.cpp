@@ -281,26 +281,6 @@ ConfigRetriever::verifyConfig(const ndb_mgm_configuration * conf, Uint32 nodeid)
     return false;
   }
 
-  const char * hostname;
-  if(it.get(CFG_NODE_HOST, &hostname)){
-    BaseString::snprintf(buf, 255, "Unable to get hostname(%d) from config",
-                         CFG_NODE_HOST);
-    setError(CR_ERROR, buf);
-    return false;
-  }
-
-  if (hostname && hostname[0] != 0 &&
-      !SocketServer::tryBind(0,hostname)) {
-    BaseString::snprintf(buf, 255,
-                         "The hostname this node should have according "
-                         "to the configuration does not match a local "
-                         "interface. Attempt to bind '%s' "
-                         "failed with error: %d '%s'",
-                         hostname, errno, strerror(errno));
-    setError(CR_ERROR, buf);
-    return false;
-  }
-
   unsigned int _type;
   if(it.get(CFG_TYPE_OF_SECTION, &_type)){
     BaseString::snprintf(buf, 255, "Unable to get type of node(%d) from config",
@@ -321,6 +301,39 @@ ConfigRetriever::verifyConfig(const ndb_mgm_configuration * conf, Uint32 nodeid)
                          "This node type %s(%s) and config "
 			 "node type %s(%s) don't match for nodeid %d",
 			 alias_s, type_s, alias_s2, type_s2, nodeid);
+    setError(CR_ERROR, buf);
+    return false;
+  }
+
+  const char *hostname;
+  if (it.get(CFG_NODE_HOST, &hostname)) {
+    BaseString::snprintf(buf, 255, "Unable to get hostname(%d) from config",
+                         CFG_NODE_HOST);
+    setError(CR_ERROR, buf);
+    return false;
+  }
+
+  // Get portnumber if node type is management node.
+  Uint32 port = 0;
+  if (_type == NODE_TYPE_MGM) {
+    if (it.get(CFG_MGM_PORT, &port)) {
+      BaseString::snprintf(buf, 255,
+                           "Unable to get Port of node(%d) from config",
+                           CFG_TYPE_OF_SECTION);
+      setError(CR_ERROR, buf);
+      return false;
+    }
+  }
+
+  // Binds to hostname:port, For nodes other than mgmd port = 0.
+  if (hostname && hostname[0] != 0 && !SocketServer::tryBind(port, hostname)) {
+    BaseString::snprintf(buf, 255,
+                         "The hostname this node should have according "
+                         "to the configuration does not match a local "
+                         "interface. (or) Mgmd node is started on port that is "
+                         "already in use. Attempt to bind '%s:%d' "
+                         "failed with error: %d '%s'",
+                         hostname, port, errno, strerror(errno));
     setError(CR_ERROR, buf);
     return false;
   }

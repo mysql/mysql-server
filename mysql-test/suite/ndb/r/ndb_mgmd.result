@@ -3,3 +3,6 @@
 #
 Make sure that ndb_mgmd creates ndb_<nodeid>_cluster.log file
 Make sure that ndb_mgmd does _not_ create logger.log file
+Bug32045786
+MySQL Cluster Management Server
+ ERROR    -- The hostname this node should have according to the configuration does not match a local interface. (or) Mgmd node is started on port that is already in use. Attempt to bind 'localhost:NDB_MGMD_PORT' failed with error: 98 'Address already in use'
