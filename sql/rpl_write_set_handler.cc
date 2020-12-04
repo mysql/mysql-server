@@ -576,7 +576,6 @@ static void generate_hash_pke(const std::string &pke, uint collation_conversion_
 #endif
 )
 {
-  DBUG_ENTER("generate_hash_pke");
   DBUG_ASSERT(thd->variables.transaction_write_set_extraction !=
               HASH_ALGORITHM_OFF);
 
@@ -591,13 +590,11 @@ static void generate_hash_pke(const std::string &pke, uint collation_conversion_
   hash_list.push_back(hash);
 #endif
   DBUG_PRINT("info", ("pke: %s; hash: %llu", pke.c_str(), hash));
-  DBUG_VOID_RETURN;
 }
 
 
 void add_pke(TABLE *table, THD *thd)
 {
-  DBUG_ENTER("add_pke");
   /*
     The next section extracts the primary key equivalent of the rows that are
     changing during the current transaction.
@@ -896,6 +893,4 @@ void add_pke(TABLE *table, THD *thd)
 
   if (writeset_hashes_added == 0)
     ws_ctx->set_has_missing_keys();
-
-  DBUG_VOID_RETURN;
 }
