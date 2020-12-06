@@ -3972,13 +3972,13 @@ Warnings:
 Warning	1265	Data truncated for column 'my_t3_fld1' at row 1
 SELECT LENGTH(my_t1_fld1) FROM t1;
 LENGTH(my_t1_fld1)
-44
+255
 SELECT LENGTH(my_t2_fld1) FROM t2;
 LENGTH(my_t2_fld1)
-144
+65535
 SELECT LENGTH(my_t3_fld1) FROM t3;
 LENGTH(my_t3_fld1)
-84
+16777215
 DROP TABLE t1, t2, t3;
 SET SQL_MODE=default;
 SET GLOBAL max_allowed_packet=default;
