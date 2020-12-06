@@ -300,7 +300,8 @@ static void do_copy_blob(Copy_field *, const Field *from_field,
   const Field_blob *from_blob = down_cast<const Field_blob *>(from_field);
   Field_blob *to_blob = down_cast<Field_blob *>(to_field);
   uint32 from_length = from_blob->get_length();
-  to_blob->set_ptr(from_length, from_blob->get_blob_data());
+  to_blob->set_ptr(std::min(from_length, to_field->max_data_length()),
+                   from_blob->get_blob_data());
   if (to_blob->get_length() < from_length) {
     if (to_field->table->in_use->is_strict_mode()) {
       to_field->set_warning(Sql_condition::SL_WARNING, ER_DATA_TOO_LONG, 1);

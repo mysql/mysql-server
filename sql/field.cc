@@ -6895,12 +6895,15 @@ static void store_blob_length(uchar *i_ptr, uint i_packlength,
                               uint32 i_number) {
   switch (i_packlength) {
     case 1:
-      i_ptr[0] = (uchar)i_number;
+      DBUG_ASSERT(i_number <= 0xff);
+      i_ptr[0] = static_cast<uchar>(i_number);
       break;
     case 2:
-      int2store(i_ptr, (unsigned short)i_number);
+      DBUG_ASSERT(i_number <= 0xffff);
+      int2store(i_ptr, static_cast<unsigned short>(i_number));
       break;
     case 3:
+      DBUG_ASSERT(i_number <= 0xffffff);
       int3store(i_ptr, i_number);
       break;
     case 4:
@@ -6971,12 +6974,24 @@ type_conversion_status Field_blob::store_internal(const char *from,
     invalidated when the 'value'-object is reallocated to make room for
     the new character set.
   */
+  size_t max_len = max_data_length();
   if (from >= value.ptr() && from <= value.ptr() + value.length()) {
     /*
       If content of the 'from'-address is cached in the 'value'-object
       it is possible that the content needs a character conversion.
     */
     if (!String::needs_conversion_on_storage(length, cs, field_charset)) {
+      if (length > max_len) {
+        store_ptr_and_length(from, max_len);
+        if (table->in_use->check_for_truncated_fields) {
+          if (table->in_use->is_strict_mode() &&
+              !table->in_use->lex->is_ignore())
+            set_warning(Sql_condition::SL_WARNING, ER_DATA_TOO_LONG, 1);
+          else
+            set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
+        }
+        return TYPE_WARN_TRUNCATED;
+      }
       store_ptr_and_length(from, length);
       return TYPE_OK;
     }
@@ -6984,7 +6999,7 @@ type_conversion_status Field_blob::store_internal(const char *from,
     from = tmpstr.ptr();
   }
 
-  new_length = min<size_t>(max_data_length(), field_charset->mbmaxlen * length);
+  new_length = min<size_t>(max_len, field_charset->mbmaxlen * length);
 
   if (value.alloc(new_length)) goto oom_error;
 
