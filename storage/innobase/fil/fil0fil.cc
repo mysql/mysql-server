@@ -8063,6 +8063,8 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
 
   mutex_release();
 
+  DEBUG_SYNC_C("innodb_fil_do_io_prepared_io_with_no_mutex");
+
   ut_a(page_size.is_compressed() ||
        page_size.physical() == page_size.logical());
 

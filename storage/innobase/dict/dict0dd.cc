@@ -3981,13 +3981,18 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
     space_name = tablespace_name.c_str();
   }
 
+  auto is_already_opened = [&]() {
+    if (fil_space_exists_in_mem(table->space, space_name, false, true, heap,
+                                table->id)) {
+      dd_get_and_save_data_dir_path(table, dd_table, true);
+      ut_free(shared_space_name);
+      return true;
+    }
+    return false;
+  };
+
   /* The tablespace may already be open. */
-  if (fil_space_exists_in_mem(table->space, space_name, false, true, heap,
-                              table->id)) {
-    dd_get_and_save_data_dir_path(table, dd_table, true);
-    ut_free(shared_space_name);
-    return;
-  }
+  if (is_already_opened()) return;
 
   if (!(ignore_err & DICT_ERR_IGNORE_RECOVER_LOCK)) {
     ib::error(ER_IB_MSG_172)
@@ -4019,6 +4024,7 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
   path is changed then boot_tablespaces() would always open the tablespace. */
   mutex_exit(&dict_sys->mutex);
   filepath = dd_get_first_path(heap, table, dd_table);
+  DEBUG_SYNC_C("innodb_dd_load_tablespace_no_dict_mutex");
   mutex_enter(&dict_sys->mutex);
 
   if (filepath == nullptr) {
@@ -4026,6 +4032,12 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
                             << " for table " << table->name << ", space ID "
                             << table->space << " in the data dictionary.";
   }
+
+  /* The tablespace may have been opened while we released the dict_sys mutex.
+  We need to check again if it was not opened in meantime, as fil_ibd_open
+  will try to close it forcefully, even if some IO is underway, leading to
+  crash. */
+  if (is_already_opened()) return;
 
   /* Try to open the tablespace.  We set the 2nd param (fix_dict) to
   false because we do not have an x-lock on dict_operation_lock */
@@ -4294,6 +4306,8 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
       mutex_enter(&dict_sys->mutex);
       dd_load_tablespace(dd_table, m_table, heap, DICT_ERR_IGNORE_RECOVER_LOCK,
                          dd_fsp_flags);
+
+      DEBUG_SYNC_C("innodb_dd_load_tablespace_done");
 
       if (dd_space && m_table->space != TRX_SYS_SPACE &&
           fil_space_get(m_table->space) != nullptr) {
