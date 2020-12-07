@@ -1475,3 +1475,17 @@ ADD COLUMN g2 JSON GENERATED ALWAYS AS (JSON_ARRAY(x));
 SELECT * FROM t;
 ERROR 22032: Invalid JSON text: "The document is empty." at position 0 in value for column 't.g1'.
 DROP TABLE t;
+#
+# Bug#32234773: UPDATE_GENERATED_READ_FIELDS:
+#               ASSERTION `!TABLE->IN_USE->IS_ERROR()' FAILED
+#
+CREATE TABLE t (
+id INT PRIMARY KEY AUTO_INCREMENT,
+i INT,
+gc INT GENERATED ALWAYS AS (1) STORED,
+KEY (i)
+);
+INSERT INTO t(i) VALUES (5853267), (32766);
+SELECT * FROM t WHERE i > 123 AND i * FROM_UNIXTIME(1536999224);
+ERROR 22003: BIGINT value is out of range in '(`test`.`t`.`i` * <cache>(from_unixtime(1536999224)))'
+DROP TABLE t;

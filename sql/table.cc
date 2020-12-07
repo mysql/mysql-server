@@ -7165,7 +7165,7 @@ static bool update_generated_columns(TABLE *table, const MY_BITMAP *columns,
 bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index) {
   DBUG_TRACE;
   assert(table != nullptr && table->has_gcol());
-  assert(!table->in_use->is_error());
+  if (table->in_use->is_error()) return true;
   if (active_index != MAX_KEY && table->key_read) {
     /*
       The covering index is providing all necessary columns, including
