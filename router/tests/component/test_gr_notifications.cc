@@ -245,10 +245,13 @@ class GrNotificationsTest : public RouterComponentTest {
 
   int get_ttl_queries_count(const std::string &json_string) {
     rapidjson::Document json_doc;
-    json_doc.Parse(json_string.c_str());
+    json_doc.Parse(json_string.data(), json_string.size());
     if (json_doc.HasMember("md_query_count")) {
-      EXPECT_TRUE(json_doc["md_query_count"].IsInt());
-      return json_doc["md_query_count"].GetInt();
+      const auto &md_query_count = json_doc["md_query_count"];
+      EXPECT_TRUE(md_query_count.IsInt())
+          << "got type: " << md_query_count.GetType() << " for json:\n"
+          << json_string;
+      return md_query_count.GetInt();
     }
     return 0;
   }
