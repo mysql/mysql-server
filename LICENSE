@@ -10,7 +10,7 @@ Introduction
    third-party software which may be included in this distribution of
    MySQL NDB Cluster 7.6.12 (and later).
 
-   Last updated: September 2020
+   Last updated: November 2020
 
 Licensing Information
 
@@ -3845,6 +3845,7 @@ is concerned.
 
    ======================================================================
    ======================================================================
+
 ncurses
 
 ncurses 5.9
@@ -5734,6 +5735,41 @@ OpenSSL License
    ======================================================================
    ======================================================================
 
+Percona Multiple I/O Threads Patch
+
+   Percona Multiple I/O threads patch
+Copyright (c) 2008, 2009 Percona Inc
+All rights reserved.
+
+Redistribution and use of this software in source and binary forms,
+with or without modification, are permitted provided that the
+following conditions are met:
+
+ * Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+ * Neither the name of Percona Inc. nor the names of its contributors
+   may be used to endorse or promote products derived from this software
+   without specific prior written permission of Percona Inc.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+   ======================================================================
+   ======================================================================
+
 Pion
 
    This Oracle Product includes or references Pion which is licensed to
@@ -5761,308 +5797,6 @@ SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE
 FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
 ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
-
-   ======================================================================
-   ======================================================================
-
-MD5 message digest algorithm
-============================
-The source code for the md5 module contains the following notice:
-
-Copyright (C) 1999, 2002 Aladdin Enterprises.  All rights reserved.
-
-This software is provided 'as-is', without any express or implied
-warranty.  In no event will the authors be held liable for any damages
-arising from the use of this software.
-
-Permission is granted to anyone to use this software for any purpose,
-including commercial applications, and to alter it and redistribute it
-freely, subject to the following restrictions:
-
-1. The origin of this software must not be misrepresented; you must not
-   claim that you wrote the original software. If you use this software
-   in a product, an acknowledgment in the product documentation would
-   be appreciated but is not required.
-2. Altered source versions must be plainly marked as such, and must not
-   be misrepresented as being the original software.
-3. This notice may not be removed or altered from any source
-   distribution.
-
-L. Peter Deutsch
-ghost@aladdin.com
-
-Independent implementation of MD5 (RFC 1321).
-
-This code implements the MD5 Algorithm defined in RFC 1321, whose
-text is available at
-      http://www.ietf.org/rfc/rfc1321.txt
-The code is derived from the text of the RFC, including the test suite
-(section A.5) but excluding the rest of Appendix A.  It does not include
-any code or documentation that is identified in the RFC as being
-copyrighted.
-
-The original and principal author of md5.h is L. Peter Deutsch
-<ghost@aladdin.com>.  Other authors are noted in the change history
-that follows (in reverse chronological order):
-
-2002-04-13 lpd Removed support for non-ANSI compilers; removed
-      references to Ghostscript; clarified derivation from RFC 1321;
-      now handles byte order either statically or dynamically.
-1999-11-04 lpd Edited comments slightly for automatic TOC extraction.
-1999-10-18 lpd Fixed typo in header comment (ansi2knr rather than md5);
-      added conditionalization for C++ compilation from Martin
-      Purschke <purschke@bnl.gov>.
-1999-05-03 lpd Original version.
-
-Asynchronous socket services
-============================
-The asynchat and asyncore modules contain the following notice:
-
-Copyright 1996 by Sam Rushing
-
-                        All Rights Reserved
-
-Permission to use, copy, modify, and distribute this software and
-its documentation for any purpose and without fee is hereby
-granted, provided that the above copyright notice appear in all
-copies and that both that copyright notice and this permission
-notice appear in supporting documentation, and that the name of Sam
-Rushing not be used in advertising or publicity pertaining to
-distribution of the software without specific, written prior
-permission.
-
-SAM RUSHING DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
-INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN
-NO EVENT SHALL SAM RUSHING BE LIABLE FOR ANY SPECIAL, INDIRECT OR
-CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
-OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
-NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
-CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-
-Cookie management
-=================
-The Cookie module contains the following notice:
-
-Copyright 2000 by Timothy O'Malley <timo@alum.mit.edu>
-
-               All Rights Reserved
-
-Permission to use, copy, modify, and distribute this software
-and its documentation for any purpose and without fee is hereby
-granted, provided that the above copyright notice appear in all
-copies and that both that copyright notice and this permission
-notice appear in supporting documentation, and that the name of
-Timothy O'Malley  not be used in advertising or publicity
-pertaining to distribution of the software without specific, written
-prior permission.
-
-Timothy O'Malley DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS
-SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
-AND FITNESS, IN NO EVENT SHALL Timothy O'Malley BE LIABLE FOR
-ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
-WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
-ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
-PERFORMANCE OF THIS SOFTWARE.
-
-Profiling
-=========
-The profile and pstats modules contain the following notice:
-
-Copyright 1994, by InfoSeek Corporation, all rights reserved.
-Written by James Roskind
-
-Permission to use, copy, modify, and distribute this Python software
-and its associated documentation for any purpose (subject to the
-restriction in the following sentence) without fee is hereby granted,
-provided that the above copyright notice appears in all copies, and
-that both that copyright notice and this permission notice appear in
-supporting documentation, and that the name of InfoSeek not be used in
-advertising or publicity pertaining to distribution of the software
-without specific, written prior permission.  This permission is
-explicitly restricted to the copying and modification of the software
-to remain in Python, compiled Python, or other languages (such as C)
-wherein the modified or derived code is exclusively imported into a
-Python module.
-
-INFOSEEK CORPORATION DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS
-SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS. IN NO EVENT SHALL INFOSEEK CORPORATION BE LIABLE FOR ANY
-SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER
-RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF
-CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
-CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-
-Execution tracing
-=================
-The trace module contains the following notice:
-
-portions copyright 2001, Autonomous Zones Industries, Inc., all rights...
-err...  reserved and offered to the public under the terms of the
-Python 2.2 license.
-Author: Zooko O'Whielacronx
-http://zooko.com/
-mailto:zooko@zooko.com
-
-Copyright 2000, Mojam Media, Inc., all rights reserved.
-Author: Skip Montanaro
-
-Copyright 1999, Bioreason, Inc., all rights reserved.
-Author: Andrew Dalke
-
-Copyright 1995-1997, Automatrix, Inc., all rights reserved.
-Author: Skip Montanaro
-
-Copyright 1991-1995, Stichting Mathematisch Centrum, all rights reserved.
-
-Permission to use, copy, modify, and distribute this Python software and
-its associated documentation for any purpose without fee is hereby
-granted, provided that the above copyright notice appears in all copies,
-and that both that copyright notice and this permission notice appear in
-supporting documentation, and that the name of neither Automatrix,
-Bioreason or Mojam Media be used in advertising or publicity pertaining to
-distribution of the software without specific, written prior permission.
-
-UUencode and UUdecode functions
-===============================
-
-The uu module contains the following notice:
-
-Copyright 1994 by Lance Ellinghouse
-Cathedral City, California Republic, United States of America.
-                       All Rights Reserved
-Permission to use, copy, modify, and distribute this software and its
-documentation for any purpose and without fee is hereby granted,
-provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in
-supporting documentation, and that the name of Lance Ellinghouse
-not be used in advertising or publicity pertaining to distribution
-of the software without specific, written prior permission.
-LANCE ELLINGHOUSE DISCLAIMS ALL WARRANTIES WITH REGARD TO
-THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS, IN NO EVENT SHALL LANCE ELLINGHOUSE CENTRUM BE LIABLE
-FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
-ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
-OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-
-Modified by Jack Jansen, CWI, July 1995:
-- Use binascii module to do the actual line-by-line conversion
-  between ascii and binary. This results in a 1000-fold speedup. The C
-  version is still 5 times faster, though.
-- Arguments more compliant with Python standard
-
-XML Remote Procedure Calls¶
-
-The xmlrpclib module contains the following notice:
-
-    The XML-RPC client interface is
-
-Copyright (c) 1999-2002 by Secret Labs AB
-Copyright (c) 1999-2002 by Fredrik Lundh
-
-By obtaining, using, and/or copying this software and/or its
-associated documentation, you agree that you have read, understood,
-and will comply with the following terms and conditions:
-
-Permission to use, copy, modify, and distribute this software and
-its associated documentation for any purpose and without fee is
-hereby granted, provided that the above copyright notice appears in
-all copies, and that both that copyright notice and this permission
-notice appear in supporting documentation, and that the name of
-Secret Labs AB or the author not be used in advertising or publicity
-pertaining to distribution of the software without specific, written
-prior permission.
-
-SECRET LABS AB AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
-TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANT-
-ABILITY AND FITNESS.  IN NO EVENT SHALL SECRET LABS AB OR THE AUTHOR
-BE LIABLE FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY
-DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
-WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
-ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
-OF THIS SOFTWARE.
-
-test_epoll
-==========
-The test_epoll contains the following notice:
-
-Copyright (c) 2001-2006 Twisted Matrix Laboratories.
-
-Permission is hereby granted, free of charge, to any person obtaining
-a copy of this software and associated documentation files (the
-"Software"), to deal in the Software without restriction, including
-without limitation the rights to use, copy, modify, merge, publish,
-distribute, sublicense, and/or sell copies of the Software, and to
-permit persons to whom the Software is furnished to do so, subject to
-the following conditions:
-
-The above copyright notice and this permission notice shall be
-included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-Select kqueue
-=============
-The select and contains the following notice for the kqueue interface:
-
-Copyright (c) 2000 Doug White, 2006 James Knight, 2007 Christian Heimes
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions
-are met:
-1. Redistributions of source code must retain the above copyright
-   notice, this list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright
-   notice, this list of conditions and the following disclaimer in the
-   documentation and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-SUCH DAMAGE.
-
-strtod and dtoa
-===============
-The file Python/dtoa.c, which supplies C functions dtoa and strtod for
-conversion of C doubles to and from strings, is derived from the file of the
-same name by David M. Gay, currently available from http://www.netlib.org/fp/.
-The original file, as retrieved on March 16, 2009, contains the following
-copyright and licensing notice:
-
-/****************************************************************
- *
- * The author of this software is David M. Gay.
- *
- * Copyright (c) 1991, 2000, 2001 by Lucent Technologies.
- *
- * Permission to use, copy, modify, and distribute this software for
- * any purpose without fee is hereby granted, provided that this entire
- * notice is included in all copies of any software which is or
- * includes a copy or modification of this software and in all copies
- * of the supporting documentation for such software.
- *
- * THIS SOFTWARE IS BEING PROVIDED "AS IS", WITHOUT ANY EXPRESS OR
- * IMPLIED WARRANTY.  IN PARTICULAR, NEITHER THE AUTHOR NOR LUCENT
- * MAKES ANY REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE
- * MERCHANTABILITY OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR
- * PURPOSE.
- *
- ***************************************************************/
 
    ======================================================================
    ======================================================================
@@ -6338,42 +6072,6 @@ SHA-1 in C
 SHA-1 in C
 By Steve Reid <steve@edmweb.com>
 100% Public Domain
-
-   ======================================================================
-   ======================================================================
-
-Time Zone Information
-
-Unless specified below, all files in the tz code and data (including this
-LICENSE file) are in the public domain. If the files date.c,
-newstrftime.3, and strftime.c are present, they contain material derived
-from BSD and use the BSD 3-clause license. tzdata:
-    # This file is in the public domain, so clarified as of
-    # 2009-05-17 by Arthur David Olson.
-/* Copyright 1985, 1987, 1988 The Regents of the University of California.
-   All rights reserved.
-   Redistribution and use in source and binary forms, with or without
-   modification, are permitted provided that the following conditions
-   are met:
-   1. Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
-   2. Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in the
-      documentation and/or other materials provided with the distribution.
-   3. Neither the name of the University nor the names of its contributors
-      may be used to endorse or promote products derived from this software
-      without specific prior written permission.
-   THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS "AS IS" AND
-   ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-   IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-   ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
-   FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-   DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-   OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-   HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-   LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-   OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-   SUCH DAMAGE.  */
 
    ======================================================================
    ======================================================================
