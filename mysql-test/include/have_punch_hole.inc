@@ -1,12 +1,8 @@
 --let MYSQLD_DATADIR = `SELECT @@datadir`
 
 --disable_query_log
---let $innodb_file_per_table_orig=`select @@innodb_file_per_table`
-SET GLOBAL innodb_file_per_table=1;
-
---disable_query_log
 --error 0,ER_INNODB_COMPRESSION_FAILURE
-CREATE TABLE t1(c1 INT PRIMARY KEY) COMPRESSION="ZLIB";
+CREATE TABLE t1(c1 INT PRIMARY KEY) COMPRESSION="ZLIB" TABLESPACE=innodb_file_per_table;
 let COMPR_ZIP_ERROR= `SHOW ERRORS`;
 --enable_query_log
 
@@ -22,8 +18,6 @@ perl;
 EOF
 
 --disable_query_log
-EVAL SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
-
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
