@@ -1926,6 +1926,7 @@ static int
 get_physical_package_ids(struct ndb_hwinfo* hwinfo)
 {
   char error_buf[512];
+  Uint32 num_cpu_sockets = 0;
   for (Uint32 i = 0; i < hwinfo->cpu_cnt_max; i++)
   {
     if (hwinfo->cpu_info[i].socket_id != Uint32(~0))
@@ -1993,7 +1994,12 @@ get_physical_package_ids(struct ndb_hwinfo* hwinfo)
     hwinfo->cpu_info[i].package_id = package_id;
     hwinfo->cpu_info[i].socket_id = socket_id;
     hwinfo->cpu_info[i].l3_cache_id = socket_id;
+
+    if (socket_id == num_cpu_sockets)
+      num_cpu_sockets++;
   }
+  hwinfo->num_shared_l3_caches = num_cpu_sockets;
+  hwinfo->num_cpu_sockets = num_cpu_sockets;
   return 0;
 }
 
@@ -2201,13 +2207,13 @@ static int Ndb_ReloadHWInfo(struct ndb_hwinfo * hwinfo)
     /* Linux ARM needs information from other sources */
     hwinfo->cpu_cnt = cpu_online_count;
     int res = get_core_siblings_info(hwinfo);
-    if (res == (int)-1)
+    if (res == -1)
     {
       return -1;
     }
     hwinfo->num_cpu_cores = (Uint32)res;
     res = get_physical_package_ids(hwinfo);
-    if (res == (int)-1)
+    if (res == -1)
     {
       return -1;
     }
