@@ -22,22 +22,21 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-/* DbUtil.cpp: implementation of the database utilities class.*/
+/* Implementation of the database utilities class. */
 
 #include "DbUtil.hpp"
 
 #include <mysql.h>
 
-#include <NdbSleep.h>
 #include <NdbAutoPtr.hpp>
-
-/* Constructors */
+#include <NdbOut.hpp>
+#include <NdbSleep.h>
+#include "NDBT_Output.hpp"
 
 DbUtil::DbUtil(const char* _dbname,
                const char* _suffix):
   m_mysql(NULL),
-  m_free_mysql(true),
-  m_connected(false),
+  m_owns_mysql(true),
   m_user("root"),
   m_pass(""),
   m_dbname(_dbname)
@@ -63,22 +62,21 @@ DbUtil::DbUtil(const char* _dbname,
 
 DbUtil::DbUtil(MYSQL* mysql):
   m_mysql(mysql),
-  m_free_mysql(false),
-  m_connected(true)
+  m_owns_mysql(false) // The passed MYSQL object is NOT owned by this class
 {
 }
 
-
 bool
 DbUtil::isConnected(){
-  if (m_connected == true)
+  if (m_owns_mysql == false)
   {
+    // Using a passed in MYSQL object not owned by this class, the external
+    // MYSQL objects is assumed to be connected already
     require(m_mysql);
     return true;
   }
   return connect();
 }
-
 
 bool
 DbUtil::waitConnected(int timeout) {
@@ -91,31 +89,30 @@ DbUtil::waitConnected(int timeout) {
   return true;
 }
 
-
 void
 DbUtil::disconnect(){
-  if (m_mysql != NULL){
-    if (m_free_mysql)
-      mysql_close(m_mysql);
-    m_mysql= NULL;
+  if (m_mysql == nullptr) {
+    return;
   }
-  m_connected = false;
+
+  // Only disconnect/close when MYSQL object is owned by this class
+  if (m_owns_mysql) {
+    mysql_close(m_mysql);
+    m_mysql = nullptr;
+  }
 }
-
-
-/* Destructor */
 
 DbUtil::~DbUtil()
 {
   disconnect();
 }
 
-
-/* Database Connect */
-
 bool
 DbUtil::connect()
 {
+  // Only allow connect() when the MYSQL object is owned by this class
+  require(m_owns_mysql);
+
   if (!(m_mysql = mysql_init(NULL)))
   {
     printError("DB connect-> mysql_init() failed");
@@ -145,7 +142,6 @@ DbUtil::connect()
     disconnect();
     return false;
   }
-  m_connected= true;
   require(m_mysql);
   return true;
 }
@@ -460,13 +456,13 @@ SqlResultSet::get_row(int row_num){
 
 
 bool
-SqlResultSet::next(void){
+SqlResultSet::next(){
   return get_row(++m_curr_row_num);
 }
 
 
 // Reset iterator
-void SqlResultSet::reset(void){
+void SqlResultSet::reset(){
   m_curr_row_num= -1;
   m_curr_row= 0;
 }
@@ -545,22 +541,22 @@ unsigned long long SqlResultSet::affectedRows(){
   return get_long("affected_rows");
 }
 
-uint SqlResultSet::numRows(void){
+uint SqlResultSet::numRows(){
   return get_int("rows");
 }
 
 
-uint SqlResultSet::mysqlErrno(void){
+uint SqlResultSet::mysqlErrno(){
   return get_int("mysql_errno");
 }
 
 
-const char* SqlResultSet::mysqlError(void){
+const char* SqlResultSet::mysqlError(){
   return get_string("mysql_error");
 }
 
 
-const char* SqlResultSet::mysqlSqlstate(void){
+const char* SqlResultSet::mysqlSqlstate(){
   return get_string("mysql_sqlstate");
 }
 

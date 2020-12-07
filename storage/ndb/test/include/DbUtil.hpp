@@ -21,13 +21,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-// dbutil.h: interface for the database utilities class.
-// Supplies a database to the test application
+// Interface for the database utilities class that supplies an object
+// oriented way to work with MySQL in test applications
 
 #ifndef DBUTIL_HPP
 #define DBUTIL_HPP
 
-#include <NDBT.hpp>
 #include <BaseString.hpp>
 #include <Properties.hpp>
 
@@ -39,9 +38,9 @@ public:
   // Get row with number
   bool get_row(int row_num);
   // Load next row
-  bool next(void);
+  bool next();
   // Reset iterator
-  void reset(void);
+  void reset();
   // Remove current row from resultset
   void remove();
   // Clear result
@@ -56,7 +55,7 @@ public:
 
   unsigned long long insertId();
   unsigned long long affectedRows();
-  uint numRows(void);
+  uint numRows();
   uint mysqlErrno();
   const char* mysqlError();
   const char* mysqlSqlstate();
@@ -75,6 +74,15 @@ class DbUtil
 {
 public:
 
+  /*
+   The DbUtil class can be used in two modes.
+    1) The class owns its MySQL object which it will create,
+       connect and release.
+    2) The class only uses a MYSQL object which is passed in by the
+       caller, in this mode it's assumed that the MYSQL object has been
+       created and is connected. The class will not release the MySQL
+       object (since it's not owned by the class).
+   */
   DbUtil(MYSQL* mysql);
   DbUtil(const char* dbname = "mysql",
          const char* suffix = NULL);
@@ -104,9 +112,7 @@ protected:
 
 private:
   MYSQL * m_mysql;
-  bool m_free_mysql; /* Don't free mysql* if allocated elsewhere */
-
-  bool m_connected;
+  const bool m_owns_mysql; // The MYSQL object is owned by this class
 
   BaseString m_user;       // MySQL User
   BaseString m_pass;       // MySQL User Password
