@@ -5878,22 +5878,14 @@ longlong Item_cond_or::val_int() {
 }
 
 void Item_func_isnull::update_used_tables() {
-  cache_used = false;
   if (!args[0]->is_nullable()) {
     used_tables_cache = 0;
-    cached_value = false;
-    cache_used = true;
   } else {
     args[0]->update_used_tables();
     set_accum_properties(args[0]);
 
     used_tables_cache = args[0]->used_tables();
-
-    // If const, remember if value is always NULL or never NULL
-    if (const_item()) {
-      cached_value = args[0]->is_null();
-      cache_used = true;
-    }
+    if (!const_item()) cache_used = false;
   }
 
   not_null_tables_cache = 0;
@@ -6011,9 +6003,29 @@ bool Item_func_isnull::fix_fields(THD *thd, Item **ref) {
 
 bool Item_func_isnull::resolve_type(THD *thd) {
   set_nullable(false);
-  // Possibly cache a const value, but not when analyzing CREATE VIEW stmt.
-  if (!thd->lex->is_view_context_analysis()) update_used_tables();
-  return Item_bool_func::resolve_type(thd);
+  if (Item_bool_func::resolve_type(thd)) return true;
+
+  cache_used = false;
+  if (!args[0]->is_nullable()) {
+    used_tables_cache = 0;
+    cached_value = false;
+    cache_used = true;
+  } else {
+    used_tables_cache = args[0]->used_tables();
+
+    // If const, remember if value is always NULL or never NULL
+    if (const_item() && !thd->lex->is_view_context_analysis()) {
+      cached_value = args[0]->is_null();
+      if (thd->is_error()) return true;
+      cache_used = true;
+    }
+  }
+
+  not_null_tables_cache = 0;
+  if (null_on_null && !const_item())
+    not_null_tables_cache |= args[0]->not_null_tables();
+
+  return false;
 }
 
 longlong Item_func_isnull::val_int() {
@@ -6030,19 +6042,9 @@ void Item_func_isnull::print(const THD *thd, String *str,
 }
 
 longlong Item_is_not_null_test::val_int() {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed);
+  assert(used_tables_cache != 0);
   DBUG_TRACE;
-  if (!used_tables_cache) {
-    /*
-     TODO: Currently this branch never executes, since used_tables_cache
-     is never equal to 0 --  it always contains RAND_TABLE_BIT,
-     see get_initial_pseudo_tables().
-    */
-    DBUG_ASSERT(false);
-    owner->was_null |= (!cached_value);
-    DBUG_PRINT("info", ("cached: %ld", (long)cached_value));
-    return cached_value;
-  }
   if (args[0]->is_null()) {
     DBUG_PRINT("info", ("null"));
     owner->was_null |= 1;
@@ -6051,28 +6053,21 @@ longlong Item_is_not_null_test::val_int() {
     return 1;
 }
 
-/**
-  Optimize case of not_null_column IS NULL.
-*/
+bool Item_is_not_null_test::resolve_type(THD *thd) {
+  set_nullable(false);
+  if (Item_bool_func::resolve_type(thd)) return true;
+  not_null_tables_cache = 0;
+  if (null_on_null && !const_item())
+    not_null_tables_cache |= args[0]->not_null_tables();
+  return false;
+}
+
 void Item_is_not_null_test::update_used_tables() {
   const table_map initial_pseudo_tables = get_initial_pseudo_tables();
   used_tables_cache = initial_pseudo_tables;
-  cache_used = false;
-  if (!args[0]->is_nullable()) {
-    cached_value = true;
-    cache_used = true;
-    return;
-  }
   args[0]->update_used_tables();
   set_accum_properties(args[0]);
   used_tables_cache |= args[0]->used_tables();
-
-  if (used_tables_cache == initial_pseudo_tables && args[0]->const_item()) {
-    // Remember if the value is always NULL or never NULL
-    cached_value = !args[0]->is_null();
-    cache_used = true;
-  }
-
   not_null_tables_cache = 0;
   if (null_on_null) not_null_tables_cache |= args[0]->not_null_tables();
 }

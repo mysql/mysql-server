@@ -2128,7 +2128,6 @@ class in_row final : public in_vector {
 class Item_func_isnull : public Item_bool_func {
   typedef Item_bool_func super;
 
- protected:
   bool cache_used = false;
   bool cached_value;
 
@@ -2174,6 +2173,7 @@ class Item_is_not_null_test final : public Item_func_isnull {
   enum Functype functype() const override { return ISNOTNULLTEST_FUNC; }
   longlong val_int() override;
   const char *func_name() const override { return "<is_not_null_test>"; }
+  bool resolve_type(THD *thd) override;
   void update_used_tables() override;
   /**
     We add RAND_TABLE_BIT to prevent moving this item from HAVING to WHERE.
