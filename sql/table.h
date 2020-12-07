@@ -796,9 +796,11 @@ struct TABLE_SHARE {
   */
   uint tmp_handler_count{0};
 
-  uint key_block_size{0};     /* create key_block_size, if used */
-  uint stats_sample_pages{0}; /* number of pages to sample during
-                              stats estimation, if used, otherwise 0. */
+  // Can only be 1,2,4,8 or 16, but use uint32_t since that how it is
+  // represented in InnoDB
+  std::uint32_t key_block_size{0}; /* create key_block_size, if used */
+  uint stats_sample_pages{0};      /* number of pages to sample during
+                                   stats estimation, if used, otherwise 0. */
   enum_stats_auto_recalc
       stats_auto_recalc{}; /* Automatic recalc of stats.
                               Zero-initialized to HA_STATS_AUTO_RECALC_DEFAULT

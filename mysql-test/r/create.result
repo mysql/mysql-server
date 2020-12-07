@@ -3033,3 +3033,32 @@ tinyint(1)
 tinyint(1)
 tinyint(1) unsigned zerofill
 DROP PROCEDURE p1;
+#
+# Bug#32227101: CREATE TABLE PRODUCES CORE
+#
+# key_block_size = 2^31-1 - rejected by Innodb
+CREATE TABLE t1(i INT PRIMARY KEY) KEY_BLOCK_SIZE = 2147483647;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+# key_block_size = -(2^31)+1 - rejected by Innodb
+CREATE TABLE t1(i INT PRIMARY KEY) KEY_BLOCK_SIZE = -2147483647;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+# key_block_size = 2^31 - now rejected by parser
+CREATE TABLE t1(i INT PRIMARY KEY) KEY_BLOCK_SIZE = 2147483648;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '2147483648' at line 1
+# key_block_size = -2^31 - now rejected by parser
+CREATE TABLE t1(i INT PRIMARY KEY) KEY_BLOCK_SIZE = -2147483648;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '2147483648' at line 1
+# key_block_size = 2^32-1 - now rejected by parser
+CREATE TABLE t2(i INT PRIMARY KEY) KEY_BLOCK_SIZE = 4294967295;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '4294967295' at line 1
+# key_block_size = 2^32 - now rejected by parser
+CREATE TABLE t3(i INT PRIMARY KEY) KEY_BLOCK_SIZE = 4294967296;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '4294967296' at line 1
+# key_block_size = 3927749503218772669 - now rejected by parser
+CREATE TABLE t4(
+c0 DECIMAL ZEROFILL  UNIQUE KEY STORAGE MEMORY,
+c1 DECIMAL ZEROFILL  PRIMARY KEY COLUMN_FORMAT DYNAMIC UNIQUE KEY STORAGE MEMORY NOT NULL,
+c2 FLOAT ZEROFILL  COMMENT 'asdf'  COLUMN_FORMAT FIXED NULL STORAGE MEMORY,
+c3 TINYINT(120) ZEROFILL   STORAGE DISK UNIQUE KEY NULL COMMENT 'asdf'
+) CHECKSUM = 1, AUTO_INCREMENT = 1093400439, KEY_BLOCK_SIZE = 3927749503218772669, COMPRESSION = 'NONE';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '3927749503218772669, COMPRESSION = 'NONE'' at line 6

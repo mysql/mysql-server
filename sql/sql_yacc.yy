@@ -6755,9 +6755,10 @@ create_table_option:
           {
             $$= NEW_PTN PT_create_connection_option($3);
           }
-        | KEY_BLOCK_SIZE opt_equal ulong_num
+        | KEY_BLOCK_SIZE opt_equal signed_num
           {
-            $$= NEW_PTN PT_create_key_block_size_option($3);
+            $$= NEW_PTN
+            PT_create_key_block_size_option(static_cast<std::uint32_t>($3));
           }
         | START_SYM TRANSACTION_SYM
           {

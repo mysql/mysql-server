@@ -12101,11 +12101,10 @@ const char *create_table_info_t::create_options_are_invalid() {
         kbs_max = ut_min(1 << (UNIV_PAGE_SSIZE_MAX - 1),
                          1 << (PAGE_ZIP_SSIZE_MAX - 1));
         if (m_create_info->key_block_size > kbs_max) {
-          push_warning_printf(m_thd, Sql_condition::SL_WARNING,
-                              ER_ILLEGAL_HA_CREATE_OPTION,
-                              "InnoDB: KEY_BLOCK_SIZE=%ld"
-                              " cannot be larger than %ld.",
-                              m_create_info->key_block_size, kbs_max);
+          push_warning_printf(
+              m_thd, Sql_condition::SL_WARNING, ER_ILLEGAL_HA_CREATE_OPTION,
+              "InnoDB: KEY_BLOCK_SIZE=%" PRIu32 " cannot be larger than %ld.",
+              m_create_info->key_block_size, kbs_max);
           ret = "KEY_BLOCK_SIZE";
         }
 
@@ -12126,8 +12125,8 @@ const char *create_table_info_t::create_options_are_invalid() {
       default:
         push_warning_printf(m_thd, Sql_condition::SL_WARNING,
                             ER_ILLEGAL_HA_CREATE_OPTION,
-                            "InnoDB: invalid KEY_BLOCK_SIZE = %lu."
-                            " Valid values are [1, 2, 4, 8, 16]",
+                            "InnoDB: invalid KEY_BLOCK_SIZE = %" PRIu32
+                            ". Valid values are [1, 2, 4, 8, 16]",
                             m_create_info->key_block_size);
         ret = "KEY_BLOCK_SIZE";
         break;
@@ -12616,7 +12615,7 @@ bool create_table_info_t::innobase_table_flags() {
     if (!zip_allowed || (!zip_ssize && m_create_info->key_block_size)) {
       push_warning_printf(m_thd, Sql_condition::SL_WARNING,
                           ER_ILLEGAL_HA_CREATE_OPTION,
-                          "InnoDB: ignoring KEY_BLOCK_SIZE=%lu.",
+                          "InnoDB: ignoring KEY_BLOCK_SIZE=%" PRIu32 ".",
                           m_create_info->key_block_size);
     }
   }
@@ -12637,7 +12636,7 @@ bool create_table_info_t::innobase_table_flags() {
       with ALTER TABLE anyway. */
       push_warning_printf(m_thd, Sql_condition::SL_WARNING,
                           ER_ILLEGAL_HA_CREATE_OPTION,
-                          "InnoDB: ignoring KEY_BLOCK_SIZE=%lu"
+                          "InnoDB: ignoring KEY_BLOCK_SIZE=%" PRIu32
                           " as ROW_FORMAT is not COMPRESSED.",
                           m_create_info->key_block_size);
       zip_allowed = false;
