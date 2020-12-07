@@ -3428,6 +3428,7 @@ my_decimal *Item_func_if::val_decimal(my_decimal *decimal_value) {
 bool Item_func_if::val_json(Json_wrapper *wr) {
   DBUG_ASSERT(fixed == 1);
   Item *arg = args[0]->val_bool() ? args[1] : args[2];
+  if (current_thd->is_error()) return error_json();
   bool has_value;
   bool ok = json_value(arg, wr, &has_value);
   DBUG_ASSERT(has_value);

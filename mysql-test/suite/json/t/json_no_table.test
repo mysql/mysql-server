@@ -2902,3 +2902,11 @@ do ((period_diff(20259,1872))>((not(('{ }')))));
 do ((exp(4812))>>(year((!((not(degrees(''))))))));
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 do pow(json_storage_size(':*'),(!(oct(1))));
+
+--echo #
+--echo # Bug#32231393: ITEM_FUNC_IF::VAL_JSON(JSON_WRAPPER*):
+--echo #               ASSERTION `HAS_VALUE' FAILED
+--echo #
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+DO IF(JSON_DEPTH(''), JSON_OBJECT(), NULL);

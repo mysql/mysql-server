@@ -4227,3 +4227,9 @@ do ((exp(4812))>>(year((!((not(degrees(''))))))));
 ERROR 22003: DOUBLE value is out of range in 'exp(4812)'
 do pow(json_storage_size(':*'),(!(oct(1))));
 ERROR 22032: Invalid JSON text in argument 1 to function json_storage_size: "Invalid value." at position 0.
+#
+# Bug#32231393: ITEM_FUNC_IF::VAL_JSON(JSON_WRAPPER*):
+#               ASSERTION `HAS_VALUE' FAILED
+#
+DO IF(JSON_DEPTH(''), JSON_OBJECT(), NULL);
+ERROR 22032: Invalid JSON text in argument 1 to function json_depth: "The document is empty." at position 0.
