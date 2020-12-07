@@ -5,4 +5,5 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 # copy unzipped .ibd and .cfg
 ALTER TABLE t1 IMPORT TABLESPACE;
 ERROR HY000: Schema mismatch (Compression option does not match)
+# Manually remove tablespace files, since import failed and drop won't delete them.
 DROP TABLE t1;

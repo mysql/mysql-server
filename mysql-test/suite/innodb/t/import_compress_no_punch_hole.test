@@ -20,6 +20,10 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 --error ER_TABLE_SCHEMA_MISMATCH
 ALTER TABLE t1 IMPORT TABLESPACE;
 
+--echo # Manually remove tablespace files, since import failed and drop won't delete them.
+--remove_file $MYSQLD_DATADIR/test/t1.cfg
+--remove_file $MYSQLD_DATADIR/test/t1.ibd
+
 # Cleanup
 --force-rmdir $MYSQL_TMP_DIR/import_compression_8_0_23
 --remove_file $MYSQL_TMP_DIR/import_compression_8_0_23.zip
