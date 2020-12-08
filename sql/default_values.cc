@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -211,6 +211,12 @@ bool prepare_default_value(THD *thd, uchar *buf, TABLE *table,
       my_error(ER_INVALID_DEFAULT, MYF(0), regfield->field_name);
       goto err;
     }
+    if (res != TYPE_OK && thd->is_error()) {
+      // Conversion errors may be reported as errors or warnings depending on
+      // user-configurable settings.
+      goto err;
+    }
+    DBUG_ASSERT(!thd->is_error());
   } else if (regfield->real_type() == MYSQL_TYPE_ENUM &&
              (field.flags & NOT_NULL_FLAG)) {
     regfield->set_notnull();
