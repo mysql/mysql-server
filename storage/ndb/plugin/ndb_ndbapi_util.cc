@@ -264,7 +264,8 @@ bool ndb_get_table_names_in_schema(
       continue;
     }
 
-    if (ndb_name_is_temp(elmt.name) || ndb_name_is_blob_prefix(elmt.name)) {
+    if (ndb_name_is_temp(elmt.name) || ndb_name_is_blob_prefix(elmt.name) ||
+        ndb_name_is_fk_mock_prefix(elmt.name)) {
       continue;
     }
 
