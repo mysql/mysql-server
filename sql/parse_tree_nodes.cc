@@ -3869,7 +3869,22 @@ bool PT_alter_table_set_default::contextualize(Table_ddl_parse_context *pc) {
   if (super::contextualize(pc) || itemize_safe(pc, &m_expr)) return true;
   Alter_column *alter_column;
   if (m_expr == nullptr || m_expr->basic_const_item()) {
-    alter_column = new (pc->mem_root) Alter_column(m_name, m_expr);
+    Item *actual_expr = m_expr;
+    if (m_expr && m_expr->type() == Item::FUNC_ITEM) {
+      /*
+        Default value should be literal => basic constants =>
+        no need fix_fields()
+       */
+      Item_func *func = down_cast<Item_func *>(m_expr);
+      if (func->result_type() != INT_RESULT) {
+        my_error(ER_INVALID_DEFAULT, MYF(0), m_name);
+        return true;
+      }
+      DBUG_ASSERT(dynamic_cast<Item_func_true *>(func) ||
+                  dynamic_cast<Item_func_false *>(func));
+      actual_expr = new Item_int(func->val_int());
+    }
+    alter_column = new (pc->mem_root) Alter_column(m_name, actual_expr);
   } else {
     auto vg = new (pc->mem_root) Value_generator;
     if (vg == nullptr) return true;  // OOM
