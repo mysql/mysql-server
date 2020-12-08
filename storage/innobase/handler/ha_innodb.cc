@@ -21651,6 +21651,10 @@ static MYSQL_SYSVAR_BOOL(
     " Disable with --skip-innodb-validate-tablespace-paths.",
     nullptr, nullptr, TRUE);
 
+static MYSQL_SYSVAR_BOOL(use_fdatasync, srv_use_fdatasync, PLUGIN_VAR_NOCMDARG,
+                         "Use fdatasync() instead of the default fsync().",
+                         nullptr, nullptr, false);
+
 // clang-format off
 static MYSQL_SYSVAR_BOOL(
     doublewrite, dblwr::enabled, PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
@@ -22687,6 +22691,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(page_hash_locks),
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
     MYSQL_SYSVAR(validate_tablespace_paths),
+    MYSQL_SYSVAR(use_fdatasync),
     MYSQL_SYSVAR(status_output),
     MYSQL_SYSVAR(status_output_locks),
     MYSQL_SYSVAR(print_all_deadlocks),

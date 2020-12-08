@@ -33,6 +33,7 @@ SET(TESTS
   ha_innodb
   log0log
   mem0mem
+  os0file
   os0thread-create
   srv0conc
   sync0rw
