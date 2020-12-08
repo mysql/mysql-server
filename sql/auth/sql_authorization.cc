@@ -7499,8 +7499,7 @@ void update_sctx(Security_context *sctx, LEX_USER *to_user_ptr) {
   DBUG_ASSERT(to_user != nullptr || to_user_length == 0);
   DBUG_ASSERT(to_host != nullptr || to_host_length == 0);
 
-  /* Rename user. Don't rename the host as connection is not changed. */
-  sctx->assign_user(to_user, to_user_length);
+  /* Don't rename user as the connection is not changed. */
 
   if (sctx->proxy_user().str && *sctx->proxy_user().str != '\0') {
     /* Rename proxy_user. */
