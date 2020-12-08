@@ -616,6 +616,7 @@ static int update_status_variables(Thd_ndb *thd_ndb, st_ndb_status *ns,
     int n = c->get_no_ready();
     ns->number_of_ready_data_nodes = n > 0 ? n : 0;
   }
+  ns->config_generation = c->get_config_generation();
   ns->number_of_data_nodes = c->no_db_nodes();
   ns->connect_count = c->get_connect_count();
   ns->system_name = c->get_system_name();
@@ -712,6 +713,8 @@ static SHOW_VAR ndb_status_vars_dynamic[] = {
     {"config_from_host", (char *)&g_ndb_status.connected_host, SHOW_CHAR_PTR,
      SHOW_SCOPE_GLOBAL},
     {"config_from_port", (char *)&g_ndb_status.connected_port, SHOW_LONG,
+     SHOW_SCOPE_GLOBAL},
+    {"config_generation", (char *)&g_ndb_status.config_generation, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
     {"number_of_data_nodes", (char *)&g_ndb_status.number_of_data_nodes,
      SHOW_LONG, SHOW_SCOPE_GLOBAL},

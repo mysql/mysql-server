@@ -109,6 +109,11 @@ const char *Ndb_cluster_connection::get_connected_host() const
   return 0;
 }
 
+Uint32 Ndb_cluster_connection::get_config_generation() const
+{
+  return m_impl.m_config_generation;
+}
+
 int
 Ndb_cluster_connection::unset_recv_thread_cpu(Uint32 recv_thread_id)
 {
@@ -1312,6 +1317,9 @@ Ndb_cluster_connection_impl::configure(Uint32 nodeId,
   s_iter.get(CFG_SYS_NAME, & tmp_system_name);
   m_system_name.assign(tmp_system_name);
 
+  // Save generation of the used config
+  (void)s_iter.get(CFG_SYS_CONFIG_GENERATION, &m_config_generation);
+
   DBUG_RETURN(init_nodes_vector(nodeId, config));
 }
 
@@ -1454,6 +1462,8 @@ int Ndb_cluster_connection_impl::connect(int no_retries,
       ndb_mgm_destroy_configuration(props);
       DBUG_RETURN(-1);
     }
+    // NOTE! The config generation used by this API node could also be sent to
+    // the cluster in same way as other properties with setProcessInfoUri()
     m_transporter_facade->theClusterMgr->setProcessInfoUri(m_uri_scheme.c_str(),
                                                            m_uri_host.c_str(),
                                                            m_uri_port,

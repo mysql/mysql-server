@@ -205,6 +205,9 @@ private:
 
   // system.name copied from configuration
   BaseString m_system_name;
+
+  // Config generation of used configuration
+  Uint32 m_config_generation{0};
 };
 
 #endif

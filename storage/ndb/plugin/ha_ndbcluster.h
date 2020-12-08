@@ -135,6 +135,7 @@ struct st_ndb_status {
   long cluster_node_id;
   const char *connected_host;
   long connected_port;
+  long config_generation;
   long number_of_data_nodes;
   long number_of_ready_data_nodes;
   long connect_count;

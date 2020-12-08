@@ -301,6 +301,9 @@ public:
   int get_connected_port() const;
   const char *get_connected_host() const;
 
+  // Get generation of the configuration used to configure the NdbApi
+  Uint32 get_config_generation() const;
+
   void set_optimized_node_selection(int val);
 
   unsigned no_db_nodes();
