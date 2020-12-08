@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -47,3 +47,51 @@
 # DATE / BUG REPORT AUTHOR
 # include/m_ctype.h:*
 #===========================================================================
+
+# BUG#32245569 - FIX MORE DOXYGEN WARNINGS IN INNODB CODE
+# 07-DEC-2020 Erlend Dahl
+storage/innobase/fil/fil0fil.cc:*
+storage/innobase/include/buf0flu.h:*
+storage/innobase/include/dict0crea.h:*
+storage/innobase/include/dict0dd.h:*
+storage/innobase/include/dict0dict.h:*
+storage/innobase/include/fil0fil.h:*
+storage/innobase/include/fsp0fsp.h:*
+storage/innobase/include/row0mysql.h:*
+storage/temptable/include/temptable/handler.h:*
+storage/innobase/clone/clone0api.cc:*
+#
+# BUG#31354781 - FIX DOXYGEN WARNINGS IN RPL CODE
+# 07-DEC-2020 Erlend Dahl
+sql/rpl_binlog_sender.cc:*
+sql/rpl_handler.h:*
+sql/rpl_io_monitor.h:*
+sql/rpl_rli_pdb.h:*
+sql/rpl_trx_tracking.h:*
+sql/rpl_utility.h:*
+libbinlogevents/include/binlog_event.h:*
+libbinlogevents/include/codecs/binary.h:*
+libbinlogevents/include/trx_boundary_parser.h:*
+#
+# BUG#32245629 - FIX DOXYGEN WARNINGS IN THE OPTIMIZER CODE
+# 07-DEC-2020 Erlend Dahl
+sql/field.h:*
+sql/item_func.h:*
+sql/join_optimizer/join_optimizer.cc:*
+sql/json_diff.cc:*
+sql/json_diff.h:*
+sql/json_path.h:*
+sql/opt_range.cc:*
+sql/protocol_callback.h:*
+sql/protocol_classic.cc:*
+sql/spatial.cc:*
+sql/spatial.h:*
+sql/sql_lex.h:*
+sql/sql_optimizer.cc:*
+sql/sql_optimizer_internal.h:*
+sql/sql_prepare.cc:*
+sql/sql_table.cc:*
+#
+# BUG#32246059 - FIX DOXYGEN ERRORS IN THE XPLUGIN CODE
+# 07-DEC-2020 Erlend Dahl
+plugin/x/protocol/protobuf/mysqlx.proto:*

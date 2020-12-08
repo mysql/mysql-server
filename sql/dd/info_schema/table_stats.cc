@@ -59,6 +59,7 @@ namespace {
 
   @param thd           - Thread ID
   @param schema_name   - The schema name.
+  @param partition_name - The partition name
 
   @returns true if we can update the statistics, otherwise false.
 */
