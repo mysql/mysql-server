@@ -183,7 +183,10 @@ SET @@global.mysql_native_password_proxy_users = OFF;
 CREATE USER ''@'localhost';
 GRANT CREATE USER ON *.* TO ''@'localhost';
 --connect(con1, localhost)
+--replace_column 1 CONNECTED_USER
+SELECT user(), current_user();
 RENAME USER ''@'localhost' TO a;
+--replace_column 1 CONNECTED_USER
 SELECT user(), current_user();
 
 --connection default

@@ -105,7 +105,7 @@ a@localhost	a@%
 RENAME USER a TO b;
 SELECT user(), current_user();
 user()	current_user()
-b@localhost	b@%
+a@localhost	b@%
 DROP USER b;
 CREATE USER a;
 GRANT CREATE USER ON *.* TO a;
@@ -115,7 +115,7 @@ a@localhost	a@%
 RENAME USER a TO b, b TO c;
 SELECT user(), current_user();
 user()	current_user()
-c@localhost	c@%
+a@localhost	c@%
 DROP USER c;
 CREATE USER a;
 GRANT CREATE USER ON *.* TO a;
@@ -145,7 +145,7 @@ a@localhost	a@%
 RENAME USER a TO b@1;
 SELECT user(), current_user();
 user()	current_user()
-b@localhost	b@1
+a@localhost	b@1
 DROP USER b@1;
 # Proxy user
 CREATE USER a IDENTIFIED with 'mysql_native_password', b;
@@ -159,17 +159,20 @@ a@localhost	b@%	'a'@'%'
 RENAME USER a TO c;
 SELECT user(), current_user(), @@proxy_user;
 user()	current_user()	@@proxy_user
-c@localhost	b@%	'c'@'%'
+a@localhost	b@%	'c'@'%'
 DROP USER b, c;
 SET @@global.check_proxy_users = OFF;
 SET @@global.mysql_native_password_proxy_users = OFF;
 # Anonymous user
 CREATE USER ''@'localhost';
 GRANT CREATE USER ON *.* TO ''@'localhost';
+SELECT user(), current_user();
+user()	current_user()
+CONNECTED_USER	@localhost
 RENAME USER ''@'localhost' TO a;
 SELECT user(), current_user();
 user()	current_user()
-a@localhost	a@%
+CONNECTED_USER	a@%
 DROP USER a;
 # End : Tests for RENAME USER
 # -----------------------------------------------------------------------
