@@ -4426,8 +4426,8 @@ exit:
 ///        Boost Geometry, or to be only used in MySQL code.
 template <typename T>
 Gis_wkb_vector<T>::Gis_wkb_vector(const void *ptr, size_t nbytes,
-                                  const Flags_t &flags, gis::srid_t srid,
-                                  bool is_bg_adapter)
+                                  const Geometry::Flags_t &flags,
+                                  gis::srid_t srid, bool is_bg_adapter)
     : Geometry(ptr, nbytes, flags, srid) {
   DBUG_ASSERT((ptr != nullptr && nbytes > 0) ||
               (ptr == nullptr && nbytes == 0));

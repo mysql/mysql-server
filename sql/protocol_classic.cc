@@ -2623,18 +2623,16 @@ int Protocol_classic::read_packet() {
   ::mysqld_stmt_close, ::mysql_stmt_precheck
 */
 
-/**
-  @page page_protocol_com_stmt_fetch COM_STMT_FETCH
-
-  Fetches the requested amount of rows from
-  a resultset produced by ::COM_STMT_EXECUTE
-*/
 MY_COMPILER_DIAGNOSTIC_PUSH()
 MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
 /**
   @page page_protocol_com_stmt_fetch COM_STMT_FETCH
 
+  Fetches the requested amount of rows from
+  a resultset produced by ::COM_STMT_EXECUTE
+
   @return @ref sect_protocol_com_stmt_fetch_response
+
   <table>
   <caption>Payload</caption>
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
@@ -2651,6 +2649,12 @@ MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
 
   @sa @ref mysqld_stmt_fetch
   @sa @ref mysql_stmt_fetch
+
+  @section sect_protocol_com_stmt_fetch_response COM_STMT_FETCH Response
+
+  @ref COM_STMT_FETCH may return one of:
+    - @ref sect_protocol_command_phase_sp_multi_resultset
+    - @ref page_protocol_basic_err_packet
 */
 MY_COMPILER_DIAGNOSTIC_POP()
 
@@ -2810,15 +2814,6 @@ static bool parse_query_bind_params(
   *inout_packet_left = packet_left;
   return false;
 }
-/**
-  @page page_protocol_com_stmt_fetch COM_STMT_FETCH
-
-  @section sect_protocol_com_stmt_fetch_response COM_STMT_FETCH Response
-
-  @ref COM_STMT_FETCH may return one of:
-    - @ref sect_protocol_command_phase_sp_multi_resultset
-    - @ref page_protocol_basic_err_packet
-*/
 
 bool Protocol_classic::parse_packet(union COM_DATA *data,
                                     enum_server_command cmd) {

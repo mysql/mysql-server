@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -27,11 +27,21 @@
 
 #===========================================================================
 # MAINTAINER:
+#
+# For bugs in the MySQL source code
+#
 # File a bug for each doxygen failure seen during the build:
 # - PRODUCT = MySQL Server (8478)
 # - COMPONENT = SRDOXYGEN
 # - make sure the title contains DOXYGEN
 # and update this file with exceptions using the templates below
+#
+# For bugs in the doxygen tool
+#
+# Indicate which doxygen version is broken,
+# Indicate which doxygen version is fixed, if any,
+# Indicate the doxygen issue number, if known
+#
 #===========================================================================
 
 #===========================================================================
@@ -95,3 +105,31 @@ sql/sql_table.cc:*
 # BUG#32246059 - FIX DOXYGEN ERRORS IN THE XPLUGIN CODE
 # 07-DEC-2020 Erlend Dahl
 plugin/x/protocol/protobuf/mysqlx.proto:*
+
+#===========================================================================
+# 08-DEC-2020 Marc Alff
+# Doxygen bug in 1.8.18, fixed in 1.8.19.
+# warning: Illegal command @td as part of a \b command
+storage/temptable/include/temptable/handler.h:*
+#===========================================================================
+
+#===========================================================================
+# 08-DEC-2020 Marc Alff
+# Doxygen bug in 1.8.18, fixed in 1.8.19.
+# todo:226: warning: unexpected token TK_COMMAND_BS as the argument of _internalref
+# todo:392: warning: unexpected token TK_COMMAND_BS as the argument of _internalref
+# todo:394: warning: Unexpected html tag </dd> found within <dt> context
+todo:*
+#===========================================================================
+
+#===========================================================================
+# 08-DEC-2020 Marc Alff
+# Doxygen bug in 1.8.18
+# Doxygen is confused by anonymous namespaces,
+# which creates a lot of "warning: no matching class member found for".
+#
+# TODO: File a bug in https://github.com/doxygen/doxygen/issues
+# 
+anonymous_namespace
+sql/auth/sql_authorization.cc:*
+#===========================================================================
