@@ -34,7 +34,7 @@ int MY_ATTRIBUTE((visibility("default")))
 }  // namespace ssl_wrapper_service
 
 /**
-  Return version of SSL used in currect connection
+  Return version of SSL used in current connection.
 
   @param vio              VIO connection descriptor
   @param buffer           Character buffer in which the version is going to be

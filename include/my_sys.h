@@ -1024,17 +1024,7 @@ size_t mysql_encryption_file_read(IO_CACHE *cache, uchar *buffer, size_t count,
                 MY_WME | MY_FAE | MY_NABP | MY_FNABP |
                 MY_DONT_CHECK_FILESIZE and so on
 
-   if (flags & (MY_NABP | MY_FNABP)) {
-     @retval 0 if count == 0
-     @retval 0 success
-     @retval MY_FILE_ERROR error
-   } else {
-     @retval 0 if count == 0
-     @retval The number of bytes written on success.
-     @retval MY_FILE_ERROR error
-     @retval The actual number of bytes written on partial success (if
-             less than count bytes were written).
-   }
+   @return The number of bytes written
 */
 size_t mysql_encryption_file_write(IO_CACHE *cache, const uchar *buffer,
                                    size_t count, myf flags);

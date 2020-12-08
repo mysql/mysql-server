@@ -814,7 +814,7 @@ class Thd_parse_modifier {
 
   The parser would normally raise an error saying:
 
-    You have an error in your SQL syntax; /.../ near 'root@localhost'
+    You have an error in your SQL syntax; /.../ near 'root\@localhost'
 
   thus leaking data from the `user` table. Therefore, the errors are in this
   not disclosed.

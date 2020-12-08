@@ -163,6 +163,7 @@ int srv_session_server_is_available();
   THD associated with session is attached.
 
   @param session  Session to attach
+  @param ret_previous_thd Previously attached THD
 
   @returns
     0  success

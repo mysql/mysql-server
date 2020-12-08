@@ -832,9 +832,8 @@ void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all);
 int mysql_tmpfile(const char *prefix);
 
 /**
-  Check the killed state of a connection
+  Check the killed state of a connection.
 
-  @details
   In MySQL support for the KILL statement is cooperative. The KILL
   statement only sets a "killed" flag. This function returns the value
   of that flag.  A thread should check it often, especially inside

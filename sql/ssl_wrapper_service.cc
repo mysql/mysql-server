@@ -1,4 +1,4 @@
-/*  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -67,14 +67,6 @@ end:
   return res;
 }
 
-/**
-  Return version of SSL used in current connection
-
-  @param vio              VIO connection descriptor
-  @param buffer           Character buffer in which the version is going to be
-  placed
-  @param buffer_size      Size of the character buffer
-*/
 void ssl_wrapper_version(Vio *vio, char *buffer, const size_t buffer_size) {
   const char *ssl_version = SSL_get_version((SSL *)vio->ssl_arg);
 

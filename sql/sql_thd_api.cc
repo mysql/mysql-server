@@ -496,13 +496,6 @@ void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid) {
       thd->get_transaction()->xid_state()->get_xid());
 }
 
-/**
-  Check the killed state of a user thread
-  @param v_thd  user thread
-  @retval 0 the user thread is active
-  @retval 1 the user thread has been killed
-*/
-
 int thd_killed(const void *v_thd) {
   const THD *thd = static_cast<const THD *>(v_thd);
   if (thd == nullptr) thd = current_thd;
@@ -517,12 +510,6 @@ int thd_killed(const void *v_thd) {
 */
 
 void thd_set_kill_status(const MYSQL_THD thd) { thd->send_kill_message(); }
-
-/**
-  Return the thread id of a user thread
-  @param thd user thread
-  @return thread id
-*/
 
 unsigned long thd_get_thread_id(const MYSQL_THD thd) {
   return ((unsigned long)thd->thread_id());
