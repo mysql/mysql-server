@@ -1581,6 +1581,18 @@ IF(NOT WITHOUT_SERVER)
     STRING_APPEND(CMAKE_CXX_FLAGS_DEBUG " -xO1")
   ENDIF()
 
+  IF(WITH_UNIT_TESTS)
+    IF(WIN32)
+      SET(WITH_SHARED_UNITTEST_LIBRARY_DEFAULT OFF)
+    ELSE()
+      SET(WITH_SHARED_UNITTEST_LIBRARY_DEFAULT ON)
+    ENDIF()
+    OPTION(WITH_SHARED_UNITTEST_LIBRARY
+      "Build a shared library for unit tests which depend on the entire server"
+      ${WITH_SHARED_UNITTEST_LIBRARY_DEFAULT}
+      )
+  ENDIF()
+
   # Add storage engines and plugins.
   SET (MYSQLD_STATIC_PLUGIN_LIBS "" CACHE INTERNAL "")
   CONFIGURE_PLUGINS()
@@ -1614,15 +1626,6 @@ ENDIF()
 
 # Some unit tests need to link with the entire server, use this library:
 IF(NOT WITHOUT_SERVER AND WITH_UNIT_TESTS)
-  IF(WIN32)
-    SET(WITH_SHARED_UNITTEST_LIBRARY_DEFAULT OFF)
-  ELSE()
-    SET(WITH_SHARED_UNITTEST_LIBRARY_DEFAULT ON)
-  ENDIF()
-  OPTION(WITH_SHARED_UNITTEST_LIBRARY
-    "Build a shared library for unit tests which depend on the entire server"
-    ${WITH_SHARED_UNITTEST_LIBRARY_DEFAULT}
-    )
 
   IF(WITH_SHARED_UNITTEST_LIBRARY)
     MERGE_LIBRARIES_SHARED(server_unittest_library SKIP_INSTALL LINK_PUBLIC
