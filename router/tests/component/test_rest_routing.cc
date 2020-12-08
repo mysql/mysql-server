@@ -215,11 +215,8 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
     ASSERT_TRUE(wait_for_port_ready(routing_ports_[2], 500ms));
   }
 
-  // wait a bit until the routing plugin really closed the sockets
-  //
-  // the routing plugin has a server-greeting-timeout of 100ms
-  // add a few more on top for our close-and-forget in wait_for_port_ready()
-  std::this_thread::sleep_for(200ms);
+  // wait until we see that the Router has blocked the host
+  EXPECT_TRUE(wait_log_contains(http_server, "blocking client host", 5s));
 
   EXPECT_NO_FATAL_FAILURE(
       fetch_and_validate_schema_and_resource(GetParam(), http_server));

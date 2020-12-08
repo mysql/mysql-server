@@ -57,6 +57,10 @@ if (mysqld.global.queries === undefined) {
   mysqld.global.queries = [];
 }
 
+if (mysqld.global.transaction_count === undefined) {
+  mysqld.global.transaction_count = 0;
+}
+
 var nodes = function(host, port_and_state) {
   return port_and_state.map(function(current_value) {
     return [
@@ -89,7 +93,6 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_set_session_options",
       "router_set_gr_consistency_level",
       "select_port",
-      "router_start_transaction",
       "router_commit",
       "router_select_schema_version",
       "router_select_cluster_type_v2",
@@ -108,6 +111,9 @@ var router_update_last_check_in_v2 =
 var router_select_metadata =
     common_stmts.get("router_select_metadata_v2_gr", options);
 
+var router_start_transaction =
+    common_stmts.get("router_start_transaction", options);
+
 ({
   stmts: function(stmt) {
     // let's grab first queries for the verification
@@ -120,6 +126,9 @@ var router_select_metadata =
 
     if (common_responses.hasOwnProperty(stmt)) {
       return common_responses[stmt];
+    } else if (stmt === router_start_transaction.stmt) {
+      mysqld.global.transaction_count++;
+      return router_start_transaction;
     } else if (stmt === router_update_version_strict_v2.stmt) {
       mysqld.global.update_version_count++;
       if (mysqld.global.perm_error_on_version_update === 1) {

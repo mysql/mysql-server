@@ -72,7 +72,6 @@ class DuktapeStatementReader : public StatementReaderBase {
  private:
   struct Pimpl;
   std::unique_ptr<Pimpl> pimpl_;
-  std::shared_ptr<MockServerGlobalScope> shared_;
   bool has_notices_{false};
 
   HandshakeState handshake_state_{HandshakeState::INIT};
