@@ -282,7 +282,7 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
   if (!acl_cache_lock.lock()) {
-    commit_and_close_mysql_tables(thd);
+    close_thread_tables(thd);
     return true;
   }
 
@@ -292,7 +292,7 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
     log_user(thd, &wrong_users, user_name, wrong_users.length() > 0);
     my_error(ER_CANNOT_USER, MYF(0), "SHOW CREATE USER",
              wrong_users.c_ptr_safe());
-    commit_and_close_mysql_tables(thd);
+    close_thread_tables(thd);
     return true;
   }
   /* fill in plugin, auth_str from acl_user */
@@ -444,7 +444,7 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
   }
 
 err:
-  commit_and_close_mysql_tables(thd);
+  close_thread_tables(thd);
   lex->default_roles = old_default_roles;
   /* restore user resources, ssl and password expire attributes */
   lex->mqh = tmp_user_resource;
