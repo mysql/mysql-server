@@ -192,6 +192,8 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
       row_stmt_start_timestamp(0),
       long_find_row_note_printed(false),
       thd_tx_priority(0),
+      m_ignore_write_set_memory_limit(false),
+      m_allow_drop_write_set(false),
       m_is_engine_ha_data_detached(false),
       current_event(nullptr),
       ddl_not_atomic(false) {

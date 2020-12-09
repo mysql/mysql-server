@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,16 +61,31 @@ struct Transaction_write_set {
 extern "C" struct transaction_write_set_service_st {
   Transaction_write_set *(*get_transaction_write_set)(
       unsigned long m_thread_id);
+  void (*require_full_write_set)(bool requires_ws);
+  void (*set_write_set_memory_size_limit)(uint64 size_limit);
+  void (*update_write_set_memory_size_limit)(uint64 size_limit);
 } * transaction_write_set_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 
 #define get_transaction_write_set(m_thread_id) \
-  (transaction_write_set_service->get_transaction_write_set((m_thread_id)))
+  transaction_write_set_service->get_transaction_write_set(m_thread_id)
+#define require_full_write_set(requires_ws) \
+  transaction_write_set_service->require_full_write_set(requires_ws)
+#define set_write_set_memory_size_limit(size_limit) \
+  transaction_write_set_service->set_write_set_memory_size_limit(size_limit)
+#define update_write_set_memory_size_limit(size_limit) \
+  transaction_write_set_service->update_write_set_memory_size_limit(size_limit)
 
 #else
 
 Transaction_write_set *get_transaction_write_set(unsigned long m_thread_id);
+
+void require_full_write_set(bool requires_ws);
+
+void set_write_set_memory_size_limit(uint64 size_limit);
+
+void update_write_set_memory_size_limit(uint64 size_limit);
 
 #endif
 

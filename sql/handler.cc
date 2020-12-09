@@ -7698,10 +7698,14 @@ int binlog_log_row(TABLE *table, const uchar *before_record,
       try {
         if (before_record && after_record) {
           /* capture both images pke */
-          add_pke(table, thd, table->record[0]);
-          add_pke(table, thd, table->record[1]);
+          if (add_pke(table, thd, table->record[0]) ||
+              add_pke(table, thd, table->record[1])) {
+            return HA_ERR_RBR_LOGGING_FAILED;
+          }
         } else {
-          add_pke(table, thd, table->record[0]);
+          if (add_pke(table, thd, table->record[0])) {
+            return HA_ERR_RBR_LOGGING_FAILED;
+          }
         }
       } catch (const std::bad_alloc &) {
         my_error(ER_OUT_OF_RESOURCES, MYF(0));

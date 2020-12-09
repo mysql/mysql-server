@@ -30,15 +30,26 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/service_rpl_transaction_write_set.h"  // Transaction_write_set
-#include "sql/current_thd.h"                          // current_thd
-#include "sql/debug_sync.h"                           // debug_sync_set_action
-#include "sql/mysqld_thd_manager.h"                   // Global_THD_manager
+#include "sql/binlog.h"
+#include "sql/current_thd.h"         // current_thd
+#include "sql/debug_sync.h"          // debug_sync_set_action
+#include "sql/mysqld_thd_manager.h"  // Global_THD_manager
 #include "sql/psi_memory_key.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/transaction_info.h"
 
+std::atomic<bool>
+    Rpl_transaction_write_set_ctx::m_global_component_requires_write_sets(
+        false);
+std::atomic<uint64>
+    Rpl_transaction_write_set_ctx::m_global_write_set_memory_size_limit(0);
+
 Rpl_transaction_write_set_ctx::Rpl_transaction_write_set_ctx()
-    : m_has_missing_keys(false), m_has_related_foreign_keys(false) {
+    : m_has_missing_keys(false),
+      m_has_related_foreign_keys(false),
+      m_ignore_write_set_memory_limit(false),
+      m_local_allow_drop_write_set(false),
+      m_local_has_reached_write_set_limit(false) {
   DBUG_TRACE;
   /*
     In order to speed-up small transactions write-set extraction,
@@ -49,10 +60,38 @@ Rpl_transaction_write_set_ctx::Rpl_transaction_write_set_ctx()
   write_set.reserve(12);
 }
 
-void Rpl_transaction_write_set_ctx::add_write_set(uint64 hash) {
+bool Rpl_transaction_write_set_ctx::add_write_set(uint64 hash) {
   DBUG_TRACE;
   DBUG_EXECUTE_IF("add_write_set_no_memory", throw std::bad_alloc(););
-  write_set.push_back(hash);
+
+  if (!m_local_has_reached_write_set_limit) {
+    ulong binlog_trx_dependency_history_size =
+        mysql_bin_log.m_dependency_tracker.get_writeset()
+            ->m_opt_max_history_size;
+    bool is_full_writeset_required =
+        m_global_component_requires_write_sets && !m_local_allow_drop_write_set;
+
+    if (!is_full_writeset_required) {
+      if (write_set.size() >= binlog_trx_dependency_history_size) {
+        m_local_has_reached_write_set_limit = true;
+        clear_write_set();
+        return false;
+      }
+    }
+
+    uint64 mem_limit = m_global_write_set_memory_size_limit;
+    if (mem_limit && !m_ignore_write_set_memory_limit) {
+      // Check if adding a new element goes over the limit
+      if (sizeof(uint64) + write_set_memory_size() > mem_limit) {
+        my_error(ER_WRITE_SET_EXCEEDS_LIMIT, MYF(0));
+        return true;
+      }
+    }
+
+    write_set.push_back(hash);
+  }
+
+  return false;
 }
 
 std::vector<uint64> *Rpl_transaction_write_set_ctx::get_write_set() {
@@ -60,12 +99,18 @@ std::vector<uint64> *Rpl_transaction_write_set_ctx::get_write_set() {
   return &write_set;
 }
 
+void Rpl_transaction_write_set_ctx::reset_state() {
+  DBUG_TRACE;
+  clear_write_set();
+  m_has_missing_keys = m_has_related_foreign_keys = false;
+  m_local_has_reached_write_set_limit = false;
+}
+
 void Rpl_transaction_write_set_ctx::clear_write_set() {
   DBUG_TRACE;
   write_set.clear();
   savepoint.clear();
   savepoint_list.clear();
-  m_has_missing_keys = m_has_related_foreign_keys = false;
 }
 
 void Rpl_transaction_write_set_ctx::set_has_missing_keys() {
@@ -86,6 +131,57 @@ void Rpl_transaction_write_set_ctx::set_has_related_foreign_keys() {
 bool Rpl_transaction_write_set_ctx::get_has_related_foreign_keys() {
   DBUG_TRACE;
   return m_has_related_foreign_keys;
+}
+
+bool Rpl_transaction_write_set_ctx::was_write_set_limit_reached() {
+  DBUG_TRACE;
+  return m_local_has_reached_write_set_limit;
+}
+
+size_t Rpl_transaction_write_set_ctx::write_set_memory_size() {
+  DBUG_TRACE;
+  return sizeof(uint64) * write_set.size();
+}
+
+void Rpl_transaction_write_set_ctx::set_global_require_full_write_set(
+    bool requires_ws) {
+  DBUG_ASSERT(!requires_ws || !m_global_component_requires_write_sets);
+  m_global_component_requires_write_sets = requires_ws;
+}
+
+void require_full_write_set(bool requires_ws) {
+  Rpl_transaction_write_set_ctx::set_global_require_full_write_set(requires_ws);
+}
+
+void Rpl_transaction_write_set_ctx::set_global_write_set_memory_size_limit(
+    uint64 limit) {
+  DBUG_ASSERT(m_global_write_set_memory_size_limit == 0);
+  m_global_write_set_memory_size_limit = limit;
+}
+
+void Rpl_transaction_write_set_ctx::update_global_write_set_memory_size_limit(
+    uint64 limit) {
+  m_global_write_set_memory_size_limit = limit;
+}
+
+void set_write_set_memory_size_limit(uint64 size_limit) {
+  Rpl_transaction_write_set_ctx::set_global_write_set_memory_size_limit(
+      size_limit);
+}
+
+void update_write_set_memory_size_limit(uint64 size_limit) {
+  Rpl_transaction_write_set_ctx::update_global_write_set_memory_size_limit(
+      size_limit);
+}
+
+void Rpl_transaction_write_set_ctx::set_local_ignore_write_set_memory_limit(
+    bool ignore_limit) {
+  m_ignore_write_set_memory_limit = ignore_limit;
+}
+
+void Rpl_transaction_write_set_ctx::set_local_allow_drop_write_set(
+    bool allow_drop_write_set) {
+  m_local_allow_drop_write_set = allow_drop_write_set;
 }
 
 /**
