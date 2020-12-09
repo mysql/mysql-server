@@ -3313,7 +3313,6 @@ fil_space_t *Fil_shard::space_create(const char *name, space_id_t space_id,
   space->initialize();
 
   space->id = space_id;
-
   space->name = mem_strdup(name);
 
 #ifndef UNIV_HOTBACKUP
@@ -3575,6 +3574,38 @@ page_no_t fil_space_get_size(space_id_t space_id) {
   shard->mutex_release();
 
   return size;
+}
+
+page_no_t fil_space_get_undo_initial_size(space_id_t space_id) {
+  auto shard = fil_system->shard_by_id(space_id);
+
+  shard->mutex_acquire();
+
+  fil_space_t *space = shard->space_load(space_id);
+
+  page_no_t size = space ? space->m_undo_initial : 0;
+
+  shard->mutex_release();
+
+  return size;
+}
+
+void fil_space_set_undo_size(space_id_t space_id, bool use_current) {
+  ut_ad(fsp_is_undo_tablespace(space_id));
+
+  auto shard = fil_system->shard_by_id(space_id);
+
+  shard->mutex_acquire();
+
+  fil_space_t *space = shard->space_load(space_id);
+
+  if (space != nullptr) {
+    space->m_undo_initial =
+        (use_current ? space->size : UNDO_INITIAL_SIZE_IN_PAGES);
+    space->m_undo_extend = UNDO_INITIAL_SIZE_IN_PAGES;
+  }
+
+  shard->mutex_release();
 }
 
 /** Returns the flags of the space. The tablespace must be cached

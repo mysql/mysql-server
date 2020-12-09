@@ -1059,11 +1059,11 @@ static trx_rseg_t *get_next_redo_rseg_from_undo_spaces() {
   trx_rseg_t *rseg = nullptr;
   ulint current = rseg_counter;
 
-  /* Increment the static redo_rseg_slot so the next call from any thread
-  starts with the next rseg. */
-  rseg_counter.fetch_add(1);
-
   while (rseg == nullptr) {
+    /* Increment the static redo_rseg_slot so the next call from any thread
+    starts with the next rseg. */
+    rseg_counter.fetch_add(1);
+
     /* Traverse the rsegs like this: (space, rseg_id)
     (0,0), (1,0), ... (n,0), (0,1), (1,1), ... (n,1), ... */
     ulint window =

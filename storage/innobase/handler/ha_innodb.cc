@@ -17363,6 +17363,9 @@ static bool innobase_get_tablespace_statistics(
   } else if (fsp_is_system_temporary(space->id)) {
     extend_pages = srv_tmp_space.get_increment();
 
+  } else if (fsp_is_undo_tablespace(space->id)) {
+    extend_pages = space->m_undo_extend;
+
   } else if (space->autoextend_size_in_bytes > 0) {
     extend_pages = space->autoextend_size_in_bytes / page_size.physical();
   } else {

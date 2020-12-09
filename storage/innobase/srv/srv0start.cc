@@ -598,13 +598,13 @@ static dberr_t srv_undo_tablespace_create(undo::Tablespace &undo_space) {
 
     ib::info(ER_IB_MSG_1071, file_name);
 
-    ulint size_mb = INITIAL_UNDO_SPACE_SIZE >> 20;
+    ulint size_mb = UNDO_INITIAL_SIZE >> 20;
 
     ib::info(ER_IB_MSG_1072, file_name, ulonglong{size_mb});
 
     ib::info(ER_IB_MSG_1073);
 
-    ret = os_file_set_size(file_name, fh, 0, INITIAL_UNDO_SPACE_SIZE,
+    ret = os_file_set_size(file_name, fh, 0, UNDO_INITIAL_SIZE,
                            srv_read_only_mode, true);
 
     DBUG_EXECUTE_IF("ib_undo_tablespace_create_fail", ret = false;);
@@ -990,7 +990,13 @@ static dberr_t srv_undo_tablespace_open_by_id(space_id_t space_id) {
     return (DB_WRONG_FILE_NAME);
   }
 
-  return (srv_undo_tablespace_open(undo_space));
+  dberr_t err = srv_undo_tablespace_open(undo_space);
+
+  if (err == DB_SUCCESS) {
+    fil_space_set_undo_size(space_id, false);
+  }
+
+  return (err);
 }
 
 /** Open an undo tablespace with a specified undo number.
@@ -1007,28 +1013,22 @@ static dberr_t srv_undo_tablespace_open_by_num(space_id_t space_num) {
     return (DB_CANNOT_OPEN_FILE);
   }
 
-  undo::Tablespace undo_space(space_id);
-
-  /* The first 2 undo space numbers must be implicit. v8.0.12 used
-  innodb_undo_tablespaces to implicitly create undo spaces. */
+  /* The first 2 undo space numbers must be implicit. */
   bool is_default = (space_num <= FSP_IMPLICIT_UNDO_TABLESPACES);
 
   /* v8.0.12 used innodb_undo_tablespaces to implicitly create undo
   spaces so there may be more than 2 implicit undo tablespaces.  They
   must match the default undo filename and must be found in
   srv_undo_directory. */
-  bool has_implicit_name =
-      Fil_path::is_same_as(undo_space.file_name(), scanned_name.c_str());
-
-  if (is_default || has_implicit_name) {
-    if (!has_implicit_name) {
+  undo::Tablespace undo_space(space_id);
+  if (!Fil_path::is_same_as(undo_space.file_name(), scanned_name.c_str())) {
+    if (is_default) {
       ib::info(ER_IB_MSG_1080, undo_space.file_name(), scanned_name.c_str(),
                ulong{space_id});
 
       return (DB_WRONG_FILE_NAME);
     }
 
-  } else {
     /* Explicit undo tablespaces must end with the suffix '.ibu'. */
     if (!Fil_path::has_suffix(IBU, scanned_name)) {
       ib::info(ER_IB_MSG_NOT_END_WITH_IBU, scanned_name.c_str());
@@ -1045,7 +1045,13 @@ static dberr_t srv_undo_tablespace_open_by_num(space_id_t space_num) {
 
   ib::info(ER_IB_MSG_USING_UNDO_SPACE, scanned_name.c_str());
 
-  return (srv_undo_tablespace_open(undo_space));
+  dberr_t err = srv_undo_tablespace_open(undo_space);
+
+  if (err == DB_SUCCESS) {
+    fil_space_set_undo_size(space_id, false);
+  }
+
+  return (err);
 }
 
 /* Open existing undo tablespaces up to the number in target_undo_tablespace.
@@ -1090,9 +1096,8 @@ static dberr_t srv_undo_tablespaces_open() {
   ut_ad(undo::spaces->size() == 0);
 
   for (space_id_t num = 1; num <= FSP_MAX_UNDO_TABLESPACES; ++num) {
-    /* Check if this undo tablespace was in the
-    process of being truncated.  If so, recreate it
-    and add it to the construction list. */
+    /* Check if this undo tablespace was in the process of being truncated.
+    If so, recreate it and add it to the construction list. */
     dberr_t err = srv_undo_tablespace_fixup_num(num);
     if (err != DB_SUCCESS) {
       undo::spaces->x_unlock();
@@ -1272,7 +1277,7 @@ static dberr_t srv_undo_tablespaces_construct(bool create_new_db) {
 
     mtr_x_lock(fil_space_get_latch(space_id), &mtr);
 
-    if (!fsp_header_init(space_id, INITIAL_UNDO_SPACE_SIZE_IN_PAGES, &mtr,
+    if (!fsp_header_init(space_id, UNDO_INITIAL_SIZE_IN_PAGES, &mtr,
                          create_new_db)) {
       ib::error(ER_IB_MSG_1093, ulong{undo::id2num(space_id)});
 

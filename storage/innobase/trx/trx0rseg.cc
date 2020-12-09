@@ -685,6 +685,11 @@ bool trx_rseg_add_rollback_segments(space_id_t space_id, ulong target_rsegs,
     *n_total_created += n_created;
   }
 
+  /* Save the size of the undo tablespace now that all rsegs have been created.
+  No need to do this for the system temporary tablespace. */
+  if (type == UNDO) {
+    fil_space_set_undo_size(space_id, true);
+  }
   return (success);
 }
 

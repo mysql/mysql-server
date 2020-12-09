@@ -85,6 +85,19 @@ static constexpr char undo_space_name[] = "innodb_undo";
 
 extern volatile bool recv_recovery_on;
 
+/** Initial size of an UNDO tablespace when it is created new
+or truncated under low load.
+page size | FSP_EXTENT_SIZE  | Initial Size | Pages
+----------+------------------+--------------+-------
+    4 KB  | 256 pages = 1 MB |   16 MB      | 4096
+    8 KB  | 128 pages = 1 MB |   16 MB      | 2048
+   16 KB  |  64 pages = 1 MB |   16 MB      | 1024
+   32 KB  |  64 pages = 2 MB |   16 MB      | 512
+   64 KB  |  64 pages = 4 MB |   16 MB      | 256  */
+#define UNDO_INITIAL_SIZE (16 * 1024 * 1024)
+#define UNDO_INITIAL_SIZE_IN_PAGES \
+  os_offset_t { UNDO_INITIAL_SIZE / srv_page_size }
+
 #ifdef UNIV_HOTBACKUP
 #include <unordered_set>
 using Dir_set = std::unordered_set<std::string>;
@@ -299,6 +312,11 @@ struct fil_space_t {
   /** Extend undo tablespaces by so many pages. */
   page_no_t m_undo_extend{};
 
+  /** When an undo tablespace has been initialized with required header pages,
+  that size is recorded here.  Auto-truncation happens when the file size
+  becomes bigger than both this and srv_max_undo_log_size. */
+  page_no_t m_undo_initial{};
+
   /** Tablespace name */
   char *name{};
 
@@ -316,11 +334,6 @@ struct fil_space_t {
     new (&m_n_ref_count) std::atomic_size_t;
     new (&m_deleted) std::atomic<bool>;
 #endif /* !UNIV_HOTBACKUP */
-
-    /** This is the number of pages needed extend an undo tablespace by 16 MB.
-    It is increased during aggressive growth and decreased when the growth
-    is slower. */
-    m_undo_extend = (16 * 1024 * 1024) / UNIV_PAGE_SIZE;
   }
 
  private:
@@ -1411,6 +1424,22 @@ in the memory cache.
 @return space size, 0 if space not found */
 page_no_t fil_space_get_size(space_id_t space_id)
     MY_ATTRIBUTE((warn_unused_result));
+
+/** Returns the size of an undo space just after it was initialized.
+@param[in]	space_id	Tablespace ID
+@return initial space size, 0 if space not found */
+page_no_t fil_space_get_undo_initial_size(space_id_t space_id)
+    MY_ATTRIBUTE((warn_unused_result));
+
+/** This is called for an undo tablespace after it has been initialized
+or opened.  It sets the minimum size in pages at which it should be truncated
+and the number of pages that it should be extended. An undo tablespace is
+extended by larger amounts than normal tablespaces. It starts at 16Mb and
+is increased during aggressive growth and decreased when the growth is slower.
+@param[in]  space_id     Tablespace ID
+@param]in]  use_current  If true, use the current size in pages as the initial
+                         size. If false, use UNDO_INITIAL_SIZE_IN_PAGES. */
+void fil_space_set_undo_size(space_id_t space_id, bool use_current);
 
 /** Returns the flags of the space. The tablespace must be cached
 in the memory cache.
