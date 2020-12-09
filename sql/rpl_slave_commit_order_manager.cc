@@ -94,13 +94,12 @@ bool Commit_order_manager::wait_on_graph(Slave_worker *worker) {
     this->m_workers[worker->id].m_stage =
         cs::apply::Commit_order_queue::enum_worker_stage::REQUESTED_GRANT;
 
-    raii::Sentry<> ticket_guard{
-        [&]() -> void { worker_thd->mdl_context.done_waiting_for(); }};
-
     Commit_order_lock_graph ticket{worker_thd->mdl_context, *this,
                                    static_cast<std::uint32_t>(worker->id)};
     worker_thd->mdl_context.will_wait_for(&ticket);
     worker_thd->mdl_context.find_deadlock();
+    raii::Sentry<> ticket_guard{
+        [&]() -> void { worker_thd->mdl_context.done_waiting_for(); }};
 
     struct timespec abs_timeout;
     set_timespec(&abs_timeout, LONG_TIMEOUT);  // Wait for a year

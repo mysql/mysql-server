@@ -27,6 +27,8 @@ SET GLOBAL slave_parallel_workers = 3;
 SET GLOBAL slave_preserve_commit_order = ON;
 SET GLOBAL slave_transaction_retries = REPLICA_TRANSACTION_RETRIES;
 SET GLOBAL innodb_lock_wait_timeout = INNODB_LOCK_WAIT_TIMEOUT;
+include/rpl_connect.inc [creating rpl_slave_connection_2]
+include/rpl_connect.inc [creating rpl_slave_connection_3]
 
 #
 # TC1. `GLOBAL READ_ONLY=ON` issued by client and DDL replicated
@@ -40,11 +42,21 @@ INSERT INTO t1 VALUES(10, 10);
 SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:1";
 ALTER TABLE t2 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
 SET GTID_NEXT = AUTOMATIC;
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:2";
 INSERT INTO t1 VALUES(11, NULL);
+SET GTID_NEXT = AUTOMATIC;
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:3";
 INSERT INTO t1 VALUES(12, NULL);
+SET GTID_NEXT = AUTOMATIC;
 # Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
 [connection slave]
 SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:1";
+BEGIN;
+[connection rpl_slave_connection_2]
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:2";
+BEGIN;
+[connection rpl_slave_connection_3]
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:3";
 BEGIN;
 [connection slave1]
 include/start_slave_sql.inc
@@ -53,7 +65,15 @@ include/assert.inc [MTS worker thread count is correct]
 include/assert.inc [Replica preserve commit order is 1]
 include/assert.inc [Replica transaction retries has correct configured value]
 include/assert.inc [InnoDB lock wait timeout has correct configured value]
-include/wait_condition.inc [Workers must wait on commit order]
+[connection rpl_slave_connection_2]
+ROLLBACK;
+SET GTID_NEXT = AUTOMATIC;
+include/wait_condition.inc [First worker must wait on commit order]
+[connection rpl_slave_connection_3]
+ROLLBACK;
+SET GTID_NEXT = AUTOMATIC;
+include/wait_condition.inc [Second worker must wait on commit order]
+[connection slave1]
 SET GLOBAL read_only = ON;
 [connection slave]
 include/wait_condition.inc [Client connection must wait for state]
@@ -78,14 +98,24 @@ INSERT INTO t1 VALUES(13, 13);
 [connection slave]
 [connection master]
 # Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
-SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:2";
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:4";
 INSERT INTO t1 VALUES(14, NULL);
 SET GTID_NEXT = AUTOMATIC;
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:5";
 INSERT INTO t1 VALUES(15, NULL);
+SET GTID_NEXT = AUTOMATIC;
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:6";
 INSERT INTO t1 VALUES(16, NULL);
+SET GTID_NEXT = AUTOMATIC;
 # Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
 [connection slave]
-SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:2";
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:4";
+BEGIN;
+[connection rpl_slave_connection_2]
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:5";
+BEGIN;
+[connection rpl_slave_connection_3]
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:6";
 BEGIN;
 [connection slave1]
 include/start_slave_sql.inc
@@ -94,7 +124,15 @@ include/assert.inc [MTS worker thread count is correct]
 include/assert.inc [Replica preserve commit order is 1]
 include/assert.inc [Replica transaction retries has correct configured value]
 include/assert.inc [InnoDB lock wait timeout has correct configured value]
-include/wait_condition.inc [Workers must wait on commit order]
+[connection rpl_slave_connection_2]
+ROLLBACK;
+SET GTID_NEXT = AUTOMATIC;
+include/wait_condition.inc [First worker must wait on commit order]
+[connection rpl_slave_connection_3]
+ROLLBACK;
+SET GTID_NEXT = AUTOMATIC;
+include/wait_condition.inc [Second worker must wait on commit order]
+[connection slave1]
 SET GLOBAL read_only = ON;
 [connection slave]
 ROLLBACK;
@@ -118,14 +156,24 @@ INSERT INTO t1 VALUES(17, 17);
 [connection slave]
 [connection master]
 # Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
-SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:3";
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:7";
 ALTER TABLE t2 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
 SET GTID_NEXT = AUTOMATIC;
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:8";
 INSERT INTO t1 VALUES(18, NULL);
+SET GTID_NEXT = AUTOMATIC;
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:9";
 INSERT INTO t1 VALUES(19, NULL);
+SET GTID_NEXT = AUTOMATIC;
 # Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
 [connection slave]
-SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:3";
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:7";
+BEGIN;
+[connection rpl_slave_connection_2]
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:8";
+BEGIN;
+[connection rpl_slave_connection_3]
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:9";
 BEGIN;
 [connection slave1]
 include/start_slave_sql.inc
@@ -134,7 +182,15 @@ include/assert.inc [MTS worker thread count is correct]
 include/assert.inc [Replica preserve commit order is 1]
 include/assert.inc [Replica transaction retries has correct configured value]
 include/assert.inc [InnoDB lock wait timeout has correct configured value]
-include/wait_condition.inc [Workers must wait on commit order]
+[connection rpl_slave_connection_2]
+ROLLBACK;
+SET GTID_NEXT = AUTOMATIC;
+include/wait_condition.inc [First worker must wait on commit order]
+[connection rpl_slave_connection_3]
+ROLLBACK;
+SET GTID_NEXT = AUTOMATIC;
+include/wait_condition.inc [Second worker must wait on commit order]
+[connection slave1]
 FLUSH TABLES WITH READ LOCK;
 [connection slave]
 include/wait_condition.inc [Client connection must wait for state]
@@ -159,14 +215,24 @@ INSERT INTO t1 VALUES(20, 20);
 [connection slave]
 [connection master]
 # Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
-SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:4";
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:10";
 INSERT INTO t1 VALUES(21, NULL);
 SET GTID_NEXT = AUTOMATIC;
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:11";
 INSERT INTO t1 VALUES(22, NULL);
+SET GTID_NEXT = AUTOMATIC;
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:12";
 INSERT INTO t1 VALUES(23, NULL);
+SET GTID_NEXT = AUTOMATIC;
 # Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
 [connection slave]
-SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:4";
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:10";
+BEGIN;
+[connection rpl_slave_connection_2]
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:11";
+BEGIN;
+[connection rpl_slave_connection_3]
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:12";
 BEGIN;
 [connection slave1]
 include/start_slave_sql.inc
@@ -175,7 +241,15 @@ include/assert.inc [MTS worker thread count is correct]
 include/assert.inc [Replica preserve commit order is 1]
 include/assert.inc [Replica transaction retries has correct configured value]
 include/assert.inc [InnoDB lock wait timeout has correct configured value]
-include/wait_condition.inc [Workers must wait on commit order]
+[connection rpl_slave_connection_2]
+ROLLBACK;
+SET GTID_NEXT = AUTOMATIC;
+include/wait_condition.inc [First worker must wait on commit order]
+[connection rpl_slave_connection_3]
+ROLLBACK;
+SET GTID_NEXT = AUTOMATIC;
+include/wait_condition.inc [Second worker must wait on commit order]
+[connection slave1]
 FLUSH TABLES WITH READ LOCK;
 [connection slave]
 include/wait_condition.inc [Client connection must wait for state]
@@ -199,12 +273,12 @@ INSERT INTO t1 VALUES(24, 24);
 [connection slave]
 [connection master]
 # Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
-SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:5";
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:13";
 XA START 'xa1'; INSERT INTO t1 VALUES(25, NULL); XA END 'xa1'; XA PREPARE 'xa1';
 SET GTID_NEXT = AUTOMATIC;
 # Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
 [connection slave]
-SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:5";
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:13";
 BEGIN;
 [connection slave1]
 include/start_slave_sql.inc
@@ -213,6 +287,7 @@ include/assert.inc [MTS worker thread count is correct]
 include/assert.inc [Replica preserve commit order is 1]
 include/assert.inc [Replica transaction retries has correct configured value]
 include/assert.inc [InnoDB lock wait timeout has correct configured value]
+[connection slave1]
 BEGIN; INSERT INTO t1 VALUES(25, NULL);
 [connection slave]
 include/wait_condition.inc [Client connection must wait for state]
