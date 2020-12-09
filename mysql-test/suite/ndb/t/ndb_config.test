@@ -116,3 +116,8 @@ echo == 26 == Bug32175157;
 --replace_regex /.*\[ndb_config\]//
 --error 255
 --exec $NDB_CONFIG_EXE --defaults-group-suffix=.bug32175157 --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf1.cnf --mycnf 2>&1
+
+echo == 27 == Bug32210176;
+--replace_regex /.*\[ndb_config\]//
+--error 255
+--exec $NDB_CONFIG_EXE --defaults-group-suffix=.Bug32210176 --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf1.cnf --mycnf 2>&1

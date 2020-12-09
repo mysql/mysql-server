@@ -6479,7 +6479,7 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
   /**
    * Register user supplied values
    */
-  Uint8 ng_cnt[MAX_NDB_NODES];
+  Uint8 ng_cnt[MAX_NDB_NODE_GROUPS];
   Bitmask<(MAX_NDB_NODES+31)/32> nodes_wo_ng;
   bzero(ng_cnt, sizeof(ng_cnt));
 
@@ -6504,10 +6504,11 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
         {
           continue;
         }
-        else if (ng >= MAX_NDB_NODES)
+        else if (ng >= MAX_NDB_NODE_GROUPS)
         {
-          ctx.reportError("Invalid nodegroup %u for node %u",
-                          ng, id);
+          ctx.reportError(
+              "Invalid nodegroup %u for node %u, Max nodegroups allowed: %d",
+              ng, id, MAX_NDB_NODE_GROUPS);
           return false;
         }
         ng_cnt[ng]++;
@@ -6545,7 +6546,7 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
   /**
    * Check node vs replicas
    */
-  for (i = 0; i<MAX_NDB_NODES; i++)
+  for (i = 0; i<MAX_NDB_NODE_GROUPS; i++)
   {
     if (ng_cnt[i] != 0 && ng_cnt[i] != (Uint8)replicas)
     {
