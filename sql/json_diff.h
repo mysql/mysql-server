@@ -1,7 +1,7 @@
 #ifndef JSON_DIFF_INCLUDED
 #define JSON_DIFF_INCLUDED
 
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -148,7 +148,7 @@ class Json_diff_vector {
     Constructor
     @param arg Mem_root_allocator to use for the vector
   */
-  Json_diff_vector(allocator_type arg);
+  explicit Json_diff_vector(allocator_type arg);
   /**
     Append a new diff at the end of this vector.
     @param path Path to update

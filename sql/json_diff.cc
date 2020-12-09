@@ -236,7 +236,7 @@ const Json_diff_vector Json_diff_vector::EMPTY_JSON_DIFF_VECTOR{
 
 void Json_diff_vector::add_diff(const Json_seekable_path &path,
                                 enum_json_diff_operation operation,
-                                Json_dom_ptr dom) {
+                                std::unique_ptr<Json_dom> dom) {
   m_vector.emplace_back(path, operation, std::move(dom));
   m_binary_length += at(size() - 1).binary_length();
 }
@@ -333,7 +333,7 @@ bool Json_diff_vector::read_binary(const char **from, const TABLE *table,
           pointer_cast<const char *>(p), value_length);
       if (value.type() == json_binary::Value::ERROR) goto corrupted;
       Json_wrapper wrapper(value);
-      Json_dom_ptr dom = wrapper.clone_dom(current_thd);
+      std::unique_ptr<Json_dom> dom = wrapper.clone_dom(current_thd);
       if (dom == nullptr)
         return true; /* purecov: inspected */  // OOM, error is reported
       wrapper.dbug_print();
