@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -182,7 +182,7 @@ sub copytree {
 
     # Only copy plain files
     next unless -f "$from_dir/$_";
-    copy("$from_dir/$_", "$to_dir/$_");
+    copy("$from_dir/$_", "$to_dir/$_") or croak("Couldn't copy file '$from_dir/$_' to '$to_dir/$_': $!");
   }
   closedir(DIR);
 
