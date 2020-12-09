@@ -11193,6 +11193,12 @@ ER_FIREWALL_PFS_TABLE_REGISTER_FAILED
 ER_IB_MSG_STATS_SAMPLING_TOO_LARGE
   eng "%s"
 
+ER_AUDIT_LOG_FILE_PRUNE_FAILED
+  eng "Failed to auto-prune file %s, Error (%d): %s"
+
+ER_AUDIT_LOG_FILE_AUTO_PRUNED
+  eng "File %s auto-pruned"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
