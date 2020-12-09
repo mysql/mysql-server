@@ -3468,7 +3468,7 @@ bool Item_func_nullif::resolve_type_inner(THD *thd) {
   set_data_type_from_item(args[0]);
   cached_result_type = args[0]->result_type();
   if (cached_result_type == STRING_RESULT &&
-      agg_arg_charsets_for_comparison(collation, args, arg_count))
+      agg_arg_charsets_for_comparison(cmp.cmp_collation, args, arg_count))
     return true;
 
   // This class does not implement temporal data types

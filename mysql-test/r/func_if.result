@@ -319,3 +319,5 @@ JSON_ARRAYAGG(NULLIF(true,false))
 SELECT JSON_ARRAYAGG(CASE WHEN true = false THEN NULL ELSE true END);
 JSON_ARRAYAGG(CASE WHEN true = false THEN NULL ELSE true END)
 [1]
+# Bug#32231557: Field_blob::store_to_mem: assertion `field_charset == cs' failed.
+DO GROUP_CONCAT(NULLIF(POINT(250,41), ELT(1, @e)) ORDER BY 1);
