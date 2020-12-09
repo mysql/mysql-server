@@ -225,7 +225,7 @@ class Transaction_ctx {
     m_savepoints = nullptr;
     m_xid_state.cleanup();
     m_rpl_transaction_ctx.cleanup();
-    m_transaction_write_set_ctx.clear_write_set();
+    m_transaction_write_set_ctx.reset_state();
     trans_begin_hook_invoked = false;
     free_root(&m_mem_root, MYF(MY_KEEP_PREALLOC));
     return;

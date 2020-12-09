@@ -239,7 +239,9 @@ struct plugin_options_variables {
 #define DEFAULT_TRANSACTION_SIZE_LIMIT 150000000
 #define MAX_TRANSACTION_SIZE_LIMIT 2147483647
 #define MIN_TRANSACTION_SIZE_LIMIT 0
-  ulong transaction_size_limit_var;
+  /** Base variable that feeds the value to an atomic variable */
+  ulong transaction_size_limit_base_var;
+  std::atomic<ulong> transaction_size_limit_var;
 
   char *communication_debug_options_var;
 

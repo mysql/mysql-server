@@ -507,14 +507,16 @@ int Recovery_state_transfer::initialize_donor_connection(std::string hostname,
   selected_donor_hostname.assign(hostname);
 
   error = donor_connection_interface.initialize_channel(
-      const_cast<char *>(hostname.c_str()), port, nullptr, nullptr,
-      recovery_use_ssl, recovery_ssl_ca, recovery_ssl_capath, recovery_ssl_cert,
-      recovery_ssl_cipher, recovery_ssl_key, recovery_ssl_crl,
-      recovery_ssl_crlpath, recovery_ssl_verify_server_cert,
-      DEFAULT_THREAD_PRIORITY, 1, false, recovery_public_key_path,
-      recovery_get_public_key, recovery_compression_algorithm,
-      recovery_zstd_compression_level, recovery_tls_version,
-      recovery_tls_ciphersuites_null ? nullptr : recovery_tls_ciphersuites);
+      const_cast<char *>(hostname.c_str()), port, /*user*/ nullptr,
+      /*pass*/ nullptr, recovery_use_ssl, recovery_ssl_ca, recovery_ssl_capath,
+      recovery_ssl_cert, recovery_ssl_cipher, recovery_ssl_key,
+      recovery_ssl_crl, recovery_ssl_crlpath, recovery_ssl_verify_server_cert,
+      DEFAULT_THREAD_PRIORITY, /*retry_count*/ 1, /*preserve_logs*/ false,
+      recovery_public_key_path, recovery_get_public_key,
+      recovery_compression_algorithm, recovery_zstd_compression_level,
+      recovery_tls_version,
+      recovery_tls_ciphersuites_null ? nullptr : recovery_tls_ciphersuites,
+      /*ignore_ws_mem_limit*/ true, /*allow_drop_write_set*/ true);
 
   if (!error) {
     LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_ESTABLISHING_CONN_GRP_REC_DONOR,
@@ -635,10 +637,17 @@ int Recovery_state_transfer::purge_recovery_slave_threads_repos() {
     /* purecov: end */
   }
   error = donor_connection_interface.initialize_channel(
-      const_cast<char *>("<NULL>"), 0, nullptr, nullptr, false, nullptr,
-      nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, false,
-      DEFAULT_THREAD_PRIORITY, 1, false, nullptr, false, nullptr, 0, nullptr,
-      nullptr);
+      /*host*/ const_cast<char *>("<NULL>"), /*port*/ 0, /*user*/ nullptr,
+      /*pass*/ nullptr, /*use_ssl*/ false, /*ssl_ca*/ nullptr,
+      /*ssl_capath*/ nullptr, /*ssl_cert*/ nullptr, /*ssl_cipher*/ nullptr,
+      /*ssl_key*/ nullptr, /*ssl_crl*/ nullptr, /*ssl_crlpath*/ nullptr,
+      /*ssl_verify*/ false,
+      /*priority*/ DEFAULT_THREAD_PRIORITY,
+      /*retry_count*/ 1,
+      /*preserve_logs*/ false, /*public_key_path*/ nullptr,
+      /*get_public_key*/ false, /*compression_alg*/ nullptr,
+      /*compression_level*/ 0, /*tls_version*/ nullptr, /*tls_cipher*/ nullptr,
+      /*ignore_ws_mem_limit*/ true, /*allow_drop_write_set*/ true);
 
   return error;
 }

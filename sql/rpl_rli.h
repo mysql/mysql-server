@@ -1920,6 +1920,18 @@ class Relay_log_info : public Rpl_info {
   */
   int thd_tx_priority;
 
+  /**
+    If the SQL thread should or not ignore the set limit for
+    write set collection
+   */
+  bool m_ignore_write_set_memory_limit;
+
+  /**
+    Even if a component says all transactions require write sets,
+    this variable says the SQL thread transactions can drop them
+  */
+  bool m_allow_drop_write_set;
+
   /* The object stores and handles START SLAVE UNTIL option */
   Until_option *until_option;
 
@@ -1955,6 +1967,20 @@ class Relay_log_info : public Rpl_info {
   void set_thd_tx_priority(int priority) { thd_tx_priority = priority; }
 
   int get_thd_tx_priority() { return thd_tx_priority; }
+
+  void set_ignore_write_set_memory_limit(bool ignore_limit) {
+    m_ignore_write_set_memory_limit = ignore_limit;
+  }
+
+  bool get_ignore_write_set_memory_limit() {
+    return m_ignore_write_set_memory_limit;
+  }
+
+  void set_allow_drop_write_set(bool does_not_require_ws) {
+    m_allow_drop_write_set = does_not_require_ws;
+  }
+
+  bool get_allow_drop_write_set() { return m_allow_drop_write_set; }
 
   const char *get_until_log_name();
   my_off_t get_until_log_pos();

@@ -24,6 +24,7 @@
 #include <sstream>
 
 #include <mysql/components/services/log_builtins.h>
+#include <mysql/service_rpl_transaction_write_set.h>
 #include "mutex_lock.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -589,6 +590,7 @@ int initialize_plugin_and_join(
   // Avoid unnecessary operations
   bool enabled_super_read_only = false;
   bool read_only_mode = false, super_read_only_mode = false;
+  bool write_set_limits_set = false;
 
   Sql_service_command_interface *sql_command_interface =
       new Sql_service_command_interface();
@@ -658,6 +660,10 @@ int initialize_plugin_and_join(
   enabled_super_read_only = true;
   if (delayed_init_thd) delayed_init_thd->signal_read_mode_ready();
 
+  require_full_write_set(true);
+  set_write_set_memory_size_limit(get_transaction_size_limit());
+  write_set_limits_set = true;
+
   // Setup GCS.
   if ((error = configure_group_communication())) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_INIT_COMMUNICATION_ENGINE);
@@ -723,6 +729,12 @@ err:
     modules_to_terminate.reset(gr_modules::ASYNC_REPL_CHANNELS);
     modules_to_terminate.reset(gr_modules::BINLOG_DUMP_THREAD_KILL);
     leave_group_and_terminate_plugin_modules(modules_to_terminate, nullptr);
+
+    if (write_set_limits_set) {
+      // Remove server constraints on write set collection
+      update_write_set_memory_size_limit(0);
+      require_full_write_set(false);
+    }
 
     if (!lv.server_shutdown_status && server_engine_initialized() &&
         enabled_super_read_only) {
@@ -1104,6 +1116,10 @@ int plugin_group_replication_stop(char **error_message) {
     }
     lv.plugin_is_waiting_to_set_server_read_mode = false;
   }
+
+  // Remove server constraints on write set collection
+  update_write_set_memory_size_limit(0);
+  require_full_write_set(false);
 
   // plugin is stopping, resume hold connections
   if (primary_election_handler) {
@@ -1748,6 +1764,9 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
     to wait till member comes ONLINE
   */
   set_wait_on_start_process(ov.start_group_replication_at_boot_var);
+
+  // Set the atomic var to the value of the base plugin variable
+  ov.transaction_size_limit_var = ov.transaction_size_limit_base_var;
 
   if (ov.start_group_replication_at_boot_var &&
       plugin_group_replication_start()) {
@@ -3744,6 +3763,22 @@ static void update_clone_threshold(MYSQL_THD, SYS_VAR *, void *var_ptr,
   DBUG_VOID_RETURN;
 }
 
+static void update_transaction_size_limit(MYSQL_THD, SYS_VAR *, void *var_ptr,
+                                          const void *save) {
+  DBUG_TRACE;
+
+  ulong in_val = *static_cast<const ulong *>(save);
+  *static_cast<ulong *>(var_ptr) = in_val;
+  ov.transaction_size_limit_var = in_val;
+
+  if (plugin_running_mutex_trylock()) return;
+
+  if (plugin_is_group_replication_running()) {
+    update_write_set_memory_size_limit(ov.transaction_size_limit_var);
+  }
+  mysql_mutex_unlock(&lv.plugin_running_mutex);
+}
+
 // Base plugin variables
 
 static MYSQL_SYSVAR_STR(group_name,        /* name */
@@ -4272,12 +4307,12 @@ static MYSQL_SYSVAR_LONG(
 
 static MYSQL_SYSVAR_ULONG(
     transaction_size_limit,                                /* name */
-    ov.transaction_size_limit_var,                         /* var */
+    ov.transaction_size_limit_base_var,                    /* var */
     PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
     "Specifies the limit of transaction size that can be transferred over "
     "network.",
     nullptr,                        /* check func. */
-    nullptr,                        /* update func. */
+    update_transaction_size_limit,  /* update func. */
     DEFAULT_TRANSACTION_SIZE_LIMIT, /* default */
     MIN_TRANSACTION_SIZE_LIMIT,     /* min */
     MAX_TRANSACTION_SIZE_LIMIT,     /* max */

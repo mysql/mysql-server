@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,10 +60,17 @@ int Applier_handler::initialize_repositories(bool reset_logs,
   channel_interface.set_stop_wait_timeout(plugin_shutdown_timeout);
 
   error = channel_interface.initialize_channel(
-      const_cast<char *>("<NULL>"), 0, nullptr, nullptr, false, nullptr,
-      nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, false,
-      GROUP_REPLICATION_APPLIER_THREAD_PRIORITY, 0, true, nullptr, false,
-      nullptr, 0, nullptr, nullptr);
+      /*host*/ const_cast<char *>("<NULL>"), /*port*/ 0, /*user*/ nullptr,
+      /*pass*/ nullptr, /*use_ssl*/ false, /*ssl_ca*/ nullptr,
+      /*ssl_capath*/ nullptr, /*ssl_cert*/ nullptr, /*ssl_cipher*/ nullptr,
+      /*ssl_key*/ nullptr, /*ssl_crl*/ nullptr, /*ssl_crlpath*/ nullptr,
+      /*ssl_verify*/ false,
+      /*priority*/ GROUP_REPLICATION_APPLIER_THREAD_PRIORITY,
+      /*retry_count*/ 0,
+      /*preserve_logs*/ true, /*public_key_path*/ nullptr,
+      /*get_public_key*/ false, /*compression_alg*/ nullptr,
+      /*compression_level*/ 0, /*tls_version*/ nullptr, /*tls_cipher*/ nullptr,
+      /*ignore_ws_mem_limit*/ true, /*allow_drop_write_set*/ true);
 
   if (error) {
     LogPluginErr(ERROR_LEVEL,

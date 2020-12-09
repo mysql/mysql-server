@@ -328,6 +328,26 @@ static void set_thd_tx_priority(THD *thd, int priority) {
                   { thd->thd_tx_priority = 1; });
 }
 
+/**
+  Set for the thread options about the memory and size limits when
+  transactions collect write sets.
+
+  @param thd          Thread handler
+  @param ignore_limit  if the memory limits should be ignored
+  @param allow_drop_writeset if this thread does not require WS to always be
+  logged
+*/
+static void set_thd_write_set_options(THD *thd, bool ignore_limit,
+                                      bool allow_drop_write_set) {
+  DBUG_TRACE;
+  thd->get_transaction()
+      ->get_transaction_write_set_ctx()
+      ->set_local_ignore_write_set_memory_limit(ignore_limit);
+  thd->get_transaction()
+      ->get_transaction_write_set_ctx()
+      ->set_local_allow_drop_write_set(allow_drop_write_set);
+}
+
 /*
   Function to set the slave's max_allowed_packet based on the value
   of slave_max_allowed_packet.
@@ -5942,6 +5962,9 @@ static void *handle_slave_worker(void *arg) {
 
   /* Set applier thread InnoDB priority */
   set_thd_tx_priority(thd, rli->get_thd_tx_priority());
+  /* Set write set related options */
+  set_thd_write_set_options(thd, rli->get_ignore_write_set_memory_limit(),
+                            rli->get_allow_drop_write_set());
 
   thd->variables.require_row_format = rli->is_row_format_required();
 
@@ -6954,6 +6977,11 @@ extern "C" void *handle_slave_sql(void *arg) {
         rli);  // (re)set sql_thd in use for saved temp tables
     /* Set applier thread InnoDB priority */
     set_thd_tx_priority(thd, rli->get_thd_tx_priority());
+
+    /* Set write set related options */
+    set_thd_write_set_options(thd, rli->get_ignore_write_set_memory_limit(),
+                              rli->get_allow_drop_write_set());
+
     thd->variables.require_row_format = rli->is_row_format_required();
 
     if (Relay_log_info::PK_CHECK_STREAM !=
