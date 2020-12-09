@@ -91,7 +91,7 @@ struct GRNotificationListener::Impl {
   std::map<NodeId, NodeSession> sessions_;
   bool sessions_changed_{false};
   std::mutex configuration_data_mtx_;
-  bool mysqlx_wait_timeout_set_{false};
+  std::atomic<bool> mysqlx_wait_timeout_set_{false};
 
   std::unique_ptr<std::thread> listener_thread;
   std::atomic<bool> terminate{false};
