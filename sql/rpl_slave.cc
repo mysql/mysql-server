@@ -334,7 +334,7 @@ static void set_thd_tx_priority(THD *thd, int priority) {
 
   @param thd          Thread handler
   @param ignore_limit  if the memory limits should be ignored
-  @param allow_drop_writeset if this thread does not require WS to always be
+  @param allow_drop_write_set if this thread does not require WS to always be
   logged
 */
 static void set_thd_write_set_options(THD *thd, bool ignore_limit,
