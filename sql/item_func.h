@@ -3801,7 +3801,7 @@ class Item_func_sp final : public Item_func {
   sp_head *m_sp{nullptr};
   /// The result field of the concrete stored function.
   Field *sp_result_field{nullptr};
-  /// @true when function execution is deterministic
+  /// @returns true when function execution is deterministic
   bool m_deterministic{false};
 
   bool execute();
