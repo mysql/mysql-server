@@ -76,6 +76,8 @@ class Replication_thread_api {
     @param zstd_compression_level The compression level
     @param tls_version   TLS versions
     @param tls_ciphersuites Permissible ciphersuites for TLS 1.3.
+    @param ignore_ws_mem_limit Shall ignore write set mem limits
+    @param allow_drop_write_set Shall not require write set to be preserved
 
     @return the operation status
       @retval 0      OK
@@ -90,7 +92,8 @@ class Replication_thread_api {
                          char *public_key_path, bool get_public_key,
                          char *compression_algorithm,
                          uint zstd_compression_level, char *tls_version,
-                         char *tls_ciphersuites);
+                         char *tls_ciphersuites, bool ignore_ws_mem_limit,
+                         bool allow_drop_write_set);
 
   /**
     Start the Applier/Receiver threads according to the given options.

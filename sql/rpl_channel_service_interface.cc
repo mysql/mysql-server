@@ -111,6 +111,10 @@ static void set_mi_settings(Master_info *mi,
 
   mi->rli->set_thd_tx_priority(channel_info->thd_tx_priority);
 
+  mi->rli->set_ignore_write_set_memory_limit(
+      channel_info->m_ignore_write_set_memory_limit);
+  mi->rli->set_allow_drop_write_set(channel_info->m_allow_drop_write_set);
+
   mi->rli->replicate_same_server_id =
       (channel_info->replicate_same_server_id == RPL_SERVICE_SERVER_DEFAULT)
           ? replicate_same_server_id
@@ -202,6 +206,8 @@ void initialize_channel_creation_info(Channel_creation_info *channel_info) {
   channel_info->get_public_key = 0;
   channel_info->compression_algorithm = nullptr;
   channel_info->zstd_compression_level = 0;
+  channel_info->m_ignore_write_set_memory_limit = false;
+  channel_info->m_allow_drop_write_set = false;
 }
 
 void initialize_channel_ssl_info(Channel_ssl_info *channel_ssl_info) {

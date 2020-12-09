@@ -7852,6 +7852,21 @@ OBSOLETE_ER_AUDIT_LOG_HOST_NAME_INVALID_CHARACTER
 OBSOLETE_WARN_DEPRECATED_MAXDB_SQL_MODE_FOR_TIMESTAMP
   eng "With the MAXDB SQL mode enabled, TIMESTAMP is identical with DATETIME. The MAXDB SQL mode is deprecated and will be removed in a future release. Please disable the MAXDB SQL mode and use DATETIME instead."
 
+OBSOLETE_ER_XA_REPLICATION_FILTERS
+  eng "The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replication slave."
+
+OBSOLETE_ER_CANT_OPEN_ERROR_LOG
+  eng "Could not open file '%s' for error logging%s%s"
+
+OBSOLETE_ER_GROUPING_ON_TIMESTAMP_IN_DST
+  eng "Grouping on temporal is non-deterministic for timezones having DST. Please consider switching to UTC for this query."
+
+OBSOLETE_ER_CANT_START_SERVER_NAMED_PIPE
+  eng "Can't start server : Named Pipe \"%s\" already in use."
+
+ER_WRITE_SET_EXCEEDS_LIMIT
+  eng "The size of writeset data for the current transaction exceeds a limit imposed by an external component. If using Group Replication check 'group_replication_transaction_size_limit'."
+
 #
 #  End of 5.7 error messages (server-to-client).
 #

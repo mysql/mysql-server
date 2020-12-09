@@ -46,7 +46,8 @@ int Replication_thread_api::initialize_channel(
     bool ssl_verify_server_cert, int priority, int retry_count,
     bool preserve_logs, char *public_key_path, bool get_public_key,
     char *compression_algorithm, uint zstd_compression_level, char *tls_version,
-    char *tls_ciphersuites) {
+    char *tls_ciphersuites, bool ignore_ws_mem_limit,
+    bool allow_drop_write_set) {
   DBUG_TRACE;
   int error = 0;
 
@@ -65,6 +66,10 @@ int Replication_thread_api::initialize_channel(
   if (priority == GROUP_REPLICATION_APPLIER_THREAD_PRIORITY) {
     info.thd_tx_priority = GROUP_REPLICATION_APPLIER_THREAD_PRIORITY;
   }
+
+  info.m_ignore_write_set_memory_limit = ignore_ws_mem_limit;
+  info.m_allow_drop_write_set = allow_drop_write_set;
+
   info.type = GROUP_REPLICATION_CHANNEL;
 
   info.retry_count = retry_count;

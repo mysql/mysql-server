@@ -107,6 +107,8 @@ struct Channel_creation_info {
   unsigned int zstd_compression_level;
   /* to enable async connection failover */
   int m_source_connection_auto_failover{0};
+  bool m_ignore_write_set_memory_limit;
+  bool m_allow_drop_write_set;
 };
 
 void initialize_channel_creation_info(Channel_creation_info *channel_info);
