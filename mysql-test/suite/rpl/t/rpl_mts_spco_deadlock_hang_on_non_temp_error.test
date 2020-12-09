@@ -1,0 +1,246 @@
+# ==== Purpose ====
+#
+# This test verifies that when worker threads enter into commit order deadlock,
+# retry logic will not be triggered if there is non-temporary error in the
+# transaction and such cases are handled properly by signalling other workers.
+#
+# This test is based on
+# mysql-test/suite/rpl/t/rpl_mts_slave_preserve_commit_order_deadlock_error.test
+# and differs from it by having an extra transaction in the waiting state.
+#
+# For more information about "commit order deadlock and
+# retry logic, please see header section in
+# mysql-test/suite/rpl/t/rpl_mts_slave_preserve_commit_order_deadlock.test.
+#
+# ==== Implementation ====
+#
+# 1) Create source-replica topology.
+#
+# 2) Setup testing enviroment.
+#    2.1 Create table on source and insert few rows.
+#    2.2 Setup necessary variables on replica server.
+#    2.3 Set innodb_lock_wait_timeout to 300 to make test work without issues
+#        on slow platform runs.
+#    2.4 Adding 'rpl_fake_cod_deadlock' debug point to execute special code
+#        required for the test case.
+#    2.5 Add error suppressions.
+#    2.6 An extra connection needed on Slave.
+#
+# 3) Make sure that in this non-temp error case, the worker thread stopped
+#    immediately with the error instead of retrying it again.
+#
+# 4) Cleanup
+#
+# ==== References ====
+#
+# Bug #87796 Commit_order_manager can't terminate MTS worker properly when deadlock happens
+# Bug #89247 Deadlock with MTS when slave_preserve_commit_order = ON.
+# Bug #95249 stop slave permanently blocked
+# Bug #99440 Threads of MTS Slave randomly stuck
+
+--source include/have_debug.inc
+--source include/have_binlog_format_statement.inc
+
+--echo #
+--echo # 1. Create source-replica topology.
+--source include/master-slave.inc
+
+--echo #
+--echo # 2. Setup testing environment.
+--echo #    2.1 Create table on source and insert few rows.
+--echo #
+CREATE TABLE t1(c1 INT PRIMARY KEY, c2 INT, INDEX(c2)) ENGINE = InnoDB;
+CREATE TABLE t2(c1 INT PRIMARY KEY) ENGINE = InnoDB;
+
+--echo #
+--echo # 2.2 Setup necessary variables on replica server.
+--echo #
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_sql.inc
+SET @saved_slave_preserve_commit_order = @@GLOBAL.slave_preserve_commit_order;
+SET GLOBAL slave_preserve_commit_order = ON;
+SET @saved_slave_parallel_type = @@GLOBAL.slave_parallel_type;
+SET @saved_slave_parallel_workers = @@GLOBAL.slave_parallel_workers;
+SET GLOBAL slave_parallel_type = "LOGICAL_CLOCK";
+SET GLOBAL slave_parallel_workers = 3;
+
+# switched to slave connection
+--source include/only_mts_slave_parallel_type_logical_clock.inc
+--source include/only_mts_slave_parallel_workers.inc
+
+--echo #
+--echo # 2.3 Set innodb_lock_wait_timeout to 300 to make test work without issues
+--echo # on slow platform runs.
+--echo #
+SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
+SET GLOBAL innodb_lock_wait_timeout = 300;
+
+--echo #
+--echo # 2.4 Adding 'rpl_fake_cod_deadlock' debug point to execute special code required
+--echo # for the test case.
+--echo #
+--let $debug_point= rpl_fake_cod_deadlock
+--source include/add_debug_point.inc
+
+--echo #
+--echo # 2.5 Add error suppressions.
+--echo #
+call mtr.add_suppression("Worker .* failed executing transaction");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped");
+
+--echo #
+--echo # 2.6 An extra connection needed on Slave.
+--echo #
+connect(slave2,127.0.0.1,root,,test,$SLAVE_MYPORT,);
+
+--echo #
+--echo # 3. Actual testing starts from here.
+--echo #
+--echo # 3.1 Insert basic data on Master
+--echo #
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES(1, 1),(2, 2);
+
+--echo #
+--echo # 3.2 Enabling set_commit_parent_100 debug point
+--echo #     on Master to make two conflicting transactions
+--echo #     run parallely by two worker threads on Slave.
+--echo #
+--let $debug_type= SESSION
+--let $debug_point= set_commit_parent_100
+--source include/add_debug_point.inc
+
+--echo #
+--echo # 3.3 Execute Transaction-1
+--echo #
+INSERT INTO t1 VALUES(3, 1);
+
+--echo #
+--echo # 3.4 Execute Transaction-2
+--echo #
+BEGIN;
+DELETE FROM t1 WHERE c2 <= 1;
+INSERT INTO t2 values(1);
+COMMIT;
+
+--echo #
+--echo # 3.5 Execute Transaction-3
+--echo #
+INSERT INTO t1 values(10,10);
+
+--echo #
+--echo # 3.6 On Slave, begin a transaction (Transacation-4)
+--echo #     which will acquire MDL lock on t1
+--echo #     (that blocks 'Transacation-1').
+--echo #
+--source include/rpl_connection_slave1.inc
+BEGIN;
+INSERT INTO t1 VALUES(3, 3);
+
+--echo #
+--echo # 3.7 On Slave, begin a transaction (Transacation-5)
+--echo #     that can block INSERT in 'Transacation-2'.
+--echo #
+--source include/rpl_connection_slave.inc
+BEGIN;
+INSERT INTO t2 VALUES(1);
+
+--echo #
+--echo # 3.8 Start SQL thread, let Transaction-1 & 2 reach SQL workers
+--echo #
+--connection slave2
+--source include/start_slave_sql.inc
+
+--echo #
+--echo # 3.9 Wait till the worker threads pick up those transacations
+--echo #     (Transaction 1 and Transaction 2). They will wait for locks due
+--echo #     local transacations (4 & 5).
+#
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE PROCESSLIST_INFO= 'INSERT INTO t1 VALUES(3, 1)' AND NAME LIKE '%slave_worker%'
+--source include/wait_condition.inc
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE PROCESSLIST_INFO= 'INSERT INTO t2 values(1)' AND NAME LIKE '%slave_worker%'
+--source include/wait_condition.inc
+
+--echo #
+--echo # 3.10 Rollback Transaction-4 which will release MDL lock required for
+--echo #      Transaction-1.
+--echo #
+--source include/rpl_connection_slave1.inc
+ROLLBACK;
+
+--echo #
+--echo # 3.11 Wait till the worker thread detects commit order deadlock
+--echo #      between two workers
+--echo #      (Worker1 : Transaction-1 & Worker-2: Transaction-2).
+--echo #
+SET debug_sync = "now WAIT_FOR reported_deadlock";
+
+--echo #
+--echo # 3.12 Commit Transaction-5 which will release MDL lock required for
+--echo #      Transaction-2.
+--echo #
+--source include/rpl_connection_slave.inc
+COMMIT;
+
+# Without the fix, this would make the worker 2 to exit without removing its
+# entry from the SPCO queue thus resulting in other worker threads to wait
+# forever on the signal. Meanwhile if co-ordinator was asked to go down by any
+# of the previous workers, this would make co-ordinator thread to wait for the
+# workers to finish thus leading to server hang.
+
+--echo #
+--echo # 3.13 Step 3.11 will cause worker 2 ("Transacation-2")
+--echo #      to fail with 'ER_DUP_ENTRY' error (after the worker2
+--echo #      detected the 'commit order deadlock').
+--echo #
+--let $slave_sql_errno= convert_error(ER_DUP_ENTRY)
+--source include/wait_for_slave_sql_error.inc
+
+--echo #
+--echo # 3.13 Check that worker 2 did not *retry* transaction-2
+--echo #      before throwing ER_DUP_ENTRY error (non-temporary error).
+--echo #
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after = CURRENT_TEST: rpl.rpl_mts_spco_deadlock_hang_on_non_temp_error
+--let $assert_count = 1
+--let $assert_select = Error 'Duplicate entry '1' for key 't2.PRIMARY'' on query
+--let $assert_text = Found 'Duplicate entry' error only once time which proves that transaction is not retried after getting 'non-temporary error'.
+--source include/assert_grep.inc
+
+--echo #
+--echo # 4. Cleanup
+--echo # 4.1 Clear debug point.
+--echo #
+--let $debug_type= GLOBAL
+--let $debug_point= rpl_fake_cod_deadlock
+--source include/remove_debug_point.inc
+
+--echo #
+--echo # 4.2 Clean the data on Slave.
+--echo #
+--source include/stop_slave_io.inc
+RESET SLAVE;
+DROP TABLE t1, t2;
+
+--echo #
+--echo # 4.3 Clear system variables.
+--echo #
+SET GLOBAL slave_preserve_commit_order = @saved_slave_preserve_commit_order;
+SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
+SET GLOBAL slave_parallel_type = @saved_slave_parallel_type;
+SET GLOBAL slave_parallel_workers = @saved_slave_parallel_workers;
+--echo #
+--echo # 4.4 Clear debug point.
+--echo #
+--source include/rpl_connection_master.inc
+--let $debug_type= SESSION
+--let $debug_point= set_commit_parent_100
+--source include/remove_debug_point.inc
+
+--echo #
+--echo # 4.5 Clean the data on Master.
+--echo #
+DROP TABLE t1, t2;
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

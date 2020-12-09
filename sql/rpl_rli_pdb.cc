@@ -62,6 +62,7 @@
 #include "sql/mdl.h"
 #include "sql/mysqld.h"  // key_mutex_slave_parallel_worker
 #include "sql/psi_memory_key.h"
+#include "sql/raii/sentry.h"  // raii::Sentry<>
 #include "sql/rpl_info_handler.h"
 #include "sql/rpl_msr.h"  // For channel_map
 #include "sql/rpl_reporting.h"
@@ -1871,12 +1872,28 @@ bool Slave_worker::retry_transaction(uint start_relay_number,
 
   DBUG_TRACE;
 
+  /* Flag to check for cleanup */
+  bool cleaned_up{false};
+
+  /* Resets the worker context for next transaction retry, if any */
+  auto clean_retry_context = [&]() -> void {
+    if (!cleaned_up) {
+      cleanup_context(thd, true);
+      reset_commit_order_deadlock();
+      cleaned_up = true;
+    }
+  };
+
+  /* Object of sentry class to perform cleanup */
+  raii::Sentry<> retry_context_guard{clean_retry_context};
+
   if (slave_trans_retries == 0) return true;
 
   do {
     /* Simulate a lock deadlock error */
     uint error = 0;
     bool ret;
+    cleaned_up = false;
 
     std::tie(ret, silent, error) = check_and_report_end_of_retries(thd);
     if (ret) return true;
@@ -1909,8 +1926,7 @@ bool Slave_worker::retry_transaction(uint start_relay_number,
     c_rli->retried_trans++;
     mysql_mutex_unlock(&c_rli->data_lock);
 
-    cleanup_context(thd, true);
-    reset_commit_order_deadlock();
+    clean_retry_context();
     worker_sleep(min<ulong>(trans_retries, MAX_SLAVE_RETRY_PAUSE));
 
   } while (read_and_apply_events(start_relay_number, start_relay_pos,
