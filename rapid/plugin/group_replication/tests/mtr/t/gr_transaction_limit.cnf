@@ -4,10 +4,10 @@
 group_replication_transaction_size_limit=0
 
 [mysqld.2]
-group_replication_transaction_size_limit=1
+group_replication_transaction_size_limit=16
 
 [mysqld.3]
-group_replication_transaction_size_limit=1024
+group_replication_transaction_size_limit=1600
 
 [ENV]
 SERVER_MYPORT_3=                @mysqld.3.port
