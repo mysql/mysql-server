@@ -64,18 +64,22 @@ perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication 
 # MTR or mysqld options in this section
 
 # Additional modes for rpl. Multi-Threaded Slave
-perl mysql-test-run.pl --timer  --force  --comment=rpl_MTS_db_part --vardir=var-mts-rpl_db --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=database --do-suite=rpl --no-skip
-perl mysql-test-run.pl --timer  --force  --comment=rpl_MTS_LC --vardir=var-rpl_mts_LC --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=logical_clock --do-suite=rpl --no-skip
+perl mysql-test-run.pl --timer  --force  --comment=rpl_MTS_db_part --vardir=var-mts-rpl_db --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=database --do-suite=rpl --no-skip --exclude-platform=windows
+perl mysql-test-run.pl --timer  --force  --parallel=8 --comment=rpl_MTS_db_part --vardir=var-mts-rpl_db --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=database --do-suite=rpl --no-skip --platform=windows
+perl mysql-test-run.pl --timer  --force  --comment=rpl_MTS_LC --vardir=var-rpl_mts_LC --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=logical_clock --do-suite=rpl --no-skip --exclude-platform=windows
+perl mysql-test-run.pl --timer  --parallel=8 --force  --comment=rpl_MTS_LC --vardir=var-rpl_mts_LC --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=logical_clock --do-suite=rpl --no-skip --platform=windows
 
 # Additional GTID coverage (rpl suite with gtid_mode=ON)
-perl mysql-test-run.pl --force --timer   --comment=rpl_with_gtid --vardir=var-rpl_gtid --suite=rpl --mysqld=--enforce-gtid-consistency --mysqld=--gtid-mode=on --no-skip
+perl mysql-test-run.pl --force --timer   --comment=rpl_with_gtid --vardir=var-rpl_gtid --suite=rpl --mysqld=--enforce-gtid-consistency --mysqld=--gtid-mode=on --no-skip --exclude-platform=windows
+perl mysql-test-run.pl --force --parallel=8 --timer   --comment=rpl_with_gtid --vardir=var-rpl_gtid --suite=rpl --mysqld=--enforce-gtid-consistency --mysqld=--gtid-mode=on --no-skip --platform=windows
 
 
 # Additional GTID coverage (binlog suite with gtid_mode=ON)
 perl mysql-test-run.pl --force --timer   --comment=binlog_with_gtid --vardir=var-binlog_gtid --suite=binlog --mysqld=--enforce-gtid-consistency --mysqld=--gtid-mode=on --no-skip
 
 # Additional rpl run with binlog Compression enabled.
-perl mysql-test-run.pl --timer --force --parallel=8 --comment=replication_compression --vardir=var-rpl-comp --mysqld=--binlog-transaction-compression=ON --do-suite=rpl --mysqld=--binlog-format=ROW --no-skip
+perl mysql-test-run.pl --timer --force --comment=rpl_compression --vardir=var-rpl-comp --mysqld=--binlog-transaction-compression=ON --do-suite=rpl --mysqld=--binlog-format=ROW --no-skip --exclude-platform=windows
+perl mysql-test-run.pl --timer --force --parallel=8 --comment=rpl_compression --vardir=var-rpl-comp --mysqld=--binlog-transaction-compression=ON --do-suite=rpl --mysqld=--binlog-format=ROW --no-skip --platform=windows
 
 ################END OF SECTION3(EXTENDED RPL/BINLOG)  ####################
 
