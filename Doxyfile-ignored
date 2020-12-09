@@ -129,7 +129,26 @@ todo:*
 # which creates a lot of "warning: no matching class member found for".
 #
 # TODO: File a bug in https://github.com/doxygen/doxygen/issues
-# 
-anonymous_namespace
+#
 sql/auth/sql_authorization.cc:*
 #===========================================================================
+
+#===========================================================================
+# 09-DEC-2020 Marc Alff
+# Doxygen multiline error messages.
+#
+# Doxygen can print errors in multiple lines:
+# the first line contains the file path, line number, and error message
+# subsequent lines contains additional information.
+#
+# Ignore rules are based on the first line only (with a path),
+# so that subsequent lines are silenced here from tofix-regressions.log.
+#
+# To read a full error message, read tofix-all.log.
+#
+# anonymous_namespace
+Possible candidates:
+^[ ]+
+#===========================================================================
+
+
