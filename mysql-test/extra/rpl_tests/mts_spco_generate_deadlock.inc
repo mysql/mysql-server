@@ -22,6 +22,20 @@
 #  The statement to be execute by one of the workers that should block the
 #  client connection.
 #
+# [--let $mts_spco_gd_worker_3_only_runs_after_deadlock = 0|1]
+#  Whether or not worker 3 should only proceed with the transaction
+#  execution after the deadlocak has been detected. If `0`, worker 3 will
+#  wait on the commit order queue before the deadlock is detected, leading
+#  to the use-case where both workers 2 and 3 will be force to rollback by
+#  the MDL graph infra-structure. If `1`, worker 3 will only start the
+#  transaction execution after the deadlock is detected and the coordinator
+#  already started the shutdown process, leading to the use-case where
+#  worker 2 is forced to rollback by the MDL graph infra-structure but
+#  worker 3 will rollback due to the commit queue infra-structure. These
+#  two use-cases generate a different set of error messages, hence the need
+#  to test each of them separately, and prohibit executing a scenario where
+#  either of them can happen nondeterministically.
+#
 # [--let $mts_spco_gd_trx_blocking_client = <STATEMENT>]
 #  The statement to be executed by a client connection that should be
 #  blocked by one or both workers waiting on the commit queue.
@@ -67,7 +81,7 @@
 #   6. On the replica, ensure that client connection B is waiting on the
 #      lock being held by Worker 2 or Worker 3, reaching the state
 #      $mts_spco_gd_state_blocking_client.
-#   7. On the replica, using client conneciton A, rollback the pending
+#   7. On the replica, using client connection A, rollback the pending
 #      transaction, leading to the following lock acquisition dependencies:
 #      Client B --statement required lock--> Worker 2 --commit order
 #      lock--> Worker 1 --statement required lock--> Client B.
@@ -97,6 +111,10 @@ if ($mts_spco_gd_error_expected_replica == '')
 {
   --let $mts_spco_gd_error_expected_replica = 0
 }
+if ($mts_spco_gd_worker_3_only_runs_after_deadlock == '')
+{
+  --let $mts_spco_gd_worker_3_only_runs_after_deadlock = 0
+}
 
 --source include/rpl_connection_slave.inc
 --let $mts_spco_gd_is_replica_sql_running = query_get_value(SHOW REPLICA STATUS, Replica_SQL_Running, 1)
@@ -111,7 +129,7 @@ if ($mts_spco_gd_seqno_to_wait_for == '')
 }
 
 --inc $mts_spco_gd_seqno_to_wait_for
---let $mts_spco_gd_gtid_to_wait_for = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:$mts_spco_gd_seqno_to_wait_for"
+--let $mts_spco_gd_gtid_to_wait_for_1 = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:$mts_spco_gd_seqno_to_wait_for"
 
 #   1. Execute $mts_spco_gd_trx_blocking_worker_1,
 #      $mts_spco_gd_trx_assigned_worker_2 and
@@ -121,26 +139,51 @@ if ($mts_spco_gd_seqno_to_wait_for == '')
 --source include/rpl_connection_master.inc
 --let $debug_point = set_commit_parent_100
 --source include/add_debug_point.inc
---eval SET GTID_NEXT = $mts_spco_gd_gtid_to_wait_for
---eval $mts_spco_gd_trx_blocking_worker_1
 
+--eval SET GTID_NEXT = $mts_spco_gd_gtid_to_wait_for_1
+--eval $mts_spco_gd_trx_blocking_worker_1
 SET GTID_NEXT = AUTOMATIC;
+
 if ($mts_spco_gd_trx_assigned_worker_2 != '')
 {
+  --inc $mts_spco_gd_seqno_to_wait_for
+  --let $mts_spco_gd_gtid_to_wait_for_2 = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:$mts_spco_gd_seqno_to_wait_for"
+  --eval SET GTID_NEXT = $mts_spco_gd_gtid_to_wait_for_2
   --eval $mts_spco_gd_trx_assigned_worker_2
+  SET GTID_NEXT = AUTOMATIC;
 }
 if ($mts_spco_gd_trx_assigned_worker_3 != '')
 {
+  --inc $mts_spco_gd_seqno_to_wait_for
+  --let $mts_spco_gd_gtid_to_wait_for_3 = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:$mts_spco_gd_seqno_to_wait_for"
+  --eval SET GTID_NEXT = $mts_spco_gd_gtid_to_wait_for_3
   --eval $mts_spco_gd_trx_assigned_worker_3
+  SET GTID_NEXT = AUTOMATIC;
 }
+
 --source include/remove_debug_point.inc
 
 #   2. On the replica, using client connection A, start a transaction and
 #      assign it the same GTID as to one of the statements issued on the
 #      source.
 --source include/rpl_connection_slave.inc
---eval SET GTID_NEXT = $mts_spco_gd_gtid_to_wait_for
+--eval SET GTID_NEXT = $mts_spco_gd_gtid_to_wait_for_1
 BEGIN;
+
+if ($mts_spco_gd_trx_assigned_worker_2 != '')
+{
+  --let $rpl_connection_name = rpl_slave_connection_2
+  --source include/rpl_connection.inc
+  --eval SET GTID_NEXT = $mts_spco_gd_gtid_to_wait_for_2
+  BEGIN;
+}
+if ($mts_spco_gd_trx_assigned_worker_3 != '')
+{
+  --let $rpl_connection_name = rpl_slave_connection_3
+  --source include/rpl_connection.inc
+  --eval SET GTID_NEXT = $mts_spco_gd_gtid_to_wait_for_3
+  BEGIN;
+}
 
 --source include/rpl_connection_slave1.inc
 #   3. Start the replication threads
@@ -166,20 +209,29 @@ BEGIN;
 
 #   4. On the replica, ensure that the applier worker threads are waiting
 #      on the pending client connection transaction.
---let $mts_spco_gd_pending_workers = 0
 if ($mts_spco_gd_trx_assigned_worker_2 != '')
 {
-  --inc $mts_spco_gd_pending_workers
+  --let $rpl_connection_name = rpl_slave_connection_2
+  --source include/rpl_connection.inc
+  ROLLBACK;
+  SET GTID_NEXT = AUTOMATIC;
+  --echo include/wait_condition.inc [First worker must wait on commit order]
+  --let $wait_condition = SELECT count(*) = 1 FROM information_schema.processlist WHERE STATE = "Waiting for preceding transaction to commit"
+  --source include/wait_condition.inc
 }
 if ($mts_spco_gd_trx_assigned_worker_3 != '')
 {
-  --inc $mts_spco_gd_pending_workers
-}
-if ($mts_spco_gd_pending_workers != 0)
-{
-  --echo include/wait_condition.inc [Workers must wait on commit order]
-  --let $wait_condition = SELECT count(*) = $mts_spco_gd_pending_workers FROM information_schema.processlist WHERE STATE = "Waiting for preceding transaction to commit"
-  --source include/wait_condition.inc
+  if ($mts_spco_gd_worker_3_only_runs_after_deadlock == 0)
+  {
+    --source include/wait_condition.inc
+    --let $rpl_connection_name = rpl_slave_connection_3
+    --source include/rpl_connection.inc
+    ROLLBACK;
+    SET GTID_NEXT = AUTOMATIC;
+    --echo include/wait_condition.inc [Second worker must wait on commit order]
+    --let $wait_condition = SELECT count(*) = 2 FROM information_schema.processlist WHERE STATE = "Waiting for preceding transaction to commit"
+    --source include/wait_condition.inc
+  }
 }
 
 #   5. On the replica, using client connection B, execute
@@ -189,6 +241,7 @@ if ($mts_spco_gd_pending_workers != 0)
 #      Worker 2 --commit order lock--> Worker 1 --gtid lock--> Client A.
 if ($mts_spco_gd_trx_blocking_client != '')
 {
+  --source include/rpl_connection_slave1.inc
   --send_eval $mts_spco_gd_trx_blocking_client
 }
 
@@ -209,7 +262,7 @@ if ($mts_spco_gd_state_blocking_client != '')
   --source include/wait_condition.inc
 }
 
-#   7. On the replica, using client conneciton A, rollback the pending
+#   7. On the replica, using client connection A, rollback the pending
 #      transaction, leading to the following lock acquisition dependencies:
 #      Client B --statement required lock--> Worker 2 --commit order
 #      lock--> Worker 1 --statement required lock--> Client B.
@@ -237,6 +290,20 @@ if ($mts_spco_gd_wait_for_coordinator_running_state != '')
   {
     --source include/rpl_connection_slave1.inc
     --eval $mts_spco_gd_trx_to_client_unblocking_workers
+  }
+}
+
+if ($mts_spco_gd_trx_assigned_worker_3 != '')
+{
+  if ($mts_spco_gd_worker_3_only_runs_after_deadlock == 1)
+  {
+    --echo include/wait_condition.inc [Coordinator must wait for workers to stop]
+    --let $wait_condition = SELECT count(*) = 1 FROM information_schema.processlist WHERE STATE = "Waiting for workers to exit"
+    --source include/wait_condition.inc
+    --let $rpl_connection_name = rpl_slave_connection_3
+    --source include/rpl_connection.inc
+    ROLLBACK;
+    SET GTID_NEXT = AUTOMATIC;
   }
 }
 
@@ -280,6 +347,7 @@ if ($mts_spco_gd_error_expected_replica != 0)
 --let $mts_spco_gd_trx_blocking_worker_1 =
 --let $mts_spco_gd_trx_assigned_worker_2 =
 --let $mts_spco_gd_trx_assigned_worker_3 =
+--let $mts_spco_gd_worker_3_only_runs_after_deadlock =
 --let $mts_spco_gd_trx_blocking_client =
 --let $mts_spco_gd_state_blocking_client =
 --let $mts_spco_gd_wait_for_coordinator_running_state =

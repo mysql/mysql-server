@@ -30,3 +30,10 @@ SET GLOBAL slave_preserve_commit_order = ON;
 --eval SET GLOBAL slave_transaction_retries = $mts_spco_gd_transaction_retries
 --replace_result $mts_spco_gd_innodb_wait_timeout INNODB_LOCK_WAIT_TIMEOUT
 --eval SET GLOBAL innodb_lock_wait_timeout = $mts_spco_gd_innodb_wait_timeout
+
+--let $rpl_connection_name = rpl_slave_connection_2
+--let $rpl_server_number = 2
+--source include/rpl_connect.inc
+--let $rpl_connection_name = rpl_slave_connection_3
+--let $rpl_server_number = 2
+--source include/rpl_connect.inc
