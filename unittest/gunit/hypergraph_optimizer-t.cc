@@ -46,6 +46,7 @@
 #include "sql/join_optimizer/make_join_hypergraph.h"
 #include "sql/join_optimizer/relational_expression.h"
 #include "sql/join_optimizer/subgraph_enumeration.h"
+#include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/join_type.h"
 #include "sql/mem_root_array.h"
 #include "sql/nested_join.h"
@@ -165,6 +166,11 @@ Query_block *HypergraphTestBase<T>::ParseAndResolve(const char *query,
   query_block->join->having_cond = query_block->having_cond();
   query_block->join->fields = &query_block->fields;
   query_block->join->alloc_func_list();
+
+  if (query_block->select_limit != nullptr) {
+    query_block->master_query_expression()->select_limit_cnt =
+        query_block->select_limit->val_int();
+  }
 
   return query_block;
 }
@@ -1045,6 +1051,187 @@ TEST_F(HypergraphOptimizerTest, DistinctSubsumesOrderBy) {
 
   // No separate sort for ORDER BY.
   EXPECT_EQ(AccessPath::TABLE_SCAN, root->sort().child->type);
+
+  // Maybe JOIN::destroy() should do this:
+  query_block->join->filesorts_to_cleanup.clear();
+  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+}
+
+TEST_F(HypergraphOptimizerTest, SortAheadSingleTable) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT t1.x, t2.x FROM t1, t2 ORDER BY t2.x",
+                      /*nullable=*/true);
+
+  m_fake_tables["t1"]->file->stats.records = 100;
+  m_fake_tables["t2"]->file->stats.records = 10000;
+  m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
+  m_fake_tables["t2"]->file->stats.data_file_length = 100e6;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->type);
+  EXPECT_EQ(JoinType::INNER, root->nested_loop_join().join_type);
+
+  // The sort should be on t2, which should be on the outer side.
+  AccessPath *outer = root->nested_loop_join().outer;
+  ASSERT_EQ(AccessPath::SORT, outer->type);
+  Filesort *sort = outer->sort().filesort;
+  ASSERT_EQ(1, sort->sort_order_length());
+  EXPECT_EQ("t2.x", ItemToString(sort->sortorder[0].item));
+  EXPECT_FALSE(sort->m_remove_duplicates);
+
+  AccessPath *outer_child = outer->sort().child;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, outer_child->type);
+  EXPECT_STREQ("t2", outer_child->table_scan().table->alias);
+
+  // The inner side should just be t1, no sort.
+  AccessPath *inner = root->nested_loop_join().inner;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, inner->type);
+  EXPECT_STREQ("t1", inner->table_scan().table->alias);
+
+  // Maybe JOIN::destroy() should do this:
+  query_block->join->filesorts_to_cleanup.clear();
+  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+}
+
+TEST_F(HypergraphOptimizerTest, CannotSortAheadBeforeBothTablesAreAvailable) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT t1.x, t2.x FROM t1, t2 ORDER BY t1.x, t2.x",
+                      /*nullable=*/true);
+
+  m_fake_tables["t1"]->file->stats.records = 100;
+  m_fake_tables["t2"]->file->stats.records = 10000;
+  m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
+  m_fake_tables["t2"]->file->stats.data_file_length = 100e6;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // The sort should be at the root, because the sort cannot be pushed
+  // to e.g. t2 (unlike in the previous test); t1.x isn't available yet.
+  ASSERT_EQ(AccessPath::SORT, root->type);
+
+  // Check that there is no pushed sort in the tree.
+  WalkAccessPaths(root->sort().child, /*join=*/nullptr,
+                  WalkAccessPathPolicy::ENTIRE_TREE,
+                  [&](const AccessPath *path, const JOIN *) {
+                    EXPECT_NE(AccessPath::SORT, path->type);
+                    return false;
+                  });
+
+  // Maybe JOIN::destroy() should do this:
+  query_block->join->filesorts_to_cleanup.clear();
+  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+}
+
+TEST_F(HypergraphOptimizerTest, SortAheadTwoTables) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT t1.x, t2.x, t3.x FROM t1, t2, t3 ORDER BY t1.x, t2.x",
+      /*nullable=*/true);
+
+  m_fake_tables["t1"]->file->stats.records = 100;
+  m_fake_tables["t2"]->file->stats.records = 100;
+  m_fake_tables["t3"]->file->stats.records = 10000;
+  m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
+  m_fake_tables["t2"]->file->stats.data_file_length = 1e6;
+  m_fake_tables["t3"]->file->stats.data_file_length = 100e6;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->type);
+  EXPECT_EQ(JoinType::INNER, root->nested_loop_join().join_type);
+
+  // There should be a sort pushed down, with t1 and t2 below.
+  AccessPath *outer = root->nested_loop_join().outer;
+  ASSERT_EQ(AccessPath::SORT, outer->type);
+  Filesort *sort = outer->sort().filesort;
+  ASSERT_EQ(2, sort->sort_order_length());
+  EXPECT_EQ("t1.x", ItemToString(sort->sortorder[0].item));
+  EXPECT_EQ("t2.x", ItemToString(sort->sortorder[1].item));
+  EXPECT_FALSE(sort->m_remove_duplicates);
+
+  // We don't check that t1 and t2 are actually below there
+  // (and we don't care about the join type chosen, even though
+  // it should usually be hash join), but we do check
+  // that there are no more sorts.
+  WalkAccessPaths(outer->sort().child, /*join=*/nullptr,
+                  WalkAccessPathPolicy::ENTIRE_TREE,
+                  [&](const AccessPath *path, const JOIN *) {
+                    EXPECT_NE(AccessPath::SORT, path->type);
+                    return false;
+                  });
+
+  // The inner side should just be t3, no sort.
+  AccessPath *inner = root->nested_loop_join().inner;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, inner->type);
+  EXPECT_STREQ("t3", inner->table_scan().table->alias);
+
+  // Maybe JOIN::destroy() should do this:
+  query_block->join->filesorts_to_cleanup.clear();
+  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+}
+
+TEST_F(HypergraphOptimizerTest, SortAheadDueToEquivalence) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT t1.x, t2.x FROM t1 JOIN t2 ON t1.x=t2.x ORDER BY t1.x, t2.x "
+      "LIMIT 10",
+      /*nullable=*/true);
+
+  m_fake_tables["t1"]->file->stats.records = 100;
+  m_fake_tables["t2"]->file->stats.records = 10000;
+  m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
+  m_fake_tables["t2"]->file->stats.data_file_length = 100e6;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::LIMIT_OFFSET, root->type);
+  EXPECT_EQ(10, root->limit_offset().limit);
+
+  // There should be no sort at the limit; join directly.
+  AccessPath *join = root->limit_offset().child;
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, join->type);
+
+  // The outer side should have a sort, on t1 only.
+  AccessPath *outer = join->nested_loop_join().outer;
+  ASSERT_EQ(AccessPath::SORT, outer->type);
+  Filesort *sort = outer->sort().filesort;
+  ASSERT_EQ(1, sort->sort_order_length());
+  EXPECT_EQ("t1.x", ItemToString(sort->sortorder[0].item));
+  EXPECT_FALSE(sort->m_remove_duplicates);
+
+  // And it should indeed be t1 that is sorted, since it's the
+  // smallest one.
+  AccessPath *t1 = outer->sort().child;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, t1->type);
+  EXPECT_STREQ("t1", t1->table_scan().table->alias);
+
+  // The inner side should be t2, with the join condition as filter.
+  AccessPath *inner = join->nested_loop_join().inner;
+  ASSERT_EQ(AccessPath::FILTER, inner->type);
+  EXPECT_EQ("(t1.x = t2.x)", ItemToString(inner->filter().condition));
+
+  AccessPath *t2 = inner->filter().child;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, t2->type);
+  EXPECT_STREQ("t2", t2->table_scan().table->alias);
 
   // Maybe JOIN::destroy() should do this:
   query_block->join->filesorts_to_cleanup.clear();

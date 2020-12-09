@@ -1500,8 +1500,9 @@ void MakeJoinGraphFromRelationalExpression(THD *thd, RelationalExpression *expr,
   }
 
   const size_t estimated_bytes_per_row = EstimateRowWidth(*graph, expr);
-  graph->edges.push_back(
-      JoinPredicate{expr, selectivity, estimated_bytes_per_row});
+  graph->edges.push_back(JoinPredicate{
+      expr, selectivity, estimated_bytes_per_row,
+      /*functional_dependencies=*/0, /*functional_dependencies_idx=*/{}});
 }
 
 NodeMap GetNodeMapFromTableMap(

@@ -281,7 +281,6 @@ struct ORDER {
 
   ORDER *next{nullptr};
 
- protected:
   /**
     The initial ordering expression. Usually substituted during resolving
     and must not be used during optimization and execution.

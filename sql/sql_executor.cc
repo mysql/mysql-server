@@ -818,7 +818,7 @@ AccessPath *PossiblyAttachFilter(AccessPath *path,
   AccessPath *filter_path = NewFilterAccessPath(thd, path, condition);
 
   // NOTE: We don't care about filter_effect here, even though we should.
-  CopyCosts(*path, filter_path);
+  CopyBasicProperties(*path, filter_path);
 
   return filter_path;
 }
@@ -1524,7 +1524,8 @@ AccessPath *GetAccessPathForDerivedTable(
     path = NewStreamingAccessPath(thd, query_expression->root_access_path(),
                                   subjoin, &subjoin->tmp_table_param, table,
                                   /*ref_slice=*/-1);
-    CopyCosts(*query_expression->root_access_path(), path);
+    CopyBasicProperties(*query_expression->root_access_path(), path);
+    path->ordering_state = 0;  // Different query block, so ordering is reset.
   } else {
     JOIN *join = query_expression->is_union()
                      ? nullptr
@@ -2176,7 +2177,7 @@ AccessPath *FinishPendingOperations(
     AccessPath *old_path = path;
     path = NewRemoveDuplicatesAccessPath(thd, path, qep_tab->table(), key,
                                          qep_tab->loosescan_key_len);
-    CopyCosts(*old_path, path);  // We have nothing better.
+    CopyBasicProperties(*old_path, path);  // We have nothing better.
   }
 
   return path;
@@ -2568,7 +2569,7 @@ static AccessPath *ConnectJoins(
           thd, subtree_path, qep_tab->flush_weedout_table);
 
       // Copy costs (even though it makes no sense for the LIMIT 1 case).
-      CopyCosts(*child_path, subtree_path);
+      CopyBasicProperties(*child_path, subtree_path);
 
       if (path == nullptr) {
         path = subtree_path;
@@ -2692,7 +2693,7 @@ static AccessPath *ConnectJoins(
       AccessPath *old_path = table_path;
       table_path = NewRemoveDuplicatesAccessPath(
           thd, table_path, qep_tab->table(), key, qep_tab->loosescan_key_len);
-      CopyCosts(*old_path, table_path);  // We have nothing better.
+      CopyBasicProperties(*old_path, table_path);  // We have nothing better.
     }
 
     // If there are lateral derived tables that depend on this table,
@@ -3066,7 +3067,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
         path = NewStreamingAccessPath(
             thd, path, /*join=*/this, qep_tab->tmp_table_param,
             qep_tab->table(), qep_tab->ref_item_slice);
-        CopyCosts(*old_path, path);
+        CopyBasicProperties(*old_path, path);
       } else {
         path = NewMaterializeAccessPath(
             thd,
@@ -3148,7 +3149,7 @@ AccessPath *JOIN::attach_access_paths_for_having_and_limit(AccessPath *path) {
   if (having_cond != nullptr) {
     AccessPath *old_path = path;
     path = NewFilterAccessPath(thd, path, having_cond);
-    CopyCosts(*old_path, path);
+    CopyBasicProperties(*old_path, path);
     if (thd->lex->using_hypergraph_optimizer) {
       // We cannot call EstimateFilterCost() in the pre-hypergraph optimizer,
       // as on repeated execution of a prepared query, the condition may contain

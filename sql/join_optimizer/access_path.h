@@ -30,6 +30,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "sql/join_optimizer/interesting_orders_defs.h"
 #include "sql/join_optimizer/materialize_path_parameters.h"
 #include "sql/join_optimizer/node_map.h"
 #include "sql/join_type.h"
@@ -67,6 +68,22 @@ struct JoinPredicate {
   // If this join is made using a hash join, estimates the width
   // of each row as stored in the hash table, in bytes.
   size_t estimated_bytes_per_row;
+
+  // The set of (additional) functional dependencies that are active
+  // after this join predicate has been applied. E.g. if we're joining
+  // on t1.x = t2.x, there will be a bit for that functional dependency.
+  // We don't currently support more complex join conditions, but there's
+  // no conceptual reason why we couldn't, e.g. a join on a = b + c
+  // could give rise to the FD {b, c} → a and possibly even {a, b} → c
+  // or {a, c} → b.
+  //
+  // Used in the processing of interesting orders.
+  FunctionalDependencySet functional_dependencies;
+
+  // A less compact form of functional_dependencies, used during building
+  // (FunctionalDependencySet bitmaps are only available after all functional
+  // indexes have been collected and Build() has been called).
+  Mem_root_array<int> functional_dependencies_idx;
 };
 
 /**
@@ -117,7 +134,7 @@ struct AppendPathParameters {
   planning structure.
  */
 struct AccessPath {
-  enum Type {
+  enum Type : uint8_t {
     // Basic access paths (those with no children, at least nominally).
     TABLE_SCAN,
     INDEX_SCAN,
@@ -168,6 +185,12 @@ struct AccessPath {
   /// seem a bit arbitrary which iterators count towards examined_rows
   /// and which ones do not, so the only canonical reference is the tests.
   bool count_examined_rows = false;
+
+  /// Which ordering the rows produced by this path follow, if any
+  /// (see interesting_orders.h). This is really a LogicalOrderings::StateIndex,
+  /// but we don't want to add a dependency on interesting_orders.h from
+  /// this file, so we use the base type instead of the typedef here.
+  int ordering_state = 0;
 
   /// If an iterator has been instantiated for this access path, points to the
   /// iterator. Used for constructing iterators that need to talk to each other
@@ -726,6 +749,10 @@ struct AccessPath {
       AccessPath *child;
       Filesort *filesort;
       table_map tables_to_get_rowid_for;
+
+      // If filesort is nullptr: A new filesort will be created at the
+      // end of optimization, using this order. Otherwise: Ignored.
+      ORDER *order;
     } sort;
     struct {
       AccessPath *child;
@@ -811,12 +838,13 @@ static_assert(sizeof(AccessPath) <= 136,
               "optimizer, so be sure not to bloat it without noticing. "
               "(96 bytes for the base, 40 bytes for the variant.)");
 
-inline void CopyCosts(const AccessPath &from, AccessPath *to) {
+inline void CopyBasicProperties(const AccessPath &from, AccessPath *to) {
   to->num_output_rows = from.num_output_rows;
   to->cost = from.cost;
   to->init_cost = from.init_cost;
   to->init_once_cost = from.init_once_cost;
   to->parameter_tables = from.parameter_tables;
+  to->ordering_state = from.ordering_state;
 }
 
 // Trivial factory functions for all of the types of access paths above.
@@ -1078,6 +1106,7 @@ inline AccessPath *NewLimitOffsetAccessPath(THD *thd, AccessPath *child,
                       fraction_start_read * (child->cost - child->init_cost);
   }
   path->init_once_cost = child->init_once_cost;
+  path->ordering_state = child->ordering_state;
 
   return path;
 }

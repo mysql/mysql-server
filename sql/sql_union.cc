@@ -968,7 +968,7 @@ void Query_expression::create_access_paths(THD *thd) {
                                           &join->tmp_table_param, tmp_table,
                                           /*ref_slice=*/-1);
       param.join = join;
-      CopyCosts(*join->root_access_path(), param.path);
+      CopyBasicProperties(*join->root_access_path(), param.path);
       union_all_sub_paths->push_back(param);
     }
   }
