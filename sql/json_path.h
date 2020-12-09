@@ -66,6 +66,8 @@ enum enum_json_path_leg_type {
   jpl_array_range,
 
   /**
+    @brief A path leg that represents the member wildcard.
+
     A path leg that represents the member wildcard (`.*`), which
     matches all the members of a JSON object.
   */

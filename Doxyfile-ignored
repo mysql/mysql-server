@@ -88,7 +88,6 @@ libbinlogevents/include/trx_boundary_parser.h:*
 sql/field.h:*
 sql/item_func.h:*
 sql/join_optimizer/join_optimizer.cc:*
-sql/json_path.h:*
 sql/opt_range.cc:*
 sql/protocol_callback.h:*
 sql/protocol_classic.cc:*
