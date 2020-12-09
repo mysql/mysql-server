@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,9 @@ Replication_thread_api::initialize_channel(char* hostname,
                                            bool  ssl_verify_server_cert,
                                            int   priority,
                                            int   retry_count,
-                                           bool  preserve_logs)
+                                           bool  preserve_logs,
+                                           bool ignore_ws_mem_limit,
+                                           bool allow_drop_write_set)
 {
   DBUG_ENTER("Replication_thread_api::initialize");
   int error= 0;
@@ -66,6 +68,9 @@ Replication_thread_api::initialize_channel(char* hostname,
   info.retry_count= retry_count;
 
   info.preserve_relay_logs= preserve_logs;
+
+  info.m_ignore_write_set_memory_limit = ignore_ws_mem_limit;
+  info.m_allow_drop_write_set = allow_drop_write_set;
 
   if( use_ssl || ssl_ca != NULL || ssl_capath != NULL || ssl_cert != NULL ||
       ssl_cipher!= NULL || ssl_key != NULL || ssl_crl != NULL ||
