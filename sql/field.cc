@@ -5013,11 +5013,6 @@ bool Field_timestamp::get_date_internal_at_utc(MYSQL_TIME *ltime) const {
   return get_date_internal_at(my_tz_UTC, ltime);
 }
 
-/**
-  Get a value from record, without checking fuzzy date flags.
-  @retval true  - if timestamp is 0, ltime is not touched in this case.
-  @retval false - if timestamp is non-zero.
-*/
 bool Field_timestamp::get_date_internal_at(const Time_zone *tz,
                                            MYSQL_TIME *ltime) const {
   ASSERT_COLUMN_MARKED_FOR_READ;

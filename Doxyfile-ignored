@@ -85,7 +85,6 @@ libbinlogevents/include/trx_boundary_parser.h:*
 #
 # BUG#32245629 - FIX DOXYGEN WARNINGS IN THE OPTIMIZER CODE
 # 07-DEC-2020 Erlend Dahl
-sql/field.h:*
 sql/join_optimizer/join_optimizer.cc:*
 sql/opt_range.cc:*
 sql/protocol_callback.h:*
