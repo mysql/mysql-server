@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -195,11 +195,15 @@ longlong Item_func_inet_bool_base::val_int() {
   if (args[0]->result_type() != STRING_RESULT)  // String argument expected
     return 0;
 
+  null_value = false;
+
   String buffer;
   String *arg_str = args[0]->val_str(&buffer);
 
-  if (!arg_str)  // Out-of memory happened. The error has been reported.
-    return 0;    // Or: the underlying field is NULL
+  if (arg_str == nullptr || args[0]->null_value) {
+    null_value = true;
+    return 0;
+  }
 
   return calc_value(arg_str) ? 1 : 0;
 }
@@ -247,7 +251,7 @@ err:
                       ER_WRONG_VALUE_FOR_TYPE,
                       ER_THD(current_thd, ER_WRONG_VALUE_FOR_TYPE), "string",
                       err.c_ptr_safe(), func_name());
-  return nullptr;
+  return error_str();
 }
 
 ///////////////////////////////////////////////////////////////////////////
