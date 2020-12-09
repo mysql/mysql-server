@@ -32,8 +32,10 @@
 #include "mock_session.h"
 #include "mysql.h"  // mysql_ssl_mode
 #include "mysql/harness/net_ts/internet.h"
+#include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/net_ts/local.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/stdx/monitor.h"
 #include "mysql/harness/tls_server_context.h"
 #include "mysqlrouter/mock_server_component.h"
 #include "statement_reader.h"
@@ -89,12 +91,18 @@ class MySQLServerMock {
   std::string expected_queries_file_;
   std::string module_prefix_;
   std::string protocol_name_;
+
+  struct Shared {
+    Shared(net::io_context &io_ctx) : wakeup_sock_send_{io_ctx} {}
 #if defined(_WIN32)
-  net::ip::tcp::socket
+    net::ip::tcp::socket
 #else
-  local::stream_protocol::socket
+    local::stream_protocol::socket
 #endif
-      wakeup_sock_send_{io_ctx_};
+        wakeup_sock_send_;
+  };
+
+  Monitor<Shared> shared_{Shared{io_ctx_}};
 
   TlsServerContext tls_server_ctx_;
 

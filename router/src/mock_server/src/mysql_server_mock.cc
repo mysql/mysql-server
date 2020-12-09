@@ -59,6 +59,8 @@ using namespace std::string_literals;
 
 namespace server_mock {
 
+static constexpr const size_t kWorkerThreadCount{8};
+
 MySQLServerMock::MySQLServerMock(std::string expected_queries_file,
                                  std::string module_prefix,
                                  std::string bind_address, unsigned bind_port,
@@ -82,11 +84,13 @@ MySQLServerMock::MySQLServerMock(std::string expected_queries_file,
 // close all active connections
 void MySQLServerMock::close_all_connections() {
   // interrupt all worker threads.
-  for (size_t ndx = 0; ndx < 4; ndx++) {
-    // either the thread is blocked on a poll() or a mpmc-pop()
-    std::array<const char, 1> ping_byte = {'.'};
-    wakeup_sock_send_.send(net::buffer(ping_byte));
-  }
+  shared_([](auto &shared) {
+    for (size_t ndx = 0; ndx < kWorkerThreadCount; ndx++) {
+      // either the thread is blocked on a poll() or a mpmc-pop()
+      std::array<const char, 1> ping_byte = {'.'};
+      shared.wakeup_sock_send_.send(net::buffer(ping_byte));
+    }
+  });
 }
 
 void MySQLServerMock::run(mysql_harness::PluginFuncEnv *env) {
@@ -165,41 +169,55 @@ struct Work {
   net::impl::socket::native_handle_type wakeup_fd;
 };
 
+using socket_pair_protocol =
+#if defined(_WIN32)
+    net::ip::tcp
+#else
+    local::stream_protocol
+#endif
+    ;
+
+stdx::expected<void, std::error_code> connect_pair(
+    net::io_context &io_ctx, socket_pair_protocol::socket &sock1,
+    socket_pair_protocol::socket &sock2) {
+#if defined(_WIN32)
+  auto sockpair_proto = socket_pair_protocol::v4();
+  auto pair_res = net::impl::socket::socketpair(sockpair_proto.family(),
+                                                sockpair_proto.type(),
+                                                sockpair_proto.protocol());
+  if (!pair_res) {
+    return pair_res.get_unexpected();
+  }
+
+  auto assign_res = sock1.assign(sockpair_proto, pair_res.value().first);
+  if (!assign_res) {
+    return assign_res.get_unexpected();
+  }
+  assign_res = sock2.assign(sockpair_proto, pair_res.value().second);
+  if (!assign_res) {
+    return assign_res.get_unexpected();
+  }
+
+  return {};
+#else
+  return local::connect_pair(&io_ctx, sock1, sock2);
+#endif
+}
+
 void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv *env) {
   log_info("Starting to handle connections on port: %d", bind_port_);
 
   mysql_harness::WaitingMPMCQueue<Work> work_queue;
 
-#if defined(_WIN32)
-  net::ip::tcp::socket sock2(io_ctx_);
-  auto sockpair_proto = net::ip::tcp::v4();
-  auto pair_res = net::impl::socket::socketpair(sockpair_proto.family(),
-                                                sockpair_proto.type(),
-                                                sockpair_proto.protocol());
-  if (!pair_res) {
-    log_error("%s", pair_res.error().message().c_str());
-    return;
-  }
+  socket_pair_protocol::socket sock2(io_ctx_);
+  auto connect_pair_res = shared_([this, &sock2](auto &shared) {
+    return connect_pair(io_ctx_, shared.wakeup_sock_send_, sock2);
+  });
 
-  auto assign_res =
-      wakeup_sock_send_.assign(sockpair_proto, pair_res.value().first);
-  if (!assign_res) {
-    log_error("%s", assign_res.error().message().c_str());
+  if (!connect_pair_res) {
+    log_error("%s", connect_pair_res.error().message().c_str());
     return;
   }
-  assign_res = sock2.assign(sockpair_proto, pair_res.value().second);
-  if (!assign_res) {
-    log_error("%s", assign_res.error().message().c_str());
-    return;
-  }
-#else
-  local::stream_protocol::socket sock2(io_ctx_);
-  auto pair_res = local::connect_pair(&io_ctx_, wakeup_sock_send_, sock2);
-  if (!pair_res) {
-    log_error("%s", pair_res.error().message().c_str());
-    return;
-  }
-#endif
 
   auto connection_handler = [&]() -> void {
     mysql_harness::rename_thread("SM Worker");
@@ -274,7 +292,7 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv *env) {
   //
   // e.g. routertest_component_rest_routing keeps 4 connections open
   // and tries to open another 3.
-  for (size_t ndx = 0; ndx < 8; ndx++) {
+  for (size_t ndx = 0; ndx < kWorkerThreadCount; ndx++) {
     worker_threads.emplace_back(connection_handler);
   }
 
