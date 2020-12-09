@@ -3379,6 +3379,7 @@ uint Item_func_if::decimal_precision() const {
 double Item_func_if::val_real() {
   DBUG_ASSERT(fixed == 1);
   Item *arg = args[0]->val_bool() ? args[1] : args[2];
+  if (current_thd->is_error()) return error_real();
   double value = arg->val_real();
   null_value = arg->null_value;
   return value;
@@ -3387,6 +3388,7 @@ double Item_func_if::val_real() {
 longlong Item_func_if::val_int() {
   DBUG_ASSERT(fixed == 1);
   Item *arg = args[0]->val_bool() ? args[1] : args[2];
+  if (current_thd->is_error()) return error_int();
   longlong value = arg->val_int();
   null_value = arg->null_value;
   return value;
@@ -3405,6 +3407,7 @@ String *Item_func_if::val_str(String *str) {
       return val_string_from_time(str);
     default: {
       Item *item = args[0]->val_bool() ? args[1] : args[2];
+      if (current_thd->is_error()) return error_str();
       String *res;
       if ((res = item->val_str(str))) {
         res->set_charset(collation.collation);
@@ -3414,12 +3417,13 @@ String *Item_func_if::val_str(String *str) {
     }
   }
   null_value = true;
-  return (String *)nullptr;
+  return nullptr;
 }
 
 my_decimal *Item_func_if::val_decimal(my_decimal *decimal_value) {
   DBUG_ASSERT(fixed == 1);
   Item *arg = args[0]->val_bool() ? args[1] : args[2];
+  if (current_thd->is_error()) return error_decimal(decimal_value);
   my_decimal *value = arg->val_decimal(decimal_value);
   null_value = arg->null_value;
   return value;

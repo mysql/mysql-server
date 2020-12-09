@@ -4233,3 +4233,26 @@ ERROR 22032: Invalid JSON text in argument 1 to function json_storage_size: "Inv
 #
 DO IF(JSON_DEPTH(''), JSON_OBJECT(), NULL);
 ERROR 22032: Invalid JSON text in argument 1 to function json_depth: "The document is empty." at position 0.
+#
+# Bug #32231620 JSON_WRAPPER::COMPARE CONST:
+#               ASSERTION `THIS_TYPE != ENUM_JSON_TYPE::J_ERROR' FAILED.
+do if(json_replace(json_object(), '$[0]' ,'false', '$[*]', '{}'),
+42,
+(json_arrayagg("") and rtrim("")) <=> 0
+);
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
+do if(json_replace(json_object(), '$[0]' ,'false', '$[*]', '{}'),
+cast(42 as float),
+(json_arrayagg("") and rtrim("")) <=> 0
+);
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
+do if(json_replace(json_object(), '$[0]' ,'false', '$[*]', '{}'),
+cast(42 as decimal),
+(json_arrayagg("") and rtrim("")) <=> 0
+);
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
+do if(json_replace(json_object(), '$[0]' ,'false', '$[*]', '{}'),
+localtimestamp(6),
+(json_arrayagg("") and rtrim("")) <=> 0
+);
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.

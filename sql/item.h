@@ -1935,6 +1935,20 @@ class Item : public Parse_tree_node {
   }
 
   /**
+    Get the value to return from val_decimal() in case of errors.
+
+    @see Item::error_decimal
+
+    @return The value val_decimal() should return.
+  */
+  my_decimal *error_decimal(my_decimal *decimal_value) {
+    null_value = m_nullable;
+    if (null_value) return nullptr;
+    my_decimal_set_zero(decimal_value);
+    return decimal_value;
+  }
+
+  /**
     Get the value to return from val_str() in case of errors.
 
     @see Item::error_bool

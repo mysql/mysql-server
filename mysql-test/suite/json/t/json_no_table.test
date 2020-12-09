@@ -2910,3 +2910,31 @@ do pow(json_storage_size(':*'),(!(oct(1))));
 
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 DO IF(JSON_DEPTH(''), JSON_OBJECT(), NULL);
+
+--echo #
+--echo # Bug #32231620 JSON_WRAPPER::COMPARE CONST:
+--echo #               ASSERTION `THIS_TYPE != ENUM_JSON_TYPE::J_ERROR' FAILED.
+
+--error ER_INVALID_JSON_PATH_WILDCARD
+do if(json_replace(json_object(), '$[0]' ,'false', '$[*]', '{}'),
+      42,
+      (json_arrayagg("") and rtrim("")) <=> 0
+);
+
+--error ER_INVALID_JSON_PATH_WILDCARD
+do if(json_replace(json_object(), '$[0]' ,'false', '$[*]', '{}'),
+      cast(42 as float),
+      (json_arrayagg("") and rtrim("")) <=> 0
+);
+
+--error ER_INVALID_JSON_PATH_WILDCARD
+do if(json_replace(json_object(), '$[0]' ,'false', '$[*]', '{}'),
+      cast(42 as decimal),
+      (json_arrayagg("") and rtrim("")) <=> 0
+);
+
+--error ER_INVALID_JSON_PATH_WILDCARD
+do if(json_replace(json_object(), '$[0]' ,'false', '$[*]', '{}'),
+      localtimestamp(6),
+      (json_arrayagg("") and rtrim("")) <=> 0
+);
