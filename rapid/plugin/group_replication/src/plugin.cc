@@ -21,6 +21,7 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include <sstream>
+#include <mysql/service_rpl_transaction_write_set.h>
 
 #include "observer_server_actions.h"
 #include "observer_server_state.h"
@@ -207,7 +208,8 @@ int flow_control_applier_threshold_var= DEFAULT_FLOW_CONTROL_THRESHOLD;
 #define DEFAULT_TRANSACTION_SIZE_LIMIT 0
 #define MAX_TRANSACTION_SIZE_LIMIT 2147483647
 #define MIN_TRANSACTION_SIZE_LIMIT 0
-ulong transaction_size_limit_var= DEFAULT_TRANSACTION_SIZE_LIMIT;
+ulong transaction_size_limit_base_var= DEFAULT_TRANSACTION_SIZE_LIMIT;
+int64 transaction_size_limit_var;
 
 /* Member Weight limits */
 #define DEFAULT_MEMBER_WEIGHT 50
@@ -459,6 +461,7 @@ int initialize_plugin_and_join(enum_plugin_con_isolation sql_api_isolation,
   //Avoid unnecessary operations
   bool enabled_super_read_only= false;
   bool read_only_mode= false, super_read_only_mode=false;
+  bool write_set_limits_set = false;
 
   st_server_ssl_variables server_ssl_variables=
     {false,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
@@ -511,6 +514,10 @@ int initialize_plugin_and_join(enum_plugin_con_isolation sql_api_isolation,
   enabled_super_read_only= true;
   if (delayed_init_thd)
     delayed_init_thd->signal_read_mode_ready();
+
+  require_full_write_set(1);
+  set_write_set_memory_size_limit(get_transaction_size_limit());
+  write_set_limits_set = true;
 
   get_server_parameters(&hostname, &port, &uuid, &server_version,
                         &server_ssl_variables);
@@ -622,6 +629,12 @@ err:
       delayed_init_thd->signal_read_mode_ready();
     leave_group();
     terminate_plugin_modules();
+
+    if (write_set_limits_set) {
+      // Remove server constraints on write set collection
+      update_write_set_memory_size_limit(0);
+      require_full_write_set(0);
+    }
 
     if (!server_shutdown_status && server_engine_initialized()
         && enabled_super_read_only)
@@ -913,6 +926,10 @@ int plugin_group_replication_stop()
     plugin_is_waiting_to_set_server_read_mode= false;
   }
 
+  // Remove server constraints on write set collection
+  update_write_set_memory_size_limit(0);
+  require_full_write_set(0);
+
   DBUG_RETURN(error);
 }
 
@@ -1074,6 +1091,9 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
 
   //Initialize the compatibility module before starting
   init_compatibility_manager();
+
+  // Set the atomic var to the value of the base plugin variable
+  transaction_size_limit_var = transaction_size_limit_base_var;
 
   plugin_is_auto_starting= start_group_replication_at_boot_var;
   if (start_group_replication_at_boot_var && plugin_group_replication_start())
@@ -1573,7 +1593,9 @@ bool get_allow_local_disjoint_gtids_join()
 ulong get_transaction_size_limit()
 {
   DBUG_ENTER("get_transaction_size_limit");
-  DBUG_RETURN(transaction_size_limit_var);
+  DBUG_ASSERT(my_atomic_load64(&transaction_size_limit_var)>=0);
+  ulong limit = static_cast<ulong>(my_atomic_load64(&transaction_size_limit_var));
+  DBUG_RETURN(limit);
 }
 
 bool is_plugin_waiting_to_set_server_read_mode()
@@ -2364,6 +2386,20 @@ update_member_weight(MYSQL_THD, SYS_VAR*,
   DBUG_VOID_RETURN;
 }
 
+static void update_transaction_size_limit(MYSQL_THD, SYS_VAR *, void *var_ptr,
+                                          const void *save) {
+
+  ulong in_val = *static_cast<const ulong *>(save);
+  *static_cast<ulong *>(var_ptr) = in_val;
+  my_atomic_store64(&transaction_size_limit_var, in_val);
+
+  transaction_size_limit_var = in_val;
+
+  if (plugin_is_group_replication_running()) {
+    update_write_set_memory_size_limit(transaction_size_limit_var);
+  }
+}
+
 //Base plugin variables
 
 static MYSQL_SYSVAR_STR(
@@ -2791,11 +2827,11 @@ static MYSQL_SYSVAR_INT(
 
 static MYSQL_SYSVAR_ULONG(
   transaction_size_limit,              /* name */
-  transaction_size_limit_var,          /* var */
+  transaction_size_limit_base_var,          /* var */
   PLUGIN_VAR_OPCMDARG,                 /* optional var */
   "Specifies the limit of transaction size that can be transferred over network.",
   NULL,                                /* check func. */
-  NULL,                                /* update func. */
+  update_transaction_size_limit,       /* update func. */
   DEFAULT_TRANSACTION_SIZE_LIMIT,      /* default */
   MIN_TRANSACTION_SIZE_LIMIT,          /* min */
   MAX_TRANSACTION_SIZE_LIMIT,          /* max */

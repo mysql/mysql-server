@@ -126,8 +126,18 @@ public:
 
   void rotate(int64 start);
 
+   /* option opt_binlog_transaction_dependency_history_size - atomic var */
+  int64 m_opt_max_history_size;
   /* option opt_binlog_transaction_dependency_history_size */
-  ulong m_opt_max_history_size;
+  ulong m_opt_max_history_size_base_var;
+
+  /**
+    Returns the value for the max history size with an atomic read to the var
+    @return the value of opt_max_history_size
+  */
+  ulong get_opt_max_history_size(){
+    return static_cast<ulong>(my_atomic_load64(&m_opt_max_history_size));
+  }
 
 private:
   /*
