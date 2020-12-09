@@ -372,22 +372,22 @@ BEGIN
     END IF;
 END;;
 
-create procedure warpsql.parallel_query(
-  IN v_ll_query TEXT,
-  IN v_coord_query TEXT,
-  IN v_ll_gb TEXT,
-  IN v_coord_gb TEXT,
-  IN v_ll_from TEXT,
-  IN v_ll_where TEXT,
-  IN v_coord_having TEXT,
-  IN v_ll_partinfo TEXT
+
+drop procedure if exists warpsql.parallel_query;;
+create definer=root@localhost 
+procedure warpsql.parallel_query (
+ IN v_ll_query text,
+ IN v_coord_query text,
+ IN v_ll_group text,
+ IN v_coord_group text,
+ IN v_ll_from text,
+ IN v_ll_where text,
+ IN v_ll_coord_having text,
+ IN v_partitions text
 )
-AS
-BEGIN
-  use warpsql;
-
-END;;
-
+begin
+select v_ll_query, v_coord_query, v_ll_group, v_coord_group, v_ll_from, v_ll_where, v_ll_coord_having, v_partitions;
+end;;
 
 SELECT 'Installation complete' as message;;
 

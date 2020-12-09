@@ -47,6 +47,9 @@
 #include "sql/log.h"
 #include "sql/sql_thd_internal_api.h"
 #include "sql/item_sum.h"
+#include "sql/mysqld.h"
+#include "sql/sql_parse.h"
+#include "plugin/rewriter/services.h"
 
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/log_builtins.h>
@@ -397,13 +400,62 @@ bool process_having(THD* thd,
 std::string escape_for_call(const std::string &str) {
   std::string retval;
   retval.reserve(str.length() * 2);
-  for(int i =0; i< str.length(); ++i) {
+  for(long unsigned int i =0; i< str.length(); ++i) {
     if(str[i] == '"') {
       retval += '\\';
     }
     retval += str[i];
   }
   return retval;
+}
+bool warp_alloc_query(THD *thd, const char *packet, size_t packet_length) {
+  /* Remove garbage at start and end of query */
+  while (packet_length > 0 && my_isspace(thd->charset(), packet[0])) {
+    packet++;
+    packet_length--;
+  }
+  const char *pos = packet + packet_length;  // Point at end null
+  while (packet_length > 0 &&
+         (pos[-1] == ';' || my_isspace(thd->charset(), pos[-1]))) {
+    pos--;
+    packet_length--;
+  }
+
+  char *query = static_cast<char *>(thd->alloc(packet_length + 1));
+  if (!query) return true;
+  memcpy(query, packet, packet_length);
+  query[packet_length] = '\0';
+
+  thd->set_query(query, packet_length);
+
+  return false;
+}
+
+int warp_parse_call(MYSQL_THD thd, const MYSQL_LEX_STRING query) {
+  // throw away the pre-parsed query state
+  thd->end_statement();
+  thd->cleanup_after_query();
+  
+  //start a new query
+  lex_start(thd);
+
+  if (warp_alloc_query(thd, query.str, query.length)) {
+    return 1;  // Fatal error flag set
+  }
+
+  // initialize new parser state for the CALL query
+  Parser_state parser_state;
+  if (parser_state.init(thd, query.str, query.length)) {
+    return 1;
+  }
+
+  parser_state.m_input.m_compute_digest = true;
+  thd->m_digest = &thd->m_digest_state;
+  thd->m_digest->reset(thd->m_token_array, max_digest_length);
+
+  int parse_status = parse_sql(thd, &parser_state, nullptr);
+  
+  return parse_status;
 }
 
 /**
@@ -603,7 +655,7 @@ static int warp_rewrite_query_notify(
   uint64_t rows = 0;
   std::string partition_list;
   
-  for(int i = 0; i < tables.size(); ++i) {
+  for(long unsigned long int i = 0; i < tables.size(); ++i) {
 
     if(tbl->is_table_function()) {
       std::cout << "UNSUPPORTED TABLE TYPE: TABLE FUNCTIONS NOT SUPPORTED\n";
@@ -706,9 +758,19 @@ static int warp_rewrite_query_notify(
     '"' + escape_for_call(ll_from) + "\",\n" +
     '"' + escape_for_call(ll_where) + "\",\n" +
     '"' + escape_for_call(coord_having) + "\",\n" +
-    '"' + escape_for_call(fact_alias) + ": " + partition_list + "\");\n";
+    (partition_list != "" ? 
+      '"' + escape_for_call(fact_alias) + ":" + partition_list + "\");\n" :
+      "''");
   
   std::cout << "PARALLEL QUERY INTERFACE EXEC CALL:\n------------------\n";
   std::cout << call_sql << "\n";
+  MYSQL_LEX_STRING call_sql_str;
+  call_sql_str.length = call_sql.size();
+  call_sql_str.str = strdup(call_sql.c_str());
+  call_sql.assign(call_sql.c_str(), call_sql.size());
+  if(warp_parse_call(thd, call_sql_str)) {
+    return 1;
+  }
+  free(call_sql_str.str);
   return 0;
 }
