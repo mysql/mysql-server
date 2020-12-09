@@ -3637,6 +3637,15 @@ static bool update_binlog_transaction_dependency_tracking(sys_var* var, THD* thd
     return false;
 }
 
+static bool update_binlog_transaction_dependency_history_size(sys_var* var, THD* thd, enum_var_type v)
+{
+  my_atomic_store64(&mysql_bin_log.m_dependency_tracker.get_writeset()->m_opt_max_history_size,
+                    static_cast<int64>(mysql_bin_log.m_dependency_tracker.get_writeset()->
+                        m_opt_max_history_size_base_var));
+  return false;
+}
+
+
 static PolyLock_mutex
 PLock_slave_trans_dep_tracker(&LOCK_slave_trans_dep_tracker);
 static const char *opt_binlog_transaction_dependency_tracking_names[]=
@@ -3656,10 +3665,10 @@ static Sys_var_enum Binlog_transaction_dependency_tracking(
 static Sys_var_ulong Binlog_transaction_dependency_history_size(
        "binlog_transaction_dependency_history_size",
        "Maximum number of rows to keep in the writeset history.",
-       GLOBAL_VAR(mysql_bin_log.m_dependency_tracker.get_writeset()->m_opt_max_history_size),
+       GLOBAL_VAR(mysql_bin_log.m_dependency_tracker.get_writeset()->m_opt_max_history_size_base_var),
        CMD_LINE(REQUIRED_ARG, 0), VALID_RANGE(1, 1000000), DEFAULT(25000),
        BLOCK_SIZE(1), &PLock_slave_trans_dep_tracker, NOT_IN_BINLOG, ON_CHECK(NULL),
-       ON_UPDATE(NULL));
+       ON_UPDATE(update_binlog_transaction_dependency_history_size));
 
 static Sys_var_mybool Sys_slave_preserve_commit_order(
        "slave_preserve_commit_order",
