@@ -202,7 +202,7 @@ Configuration::fetch_configuration(const char* _connect_string,
 	      "/invalid configuration", s);
   }
 
-  const ConfigValues& cfg = m_clusterConfig.get()->m_config;
+  const ConfigValues& cfg = m_clusterConfig.get()->m_config_values;
   cfg.pack_v1(m_clusterConfigPacked_v1);
   if (OUR_V2_VERSION)
   {
@@ -766,7 +766,7 @@ Configuration::getOwnConfigIterator() const {
 const ConfigValues*
 Configuration::get_own_config_values()
 {
-  return &m_ownConfig->m_config;
+  return &m_ownConfig->m_config_values;
 }
 
 

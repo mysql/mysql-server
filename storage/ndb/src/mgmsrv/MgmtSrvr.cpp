@@ -438,7 +438,7 @@ MgmtSrvr::start_transporter(const Config* config)
   m_config_manager->set_facade(theFacade);
 
   if (theFacade->start_instance(_ownNodeId,
-                                config->m_configValues) < 0)
+                                config->m_configuration) < 0)
   {
     g_eventLogger->error("Failed to start transporter");
     delete theFacade;
@@ -811,7 +811,7 @@ MgmtSrvr::config_changed(NodeId node_id, const Config* new_config)
   if (theFacade)
   {
     if (!theFacade->configure(_ownNodeId,
-                              m_local_config->m_configValues))
+                              m_local_config->m_configuration))
     {
       g_eventLogger->warning("Could not reconfigure everything online, "
                              "this node need a restart");
@@ -4923,7 +4923,7 @@ MgmtSrvr::setDbParameter(int node, int param, const char * value,
     ret = iter.get(CFG_NODE_ID, &node);
     assert(ret == 0);
 
-    ConfigValues::Iterator i2(m_local_config->m_configValues->m_config, 
+    ConfigValues::Iterator i2(m_local_config->m_configuration->m_config_values, 
 			      iter.m_config);
     switch(p_type){
     case 0:

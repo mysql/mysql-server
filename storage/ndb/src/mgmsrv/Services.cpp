@@ -2161,7 +2161,7 @@ clear_dynamic_ports_from_config(Config* config)
       // Found a dynamic port with value in config, clear it by updating
       // the already existing value
       Uint32 zero_port = 0;
-      ConfigValues::Iterator i2(config->m_configValues->m_config,
+      ConfigValues::Iterator i2(config->m_configuration->m_config_values,
                                 iter.m_config);
       if (!i2.set(CFG_CONNECTION_SERVER_PORT, zero_port))
         return false;

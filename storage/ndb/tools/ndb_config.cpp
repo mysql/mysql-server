@@ -885,8 +885,8 @@ load_configuration()
     Config* conf = parser.parseConfig(g_config_file);
     if (conf)
     {
-      ndb_mgm_configuration* mgm_config = conf->m_configValues;
-      conf->m_configValues = nullptr;
+      ndb_mgm_configuration* mgm_config = conf->m_configuration;
+      conf->m_configuration = nullptr;
       //mgm_config is moved out of config. It has to be freed by caller.
       delete conf;
 
@@ -901,8 +901,8 @@ load_configuration()
   Config* conf = parser.parse_mycnf();
   if (conf)
   {
-    ndb_mgm_configuration* mgm_config = conf->m_configValues;
-    conf->m_configValues = nullptr;
+    ndb_mgm_configuration* mgm_config = conf->m_configuration;
+    conf->m_configuration = nullptr;
     //mgm_config is moved out of config. It has to be freed by caller.
     delete conf;
 

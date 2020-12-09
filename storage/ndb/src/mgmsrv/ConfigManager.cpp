@@ -190,7 +190,7 @@ ConfigManager::find_nodeid_from_configdir(void)
     return 0;
   }
 
-  if (!m_config_retriever.verifyConfig(conf->m_configValues,
+  if (!m_config_retriever.verifyConfig(conf->m_configuration,
                                        found_nodeid) ||
       !alone_on_host(conf, NDB_MGM_NODE_TYPE_MGM, found_nodeid))
   {
@@ -267,7 +267,7 @@ ConfigManager::find_nodeid_from_config(void)
 
   NodeId found_nodeid = find_own_nodeid(conf);
   if (found_nodeid == 0 ||
-      !m_config_retriever.verifyConfig(conf->m_configValues, found_nodeid))
+      !m_config_retriever.verifyConfig(conf->m_configuration, found_nodeid))
   {
     delete conf;
     return 0;
@@ -341,7 +341,7 @@ reset_dynamic_ports_in_config(const Config* config)
     if ((int)port < 0)
     {
       port = 0;
-      ConfigValues::Iterator i2(config->m_configValues->m_config,
+      ConfigValues::Iterator i2(config->m_configuration->m_config_values,
                                 iter.m_config);
       require(i2.set(CFG_CONNECTION_SERVER_PORT, port));
     }
@@ -702,7 +702,7 @@ bool
 ConfigManager::config_ok(const Config* conf)
 {
   assert(m_node_id);
-  if (!m_config_retriever.verifyConfig(conf->m_configValues, m_node_id))
+  if (!m_config_retriever.verifyConfig(conf->m_configuration, m_node_id))
   {
     g_eventLogger->error("%s", m_config_retriever.getErrorString());
     return false;
@@ -2823,7 +2823,7 @@ ConfigManager::DynamicPorts::set_in_config(Config* config)
 
     // Write the dynamic port to config
     port = (Uint32)dyn_port;
-    ConfigValues::Iterator i2(config->m_configValues->m_config,
+    ConfigValues::Iterator i2(config->m_configuration->m_config_values,
                               iter.m_config);
     if(i2.set(CFG_CONNECTION_SERVER_PORT, port) == false)
       result = false;

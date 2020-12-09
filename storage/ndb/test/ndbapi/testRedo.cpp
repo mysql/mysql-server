@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1318,7 +1318,7 @@ resizeRedoLog(NDBT_Context* ctx, NDBT_Step* step)
     g_err << "Setting NoOfFragmentLogFiles = " << noOfLogFiles
           << " FragmentLogFileSize = " << logFileSize
           << " TimeBetweenLCP " << LCPinterval << endl;
-    ConfigValues::Iterator iter(conf.m_configValues->m_config);
+    ConfigValues::Iterator iter(conf.m_configuration->m_config_values);
     for (int nodeid = 1; nodeid < MAX_NODES; nodeid ++)
     {
       Uint32 oldValue;

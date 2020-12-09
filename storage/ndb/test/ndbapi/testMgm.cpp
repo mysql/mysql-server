@@ -3672,7 +3672,7 @@ int runTestNdbApiConfig(NDBT_Context* ctx, NDBT_Step* step)
     if (!mgmd.get_config(conf))
       return NDBT_FAILED;
 
-    ConfigValues::Iterator iter(conf.m_configValues->m_config);
+    ConfigValues::Iterator iter(conf.m_configuration->m_config_values);
     for (Uint32 nodeid = 1; nodeid < MAX_NODES; nodeid ++)
     {
       Uint32 type;

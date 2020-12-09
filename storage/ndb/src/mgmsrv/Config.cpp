@@ -30,14 +30,14 @@
 
 #include <HashMap.hpp>
 
-Config::Config(ndb_mgm_configuration *config_values) :
-  m_configValues(config_values)
+Config::Config(ndb_mgm_configuration *configuration) :
+  m_configuration(configuration)
 {
 }
 
 
 Config::Config(ConfigValues *config_values) :
-  m_configValues(reinterpret_cast<ndb_mgm_configuration*>(config_values))
+  m_configuration(reinterpret_cast<ndb_mgm_configuration*>(config_values))
 {
 }
 
@@ -48,12 +48,12 @@ Config::Config(const Config* conf)
   conf->pack(buf, OUR_V2_VERSION);
   ConfigValuesFactory cvf;
   cvf.unpack_buf(buf);
-  m_configValues= (ndb_mgm_configuration*)cvf.getConfigValues();
+  m_configuration= (ndb_mgm_configuration*)cvf.getConfigValues();
 }
 
 
 Config::~Config() {
-  ndb_mgm_destroy_configuration(m_configValues);
+  ndb_mgm_destroy_configuration(m_configuration);
 }
 
 unsigned sections[]=
@@ -176,7 +176,7 @@ bool
 Config::setValue(Uint32 section, Uint32 section_no,
                  Uint32 id, Uint32 new_val)
 {
-  ConfigValues::Iterator iter(m_configValues->m_config);
+  ConfigValues::Iterator iter(m_configuration->m_config_values);
   if (!iter.openSection(section, section_no))
     return false;
 
@@ -191,7 +191,7 @@ bool
 Config::setValue(Uint32 section, Uint32 section_no,
                  Uint32 id, const char* new_val)
 {
-  ConfigValues::Iterator iter(m_configValues->m_config);
+  ConfigValues::Iterator iter(m_configuration->m_config_values);
   if (!iter.openSection(section, section_no))
     return false;
 
@@ -233,8 +233,8 @@ Uint32
 Config::pack(UtilBuffer& buf, bool v2) const
 {
   return v2 ?
-    m_configValues->m_config.pack_v2(buf) :
-    m_configValues->m_config.pack_v1(buf);
+    m_configuration->m_config_values.pack_v2(buf) :
+    m_configuration->m_config_values.pack_v1(buf);
 }
 
 
@@ -244,7 +244,7 @@ bool
 Config::pack64_v1(BaseString& encoded) const
 {
   UtilBuffer buf;
-  if (m_configValues->m_config.pack_v1(buf) == 0)
+  if (m_configuration->m_config_values.pack_v1(buf) == 0)
     return false;
 
   /*
@@ -267,7 +267,7 @@ bool
 Config::pack64_v2(BaseString& encoded, Uint32 node_id) const
 {
   UtilBuffer buf;
-  if (m_configValues->m_config.pack_v2(buf, node_id) == 0)
+  if (m_configuration->m_config_values.pack_v2(buf, node_id) == 0)
     return false;
 
   /*
@@ -568,7 +568,7 @@ diff_connections(const Config* a, const Config* b, Properties& diff)
     }
 
     /* Open the connection section in other config */
-    ConfigValues::ConstIterator itB(b->m_configValues->m_config);
+    ConfigValues::ConstIterator itB(b->m_configuration->m_config_values);
     require(itB.openSection(CFG_SECTION_CONNECTION, sectionNo) == true);
 
     Uint32 nodeId1_B = 0; /* Silence compiler warning */

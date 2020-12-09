@@ -66,7 +66,7 @@ changeStartPartitionedTimeout(NDBT_Context *ctx, NDBT_Step *step)
     }
     g_err << "Setting StartPartitionedTimeout to " << startPartitionedTimeout
           << endl;
-    ConfigValues::Iterator iter(conf.m_configValues->m_config);
+    ConfigValues::Iterator iter(conf.m_configuration->m_config_values);
     for (int nodeid = 1; nodeid < MAX_NODES; nodeid++)
     {
       if (!iter.openSection(CFG_SECTION_NODE, nodeid))
@@ -6914,7 +6914,7 @@ setConfigValueAndRestartNode(NdbMgmd *mgmd,
     return NDBT_FAILED;
   }
   // Set the key
-  ConfigValues::Iterator iter(conf.m_configValues->m_config);
+  ConfigValues::Iterator iter(conf.m_configuration->m_config_values);
   Uint32 oldValue[4];
   for (Uint32 i = 0; i < 4; i++)
   {

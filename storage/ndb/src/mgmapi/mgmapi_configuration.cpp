@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,7 @@
 
 ndb_mgm_configuration_iterator::ndb_mgm_configuration_iterator
 (const ndb_mgm_configuration & conf, unsigned type_of_section)
-  : m_config(conf.m_config)
+  : m_config(conf.m_config_values)
 {
   m_sectionNo = ~0;
   m_typeOfSection = type_of_section;
