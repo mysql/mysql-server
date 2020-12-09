@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,9 @@ const char* get_write_set_algorithm_string(unsigned int algorithm);
 
   @param[in] table - TABLE object
   @param[in] thd - THD object pointing to current thread.
+
+  @return true if an issues exists adding the pke, false otherwise
 */
-void add_pke(TABLE *table, THD *thd);
+bool add_pke(TABLE *table, THD *thd);
 
 #endif
