@@ -1,0 +1,24 @@
+==== R1: escape inserts backslash before character ====
+<'"\\f\\o\\o"'>
+<'\"\\f\\o\\o\"'>
+<\'\"\\f\\o\\o\"\'>
+==== R2: escape preserves leading and trailing whitespace ====
+< h\ah\a >
+<\ \ \ >
+==== R3.1: escape shall work when string contains parentheses ====
+< \hi\hi (\ha\ha)>
+< hihi (haha\)>
+< hihi \(haha)>
+==== R3.2: escape shall work when string contains comma ====
+<,x,>
+<\,x\,>
+==== R3.3: escape shall work when string contains newline ====
+<
+\ho\ho
+\hu\hu
+>
+<1\
+2\
+3>
+==== R4: escape shall fail when C contains more than one character ====
+mysqltest: At line 1: Invalid format of 'escape' arguments: <(zzz,grizzzly)>

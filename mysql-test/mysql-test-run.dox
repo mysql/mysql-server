@@ -7140,6 +7140,32 @@
     </li>
 
     <li>
+      <tt>--let <b>$var</b> = escape(<b>character</b>,<b>string</b>)</tt>
+
+      Insert a backslash character before every occurrence of
+      <b>character</b> in <b>string</b> and assign the result to
+      <b>$var</b>.
+
+      Note that <b>character</b> must be only one character, and that
+      leading and trailing whitespace is not removed from
+      <b>string</b>. So you typically want to omit the space after the
+      comma for this command.
+
+      This can be useful when you need to include <b>string</b> in an
+      SQL string in a query, and <b>string</b> may contain quote
+      characters.
+
+      If you need to escape multiple characters, use this statement
+      multiple times. And if one of the characters you need to escape
+      is backslash, escape that before the others. Here is an example:
+
+      @verbatim
+      --let <b>$var</b> = escape(\,The 'path separator' in Windows is \.)
+      --let <b>$var</b> = escape(',$var)
+      @endverbatim
+    </li>
+
+    <li>
       <tt>reap</tt>
 
       Receive the result of the statement sent with the <b>send</b>

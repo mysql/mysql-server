@@ -2768,6 +2768,69 @@ static void var_set_convert_error(struct st_command *command, VAR *var) {
   }
 }
 
+/**
+  Allocate memory for the buffer holding the string value of a variable.
+
+  @param var The variable
+  @param length The number of string characters, not counting the \0.
+*/
+static void alloc_var(VAR *var, size_t length) {
+  // Make space for '\0'
+  ++length;
+  if (var->alloced_len < length) {
+    // At least double the length, so we don't have to allocate so often.
+    if (length < var->alloced_len * 2) length = var->alloced_len * 2;
+    var->str_val = (char *)my_realloc(PSI_NOT_INSTRUMENTED, var->str_val,
+                                      length, MYF(MY_WME));
+    if (!var->str_val) die("Out of memory");
+    var->alloced_len = length;
+  }
+}
+
+/**
+  Process a "let $variable = escape(CHARACTER,TEXT)" command.
+
+  This will parse the text starting after 'escape'.  If parsing is
+  successful, it inserts a backslash character before each occurrence
+  of 'CHARACTER' in 'TEXT' and stores the result to $variable.  If
+  parsing fails, it prints an error message and aborts the progrma.
+
+  @param command The st_command structure, where the 'first_argument'
+  member points to the character just after 'escape'.
+
+  @param dst VAR object representing $variable
+*/
+static void var_set_escape(struct st_command *command, VAR *dst) {
+  // command->query contains the statement escape(character,text)
+  static const std::regex arg_re(
+      R"""(\([:space:]*(.)[:space:]*,(.*)\))""",
+      std::regex::extended | std::regex::icase | std::regex::optimize);
+  // Parse arguments.
+  std::cmatch arg_match;
+  if (std::regex_search(command->first_argument, arg_match, arg_re)) {
+    std::string character_str = arg_match[1];
+    char character = character_str[0];
+    std::string src = arg_match[2];
+    // Compute length of escaped string
+    auto dst_len = src.length();
+    for (char c : src)
+      if (c == character) dst_len++;
+    // Allocate space for escaped string
+    alloc_var(dst, dst_len);
+    auto dst_char = dst->str_val;
+    // Compute escaped string
+    for (char c : src) {
+      if (c == character) *dst_char++ = '\\';
+      *dst_char++ = c;
+    }
+    dst->str_val_len = dst_len;
+  } else {
+    die("Invalid format of 'escape' arguments: <%.100s>",
+        command->first_argument);
+    return;
+  }
+}
+
 /*
   Set variable from the result of a field in a query
 
@@ -2943,32 +3006,26 @@ void eval_expr(VAR *v, const char *p, const char **p_end, bool open_end,
   }
 
   {
-    /* Check if this is a "let $var= query_get_value()" */
-    const char *get_value_str = "query_get_value";
-    const size_t len = std::strlen(get_value_str);
-    if (std::strncmp(p, get_value_str, len) == 0) {
-      struct st_command command;
-      memset(&command, 0, sizeof(command));
-      command.query = const_cast<char *>(p);
-      command.first_word_len = len;
-      command.first_argument = command.query + len;
-      command.end = const_cast<char *>(*p_end);
-      var_set_query_get_value(&command, v);
-      return;
-    }
-    /* Check if this is a "let $var= convert_error()" */
-    const char *get_value_str1 = "convert_error";
-    const size_t len1 = std::strlen(get_value_str1);
-    if (std::strncmp(p, get_value_str1, len1) == 0) {
-      struct st_command command;
-      memset(&command, 0, sizeof(command));
-      command.query = const_cast<char *>(p);
-      command.first_word_len = len;
-      command.first_argument = command.query + len;
-      command.end = const_cast<char *>(*p_end);
-      var_set_convert_error(&command, v);
-      return;
-    }
+    auto parse_function =
+        [&](const char *prefix,
+            void (*parser)(struct st_command *, VAR *)) -> bool {
+      const size_t len = std::strlen(prefix);
+      if (std::strncmp(p, prefix, len) == 0) {
+        struct st_command command;
+        memset(&command, 0, sizeof(command));
+        command.query = const_cast<char *>(p);
+        command.first_word_len = len;
+        command.first_argument = command.query + len;
+        command.end = const_cast<char *>(*p_end);
+        parser(&command, v);
+        return true;
+      }
+      return false;
+    };
+
+    if (parse_function("query_get_value", var_set_query_get_value)) return;
+    if (parse_function("convert_error", var_set_convert_error)) return;
+    if (parse_function("escape", var_set_escape)) return;
   }
 
 NO_EVAL : {
