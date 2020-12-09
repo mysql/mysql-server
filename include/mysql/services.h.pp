@@ -444,8 +444,14 @@ struct st_trans_write_set
 typedef struct st_trans_write_set Transaction_write_set;
 extern struct transaction_write_set_service_st {
   Transaction_write_set* (*get_transaction_write_set)(unsigned long m_thread_id);
+  void (*require_full_write_set)(int requires_ws);
+  void (*set_write_set_memory_size_limit)(long long size_limit);
+  void (*update_write_set_memory_size_limit)(long long  size_limit);
 } *transaction_write_set_service;
 Transaction_write_set* get_transaction_write_set(unsigned long m_thread_id);
+void require_full_write_set(int requires_ws);
+void set_write_set_memory_size_limit(long long size_limit);
+void update_write_set_memory_size_limit(long long size_limit);
 #include <mysql/service_security_context.h>
 typedef char my_svc_bool;
 extern struct security_context_service_st {

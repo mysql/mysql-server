@@ -7941,15 +7941,23 @@ int binlog_log_row(TABLE* table,
                                                MYF(MY_WME));
           if (!temp_image)
           {
-           sql_print_error("Out of memory on transaction write set extraction");
+            sql_print_error("Out of memory on transaction write set extraction");
             return 1;
           }
-          add_pke(table, thd);
+          if (add_pke(table, thd))
+          {
+            my_free(temp_image);
+            return HA_ERR_RBR_LOGGING_FAILED;
+          }
 
           memcpy(temp_image, table->record[0],(size_t) table->s->reclength);
           memcpy(table->record[0],table->record[1],(size_t) table->s->reclength);
 
-          add_pke(table, thd);
+          if (add_pke(table, thd))
+          {
+            my_free(temp_image);
+            return HA_ERR_RBR_LOGGING_FAILED;
+          }
 
           memcpy(table->record[0], temp_image, (size_t) table->s->reclength);
 
@@ -7957,7 +7965,8 @@ int binlog_log_row(TABLE* table,
         }
         else
         {
-          add_pke(table, thd);
+          if (add_pke(table, thd))
+            return HA_ERR_RBR_LOGGING_FAILED;
         }
       }
       catch (const std::bad_alloc &)
