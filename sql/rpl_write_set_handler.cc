@@ -567,9 +567,10 @@ static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_has
   @param[in] thd - THD object pointing to current thread.
   @param[in] write_sets - list of all write sets
   @param[in] hash_list - list of all hashes
+  @return true if a problem occurred on generation or write set tracking.
 */
 
-static void generate_hash_pke(const std::string &pke, uint collation_conversion_algorithm, THD* thd
+static bool generate_hash_pke(const std::string &pke, uint collation_conversion_algorithm, THD* thd
 #ifndef DBUG_OFF
                               , std::vector<std::string> &write_sets
                               , std::vector<uint64> &hash_list
@@ -583,17 +584,19 @@ static void generate_hash_pke(const std::string &pke, uint collation_conversion_
                    pke.size() : strlen(pke.c_str());
   uint64 hash= calc_hash<const char *>(thd->variables.transaction_write_set_extraction,
                                        pke.c_str(), length);
-  thd->get_transaction()->get_transaction_write_set_ctx()->add_write_set(hash);
-
+  if (thd->get_transaction()->get_transaction_write_set_ctx()->add_write_set(hash))
+    return true;
 #ifndef DBUG_OFF
   write_sets.push_back(pke);
   hash_list.push_back(hash);
 #endif
   DBUG_PRINT("info", ("pke: %s; hash: %llu", pke.c_str(), hash));
+
+  return false;
 }
 
 
-void add_pke(TABLE *table, THD *thd)
+bool add_pke(TABLE *table, THD *thd)
 {
   /*
     The next section extracts the primary key equivalent of the rows that are
@@ -766,11 +769,14 @@ void add_pke(TABLE *table, THD *thd)
         */
         if (i == table->key_info[key_number].user_defined_key_parts)
         {
-          generate_hash_pke(pke, collation_conversion_algorithm, thd
+          if (generate_hash_pke(pke, collation_conversion_algorithm, thd
 #ifndef DBUG_OFF
                             , write_sets, hash_list
 #endif
-          );
+          ))
+          {
+            return true;
+          }
           writeset_hashes_added++;
         }
         else
@@ -869,11 +875,14 @@ void add_pke(TABLE *table, THD *thd)
                                          &value_length_buffer[VALUE_LENGTH_BUFFER_SIZE-1]);
               pke_prefix.append(value_length);
 
-              generate_hash_pke(pke_prefix, collation_conversion_algorithm, thd
+              if (generate_hash_pke(pke_prefix, collation_conversion_algorithm, thd
 #ifndef DBUG_OFF
                                 , write_sets, hash_list
 #endif
-              );
+              ))
+              {
+                return true;
+              }
               writeset_hashes_added++;
             }
           }
@@ -893,4 +902,6 @@ void add_pke(TABLE *table, THD *thd)
 
   if (writeset_hashes_added == 0)
     ws_ctx->set_has_missing_keys();
+
+  return false;
 }
