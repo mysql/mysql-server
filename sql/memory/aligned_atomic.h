@@ -35,7 +35,7 @@
 #include <stdlib.h>
 #include <windows.h>
 #elif defined(__linux__)
-#include <fstream>
+#include <unistd.h>
 #endif
 
 namespace memory {
@@ -78,14 +78,7 @@ static inline size_t _cache_line_size() {
 
 #elif defined(__linux__)
 static inline size_t _cache_line_size() {
-  size_t line_size{0};
-  std::ifstream ifs;
-  ifs.open("/sys/devices/system/cpu/cpu0/cache/index0/coherency_line_size");
-  if (ifs.is_open()) {
-    ifs >> line_size;
-    ifs.close();
-  }
-  return line_size;
+  return sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
 }
 
 #else
