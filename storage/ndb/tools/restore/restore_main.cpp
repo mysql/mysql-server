@@ -2063,10 +2063,7 @@ static void exitHandler(int code)
 {
   ndb_openssl_evp::library_end();
   free_include_excludes_vector();
-  if (opt_core)
-    abort();
-  else
-    exit(code);
+  exit(code);
 }
 
 static void init_restore()
