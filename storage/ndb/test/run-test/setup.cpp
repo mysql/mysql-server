@@ -463,9 +463,9 @@ static bool load_process(atrt_config& config,
     proc.m_proc.m_shutdown_options = "SIGKILL";
   }
 
-  if (coverage_config.m_coverage) {
+  if (coverage_config.m_enabled) {
     proc.m_proc.m_env.appfmt(" GCOV_PREFIX_STRIP=%d",
-                             coverage_config.m_coverage_prefix_strip);
+                             coverage_config.m_prefix_strip);
   }
 
   {

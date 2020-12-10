@@ -156,8 +156,8 @@ struct atrt_config {
 };
 
 struct atrt_coverage_config {
-  int m_coverage_prefix_strip;
-  bool m_coverage;
+  int m_prefix_strip;
+  bool m_enabled;
 };
 
 struct atrt_testcase {
