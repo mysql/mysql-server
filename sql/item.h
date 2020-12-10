@@ -1934,6 +1934,7 @@ class Item : public Parse_tree_node {
     return 0.0;
   }
 
+ public:
   /**
     Get the value to return from val_decimal() in case of errors.
 
@@ -1960,6 +1961,7 @@ class Item : public Parse_tree_node {
     return null_value ? nullptr : make_empty_result();
   }
 
+ protected:
   /**
     Gets the value to return from val_str() when returning a NULL value.
     @return The value val_str() should return.

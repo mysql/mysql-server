@@ -1495,22 +1495,7 @@ longlong Item_timeval_func::val_int() {
 my_decimal *Item_timeval_func::val_decimal(my_decimal *decimal_value) {
   struct timeval tm;
   if (val_timeval(&tm)) {
-    /*
-      Whatever is returned by this function SHOULD not matter, as null_value
-      is surely true (set by val_timeval() when it returns true).
-      Even a NULL ptr should be ok, as it should be unused.
-      But returned ptr is used. Because:
-      - make_sortkey() sees that maybe_null is false so ignores null_value
-        and looks at return value (=> crash)
-      - so for safety, for inconsistent cases like this, we return a zero
-        DECIMAL instead of NULL ptr.
-
-      Notice that val_str() returns NULL ptr! And filesort works around it,
-      grep for "or have an item marked not null when it can be null" in
-      filesort.cc...
-    */
-    my_decimal_set_zero(decimal_value);
-    return decimal_value;
+    return error_decimal(decimal_value);
   }
   return timeval2my_decimal(&tm, decimal_value);
 }

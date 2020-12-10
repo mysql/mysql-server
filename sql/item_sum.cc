@@ -2042,8 +2042,7 @@ my_decimal *Item_sum_sum::val_decimal(my_decimal *val) {
     if (hybrid_type != DECIMAL_RESULT) return val_decimal_from_real(val);
 
     if (wf_common_init()) {
-      my_decimal_set_zero(val);
-      return null_value ? nullptr : val;
+      return error_decimal(val);
     }
 
     my_decimal *const argd = args[0]->val_decimal(&dec_buffs[0]);
@@ -2325,8 +2324,7 @@ my_decimal *Item_sum_avg::val_decimal(my_decimal *val) {
     }
 
     if (wf_common_init()) {
-      my_decimal_set_zero(val);
-      return null_value ? nullptr : val;
+      return error_decimal(val);
     }
 
     /*
@@ -2955,8 +2953,7 @@ my_decimal *Item_sum_hybrid::val_decimal(my_decimal *val) {
   DBUG_ASSERT(fixed == 1);
   if (m_is_window_function) {
     if (wf_common_init()) {
-      my_decimal_set_zero(val);
-      return null_value ? nullptr : val;
+      return error_decimal(val);
     }
     bool ret = false;
     m_optimize ? ret = compute() : add();
@@ -5141,13 +5138,11 @@ bool Item_first_last_value::val_json(Json_wrapper *jw) {
 
 my_decimal *Item_first_last_value::val_decimal(my_decimal *decimal_buffer) {
   if (wf_common_init()) {
-    my_decimal_set_zero(decimal_buffer);
-    return null_value ? nullptr : decimal_buffer;
+    return error_decimal(decimal_buffer);
   }
 
   if (compute()) {
-    my_decimal_set_zero(decimal_buffer);
-    return null_value ? nullptr : decimal_buffer;
+    return error_decimal(decimal_buffer);
   }
 
   return m_value->val_decimal(decimal_buffer);
@@ -5309,13 +5304,11 @@ double Item_nth_value::val_real() {
 
 my_decimal *Item_nth_value::val_decimal(my_decimal *decimal_buffer) {
   if (wf_common_init()) {
-    my_decimal_set_zero(decimal_buffer);
-    return null_value ? nullptr : decimal_buffer;
+    return error_decimal(decimal_buffer);
   }
 
   if (compute()) {
-    my_decimal_set_zero(decimal_buffer);
-    return null_value ? nullptr : decimal_buffer;
+    return error_decimal(decimal_buffer);
   }
 
   return m_value->val_decimal(decimal_buffer);
@@ -5504,13 +5497,11 @@ double Item_lead_lag::val_real() {
 
 my_decimal *Item_lead_lag::val_decimal(my_decimal *decimal_buffer) {
   if (wf_common_init()) {
-    my_decimal_set_zero(decimal_buffer);
-    return null_value ? nullptr : decimal_buffer;
+    return error_decimal(decimal_buffer);
   }
 
   if (compute()) {
-    my_decimal_set_zero(decimal_buffer);
-    return null_value ? nullptr : decimal_buffer;
+    return error_decimal(decimal_buffer);
   }
 
   return m_use_default ? m_default->val_decimal(decimal_buffer)
@@ -5732,8 +5723,7 @@ my_decimal *Item_sum_json::val_decimal(my_decimal *decimal_value) {
     add();
   }
   if (null_value || m_wrapper->empty()) {
-    my_decimal_set_zero(decimal_value);
-    return decimal_value;
+    return error_decimal(decimal_value);
   }
 
   return m_wrapper->coerce_decimal(decimal_value, func_name());

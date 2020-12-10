@@ -790,7 +790,7 @@ class Item_sum : public Item_result_field, public Func_args_handle {
     ("on-the-fly"), check partition change and possible reset partition
     state. In this case return false.
     For buffered processing, if windowing state m_do_copy_null is true, set
-    null_value to true and return true.
+    null_value to is_nullable() and return true.
 
     @return true if case two above holds, else false
   */

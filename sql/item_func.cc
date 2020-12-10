@@ -1957,12 +1957,13 @@ my_decimal *Item_func_plus::decimal_op(my_decimal *decimal_value) {
   val1 = args[0]->val_decimal(&value1);
   if ((null_value = args[0]->null_value)) return nullptr;
   val2 = args[1]->val_decimal(&value2);
-  if (!(null_value =
-            (args[1]->null_value || check_decimal_overflow(my_decimal_add(
-                                        E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW,
-                                        decimal_value, val1, val2)) > 3)))
-    return decimal_value;
-  return nullptr;
+  if ((null_value = args[1]->null_value)) return nullptr;
+
+  if (check_decimal_overflow(my_decimal_add(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW,
+                                            decimal_value, val1, val2)) > 3) {
+    return error_decimal(decimal_value);
+  }
+  return decimal_value;
 }
 
 /**
@@ -2066,29 +2067,17 @@ my_decimal *Item_func_minus::decimal_op(my_decimal *decimal_value) {
   val2 = args[1]->val_decimal(&value2);
   if ((null_value = args[1]->null_value)) return nullptr;
 
-  if ((null_value = check_decimal_overflow(
-                        my_decimal_sub(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW,
-                                       decimal_value, val1, val2)) > 3)) {
-    /*
-      Do not return a NULL pointer, as the result may be used in subsequent
-      arithmetic operations.
-     */
-    my_decimal_set_zero(decimal_value);
-    return decimal_value;
+  if (check_decimal_overflow(my_decimal_sub(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW,
+                                            decimal_value, val1, val2)) > 3) {
+    return error_decimal(decimal_value);
   }
   /*
    Allow sign mismatch only if sql_mode includes MODE_NO_UNSIGNED_SUBTRACTION
    See Item_func_minus::resolve_type().
   */
   if (unsigned_flag && decimal_value->sign()) {
-    /*
-      Do not return a NULL pointer, as the result may be used in subsequent
-      arithmetic operations.
-     */
-    my_decimal_set_zero(decimal_value);
-    null_value = is_nullable();
     raise_decimal_overflow();
-    return decimal_value;
+    return error_decimal(decimal_value);
   }
   return decimal_value;
 }
@@ -2197,12 +2186,13 @@ my_decimal *Item_func_mul::decimal_op(my_decimal *decimal_value) {
   val1 = args[0]->val_decimal(&value1);
   if ((null_value = args[0]->null_value)) return nullptr;
   val2 = args[1]->val_decimal(&value2);
-  if (!(null_value =
-            (args[1]->null_value || (check_decimal_overflow(my_decimal_mul(
-                                         E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW,
-                                         decimal_value, val1, val2)) > 3))))
-    return decimal_value;
-  return nullptr;
+  if ((null_value = args[1]->null_value)) return nullptr;
+
+  if (check_decimal_overflow(my_decimal_mul(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW,
+                                            decimal_value, val1, val2)) > 3) {
+    return error_decimal(decimal_value);
+  }
+  return decimal_value;
 }
 
 void Item_func_mul::result_precision() {
@@ -2242,12 +2232,12 @@ my_decimal *Item_func_div::decimal_op(my_decimal *decimal_value) {
   if ((null_value = args[0]->null_value)) return nullptr;
   val2 = args[1]->val_decimal(&value2);
   if ((null_value = args[1]->null_value)) return nullptr;
+
   if ((err = check_decimal_overflow(
            my_decimal_div(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW & ~E_DEC_DIV_ZERO,
                           decimal_value, val1, val2, prec_increment))) > 3) {
     if (err == E_DEC_DIV_ZERO) signal_divide_by_null();
-    null_value = true;
-    return nullptr;
+    return error_decimal(decimal_value);
   }
   return decimal_value;
 }

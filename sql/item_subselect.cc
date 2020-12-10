@@ -1208,8 +1208,9 @@ String *Item_singlerow_subselect::val_str(String *str) {
 
 my_decimal *Item_singlerow_subselect::val_decimal(my_decimal *decimal_value) {
   if (!no_rows && !exec(current_thd) && !value->null_value) {
-    null_value = false;
-    return value->val_decimal(decimal_value);
+    my_decimal *retval = value->val_decimal(decimal_value);
+    null_value = value->null_value;
+    return retval;
   } else {
     reset();
     return nullptr;

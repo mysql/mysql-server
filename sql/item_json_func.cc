@@ -1269,21 +1269,13 @@ String *Item_func_json_type::val_str(String *) {
   return &m_value;
 }
 
-static String *error_str(Item *item, String *buffer) {
-  item->null_value = item->is_nullable();
-  if (item->null_value) return nullptr;
-  buffer->set("", 0, item->collation.collation);
-  return buffer;
-}
-
 static String *val_string_from_json(Item_func *item, String *buffer) {
   Json_wrapper wr;
-  if (item->val_json(&wr)) return error_str(item, buffer);
+  if (item->val_json(&wr)) return item->error_str();
   if (item->null_value) return nullptr;
 
   buffer->length(0);
-  if (wr.to_string(buffer, true, item->func_name()))
-    return error_str(item, buffer);
+  if (wr.to_string(buffer, true, item->func_name())) return item->error_str();
 
   item->null_value = false;
   return buffer;
@@ -1339,13 +1331,10 @@ static my_decimal *val_decimal_from_json(Item_func *item,
                                          my_decimal *decimal_value) {
   Json_wrapper wr;
   if (item->val_json(&wr)) {
-    my_decimal_set_zero(decimal_value);
-    return decimal_value;
+    return item->error_decimal(decimal_value);
   }
-  if (item->null_value) {
-    my_decimal_set_zero(decimal_value);
-    return decimal_value;
-  }
+  if (item->null_value) return nullptr;
+
   return wr.coerce_decimal(decimal_value, item->func_name());
 }
 
@@ -4955,8 +4944,7 @@ my_decimal *Item_func_json_value::extract_decimal_value(my_decimal *value) {
   Json_wrapper wr;
   const Default_value *return_default = nullptr;
   if (extract_json_value(&wr, &return_default) || null_value) {
-    my_decimal_set_zero(value);
-    return value;
+    return error_decimal(value);
   }
 
   if (return_default != nullptr) {
@@ -4970,8 +4958,7 @@ my_decimal *Item_func_json_value::extract_decimal_value(my_decimal *value) {
 
   if (handle_json_value_conversion_error(m_on_error, "DECIMAL", this) ||
       null_value) {
-    my_decimal_set_zero(value);
-    return value;
+    return error_decimal(value);
   }
 
   *value = *m_default_error->decimal_default;

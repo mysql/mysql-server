@@ -1348,6 +1348,7 @@ size_t make_sortkey_from_item(Item *item, Item_result result_type,
         the case of a NULL result.) This really should be cleaned up, but until
         that happens, we need to have a more conservative check.
       */
+      if (item->null_value) assert(item->is_nullable());
       if (item->is_nullable() && item->null_value) {
         *null_indicator = 0;
         memset(to, 0, dst_length.value());
