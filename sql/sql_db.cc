@@ -639,6 +639,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
     exclusive MDL for each table.
   */
   if (create_info->used_fields & HA_CREATE_USED_READ_ONLY) {
+    mysql_ha_flush_tables(thd, tables);
     for (TABLE_LIST *table = tables; table != nullptr;
          table = table->next_global) {
       tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name,
