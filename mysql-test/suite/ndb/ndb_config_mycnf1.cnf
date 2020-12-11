@@ -69,3 +69,10 @@ mysqld =
 [cluster_config.ndbd.1.bug32210176]
 NodeId=2
 Nodegroup = 75
+
+# Config with Datanodes > 72 and replicas = 1
+[cluster_config.bug32258207]
+NoOfReplicas = 1
+ndbd = localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost
+ndb_mgmd = localhost
+mysqld =

@@ -6477,6 +6477,22 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
   ctx.m_userProperties.get("NoOfReplicas", &replicas);
 
   /**
+   * For replicas=1, Number of Datanodes allowed < Maximum Nodegroups
+   */
+  if (replicas == 1)
+  {
+    Uint32 n_db_nodes;
+    require(ctx.m_userProperties.get("DB", &n_db_nodes));
+    if (n_db_nodes > MAX_NDB_NODE_GROUPS)
+    {
+      ctx.reportError(
+          "Too many Datanodes(%d) for replicas=1, Max Nodes allowed: %d",
+          n_db_nodes, MAX_NDB_NODE_GROUPS);
+      return false;
+    }
+  }
+
+  /**
    * Register user supplied values
    */
   Uint8 ng_cnt[MAX_NDB_NODE_GROUPS];
