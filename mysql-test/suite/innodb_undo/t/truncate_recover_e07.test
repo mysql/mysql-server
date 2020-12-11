@@ -1,18 +1,11 @@
 --echo #
 --echo # WL#6965: Truncate UNDO logs during recovery.
+--echo # Crash just before updating the DD, with encryption on.
 --echo #
 
-# Setup this test
---source suite/innodb_undo/include/truncate_recover_setup.inc
+let CRASH_ON_SHUTDOWN = 1;
+let CRASH_POINT = ib_undo_trunc_before_dd_update;
+let SHOULD_TRUNCATE_AT_RECOVERY=1;
+let USE_EXPLICIT = 0;
 
---echo #
---echo # E7. Crash after the second checkpoint, before updating DD
---echo #    with encryption on.
---echo #
-let $debug_point="+d,ib_undo_trunc_before_dd_update";
-let SEARCH_PATTERN = ib_undo_trunc_before_dd_update;
---source suite/innodb_undo/include/truncate_recover_run.inc
-
-# Cleanup this test
---source suite/innodb_undo/include/truncate_recover_cleanup.inc
-
+--source suite/innodb_undo/include/truncate_at_shutdown.inc

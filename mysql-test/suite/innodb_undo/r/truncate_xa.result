@@ -1,11 +1,6 @@
 #
 # Truncate explicitly created UNDO logs before and after recovery.
 #
-#
-# Do a slow shutdown and restart to clear out the undo logs
-#
-SET GLOBAL innodb_fast_shutdown = 0;
-# restart
 CREATE TABLE t1 (a SERIAL, b INT, c TEXT);
 #
 # Test 1: Check affect of transactions on undo truncation online
