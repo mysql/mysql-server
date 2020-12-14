@@ -234,7 +234,6 @@ static bool ConstructJoinKey(
     THD *thd, const Prealloced_array<HashJoinCondition, 4> &join_conditions,
     table_map tables_bitmap, String *join_key_buffer) {
   join_key_buffer->length(0);
-  assert(!thd->is_error());
   for (const HashJoinCondition &hash_join_condition : join_conditions) {
     if (hash_join_condition.join_condition()->append_join_key_for_hash_join(
             thd, tables_bitmap, hash_join_condition, join_key_buffer)) {
@@ -652,7 +651,6 @@ bool HashJoinIterator::ReadRowFromProbeIterator() {
     RequestRowId(m_probe_input_tables.tables(), m_tables_to_get_rowid_for);
 
     // A row from the probe iterator is ready.
-    assert(!thd()->is_error());
     LookupProbeRowInHashTable();
     if (thd()->is_error()) return true;
     return false;
