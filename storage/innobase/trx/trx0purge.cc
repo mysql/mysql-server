@@ -1569,7 +1569,7 @@ static bool trx_purge_truncate_marked_undo() {
 
   dd_release_mdl(mdl_ticket);
 
-  ut_d(undo::inject_crash("ib_undo_trunc_trunc_done"));
+  ut_d(undo::inject_crash("ib_undo_trunc_done"));
 
   mutex_exit(&undo::ddl_mutex);
 

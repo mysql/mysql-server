@@ -1,7 +1,17 @@
 --echo # While the purge thread is turned off, perform enough DML to cause
 --echo # undo tablespace sizes grow beyond the truncation threshold.
---echo # Then check if truncation is accomplished by restarting mysqld
---echo # causing each undo tablespace to be truncated.
+
+if ($CRASH_ON_SHUTDOWN == 0)
+{
+  --echo # Then check if truncation is accomplished by restarting mysqld
+  --echo # causing each undo tablespace to be truncated.
+}
+
+if ($CRASH_ON_SHUTDOWN == 1)
+{
+  --echo # Then inject a crash at $CRASH_POINT and check that recovery occurs
+  --echo # and that the truncation is completed if it was started.
+}
 
 # This test uses debug settings like innodb_purge_stop_now.
 --source include/have_debug.inc
@@ -12,9 +22,6 @@
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 
-# This test builds each of the undo tablespaces to over 20 Mb
---source include/big_test.inc
-
 # The test must start with only 2 undo tablespaces
 --source include/have_innodb_default_undo_tablespaces.inc
 
@@ -24,12 +31,10 @@ CREATE UNDO TABLESPACE undo_004 ADD DATAFILE 'undo_004.ibu';
 
 --echo # Make the 2 implicit undo tablespaces inactive so they get truncated.
 SET GLOBAL innodb_purge_rseg_truncate_frequency=1;
-
 ALTER UNDO TABLESPACE innodb_undo_001 SET INACTIVE;
+ALTER UNDO TABLESPACE innodb_undo_002 SET INACTIVE;
 let $inactive_undo_space = innodb_undo_001;
 source include/wait_until_undo_space_is_empty.inc;
-
-ALTER UNDO TABLESPACE innodb_undo_002 SET INACTIVE;
 let $inactive_undo_space = innodb_undo_002;
 source include/wait_until_undo_space_is_empty.inc;
 
@@ -41,13 +46,11 @@ if ($USE_EXPLICIT == 0)
 
   --echo # Get rid of the explcit undo tablespaces.
   ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+  ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
   let $inactive_undo_space = undo_003;
   source include/wait_until_undo_space_is_empty.inc;
-
-  ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
   let $inactive_undo_space = undo_004;
   source include/wait_until_undo_space_is_empty.inc;
-
   DROP UNDO TABLESPACE undo_003;
   DROP UNDO TABLESPACE undo_004;
 
@@ -93,11 +96,11 @@ create table t1(
 delimiter |;
 CREATE PROCEDURE populate_t1()
 BEGIN
-        DECLARE i INT DEFAULT 1;
-        while (i <= 16000) DO
-                insert into t1 values (i, 'a', 'b', 'c', 'd', 'e', 'f' );
-                SET i = i + 1;
-        END WHILE;
+  DECLARE i INT DEFAULT 1;
+  while (i <= 16000) DO
+    insert into t1 values (i, 'a', 'b', 'c', 'd', 'e', 'f' );
+    SET i = i + 1;
+  END WHILE;
 END |
 delimiter ;|
 
@@ -127,11 +130,11 @@ create table t2 (
 delimiter |;
 CREATE PROCEDURE populate_t2()
 BEGIN
-        DECLARE i INT DEFAULT 1;
-        while (i <= 16000) DO
-                insert into t2 values (i, 'a', 'b', 'c', 'd', 'e', 'f' );
-                SET i = i + 1;
-        END WHILE;
+  DECLARE i INT DEFAULT 1;
+  while (i <= 16000) DO
+    insert into t2 values (i, 'a', 'b', 'c', 'd', 'e', 'f' );
+    SET i = i + 1;
+  END WHILE;
 END |
 delimiter ;|
 
@@ -160,31 +163,56 @@ let FILE_SIZE_12 = `SELECT FILE_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES 
 let FILE_SIZE_22 = `SELECT FILE_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = '$UNDO_NAME_2'`;
 if($FILE_SIZE_11 > $FILE_SIZE_12)
 {
-   echo ERROR: Size increase did not happen for $UNDO_NAME_1: Initial Size: $FILE_SIZE_11  Before shutdown: $FILE_SIZE_12;
+  echo ERROR: Size increase did not happen for $UNDO_NAME_1: Initial size is $FILE_SIZE_11, Size after DML is $FILE_SIZE_12;
 }
 if($FILE_SIZE_21 > $FILE_SIZE_22)
 {
-   echo ERROR: Size increase did not happen for $UNDO_NAME_2: Initial Size: $FILE_SIZE_21  Before shutdown: $FILE_SIZE_22;
+  echo ERROR: Size increase did not happen for $UNDO_NAME_2: Initial size is $FILE_SIZE_21, Size after DML is $FILE_SIZE_22;
 }
 
---echo # Doing a slow shut down so the undo tablespaces can be truncated.
+if ($CRASH_ON_SHUTDOWN == 1)
+{
+  --echo Setting crash point = '$CRASH_POINT'.
+  eval SET GLOBAL DEBUG = "+d,$CRASH_POINT";
+}
+
+--echo # Do a slow shut down so the undo tablespaces can be truncated.
 SET GLOBAL innodb_max_undo_log_size=20000000;
 SET GLOBAL innodb_fast_shutdown=0;
 SET GLOBAL innodb_purge_rseg_truncate_frequency=1;
 SET GLOBAL innodb_purge_run_now=ON;
+
+# The truncate will get started during shutdown using the settings above.
+# The restarted engine does not need these settings to complete the truncate
+# if the injected crash was far enough along.
+--let $restart_parameters="restart:"
 --let $shutdown_server_timeout= 300
 --source include/restart_mysqld.inc
 
---echo # Compare the undo tablespace sizes before and after truncation.
+if ($CRASH_ON_SHUTDOWN == 1)
+{
+  --echo Recovery from crash point = '$CRASH_POINT'.
+  let SEARCH_FILE = $MYSQLTEST_VARDIR/log/mysqld.1.err;
+  let SEARCH_PATTERN = $CRASH_POINT;
+  --source include/search_pattern.inc
+  --remove_files_wildcard $MYSQLD_DATADIR cht_logbin.*
+  --remove_files_wildcard $MYSQLD_DATADIR binlog.*
+}
+
 let FILE_SIZE_13 = `SELECT FILE_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = '$UNDO_NAME_1'`;
 let FILE_SIZE_23 = `SELECT FILE_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = '$UNDO_NAME_2'`;
-if ($FILE_SIZE_12 <= $FILE_SIZE_13)
+
+if ($CRASH_ON_SHUTDOWN == 0)
 {
-   echo After Truncation size is wrong for $UNDO_NAME_1: Size before truncation ($FILE_SIZE_12) < Size after Truncation ($FILE_SIZE_13);
-}
-if ($FILE_SIZE_22 <= $FILE_SIZE_23)
-{
-   echo After Truncation size is wrong for $UNDO_NAME_2: Size before truncation ($FILE_SIZE_22) <= Size after Truncation ($FILE_SIZE_23);
+  --echo # Compare the undo tablespace sizes before and after truncation.
+  if ($FILE_SIZE_12 <= $FILE_SIZE_13)
+  {
+    --echo ERROR: Truncated size is wrong for $UNDO_NAME_1: Size before truncation is $FILE_SIZE_12, Size after truncation  is $FILE_SIZE_13;
+  }
+  if ($FILE_SIZE_22 <= $FILE_SIZE_23)
+  {
+    --echo ERROR: Truncated size is wrong for $UNDO_NAME_2: Size before truncation is $FILE_SIZE_22, Size after truncation is $FILE_SIZE_23;
+  }
 }
 
 SELECT NAME, SPACE_TYPE, STATE, AUTOEXTEND_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES

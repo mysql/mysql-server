@@ -91,12 +91,12 @@ NAME	SPACE_TYPE	STATE	AUTOEXTEND_SIZE
 innodb_undo_001	Undo	active	0
 innodb_undo_002	Undo	active	0
 # Compare the undo tablespace sizes before and after DML growth.
-# Doing a slow shut down so the undo tablespaces can be truncated.
+# Do a slow shut down so the undo tablespaces can be truncated.
 SET GLOBAL innodb_max_undo_log_size=20000000;
 SET GLOBAL innodb_fast_shutdown=0;
 SET GLOBAL innodb_purge_rseg_truncate_frequency=1;
 SET GLOBAL innodb_purge_run_now=ON;
-# restart
+# restart:
 # Compare the undo tablespace sizes before and after truncation.
 SELECT NAME, SPACE_TYPE, STATE, AUTOEXTEND_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
 WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
