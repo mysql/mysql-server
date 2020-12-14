@@ -4487,13 +4487,36 @@ bool os_file_delete_if_exists_func(const char *name, bool *exist) {
     *exist = true;
   }
 
-  ulint count = 0;
+  char name_to_delete[MAX_PATH + 8];
 
+  uint32_t count = 0;
+  /* On Windows, deleting a file may fail if some other process uses it.
+  However, the file might have been opened with FILE_SHARE_DELETE mode, in
+  which case the delete will succeed, but the file will not be deleted,
+  only marked for deletion when all handles are closed. To work around this, we
+  first move the file to new randomized name, which will not collide with a real
+  name. */
+  for (DWORD random_id = GetTickCount(); count < 1000; ++count, ++random_id) {
+    random_id &= 0xFFFF;
+    sprintf(name_to_delete, "%s.%04X.d", name, random_id);
+    if (MoveFile(name, name_to_delete)) break;
+    auto err = GetLastError();
+    /* We have chosen the "random" value that is already being used. Try another
+    one. */
+    if (err == ERROR_ALREADY_EXISTS) continue;
+
+    if (err == ERROR_ACCESS_DENIED) continue;
+
+    /* We just failed to move the file. It may be being used without
+    FILE_SHARE_DELETE mode. We just try to delete the original filename.*/
+    sprintf(name_to_delete, "%s", name);
+
+    break;
+  }
+
+  count = 0;
   for (;;) {
-    /* In Windows, deleting an .ibd file may fail if mysqlbackup
-    is copying it */
-
-    bool ret = DeleteFile((LPCTSTR)name);
+    bool ret = DeleteFile((LPCTSTR)name_to_delete);
 
     if (ret) {
       return (true);
@@ -4512,17 +4535,26 @@ bool os_file_delete_if_exists_func(const char *name, bool *exist) {
 
     ++count;
 
-    if (count > 100 && 0 == (count % 10)) {
+    if (count % 10 == 0) {
       /* Print error information */
       os_file_get_last_error(true);
 
-      ib::warn(ER_IB_MSG_803) << "Delete of file '" << name << "' failed.";
+      if (strcmp(name, name_to_delete) == 0) {
+        ib::warn(ER_IB_MSG_803)
+            << "Failed to delete file '" << name_to_delete
+            << "'. Please check if any other process is using it.";
+      } else {
+        ib::warn(ER_IB_MSG_803)
+            << "Failed to delete file '" << name_to_delete
+            << "', which was renamed from '" << name
+            << "'. Please check if any other process is using it.";
+      }
     }
 
-    /* Sleep for a second */
-    os_thread_sleep(1000000);
+    /* Sleep for a 0.1 second */
+    os_thread_sleep(100000);
 
-    if (count > 2000) {
+    if (count > 20) {
       return (false);
     }
   }
@@ -4532,46 +4564,13 @@ bool os_file_delete_if_exists_func(const char *name, bool *exist) {
 @param[in]	name		File path as NUL terminated string
 @return true if success */
 bool os_file_delete_func(const char *name) {
-  ulint count = 0;
-
-  for (;;) {
-    /* In Windows, deleting an .ibd file may fail if mysqlbackup
-    is copying it */
-
-    BOOL ret = DeleteFile((LPCTSTR)name);
-
-    if (ret) {
-      return (true);
-    }
-
-    if (GetLastError() == ERROR_FILE_NOT_FOUND) {
-      /* If the file does not exist, we classify this as
-      a 'mild' error and return */
-
-      return (false);
-    }
-
-    ++count;
-
-    if (count > 100 && 0 == (count % 10)) {
-      /* print error information */
-      os_file_get_last_error(true);
-
-      ib::warn(ER_IB_MSG_804)
-          << "Cannot delete file '" << name << "'. Are you running mysqlbackup"
-          << " to back up the file?";
-    }
-
-    /* sleep for a second */
-    os_thread_sleep(1000000);
-
-    if (count > 2000) {
-      return (false);
-    }
+  bool existed;
+  if (os_file_delete_if_exists_func(name, &existed)) {
+    /* File did not exist already, this is an error. */
+    return existed;
+  } else {
+    return false;
   }
-
-  ut_error;
-  return (false);
 }
 
 /** NOTE! Use the corresponding macro os_file_rename(), not directly this
